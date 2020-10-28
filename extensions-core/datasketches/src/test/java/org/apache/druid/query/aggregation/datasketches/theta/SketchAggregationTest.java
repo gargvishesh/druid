@@ -35,8 +35,10 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
+import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
+import org.apache.druid.query.aggregation.TestObjectColumnSelector;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
@@ -54,7 +56,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -116,6 +118,18 @@ public class SketchAggregationTest
         groupByQueryString
     );
 
+    final String expectedSummary = "\n### HeapCompactOrderedSketch SUMMARY: \n"
+                                   + "   Estimate                : 50.0\n"
+                                   + "   Upper Bound, 95% conf   : 50.0\n"
+                                   + "   Lower Bound, 95% conf   : 50.0\n"
+                                   + "   Theta (double)          : 1.0\n"
+                                   + "   Theta (long)            : 9223372036854775807\n"
+                                   + "   Theta (long) hex        : 7fffffffffffffff\n"
+                                   + "   EstMode?                : false\n"
+                                   + "   Empty?                  : false\n"
+                                   + "   Retained Entries        : 50\n"
+                                   + "   Seed Hash               : 93cc | 37836\n"
+                                   + "### END SKETCH SUMMARY\n";
     List<ResultRow> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(
@@ -135,6 +149,7 @@ public class SketchAggregationTest
                         new SketchEstimateWithErrorBounds(50.0, 50.0, 50.0, 2)
                     )
                     .put("sketchUnionPostAggEstimate", 50.0)
+                    .put("sketchSummary", expectedSummary)
                     .put("sketchIntersectionPostAggEstimate", 50.0)
                     .put("sketchAnotBPostAggEstimate", 0.0)
                     .put("non_existing_col_validation", 0.0)
@@ -493,6 +508,25 @@ public class SketchAggregationTest
     Assert.assertEquals(holders[0].getEstimate(), holders[1].getEstimate(), 0);
   }
 
+  @Test
+  public void testUpdateUnionWithNullInList()
+  {
+    List<String> value = new ArrayList<>();
+    value.add("foo");
+    value.add(null);
+    value.add("bar");
+    List[] columnValues = new List[]{value};
+    final TestObjectColumnSelector selector = new TestObjectColumnSelector(columnValues);
+    final Aggregator agg = new SketchAggregator(selector, 4096);
+    agg.aggregate();
+    Assert.assertFalse(agg.isNull());
+    Assert.assertNotNull(agg.get());
+    Assert.assertTrue(agg.get() instanceof SketchHolder);
+    Assert.assertEquals(2, ((SketchHolder) agg.get()).getEstimate(), 0);
+    Assert.assertNotNull(((SketchHolder) agg.get()).getSketch());
+    Assert.assertEquals(2, ((SketchHolder) agg.get()).getSketch().getEstimate(), 0);
+  }
+
   private void assertPostAggregatorSerde(PostAggregator agg) throws Exception
   {
     Assert.assertEquals(
@@ -508,7 +542,7 @@ public class SketchAggregationTest
   {
     return Files.asCharSource(
         new File(SketchAggregationTest.class.getClassLoader().getResource(fileName).getFile()),
-        Charset.forName("UTF-8")
+        StandardCharsets.UTF_8
     ).read();
   }
 }
