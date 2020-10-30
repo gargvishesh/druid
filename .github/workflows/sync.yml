@@ -1,0 +1,29 @@
+name: Update implydata/druid master from apache/druid master
+on:
+  schedule:
+    - cron:  '*/15 * * * *' #Every 15 minutes
+jobs:
+  updateMaster:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: implydata/druid
+          ref: master
+          fetch-depth: 0
+          github_token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
+      - name: rebase implydata/druid with apache/druid
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote add upstream https://github.com/apache/druid.git
+          git fetch upstream
+          git checkout master
+          git merge upstream/master
+          git push
+      - name: Slack Notification for job failed
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required."
+          SLACK_TITLE: "[FAILED] Update implydata/druid master from apache/druid master"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
