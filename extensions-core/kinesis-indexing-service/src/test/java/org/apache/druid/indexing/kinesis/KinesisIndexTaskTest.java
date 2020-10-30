@@ -30,12 +30,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.name.Named;
 import org.apache.druid.client.cache.CacheConfig;
 import org.apache.druid.client.cache.CachePopulatorStats;
 import org.apache.druid.client.cache.MapCache;
+import org.apache.druid.client.indexing.NoopIndexingServiceClient;
 import org.apache.druid.common.aws.AWSCredentialsConfig;
 import org.apache.druid.discovery.DataNodeService;
 import org.apache.druid.discovery.DruidNodeAnnouncer;
@@ -54,8 +57,6 @@ import org.apache.druid.indexing.common.actions.TaskActionToolbox;
 import org.apache.druid.indexing.common.actions.TaskAuditLogConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.config.TaskStorageConfig;
-import org.apache.druid.indexing.common.stats.RowIngestionMeters;
-import org.apache.druid.indexing.common.stats.RowIngestionMetersFactory;
 import org.apache.druid.indexing.common.task.IndexTaskTest;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.task.TaskResource;
@@ -78,7 +79,6 @@ import org.apache.druid.indexing.test.TestDataSegmentKiller;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
-import org.apache.druid.java.util.common.concurrent.ListenableFutures;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.core.NoopEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
@@ -96,13 +96,13 @@ import org.apache.druid.query.timeseries.TimeseriesQueryEngine;
 import org.apache.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import org.apache.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import org.apache.druid.segment.TestHelper;
+import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.join.NoopJoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 import org.apache.druid.segment.loading.LocalDataSegmentPusher;
 import org.apache.druid.segment.loading.LocalDataSegmentPusherConfig;
-import org.apache.druid.segment.realtime.appenderator.AppenderatorsManager;
-import org.apache.druid.segment.realtime.firehose.ChatHandlerProvider;
+import org.apache.druid.segment.realtime.firehose.NoopChatHandlerProvider;
 import org.apache.druid.segment.realtime.plumber.SegmentHandoffNotifier;
 import org.apache.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import org.apache.druid.segment.transform.ExpressionTransform;
@@ -110,7 +110,7 @@ import org.apache.druid.segment.transform.TransformSpec;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.coordination.DataSegmentServerAnnouncer;
 import org.apache.druid.server.coordination.ServerType;
-import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.server.security.AuthTestUtils;
 import org.easymock.EasyMock;
 import org.joda.time.Period;
 import org.junit.After;
@@ -177,9 +177,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
   private final Period intermediateHandoffPeriod = null;
   private int maxRecordsPerPoll;
 
-  private AppenderatorsManager appenderatorsManager;
   private final Set<Integer> checkpointRequestsHash = new HashSet<>();
-  private RowIngestionMetersFactory rowIngestionMetersFactory;
 
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -223,8 +221,6 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     maxRecordsPerPoll = 1;
 
     recordSupplier = mock(KinesisRecordSupplier.class);
-
-    appenderatorsManager = new TestAppenderatorsManager();
 
     // sleep required because of kinesalite
     Thread.sleep(500);
@@ -346,8 +342,8 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
             null,
             false
         )
-
     );
+    Assert.assertTrue(task.supportsQueries());
 
     final ListenableFuture<TaskStatus> future = runTask(task);
 
@@ -1334,10 +1330,10 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
             "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=10, dimFloat=20.0, met1=notanumber}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [Unable to parse value[notanumber] for field[met1],]",
             "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=10, dimFloat=notanumber, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [could not convert value [notanumber] to float,]",
             "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=notanumber, dimFloat=20.0, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [could not convert value [notanumber] to long,]",
-            "Unparseable timestamp found! Event: {}",
+            "Timestamp[null] is unparseable! Event: {}",
             "Unable to parse row [unparseable2]",
             "Unable to parse row [unparseable]",
-            "Encountered row with timestamp that cannot be represented as a long: [MapBasedInputRow{timestamp=246140482-04-24T15:36:27.903Z, event={timestamp=246140482-04-24T15:36:27.903Z, dim1=x, dim2=z, dimLong=10, dimFloat=20.0, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}]"
+            "Encountered row with timestamp[246140482-04-24T15:36:27.903Z] that cannot be represented as a long: [{timestamp=246140482-04-24T15:36:27.903Z, dim1=x, dim2=z, dimLong=10, dimFloat=20.0, met1=1.0}]"
         )
     );
 
@@ -2034,7 +2030,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
             .andReturn(Collections.emptyList())
             .anyTimes();
 
-    EasyMock.expect(recordSupplier.getPartitionTimeLag(EasyMock.anyObject()))
+    EasyMock.expect(recordSupplier.getPartitionsTimeLag(EasyMock.anyString(), EasyMock.anyObject()))
             .andReturn(null)
             .anyTimes();
 
@@ -2429,12 +2425,12 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     ((TestableKinesisIndexTask) staleReplica).setLocalSupplier(recordSupplier2);
     final ListenableFuture<TaskStatus> normalReplicaFuture = runTask(normalReplica);
     // Simulating one replica is slower than the other
-    final ListenableFuture<TaskStatus> staleReplicaFuture = ListenableFutures.transformAsync(
+    final ListenableFuture<TaskStatus> staleReplicaFuture = Futures.transform(
         taskExec.submit(() -> {
           Thread.sleep(1000);
           return staleReplica;
         }),
-        this::runTask
+        (AsyncFunction<Task, TaskStatus>) this::runTask
     );
 
     while (normalReplica.getRunner().getStatus() != SeekableStreamIndexTaskRunner.Status.PAUSED) {
@@ -2654,6 +2650,68 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     );
   }
 
+  @Test(timeout = 60_000L)
+  public void testRunWithoutDataInserted() throws Exception
+  {
+    recordSupplier.assign(EasyMock.anyObject());
+    EasyMock.expectLastCall().anyTimes();
+
+    EasyMock.expect(recordSupplier.getEarliestSequenceNumber(EasyMock.anyObject())).andReturn("0").anyTimes();
+
+    recordSupplier.seek(EasyMock.anyObject(), EasyMock.anyString());
+    EasyMock.expectLastCall().anyTimes();
+
+    EasyMock.expect(recordSupplier.poll(EasyMock.anyLong())).andReturn(Collections.emptyList()).times(1, Integer.MAX_VALUE);
+
+    recordSupplier.close();
+    EasyMock.expectLastCall().once();
+
+    replayAll();
+
+    final KinesisIndexTask task = createTask(
+        null,
+        new KinesisIndexTaskIOConfig(
+            0,
+            "sequence0",
+            new SeekableStreamStartSequenceNumbers<>(STREAM, ImmutableMap.of(SHARD_ID0, "0"), ImmutableSet.of()),
+            new SeekableStreamEndSequenceNumbers<>(STREAM, ImmutableMap.of(SHARD_ID0, "1")),
+            true,
+            null,
+            null,
+            INPUT_FORMAT,
+            "awsEndpoint",
+            null,
+            null,
+            null,
+            null,
+            false
+        )
+
+    );
+
+    final ListenableFuture<TaskStatus> future = runTask(task);
+
+    Thread.sleep(1000);
+
+    Assert.assertEquals(0, countEvents(task));
+    Assert.assertEquals(SeekableStreamIndexTaskRunner.Status.READING, task.getRunner().getStatus());
+
+    task.getRunner().stopGracefully();
+
+    // Wait for task to exit
+    Assert.assertEquals(TaskState.SUCCESS, future.get().getStatusCode());
+
+    verifyAll();
+    // Check metrics
+    Assert.assertEquals(0, task.getRunner().getRowIngestionMeters().getProcessed());
+    Assert.assertEquals(0, task.getRunner().getRowIngestionMeters().getUnparseable());
+    Assert.assertEquals(0, task.getRunner().getRowIngestionMeters().getThrownAway());
+
+    // Check published metadata and segments in deep storage
+    assertEqualsExceptVersion(Collections.emptyList(), publishedDescriptors());
+    Assert.assertNull(newDataSchemaMetadata());
+  }
+
   private KinesisIndexTask createTask(
       final String taskId,
       final KinesisIndexTaskIOConfig ioConfig
@@ -2681,6 +2739,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     boolean resetOffsetAutomatically = false;
     int maxRowsInMemory = 1000;
     final KinesisIndexTaskTuningConfig tuningConfig = new KinesisIndexTaskTuningConfig(
+        null,
         maxRowsInMemory,
         null,
         maxRowsPerSegment,
@@ -2736,11 +2795,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
         tuningConfig,
         ioConfig,
         context,
-        null,
-        null,
-        rowIngestionMetersFactory,
-        null,
-        appenderatorsManager
+        null
     );
   }
 
@@ -2778,7 +2833,6 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
   {
     directory = tempFolder.newFolder();
     final TestUtils testUtils = new TestUtils();
-    rowIngestionMetersFactory = testUtils.getRowIngestionMetersFactory();
     final ObjectMapper objectMapper = testUtils.getTestObjectMapper();
     objectMapper.setInjectableValues(((InjectableValues.Std) objectMapper.getInjectableValues()).addValue(
         AWSCredentialsConfig.class,
@@ -2900,7 +2954,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
         this::makeTimeseriesOnlyConglomerate,
         Execs.directExecutor(), // queryExecutorService
         NoopJoinableFactory.INSTANCE,
-        EasyMock.createMock(MonitorScheduler.class),
+        () -> EasyMock.createMock(MonitorScheduler.class),
         new SegmentLoaderFactory(null, testUtils.getTestObjectMapper()),
         testUtils.getTestObjectMapper(),
         testUtils.getTestIndexIO(),
@@ -2913,6 +2967,14 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
         new LookupNodeService("tier"),
         new DataNodeService("tier", 1, ServerType.INDEXER_EXECUTOR, 0),
         new SingleFileTaskReportFileWriter(reportsFile),
+        null,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+        new NoopChatHandlerProvider(),
+        testUtils.getRowIngestionMetersFactory(),
+        new TestAppenderatorsManager(),
+        new NoopIndexingServiceClient(),
+        null,
+        null,
         null
     );
   }
@@ -2930,11 +2992,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
         @JsonProperty("tuningConfig") KinesisIndexTaskTuningConfig tuningConfig,
         @JsonProperty("ioConfig") KinesisIndexTaskIOConfig ioConfig,
         @JsonProperty("context") Map<String, Object> context,
-        @JacksonInject ChatHandlerProvider chatHandlerProvider,
-        @JacksonInject AuthorizerMapper authorizerMapper,
-        @JacksonInject RowIngestionMetersFactory rowIngestionMetersFactory,
-        @JacksonInject @Named(KinesisIndexingServiceModule.AWS_SCOPE) AWSCredentialsConfig awsCredentialsConfig,
-        @JacksonInject AppenderatorsManager appenderatorsManager
+        @JacksonInject @Named(KinesisIndexingServiceModule.AWS_SCOPE) AWSCredentialsConfig awsCredentialsConfig
     )
     {
       super(
@@ -2944,11 +3002,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
           tuningConfig,
           ioConfig,
           context,
-          chatHandlerProvider,
-          authorizerMapper,
-          rowIngestionMetersFactory,
-          awsCredentialsConfig,
-          appenderatorsManager
+          awsCredentialsConfig
       );
     }
 

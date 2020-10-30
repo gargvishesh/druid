@@ -34,6 +34,7 @@ import org.apache.druid.query.dimension.ColumnSelectorStrategy;
 import org.apache.druid.query.dimension.ColumnSelectorStrategyFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ValueType;
@@ -54,14 +55,16 @@ public final class DimensionHandlerUtils
   public static final Float ZERO_FLOAT = 0.0f;
   public static final Long ZERO_LONG = 0L;
 
+  public static final ColumnCapabilities DEFAULT_STRING_CAPABILITIES =
+      new ColumnCapabilitiesImpl().setType(ValueType.STRING)
+                                  .setDictionaryEncoded(false)
+                                  .setDictionaryValuesUnique(false)
+                                  .setDictionaryValuesSorted(false)
+                                  .setHasBitmapIndexes(false);
+
   private DimensionHandlerUtils()
   {
   }
-
-  public static final ColumnCapabilities DEFAULT_STRING_CAPABILITIES =
-      new ColumnCapabilitiesImpl().setType(ValueType.STRING)
-                                  .setDictionaryEncoded(true)
-                                  .setHasBitmapIndexes(true);
 
   public static DimensionHandler<?, ?, ?> getHandlerFromCapabilities(
       String dimensionName,
@@ -70,16 +73,16 @@ public final class DimensionHandlerUtils
   )
   {
     if (capabilities == null) {
-      return new StringDimensionHandler(dimensionName, multiValueHandling, true);
+      return new StringDimensionHandler(dimensionName, multiValueHandling, true, false);
     }
 
     multiValueHandling = multiValueHandling == null ? MultiValueHandling.ofDefault() : multiValueHandling;
 
     if (capabilities.getType() == ValueType.STRING) {
-      if (!capabilities.isDictionaryEncoded()) {
+      if (!capabilities.isDictionaryEncoded().isTrue()) {
         throw new IAE("String column must have dictionary encoding.");
       }
-      return new StringDimensionHandler(dimensionName, multiValueHandling, capabilities.hasBitmapIndexes());
+      return new StringDimensionHandler(dimensionName, multiValueHandling, capabilities.hasBitmapIndexes(), capabilities.hasSpatialIndexes());
     }
 
     if (capabilities.getType() == ValueType.LONG) {
@@ -95,7 +98,7 @@ public final class DimensionHandlerUtils
     }
 
     // Return a StringDimensionHandler by default (null columns will be treated as String typed)
-    return new StringDimensionHandler(dimensionName, multiValueHandling, true);
+    return new StringDimensionHandler(dimensionName, multiValueHandling, true, false);
   }
 
   public static List<ValueType> getValueTypesFromDimensionSpecs(List<DimensionSpec> dimSpecs)
@@ -219,7 +222,16 @@ public final class DimensionHandlerUtils
     // Currently, all extractionFns output Strings, so the column will return String values via a
     // DimensionSelector if an extractionFn is present.
     if (dimSpec.getExtractionFn() != null) {
-      capabilities = DEFAULT_STRING_CAPABILITIES;
+      ExtractionFn fn = dimSpec.getExtractionFn();
+      capabilities = ColumnCapabilitiesImpl.copyOf(capabilities)
+                                           .setType(ValueType.STRING)
+                                           .setDictionaryValuesUnique(
+                                               capabilities.isDictionaryEncoded().isTrue() &&
+                                               fn.getExtractionType() == ExtractionFn.ExtractionType.ONE_TO_ONE
+                                           )
+                                           .setDictionaryValuesSorted(
+                                               capabilities.isDictionaryEncoded().isTrue() && fn.preservesOrdering()
+                                           );
     }
 
     // DimensionSpec's decorate only operates on DimensionSelectors, so if a spec mustDecorate(),
@@ -277,20 +289,30 @@ public final class DimensionHandlerUtils
       final VectorColumnSelectorFactory selectorFactory
   )
   {
-    final ColumnCapabilities capabilities = getEffectiveCapabilities(
+    final ColumnCapabilities originalCapabilities =
+        selectorFactory.getColumnCapabilities(dimensionSpec.getDimension());
+
+    final ColumnCapabilities effectiveCapabilites = getEffectiveCapabilities(
         dimensionSpec,
-        selectorFactory.getColumnCapabilities(dimensionSpec.getDimension())
+        originalCapabilities
     );
 
-    final ValueType type = capabilities.getType();
+    final ValueType type = effectiveCapabilites.getType();
+
+    // vector selectors should never have null column capabilities, these signify a non-existent column, and complex
+    // columns should never be treated as a multi-value column, so always use single value string processor
+    final boolean forceSingleValue =
+        originalCapabilities == null || ValueType.COMPLEX.equals(originalCapabilities.getType());
 
     if (type == ValueType.STRING) {
-      if (capabilities.hasMultipleValues()) {
+      if (!forceSingleValue && effectiveCapabilites.hasMultipleValues().isMaybeTrue()) {
         return strategyFactory.makeMultiValueDimensionProcessor(
+            effectiveCapabilites,
             selectorFactory.makeMultiValueDimensionSelector(dimensionSpec)
         );
       } else {
         return strategyFactory.makeSingleValueDimensionProcessor(
+            effectiveCapabilites,
             selectorFactory.makeSingleValueDimensionSelector(dimensionSpec)
         );
       }
@@ -305,18 +327,21 @@ public final class DimensionHandlerUtils
 
       if (type == ValueType.LONG) {
         return strategyFactory.makeLongProcessor(
+            effectiveCapabilites,
             selectorFactory.makeValueSelector(dimensionSpec.getDimension())
         );
       } else if (type == ValueType.FLOAT) {
         return strategyFactory.makeFloatProcessor(
+            effectiveCapabilites,
             selectorFactory.makeValueSelector(dimensionSpec.getDimension())
         );
       } else if (type == ValueType.DOUBLE) {
         return strategyFactory.makeDoubleProcessor(
+            effectiveCapabilites,
             selectorFactory.makeValueSelector(dimensionSpec.getDimension())
         );
       } else {
-        throw new ISE("Unsupported type[%s]", capabilities.getType());
+        throw new ISE("Unsupported type[%s]", effectiveCapabilites.getType());
       }
     }
   }
