@@ -11,7 +11,7 @@ jobs:
           repository: implydata/druid
           ref: master
           fetch-depth: 0
-          github_token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
+          token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
       - name: rebase implydata/druid with apache/druid
         run: |
           git config user.name github-actions
