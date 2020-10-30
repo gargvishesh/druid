@@ -22,6 +22,7 @@ jobs:
           git merge upstream/master
           git push
       - name: Slack Notification for job failed
+        if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
           SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required."
