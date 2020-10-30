@@ -236,10 +236,6 @@ jobs:
       name: "(openjdk8) other modules test (SQL Compatibility)"
       before_script: *setup_sqlcompat
 
-    - <<: *test_other_modules_sqlcompat
-      name: "(openjdk11) other modules test (SQL Compatibility)"
-      jdk: openjdk11
-      
     - name: "web console"
       install: skip
       script:
