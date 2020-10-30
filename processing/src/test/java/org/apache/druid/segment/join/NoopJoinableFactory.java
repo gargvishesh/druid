@@ -27,15 +27,9 @@ public class NoopJoinableFactory implements JoinableFactory
 {
   public static final NoopJoinableFactory INSTANCE = new NoopJoinableFactory();
 
-  protected NoopJoinableFactory()
+  private NoopJoinableFactory()
   {
     // Singleton.
-  }
-
-  @Override
-  public boolean isDirectlyJoinable(DataSource dataSource)
-  {
-    return false;
   }
 
   @Override

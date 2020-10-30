@@ -52,7 +52,6 @@ public class ProtobufInputRowParserTest
   public ExpectedException expectedException = ExpectedException.none();
 
   private ParseSpec parseSpec;
-  private ParseSpec flatParseSpec;
 
   @Before
   public void setUp()
@@ -72,24 +71,9 @@ public class ProtobufInputRowParserTest
                 new JSONPathFieldSpec(JSONPathFieldType.PATH, "foobar", "$.foo.bar"),
                 new JSONPathFieldSpec(JSONPathFieldType.PATH, "bar0", "$.bar[0].bar")
             )
-        ),
-        null,
-        null
+        ), null
     );
 
-    flatParseSpec = new JSONParseSpec(
-            new TimestampSpec("timestamp", "iso", null),
-            new DimensionsSpec(Lists.newArrayList(
-                    new StringDimensionSchema("event"),
-                    new StringDimensionSchema("id"),
-                    new StringDimensionSchema("someOtherId"),
-                    new StringDimensionSchema("isValid")
-            ), null, null),
-
-            null,
-            null,
-            null
-    );
   }
 
   @Test
@@ -140,7 +124,7 @@ public class ProtobufInputRowParserTest
   }
 
   @Test
-  public void testParseNestedData() throws Exception
+  public void testParse() throws Exception
   {
     //configure parser with desc file
     ProtobufInputRowParser parser = new ProtobufInputRowParser(parseSpec, "prototest.desc", "ProtoTestEvent");
@@ -172,6 +156,7 @@ public class ProtobufInputRowParserTest
     event.writeTo(out);
 
     InputRow row = parser.parseBatch(ByteBuffer.wrap(out.toByteArray())).get(0);
+    System.out.println(row);
 
     Assert.assertEquals(dateTime.getMillis(), row.getTimestampFromEpoch());
 
@@ -183,45 +168,6 @@ public class ProtobufInputRowParserTest
     assertDimensionEquals(row, "eventType", ProtoTestEventWrapper.ProtoTestEvent.EventCategory.CATEGORY_ONE.name());
     assertDimensionEquals(row, "foobar", "baz");
     assertDimensionEquals(row, "bar0", "bar0");
-
-
-    Assert.assertEquals(47.11F, row.getMetric("someFloatColumn").floatValue(), 0.0);
-    Assert.assertEquals(815.0F, row.getMetric("someIntColumn").floatValue(), 0.0);
-    Assert.assertEquals(816.0F, row.getMetric("someLongColumn").floatValue(), 0.0);
-  }
-
-  @Test
-  public void testParseFlatData() throws Exception
-  {
-    //configure parser with desc file
-    ProtobufInputRowParser parser = new ProtobufInputRowParser(flatParseSpec, "prototest.desc", "ProtoTestEvent");
-
-    //create binary of proto test event
-    DateTime dateTime = new DateTime(2012, 7, 12, 9, 30, ISOChronology.getInstanceUTC());
-    ProtoTestEventWrapper.ProtoTestEvent event = ProtoTestEventWrapper.ProtoTestEvent.newBuilder()
-            .setDescription("description")
-            .setEventType(ProtoTestEventWrapper.ProtoTestEvent.EventCategory.CATEGORY_ONE)
-            .setId(4711L)
-            .setIsValid(true)
-            .setSomeOtherId(4712)
-            .setTimestamp(dateTime.toString())
-            .setSomeFloatColumn(47.11F)
-            .setSomeIntColumn(815)
-            .setSomeLongColumn(816L)
-            .build();
-
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    event.writeTo(out);
-
-    InputRow row = parser.parseBatch(ByteBuffer.wrap(out.toByteArray())).get(0);
-    System.out.println(row);
-
-    Assert.assertEquals(dateTime.getMillis(), row.getTimestampFromEpoch());
-
-    assertDimensionEquals(row, "id", "4711");
-    assertDimensionEquals(row, "isValid", "true");
-    assertDimensionEquals(row, "someOtherId", "4712");
-    assertDimensionEquals(row, "description", "description");
 
 
     Assert.assertEquals(47.11F, row.getMetric("someFloatColumn").floatValue(), 0.0);

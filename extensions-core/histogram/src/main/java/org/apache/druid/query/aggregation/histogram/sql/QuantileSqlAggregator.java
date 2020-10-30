@@ -198,7 +198,7 @@ public class QuantileSqlAggregator implements SqlAggregator
       }
     } else {
       final VirtualColumn virtualColumn =
-          virtualColumnRegistry.getOrCreateVirtualColumnForExpression(plannerContext, input, ValueType.FLOAT);
+          virtualColumnRegistry.getOrCreateVirtualColumnForExpression(plannerContext, input, SqlTypeName.FLOAT);
       virtualColumns.add(virtualColumn);
       aggregatorFactory = new ApproximateHistogramAggregatorFactory(
           histogramName,

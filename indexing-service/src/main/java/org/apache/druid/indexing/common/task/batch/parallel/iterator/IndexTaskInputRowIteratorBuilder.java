@@ -25,8 +25,16 @@ import org.apache.druid.data.input.InputRow;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.segment.indexing.granularity.GranularitySpec;
 
+import java.util.function.Consumer;
+
 public interface IndexTaskInputRowIteratorBuilder
 {
+  Runnable NOOP_RUNNABLE = () -> {
+  };
+
+  Consumer<InputRow> NOOP_CONSUMER = inputRow -> {
+  };
+
   /**
    * @param inputRowIterator Source of {@link InputRow}s.
    */
@@ -37,6 +45,17 @@ public interface IndexTaskInputRowIteratorBuilder
    *                        associated with the {@link Firehose}.
    */
   IndexTaskInputRowIteratorBuilder granularitySpec(GranularitySpec granularitySpec);
+
+  /**
+   * @param nullRowRunnable Runnable for when {@link Firehose} yields a null row.
+   */
+  IndexTaskInputRowIteratorBuilder nullRowRunnable(Runnable nullRowRunnable);
+
+  /**
+   * @param absentBucketIntervalConsumer Consumer for when {@link Firehose} yields a row with a timestamp that does not
+   *                                     match the {@link GranularitySpec} bucket intervals.
+   */
+  IndexTaskInputRowIteratorBuilder absentBucketIntervalConsumer(Consumer<InputRow> absentBucketIntervalConsumer);
 
   HandlingInputRowIterator build();
 }

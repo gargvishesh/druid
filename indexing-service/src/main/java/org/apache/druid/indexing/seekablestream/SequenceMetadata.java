@@ -32,7 +32,6 @@ import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecor
 import org.apache.druid.indexing.seekablestream.common.OrderedSequenceNumber;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
-import org.apache.druid.segment.SegmentUtils;
 import org.apache.druid.segment.realtime.appenderator.TransactionalSegmentPublisher;
 import org.apache.druid.timeline.DataSegment;
 
@@ -342,10 +341,7 @@ public class SequenceMetadata<PartitionIdType, SequenceOffsetType>
     ) throws IOException
     {
       if (mustBeNullOrEmptySegments != null && !mustBeNullOrEmptySegments.isEmpty()) {
-        throw new ISE(
-            "Stream ingestion task unexpectedly attempted to overwrite segments: %s",
-            SegmentUtils.commaSeparatedIdentifiers(mustBeNullOrEmptySegments)
-        );
+        throw new ISE("WTH? stream ingestion tasks are overwriting segments[%s]", mustBeNullOrEmptySegments);
       }
       final Map commitMetaMap = (Map) Preconditions.checkNotNull(commitMetadata, "commitMetadata");
       final SeekableStreamEndSequenceNumbers<PartitionIdType, SequenceOffsetType> finalPartitions =
@@ -357,7 +353,7 @@ public class SequenceMetadata<PartitionIdType, SequenceOffsetType>
       // Sanity check, we should only be publishing things that match our desired end state.
       if (!getEndOffsets().equals(finalPartitions.getPartitionSequenceNumberMap())) {
         throw new ISE(
-            "Driver for sequence[%s] attempted to publish invalid metadata[%s].",
+            "WTF?! Driver for sequence [%s], attempted to publish invalid metadata[%s].",
             SequenceMetadata.this.toString(),
             commitMetadata
         );

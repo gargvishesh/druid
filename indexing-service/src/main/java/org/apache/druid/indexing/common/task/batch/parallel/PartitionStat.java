@@ -104,7 +104,7 @@ abstract class PartitionStat<T>
   /**
    * @return Uniquely identifying index from 0..N-1 of the N partitions
    */
-  abstract int getBucketId();
+  abstract int getPartitionId();
 
   /**
    * @return Definition of secondary partition. For example, for range partitioning, this should include the start/end.

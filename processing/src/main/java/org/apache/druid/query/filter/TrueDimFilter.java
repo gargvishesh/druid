@@ -19,7 +19,6 @@
 
 package org.apache.druid.query.filter;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.RangeSet;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.filter.TrueFilter;
@@ -27,25 +26,14 @@ import org.apache.druid.segment.filter.TrueFilter;
 import java.util.Collections;
 import java.util.Set;
 
-public class TrueDimFilter extends AbstractOptimizableDimFilter implements DimFilter
+/**
+ */
+public class TrueDimFilter implements DimFilter
 {
-  private static final TrueDimFilter INSTANCE = new TrueDimFilter();
-  private static final byte[] CACHE_KEY = new CacheKeyBuilder(DimFilterUtils.TRUE_CACHE_ID).build();
-
-  @JsonCreator
-  public static TrueDimFilter instance()
-  {
-    return INSTANCE;
-  }
-
-  private TrueDimFilter()
-  {
-  }
-
   @Override
   public byte[] getCacheKey()
   {
-    return CACHE_KEY;
+    return new CacheKeyBuilder(DimFilterUtils.TRUE_CACHE_ID).build();
   }
 
   @Override
@@ -70,23 +58,5 @@ public class TrueDimFilter extends AbstractOptimizableDimFilter implements DimFi
   public Set<String> getRequiredColumns()
   {
     return Collections.emptySet();
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return DimFilterUtils.TRUE_CACHE_ID;
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    return o != null && o.getClass() == this.getClass();
-  }
-
-  @Override
-  public String toString()
-  {
-    return "TRUE";
   }
 }

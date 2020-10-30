@@ -33,6 +33,7 @@ import java.util.Set;
  */
 public abstract class ArrayOfDoublesSketchUnaryPostAggregator extends ArrayOfDoublesSketchPostAggregator
 {
+
   private final PostAggregator field;
   private Set<String> dependentFields;
 
@@ -63,6 +64,27 @@ public abstract class ArrayOfDoublesSketchUnaryPostAggregator extends ArrayOfDou
   }
 
   @Override
+  public boolean equals(final Object o)
+  {
+    if (!super.equals(o)) {
+      return false;
+    }
+    // this check is used here instead of instanceof because this is an abstract class
+    // and subclasses not overriding equals should not be equal to each other
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    final ArrayOfDoublesSketchUnaryPostAggregator that = (ArrayOfDoublesSketchUnaryPostAggregator) o;
+    return field.equals(that.getField());
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), field);
+  }
+
+  @Override
   public String toString()
   {
     return this.getClass().getSimpleName() + "{" +
@@ -71,25 +93,4 @@ public abstract class ArrayOfDoublesSketchUnaryPostAggregator extends ArrayOfDou
         "}";
   }
 
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    if (!super.equals(o)) {
-      return false;
-    }
-    ArrayOfDoublesSketchUnaryPostAggregator that = (ArrayOfDoublesSketchUnaryPostAggregator) o;
-    return field.equals(that.field);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(super.hashCode(), field);
-  }
 }

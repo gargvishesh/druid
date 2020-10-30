@@ -1,7 +1,6 @@
 ---
 id: dimensionspecs
-title: "Query dimensions"
-sidebar_label: "Dimensions"
+title: "Transforming Dimension Values"
 ---
 
 <!--
@@ -23,10 +22,6 @@ sidebar_label: "Dimensions"
   ~ under the License.
   -->
 
-> Apache Druid supports two query languages: [Druid SQL](sql.md) and [native queries](querying.md).
-> This document describes the native
-> language. For information about functions available in SQL, refer to the
-> [SQL documentation](sql.md#scalar-functions).
 
 The following JSON fields can be used in a query to operate on dimension values.
 
@@ -201,7 +196,7 @@ Returns the dimension value unchanged if the regular expression matches, otherwi
 
 ### Search query extraction function
 
-Returns the dimension value unchanged if the given [`SearchQuerySpec`](../querying/searchquery.html#searchqueryspec)
+Returns the dimension value unchanged if the given [`SearchQuerySpec`](../querying/searchqueryspec.md)
 matches, otherwise returns null.
 
 ```json

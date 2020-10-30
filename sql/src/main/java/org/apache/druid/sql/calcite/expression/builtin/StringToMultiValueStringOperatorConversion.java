@@ -45,7 +45,7 @@ public class StringToMultiValueStringOperatorConversion implements SqlOperatorCo
           )
       )
       .functionCategory(SqlFunctionCategory.STRING)
-      .returnTypeNonNull(SqlTypeName.VARCHAR)
+      .returnType(SqlTypeName.VARCHAR)
       .build();
 
   @Override

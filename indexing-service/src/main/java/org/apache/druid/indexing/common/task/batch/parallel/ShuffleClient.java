@@ -19,8 +19,6 @@
 
 package org.apache.druid.indexing.common.task.batch.parallel;
 
-import org.apache.druid.indexing.worker.shuffle.IntermediaryDataManager;
-
 import java.io.File;
 import java.io.IOException;
 
@@ -29,7 +27,7 @@ import java.io.IOException;
  * The only available implementation for production code is {@link HttpShuffleClient} and
  * this interface is more for easier testing.
  *
- * @see IntermediaryDataManager
+ * @see org.apache.druid.indexing.worker.IntermediaryDataManager
  * @see PartialSegmentMergeTask
  */
 public interface ShuffleClient

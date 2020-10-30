@@ -465,19 +465,19 @@ Latest default metrics mapping can be found [here] (https://github.com/apache/dr
   },
   "jvm/bufferpool/counter": {
     "dimensions": [
-      "bufferpoolName"
+      "bufferPoolName"
     ],
     "type": "gauge"
   },
   "jvm/bufferpool/used": {
     "dimensions": [
-      "bufferpoolName"
+      "bufferPoolName"
     ],
     "type": "gauge"
   },
   "jvm/bufferpool/capacity": {
     "dimensions": [
-      "bufferpoolName"
+      "bufferPoolName"
     ],
     "type": "gauge"
   },
@@ -507,23 +507,20 @@ Latest default metrics mapping can be found [here] (https://github.com/apache/dr
   },
   "jvm/gc/counter": {
     "dimensions": [
-      "gcName",
-      "gcGen"
+      "gcName"
     ],
     "type": "counter"
   },
   "jvm/gc/cpu": {
     "dimensions": [
-      "gcName",
-      "gcGen"
+      "gcName"
     ],
     "type": "timer",
     "timeUnit": "NANOSECONDS"
   },
   "ingest/events/buffered": {
     "dimensions": [
-      "serviceName",
-      "bufferCapacity"
+      "serviceName, bufferCapacity"
     ],
     "type": "gauge"
   },

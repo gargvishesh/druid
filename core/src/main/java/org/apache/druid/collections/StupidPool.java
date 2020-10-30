@@ -34,7 +34,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
  */
 public class StupidPool<T> implements NonBlockingPool<T>
 {
@@ -62,7 +61,6 @@ public class StupidPool<T> implements NonBlockingPool<T>
   private final String name;
   private final Supplier<T> generator;
 
-  private final AtomicLong createdObjectsCounter = new AtomicLong(0);
   private final AtomicLong leakedObjectsCounter = new AtomicLong(0);
 
   //note that this is just the max entries in the cache, pool can still create as many buffers as needed.
@@ -116,7 +114,6 @@ public class StupidPool<T> implements NonBlockingPool<T>
   private ObjectResourceHolder makeObjectWithHandler()
   {
     T object = generator.get();
-    createdObjectsCounter.incrementAndGet();
     ObjectId objectId = new ObjectId();
     ObjectLeakNotifier notifier = new ObjectLeakNotifier(this);
     // Using objectId as referent for Cleaner, because if the object itself (e. g. ByteBuffer) is leaked after taken
@@ -125,7 +122,7 @@ public class StupidPool<T> implements NonBlockingPool<T>
   }
 
   @VisibleForTesting
-  public long poolSize()
+  long poolSize()
   {
     return poolSize.get();
   }
@@ -134,12 +131,6 @@ public class StupidPool<T> implements NonBlockingPool<T>
   long leakedObjectsCount()
   {
     return leakedObjectsCounter.get();
-  }
-
-  @VisibleForTesting
-  public long objectsCreatedCount()
-  {
-    return createdObjectsCounter.get();
   }
 
   private void tryReturnToPool(T object, ObjectId objectId, Cleaners.Cleanable cleanable, ObjectLeakNotifier notifier)
@@ -169,12 +160,7 @@ public class StupidPool<T> implements NonBlockingPool<T>
    * This should be impossible, because {@link ConcurrentLinkedQueue#offer(Object)} event don't have `return false;` in
    * it's body in OpenJDK 8.
    */
-  private void impossibleOffsetFailed(
-      T object,
-      ObjectId objectId,
-      Cleaners.Cleanable cleanable,
-      ObjectLeakNotifier notifier
-  )
+  private void impossibleOffsetFailed(T object, ObjectId objectId, Cleaners.Cleanable cleanable, ObjectLeakNotifier notifier)
   {
     poolSize.decrementAndGet();
     notifier.disable();

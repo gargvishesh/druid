@@ -39,7 +39,7 @@ public class OpentsdbEmitterModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return Collections.emptyList();
+    return Collections.EMPTY_LIST;
   }
 
   @Override

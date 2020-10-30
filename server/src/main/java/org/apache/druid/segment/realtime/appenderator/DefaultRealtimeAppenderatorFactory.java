@@ -30,9 +30,6 @@ import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMerger;
-import org.apache.druid.segment.incremental.NoopRowIngestionMeters;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.RealtimeTuningConfig;
 import org.apache.druid.segment.join.JoinableFactory;
@@ -95,7 +92,6 @@ public class DefaultRealtimeAppenderatorFactory implements AppenderatorFactory
       final FireDepartmentMetrics metrics
   )
   {
-    final RowIngestionMeters rowIngestionMeters = new NoopRowIngestionMeters();
     return Appenderators.createRealtime(
         schema.getDataSource(),
         schema,
@@ -118,14 +114,7 @@ public class DefaultRealtimeAppenderatorFactory implements AppenderatorFactory
         joinableFactory,
         cache,
         cacheConfig,
-        cachePopulatorStats,
-        rowIngestionMeters,
-        new ParseExceptionHandler(
-            rowIngestionMeters,
-            false,
-            config.isReportParseExceptions() ? 0 : Integer.MAX_VALUE,
-            0
-        )
+        cachePopulatorStats
     );
   }
 

@@ -19,6 +19,8 @@
 
 package org.apache.druid.indexing.seekablestream;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -85,6 +87,7 @@ import org.easymock.EasyMockSupport;
 import org.joda.time.Interval;
 import org.junit.Assert;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -126,8 +129,7 @@ public class SeekableStreamIndexTaskTestBase extends EasyMockSupport
   );
   protected static final InputFormat INPUT_FORMAT = new JsonInputFormat(
       new JSONPathSpec(true, ImmutableList.of()),
-      ImmutableMap.of(),
-      null
+      ImmutableMap.of()
   );
   protected static final Logger LOG = new Logger(SeekableStreamIndexTaskTestBase.class);
   protected static ListeningExecutorService taskExec;
@@ -147,12 +149,12 @@ public class SeekableStreamIndexTaskTestBase extends EasyMockSupport
 
   static {
     OBJECT_MAPPER = new TestUtils().getTestObjectMapper();
-    OBJECT_MAPPER.registerSubtypes(new NamedType(JSONParseSpec.class, "json"));
+    OBJECT_MAPPER.registerSubtypes(new NamedType(UnimplementedInputFormatJsonParseSpec.class, "json"));
     OLD_DATA_SCHEMA = new DataSchema(
         "test_ds",
         OBJECT_MAPPER.convertValue(
             new StringInputRowParser(
-                new JSONParseSpec(
+                new UnimplementedInputFormatJsonParseSpec(
                     new TimestampSpec("timestamp", "iso", null),
                     new DimensionsSpec(
                         Arrays.asList(
@@ -166,8 +168,7 @@ public class SeekableStreamIndexTaskTestBase extends EasyMockSupport
                         null
                     ),
                     new JSONPathSpec(true, ImmutableList.of()),
-                    ImmutableMap.of(),
-                    false
+                    ImmutableMap.of()
                 ),
                 StandardCharsets.UTF_8.name()
             ),
@@ -440,6 +441,27 @@ public class SeekableStreamIndexTaskTestBase extends EasyMockSupport
     public SegmentDescriptor getSegmentDescriptor()
     {
       return segmentDescriptor;
+    }
+  }
+
+  private static class UnimplementedInputFormatJsonParseSpec extends JSONParseSpec
+  {
+    @JsonCreator
+    private UnimplementedInputFormatJsonParseSpec(
+        @JsonProperty("timestampSpec") TimestampSpec timestampSpec,
+        @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
+        @JsonProperty("flattenSpec") JSONPathSpec flattenSpec,
+        @JsonProperty("featureSpec") Map<String, Boolean> featureSpec
+    )
+    {
+      super(timestampSpec, dimensionsSpec, flattenSpec, featureSpec);
+    }
+
+    @Nullable
+    @Override
+    public InputFormat toInputFormat()
+    {
+      return null;
     }
   }
 }

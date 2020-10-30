@@ -25,7 +25,6 @@ import org.apache.datasketches.tuple.ArrayOfDoublesSketch;
 import org.apache.druid.query.aggregation.AggregatorUtil;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -50,12 +49,6 @@ public class ArrayOfDoublesSketchToEstimatePostAggregator extends ArrayOfDoubles
   {
     final ArrayOfDoublesSketch sketch = (ArrayOfDoublesSketch) getField().compute(combinedAggregators);
     return sketch.getEstimate();
-  }
-
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.DOUBLE;
   }
 
   @Override

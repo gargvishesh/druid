@@ -340,24 +340,22 @@ public class InputRowSerde
             parseExceptionMessages.add(e.getMessage());
           }
 
-          final ValueType type = aggFactory.getType();
-
+          String t = aggFactory.getTypeName();
           if (agg.isNull()) {
             out.writeByte(NullHandling.IS_NULL_BYTE);
           } else {
             out.writeByte(NullHandling.IS_NOT_NULL_BYTE);
-            if (ValueType.FLOAT.equals(type)) {
+            if ("float".equals(t)) {
               out.writeFloat(agg.getFloat());
-            } else if (ValueType.LONG.equals(type)) {
+            } else if ("long".equals(t)) {
               WritableUtils.writeVLong(out, agg.getLong());
-            } else if (ValueType.DOUBLE.equals(type)) {
+            } else if ("double".equals(t)) {
               out.writeDouble(agg.getDouble());
-            } else if (ValueType.COMPLEX.equals(type)) {
-              Object val = agg.get();
-              ComplexMetricSerde serde = getComplexMetricSerde(aggFactory.getComplexTypeName());
-              writeBytes(serde.toBytes(val), out);
             } else {
-              throw new IAE("Unable to serialize type[%s]", type);
+              //its a complex metric
+              Object val = agg.get();
+              ComplexMetricSerde serde = getComplexMetricSerde(t);
+              writeBytes(serde.toBytes(val), out);
             }
           }
         }
@@ -469,23 +467,21 @@ public class InputRowSerde
       //Read metrics
       int metricSize = WritableUtils.readVInt(in);
       for (int i = 0; i < metricSize; i++) {
-        final String metric = readString(in);
-        final AggregatorFactory agg = getAggregator(metric, aggs, i);
-        final ValueType type = agg.getType();
-        final byte metricNullability = in.readByte();
-
+        String metric = readString(in);
+        String type = getType(metric, aggs, i);
+        byte metricNullability = in.readByte();
         if (metricNullability == NullHandling.IS_NULL_BYTE) {
           // metric value is null.
           continue;
         }
-        if (ValueType.FLOAT.equals(type)) {
+        if ("float".equals(type)) {
           event.put(metric, in.readFloat());
-        } else if (ValueType.LONG.equals(type)) {
+        } else if ("long".equals(type)) {
           event.put(metric, WritableUtils.readVLong(in));
-        } else if (ValueType.DOUBLE.equals(type)) {
+        } else if ("double".equals(type)) {
           event.put(metric, in.readDouble());
         } else {
-          ComplexMetricSerde serde = getComplexMetricSerde(agg.getComplexTypeName());
+          ComplexMetricSerde serde = getComplexMetricSerde(type);
           byte[] value = readBytes(in);
           event.put(metric, serde.fromBytes(value, 0, value.length));
         }
@@ -499,15 +495,15 @@ public class InputRowSerde
   }
 
   @Nullable
-  private static AggregatorFactory getAggregator(String metric, AggregatorFactory[] aggs, int i)
+  private static String getType(String metric, AggregatorFactory[] aggs, int i)
   {
     if (aggs[i].getName().equals(metric)) {
-      return aggs[i];
+      return aggs[i].getTypeName();
     }
     log.warn("Aggs disordered, fall backs to loop.");
     for (AggregatorFactory agg : aggs) {
       if (agg.getName().equals(metric)) {
-        return agg;
+        return agg.getTypeName();
       }
     }
     return null;

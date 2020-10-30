@@ -27,20 +27,4 @@ public interface DataSegmentServerAnnouncer
 {
   void announce();
   void unannounce();
-
-  class Noop implements DataSegmentServerAnnouncer
-  {
-
-    @Override
-    public void announce()
-    {
-
-    }
-
-    @Override
-    public void unannounce()
-    {
-
-    }
-  }
 }

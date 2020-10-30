@@ -53,7 +53,7 @@ export interface TableCellProps {
 
 export const TableCell = React.memo(function TableCell(props: TableCellProps) {
   const { value, unlimited } = props;
-  const [showValue, setShowValue] = useState<string | undefined>();
+  const [showValue, setShowValue] = useState();
 
   function renderShowValueDialog(): JSX.Element | undefined {
     if (!showValue) return;

@@ -71,7 +71,7 @@ public class CachingCostBalancerStrategyFactory implements BalancerStrategyFacto
           @Override
           public ServerView.CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
           {
-            if (server.isSegmentReplicationTarget()) {
+            if (server.segmentReplicatable()) {
               clusterCostCacheBuilder.addSegment(server.getName(), segment);
             }
             return ServerView.CallbackAction.CONTINUE;
@@ -80,7 +80,7 @@ public class CachingCostBalancerStrategyFactory implements BalancerStrategyFacto
           @Override
           public ServerView.CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment)
           {
-            if (server.isSegmentReplicationTarget()) {
+            if (server.segmentReplicatable()) {
               clusterCostCacheBuilder.removeSegment(server.getName(), segment);
             }
             return ServerView.CallbackAction.CONTINUE;
@@ -98,7 +98,7 @@ public class CachingCostBalancerStrategyFactory implements BalancerStrategyFacto
     serverInventoryView.registerServerRemovedCallback(
         executor,
         server -> {
-          if (server.isSegmentReplicationTarget()) {
+          if (server.segmentReplicatable()) {
             clusterCostCacheBuilder.removeServer(server.getName());
           }
           return ServerView.CallbackAction.CONTINUE;

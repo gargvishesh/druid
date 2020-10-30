@@ -56,7 +56,7 @@ public class AmbariMetricsEmitterConfigTest
         1000L,
         100,
         new SendAllTimelineEventConverter("prefix", "druid"),
-        Collections.emptyList(),
+        Collections.EMPTY_LIST,
         500L,
         400L
     );

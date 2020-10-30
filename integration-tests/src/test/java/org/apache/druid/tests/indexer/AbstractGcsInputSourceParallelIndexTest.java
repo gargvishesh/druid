@@ -35,6 +35,7 @@ public abstract class AbstractGcsInputSourceParallelIndexTest extends AbstractIT
 {
   private static final String INDEX_TASK = "/indexer/wikipedia_cloud_index_task.json";
   private static final String INDEX_QUERIES_RESOURCE = "/indexer/wikipedia_index_queries.json";
+  private static final String INDEX_DATASOURCE = "wikipedia_index_test_" + UUID.randomUUID();
   private static final String INPUT_SOURCE_URIS_KEY = "uris";
   private static final String INPUT_SOURCE_PREFIXES_KEY = "prefixes";
   private static final String INPUT_SOURCE_OBJECTS_KEY = "objects";
@@ -70,9 +71,8 @@ public abstract class AbstractGcsInputSourceParallelIndexTest extends AbstractIT
 
   void doTest(Pair<String, List> gcsInputSource) throws Exception
   {
-    final String indexDatasource = "wikipedia_index_test_" + UUID.randomUUID();
     try (
-        final Closeable ignored1 = unloader(indexDatasource + config.getExtraDatasourceNameSuffix());
+        final Closeable ignored1 = unloader(INDEX_DATASOURCE + config.getExtraDatasourceNameSuffix());
     ) {
       final Function<String, String> gcsPropsTransform = spec -> {
         try {
@@ -87,11 +87,7 @@ public abstract class AbstractGcsInputSourceParallelIndexTest extends AbstractIT
               "%%PATH%%",
               config.getCloudPath()
           );
-          spec = StringUtils.replace(
-              spec,
-              "%%INPUT_FORMAT_TYPE%%",
-              InputFormatDetails.JSON.getInputFormatType()
-          );
+
           spec = StringUtils.replace(
               spec,
               "%%PARTITIONS_SPEC%%",
@@ -119,7 +115,7 @@ public abstract class AbstractGcsInputSourceParallelIndexTest extends AbstractIT
       };
 
       doIndexTest(
-          indexDatasource,
+          INDEX_DATASOURCE,
           INDEX_TASK,
           gcsPropsTransform,
           INDEX_QUERIES_RESOURCE,

@@ -18,55 +18,73 @@
 
 import { MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import { SqlExpression, SqlFunction, SqlLiteral, SqlQuery, SqlRef } from 'druid-query-toolkit';
+import { SqlAliasRef, SqlFunction, SqlLiteral, SqlQuery, SqlRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { prettyPrintSql } from '../../../../../utils';
-
-const NINE_THOUSAND = SqlLiteral.create(9000);
-
 export interface NumberMenuItemsProps {
-  table: string;
-  schema: string;
   columnName: string;
   parsedQuery: SqlQuery;
-  onQueryChange: (query: SqlQuery, run?: boolean) => void;
+  onQueryChange: (queryString: SqlQuery, run?: boolean) => void;
 }
 
 export const NumberMenuItems = React.memo(function NumberMenuItems(props: NumberMenuItemsProps) {
   function renderFilterMenu(): JSX.Element {
     const { columnName, parsedQuery, onQueryChange } = props;
-    const ref = SqlRef.column(columnName);
-
-    function filterMenuItem(clause: SqlExpression) {
-      return (
-        <MenuItem
-          text={prettyPrintSql(clause)}
-          onClick={() => {
-            onQueryChange(parsedQuery.addToWhere(clause));
-          }}
-        />
-      );
-    }
 
     return (
       <MenuItem icon={IconNames.FILTER} text={`Filter`}>
-        {filterMenuItem(ref.greaterThan(NINE_THOUSAND))}
-        {filterMenuItem(ref.lessThanOrEqual(NINE_THOUSAND))}
+        <MenuItem
+          text={`"${columnName}" > 100`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addWhereFilter(
+                SqlRef.fromNameWithDoubleQuotes(columnName),
+                '>',
+                SqlLiteral.fromInput(100),
+              ),
+            );
+          }}
+        />
+        <MenuItem
+          text={`"${columnName}" <= 100`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addWhereFilter(
+                SqlRef.fromNameWithDoubleQuotes(columnName),
+                '<=',
+                SqlLiteral.fromInput(100),
+              ),
+            );
+          }}
+        />
       </MenuItem>
     );
   }
 
   function renderRemoveFilter(): JSX.Element | undefined {
     const { columnName, parsedQuery, onQueryChange } = props;
-    if (!parsedQuery.getEffectiveWhereExpression().containsColumn(columnName)) return;
+    if (!parsedQuery.getCurrentFilters().includes(columnName)) return;
 
     return (
       <MenuItem
         icon={IconNames.FILTER_REMOVE}
         text={`Remove filter`}
         onClick={() => {
-          onQueryChange(parsedQuery.removeColumnFromWhere(columnName), true);
+          onQueryChange(parsedQuery.removeFilter(columnName), true);
+        }}
+      />
+    );
+  }
+
+  function renderRemoveGroupBy(): JSX.Element | undefined {
+    const { columnName, parsedQuery, onQueryChange } = props;
+    if (!parsedQuery.hasGroupByColumn(columnName)) return;
+    return (
+      <MenuItem
+        icon={IconNames.UNGROUP_OBJECTS}
+        text={'Remove group by'}
+        onClick={() => {
+          onQueryChange(parsedQuery.removeFromGroupBy(columnName), true);
         }}
       />
     );
@@ -74,74 +92,85 @@ export const NumberMenuItems = React.memo(function NumberMenuItems(props: Number
 
   function renderGroupByMenu(): JSX.Element | undefined {
     const { columnName, parsedQuery, onQueryChange } = props;
-    if (!parsedQuery.hasGroupBy()) return;
-    const ref = SqlRef.column(columnName);
-
-    function groupByMenuItem(ex: SqlExpression, alias?: string) {
-      return (
-        <MenuItem
-          text={prettyPrintSql(ex)}
-          onClick={() => {
-            onQueryChange(parsedQuery.addToGroupBy(ex.as(alias)), true);
-          }}
-        />
-      );
-    }
+    if (!parsedQuery.groupByExpression) return;
 
     return (
       <MenuItem icon={IconNames.GROUP_OBJECTS} text={`Group by`}>
-        {groupByMenuItem(ref)}
-        {groupByMenuItem(
-          SqlFunction.simple('TRUNC', [ref, SqlLiteral.create(-1)]),
-          `${columnName}_truncated`,
-        )}
+        <MenuItem
+          text={`"${columnName}"`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addToGroupBy(SqlRef.fromNameWithDoubleQuotes(columnName)),
+              true,
+            );
+          }}
+        />
+        <MenuItem
+          text={`TRUNC("${columnName}", -1) AS "${columnName}_trunc"`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addToGroupBy(
+                SqlAliasRef.sqlAliasFactory(
+                  SqlFunction.sqlFunctionFactory('TRUNC', [
+                    SqlRef.fromNameWithDoubleQuotes(columnName),
+                    SqlLiteral.fromInput(-1),
+                  ]),
+                  `${columnName}_truncated`,
+                ),
+              ),
+              true,
+            );
+          }}
+        />
       </MenuItem>
-    );
-  }
-
-  function renderRemoveGroupBy(): JSX.Element | undefined {
-    const { columnName, parsedQuery, onQueryChange } = props;
-    const selectIndex = parsedQuery.getSelectIndexForColumn(columnName);
-    if (!parsedQuery.isGroupedSelectIndex(selectIndex)) return;
-
-    return (
-      <MenuItem
-        icon={IconNames.UNGROUP_OBJECTS}
-        text={'Remove group by'}
-        onClick={() => {
-          onQueryChange(parsedQuery.removeSelectIndex(selectIndex), true);
-        }}
-      />
     );
   }
 
   function renderAggregateMenu(): JSX.Element | undefined {
     const { columnName, parsedQuery, onQueryChange } = props;
-    if (!parsedQuery.hasGroupBy()) return;
-    const ref = SqlRef.column(columnName);
-
-    function aggregateMenuItem(ex: SqlExpression, alias: string) {
-      return (
-        <MenuItem
-          text={prettyPrintSql(ex)}
-          onClick={() => {
-            onQueryChange(parsedQuery.addSelectExpression(ex.as(alias)), true);
-          }}
-        />
-      );
-    }
+    if (!parsedQuery.groupByExpression) return;
 
     return (
       <MenuItem icon={IconNames.FUNCTION} text={`Aggregate`}>
-        {aggregateMenuItem(SqlFunction.simple('SUM', [ref]), `sum_${columnName}`)}
-        {aggregateMenuItem(SqlFunction.simple('MIN', [ref]), `min_${columnName}`)}
-        {aggregateMenuItem(SqlFunction.simple('MAX', [ref]), `max_${columnName}`)}
-        {aggregateMenuItem(SqlFunction.simple('AVG', [ref]), `avg_${columnName}`)}
-        {aggregateMenuItem(
-          SqlFunction.simple('APPROX_QUANTILE', [ref, SqlLiteral.create(0.98)]),
-          `p98_${columnName}`,
-        )}
-        {aggregateMenuItem(SqlFunction.simple('LATEST', [ref]), `latest_${columnName}`)}
+        <MenuItem
+          text={`SUM(${columnName}) AS "sum_${columnName}"`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addAggregateColumn(
+                [SqlRef.fromName(columnName)],
+                'SUM',
+                `sum_${columnName}`,
+              ),
+              true,
+            );
+          }}
+        />
+        <MenuItem
+          text={`MAX(${columnName}) AS "max_${columnName}"`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addAggregateColumn(
+                [SqlRef.fromName(columnName)],
+                'MAX',
+                `max_${columnName}`,
+              ),
+              true,
+            );
+          }}
+        />
+        <MenuItem
+          text={`MIN(${columnName}) AS "min_${columnName}"`}
+          onClick={() => {
+            onQueryChange(
+              parsedQuery.addAggregateColumn(
+                [SqlRef.fromName(columnName)],
+                'MIN',
+                `min_${columnName}`,
+              ),
+              true,
+            );
+          }}
+        />
       </MenuItem>
     );
   }

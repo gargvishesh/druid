@@ -119,7 +119,7 @@ public class PollingLookup extends LookupExtractor
     }
     final CacheRefKeeper cacheRefKeeper = refOfCacheKeeper.get();
     if (cacheRefKeeper == null) {
-      throw new ISE("Cache reference is null");
+      throw new ISE("Cache reference is null WTF");
     }
     final PollingCache cache = cacheRefKeeper.getAndIncrementRef();
     try {

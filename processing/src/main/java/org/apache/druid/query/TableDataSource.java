@@ -27,7 +27,6 @@ import org.apache.druid.java.util.common.IAE;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 @JsonTypeName("table")
@@ -39,12 +38,6 @@ public class TableDataSource implements DataSource
   public TableDataSource(@JsonProperty("name") String name)
   {
     this.name = Preconditions.checkNotNull(name, "'name' must be nonnull");
-  }
-
-  @JsonCreator
-  public static TableDataSource create(final String name)
-  {
-    return new TableDataSource(name);
   }
 
   @JsonProperty
@@ -76,7 +69,7 @@ public class TableDataSource implements DataSource
   }
 
   @Override
-  public boolean isCacheable(boolean isBroker)
+  public boolean isCacheable()
   {
     return true;
   }
@@ -100,21 +93,27 @@ public class TableDataSource implements DataSource
   }
 
   @Override
-  public boolean equals(Object o)
+  public final boolean equals(Object o)
   {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof TableDataSource)) {
       return false;
     }
+
     TableDataSource that = (TableDataSource) o;
-    return name.equals(that.name);
+
+    if (!name.equals(that.name)) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
-  public int hashCode()
+  public final int hashCode()
   {
-    return Objects.hash(name);
+    return name.hashCode();
   }
 }

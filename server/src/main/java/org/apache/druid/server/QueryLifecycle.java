@@ -31,8 +31,6 @@ import org.apache.druid.java.util.common.guava.SequenceWrapper;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
-import org.apache.druid.query.BaseQuery;
-import org.apache.druid.query.DefaultQueryConfig;
 import org.apache.druid.query.DruidMetrics;
 import org.apache.druid.query.GenericQueryMetricsFactory;
 import org.apache.druid.query.Query;
@@ -79,7 +77,6 @@ public class QueryLifecycle
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final AuthorizerMapper authorizerMapper;
-  private final DefaultQueryConfig defaultQueryConfig;
   private final long startMs;
   private final long startNs;
 
@@ -95,7 +92,6 @@ public class QueryLifecycle
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
       final AuthorizerMapper authorizerMapper,
-      final DefaultQueryConfig defaultQueryConfig,
       final long startMs,
       final long startNs
   )
@@ -106,7 +102,6 @@ public class QueryLifecycle
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.authorizerMapper = authorizerMapper;
-    this.defaultQueryConfig = defaultQueryConfig;
     this.startMs = startMs;
     this.startNs = startNs;
   }
@@ -175,14 +170,7 @@ public class QueryLifecycle
       queryId = UUID.randomUUID().toString();
     }
 
-    Map<String, Object> mergedUserAndConfigContext;
-    if (baseQuery.getContext() != null) {
-      mergedUserAndConfigContext = BaseQuery.computeOverriddenContext(defaultQueryConfig.getContext(), baseQuery.getContext());
-    } else {
-      mergedUserAndConfigContext = defaultQueryConfig.getContext();
-    }
-
-    this.baseQuery = baseQuery.withOverriddenContext(mergedUserAndConfigContext).withId(queryId);
+    this.baseQuery = baseQuery.withId(queryId);
     this.toolChest = warehouse.getToolChest(baseQuery);
   }
 

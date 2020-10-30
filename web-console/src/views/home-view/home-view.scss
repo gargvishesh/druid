@@ -20,21 +20,7 @@
 
 .home-view {
   display: grid;
-  gap: $thin-padding;
+  gap: $standard-padding;
   grid-template-columns: 1fr 1fr 1fr 1fr;
-  padding: 10px 60px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr 1fr 1fr;
-    padding: 10px 40px;
-  }
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr 1fr;
-    padding: 10px;
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
+  padding: 0 60px;
 }

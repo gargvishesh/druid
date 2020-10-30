@@ -52,7 +52,7 @@ public class MultiValueStringSliceOperatorConversion implements SqlOperatorConve
           )
       )
       .functionCategory(SqlFunctionCategory.STRING)
-      .returnTypeNonNull(SqlTypeName.VARCHAR)
+      .returnType(SqlTypeName.VARCHAR)
       .build();
 
   @Override

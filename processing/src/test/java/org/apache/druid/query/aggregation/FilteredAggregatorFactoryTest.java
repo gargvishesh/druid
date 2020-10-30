@@ -30,17 +30,17 @@ public class FilteredAggregatorFactoryTest
   {
     Assert.assertEquals("overrideName", new FilteredAggregatorFactory(
         new CountAggregatorFactory("foo"),
-        TrueDimFilter.instance(),
+        new TrueDimFilter(),
         "overrideName"
     ).getName());
     Assert.assertEquals("delegateName", new FilteredAggregatorFactory(
         new CountAggregatorFactory("delegateName"),
-        TrueDimFilter.instance(),
+        new TrueDimFilter(),
         ""
     ).getName());
     Assert.assertEquals("delegateName", new FilteredAggregatorFactory(
         new CountAggregatorFactory("delegateName"),
-        TrueDimFilter.instance(),
+        new TrueDimFilter(),
         null
     ).getName());
   }

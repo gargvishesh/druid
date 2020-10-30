@@ -39,7 +39,6 @@ public class DefaultBasicAuthorizerResourceHandler implements BasicAuthorizerRes
 {
   private static final Logger log = new Logger(DefaultBasicAuthorizerResourceHandler.class);
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
-  private static final String UNKNOWN_AUTHORIZER_MSG_FORMAT = "Received update for unknown authorizer[%s]";
 
   private final BasicAuthorizerCacheManager cacheManager;
   private final Map<String, BasicRoleBasedAuthorizer> authorizerMap;
@@ -197,11 +196,12 @@ public class DefaultBasicAuthorizerResourceHandler implements BasicAuthorizerRes
   {
     final BasicRoleBasedAuthorizer authorizer = authorizerMap.get(authorizerName);
     if (authorizer == null) {
-      log.error(UNKNOWN_AUTHORIZER_MSG_FORMAT, authorizerName);
+      String errMsg = StringUtils.format("Received update for unknown authorizer[%s]", authorizerName);
+      log.error(errMsg);
       return Response.status(Response.Status.BAD_REQUEST)
                      .entity(ImmutableMap.<String, Object>of(
                          "error",
-                         StringUtils.format(UNKNOWN_AUTHORIZER_MSG_FORMAT, authorizerName)
+                         StringUtils.format(errMsg)
                      ))
                      .build();
     }
@@ -215,11 +215,12 @@ public class DefaultBasicAuthorizerResourceHandler implements BasicAuthorizerRes
   {
     final BasicRoleBasedAuthorizer authorizer = authorizerMap.get(authorizerName);
     if (authorizer == null) {
-      log.error(UNKNOWN_AUTHORIZER_MSG_FORMAT, authorizerName);
+      String errMsg = StringUtils.format("Received update for unknown authorizer[%s]", authorizerName);
+      log.error(errMsg);
       return Response.status(Response.Status.BAD_REQUEST)
                      .entity(ImmutableMap.<String, Object>of(
                          "error",
-                         StringUtils.format(UNKNOWN_AUTHORIZER_MSG_FORMAT, authorizerName)
+                         StringUtils.format(errMsg)
                      ))
                      .build();
     }

@@ -47,7 +47,7 @@ public class MultiValueStringPrependOperatorConversion implements SqlOperatorCon
           )
       )
       .functionCategory(SqlFunctionCategory.STRING)
-      .returnTypeNonNull(SqlTypeName.VARCHAR)
+      .returnType(SqlTypeName.VARCHAR)
       .build();
 
   @Override

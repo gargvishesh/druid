@@ -20,6 +20,7 @@
 package org.apache.druid.indexing.common.task.batch.parallel;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.indexing.DataSchema;
@@ -46,10 +47,11 @@ class PartialGenericSegmentMergeParallelIndexTaskRunner
       DataSchema dataSchema,
       List<PartialGenericSegmentMergeIOConfig> mergeIOConfigs,
       ParallelIndexTuningConfig tuningConfig,
-      Map<String, Object> context
+      Map<String, Object> context,
+      IndexingServiceClient indexingServiceClient
   )
   {
-    super(toolbox, taskId, groupId, tuningConfig, context);
+    super(toolbox, taskId, groupId, tuningConfig, context, indexingServiceClient);
 
     this.dataSchema = dataSchema;
     this.mergeIOConfigs = mergeIOConfigs;
@@ -99,7 +101,10 @@ class PartialGenericSegmentMergeParallelIndexTaskRunner
             getSupervisorTaskId(),
             numAttempts,
             ingestionSpec,
-            getContext()
+            getContext(),
+            null,
+            null,
+            null
         );
       }
     };

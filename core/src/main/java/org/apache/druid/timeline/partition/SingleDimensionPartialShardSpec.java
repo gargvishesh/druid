@@ -85,9 +85,29 @@ public class SingleDimensionPartialShardSpec implements PartialShardSpec
   }
 
   @Override
-  public ShardSpec complete(ObjectMapper objectMapper, int partitionId, int numCorePartitions)
+  public ShardSpec complete(ObjectMapper objectMapper, @Nullable ShardSpec specOfPreviousMaxPartitionId)
   {
-    return new SingleDimensionShardSpec(partitionDimension, start, end, partitionId, numCorePartitions);
+    final int partitionId;
+    if (specOfPreviousMaxPartitionId != null) {
+      assert specOfPreviousMaxPartitionId instanceof SingleDimensionShardSpec;
+      final SingleDimensionShardSpec prevSpec = (SingleDimensionShardSpec) specOfPreviousMaxPartitionId;
+      partitionId = prevSpec.getPartitionNum() + 1;
+    } else {
+      partitionId = 0;
+    }
+    return complete(objectMapper, partitionId);
+  }
+
+  @Override
+  public ShardSpec complete(ObjectMapper objectMapper, int partitionId)
+  {
+    // TODO: bucketId and numBuckets should be added to SingleDimensionShardSpec in a follow-up PR.
+    return new SingleDimensionShardSpec(
+        partitionDimension,
+        start,
+        end,
+        partitionId
+    );
   }
 
   @Override

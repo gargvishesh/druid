@@ -76,7 +76,7 @@ public class PropertiesModule implements Module
         }
       }
       catch (FileNotFoundException e) {
-        log.error(e, "This can only happen if the .exists() call lied.");
+        log.wtf(e, "This can only happen if the .exists() call lied.");
       }
       finally {
         CloseQuietly.close(stream);

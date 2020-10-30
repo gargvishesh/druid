@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -33,6 +32,7 @@ import org.apache.druid.data.input.InputRow;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.concurrent.ListenableFutures;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.SegmentDescriptor;
@@ -197,7 +197,7 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
     synchronized (segments) {
       final SegmentsForSequence activeSegmentsForSequence = segments.get(sequenceName);
       if (activeSegmentsForSequence == null) {
-        throw new ISE("Asked to remove segments for sequenceName[%s], which doesn't exist", sequenceName);
+        throw new ISE("WTF?! Asked to remove segments for sequenceName[%s] which doesn't exist...", sequenceName);
       }
 
       for (final SegmentIdWithShardSpec identifier : identifiers) {
@@ -207,7 +207,7 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
         if (segmentsOfInterval == null ||
             segmentsOfInterval.getAppendingSegment() == null ||
             !segmentsOfInterval.getAppendingSegment().getSegmentIdentifier().equals(identifier)) {
-          throw new ISE("Asked to remove segment[%s], which doesn't exist", identifier);
+          throw new ISE("WTF?! Asked to remove segment[%s] that didn't exist...", identifier);
         }
         segmentsOfInterval.finishAppendingToCurrentActiveSegment(SegmentWithState::finishAppending);
       }
@@ -271,17 +271,18 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
       final Collection<String> sequenceNames
   )
   {
-    final List<SegmentIdWithShardSpec> theSegments = getSegmentIdsWithShardSpecs(sequenceNames);
+    final List<SegmentIdWithShardSpec> theSegments = getSegmentWithStates(sequenceNames)
+        .map(SegmentWithState::getSegmentIdentifier)
+        .collect(Collectors.toList());
 
-    final ListenableFuture<SegmentsAndCommitMetadata> publishFuture = Futures.transform(
+    final ListenableFuture<SegmentsAndCommitMetadata> publishFuture = ListenableFutures.transformAsync(
         // useUniquePath=true prevents inconsistencies in segment data when task failures or replicas leads to a second
         // version of a segment with the same identifier containing different data; see DataSegmentPusher.push() docs
         pushInBackground(wrapCommitter(committer), theSegments, true),
-        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) sam -> publishInBackground(
+        sam -> publishInBackground(
             null,
             sam,
-            publisher,
-            java.util.function.Function.identity()
+            publisher
         )
     );
     return Futures.transform(
@@ -387,9 +388,9 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
       final Collection<String> sequenceNames
   )
   {
-    return Futures.transform(
+    return ListenableFutures.transformAsync(
         publish(publisher, committer, sequenceNames),
-        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) this::registerHandoff
+        this::registerHandoff
     );
   }
 
@@ -424,7 +425,7 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
       if (segmentWithState.getState() == SegmentState.APPENDING) {
         if (pair != null && pair.lhs != null) {
           throw new ISE(
-              "appendingSegment[%s] existed before adding an appendingSegment[%s]",
+              "WTF?! there was already an appendingSegment[%s] before adding an appendingSegment[%s]",
               pair.lhs,
               segmentWithState
           );

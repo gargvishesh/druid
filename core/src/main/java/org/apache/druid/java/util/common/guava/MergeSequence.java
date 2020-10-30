@@ -58,62 +58,38 @@ public class MergeSequence<T> extends YieldingSequenceBase<T>
         )
     );
 
-    try {
-      pQueue = baseSequences.accumulate(
-          pQueue,
-          (queue, in) -> {
-            final Yielder<T> yielder = in.toYielder(
-                null,
-                new YieldingAccumulator<T, T>()
+    pQueue = baseSequences.accumulate(
+        pQueue,
+        (queue, in) -> {
+          final Yielder<T> yielder = in.toYielder(
+              null,
+              new YieldingAccumulator<T, T>()
+              {
+                @Override
+                public T accumulate(T accumulated, T in)
                 {
-                  @Override
-                  public T accumulate(T accumulated, T in)
-                  {
-                    yield();
-                    return in;
-                  }
+                  yield();
+                  return in;
                 }
-            );
+              }
+          );
 
-            if (!yielder.isDone()) {
-              try {
-                queue.add(yielder);
-              }
-              catch (Throwable t1) {
-                try {
-                  yielder.close();
-                }
-                catch (Throwable t2) {
-                  t1.addSuppressed(t2);
-                }
-
-                throw t1;
-              }
-            } else {
-              try {
-                yielder.close();
-              }
-              catch (IOException e) {
-                throw new RuntimeException(e);
-              }
+          if (!yielder.isDone()) {
+            queue.add(yielder);
+          } else {
+            try {
+              yielder.close();
             }
-
-            return queue;
+            catch (IOException e) {
+              throw new RuntimeException(e);
+            }
           }
-      );
 
-      return makeYielder(pQueue, initValue, accumulator);
-    }
-    catch (Throwable t1) {
-      try {
-        closeAll(pQueue);
-      }
-      catch (Throwable t2) {
-        t1.addSuppressed(t2);
-      }
+          return queue;
+        }
+    );
 
-      throw t1;
-    }
+    return makeYielder(pQueue, initValue, accumulator);
   }
 
   private <OutType> Yielder<OutType> makeYielder(
@@ -125,22 +101,8 @@ public class MergeSequence<T> extends YieldingSequenceBase<T>
     OutType retVal = initVal;
     while (!accumulator.yielded() && !pQueue.isEmpty()) {
       Yielder<T> yielder = pQueue.remove();
-
-      try {
-        retVal = accumulator.accumulate(retVal, yielder.get());
-        yielder = yielder.next(null);
-      }
-      catch (Throwable t1) {
-        try {
-          yielder.close();
-        }
-        catch (Throwable t2) {
-          t1.addSuppressed(t2);
-        }
-
-        throw t1;
-      }
-
+      retVal = accumulator.accumulate(retVal, yielder.get());
+      yielder = yielder.next(null);
       if (yielder.isDone()) {
         try {
           yielder.close();
@@ -182,21 +144,12 @@ public class MergeSequence<T> extends YieldingSequenceBase<T>
       @Override
       public void close() throws IOException
       {
-        closeAll(pQueue);
+        Closer closer = Closer.create();
+        while (!pQueue.isEmpty()) {
+          closer.register(pQueue.remove());
+        }
+        closer.close();
       }
     };
-  }
-
-  private static <T> void closeAll(final PriorityQueue<Yielder<T>> pQueue) throws IOException
-  {
-    Closer closer = Closer.create();
-    while (!pQueue.isEmpty()) {
-      final Yielder<T> yielder = pQueue.poll();
-      if (yielder != null) {
-        // Note: yielder can be null if our comparator threw an exception during queue.add.
-        closer.register(yielder);
-      }
-    }
-    closer.close();
   }
 }

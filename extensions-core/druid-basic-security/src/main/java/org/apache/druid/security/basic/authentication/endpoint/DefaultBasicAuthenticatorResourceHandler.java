@@ -37,7 +37,6 @@ public class DefaultBasicAuthenticatorResourceHandler implements BasicAuthentica
 {
   private static final Logger log = new Logger(DefaultBasicAuthenticatorResourceHandler.class);
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
-  private static final String UNKNOWN_AUTHENTICATOR_MSG_FORMAT = "Received user update for unknown authenticator[%s]";
 
   private final BasicAuthenticatorCacheManager cacheManager;
   private final Map<String, BasicHTTPAuthenticator> authenticatorMap;
@@ -114,11 +113,12 @@ public class DefaultBasicAuthenticatorResourceHandler implements BasicAuthentica
   {
     final BasicHTTPAuthenticator authenticator = authenticatorMap.get(authenticatorName);
     if (authenticator == null) {
-      log.error(UNKNOWN_AUTHENTICATOR_MSG_FORMAT, authenticatorName);
+      String errMsg = StringUtils.format("Received user update for unknown authenticator[%s]", authenticatorName);
+      log.error(errMsg);
       return Response.status(Response.Status.BAD_REQUEST)
                      .entity(ImmutableMap.<String, Object>of(
                          "error",
-                         StringUtils.format(UNKNOWN_AUTHENTICATOR_MSG_FORMAT, authenticatorName)
+                         StringUtils.format(errMsg)
                      ))
                      .build();
     }

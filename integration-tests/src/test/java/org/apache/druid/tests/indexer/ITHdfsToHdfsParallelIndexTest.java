@@ -39,20 +39,8 @@ import java.util.List;
 public class ITHdfsToHdfsParallelIndexTest extends AbstractHdfsInputSourceParallelIndexTest
 {
   @Test(dataProvider = "resources")
-  public void testHdfsIndexJsonData(Pair<String, List> hdfsInputSource) throws Exception
+  public void testHdfsIndexData(Pair<String, List> hdfsInputSource) throws Exception
   {
-    doTest(hdfsInputSource, InputFormatDetails.JSON);
-  }
-
-  @Test(dataProvider = "resources")
-  public void testHdfsIndexOrcData(Pair<String, List> hdfsInputSource) throws Exception
-  {
-    doTest(hdfsInputSource, InputFormatDetails.ORC);
-  }
-
-  @Test(dataProvider = "resources")
-  public void testHdfsIndexParquetData(Pair<String, List> hdfsInputSource) throws Exception
-  {
-    doTest(hdfsInputSource, InputFormatDetails.PARQUET);
+    doTest(hdfsInputSource);
   }
 }

@@ -34,7 +34,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.druid.collections.BlockingPool;
 import org.apache.druid.collections.ReferenceCountingResourceHolder;
 import org.apache.druid.collections.Releaser;
-import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
@@ -216,7 +215,8 @@ public class GroupByMergingQueryRunnerV2 implements QueryRunner<ResultRow>
                   ReferenceCountingResourceHolder.fromCloseable(grouper);
               resources.register(grouperHolder);
 
-              List<ListenableFuture<AggregateResult>> futures = Lists.newArrayList(
+              ListenableFuture<List<AggregateResult>> futures = Futures.allAsList(
+                  Lists.newArrayList(
                       Iterables.transform(
                           queryables,
                           new Function<QueryRunner<ResultRow>, ListenableFuture<AggregateResult>>()
@@ -259,7 +259,7 @@ public class GroupByMergingQueryRunnerV2 implements QueryRunner<ResultRow>
                               if (isSingleThreaded) {
                                 waitForFutureCompletion(
                                     query,
-                                    ImmutableList.of(future),
+                                    Futures.allAsList(ImmutableList.of(future)),
                                     hasTimeout,
                                     timeoutAt - System.currentTimeMillis()
                                 );
@@ -269,7 +269,8 @@ public class GroupByMergingQueryRunnerV2 implements QueryRunner<ResultRow>
                             }
                           }
                       )
-                  );
+                  )
+              );
 
               if (!isSingleThreaded) {
                 waitForFutureCompletion(query, futures, hasTimeout, timeoutAt - System.currentTimeMillis());
@@ -338,12 +339,11 @@ public class GroupByMergingQueryRunnerV2 implements QueryRunner<ResultRow>
 
   private void waitForFutureCompletion(
       GroupByQuery query,
-      List<ListenableFuture<AggregateResult>> futures,
+      ListenableFuture<List<AggregateResult>> future,
       boolean hasTimeout,
       long timeout
   )
   {
-    ListenableFuture<List<AggregateResult>> future = Futures.allAsList(futures);
     try {
       if (queryWatcher != null) {
         queryWatcher.registerQueryFuture(query, future);
@@ -357,27 +357,25 @@ public class GroupByMergingQueryRunnerV2 implements QueryRunner<ResultRow>
 
       for (AggregateResult result : results) {
         if (!result.isOk()) {
-          GuavaUtils.cancelAll(true, future, futures);
+          future.cancel(true);
           throw new ResourceLimitExceededException(result.getReason());
         }
       }
     }
     catch (InterruptedException e) {
       log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
-      GuavaUtils.cancelAll(true, future, futures);
+      future.cancel(true);
       throw new QueryInterruptedException(e);
     }
     catch (CancellationException e) {
-      GuavaUtils.cancelAll(true, future, futures);
       throw new QueryInterruptedException(e);
     }
     catch (TimeoutException e) {
       log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
-      GuavaUtils.cancelAll(true, future, futures);
+      future.cancel(true);
       throw new QueryInterruptedException(e);
     }
     catch (ExecutionException e) {
-      GuavaUtils.cancelAll(true, future, futures);
       throw new RuntimeException(e);
     }
   }

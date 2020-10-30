@@ -19,7 +19,6 @@
 
 package org.apache.druid.query.groupby.having;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import org.apache.druid.java.util.common.ISE;
@@ -90,16 +89,10 @@ class HavingSpecMetricComparator
     }
   }
 
-  @VisibleForTesting
-  static int compareDoubleToLong(final double a, final long b)
+  private static int compareDoubleToLong(final double a, final long b)
   {
     // Use BigDecimal when comparing integers vs floating points, a convenient way to handle all cases (like
     // fractional values, values out of range of max long/max int) without worrying about them ourselves.
-    // The only edge case we need to handle is doubles that can not be converted to a BigDecimal, so fall back to using
-    // Double.compare
-    if (Double.isNaN(a) || Double.isInfinite(a)) {
-      return Double.compare(a, b);
-    }
     return BigDecimal.valueOf(a).compareTo(BigDecimal.valueOf(b));
   }
 }

@@ -63,8 +63,8 @@ export class ConsoleApplication extends React.PureComponent<
       timeout: 120000,
       message: (
         <>
-          It appears that the service serving this console is not responding. The console will not
-          function at the moment.
+          It appears that the the service serving this console is not responding. The console will
+          not function at the moment
         </>
       ),
     });
@@ -92,9 +92,9 @@ export class ConsoleApplication extends React.PureComponent<
         if (!capabilities) ConsoleApplication.shownNotifications();
         return capabilities || Capabilities.FULL;
       },
-      onStateChange: ({ data, loading }) => {
+      onStateChange: ({ result, loading }) => {
         this.setState({
-          capabilities: data || Capabilities.FULL,
+          capabilities: result || Capabilities.FULL,
           capabilitiesLoading: loading,
         });
       },
@@ -171,7 +171,7 @@ export class ConsoleApplication extends React.PureComponent<
   private wrapInViewContainer = (
     active: HeaderActiveTab,
     el: JSX.Element,
-    classType: 'normal' | 'narrow-pad' | 'thin' = 'normal',
+    classType: 'normal' | 'narrow-pad' = 'normal',
   ) => {
     const { capabilities } = this.state;
 
@@ -213,7 +213,6 @@ export class ConsoleApplication extends React.PureComponent<
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
       />,
-      'thin',
     );
   };
 
@@ -284,7 +283,7 @@ export class ConsoleApplication extends React.PureComponent<
     if (capabilitiesLoading) {
       return (
         <div className="loading-capabilities">
-          <Loader />
+          <Loader loadingText="" loading />
         </div>
       );
     }

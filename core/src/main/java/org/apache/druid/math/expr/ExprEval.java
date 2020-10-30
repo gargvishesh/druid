@@ -89,11 +89,6 @@ public abstract class ExprEval<T>
     }
   }
 
-  public static ExprEval ofLongBoolean(boolean value)
-  {
-    return ExprEval.of(Evals.asLong(value));
-  }
-
   public static ExprEval bestEffortOf(@Nullable Object val)
   {
     if (val instanceof ExprEval) {
@@ -121,25 +116,8 @@ public abstract class ExprEval<T>
     return new StringExprEval(val == null ? null : String.valueOf(val));
   }
 
-  @Nullable
-  public static Number computeNumber(@Nullable String value)
-  {
-    if (value == null) {
-      return null;
-    }
-    Number rv;
-    Long v = GuavaUtils.tryParseLong(value);
-    // Do NOT use ternary operator here, because it makes Java to convert Long to Double
-    if (v != null) {
-      rv = v;
-    } else {
-      rv = Doubles.tryParse(value);
-    }
-    return rv;
-  }
-
   // Cached String values
-  private boolean stringValueCached = false;
+  private boolean stringValueValid = false;
   @Nullable
   private String stringValue;
 
@@ -159,35 +137,17 @@ public abstract class ExprEval<T>
     return value;
   }
 
-  void cacheStringValue(@Nullable String value)
-  {
-    stringValue = value;
-    stringValueCached = true;
-  }
-
-  @Nullable
-  String getCachedStringValue()
-  {
-    assert stringValueCached;
-    return stringValue;
-  }
-
-  boolean isStringValueCached()
-  {
-    return stringValueCached;
-  }
-
   @Nullable
   public String asString()
   {
-    if (!stringValueCached) {
+    if (!stringValueValid) {
       if (value == null) {
         stringValue = null;
       } else {
         stringValue = String.valueOf(value);
       }
 
-      stringValueCached = true;
+      stringValueValid = true;
     }
 
     return stringValue;
@@ -284,7 +244,7 @@ public abstract class ExprEval<T>
   {
     private DoubleExprEval(@Nullable Number value)
     {
-      super(value == null ? NullHandling.defaultDoubleValue() : (Double) value.doubleValue());
+      super(value == null ? NullHandling.defaultDoubleValue() : value);
     }
 
     @Override
@@ -344,7 +304,7 @@ public abstract class ExprEval<T>
   {
     private LongExprEval(@Nullable Number value)
     {
-      super(value == null ? NullHandling.defaultLongValue() : (Long) value.longValue());
+      super(value == null ? NullHandling.defaultLongValue() : value);
     }
 
     @Override
@@ -513,7 +473,7 @@ public abstract class ExprEval<T>
     }
 
     @Nullable
-    Number computeNumber()
+    private Number computeNumber()
     {
       if (value == null) {
         return null;
@@ -522,8 +482,17 @@ public abstract class ExprEval<T>
         // Optimization for non-null case.
         return numericVal;
       }
-      numericVal = computeNumber(value);
-      return numericVal;
+      Number rv;
+      Long v = GuavaUtils.tryParseLong(value);
+      // Do NOT use ternary operator here, because it makes Java to convert Long to Double
+      if (v != null) {
+        rv = v;
+      } else {
+        rv = Doubles.tryParse(value);
+      }
+
+      numericVal = rv;
+      return rv;
     }
 
     @Override
@@ -596,21 +565,6 @@ public abstract class ExprEval<T>
     private ArrayExprEval(@Nullable T[] value)
     {
       super(value);
-    }
-
-    @Override
-    @Nullable
-    public String asString()
-    {
-      if (!isStringValueCached()) {
-        if (value == null) {
-          cacheStringValue(null);
-        } else {
-          cacheStringValue(Arrays.toString(value));
-        }
-      }
-
-      return getCachedStringValue();
     }
 
     @Override

@@ -19,11 +19,8 @@
 
 package org.apache.druid.segment.column;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.selector.settable.SettableColumnValueSelector;
-import org.apache.druid.segment.selector.settable.SettableObjectColumnValueSelector;
 
 import javax.annotation.Nullable;
 
@@ -37,31 +34,16 @@ class SimpleColumnHolder implements ColumnHolder
   private final Supplier<BitmapIndex> bitmapIndex;
   @Nullable
   private final Supplier<SpatialIndex> spatialIndex;
-  private static final InvalidComplexColumnTypeValueSelector INVALID_COMPLEX_COLUMN_TYPE_VALUE_SELECTOR
-      = new InvalidComplexColumnTypeValueSelector();
 
   SimpleColumnHolder(
       ColumnCapabilities capabilities,
-      @Nullable Supplier<? extends BaseColumn> columnSupplier,
+      Supplier<? extends BaseColumn> columnSupplier,
       @Nullable Supplier<BitmapIndex> bitmapIndex,
       @Nullable Supplier<SpatialIndex> spatialIndex
   )
   {
     this.capabilities = capabilities;
     this.columnSupplier = columnSupplier;
-    // ColumnSupplier being null is sort of a rare case but can happen when a segment
-    // was created, for example, using an aggregator that was removed in later versions.
-    // In such cases we are not able to deserialize the column metadata and determine
-    // the column supplier.
-    // For now, below check allows column supplier to be null only for complex types
-    // columns as they are the ones (especially aggregators in extensions-contrib) that
-    // are prone to such backward incompatible changes.
-    if (columnSupplier == null) {
-      Preconditions.checkArgument(
-          capabilities.getType() == ValueType.COMPLEX,
-          "Only complex column types can have nullable column suppliers"
-      );
-    }
     this.bitmapIndex = bitmapIndex;
     this.spatialIndex = spatialIndex;
   }
@@ -75,8 +57,6 @@ class SimpleColumnHolder implements ColumnHolder
   @Override
   public int getLength()
   {
-    // Not checking for null here since columnSupplier is expected to be
-    // not null for numeric columns
     try (final NumericColumn column = (NumericColumn) columnSupplier.get()) {
       return column.length();
     }
@@ -85,7 +65,7 @@ class SimpleColumnHolder implements ColumnHolder
   @Override
   public BaseColumn getColumn()
   {
-    return columnSupplier == null ? UnknownTypeComplexColumn.instance() : columnSupplier.get();
+    return columnSupplier.get();
   }
 
   @Nullable
@@ -105,25 +85,6 @@ class SimpleColumnHolder implements ColumnHolder
   @Override
   public SettableColumnValueSelector makeNewSettableColumnValueSelector()
   {
-    if (columnSupplier == null) {
-      return INVALID_COMPLEX_COLUMN_TYPE_VALUE_SELECTOR;
-    }
-    return ValueTypes.makeNewSettableColumnValueSelector(getCapabilities().getType());
+    return getCapabilities().getType().makeNewSettableColumnValueSelector();
   }
-
-  private static class InvalidComplexColumnTypeValueSelector extends SettableObjectColumnValueSelector
-  {
-    @Override
-    public void setValueFrom(ColumnValueSelector selector)
-    {
-      // no-op
-    }
-    @Nullable
-    @Override
-    public Object getObject()
-    {
-      return UnknownTypeComplexColumn.instance().getRowValue(0);
-    }
-  }
-
 }

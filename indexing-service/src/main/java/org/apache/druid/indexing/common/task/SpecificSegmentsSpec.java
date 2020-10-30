@@ -22,7 +22,6 @@ package org.apache.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.java.util.common.JodaUtils;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
@@ -74,18 +73,14 @@ public class SpecificSegmentsSpec implements CompactionInputSpec
   }
 
   @Override
-  public boolean validateSegments(LockGranularity lockGranularityInUse, List<DataSegment> latestSegments)
+  public boolean validateSegments(List<DataSegment> latestSegments)
   {
     final List<String> thoseSegments = latestSegments
         .stream()
         .map(segment -> segment.getId().toString())
         .sorted()
         .collect(Collectors.toList());
-    if (lockGranularityInUse == LockGranularity.TIME_CHUNK) {
-      return this.segments.equals(thoseSegments);
-    } else {
-      return thoseSegments.containsAll(segments);
-    }
+    return this.segments.equals(thoseSegments);
   }
 
   @Override

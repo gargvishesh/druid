@@ -26,12 +26,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.commons.text.StringEscapeUtils;
-import org.apache.druid.common.utils.IdUtilsTest;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JSONParseSpec;
 import org.apache.druid.data.input.impl.StringInputRowParser;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.indexer.TaskIdUtilsTest;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
@@ -77,7 +77,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                 new TimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("dimB", "dimA")), null, null),
                 null,
-                null,
                 null
             ),
             null
@@ -85,7 +84,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema schema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parser,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -115,7 +114,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                     null
                 ),
                 null,
-                null,
                 null
             ),
             null
@@ -123,7 +121,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema schema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parser,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -153,7 +151,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                     null
                 ),
                 null,
-                null,
                 null
             ),
             null
@@ -161,7 +158,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema schema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parserMap,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -212,7 +209,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                     "metric1"
                 )), ImmutableList.of("dimC"), null),
                 null,
-                null,
                 null
             ),
             null
@@ -220,7 +216,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema schema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parser,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -246,7 +242,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                     null
                 ),
                 null,
-                null,
                 null
             ),
             null
@@ -254,7 +249,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema schema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parser,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -272,7 +267,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
   public void testSerdeWithInvalidParserMap() throws Exception
   {
     String jsonStr = "{"
-                     + "\"dataSource\":\"" + StringEscapeUtils.escapeJson(IdUtilsTest.VALID_ID_CHARS) + "\","
+                     + "\"dataSource\":\"" + StringEscapeUtils.escapeJson(TaskIdUtilsTest.VALID_ID_CHARS) + "\","
                      + "\"parser\":{\"type\":\"invalid\"},"
                      + "\"metricsSpec\":[{\"type\":\"doubleSum\",\"name\":\"metric1\",\"fieldName\":\"col1\"}],"
                      + "\"granularitySpec\":{"
@@ -311,7 +306,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                     ImmutableList.of("dimC"),
                     null
                 ),
-                null,
                 null,
                 null
             ),
@@ -376,7 +370,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
   public void testSerde() throws Exception
   {
     String jsonStr = "{"
-                     + "\"dataSource\":\"" + StringEscapeUtils.escapeJson(IdUtilsTest.VALID_ID_CHARS) + "\","
+                     + "\"dataSource\":\"" + StringEscapeUtils.escapeJson(TaskIdUtilsTest.VALID_ID_CHARS) + "\","
                      + "\"parser\":{"
                      + "\"type\":\"string\","
                      + "\"parseSpec\":{"
@@ -400,13 +394,12 @@ public class DataSchemaTest extends InitializedNullHandlingTest
         DataSchema.class
     );
 
-    Assert.assertEquals(actual.getDataSource(), IdUtilsTest.VALID_ID_CHARS);
+    Assert.assertEquals(actual.getDataSource(), TaskIdUtilsTest.VALID_ID_CHARS);
     Assert.assertEquals(
         actual.getParser().getParseSpec(),
         new JSONParseSpec(
             new TimestampSpec("xXx", null, null),
             new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null),
-            null,
             null,
             null
         )
@@ -474,7 +467,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                 new TimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("dimB", "dimA")), null, null),
                 null,
-                null,
                 null
             ),
             null
@@ -482,7 +474,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     DataSchema originalSchema = new DataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         parser,
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1"),
@@ -514,7 +506,6 @@ public class DataSchemaTest extends InitializedNullHandlingTest
                 new TimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("dimB", "dimA")), null, null),
                 null,
-                null,
                 null
             ),
             null
@@ -522,7 +513,7 @@ public class DataSchemaTest extends InitializedNullHandlingTest
     );
 
     TestModifiedDataSchema originalSchema = new TestModifiedDataSchema(
-        IdUtilsTest.VALID_ID_CHARS,
+        TaskIdUtilsTest.VALID_ID_CHARS,
         null,
         null,
         new AggregatorFactory[]{

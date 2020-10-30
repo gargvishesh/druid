@@ -21,15 +21,9 @@ import React from 'react';
 
 import { MenuCheckbox } from './menu-checkbox';
 
-describe('MenuCheckbox', () => {
-  it('matches snapshot checked', () => {
-    const menuCheckbox = <MenuCheckbox text="hello" checked onChange={() => {}} />;
-    const { container } = render(menuCheckbox);
-    expect(container.firstChild).toMatchSnapshot();
-  });
-
-  it('matches snapshot unchecked', () => {
-    const menuCheckbox = <MenuCheckbox text="hello" checked={false} onChange={() => {}} />;
+describe('menu checkbox', () => {
+  it('matches snapshot', () => {
+    const menuCheckbox = <MenuCheckbox />;
     const { container } = render(menuCheckbox);
     expect(container.firstChild).toMatchSnapshot();
   });

@@ -216,10 +216,6 @@ public class UriExtractionNamespace implements ExtractionNamespace
     public Map<String, String> parseToMap(String input)
     {
       final Map<String, Object> inner = delegate.parseToMap(input);
-      if (null == inner) {
-        // Skip null or missing values, treat them as if there were no row at all.
-        return ImmutableMap.of();
-      }
       final String k = Preconditions.checkNotNull(
           inner.get(key),
           "Key column [%s] missing data in line [%s]",
@@ -300,10 +296,9 @@ public class UriExtractionNamespace implements ExtractionNamespace
           this.valueColumn,
           Arrays.toString(columns.toArray())
       );
-      CSVParser csvParser = new CSVParser(null, columns, hasHeaderRow, skipHeaderRows);
-      csvParser.startFileFromBeginning();
+
       this.parser = new DelegateParser(
-          csvParser,
+          new CSVParser(null, columns, hasHeaderRow, skipHeaderRows),
           this.keyColumn,
           this.valueColumn
       );
@@ -406,7 +401,6 @@ public class UriExtractionNamespace implements ExtractionNamespace
           hasHeaderRow,
           skipHeaderRows
       );
-      delegate.startFileFromBeginning();
       Preconditions.checkArgument(
           !(Strings.isNullOrEmpty(keyColumn) ^ Strings.isNullOrEmpty(valueColumn)),
           "Must specify both `keyColumn` and `valueColumn` or neither `keyColumn` nor `valueColumn`"
@@ -546,8 +540,7 @@ public class UriExtractionNamespace implements ExtractionNamespace
                       new JSONPathFieldSpec(JSONPathFieldType.ROOT, valueFieldName, valueFieldName)
                   )
               ),
-              jsonMapper.copy(),
-              false
+              jsonMapper.copy()
           ),
           keyFieldName,
           valueFieldName

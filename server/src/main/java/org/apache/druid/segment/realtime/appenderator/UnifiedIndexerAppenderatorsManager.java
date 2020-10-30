@@ -49,10 +49,7 @@ import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.IndexableAdapter;
 import org.apache.druid.segment.ProgressIndicator;
 import org.apache.druid.segment.QueryableIndex;
-import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.incremental.IncrementalIndex;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
@@ -161,9 +158,7 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
       JoinableFactory joinableFactory,
       Cache cache,
       CacheConfig cacheConfig,
-      CachePopulatorStats cachePopulatorStats,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      CachePopulatorStats cachePopulatorStats
   )
   {
     synchronized (this) {
@@ -176,6 +171,7 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
           taskId,
           schema,
           rewriteAppenderatorConfigMemoryLimits(config),
+          false,
           metrics,
           dataSegmentPusher,
           objectMapper,
@@ -183,9 +179,7 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
           datasourceBundle.getWalker(),
           indexIO,
           wrapIndexMerger(indexMerger),
-          cache,
-          rowIngestionMeters,
-          parseExceptionHandler
+          cache
       );
 
       datasourceBundle.addAppenderator(taskId, appenderator);
@@ -198,13 +192,12 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
       String taskId,
       DataSchema schema,
       AppenderatorConfig config,
+      boolean storeCompactionState,
       FireDepartmentMetrics metrics,
       DataSegmentPusher dataSegmentPusher,
       ObjectMapper objectMapper,
       IndexIO indexIO,
-      IndexMerger indexMerger,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      IndexMerger indexMerger
   )
   {
     synchronized (this) {
@@ -217,13 +210,12 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
           taskId,
           schema,
           rewriteAppenderatorConfigMemoryLimits(config),
+          storeCompactionState,
           metrics,
           dataSegmentPusher,
           objectMapper,
           indexIO,
-          wrapIndexMerger(indexMerger),
-          rowIngestionMeters,
-          parseExceptionHandler
+          wrapIndexMerger(indexMerger)
       );
       datasourceBundle.addAppenderator(taskId, appenderator);
       return appenderator;
@@ -381,12 +373,6 @@ public class UnifiedIndexerAppenderatorsManager implements AppenderatorsManager
     public boolean isReportParseExceptions()
     {
       return baseConfig.isReportParseExceptions();
-    }
-
-    @Override
-    public AppendableIndexSpec getAppendableIndexSpec()
-    {
-      return baseConfig.getAppendableIndexSpec();
     }
 
     @Override

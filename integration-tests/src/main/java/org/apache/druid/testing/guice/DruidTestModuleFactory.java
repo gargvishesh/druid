@@ -57,6 +57,7 @@ public class DruidTestModuleFactory implements IModuleFactory
   @Override
   public Module createModule(ITestContext context, Class<?> testClass)
   {
+    context.addGuiceModule(DruidTestModule.class, MODULE);
     context.addInjector(Collections.singletonList(MODULE), INJECTOR);
     return MODULE;
   }

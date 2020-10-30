@@ -19,7 +19,6 @@
 
 package org.apache.druid.query.aggregation.first;
 
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.query.aggregation.AggregateCombiner;
 import org.apache.druid.query.aggregation.Aggregator;
@@ -32,7 +31,6 @@ import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Before;
@@ -40,7 +38,7 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-public class StringFirstAggregationTest extends InitializedNullHandlingTest
+public class StringFirstAggregationTest
 {
   private final Integer MAX_STRING_SIZE = 1024;
   private AggregatorFactory stringFirstAggFactory;
@@ -63,7 +61,6 @@ public class StringFirstAggregationTest extends InitializedNullHandlingTest
   @Before
   public void setup()
   {
-    NullHandling.initializeForTests();
     stringFirstAggFactory = new StringFirstAggregatorFactory("billy", "nilly", MAX_STRING_SIZE);
     combiningAggFactory = stringFirstAggFactory.getCombiningFactory();
     timeSelector = new TestLongColumnSelector(times);
@@ -114,27 +111,11 @@ public class StringFirstAggregationTest extends InitializedNullHandlingTest
   }
 
   @Test
-  public void testCombineLeftLower()
+  public void testCombine()
   {
     SerializablePairLongString pair1 = new SerializablePairLongString(1467225000L, "AAAA");
     SerializablePairLongString pair2 = new SerializablePairLongString(1467240000L, "BBBB");
-    Assert.assertEquals(pair1, stringFirstAggFactory.combine(pair1, pair2));
-  }
-
-  @Test
-  public void testCombineRightLower()
-  {
-    SerializablePairLongString pair1 = new SerializablePairLongString(1467240000L, "AAAA");
-    SerializablePairLongString pair2 = new SerializablePairLongString(1467225000L, "BBBB");
     Assert.assertEquals(pair2, stringFirstAggFactory.combine(pair1, pair2));
-  }
-
-  @Test
-  public void testCombineLeftRightSame()
-  {
-    SerializablePairLongString pair1 = new SerializablePairLongString(1467225000L, "AAAA");
-    SerializablePairLongString pair2 = new SerializablePairLongString(1467225000L, "BBBB");
-    Assert.assertEquals(pair1, stringFirstAggFactory.combine(pair1, pair2));
   }
 
   @Test
@@ -177,23 +158,24 @@ public class StringFirstAggregationTest extends InitializedNullHandlingTest
   @Test
   public void testStringFirstAggregateCombiner()
   {
-    TestObjectColumnSelector columnSelector = new TestObjectColumnSelector<>(pairs);
+    final String[] strings = {"AAAA", "BBBB", "CCCC", "DDDD", "EEEE"};
+    TestObjectColumnSelector columnSelector = new TestObjectColumnSelector<>(strings);
 
     AggregateCombiner stringFirstAggregateCombiner =
         combiningAggFactory.makeAggregateCombiner();
 
     stringFirstAggregateCombiner.reset(columnSelector);
 
-    Assert.assertEquals(pairs[0], stringFirstAggregateCombiner.getObject());
+    Assert.assertEquals(strings[0], stringFirstAggregateCombiner.getObject());
 
     columnSelector.increment();
     stringFirstAggregateCombiner.fold(columnSelector);
 
-    Assert.assertEquals(pairs[0], stringFirstAggregateCombiner.getObject());
+    Assert.assertEquals(strings[0], stringFirstAggregateCombiner.getObject());
 
     stringFirstAggregateCombiner.reset(columnSelector);
 
-    Assert.assertEquals(pairs[1], stringFirstAggregateCombiner.getObject());
+    Assert.assertEquals(strings[1], stringFirstAggregateCombiner.getObject());
   }
 
   private void aggregate(

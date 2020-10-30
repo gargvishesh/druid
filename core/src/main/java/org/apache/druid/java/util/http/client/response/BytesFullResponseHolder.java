@@ -36,6 +36,7 @@ public class BytesFullResponseHolder extends FullResponseHolder<byte[]>
     this.chunks = new ArrayList<>();
   }
 
+  @Override
   public BytesFullResponseHolder addChunk(byte[] chunk)
   {
     chunks.add(chunk);

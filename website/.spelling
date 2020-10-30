@@ -19,7 +19,6 @@
 # one word per line, to define a file override use ' - filename'
 # where filename is relative to this configuration file
 32-bit
-500MiB
 64-bit
 ACL
 APIs
@@ -41,7 +40,6 @@ CORS
 CPUs
 CSVs
 Ceph
-CNF
 ColumnDescriptor
 Corretto
 DDL
@@ -91,8 +89,6 @@ IANA
 IETF
 IP
 IPv4
-IS_BROADCAST
-IS_JOINABLE
 IS0
 ISO-8601
 ISO8601
@@ -101,7 +97,6 @@ IndexTask
 InfluxDB
 InputFormat
 InputSource
-InputSources
 Integer.MAX_VALUE
 JBOD
 JDBC
@@ -137,7 +132,6 @@ MiddleManagers
 Montréal
 Murmur3
 NFS
-OCF
 OLAP
 OOMs
 OpenJDK
@@ -155,7 +149,6 @@ S3
 SDK
 SIGAR
 SPNEGO
-SqlInputSource
 SQLServer
 SSD
 SSDs
@@ -179,7 +172,6 @@ UTF-8
 UTF8
 XMLs
 ZK
-ZSTD
 accessor
 ad-hoc
 aggregator
@@ -260,7 +252,6 @@ hostname
 hostnames
 http
 https
-idempotency
 i.e.
 influxdb
 ingestionSpec
@@ -269,7 +260,6 @@ inlined
 interruptible
 jackson-jq
 javadoc
-joinable
 kerberos
 keystore
 keytab
@@ -283,8 +273,6 @@ lookback
 lookups
 mapreduce
 masse
-maxNumFiles
-maxNumSegments
 max_map_count
 memcached
 mergeable
@@ -306,8 +294,6 @@ numerics
 parameterized
 parseable
 partitioner
-partitionFunction
-partitionsSpec
 performant
 plaintext
 pluggable
@@ -321,8 +307,6 @@ pre-computation
 pre-compute
 pre-computing
 pre-configured
-pre-filtered
-pre-filtering
 pre-generated
 pre-made
 pre-processing
@@ -334,10 +318,8 @@ prepend
 prepended
 prepending
 prepends
-prepopulated
 preprocessing
 priori
-procs
 programmatically
 proto
 proxied
@@ -362,10 +344,7 @@ rsync
 runtime
 schemas
 searchable
-secondaryPartitionPruning
-seekable-stream
 servlet
-simple-client-sslcontext
 sharded
 sharding
 skipHeaderRows
@@ -380,9 +359,6 @@ subqueries
 subquery
 subsecond
 substring
-subtask
-subtasks
-supervisorTaskId
 symlink
 tiering
 timeseries
@@ -403,8 +379,6 @@ unmergeable
 unmerged
 unparseable
 unparsed
-unsetting
-useFilterCNF
 uptime
 uris
 useFieldDiscovery
@@ -414,7 +388,6 @@ vCPUs
 validator
 vectorizable
 vectorize
-vectorizeVirtualColumns
 versioning
 w.r.t.
 whitelist
@@ -470,8 +443,6 @@ v9
 DskipTests
 Papache-release
 Pdist
-Ddruid.console.skip
-yaml
  - ../docs/development/extensions-contrib/ambari-metrics-emitter.md
 ambari-metrics
 metricName
@@ -543,7 +514,6 @@ MeanNoNulls
 P1D
 cycleSize
 doubleMax
-doubleAny
 doubleMean
 doubleMeanNoNulls
 doubleMin
@@ -551,7 +521,6 @@ doubleSum
 druid.generic.useDefaultValueForNull
 limitSpec
 longMax
-longAny
 longMean
 longMeanNoNulls
 longMin
@@ -565,8 +534,6 @@ namespacePrefix
 src
  - ../docs/development/extensions-contrib/redis-cache.md
 loadList
-pull-deps
-PT2S
  - ../docs/development/extensions-contrib/sqlserver.md
 com.microsoft.sqlserver.jdbc.SQLServerDriver
 sqljdbc
@@ -592,18 +559,9 @@ thriftJar
  - ../docs/development/extensions-contrib/time-min-max.md
 timeMax
 timeMin
- - ../docs/development/extensions-contrib/aliyun-oss-extensions.md
-Aliyun
-aliyun
-OSS
-AccessKey
-aliyun-oss
-oss
-url
  - ../docs/development/extensions-core/approximate-histograms.md
 approxHistogram
 approxHistogramFold
-fixedBucketsHistogram
 bucketNum
 lowerLimit
 numBuckets
@@ -614,7 +572,6 @@ Avro-1124
 SchemaRepo
 avro
 avroBytesDecoder
-flattenSpec
 jq
 org.apache.druid.extensions
 schemaRepository
@@ -872,6 +829,7 @@ jvm-global
 kafka-emitter
 org.apache.druid.extensions.contrib.
 pull-deps
+simple-client-sslcontext
 sqlserver-metadata-storage
 statsd-emitter
  - ../docs/development/geo.md
@@ -977,6 +935,7 @@ overwriteFiles
 partitionDimension
 partitionDimensions
 partitionSpec
+partitionsSpec
 pathFormat
 segmentOutputPath
 segmentTable
@@ -1101,9 +1060,6 @@ nextafter
 nvl
 parse_long
 regexp_extract
-regexp_like
-contains_string
-icontains_string
 result1
 result2
 rint
@@ -1114,7 +1070,6 @@ signum
 str1
 str2
 string_to_array
-stringAny
 strlen
 strpos
 timestamp_ceil
@@ -1164,7 +1119,6 @@ un
 4G
 5MB
 64KB
-7KB
 8G
 G1GC
 GroupBys
@@ -1194,9 +1148,8 @@ RealtimeMetricsMonitor
 Sys
 SysMonitor
 TaskCountStatsMonitor
-TaskSlotCountStatsMonitor
 bufferCapacity
-bufferpoolName
+bufferPoolName
 cms
 cpuName
 cpuTime
@@ -1504,7 +1457,6 @@ is_overshadowed
 is_published
 is_realtime
 java.sql.Types
-last_compaction_state
 max_size
 num_replicas
 num_rows
@@ -1515,7 +1467,6 @@ queue_insertion_time
 runner_status
 segment_id
 server_type
-shard_spec
 sqlTimeZone
 supervisor_id
 sys
@@ -1576,9 +1527,6 @@ dsql
  - ../docs/tutorials/tutorial-update-data.md
 bear-111
  - ../docs/configuration/index.md
-1GiB
-KiB
-GiB
 00.000Z
 100ms
 10ms
@@ -1596,7 +1544,6 @@ EventReceiverFirehose
 File.getFreeSpace
 File.getTotalSpace
 ForkJoinPool
-GCE
 HadoopIndexTasks
 HttpEmitter
 HttpPostEmitter
@@ -1605,7 +1552,6 @@ JRE8u60
 KeyManager
 L1
 L2
-ListManagedInstances
 LoadSpec
 LoggingEmitter
 Los_Angeles
@@ -1645,10 +1591,7 @@ _default_tier
 addr
 affinityConfig
 allowAll
-ANDed
 array_mod
-autoscale
-autoscalers
 batch_index_task
 cgroup
 classloader
@@ -1675,7 +1618,6 @@ druid_supervisors
 druid_taskLock
 druid_taskLog
 druid_tasks
-DruidQueryRel
 ec2
 equalDistribution
 extractionFn
@@ -1683,19 +1625,15 @@ file.encoding
 fillCapacity
 first_location
 floatMax
-floatAny
 floatMin
 floatSum
 freeSpacePercent
-gce
-gce-extensions
 getCanonicalHostName
 groupBy
 hdfs
 httpRemote
 indexTask
 info_dir
-inlining
 java.class.path
 java.io.tmpdir
 javaOpts
@@ -1712,7 +1650,6 @@ middlemanager
 minTimeMs
 minmax
 mins
-nullable
 orderby
 orderbys
 org.apache.druid
@@ -1721,7 +1658,6 @@ org.apache.hadoop
 overlord.html
 pendingSegments
 pre-flight
-preloaded
 queryType
 remoteTaskRunnerConfig
 rendezvousHash
@@ -1743,7 +1679,6 @@ tmp
 tmpfs
 truststore
 tuningConfig
-unioning
 useIndexes
 user.timezone
 v0.12.0
@@ -1792,24 +1727,3 @@ regionName
 json
 metastore
 UserGroupInformation
-CVE-2019-17571
-CVE-2019-12399
-CVE-2018-17196
-bin.tar.gz
- - ../docs/configuration/human-readable-byte.md
-0s
-1T
-3G
-1_000
-1_000_000
-1_000_000_000
-1_000_000_000_000
-1_000_000_000_000_000
-Giga
-Tera
-Peta
-KiB
-MiB
-GiB
-TiB
-PiB

@@ -36,6 +36,7 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.QueryPlus;
@@ -111,6 +112,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
     public MapIncrementalIndex(
         IncrementalIndexSchema incrementalIndexSchema,
         boolean deserializeComplexMetrics,
+        boolean reportParseExceptions,
         boolean concurrentEventAdd,
         boolean sortFacts,
         int maxRowCount,
@@ -120,6 +122,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
       super(
           incrementalIndexSchema,
           deserializeComplexMetrics,
+          reportParseExceptions,
           concurrentEventAdd,
           sortFacts,
           maxRowCount,
@@ -141,6 +144,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
               .withQueryGranularity(gran)
               .withMetrics(metrics)
               .build(),
+          true,
           true,
           false,
           true,
@@ -218,7 +222,15 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
 
       for (Aggregator agg : aggs) {
         synchronized (agg) {
-          agg.aggregate();
+          try {
+            agg.aggregate();
+          }
+          catch (ParseException e) {
+            // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
+            if (getReportParseExceptions()) {
+              throw e;
+            }
+          }
         }
       }
 

@@ -66,7 +66,7 @@ public class OpentsdbEmitter implements Emitter
   public void emit(Event event)
   {
     if (!started.get()) {
-      throw new ISE("Emit called unexpectedly before service start");
+      throw new ISE("WTF emit was called while service is not started yet");
     }
     if (event instanceof ServiceMetricEvent) {
       OpentsdbEvent opentsdbEvent = converter.convert((ServiceMetricEvent) event);

@@ -19,13 +19,16 @@
 
 package org.apache.druid.server.coordinator;
 
+import org.apache.druid.java.util.common.DateTimes;
+
 public class CoordinatorRuntimeParamsTestHelpers
 {
   public static DruidCoordinatorRuntimeParams.Builder newBuilder()
   {
     return DruidCoordinatorRuntimeParams
         .newBuilder()
-        .withStartTimeNanos(System.nanoTime());
+        .withStartTimeNanos(System.nanoTime())
+        .withBalancerReferenceTimestamp(DateTimes.of("2013-01-01"));
   }
 
   public static DruidCoordinatorRuntimeParams.Builder newBuilder(DruidCluster druidCluster)

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.druid.indexing.kafka.KafkaIndexTaskTuningConfig;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.writeout.SegmentWriteOutMediumFactory;
 import org.joda.time.Period;
 
@@ -38,7 +37,6 @@ public class TestModifiedKafkaIndexTaskTuningConfig extends KafkaIndexTaskTuning
 
   @JsonCreator
   public TestModifiedKafkaIndexTaskTuningConfig(
-      @JsonProperty("appendableIndexSpec") @Nullable AppendableIndexSpec appendableIndexSpec,
       @JsonProperty("maxRowsInMemory") @Nullable Integer maxRowsInMemory,
       @JsonProperty("maxBytesInMemory") @Nullable Long maxBytesInMemory,
       @JsonProperty("maxRowsPerSegment") @Nullable Integer maxRowsPerSegment,
@@ -62,7 +60,6 @@ public class TestModifiedKafkaIndexTaskTuningConfig extends KafkaIndexTaskTuning
   )
   {
     super(
-        appendableIndexSpec,
         maxRowsInMemory,
         maxBytesInMemory,
         maxRowsPerSegment,

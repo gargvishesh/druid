@@ -53,8 +53,8 @@ public class GraphiteEmitterConfigTest
         1000L,
         100,
         new SendAllGraphiteEventConverter("prefix", true, true, false),
-        Collections.emptyList(),
-        Collections.emptyList(),
+        Collections.EMPTY_LIST,
+        Collections.EMPTY_LIST,
         null,
         null
     );
@@ -91,11 +91,5 @@ public class GraphiteEmitterConfigTest
     druidToGraphiteEventConverter = mapper.readerFor(DruidToGraphiteEventConverter.class)
                                           .readValue(whiteListBasedConverterString);
     Assert.assertEquals(druidToGraphiteEventConverter, whiteListBasedConverter);
-  }
-
-  @Test
-  public void testJacksonModules()
-  {
-    Assert.assertTrue(new GraphiteEmitterModule().getJacksonModules().isEmpty());
   }
 }

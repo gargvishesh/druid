@@ -27,7 +27,6 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorUtil;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
@@ -82,26 +81,6 @@ public class ArrayOfDoublesSketchSetOpPostAggregator extends ArrayOfDoublesSketc
     return operation.apply(nominalEntries, numberOfValues, sketches);
   }
 
-  @Override
-  public byte[] getCacheKey()
-  {
-    return new CacheKeyBuilder(AggregatorUtil.ARRAY_OF_DOUBLES_SKETCH_SET_OP_CACHE_TYPE_ID)
-        .appendCacheables(getFields())
-        .appendInt(nominalEntries)
-        .appendInt(numberOfValues)
-        .appendString(operation.toString())
-        .build();
-  }
-
-  /**
-   * actual type is {@link ArrayOfDoublesSketch}
-   */
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.COMPLEX;
-  }
-
   @JsonProperty
   public String getOperation()
   {
@@ -133,21 +112,22 @@ public class ArrayOfDoublesSketchSetOpPostAggregator extends ArrayOfDoublesSketc
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
     if (!super.equals(o)) {
       return false;
     }
-    ArrayOfDoublesSketchSetOpPostAggregator that = (ArrayOfDoublesSketchSetOpPostAggregator) o;
-    return nominalEntries == that.nominalEntries &&
-           numberOfValues == that.numberOfValues &&
-           operation == that.operation;
+    if (!(o instanceof ArrayOfDoublesSketchSetOpPostAggregator)) {
+      return false;
+    }
+    final ArrayOfDoublesSketchSetOpPostAggregator that = (ArrayOfDoublesSketchSetOpPostAggregator) o;
+    if (nominalEntries != that.nominalEntries) {
+      return false;
+    }
+    if (numberOfValues != that.numberOfValues) {
+      return false;
+    }
+    return operation.equals(that.operation);
   }
 
   @Override
@@ -155,4 +135,16 @@ public class ArrayOfDoublesSketchSetOpPostAggregator extends ArrayOfDoublesSketc
   {
     return Objects.hash(super.hashCode(), operation, nominalEntries, numberOfValues);
   }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    return new CacheKeyBuilder(AggregatorUtil.ARRAY_OF_DOUBLES_SKETCH_SET_OP_CACHE_TYPE_ID)
+        .appendCacheables(getFields())
+        .appendInt(nominalEntries)
+        .appendInt(numberOfValues)
+        .appendString(operation.toString())
+        .build();
+  }
+
 }

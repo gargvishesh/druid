@@ -23,10 +23,8 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.js.JavaScriptConfig;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,7 +32,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class CascadeExtractionFnTest extends InitializedNullHandlingTest
+public class CascadeExtractionFnTest
 {
   private static final String[] PATHS = {
       "/druid/prod/historical",
@@ -206,39 +204,5 @@ public class CascadeExtractionFnTest extends InitializedNullHandlingTest
             ExtractionFn.class
         )
     );
-  }
-
-  @Test
-  public void testEqualsContract()
-  {
-    EqualsVerifier.forClass(CascadeExtractionFn.class)
-                  .withPrefabValues(
-                      CascadeExtractionFn.ChainedExtractionFn.class,
-                      CascadeExtractionFn.DEFAULT_CHAINED_EXTRACTION_FN,
-                      new CascadeExtractionFn.ChainedExtractionFn(
-                          StrlenExtractionFn.instance(),
-                          CascadeExtractionFn.DEFAULT_CHAINED_EXTRACTION_FN
-                      )
-                  )
-                  .withNonnullFields("chainedExtractionFn")
-                  .usingGetClass()
-                  .verify();
-  }
-
-  @Test
-  public void testEqualsContractForChainedExtractionFn()
-  {
-    EqualsVerifier.forClass(CascadeExtractionFn.ChainedExtractionFn.class)
-                  .withPrefabValues(
-                      CascadeExtractionFn.ChainedExtractionFn.class,
-                      CascadeExtractionFn.DEFAULT_CHAINED_EXTRACTION_FN,
-                      new CascadeExtractionFn.ChainedExtractionFn(
-                          StrlenExtractionFn.instance(),
-                          CascadeExtractionFn.DEFAULT_CHAINED_EXTRACTION_FN
-                      )
-                  )
-                  .withNonnullFields("fn")
-                  .usingGetClass()
-                  .verify();
   }
 }

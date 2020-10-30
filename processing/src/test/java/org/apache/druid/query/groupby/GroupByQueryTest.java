@@ -134,8 +134,7 @@ public class GroupByQueryTest
                   .suppress(Warning.NULL_FIELDS, Warning.NONFINAL_FIELDS)
                   // Fields derived from other fields are not included in equals/hashCode
                   .withIgnoredFields(
-                      "canDoLimitPushDown",
-                      "forceLimitPushDown",
+                      "applyLimitPushDown",
                       "postProcessingFn",
                       "resultRowSignature",
                       "universalTimestamp"

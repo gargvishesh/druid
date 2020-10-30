@@ -11,20 +11,7 @@ exports[`data source view matches snapshot 1`] = `
       localStorageKey="datasources-refresh-rate"
       onRefresh={[Function]}
     />
-    <Memo(MoreButton)
-      altExtra={
-        <Blueprint3.MenuItem
-          disabled={false}
-          icon="compressed"
-          intent="danger"
-          multiline={false}
-          onClick={[Function]}
-          popoverProps={Object {}}
-          shouldDismissPopover={true}
-          text="Force compaction run (debug)"
-        />
-      }
-    >
+    <Memo(MoreButton)>
       <Blueprint3.MenuItem
         disabled={false}
         icon="application"
@@ -33,15 +20,6 @@ exports[`data source view matches snapshot 1`] = `
         popoverProps={Object {}}
         shouldDismissPopover={true}
         text="View SQL query for table"
-      />
-      <Blueprint3.MenuItem
-        disabled={false}
-        icon="edit"
-        multiline={false}
-        onClick={[Function]}
-        popoverProps={Object {}}
-        shouldDismissPopover={true}
-        text="Edit default retention rules"
       />
     </Memo(MoreButton)>
     <Blueprint3.Switch
@@ -59,18 +37,15 @@ exports[`data source view matches snapshot 1`] = `
     <Memo(TableColumnSelector)
       columns={
         Array [
-          "Datasource name",
+          "Datasource",
           "Availability",
-          "Segment load/drop queues",
-          "Total data size",
-          "Segment size",
-          "Total rows",
-          "Avg. row size",
-          "Replicated size",
-          "Compaction",
-          "% Compacted",
-          "Left to be compacted",
+          "Segment load/drop",
           "Retention",
+          "Replicated size",
+          "Size",
+          "Compaction",
+          "Avg. segment size",
+          "Num rows",
           "Actions",
         ]
       }
@@ -137,11 +112,7 @@ exports[`data source view matches snapshot 1`] = `
       Array [
         Object {
           "Cell": [Function],
-          "Header": <React.Fragment>
-            Datasource
-            <br />
-            name
-          </React.Fragment>,
+          "Header": "Datasource",
           "accessor": "datasource",
           "show": true,
           "width": 150,
@@ -152,79 +123,37 @@ exports[`data source view matches snapshot 1`] = `
           "accessor": [Function],
           "filterable": false,
           "id": "availability",
-          "minWidth": 200,
           "show": true,
           "sortMethod": [Function],
         },
         Object {
           "Cell": [Function],
-          "Header": <React.Fragment>
-            Segment load/drop
-            <br />
-            queues
-          </React.Fragment>,
+          "Header": "Segment load/drop",
           "accessor": "num_segments_to_load",
           "filterable": false,
           "id": "load-drop",
-          "minWidth": 100,
           "show": true,
         },
         Object {
           "Cell": [Function],
-          "Header": <React.Fragment>
-            Total
-            <br />
-            data size
-          </React.Fragment>,
-          "accessor": "total_data_size",
+          "Header": "Retention",
+          "accessor": [Function],
           "filterable": false,
+          "id": "retention",
           "show": true,
-          "width": 100,
         },
         Object {
           "Cell": [Function],
-          "Header": <React.Fragment>
-            Segment size (rows)
-            <br />
-            minimum / average / maximum
-          </React.Fragment>,
-          "accessor": "avg_segment_rows",
-          "filterable": false,
-          "show": true,
-          "width": 220,
-        },
-        Object {
-          "Cell": [Function],
-          "Header": <React.Fragment>
-            Total
-            <br />
-            rows
-          </React.Fragment>,
-          "accessor": "total_rows",
-          "filterable": false,
-          "show": true,
-          "width": 100,
-        },
-        Object {
-          "Cell": [Function],
-          "Header": <React.Fragment>
-            Avg. row size
-            <br />
-            (bytes)
-          </React.Fragment>,
-          "accessor": "avg_row_size",
-          "filterable": false,
-          "show": true,
-          "width": 100,
-        },
-        Object {
-          "Cell": [Function],
-          "Header": <React.Fragment>
-            Replicated
-            <br />
-            size
-          </React.Fragment>,
+          "Header": "Replicated size",
           "accessor": "replicated_size",
+          "filterable": false,
+          "show": true,
+          "width": 100,
+        },
+        Object {
+          "Cell": [Function],
+          "Header": "Size",
+          "accessor": "size",
           "filterable": false,
           "show": true,
           "width": 100,
@@ -234,44 +163,24 @@ exports[`data source view matches snapshot 1`] = `
           "Header": "Compaction",
           "accessor": [Function],
           "filterable": false,
-          "id": "compactionStatus",
+          "id": "compaction",
           "show": true,
-          "width": 150,
         },
         Object {
           "Cell": [Function],
-          "Header": <React.Fragment>
-            % Compacted
-            <br />
-            bytes / segments / intervals
-          </React.Fragment>,
-          "accessor": [Function],
+          "Header": "Avg. segment size",
+          "accessor": "avg_segment_size",
           "filterable": false,
-          "id": "percentCompacted",
-          "show": true,
-          "width": 200,
-        },
-        Object {
-          "Cell": [Function],
-          "Header": <React.Fragment>
-            Left to be
-            <br />
-            compacted
-          </React.Fragment>,
-          "accessor": [Function],
-          "filterable": false,
-          "id": "leftToBeCompacted",
           "show": true,
           "width": 100,
         },
         Object {
           "Cell": [Function],
-          "Header": "Retention",
-          "accessor": [Function],
+          "Header": "Num rows",
+          "accessor": "num_rows",
           "filterable": false,
-          "id": "retention",
-          "minWidth": 100,
           "show": true,
+          "width": 100,
         },
         Object {
           "Cell": [Function],

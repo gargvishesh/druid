@@ -24,7 +24,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.math.expr.ExprTypeConversion;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.calcite.planner.Calcites;
 
@@ -38,8 +37,8 @@ class ReductionOperatorConversionHelper
    * Implements type precedence rules similar to:
    * https://dev.mysql.com/doc/refman/8.0/en/comparison-operators.html#function_least
    *
-   * @see org.apache.druid.math.expr.Function.ReduceFunction#apply
-   * @see ExprTypeConversion#function
+   * @see org.apache.druid.math.expr.Function.ReduceFunc#apply
+   * @see org.apache.druid.math.expr.Function.ReduceFunc#getComparisionType
    */
   static final SqlReturnTypeInference TYPE_INFERENCE =
       opBinding -> {
@@ -56,7 +55,7 @@ class ReductionOperatorConversionHelper
         for (int i = 0; i < n; i++) {
           RelDataType type = opBinding.getOperandType(i);
           SqlTypeName sqlTypeName = type.getSqlTypeName();
-          ValueType valueType = Calcites.getValueTypeForRelDataType(type);
+          ValueType valueType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
 
           // Return types are listed in order of preference:
           if (valueType == ValueType.STRING) {

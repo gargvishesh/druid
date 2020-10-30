@@ -20,7 +20,6 @@
 package org.apache.druid.server.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import org.apache.druid.audit.AuditEntry;
@@ -91,28 +90,16 @@ public class SQLAuditManager implements AuditManager
     );
   }
 
-  @VisibleForTesting
-  ServiceMetricEvent.Builder getAuditMetricEventBuilder(AuditEntry auditEntry)
-  {
-    ServiceMetricEvent.Builder builder = new ServiceMetricEvent.Builder()
-            .setDimension("key", auditEntry.getKey())
-            .setDimension("type", auditEntry.getType())
-            .setDimension("author", auditEntry.getAuditInfo().getAuthor())
-            .setDimension("comment", auditEntry.getAuditInfo().getComment())
-            .setDimension("remote_address", auditEntry.getAuditInfo().getIp())
-            .setDimension("created_date", auditEntry.getAuditTime().toString());
-
-    if (config.getIncludePayloadAsDimensionInMetric()) {
-      builder.setDimension("payload", auditEntry.getPayload());
-    }
-
-    return builder;
-  }
-
   @Override
   public void doAudit(AuditEntry auditEntry, Handle handle) throws IOException
   {
-    emitter.emit(getAuditMetricEventBuilder(auditEntry).build("config/audit", 1));
+    emitter.emit(
+        new ServiceMetricEvent.Builder()
+            .setDimension("key", auditEntry.getKey())
+            .setDimension("type", auditEntry.getType())
+            .setDimension("author", auditEntry.getAuditInfo().getAuthor())
+            .build("config/audit", 1)
+    );
 
     handle.createStatement(
         StringUtils.format(

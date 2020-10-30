@@ -19,11 +19,9 @@
 
 package org.apache.druid.query.topn;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
-import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.AggregatorFactory;
@@ -44,8 +42,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * A Builder for TopNQuery.
@@ -234,9 +230,7 @@ public class TopNQueryBuilder
 
   public TopNQueryBuilder filters(String dimensionName, String value, String... values)
   {
-    final Set<String> filterValues = Sets.newHashSet(values);
-    filterValues.add(value);
-    dimFilter = new InDimFilter(dimensionName, filterValues);
+    dimFilter = new InDimFilter(dimensionName, Lists.asList(value, values), null, null);
     return this;
   }
 
@@ -279,18 +273,8 @@ public class TopNQueryBuilder
 
   public TopNQueryBuilder context(Map<String, Object> c)
   {
-    this.context = c;
+    context = c;
     return this;
   }
 
-  public TopNQueryBuilder randomQueryId()
-  {
-    return queryId(UUID.randomUUID().toString());
-  }
-
-  public TopNQueryBuilder queryId(String queryId)
-  {
-    context = BaseQuery.computeOverriddenContext(context, ImmutableMap.of(BaseQuery.QUERY_ID, queryId));
-    return this;
-  }
 }

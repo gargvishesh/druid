@@ -28,14 +28,12 @@ import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMerger;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 import org.apache.druid.segment.realtime.FireDepartmentMetrics;
 import org.apache.druid.server.coordination.DataSegmentAnnouncer;
-import org.apache.druid.server.coordination.NoopDataSegmentAnnouncer;
+import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 
 import java.util.concurrent.ExecutorService;
@@ -58,15 +56,14 @@ public class Appenderators
       JoinableFactory joinableFactory,
       Cache cache,
       CacheConfig cacheConfig,
-      CachePopulatorStats cachePopulatorStats,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      CachePopulatorStats cachePopulatorStats
   )
   {
     return new AppenderatorImpl(
         id,
         schema,
         config,
+        false,
         metrics,
         dataSegmentPusher,
         objectMapper,
@@ -87,9 +84,7 @@ public class Appenderators
         ),
         indexIO,
         indexMerger,
-        cache,
-        rowIngestionMeters,
-        parseExceptionHandler
+        cache
     );
   }
 
@@ -97,29 +92,52 @@ public class Appenderators
       String id,
       DataSchema schema,
       AppenderatorConfig config,
+      boolean storeCompactionState,
       FireDepartmentMetrics metrics,
       DataSegmentPusher dataSegmentPusher,
       ObjectMapper objectMapper,
       IndexIO indexIO,
-      IndexMerger indexMerger,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      IndexMerger indexMerger
   )
   {
     return new AppenderatorImpl(
         id,
         schema,
         config,
+        storeCompactionState,
         metrics,
         dataSegmentPusher,
         objectMapper,
-        new NoopDataSegmentAnnouncer(),
+        new DataSegmentAnnouncer()
+        {
+          @Override
+          public void announceSegment(DataSegment segment)
+          {
+            // Do nothing
+          }
+
+          @Override
+          public void unannounceSegment(DataSegment segment)
+          {
+            // Do nothing
+          }
+
+          @Override
+          public void announceSegments(Iterable<DataSegment> segments)
+          {
+            // Do nothing
+          }
+
+          @Override
+          public void unannounceSegments(Iterable<DataSegment> segments)
+          {
+            // Do nothing
+          }
+        },
         null,
         indexIO,
         indexMerger,
-        null,
-        rowIngestionMeters,
-        parseExceptionHandler
+        null
     );
   }
 }

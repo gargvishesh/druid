@@ -1,7 +1,6 @@
 ---
 id: multitenancy
 title: "Multitenancy considerations"
-sidebar_label: "Multitenancy"
 ---
 
 <!--

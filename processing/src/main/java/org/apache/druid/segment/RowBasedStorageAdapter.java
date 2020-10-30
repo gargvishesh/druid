@@ -37,7 +37,6 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -113,6 +112,12 @@ public class RowBasedStorageAdapter<RowType> implements StorageAdapter
     return null;
   }
 
+  @Override
+  public Capabilities getCapabilities()
+  {
+    return Capabilities.builder().dimensionValuesSorted(false).build();
+  }
+
   @Nullable
   @Override
   public ColumnCapabilities getColumnCapabilities(String column)
@@ -131,12 +136,6 @@ public class RowBasedStorageAdapter<RowType> implements StorageAdapter
   @Override
   public int getNumRows()
   {
-    if (rowIterable instanceof Collection) {
-      return ((Collection<RowType>) rowIterable).size();
-    }
-
-    // getNumRows is only used by tests and by segmentMetadataQuery (which would be odd to call on inline datasources)
-    // so no big deal if it doesn't always work.
     throw new UnsupportedOperationException("Cannot retrieve number of rows");
   }
 

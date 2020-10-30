@@ -35,7 +35,6 @@ import org.apache.druid.query.filter.DruidFloatPredicate;
 import org.apache.druid.query.filter.DruidLongPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.segment.column.BitmapIndex;
-import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.CloseableIndexed;
 import org.apache.druid.segment.data.GenericIndexed;
@@ -167,7 +166,7 @@ public class DimensionPredicateFilterBenchmark
       }
 
       @Override
-      public ColumnCapabilities.Capable hasMultipleValues(final String dimension)
+      public boolean hasMultipleValues(final String dimension)
       {
         throw new UnsupportedOperationException();
       }

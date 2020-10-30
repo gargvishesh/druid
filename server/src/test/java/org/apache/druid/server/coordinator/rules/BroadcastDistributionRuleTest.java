@@ -19,6 +19,7 @@
 
 package org.apache.druid.server.coordinator.rules;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.druid.client.DruidServer;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
@@ -268,7 +269,7 @@ public class BroadcastDistributionRuleTest
   public void testBroadcastToSingleDataSource()
   {
     final ForeverBroadcastDistributionRule rule =
-        new ForeverBroadcastDistributionRule();
+        new ForeverBroadcastDistributionRule(ImmutableList.of("large_source"));
 
     CoordinatorStats stats = rule.run(
         null,
@@ -284,7 +285,7 @@ public class BroadcastDistributionRuleTest
         smallSegment
     );
 
-    Assert.assertEquals(5L, stats.getGlobalStat(LoadRule.ASSIGNED_COUNT));
+    Assert.assertEquals(3L, stats.getGlobalStat(LoadRule.ASSIGNED_COUNT));
     Assert.assertFalse(stats.hasPerTierStats());
 
     Assert.assertTrue(
@@ -294,10 +295,10 @@ public class BroadcastDistributionRuleTest
 
     Assert.assertTrue(
         holdersOfLargeSegments2.stream()
-                               .allMatch(holder -> holder.getPeon().getSegmentsToLoad().contains(smallSegment))
+                               .noneMatch(holder -> holder.getPeon().getSegmentsToLoad().contains(smallSegment))
     );
 
-    Assert.assertTrue(holderOfSmallSegment.isServingSegment(smallSegment));
+    Assert.assertFalse(holderOfSmallSegment.getPeon().getSegmentsToLoad().contains(smallSegment));
   }
 
   private static DruidCoordinatorRuntimeParams makeCoordinartorRuntimeParams(
@@ -330,7 +331,7 @@ public class BroadcastDistributionRuleTest
   public void testBroadcastDecommissioning()
   {
     final ForeverBroadcastDistributionRule rule =
-        new ForeverBroadcastDistributionRule();
+        new ForeverBroadcastDistributionRule(ImmutableList.of("large_source"));
 
     CoordinatorStats stats = rule.run(
         null,
@@ -355,6 +356,7 @@ public class BroadcastDistributionRuleTest
   public void testBroadcastToMultipleDataSources()
   {
     final ForeverBroadcastDistributionRule rule = new ForeverBroadcastDistributionRule(
+        ImmutableList.of("large_source", "large_source2")
     );
 
     CoordinatorStats stats = rule.run(
@@ -390,7 +392,7 @@ public class BroadcastDistributionRuleTest
   @Test
   public void testBroadcastToAllServers()
   {
-    final ForeverBroadcastDistributionRule rule = new ForeverBroadcastDistributionRule();
+    final ForeverBroadcastDistributionRule rule = new ForeverBroadcastDistributionRule(null);
 
     CoordinatorStats stats = rule.run(
         null,
@@ -406,14 +408,14 @@ public class BroadcastDistributionRuleTest
         smallSegment
     );
 
-    Assert.assertEquals(5L, stats.getGlobalStat(LoadRule.ASSIGNED_COUNT));
+    Assert.assertEquals(6L, stats.getGlobalStat(LoadRule.ASSIGNED_COUNT));
     Assert.assertFalse(stats.hasPerTierStats());
 
     Assert.assertTrue(
         druidCluster
             .getAllServers()
             .stream()
-            .allMatch(holder -> holder.isLoadingSegment(smallSegment) || holder.isServingSegment(smallSegment))
+            .allMatch(holder -> holder.getPeon().getSegmentsToLoad().contains(smallSegment))
     );
   }
 }

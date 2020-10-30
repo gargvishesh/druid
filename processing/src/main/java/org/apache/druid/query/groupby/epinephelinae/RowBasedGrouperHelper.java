@@ -736,6 +736,7 @@ public class RowBasedGrouperHelper
   {
     private final boolean includeTimestamp;
     private final boolean sortByDimsFirst;
+    private final int dimCount;
     private final long maxDictionarySize;
     private final DefaultLimitSpec limitSpec;
     private final List<DimensionSpec> dimensions;
@@ -755,6 +756,7 @@ public class RowBasedGrouperHelper
       this.includeTimestamp = includeTimestamp;
       this.sortByDimsFirst = sortByDimsFirst;
       this.dimensions = dimensions;
+      this.dimCount = dimensions.size();
       this.maxDictionarySize = maxDictionarySize;
       this.limitSpec = limitSpec;
       this.aggregatorFactories = aggregatorFactories;
@@ -805,7 +807,7 @@ public class RowBasedGrouperHelper
       if (includeTimestamp) {
         if (sortByDimsFirst) {
           return (entry1, entry2) -> {
-            final int cmp = compareDimsInRows(entry1.getKey(), entry2.getKey(), valueTypes, 1);
+            final int cmp = compareDimsInRows(entry1.getKey(), entry2.getKey(), 1);
             if (cmp != 0) {
               return cmp;
             }
@@ -823,23 +825,22 @@ public class RowBasedGrouperHelper
               return timeCompare;
             }
 
-            return compareDimsInRows(entry1.getKey(), entry2.getKey(), valueTypes, 1);
+            return compareDimsInRows(entry1.getKey(), entry2.getKey(), 1);
           };
         }
       } else {
-        return (entry1, entry2) -> compareDimsInRows(entry1.getKey(), entry2.getKey(), valueTypes, 0);
+        return (entry1, entry2) -> compareDimsInRows(entry1.getKey(), entry2.getKey(), 0);
       }
     }
 
     private Comparator<Grouper.Entry<RowBasedKey>> objectComparatorWithAggs()
     {
       // use the actual sort order from the limitspec if pushing down to merge partial results correctly
-      final int dimCount = dimensions.size();
       final List<Boolean> needsReverses = new ArrayList<>();
       final List<Boolean> aggFlags = new ArrayList<>();
+      final List<Boolean> isNumericField = new ArrayList<>();
       final List<StringComparator> comparators = new ArrayList<>();
       final List<Integer> fieldIndices = new ArrayList<>();
-      final List<ValueType> fieldValueTypes = new ArrayList<>();
       final Set<Integer> orderByIndices = new HashSet<>();
 
       for (OrderByColumnSpec orderSpec : limitSpec.getColumns()) {
@@ -851,7 +852,7 @@ public class RowBasedGrouperHelper
           needsReverses.add(needsReverse);
           aggFlags.add(false);
           final ValueType type = dimensions.get(dimIndex).getOutputType();
-          fieldValueTypes.add(type);
+          isNumericField.add(ValueType.isNumeric(type));
           comparators.add(orderSpec.getDimensionComparator());
         } else {
           int aggIndex = OrderByColumnSpec.getAggIndexForOrderBy(orderSpec, Arrays.asList(aggregatorFactories));
@@ -859,7 +860,8 @@ public class RowBasedGrouperHelper
             fieldIndices.add(aggIndex);
             needsReverses.add(needsReverse);
             aggFlags.add(true);
-            fieldValueTypes.add(aggregatorFactories[aggIndex].getType());
+            final String typeName = aggregatorFactories[aggIndex].getTypeName();
+            isNumericField.add(ValueType.isNumeric(ValueType.fromString(typeName)));
             comparators.add(orderSpec.getDimensionComparator());
           }
         }
@@ -870,9 +872,9 @@ public class RowBasedGrouperHelper
           fieldIndices.add(i);
           aggFlags.add(false);
           needsReverses.add(false);
-          ValueType type = dimensions.get(i).getOutputType();
-          fieldValueTypes.add(type);
-          if (type.isNumeric()) {
+          boolean isNumeric = ValueType.isNumeric(dimensions.get(i).getOutputType());
+          isNumericField.add(isNumeric);
+          if (isNumeric) {
             comparators.add(StringComparators.NUMERIC);
           } else {
             comparators.add(StringComparators.LEXICOGRAPHIC);
@@ -890,7 +892,7 @@ public class RowBasedGrouperHelper
                 needsReverses,
                 aggFlags,
                 fieldIndices,
-                fieldValueTypes,
+                isNumericField,
                 comparators
             );
             if (cmp != 0) {
@@ -917,7 +919,7 @@ public class RowBasedGrouperHelper
                 needsReverses,
                 aggFlags,
                 fieldIndices,
-                fieldValueTypes,
+                isNumericField,
                 comparators
             );
           };
@@ -930,33 +932,19 @@ public class RowBasedGrouperHelper
             needsReverses,
             aggFlags,
             fieldIndices,
-            fieldValueTypes,
+            isNumericField,
             comparators
         );
       }
     }
 
-    private static int compareDimsInRows(RowBasedKey key1, RowBasedKey key2, final List<ValueType> fieldTypes, int dimStart)
+    private static int compareDimsInRows(RowBasedKey key1, RowBasedKey key2, int dimStart)
     {
       for (int i = dimStart; i < key1.getKey().length; i++) {
-        final int cmp;
-        // sometimes doubles can become floats making the round trip from serde, make sure to coerce them both
-        // to double
-        // timestamp is not present in fieldTypes since it only includes the dimensions. sort of hacky, but if timestamp
-        // is included, dimstart will be 1, so subtract from 'i' to get correct index
-        if (ValueType.DOUBLE == fieldTypes.get(i - dimStart)) {
-          Object lhs = key1.getKey()[i];
-          Object rhs = key2.getKey()[i];
-          cmp = Comparators.<Comparable>naturalNullsFirst().compare(
-              lhs != null ? ((Number) lhs).doubleValue() : null,
-              rhs != null ? ((Number) rhs).doubleValue() : null
-          );
-        } else {
-          cmp = Comparators.<Comparable>naturalNullsFirst().compare(
-              (Comparable) key1.getKey()[i],
-              (Comparable) key2.getKey()[i]
-          );
-        }
+        final int cmp = Comparators.<Comparable>naturalNullsFirst().compare(
+            (Comparable) key1.getKey()[i],
+            (Comparable) key2.getKey()[i]
+        );
         if (cmp != 0) {
           return cmp;
         }
@@ -972,7 +960,7 @@ public class RowBasedGrouperHelper
         final List<Boolean> needsReverses,
         final List<Boolean> aggFlags,
         final List<Integer> fieldIndices,
-        final List<ValueType> fieldTypes,
+        final List<Boolean> isNumericField,
         final List<StringComparator> comparators
     )
     {
@@ -1003,19 +991,9 @@ public class RowBasedGrouperHelper
 
         final StringComparator comparator = comparators.get(i);
 
-        final ValueType fieldType = fieldTypes.get(i);
-        if (fieldType.isNumeric() && comparator.equals(StringComparators.NUMERIC)) {
+        if (isNumericField.get(i) && comparator.equals(StringComparators.NUMERIC)) {
           // use natural comparison
-          if (ValueType.DOUBLE == fieldType) {
-            // sometimes doubles can become floats making the round trip from serde, make sure to coerce them both
-            // to double
-            cmp = Comparators.<Comparable>naturalNullsFirst().compare(
-                lhs != null ? ((Number) lhs).doubleValue() : null,
-                rhs != null ? ((Number) rhs).doubleValue() : null
-            );
-          } else {
-            cmp = Comparators.<Comparable>naturalNullsFirst().compare(lhs, rhs);
-          }
+          cmp = Comparators.<Comparable>naturalNullsFirst().compare(lhs, rhs);
         } else {
           cmp = comparator.compare(
               DimensionHandlerUtils.convertObjectToString(lhs),

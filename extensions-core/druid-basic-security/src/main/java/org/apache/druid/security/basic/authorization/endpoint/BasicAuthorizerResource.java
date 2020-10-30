@@ -25,7 +25,6 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.security.basic.BasicSecurityResourceFilter;
 import org.apache.druid.security.basic.authorization.entity.BasicAuthorizerGroupMapping;
-import org.apache.druid.server.security.AuthValidator;
 import org.apache.druid.server.security.ResourceAction;
 
 import javax.servlet.http.HttpServletRequest;
@@ -47,16 +46,13 @@ import java.util.List;
 public class BasicAuthorizerResource
 {
   private final BasicAuthorizerResourceHandler resourceHandler;
-  private final AuthValidator authValidator;
 
   @Inject
   public BasicAuthorizerResource(
-      BasicAuthorizerResourceHandler resourceHandler,
-      AuthValidator authValidator
+      BasicAuthorizerResourceHandler resourceHandler
   )
   {
     this.resourceHandler = resourceHandler;
-    this.authValidator = authValidator;
   }
 
   /**
@@ -110,7 +106,6 @@ public class BasicAuthorizerResource
       @PathParam("authorizerName") final String authorizerName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getAllUsers(authorizerName);
   }
 
@@ -129,7 +124,6 @@ public class BasicAuthorizerResource
       @PathParam("authorizerName") final String authorizerName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getAllGroupMappings(authorizerName);
   }
 
@@ -152,7 +146,6 @@ public class BasicAuthorizerResource
       @QueryParam("simplifyPermissions") String simplifyPermissions
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getUser(authorizerName, userName, full != null, simplifyPermissions != null);
   }
 
@@ -174,7 +167,6 @@ public class BasicAuthorizerResource
       @QueryParam("full") String full
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getGroupMapping(authorizerName, groupMappingName, full != null);
   }
 
@@ -197,7 +189,6 @@ public class BasicAuthorizerResource
       @PathParam("userName") String userName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.createUser(authorizerName, userName);
   }
 
@@ -220,7 +211,6 @@ public class BasicAuthorizerResource
       @PathParam("userName") String userName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.deleteUser(authorizerName, userName);
   }
 
@@ -244,7 +234,6 @@ public class BasicAuthorizerResource
       BasicAuthorizerGroupMapping groupMapping
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.createGroupMapping(
         authorizerName,
         new BasicAuthorizerGroupMapping(groupMappingName, groupMapping.getGroupPattern(), groupMapping.getRoles())
@@ -270,7 +259,6 @@ public class BasicAuthorizerResource
       @PathParam("groupMappingName") String groupMappingName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.deleteGroupMapping(authorizerName, groupMappingName);
   }
 
@@ -289,7 +277,6 @@ public class BasicAuthorizerResource
       @PathParam("authorizerName") final String authorizerName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getAllRoles(authorizerName);
   }
 
@@ -314,7 +301,6 @@ public class BasicAuthorizerResource
       @QueryParam("simplifyPermissions") String simplifyPermissions
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getRole(authorizerName, roleName, full != null, simplifyPermissions != null);
   }
 
@@ -337,7 +323,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") final String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.createRole(authorizerName, roleName);
   }
 
@@ -360,7 +345,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.deleteRole(authorizerName, roleName);
   }
 
@@ -385,7 +369,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.assignRoleToUser(authorizerName, userName, roleName);
   }
 
@@ -410,7 +393,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.unassignRoleFromUser(authorizerName, userName, roleName);
   }
 
@@ -435,7 +417,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.assignRoleToGroupMapping(authorizerName, groupMappingName, roleName);
   }
 
@@ -460,7 +441,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.unassignRoleFromGroupMapping(authorizerName, groupMappingName, roleName);
   }
 
@@ -485,7 +465,6 @@ public class BasicAuthorizerResource
       List<ResourceAction> permissions
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.setRolePermissions(authorizerName, roleName, permissions);
   }
 
@@ -508,7 +487,6 @@ public class BasicAuthorizerResource
       @PathParam("roleName") String roleName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getRolePermissions(authorizerName, roleName);
   }
 
@@ -527,7 +505,6 @@ public class BasicAuthorizerResource
       @PathParam("authorizerName") final String authorizerName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getCachedUserMaps(authorizerName);
   }
 
@@ -546,7 +523,6 @@ public class BasicAuthorizerResource
       @PathParam("authorizerName") final String authorizerName
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.getCachedGroupMappingMaps(authorizerName);
   }
 
@@ -568,7 +544,6 @@ public class BasicAuthorizerResource
       byte[] serializedUserAndRoleMap
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.authorizerUserUpdateListener(authorizerName, serializedUserAndRoleMap);
   }
 
@@ -586,7 +561,6 @@ public class BasicAuthorizerResource
       byte[] serializedUserAndRoleMap
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.authorizerUserUpdateListener(authorizerName, serializedUserAndRoleMap);
   }
 
@@ -604,7 +578,6 @@ public class BasicAuthorizerResource
       byte[] serializedGroupMappingAndRoleMap
   )
   {
-    authValidator.validateAuthorizerName(authorizerName);
     return resourceHandler.authorizerGroupMappingUpdateListener(authorizerName, serializedGroupMappingAndRoleMap);
   }
 }

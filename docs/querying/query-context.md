@@ -1,7 +1,6 @@
 ---
 id: query-context
 title: "Query context"
-sidebar_label: "Context parameters"
 ---
 
 <!--
@@ -23,19 +22,8 @@ sidebar_label: "Context parameters"
   ~ under the License.
   -->
 
-## General parameters
 
-The query context is used for various query configuration parameters. Query context parameters can be specified in
-the following ways:
-
-- For [Druid SQL](sql.md#client-apis), context parameters are provided either as a JSON object named `context` to the
-HTTP POST API, or as properties to the JDBC connection.
-- For [native queries](querying.md), context parameters are provided as a JSON object named `context`.
-
-Note that setting query context will override both the default value and the runtime properties value in the format of
-`druid.query.default.context.{property_key}` (if set). 
-
-These parameters apply to all query types.
+The query context is used for various query configuration parameters. The following parameters apply to all queries.
 
 |property         |default                                 | description          |
 |-----------------|----------------------------------------|----------------------|
@@ -57,31 +45,27 @@ These parameters apply to all query types.
 |parallelMergeParallelism|`druid.processing.merge.pool.parallelism`|Maximum number of parallel threads to use for parallel result merging on the Broker. See [Broker configuration](../configuration/index.html#broker) for more details.|
 |parallelMergeInitialYieldRows|`druid.processing.merge.task.initialYieldNumRows`|Number of rows to yield per ForkJoinPool merge task for parallel result merging on the Broker, before forking off a new task to continue merging sequences. See [Broker configuration](../configuration/index.html#broker) for more details.|
 |parallelMergeSmallBatchRows|`druid.processing.merge.task.smallBatchNumRows`|Size of result batches to operate on in ForkJoinPool merge tasks for parallel result merging on the Broker. See [Broker configuration](../configuration/index.html#broker) for more details.|
-|useFilterCNF|`false`| If true, Druid will attempt to convert the query filter to Conjunctive Normal Form (CNF). During query processing, columns can be pre-filtered by intersecting the bitmap indexes of all values that match the eligible filters, often greatly reducing the raw number of rows which need to be scanned. But this effect only happens for the top level filter, or individual clauses of a top level 'and' filter. As such, filters in CNF potentially have a higher chance to utilize a large amount of bitmap indexes on string columns during pre-filtering. However, this setting should be used with great caution, as it can sometimes have a negative effect on performance, and in some cases, the act of computing CNF of a filter can be expensive. We recommend hand tuning your filters to produce an optimal form if possible, or at least verifying through experimentation that using this parameter actually improves your query performance with no ill-effects.|
-|secondaryPartitionPruning|`true`|Enable secondary partition pruning on the Broker. The Broker will always prune unnecessary segments from the input scan based on a filter on time intervals, but if the data is further partitioned with hash or range partitioning, this option will enable additional pruning based on a filter on secondary partition dimensions.|
 
-## Query-type-specific parameters
 
 In addition, some query types offer context parameters specific to that query type.
 
-### TopN
+### TopN queries
 
 |property         |default              | description          |
 |-----------------|---------------------|----------------------|
 |minTopNThreshold | `1000`              | The top minTopNThreshold local results from each segment are returned for merging to determine the global topN. |
 
-### Timeseries
+### Timeseries queries
 
 |property         |default              | description          |
 |-----------------|---------------------|----------------------|
 |skipEmptyBuckets | `false`             | Disable timeseries zero-filling behavior, so only buckets with results will be returned. |
 
-### GroupBy
+### GroupBy queries
 
-See the list of [GroupBy query context](groupbyquery.md#advanced-configurations) parameters available on the groupBy
-query page.
+See [GroupBy query context](groupbyquery.md#advanced-configurations).
 
-## Vectorization parameters
+### Vectorizable queries
 
 The GroupBy and Timeseries query types can run in _vectorized_ mode, which speeds up query execution by processing
 batches of rows at a time. Not all queries can be vectorized. In particular, vectorization currently has the following
@@ -90,21 +74,21 @@ requirements:
 - All query-level filters must either be able to run on bitmap indexes or must offer vectorized row-matchers. These
 include "selector", "bound", "in", "like", "regex", "search", "and", "or", and "not".
 - All filters in filtered aggregators must offer vectorized row-matchers.
-- All aggregators must offer vectorized implementations. These include "count", "doubleSum", "floatSum", "longSum", "longMin",
- "longMax", "doubleMin", "doubleMax", "floatMin", "floatMax", "longAny", "doubleAny", "floatAny", "stringAny",
- "hyperUnique", "filtered", "approxHistogram", "approxHistogramFold", and "fixedBucketsHistogram" (with numerical input). 
-- All virtual columns must offer vectorized implementations. Currently for expression virtual columns, support for vectorization is decided on a per expression basis, depending on the type of input and the functions used by the expression. See the currently supported list in the [expression documentation](../misc/math-expr.md#vectorization-support).
+- All aggregators must offer vectorized implementations. These include "count", "doubleSum", "floatSum", "longSum",
+"hyperUnique", and "filtered".
+- No virtual columns.
 - For GroupBy: All dimension specs must be "default" (no extraction functions or filtered dimension specs).
 - For GroupBy: No multi-value dimensions.
 - For Timeseries: No "descending" order.
 - Only immutable segments (not real-time).
-- Only [table datasources](datasource.html#table) (not joins, subqueries, lookups, or inline datasources).
 
 Other query types (like TopN, Scan, Select, and Search) ignore the "vectorize" parameter, and will execute without
 vectorization. These query types will ignore the "vectorize" parameter even if it is set to `"force"`.
 
+Vectorization is an alpha-quality feature as of Druid {{DRUIDVERSION}}. We heartily welcome any feedback and testing
+from the community as we work to battle-test it.
+
 |property|default| description|
 |--------|-------|------------|
-|vectorize|`true`|Enables or disables vectorized query execution. Possible values are `false` (disabled), `true` (enabled if possible, disabled otherwise, on a per-segment basis), and `force` (enabled, and groupBy or timeseries queries that cannot be vectorized will fail). The `"force"` setting is meant to aid in testing, and is not generally useful in production (since real-time segments can never be processed with vectorized execution, any queries on real-time data will fail). This will override `druid.query.default.context.vectorize` if it's set.|
-|vectorSize|`512`|Sets the row batching size for a particular query. This will override `druid.query.default.context.vectorSize` if it's set.|
-|vectorizeVirtualColumns|`false`|Enables or disables vectorized query processing of queries with virtual columns, layered on top of `vectorize` (`vectorize` must also be set to true for a query to utilize vectorization). Possible values are `false` (disabled), `true` (enabled if possible, disabled otherwise, on a per-segment basis), and `force` (enabled, and groupBy or timeseries queries with virtual columns that cannot be vectorized will fail). The `"force"` setting is meant to aid in testing, and is not generally useful in production. This will override `druid.query.default.context.vectorizeVirtualColumns` if it's set.|
+|vectorize|`false`|Enables or disables vectorized query execution. Possible values are `false` (disabled), `true` (enabled if possible, disabled otherwise, on a per-segment basis), and `force` (enabled, and groupBy or timeseries queries that cannot be vectorized will fail). The `"force"` setting is meant to aid in testing, and is not generally useful in production (since real-time segments can never be processed with vectorized execution, any queries on real-time data will fail). This will override `druid.query.vectorize` if it's set.|
+|vectorSize|`512`|Sets the row batching size for a particular query. This will override `druid.query.vectorSize` if it's set.|

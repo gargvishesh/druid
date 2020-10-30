@@ -25,30 +25,22 @@ import org.apache.commons.io.IOUtils;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.Intervals;
-import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.clients.CoordinatorResourceTestClient;
 import org.apache.druid.testing.clients.OverlordResourceTestClient;
-import org.apache.druid.testing.clients.TaskResponseObject;
 import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.testing.utils.TestQueryHelper;
 import org.joda.time.Interval;
 
-import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 public abstract class AbstractIndexerTest
 {
-  private static final Logger LOG = new Logger(AbstractIndexerTest.class);
 
   @Inject
   protected CoordinatorResourceTestClient coordinator;
@@ -73,21 +65,6 @@ public abstract class AbstractIndexerTest
 
   protected void unloadAndKillData(final String dataSource)
   {
-    // Get all failed task logs
-    List<TaskResponseObject> allTasks = indexer.getCompleteTasksForDataSource(dataSource);
-    for (TaskResponseObject task : allTasks) {
-      if (task.getStatus().isFailure()) {
-        LOG.info("------- START Found failed task logging for taskId=" + task.getId() + " -------");
-        LOG.info("Start failed task log:");
-        LOG.info(indexer.getTaskLog(task.getId()));
-        LOG.info("End failed task log.");
-        LOG.info("Start failed task errorMsg:");
-        LOG.info(indexer.getTaskErrorMessage(task.getId()));
-        LOG.info("End failed task errorMsg.");
-        LOG.info("------- END Found failed task logging for taskId=" + task.getId() + " -------");
-      }
-    }
-
     List<String> intervals = coordinator.getSegmentIntervals(dataSource);
 
     // each element in intervals has this form:
@@ -105,7 +82,7 @@ public abstract class AbstractIndexerTest
   {
     // Wait for any existing index tasks to complete before disabling the datasource otherwise
     // realtime tasks can get stuck waiting for handoff. https://github.com/apache/druid/issues/1729
-    waitForAllTasksToCompleteForDataSource(dataSource);
+    waitForAllTasksToComplete();
     Interval interval = Intervals.of(start + "/" + end);
     coordinator.unloadSegmentsForDataSource(dataSource);
     ITRetryUtil.retryUntilFalse(
@@ -119,44 +96,31 @@ public abstract class AbstractIndexerTest
         }, "Segment Unloading"
     );
     coordinator.deleteSegmentsDataSource(dataSource, interval);
-    waitForAllTasksToCompleteForDataSource(dataSource);
+    waitForAllTasksToComplete();
   }
 
-  protected void waitForAllTasksToCompleteForDataSource(final String dataSource)
+  protected void waitForAllTasksToComplete()
   {
     ITRetryUtil.retryUntilTrue(
-        () -> (indexer.getUncompletedTasksForDataSource(dataSource).size() == 0),
-        StringUtils.format("Waiting for all tasks of [%s] to complete", dataSource)
+        () -> {
+          int numTasks = indexer.getPendingTasks().size() +
+                         indexer.getRunningTasks().size() +
+                         indexer.getWaitingTasks().size();
+          return numTasks == 0;
+        },
+        "Waiting for Tasks Completion"
     );
   }
 
-  public static String getResourceAsString(String file) throws IOException
+  protected String getResourceAsString(String file) throws IOException
   {
-    try (final InputStream inputStream = getResourceAsStream(file)) {
-      return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+    final InputStream inputStream = ITRealtimeIndexTaskTest.class.getResourceAsStream(file);
+    try {
+      return IOUtils.toString(inputStream, "UTF-8");
+    }
+    finally {
+      IOUtils.closeQuietly(inputStream);
     }
   }
 
-  public static InputStream getResourceAsStream(String resource)
-  {
-    return ITRealtimeIndexTaskTest.class.getResourceAsStream(resource);
-  }
-
-  public static List<String> listResources(String dir) throws IOException
-  {
-    List<String> resources = new ArrayList<>();
-
-    try (
-        InputStream in = getResourceAsStream(dir);
-        BufferedReader br = new BufferedReader(new InputStreamReader(in, StringUtils.UTF8_STRING))
-    ) {
-      String resource;
-
-      while ((resource = br.readLine()) != null) {
-        resources.add(resource);
-      }
-    }
-
-    return resources;
-  }
 }

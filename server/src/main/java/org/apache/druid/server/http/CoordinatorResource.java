@@ -36,6 +36,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import java.util.Map;
 
 /**
@@ -159,5 +160,20 @@ public class CoordinatorResource
             }
         )
     ).build();
+  }
+
+  @GET
+  @Path("/remainingSegmentSizeForCompaction")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getTotalSizeOfSegmentsAwaitingCompaction(
+      @QueryParam("dataSource") String dataSource
+  )
+  {
+    final Long notCompactedSegmentSizeBytes = coordinator.getTotalSizeOfSegmentsAwaitingCompaction(dataSource);
+    if (notCompactedSegmentSizeBytes == null) {
+      return Response.status(Status.BAD_REQUEST).entity(ImmutableMap.of("error", "unknown dataSource")).build();
+    } else {
+      return Response.ok(ImmutableMap.of("remainingSegmentSize", notCompactedSegmentSizeBytes)).build();
+    }
   }
 }

@@ -19,7 +19,6 @@
 
 package org.apache.druid.query.expression;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -27,13 +26,10 @@ import org.apache.druid.java.util.common.granularity.PeriodGranularity;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExprType;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class TimestampCeilExprMacro implements ExprMacroTable.ExprMacro
@@ -60,8 +56,7 @@ public class TimestampCeilExprMacro implements ExprMacroTable.ExprMacro
     }
   }
 
-  @VisibleForTesting
-  static class TimestampCeilExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+  private static class TimestampCeilExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
   {
     private final Granularity granularity;
 
@@ -94,35 +89,6 @@ public class TimestampCeilExprMacro implements ExprMacroTable.ExprMacro
       List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
       return shuttle.visit(new TimestampCeilExpr(newArgs));
     }
-
-    @Nullable
-    @Override
-    public ExprType getOutputType(InputBindingInspector inspector)
-    {
-      return ExprType.LONG;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      if (!super.equals(o)) {
-        return false;
-      }
-      TimestampCeilExpr that = (TimestampCeilExpr) o;
-      return Objects.equals(granularity, that.granularity);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(super.hashCode(), granularity);
-    }
   }
 
   private static PeriodGranularity getGranularity(final List<Expr> args, final Expr.ObjectBinding bindings)
@@ -135,8 +101,7 @@ public class TimestampCeilExprMacro implements ExprMacroTable.ExprMacro
     );
   }
 
-  @VisibleForTesting
-  static class TimestampCeilDynamicExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+  private static class TimestampCeilDynamicExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
   {
     TimestampCeilDynamicExpr(final List<Expr> args)
     {
@@ -161,13 +126,6 @@ public class TimestampCeilExprMacro implements ExprMacroTable.ExprMacro
     {
       List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
       return shuttle.visit(new TimestampCeilDynamicExpr(newArgs));
-    }
-
-    @Nullable
-    @Override
-    public ExprType getOutputType(InputBindingInspector inspector)
-    {
-      return ExprType.LONG;
     }
   }
 }

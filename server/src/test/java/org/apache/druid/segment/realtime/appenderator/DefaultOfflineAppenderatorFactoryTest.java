@@ -115,7 +115,6 @@ public class DefaultOfflineAppenderatorFactoryTest
                 new TimestampSpec("ts", "auto", null),
                 new DimensionsSpec(null, null, null),
                 null,
-                null,
                 null
             )
         ),
@@ -134,7 +133,6 @@ public class DefaultOfflineAppenderatorFactoryTest
     );
 
     RealtimeTuningConfig tuningConfig = new RealtimeTuningConfig(
-        null,
         75000,
         null,
         null,

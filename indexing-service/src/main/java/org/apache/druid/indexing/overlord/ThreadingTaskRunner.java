@@ -95,7 +95,6 @@ public class ThreadingTaskRunner
   private final MultipleFileTaskReportFileWriter taskReportFileWriter;
   private final ListeningExecutorService taskExecutor;
   private final ListeningExecutorService controlThreadExecutor;
-  private final WorkerConfig workerConfig;
 
   private volatile boolean stopping = false;
 
@@ -117,7 +116,6 @@ public class ThreadingTaskRunner
     this.node = node;
     this.appenderatorsManager = appenderatorsManager;
     this.taskReportFileWriter = (MultipleFileTaskReportFileWriter) taskReportFileWriter;
-    this.workerConfig = workerConfig;
     this.taskExecutor = MoreExecutors.listeningDecorator(
         Execs.multiThreaded(workerConfig.getCapacity(), "threading-task-runner-executor-%d")
     );
@@ -178,7 +176,7 @@ public class ThreadingTaskRunner
                               taskWorkItem = tasks.get(task.getId());
 
                               if (taskWorkItem == null) {
-                                LOGGER.makeAlert("TaskInfo disappeared").addData("task", task.getId()).emit();
+                                LOGGER.makeAlert("WTF?! TaskInfo disappeared!").addData("task", task.getId()).emit();
                                 throw new ISE("TaskInfo disappeared for task[%s]!", task.getId());
                               }
 
@@ -451,36 +449,6 @@ public class ThreadingTaskRunner
   public Optional<ScalingStats> getScalingStats()
   {
     return Optional.absent();
-  }
-
-  @Override
-  public long getTotalTaskSlotCount()
-  {
-    return workerConfig.getCapacity();
-  }
-
-  @Override
-  public long getIdleTaskSlotCount()
-  {
-    return Math.max(getTotalTaskSlotCount() - getUsedTaskSlotCount(), 0);
-  }
-
-  @Override
-  public long getUsedTaskSlotCount()
-  {
-    return getRunningTasks().size();
-  }
-
-  @Override
-  public long getLazyTaskSlotCount()
-  {
-    return 0;
-  }
-
-  @Override
-  public long getBlacklistedTaskSlotCount()
-  {
-    return 0;
   }
 
   @Override

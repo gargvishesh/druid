@@ -46,11 +46,10 @@ public class InlineDataSourceTest
 
   private final AtomicLong iterationCounter = new AtomicLong();
 
-  // raw arrays, e.g. double[]{1.0, 2.0} on round trip get deserialized into List<Double>, so just model that
   private final List<Object[]> rows = ImmutableList.of(
-      new Object[]{DateTimes.of("2000").getMillis(), "foo", 0d, ImmutableMap.of("n", "0"), ImmutableList.of(1.0, 2.0)},
-      new Object[]{DateTimes.of("2000").getMillis(), "bar", 1d, ImmutableMap.of("n", "1"), ImmutableList.of(2.0, 4.0)},
-      new Object[]{DateTimes.of("2000").getMillis(), "baz", 2d, ImmutableMap.of("n", "2"), ImmutableList.of(3.0, 6.0)}
+      new Object[]{DateTimes.of("2000").getMillis(), "foo", 0d, ImmutableMap.of("n", "0")},
+      new Object[]{DateTimes.of("2000").getMillis(), "bar", 1d, ImmutableMap.of("n", "1")},
+      new Object[]{DateTimes.of("2000").getMillis(), "baz", 2d, ImmutableMap.of("n", "2")}
   );
 
   private final Iterable<Object[]> rowsIterable = () -> {
@@ -62,16 +61,14 @@ public class InlineDataSourceTest
       ColumnHolder.TIME_COLUMN_NAME,
       "str",
       "double",
-      "complex",
-      "double_array"
+      "complex"
   );
 
   private final List<ValueType> expectedColumnTypes = ImmutableList.of(
       ValueType.LONG,
       ValueType.STRING,
       ValueType.DOUBLE,
-      ValueType.COMPLEX,
-      ValueType.DOUBLE_ARRAY
+      ValueType.COMPLEX
   );
 
   private final RowSignature expectedRowSignature;
@@ -130,7 +127,6 @@ public class InlineDataSourceTest
                     .add("str", ValueType.STRING)
                     .add("double", ValueType.DOUBLE)
                     .add("complex", ValueType.COMPLEX)
-                    .add("double_array", ValueType.DOUBLE_ARRAY)
                     .build(),
         listDataSource.getRowSignature()
     );
@@ -139,8 +135,7 @@ public class InlineDataSourceTest
   @Test
   public void test_isCacheable()
   {
-    Assert.assertFalse(listDataSource.isCacheable(true));
-    Assert.assertFalse(listDataSource.isCacheable(false));
+    Assert.assertFalse(listDataSource.isCacheable());
   }
 
   @Test
@@ -165,7 +160,6 @@ public class InlineDataSourceTest
     Assert.assertEquals("bar", adapter.columnFunction("str").apply(row));
     Assert.assertEquals(1d, adapter.columnFunction("double").apply(row));
     Assert.assertEquals(ImmutableMap.of("n", "1"), adapter.columnFunction("complex").apply(row));
-    Assert.assertEquals(ImmutableList.of(2.0, 4.0), adapter.columnFunction("double_array").apply(row));
   }
 
   @Test

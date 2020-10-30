@@ -21,7 +21,6 @@ package org.apache.druid.segment.filter;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.collections.spatial.search.RadiusBound;
 import org.apache.druid.collections.spatial.search.RectangularBound;
 import org.apache.druid.data.input.MapBasedInputRow;
@@ -56,7 +55,6 @@ import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.joda.time.Interval;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -74,7 +72,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  */
 @RunWith(Parameterized.class)
-public class SpatialFilterTest extends InitializedNullHandlingTest
+public class SpatialFilterTest
 {
   private static IndexMerger INDEX_MERGER = TestHelper.getTestIndexMergerV9(OffHeapMemorySegmentWriteOutMediumFactory.instance());
   private static IndexIO INDEX_IO = TestHelper.getTestIndexIO();
@@ -137,6 +135,7 @@ public class SpatialFilterTest extends InitializedNullHandlingTest
                     )
                 ).build()
         )
+        .setReportParseExceptions(false)
         .setMaxRowCount(NUM_POINTS)
         .buildOnheap();
 
@@ -302,6 +301,7 @@ public class SpatialFilterTest extends InitializedNullHandlingTest
                       )
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(1000)
           .buildOnheap();
 
@@ -328,6 +328,7 @@ public class SpatialFilterTest extends InitializedNullHandlingTest
                       )
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(1000)
           .buildOnheap();
 
@@ -354,6 +355,7 @@ public class SpatialFilterTest extends InitializedNullHandlingTest
                       )
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(NUM_POINTS)
           .buildOnheap();
 
@@ -713,17 +715,5 @@ public class SpatialFilterTest extends InitializedNullHandlingTest
     catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  @Test
-  public void testEqualsContract()
-  {
-    EqualsVerifier.forClass(SpatialFilter.class).usingGetClass().verify();
-  }
-
-  @Test
-  public void testEqualsContractForBoundDruidPredicateFactory()
-  {
-    EqualsVerifier.forClass(SpatialFilter.BoundDruidPredicateFactory.class).usingGetClass().verify();
   }
 }

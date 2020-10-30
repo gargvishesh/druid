@@ -26,8 +26,6 @@ import com.google.inject.Inject;
 import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.indexer.TaskState;
 import org.apache.druid.indexer.TaskStatusPlus;
-import org.apache.druid.indexing.common.IngestionStatsAndErrorsTaskReport;
-import org.apache.druid.indexing.common.IngestionStatsAndErrorsTaskReportData;
 import org.apache.druid.indexing.overlord.supervisor.SupervisorStateManager;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RetryUtils;
@@ -45,7 +43,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -159,15 +156,6 @@ public class OverlordResourceTestClient
     return getTasks(StringUtils.format("tasks?state=complete&datasource=%s", StringUtils.urlEncode(dataSource)));
   }
 
-  public List<TaskResponseObject> getUncompletedTasksForDataSource(final String dataSource)
-  {
-    List<TaskResponseObject> uncompletedTasks = new ArrayList<>();
-    uncompletedTasks.addAll(getTasks(StringUtils.format("tasks?state=pending&datasource=%s", StringUtils.urlEncode(dataSource))));
-    uncompletedTasks.addAll(getTasks(StringUtils.format("tasks?state=running&datasource=%s", StringUtils.urlEncode(dataSource))));
-    uncompletedTasks.addAll(getTasks(StringUtils.format("tasks?state=waiting&datasource=%s", StringUtils.urlEncode(dataSource))));
-    return uncompletedTasks;
-  }
-
   private List<TaskResponseObject> getTasks(String identifier)
   {
     try {
@@ -181,40 +169,6 @@ public class OverlordResourceTestClient
           {
           }
       );
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public String getTaskLog(String taskId)
-  {
-    return getTaskLog(taskId, -88000);
-  }
-
-  public String getTaskLog(String taskId, long offsetValue)
-  {
-    try {
-      StatusResponseHolder response = makeRequest(
-          HttpMethod.GET,
-          StringUtils.format("%s%s", getIndexerURL(), StringUtils.format("task/%s/log?offset=%s", StringUtils.urlEncode(taskId), offsetValue))
-      );
-      return response.getContent();
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public String getTaskErrorMessage(String taskId)
-  {
-    try {
-      StatusResponseHolder response = makeRequest(
-          HttpMethod.GET,
-          StringUtils.format("%s%s", getIndexerURL(), StringUtils.format("task/%s/reports", StringUtils.urlEncode(taskId)))
-      );
-      Map<String, IngestionStatsAndErrorsTaskReport> x = jsonMapper.readValue(response.getContent(), new TypeReference<Map<String, IngestionStatsAndErrorsTaskReport>>() {});
-      return ((IngestionStatsAndErrorsTaskReportData) x.get("ingestionStatsAndErrors").getPayload()).getErrorMsg();
     }
     catch (Exception e) {
       throw new RuntimeException(e);
@@ -289,7 +243,7 @@ public class OverlordResourceTestClient
       ).get();
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
         throw new ISE(
-            "Error while submitting supervisor to overlord, response [%s: %s]",
+            "Error while submitting supervisor to overlord, response [%s %s]",
             response.getStatus(),
             response.getContent()
         );

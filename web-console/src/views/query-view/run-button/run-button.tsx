@@ -24,16 +24,15 @@ import {
   HotkeysTarget,
   Intent,
   Menu,
-  MenuDivider,
   MenuItem,
   Popover,
   Position,
+  Tooltip,
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import React from 'react';
 
 import { MenuCheckbox } from '../../../components';
-import { getLink } from '../../../links';
 import { pluralIfNeeded } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
@@ -44,8 +43,7 @@ import {
   setUseApproximateTopN,
   setUseCache,
 } from '../../../utils/query-context';
-
-import './run-button.scss';
+import { DRUID_DOCS_RUNE, DRUID_DOCS_SQL } from '../../../variables';
 
 export interface RunButtonProps {
   runeMode: boolean;
@@ -102,28 +100,18 @@ export class RunButton extends React.PureComponent<RunButtonProps> {
         <MenuItem
           icon={IconNames.HELP}
           text={runeMode ? 'Native query documentation' : 'DruidSQL documentation'}
-          href={getLink(runeMode ? 'DOCS_RUNE' : 'DOCS_SQL')}
+          href={runeMode ? DRUID_DOCS_RUNE : DRUID_DOCS_SQL}
           target="_blank"
         />
         <MenuItem icon={IconNames.HISTORY} text="Query history" onClick={onHistory} />
-        {!runeMode && onExplain && (
-          <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
-        )}
-        {runeMode && (
-          <MenuItem icon={IconNames.ALIGN_LEFT} text="Prettify JSON" onClick={onPrettier} />
-        )}
-        <MenuItem
-          icon={IconNames.PROPERTIES}
-          text="Edit context"
-          onClick={onEditContext}
-          label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
-        />
-        <MenuDivider />
         {!runeMode && (
           <>
+            {onExplain && (
+              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
+            )}
             <MenuCheckbox
               checked={useApproximateCountDistinct}
-              text="Use approximate COUNT(DISTINCT)"
+              label="Use approximate COUNT(DISTINCT)"
               onChange={() => {
                 onQueryContextChange(
                   setUseApproximateCountDistinct(queryContext, !useApproximateCountDistinct),
@@ -132,7 +120,7 @@ export class RunButton extends React.PureComponent<RunButtonProps> {
             />
             <MenuCheckbox
               checked={useApproximateTopN}
-              text="Use approximate TopN"
+              label="Use approximate TopN"
               onChange={() => {
                 onQueryContextChange(setUseApproximateTopN(queryContext, !useApproximateTopN));
               }}
@@ -141,43 +129,47 @@ export class RunButton extends React.PureComponent<RunButtonProps> {
         )}
         <MenuCheckbox
           checked={useCache}
-          text="Use cache"
+          label="Use cache"
           onChange={() => {
             onQueryContextChange(setUseCache(queryContext, !useCache));
           }}
         />
+        {!runeMode && (
+          <MenuItem
+            icon={IconNames.PROPERTIES}
+            text="Edit context"
+            onClick={onEditContext}
+            labelElement={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
+          />
+        )}
+        {runeMode && (
+          <MenuItem icon={IconNames.ALIGN_LEFT} text="Prettify JSON" onClick={onPrettier} />
+        )}
       </Menu>
     );
   }
 
   render(): JSX.Element {
     const { runeMode, onRun, loading } = this.props;
+    const runButtonText = 'Run' + (runeMode ? 'e' : '');
 
     return (
       <ButtonGroup className="run-button">
         {onRun ? (
-          <Button
-            className={runeMode ? 'rune-button' : undefined}
-            disabled={loading}
-            icon={IconNames.CARET_RIGHT}
-            onClick={this.handleRun}
-            text="Run"
-            intent={Intent.PRIMARY}
-          />
+          <Tooltip content="Control + Enter" hoverOpenDelay={900}>
+            <Button
+              disabled={loading}
+              icon={IconNames.CARET_RIGHT}
+              onClick={this.handleRun}
+              text={runButtonText}
+              intent={Intent.PRIMARY}
+            />
+          </Tooltip>
         ) : (
-          <Button
-            className={runeMode ? 'rune-button' : undefined}
-            icon={IconNames.CARET_RIGHT}
-            text="Run"
-            disabled
-          />
+          <Button icon={IconNames.CARET_RIGHT} text={runButtonText} disabled />
         )}
         <Popover position={Position.BOTTOM_LEFT} content={this.renderExtraMenu()}>
-          <Button
-            className={runeMode ? 'rune-button' : undefined}
-            icon={IconNames.MORE}
-            intent={onRun ? Intent.PRIMARY : undefined}
-          />
+          <Button icon={IconNames.MORE} intent={onRun ? Intent.PRIMARY : undefined} />
         </Popover>
       </ButtonGroup>
     );

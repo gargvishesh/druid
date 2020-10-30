@@ -30,8 +30,6 @@ import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMerger;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
@@ -80,9 +78,7 @@ public interface AppenderatorsManager
       JoinableFactory joinableFactory,
       Cache cache,
       CacheConfig cacheConfig,
-      CachePopulatorStats cachePopulatorStats,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      CachePopulatorStats cachePopulatorStats
   );
 
   /**
@@ -92,13 +88,12 @@ public interface AppenderatorsManager
       String taskId,
       DataSchema schema,
       AppenderatorConfig config,
+      boolean storeCompactionState,
       FireDepartmentMetrics metrics,
       DataSegmentPusher dataSegmentPusher,
       ObjectMapper objectMapper,
       IndexIO indexIO,
-      IndexMerger indexMerger,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      IndexMerger indexMerger
   );
 
   /**

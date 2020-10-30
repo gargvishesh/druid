@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
 import { JsonCollapse } from './json-collapse';
 
-describe('JsonCollapse', () => {
+describe('json collapse', () => {
   it('matches snapshot', () => {
-    const jsonCollapse = shallow(
-      <JsonCollapse buttonText={'test'} stringValue={JSON.stringify({ name: 'test' })} />,
+    const jsonCollapse = (
+      <JsonCollapse buttonText={'test'} stringValue={JSON.stringify({ name: 'test' })} />
     );
-    expect(jsonCollapse).toMatchSnapshot();
+    const { container } = render(jsonCollapse);
+    expect(container.firstChild).toMatchSnapshot();
   });
 });

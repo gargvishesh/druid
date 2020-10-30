@@ -48,7 +48,7 @@ public class NoopDataSource implements DataSource
   }
 
   @Override
-  public boolean isCacheable(boolean isBroker)
+  public boolean isCacheable()
   {
     return false;
   }

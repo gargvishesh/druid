@@ -20,7 +20,6 @@
 package org.apache.druid.segment.vector;
 
 import org.apache.druid.query.dimension.DimensionSpec;
-import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 
 import javax.annotation.Nullable;
@@ -30,22 +29,14 @@ import javax.annotation.Nullable;
  *
  * @see org.apache.druid.segment.ColumnSelectorFactory, the non-vectorized version.
  */
-public interface VectorColumnSelectorFactory extends ColumnInspector
+public interface VectorColumnSelectorFactory
 {
-  /**
-   * Returns a {@link VectorSizeInspector} for the {@link VectorCursor} that generated this object.
-   */
-  VectorSizeInspector getVectorSizeInspector();
-
   /**
    * Returns the maximum vector size for the {@link VectorCursor} that generated this object.
    *
    * @see VectorCursor#getMaxVectorSize()
    */
-  default int getMaxVectorSize()
-  {
-    return getVectorSizeInspector().getMaxVectorSize();
-  }
+  int getMaxVectorSize();
 
   /**
    * Returns a string-typed, single-value-per-row column selector.
@@ -73,7 +64,6 @@ public interface VectorColumnSelectorFactory extends ColumnInspector
    *
    * @return capabilities, or null if the column doesn't exist.
    */
-  @Override
   @Nullable
   ColumnCapabilities getColumnCapabilities(String column);
 }

@@ -19,15 +19,16 @@
 
 package org.apache.druid.indexing.common.task.batch.parallel;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexing.common.TaskToolbox;
+import org.apache.druid.indexing.common.task.IndexTaskClientFactory;
 import org.apache.druid.indexing.common.task.TaskResource;
-import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.timeline.partition.BuildingShardSpec;
 import org.apache.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
@@ -38,12 +39,12 @@ import java.util.Map;
 /**
  * {@link ParallelIndexTaskRunner} for the phase to merge generic partitioned segments in multi-phase parallel indexing.
  */
-public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<BuildingShardSpec, GenericPartitionLocation>
+public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<ShardSpec, GenericPartitionLocation>
 {
   public static final String TYPE = "partial_index_generic_merge";
 
   private final PartialGenericSegmentMergeIngestionSpec ingestionSchema;
-  private final Table<Interval, Integer, BuildingShardSpec<?>> intervalAndIntegerToShardSpec;
+  private final Table<Interval, Integer, ShardSpec> intervalAndIntegerToShardSpec;
 
   @JsonCreator
   public PartialGenericSegmentMergeTask(
@@ -54,7 +55,10 @@ public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<Buil
       @JsonProperty("supervisorTaskId") final String supervisorTaskId,
       @JsonProperty("numAttempts") final int numAttempts, // zero-based counting
       @JsonProperty("spec") final PartialGenericSegmentMergeIngestionSpec ingestionSchema,
-      @JsonProperty("context") final Map<String, Object> context
+      @JsonProperty("context") final Map<String, Object> context,
+      @JacksonInject IndexingServiceClient indexingServiceClient,
+      @JacksonInject IndexTaskClientFactory<ParallelIndexSupervisorTaskClient> taskClientFactory,
+      @JacksonInject ShuffleClient shuffleClient
   )
   {
     super(
@@ -66,7 +70,10 @@ public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<Buil
         ingestionSchema.getIOConfig(),
         ingestionSchema.getTuningConfig(),
         numAttempts,
-        context
+        context,
+        indexingServiceClient,
+        taskClientFactory,
+        shuffleClient
     );
 
     this.ingestionSchema = ingestionSchema;
@@ -75,28 +82,24 @@ public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<Buil
     );
   }
 
-  private static Table<Interval, Integer, BuildingShardSpec<?>> createIntervalAndIntegerToShardSpec(
+  private static Table<Interval, Integer, ShardSpec> createIntervalAndIntegerToShardSpec(
       List<GenericPartitionLocation> partitionLocations
   )
   {
-    final Table<Interval, Integer, BuildingShardSpec<?>> intervalAndIntegerToShardSpec = HashBasedTable.create();
+    Table<Interval, Integer, ShardSpec> intervalAndIntegerToShardSpec = HashBasedTable.create();
 
     partitionLocations.forEach(
         p -> {
-          final ShardSpec currShardSpec = intervalAndIntegerToShardSpec.get(p.getInterval(), p.getBucketId());
-          if (currShardSpec == null) {
-            intervalAndIntegerToShardSpec.put(p.getInterval(), p.getBucketId(), p.getShardSpec());
-          } else {
-            if (!p.getShardSpec().equals(currShardSpec)) {
-              throw new ISE(
-                  "interval %s, bucketId %s mismatched shard specs: %s and %s",
-                  p.getInterval(),
-                  p.getBucketId(),
-                  currShardSpec,
-                  p.getShardSpec()
-              );
-            }
-          }
+          ShardSpec currShardSpec = intervalAndIntegerToShardSpec.get(p.getInterval(), p.getPartitionId());
+          Preconditions.checkArgument(
+              currShardSpec == null || p.getShardSpec().equals(currShardSpec),
+              "interval %s, partitionId %s mismatched shard specs: %s",
+              p.getInterval(),
+              p.getPartitionId(),
+              partitionLocations
+          );
+
+          intervalAndIntegerToShardSpec.put(p.getInterval(), p.getPartitionId(), p.getShardSpec());
         }
     );
 
@@ -116,7 +119,7 @@ public class PartialGenericSegmentMergeTask extends PartialSegmentMergeTask<Buil
   }
 
   @Override
-  BuildingShardSpec<?> createShardSpec(TaskToolbox toolbox, Interval interval, int partitionId)
+  ShardSpec createShardSpec(TaskToolbox toolbox, Interval interval, int partitionId)
   {
     return Preconditions.checkNotNull(
         intervalAndIntegerToShardSpec.get(interval, partitionId),

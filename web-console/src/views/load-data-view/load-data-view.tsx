@@ -54,7 +54,6 @@ import {
 } from '../../components';
 import { FormGroupWithInfo } from '../../components/form-group-with-info/form-group-with-info';
 import { AsyncActionDialog } from '../../dialogs';
-import { getLink } from '../../links';
 import { AppToaster } from '../../singletons/toaster';
 import { UrlBaser } from '../../singletons/url-baser';
 import {
@@ -147,6 +146,7 @@ import {
   SampleStrategy,
 } from '../../utils/sampler';
 import { computeFlattenPathsForData } from '../../utils/spec-utils';
+import { DRUID_DOCS_VERSION } from '../../variables';
 
 import { ExamplePicker } from './example-picker/example-picker';
 import { FilterTable, filterTableSelectedColumnName } from './filter-table/filter-table';
@@ -520,7 +520,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
 
   renderActionCard(icon: IconName, title: string, caption: string, onClick: () => void) {
     return (
-      <Card className={'spec-card'} interactive onClick={onClick} elevation={1}>
+      <Card className={'spec-card'} interactive onClick={onClick}>
         <Icon className="spec-card-icon" icon={icon} iconSize={30} />
         <div className={'spec-card-header'}>
           {title}
@@ -555,7 +555,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     return (
       <div className={classNames('load-data-view', 'app-view', step)}>
         {this.renderStepNav()}
-        {step === 'loading' && <Loader />}
+        {step === 'loading' && <Loader loading />}
 
         {step === 'welcome' && this.renderWelcomeStep()}
         {step === 'connect' && this.renderConnectStep()}
@@ -683,17 +683,13 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       <Card
         className={classNames({ disabled: !goodToGo, active: selectedComboType === comboType })}
         interactive
-        elevation={1}
         onClick={() => {
           this.setState({
             selectedComboType: selectedComboType !== comboType ? comboType : undefined,
           });
         }}
       >
-        <img
-          src={UrlBaser.base(`/assets/${getIngestionImage(comboType)}.png`)}
-          alt={`Ingestion tile for ${comboType}`}
-        />
+        <img src={UrlBaser.base(`/assets/${getIngestionImage(comboType)}.png`)} />
         <p>{getIngestionTitle(comboType)}</p>
       </Card>
     );
@@ -707,22 +703,19 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     const welcomeMessage = this.renderWelcomeStepMessage();
     return (
       <>
-        <div className="main">
-          <div className="ingestion-cards">
-            {this.renderIngestionCard('kafka')}
-            {this.renderIngestionCard('kinesis')}
-            {this.renderIngestionCard('azure-event-hubs')}
-            {this.renderIngestionCard('index_parallel:s3')}
-            {this.renderIngestionCard('index_parallel:azure')}
-            {this.renderIngestionCard('index_parallel:google')}
-            {this.renderIngestionCard('index_parallel:hdfs')}
-            {this.renderIngestionCard('index_parallel:druid')}
-            {this.renderIngestionCard('index_parallel:http')}
-            {this.renderIngestionCard('index_parallel:local')}
-            {this.renderIngestionCard('index_parallel:inline')}
-            {exampleManifestsUrl && this.renderIngestionCard('example', noExamples)}
-            {this.renderIngestionCard('other')}
-          </div>
+        <div className="main bp3-input">
+          {this.renderIngestionCard('kafka')}
+          {this.renderIngestionCard('kinesis')}
+          {this.renderIngestionCard('index_parallel:s3')}
+          {this.renderIngestionCard('index_parallel:azure')}
+          {this.renderIngestionCard('index_parallel:google')}
+          {this.renderIngestionCard('index_parallel:hdfs')}
+          {this.renderIngestionCard('index_parallel:druid')}
+          {this.renderIngestionCard('index_parallel:http')}
+          {this.renderIngestionCard('index_parallel:local')}
+          {this.renderIngestionCard('index_parallel:inline')}
+          {exampleManifestsUrl && this.renderIngestionCard('example', noExamples)}
+          {this.renderIngestionCard('other')}
         </div>
         <div className="control">
           {welcomeMessage && <Callout className="intro">{welcomeMessage}</Callout>}
@@ -807,24 +800,6 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       case 'kinesis':
         return <p>Load streaming data in real-time from Amazon Kinesis.</p>;
 
-      case 'azure-event-hubs':
-        return (
-          <>
-            <p>Azure Event Hubs provides an Apache Kafka compatible API for consuming data.</p>
-            <p>
-              Data from an Event Hub can be streamed into Druid by enabling the Kafka API on the
-              Namespace.
-            </p>
-            <p>
-              Please see the{' '}
-              <ExternalLink href="https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-for-kafka-ecosystem-overview">
-                Event Hub documentation
-              </ExternalLink>{' '}
-              for more information.
-            </p>
-          </>
-        );
-
       case 'example':
         if (exampleManifests && exampleManifests.length) {
           return; // Yield to example picker controls
@@ -836,7 +811,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         return (
           <p>
             If you do not see your source of raw data here, you can try to ingest it by submitting a{' '}
-            <ExternalLink href={`${getLink('DOCS')}/ingestion/index.html`}>
+            <ExternalLink
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html`}
+            >
               JSON task or supervisor spec
             </ExternalLink>
             .
@@ -878,45 +855,6 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               }}
             />
           </FormGroup>
-        );
-
-      case 'azure-event-hubs':
-        return (
-          <>
-            <FormGroup>
-              <Callout intent={Intent.WARNING}>
-                Please review and fill in the <Code>consumerProperties</Code> on the next step.
-              </Callout>
-            </FormGroup>
-            <FormGroup>
-              <Button
-                text="Connect via Kafka API"
-                rightIcon={IconNames.ARROW_RIGHT}
-                intent={Intent.PRIMARY}
-                onClick={() => {
-                  // Use the kafka ingestion type but preset some consumerProperties required for Event Hubs
-                  let newSpec = updateIngestionType(spec, 'kafka');
-                  newSpec = deepSet(
-                    newSpec,
-                    'spec.ioConfig.consumerProperties.{security.protocol}',
-                    'SASL_SSL',
-                  );
-                  newSpec = deepSet(
-                    newSpec,
-                    'spec.ioConfig.consumerProperties.{sasl.mechanism}',
-                    'PLAIN',
-                  );
-                  newSpec = deepSet(
-                    newSpec,
-                    'spec.ioConfig.consumerProperties.{sasl.jaas.config}',
-                    `org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="Value of 'Connection string-primary key' in the Azure UI";`,
-                  );
-                  this.updateSpec(newSpec);
-                  this.updateStep('connect');
-                }}
-              />
-            </FormGroup>
-          </>
         );
 
       case 'example':
@@ -978,7 +916,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         </p>
         <p>
           For more information please refer to the{' '}
-          <ExternalLink href={`${getLink('DOCS')}/operations/including-extensions`}>
+          <ExternalLink
+            href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/operations/including-extensions`}
+          >
             documentation on loading extensions
           </ExternalLink>
           .
@@ -1033,7 +973,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
 
     if (issue) {
       this.setState({
-        inputQueryState: initRun ? QueryState.INIT : new QueryState({ error: new Error(issue) }),
+        inputQueryState: initRun ? QueryState.INIT : new QueryState({ error: issue }),
       });
       return;
     }
@@ -1089,9 +1029,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         </CenterMessage>
       );
     } else if (inputQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (inputQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${inputQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${inputQueryState.error}`}</CenterMessage>;
     } else if (inputQueryState.data) {
       const inputData = inputQueryState.data.data;
       mainFill = (
@@ -1120,7 +1060,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           <Callout className="intro">
             <p>
               Druid ingests raw data and converts it into a custom,{' '}
-              <ExternalLink href={`${getLink('DOCS')}/design/segments.html`}>
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/design/segments.html`}
+              >
                 indexed format
               </ExternalLink>{' '}
               that is optimized for analytic queries.
@@ -1238,7 +1180,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                 fillDataSourceNameIfNeeded(
                   fillInputFormat(
                     spec,
-                    filterMap(inputQueryState.data.data, l => (l.input ? l.input.raw : undefined)),
+                    filterMap(inputQueryState.data.data, l =>
+                      l.parsed ? l.parsed.raw : undefined,
+                    ),
                   ),
                 ),
               );
@@ -1264,7 +1208,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
 
     if (issue) {
       this.setState({
-        parserQueryState: initRun ? QueryState.INIT : new QueryState({ error: new Error(issue) }),
+        parserQueryState: initRun ? QueryState.INIT : new QueryState({ error: issue }),
       });
       return;
     }
@@ -1313,9 +1257,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         </CenterMessage>
       );
     } else if (parserQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (parserQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${parserQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${parserQueryState.error}`}</CenterMessage>;
     } else if (parserQueryState.data) {
       mainFill = (
         <div className="table-with-control">
@@ -1346,9 +1290,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       );
     }
 
-    let suggestedFlattenFields: FlattenField[] | undefined;
+    let sugestedFlattenFields: FlattenField[] | undefined;
     if (canFlatten && !flattenFields.length && parserQueryState.data) {
-      suggestedFlattenFields = computeFlattenPathsForData(
+      sugestedFlattenFields = computeFlattenPathsForData(
         filterMap(parserQueryState.data.rows, r => r.input),
         'path',
         'ignore-arrays',
@@ -1367,7 +1311,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
             {canFlatten && (
               <p>
                 If you have nested data, you can{' '}
-                <ExternalLink href={`${getLink('DOCS')}/ingestion/index.html#flattenspec`}>
+                <ExternalLink
+                  href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#flattenspec`}
+                >
                   flatten
                 </ExternalLink>{' '}
                 it here. If the provided flattening capabilities are not sufficient, please
@@ -1375,7 +1321,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               </p>
             )}
             <p>Ensure that your data appears correctly in a row/column orientation.</p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/data-formats.html`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/data-formats.html`}
+            />
           </Callout>
           {!selectedFlattenField && (
             <>
@@ -1390,17 +1338,17 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
             </>
           )}
           {this.renderFlattenControls()}
-          {suggestedFlattenFields && suggestedFlattenFields.length ? (
+          {sugestedFlattenFields && sugestedFlattenFields.length ? (
             <FormGroup>
               <Button
                 icon={IconNames.LIGHTBULB}
-                text={`Auto add ${pluralIfNeeded(suggestedFlattenFields.length, 'flatten spec')}`}
+                text={`Auto add ${pluralIfNeeded(sugestedFlattenFields.length, 'flatten spec')}`}
                 onClick={() => {
                   this.updateSpec(
                     deepSet(
                       spec,
                       'spec.ioConfig.inputFormat.flattenSpec.fields',
-                      suggestedFlattenFields,
+                      sugestedFlattenFields,
                     ),
                   );
                 }}
@@ -1514,7 +1462,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           />
           <AnchorButton
             icon={IconNames.INFO_SIGN}
-            href={`${getLink('DOCS')}/ingestion/flatten-json.html`}
+            href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/flatten-json.html`}
             target="_blank"
             minimal
           />
@@ -1535,7 +1483,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       this.setState({
         timestampQueryState: initRun
           ? QueryState.INIT
-          : new QueryState({ error: new Error('must complete parse step') }),
+          : new QueryState({ error: 'must complete parse step' }),
       });
       return;
     }
@@ -1583,9 +1531,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         </CenterMessage>
       );
     } else if (timestampQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (timestampQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${timestampQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${timestampQueryState.error}`}</CenterMessage>;
     } else if (timestampQueryState.data) {
       mainFill = (
         <div className="table-with-control">
@@ -1626,7 +1574,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               column. If you do not have any time columns, you can choose "Constant value" to create
               a default one.
             </p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/index.html#timestampspec`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#timestampspec`}
+            />
           </Callout>
           <FormGroup label="Timestamp spec">
             <ButtonGroup>
@@ -1686,7 +1636,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       this.setState({
         transformQueryState: initRun
           ? QueryState.INIT
-          : new QueryState({ error: new Error('must complete parse step') }),
+          : new QueryState({ error: 'must complete parse step' }),
       });
       return;
     }
@@ -1732,9 +1682,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     if (transformQueryState.isInit()) {
       mainFill = <CenterMessage>{`Please fill in the previous steps`}</CenterMessage>;
     } else if (transformQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (transformQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${transformQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${transformQueryState.error}`}</CenterMessage>;
     } else if (transformQueryState.data) {
       mainFill = (
         <div className="table-with-control">
@@ -1774,12 +1724,16 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
             <p className="optional">Optional</p>
             <p>
               Druid can perform per-row{' '}
-              <ExternalLink href={`${getLink('DOCS')}/ingestion/transform-spec.html#transforms`}>
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/transform-spec.html#transforms`}
+              >
                 transforms
               </ExternalLink>{' '}
               of column values allowing you to create new derived columns or alter existing column.
             </p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/index.html#transforms`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#transforms`}
+            />
           </Callout>
           {Boolean(transformQueryState.error && transforms.length) && (
             <FormGroup>
@@ -1901,7 +1855,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       this.setState({
         filterQueryState: initRun
           ? QueryState.INIT
-          : new QueryState({ error: new Error('must complete parse step') }),
+          : new QueryState({ error: 'must complete parse step' }),
       });
       return;
     }
@@ -1974,9 +1928,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     if (filterQueryState.isInit()) {
       mainFill = <CenterMessage>Please enter more details for the previous steps</CenterMessage>;
     } else if (filterQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (filterQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${filterQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${filterQueryState.error}`}</CenterMessage>;
     } else if (filterQueryState.data) {
       mainFill = (
         <div className="table-with-control">
@@ -2010,10 +1964,16 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
             <p className="optional">Optional</p>
             <p>
               Druid can{' '}
-              <ExternalLink href={`${getLink('DOCS')}/querying/filters.html`}>filter</ExternalLink>{' '}
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/querying/filters.html`}
+              >
+                filter
+              </ExternalLink>{' '}
               out unwanted data by applying per-row filters.
             </p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/index.html#filter`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#filter`}
+            />
           </Callout>
           {!showGlobalFilter && this.renderColumnFilterControls()}
           {!selectedFilter && this.renderGlobalFilterControls()}
@@ -2188,7 +2148,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       this.setState({
         schemaQueryState: initRun
           ? QueryState.INIT
-          : new QueryState({ error: new Error('must complete parse step') }),
+          : new QueryState({ error: 'must complete parse step' }),
       });
       return;
     }
@@ -2240,9 +2200,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     if (schemaQueryState.isInit()) {
       mainFill = <CenterMessage>Please enter more details for the previous steps</CenterMessage>;
     } else if (schemaQueryState.isLoading()) {
-      mainFill = <Loader />;
+      mainFill = <Loader loading />;
     } else if (schemaQueryState.error) {
-      mainFill = <CenterMessage>{`Error: ${schemaQueryState.error.message}`}</CenterMessage>;
+      mainFill = <CenterMessage>{`Error: ${schemaQueryState.error}`}</CenterMessage>;
     } else if (schemaQueryState.data) {
       mainFill = (
         <div className="table-with-control">
@@ -2279,7 +2239,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                 want to change the type, click on the column header.
               </p>
             )}
-            <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/schema-design.html`}
+            />
           </Callout>
           {!somethingSelected && (
             <>
@@ -2290,12 +2252,14 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                     <p>
                       Select whether or not you want to set an explicit list of{' '}
                       <ExternalLink
-                        href={`${getLink('DOCS')}/ingestion/ingestion-spec.html#dimensionsspec`}
+                        href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/ingestion-spec.html#dimensionsspec`}
                       >
                         dimensions
                       </ExternalLink>{' '}
                       and{' '}
-                      <ExternalLink href={`${getLink('DOCS')}/querying/aggregations.html`}>
+                      <ExternalLink
+                        href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/querying/aggregations.html`}
+                      >
                         metrics
                       </ExternalLink>
                       . Explicitly setting dimensions and metrics can lead to better compression and
@@ -2340,7 +2304,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                   <PopoverText>
                     <p>
                       If you enable{' '}
-                      <ExternalLink href={`${getLink('DOCS')}/tutorials/tutorial-rollup.html`}>
+                      <ExternalLink
+                        href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/tutorials/tutorial-rollup.html`}
+                      >
                         roll-up
                       </ExternalLink>
                       , Druid will try to pre-aggregate data before indexing it to conserve storage.
@@ -2349,12 +2315,18 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                     </p>
                     <p>
                       If you enable rollup, you must specify which columns are{' '}
-                      <a href={`${getLink('DOCS')}/ingestion/ingestion-spec.html#dimensionsspec`}>
+                      <a
+                        href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/ingestion-spec.html#dimensionsspec`}
+                      >
                         dimensions
                       </a>{' '}
                       (fields you want to group and filter on), and which are{' '}
-                      <a href={`${getLink('DOCS')}/querying/aggregations.html`}>metrics</a> (fields
-                      you want to aggregate on).
+                      <a
+                        href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/querying/aggregations.html`}
+                      >
+                        metrics
+                      </a>{' '}
+                      (fields you want to aggregate on).
                     </p>
                   </PopoverText>
                 }
@@ -2807,7 +2779,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           <Callout className="intro">
             <p className="optional">Optional</p>
             <p>Configure how Druid will partition data.</p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/index.html#partitioning`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#partitioning`}
+            />
           </Callout>
         </div>
         {this.renderNextBar({
@@ -2871,7 +2845,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           <Callout className="intro">
             <p className="optional">Optional</p>
             <p>Fine tune how Druid will ingest data.</p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/index.html#tuningconfig`} />
+            <LearnMore
+              href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/index.html#tuningconfig`}
+            />
           </Callout>
         </div>
         {this.renderNextBar({
@@ -2897,7 +2873,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                 name: 'spec.dataSchema.dataSource',
                 label: 'Datasource name',
                 type: 'string',
-                info: <>This is the name of the datasource (table) in Druid.</>,
+                info: <>This is the name of the data source (table) in Druid.</>,
               },
               {
                 name: 'spec.ioConfig.appendToExisting',

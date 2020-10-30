@@ -95,7 +95,6 @@ public class IngestSegmentFirehoseFactoryTimelineTest
                   null
               ),
               null,
-              null,
               null
           )
       )
@@ -331,7 +330,7 @@ public class IngestSegmentFirehoseFactoryTimelineTest
           if (intervals.equals(ImmutableList.of(testCase.interval))) {
             return ImmutableSet.copyOf(testCase.segments);
           } else {
-            throw new IllegalArgumentException("BAD");
+            throw new IllegalArgumentException("WTF");
           }
         }
 
@@ -349,7 +348,7 @@ public class IngestSegmentFirehoseFactoryTimelineTest
           DATA_SOURCE,
           testCase.interval,
           null,
-          TrueDimFilter.instance(),
+          new TrueDimFilter(),
           Arrays.asList(DIMENSIONS),
           Arrays.asList(METRICS),
           // Split as much as possible

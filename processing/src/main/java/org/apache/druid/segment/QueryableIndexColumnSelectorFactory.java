@@ -27,7 +27,6 @@ import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.segment.column.ValueTypes;
 import org.apache.druid.segment.data.ReadableOffset;
 
 import javax.annotation.Nullable;
@@ -40,7 +39,7 @@ import java.util.function.Function;
  * It's counterpart for incremental index is {@link
  * org.apache.druid.segment.incremental.IncrementalIndexColumnSelectorFactory}.
  */
-public class QueryableIndexColumnSelectorFactory implements ColumnSelectorFactory
+class QueryableIndexColumnSelectorFactory implements ColumnSelectorFactory
 {
   private final QueryableIndex index;
   private final VirtualColumns virtualColumns;
@@ -56,7 +55,7 @@ public class QueryableIndexColumnSelectorFactory implements ColumnSelectorFactor
   private final Map<DimensionSpec, DimensionSelector> dimensionSelectorCache;
   private final Map<String, ColumnValueSelector> valueSelectorCache;
 
-  public QueryableIndexColumnSelectorFactory(
+  QueryableIndexColumnSelectorFactory(
       QueryableIndex index,
       VirtualColumns virtualColumns,
       boolean descending,
@@ -119,7 +118,7 @@ public class QueryableIndexColumnSelectorFactory implements ColumnSelectorFactor
 
     ValueType type = columnHolder.getCapabilities().getType();
     if (type.isNumeric()) {
-      return ValueTypes.makeNumericWrappingDimensionSelector(type, makeColumnValueSelector(dimension), extractionFn);
+      return type.makeNumericWrappingDimensionSelector(makeColumnValueSelector(dimension), extractionFn);
     }
 
     final DictionaryEncodedColumn column = getCachedColumn(dimension, DictionaryEncodedColumn.class);
@@ -189,10 +188,7 @@ public class QueryableIndexColumnSelectorFactory implements ColumnSelectorFactor
   public ColumnCapabilities getColumnCapabilities(String columnName)
   {
     if (virtualColumns.exists(columnName)) {
-      return virtualColumns.getColumnCapabilities(
-          baseColumnName -> QueryableIndexStorageAdapter.getColumnCapabilities(index, baseColumnName),
-          columnName
-      );
+      return virtualColumns.getColumnCapabilities(columnName);
     }
 
     return QueryableIndexStorageAdapter.getColumnCapabilities(index, columnName);

@@ -20,6 +20,9 @@
 package org.apache.druid.benchmark;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.benchmark.datagen.BenchmarkColumnSchema;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemaInfo;
+import org.apache.druid.benchmark.datagen.SegmentGenerator;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -38,9 +41,6 @@ import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.segment.generator.GeneratorColumnSchema;
-import org.apache.druid.segment.generator.GeneratorSchemaInfo;
-import org.apache.druid.segment.generator.SegmentGenerator;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.partition.LinearShardSpec;
@@ -86,9 +86,9 @@ public class ExpressionSelectorBenchmark
   {
     this.closer = Closer.create();
 
-    final GeneratorSchemaInfo schemaInfo = new GeneratorSchemaInfo(
+    final BenchmarkSchemaInfo schemaInfo = new BenchmarkSchemaInfo(
         ImmutableList.of(
-            GeneratorColumnSchema.makeZipf(
+            BenchmarkColumnSchema.makeZipf(
                 "n",
                 ValueType.LONG,
                 false,
@@ -98,7 +98,7 @@ public class ExpressionSelectorBenchmark
                 10000,
                 3d
             ),
-            GeneratorColumnSchema.makeZipf(
+            BenchmarkColumnSchema.makeZipf(
                 "s",
                 ValueType.STRING,
                 false,

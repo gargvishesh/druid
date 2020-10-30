@@ -21,7 +21,6 @@ package org.apache.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.java.util.common.HumanReadableBytes;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;
@@ -42,38 +41,26 @@ public class SegmentsSplitHintSpec implements SplitHintSpec
 {
   public static final String TYPE = "segments";
 
-  private static final HumanReadableBytes DEFAULT_MAX_INPUT_SEGMENT_BYTES_PER_TASK = new HumanReadableBytes("1GiB");
-  private static final int DEFAULT_MAX_NUM_SEGMENTS = 1000;
+  private static final long DEFAULT_MAX_INPUT_SEGMENT_BYTES_PER_TASK = 500 * 1024 * 1024;
 
   /**
    * Maximum number of bytes of input segments to process in a single task.
    * If a single segment is larger than this number, it will be processed by itself in a single task.
    */
-  private final HumanReadableBytes maxInputSegmentBytesPerTask;
-  private final int maxNumSegments;
+  private final long maxInputSegmentBytesPerTask;
 
   @JsonCreator
-  public SegmentsSplitHintSpec(
-      @JsonProperty("maxInputSegmentBytesPerTask") @Nullable HumanReadableBytes maxInputSegmentBytesPerTask,
-      @JsonProperty("maxNumSegments") @Nullable Integer maxNumSegments
-  )
+  public SegmentsSplitHintSpec(@JsonProperty("maxInputSegmentBytesPerTask") @Nullable Long maxInputSegmentBytesPerTask)
   {
     this.maxInputSegmentBytesPerTask = maxInputSegmentBytesPerTask == null
                                        ? DEFAULT_MAX_INPUT_SEGMENT_BYTES_PER_TASK
                                        : maxInputSegmentBytesPerTask;
-    this.maxNumSegments = maxNumSegments == null ? DEFAULT_MAX_NUM_SEGMENTS : maxNumSegments;
   }
 
   @JsonProperty
-  public HumanReadableBytes getMaxInputSegmentBytesPerTask()
+  public long getMaxInputSegmentBytesPerTask()
   {
     return maxInputSegmentBytesPerTask;
-  }
-
-  @JsonProperty
-  public int getMaxNumSegments()
-  {
-    return maxNumSegments;
   }
 
   @Override
@@ -93,14 +80,13 @@ public class SegmentsSplitHintSpec implements SplitHintSpec
       return false;
     }
     SegmentsSplitHintSpec that = (SegmentsSplitHintSpec) o;
-    return maxNumSegments == that.maxNumSegments &&
-           Objects.equals(maxInputSegmentBytesPerTask, that.maxInputSegmentBytesPerTask);
+    return maxInputSegmentBytesPerTask == that.maxInputSegmentBytesPerTask;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(maxInputSegmentBytesPerTask, maxNumSegments);
+    return Objects.hash(maxInputSegmentBytesPerTask);
   }
 
   @Override
@@ -108,7 +94,6 @@ public class SegmentsSplitHintSpec implements SplitHintSpec
   {
     return "SegmentsSplitHintSpec{" +
            "maxInputSegmentBytesPerTask=" + maxInputSegmentBytesPerTask +
-           ", maxNumSegments=" + maxNumSegments +
            '}';
   }
 }

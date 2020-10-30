@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser.Feature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.java.util.common.parsers.JSONPathParser;
 import org.apache.druid.java.util.common.parsers.JSONPathSpec;
 import org.apache.druid.java.util.common.parsers.Parser;
@@ -37,20 +38,17 @@ public class JSONParseSpec extends NestedDataParseSpec<JSONPathSpec>
 {
   private final ObjectMapper objectMapper;
   private final Map<String, Boolean> featureSpec;
-  private final boolean keepNullColumns;
 
   @JsonCreator
   public JSONParseSpec(
       @JsonProperty("timestampSpec") TimestampSpec timestampSpec,
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("flattenSpec") JSONPathSpec flattenSpec,
-      @JsonProperty("featureSpec") Map<String, Boolean> featureSpec,
-      @JsonProperty("keepNullColumns") Boolean keepNullColumns
+      @JsonProperty("featureSpec") Map<String, Boolean> featureSpec
   )
   {
     super(timestampSpec, dimensionsSpec, flattenSpec != null ? flattenSpec : JSONPathSpec.DEFAULT);
     this.objectMapper = new ObjectMapper();
-    this.keepNullColumns = (keepNullColumns == null) ? false : keepNullColumns;
     this.featureSpec = (featureSpec == null) ? new HashMap<>() : featureSpec;
     for (Map.Entry<String, Boolean> entry : this.featureSpec.entrySet()) {
       Feature feature = Feature.valueOf(entry.getKey());
@@ -58,39 +56,40 @@ public class JSONParseSpec extends NestedDataParseSpec<JSONPathSpec>
     }
   }
 
+  @Deprecated
   public JSONParseSpec(TimestampSpec ts, DimensionsSpec dims)
   {
-    this(ts, dims, null, null, false);
+    this(ts, dims, null, null);
   }
 
   @Override
   public Parser<String, Object> makeParser()
   {
-    return new JSONPathParser(getFlattenSpec(), objectMapper, getKeepNullColumns());
+    return new JSONPathParser(getFlattenSpec(), objectMapper);
+  }
+
+  @Override
+  public InputFormat toInputFormat()
+  {
+    return new JsonInputFormat(getFlattenSpec(), getFeatureSpec());
   }
 
   @Override
   public ParseSpec withTimestampSpec(TimestampSpec spec)
   {
-    return new JSONParseSpec(spec, getDimensionsSpec(), getFlattenSpec(), getFeatureSpec(), getKeepNullColumns());
+    return new JSONParseSpec(spec, getDimensionsSpec(), getFlattenSpec(), getFeatureSpec());
   }
 
   @Override
   public ParseSpec withDimensionsSpec(DimensionsSpec spec)
   {
-    return new JSONParseSpec(getTimestampSpec(), spec, getFlattenSpec(), getFeatureSpec(), getKeepNullColumns());
+    return new JSONParseSpec(getTimestampSpec(), spec, getFlattenSpec(), getFeatureSpec());
   }
 
   @JsonProperty
   public Map<String, Boolean> getFeatureSpec()
   {
     return featureSpec;
-  }
-
-  @JsonProperty
-  public boolean getKeepNullColumns()
-  {
-    return keepNullColumns;
   }
 
   @Override
@@ -106,13 +105,13 @@ public class JSONParseSpec extends NestedDataParseSpec<JSONPathSpec>
       return false;
     }
     final JSONParseSpec that = (JSONParseSpec) o;
-    return Objects.equals(featureSpec, that.featureSpec) && Objects.equals(keepNullColumns, that.keepNullColumns);
+    return Objects.equals(featureSpec, that.featureSpec);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(super.hashCode(), featureSpec, getKeepNullColumns());
+    return Objects.hash(super.hashCode(), featureSpec);
   }
 
   @Override
@@ -123,7 +122,6 @@ public class JSONParseSpec extends NestedDataParseSpec<JSONPathSpec>
            ", dimensionsSpec=" + getDimensionsSpec() +
            ", flattenSpec=" + getFlattenSpec() +
            ", featureSpec=" + featureSpec +
-           ", keepNullColumns=" + keepNullColumns +
            '}';
   }
 }

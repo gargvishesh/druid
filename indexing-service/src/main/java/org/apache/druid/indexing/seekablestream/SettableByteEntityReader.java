@@ -60,7 +60,7 @@ class SettableByteEntityReader implements InputEntityReader
     this.indexingTmpDir = indexingTmpDir;
   }
 
-  void setEntity(ByteEntity entity)
+  void setEntity(ByteEntity entity) throws IOException
   {
     this.delegate = new TransformingInputEntityReader(
         // Yes, we are creating a new reader for every stream chunk.

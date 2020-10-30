@@ -23,7 +23,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.druid.common.utils.IdUtils;
+import com.google.common.base.Joiner;
+import org.apache.druid.indexer.TaskIdUtils;
+import org.apache.druid.indexing.common.stats.RowIngestionMetersFactory;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.kafka.KafkaDataSourceMetadata;
@@ -44,7 +46,6 @@ import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskTuningCon
 import org.apache.druid.indexing.seekablestream.SeekableStreamStartSequenceNumbers;
 import org.apache.druid.indexing.seekablestream.common.OrderedSequenceNumber;
 import org.apache.druid.indexing.seekablestream.common.RecordSupplier;
-import org.apache.druid.indexing.seekablestream.common.StreamException;
 import org.apache.druid.indexing.seekablestream.common.StreamPartition;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisor;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorIOConfig;
@@ -52,7 +53,6 @@ import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervi
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
-import org.apache.druid.segment.incremental.RowIngestionMetersFactory;
 import org.apache.druid.server.metrics.DruidMonitorSchedulerConfig;
 import org.joda.time.DateTime;
 
@@ -194,7 +194,9 @@ public class KafkaSupervisor extends SeekableStreamSupervisor<Integer, Long>
         true,
         minimumMessageTime,
         maximumMessageTime,
-        ioConfig.getInputFormat()
+        ioConfig.getInputFormat(
+            spec.getDataSchema().getParser() == null ? null : spec.getDataSchema().getParser().getParseSpec()
+        )
     );
   }
 
@@ -219,7 +221,7 @@ public class KafkaSupervisor extends SeekableStreamSupervisor<Integer, Long>
 
     List<SeekableStreamIndexTask<Integer, Long>> taskList = new ArrayList<>();
     for (int i = 0; i < replicas; i++) {
-      String taskId = IdUtils.getRandomIdWithPrefix(baseSequenceName);
+      String taskId = Joiner.on("_").join(baseSequenceName, TaskIdUtils.getRandomId());
       taskList.add(new KafkaIndexTask(
           taskId,
           new TaskResource(baseSequenceName, 1),
@@ -227,7 +229,11 @@ public class KafkaSupervisor extends SeekableStreamSupervisor<Integer, Long>
           (KafkaIndexTaskTuningConfig) taskTuningConfig,
           (KafkaIndexTaskIOConfig) taskIoConfig,
           context,
-          sortingMapper
+          null,
+          null,
+          rowIngestionMetersFactory,
+          sortingMapper,
+          null
       ));
     }
     return taskList;
@@ -330,38 +336,16 @@ public class KafkaSupervisor extends SeekableStreamSupervisor<Integer, Long>
   }
 
   @Override
-  protected void updatePartitionLagFromStream()
+  protected void updateLatestSequenceFromStream(
+      RecordSupplier<Integer, Long> recordSupplier,
+      Set<StreamPartition<Integer>> partitions
+  )
   {
-    getRecordSupplierLock().lock();
-    try {
-      Set<Integer> partitionIds;
-      try {
-        partitionIds = recordSupplier.getPartitionIds(getIoConfig().getStream());
-      }
-      catch (Exception e) {
-        log.warn("Could not fetch partitions for topic/stream [%s]", getIoConfig().getStream());
-        throw new StreamException(e);
-      }
-
-      Set<StreamPartition<Integer>> partitions = partitionIds
-          .stream()
-          .map(e -> new StreamPartition<>(getIoConfig().getStream(), e))
-          .collect(Collectors.toSet());
-
-      recordSupplier.seekToLatest(partitions);
-
-      // this method isn't actually computing the lag, just fetching the latests offsets from the stream. This is
-      // because we currently only have record lag for kafka, which can be lazily computed by subtracting the highest
-      // task offsets from the latest offsets from the stream when it is needed
-      latestSequenceFromStream =
-          partitions.stream().collect(Collectors.toMap(StreamPartition::getPartitionId, recordSupplier::getPosition));
-    }
-    catch (InterruptedException e) {
-      throw new StreamException(e);
-    }
-    finally {
-      getRecordSupplierLock().unlock();
-    }
+    latestSequenceFromStream = partitions.stream()
+                                         .collect(Collectors.toMap(
+                                             StreamPartition::getPartitionId,
+                                             recordSupplier::getPosition
+                                         ));
   }
 
   @Override

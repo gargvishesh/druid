@@ -19,13 +19,10 @@
 
 package org.apache.druid.java.util.common.guava;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
+import junit.framework.Assert;
 import org.junit.Test;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,10 +41,7 @@ public class MergeSequenceTest
         TestSequence.create(4, 6, 8)
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -64,10 +58,7 @@ public class MergeSequenceTest
         TestSequence.create(4, 6, 8)
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -85,10 +76,7 @@ public class MergeSequenceTest
         TestSequence.create(4, 6, 8)
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -106,10 +94,7 @@ public class MergeSequenceTest
         TestSequence.create(4, 6, 8)
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -128,10 +113,7 @@ public class MergeSequenceTest
         TestSequence.create()
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -148,10 +130,7 @@ public class MergeSequenceTest
         TestSequence.create(4, 6)
     );
 
-    MergeSequence<Integer> seq = new MergeSequence<>(
-        Ordering.<Integer>natural(),
-        (Sequence) Sequences.simple(testSeqs)
-    );
+    MergeSequence<Integer> seq = new MergeSequence<>(Ordering.<Integer>natural(), (Sequence) Sequences.simple(testSeqs));
     SequenceTestHelper.testAll(seq, Arrays.asList(1, 2, 3, 4, 5, 4, 6, 7, 8, 9));
 
     for (TestSequence<Integer> sequence : testSeqs) {
@@ -190,116 +169,4 @@ public class MergeSequenceTest
     SequenceTestHelper.testAll(mergeOne, Collections.singletonList(1));
   }
 
-  @Test
-  public void testTwoExplodingOnGetSequences()
-  {
-    final ExplodingSequence<Integer> bomb1 =
-        new ExplodingSequence<>(Sequences.simple(ImmutableList.of(1, 2, 2)), true, false);
-    final ExplodingSequence<Integer> bomb2 =
-        new ExplodingSequence<>(Sequences.simple(ImmutableList.of(1, 2, 2)), true, false);
-
-    final MergeSequence<Integer> mergeSequence =
-        new MergeSequence<>(
-            Ordering.natural(),
-            Sequences.simple(ImmutableList.of(bomb1, bomb2))
-        );
-
-    try {
-      mergeSequence.toYielder(
-          null,
-          new YieldingAccumulator<Integer, Integer>()
-          {
-            @Override
-            public Integer accumulate(Integer accumulated, Integer in)
-            {
-              return in;
-            }
-          }
-      );
-      Assert.fail("Expected exception");
-    }
-    catch (Exception e) {
-      Assert.assertThat(e, ThrowableMessageMatcher.hasMessage(CoreMatchers.equalTo("get")));
-    }
-
-    Assert.assertEquals("Closes resources (1)", 1, bomb1.getCloseCount());
-    Assert.assertEquals("Closes resources (2)", 1, bomb2.getCloseCount());
-  }
-
-  @Test
-  public void testTwoExplodingOnCloseSequences()
-  {
-    final ExplodingSequence<Integer> bomb1 =
-        new ExplodingSequence<>(Sequences.simple(ImmutableList.of(1, 2, 2)), false, true);
-    final ExplodingSequence<Integer> bomb2 =
-        new ExplodingSequence<>(Sequences.simple(ImmutableList.of(1, 2, 2)), false, true);
-
-    final MergeSequence<Integer> mergeSequence =
-        new MergeSequence<>(
-            Ordering.natural(),
-            Sequences.simple(ImmutableList.of(bomb1, bomb2))
-        );
-
-    try {
-      mergeSequence.toYielder(
-          null,
-          new YieldingAccumulator<Integer, Integer>()
-          {
-            @Override
-            public Integer accumulate(Integer accumulated, Integer in)
-            {
-              if (in > 1) {
-                throw new RuntimeException("boom");
-              }
-
-              return in;
-            }
-          }
-      );
-      Assert.fail("Expected exception");
-    }
-    catch (Exception e) {
-      Assert.assertThat(e, ThrowableMessageMatcher.hasMessage(CoreMatchers.equalTo("boom")));
-    }
-
-    Assert.assertEquals("Closes resources (1)", 1, bomb1.getCloseCount());
-    Assert.assertEquals("Closes resources (2)", 1, bomb2.getCloseCount());
-  }
-
-  @Test
-  public void testOneEmptyOneExplodingSequence()
-  {
-    final ExplodingSequence<Integer> bomb =
-        new ExplodingSequence<>(Sequences.simple(ImmutableList.of(1, 2, 2)), false, true);
-
-    final MergeSequence<Integer> mergeSequence =
-        new MergeSequence<>(
-            Ordering.natural(),
-            Sequences.simple(ImmutableList.of(Sequences.empty(), bomb))
-        );
-
-    try {
-      mergeSequence.toYielder(
-          null,
-          new YieldingAccumulator<Integer, Integer>()
-          {
-            @Override
-            public Integer accumulate(Integer accumulated, Integer in)
-            {
-              if (in > 1) {
-                throw new RuntimeException("boom");
-              }
-
-              return in;
-            }
-          }
-      );
-      Assert.fail("Expected exception");
-    }
-    catch (Exception e) {
-      Assert.assertThat(e, ThrowableMessageMatcher.hasMessage(CoreMatchers.equalTo("boom")));
-    }
-
-    Assert.assertEquals("Closes resources", 1, bomb.getCloseCount());
-  }
 }

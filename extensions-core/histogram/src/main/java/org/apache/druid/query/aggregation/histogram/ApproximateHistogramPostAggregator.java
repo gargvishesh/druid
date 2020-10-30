@@ -24,7 +24,6 @@ import org.apache.druid.query.aggregation.PostAggregator;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Objects;
 
 public abstract class ApproximateHistogramPostAggregator implements PostAggregator
 {
@@ -66,24 +65,4 @@ public abstract class ApproximateHistogramPostAggregator implements PostAggregat
 
   @Override
   public abstract String toString();
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ApproximateHistogramPostAggregator that = (ApproximateHistogramPostAggregator) o;
-    return name.equals(that.name) &&
-           fieldName.equals(that.fieldName);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(name, fieldName);
-  }
 }

@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.druid.collections.ReferenceCountingResourceHolder;
-import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
@@ -340,7 +339,8 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
   private List<CloseableIterator<Entry<KeyType>>> parallelSortAndGetGroupersIterator()
   {
     // The number of groupers is same with the number of processing threads in the executor
-    final List<ListenableFuture<CloseableIterator<Entry<KeyType>>>> futures = groupers.stream()
+    final ListenableFuture<List<CloseableIterator<Entry<KeyType>>>> future = Futures.allAsList(
+        groupers.stream()
                 .map(grouper ->
                          executor.submit(
                              new AbstractPrioritizedCallable<CloseableIterator<Entry<KeyType>>>(priority)
@@ -353,20 +353,21 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
                              }
                          )
                 )
-                .collect(Collectors.toList()
+                .collect(Collectors.toList())
     );
 
-    ListenableFuture<List<CloseableIterator<Entry<KeyType>>>> future = Futures.allAsList(futures);
     try {
       final long timeout = queryTimeoutAt - System.currentTimeMillis();
       return hasQueryTimeout ? future.get(timeout, TimeUnit.MILLISECONDS) : future.get();
     }
-    catch (InterruptedException | TimeoutException | CancellationException e) {
-      GuavaUtils.cancelAll(true, future, futures);
+    catch (InterruptedException | TimeoutException e) {
+      future.cancel(true);
+      throw new QueryInterruptedException(e);
+    }
+    catch (CancellationException e) {
       throw new QueryInterruptedException(e);
     }
     catch (ExecutionException e) {
-      GuavaUtils.cancelAll(true, future, futures);
       throw new RuntimeException(e.getCause());
     }
   }

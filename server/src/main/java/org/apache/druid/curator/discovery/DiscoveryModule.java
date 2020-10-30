@@ -46,7 +46,6 @@ import org.apache.curator.x.discovery.ServiceProviderBuilder;
 import org.apache.curator.x.discovery.details.ServiceCacheListener;
 import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.client.indexing.IndexingService;
-import org.apache.druid.curator.ZkEnablementConfig;
 import org.apache.druid.discovery.DruidLeaderSelector;
 import org.apache.druid.discovery.DruidNodeAnnouncer;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -67,7 +66,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -87,14 +85,6 @@ public class DiscoveryModule implements Module
 
   private static final String INTERNAL_DISCOVERY_PROP = "druid.discovery.type";
   private static final String CURATOR_KEY = "curator";
-
-  private boolean isZkEnabled = true;
-
-  @Inject
-  public void configure(Properties properties)
-  {
-    isZkEnabled = ZkEnablementConfig.isEnabled(properties);
-  }
 
   /**
    * Requests that the un-annotated DruidNode instance be injected and published as part of the lifecycle.
@@ -165,16 +155,9 @@ public class DiscoveryModule implements Module
     // Build the binder so that it will at a minimum inject an empty set.
     DruidBinders.discoveryAnnouncementBinder(binder);
 
-    if (isZkEnabled) {
-      binder.bind(ServiceAnnouncer.class)
-            .to(Key.get(CuratorServiceAnnouncer.class, Names.named(NAME)))
-            .in(LazySingleton.class);
-    } else {
-      binder.bind(Key.get(ServiceAnnouncer.Noop.class, Names.named(NAME))).toInstance(new ServiceAnnouncer.Noop());
-      binder.bind(ServiceAnnouncer.class)
-            .to(Key.get(ServiceAnnouncer.Noop.class, Names.named(NAME)))
-            .in(LazySingleton.class);
-    }
+    binder.bind(ServiceAnnouncer.class)
+          .to(Key.get(CuratorServiceAnnouncer.class, Names.named(NAME)))
+          .in(LazySingleton.class);
 
     // internal discovery bindings.
     PolyBind.createChoiceWithDefault(binder, INTERNAL_DISCOVERY_PROP, Key.get(DruidNodeAnnouncer.class), CURATOR_KEY);
@@ -549,7 +532,7 @@ public class DiscoveryModule implements Module
   private static class DruidLeaderSelectorProvider implements Provider<DruidLeaderSelector>
   {
     @Inject
-    private Provider<CuratorFramework> curatorFramework;
+    private CuratorFramework curatorFramework;
 
     @Inject
     @Self
@@ -569,7 +552,7 @@ public class DiscoveryModule implements Module
     public DruidLeaderSelector get()
     {
       return new CuratorDruidLeaderSelector(
-          curatorFramework.get(),
+          curatorFramework,
           druidNode,
           latchPathFn.apply(zkPathsConfig)
       );

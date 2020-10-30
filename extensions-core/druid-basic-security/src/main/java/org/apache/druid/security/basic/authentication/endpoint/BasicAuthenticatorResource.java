@@ -25,7 +25,6 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.security.basic.BasicSecurityResourceFilter;
 import org.apache.druid.security.basic.authentication.entity.BasicAuthenticatorCredentialUpdate;
-import org.apache.druid.server.security.AuthValidator;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -44,16 +43,13 @@ import javax.ws.rs.core.Response;
 public class BasicAuthenticatorResource
 {
   private final BasicAuthenticatorResourceHandler handler;
-  private final AuthValidator authValidator;
 
   @Inject
   public BasicAuthenticatorResource(
-      BasicAuthenticatorResourceHandler handler,
-      AuthValidator authValidator
+      BasicAuthenticatorResourceHandler handler
   )
   {
     this.handler = handler;
-    this.authValidator = authValidator;
   }
 
   /**
@@ -106,7 +102,6 @@ public class BasicAuthenticatorResource
       @PathParam("authenticatorName") final String authenticatorName
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.getAllUsers(authenticatorName);
   }
 
@@ -127,7 +122,6 @@ public class BasicAuthenticatorResource
       @PathParam("userName") final String userName
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.getUser(authenticatorName, userName);
   }
 
@@ -150,7 +144,6 @@ public class BasicAuthenticatorResource
       @PathParam("userName") String userName
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.createUser(authenticatorName, userName);
   }
 
@@ -173,7 +166,6 @@ public class BasicAuthenticatorResource
       @PathParam("userName") String userName
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.deleteUser(authenticatorName, userName);
   }
 
@@ -197,7 +189,6 @@ public class BasicAuthenticatorResource
       BasicAuthenticatorCredentialUpdate update
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.updateUserCredentials(authenticatorName, userName, update);
   }
 
@@ -216,7 +207,6 @@ public class BasicAuthenticatorResource
       @PathParam("authenticatorName") final String authenticatorName
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.getCachedSerializedUserMap(authenticatorName);
   }
 
@@ -234,7 +224,6 @@ public class BasicAuthenticatorResource
       byte[] serializedUserMap
   )
   {
-    authValidator.validateAuthenticatorName(authenticatorName);
     return handler.authenticatorUserUpdateListener(authenticatorName, serializedUserMap);
   }
 }

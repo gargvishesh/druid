@@ -21,7 +21,6 @@ package org.apache.druid.client.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 
 import java.util.Map;
 import java.util.Objects;
@@ -32,9 +31,6 @@ import java.util.Objects;
  */
 public class ClientCompactionTaskQuery implements ClientTaskQuery
 {
-  static final String TYPE = "compact";
-
-  private final String id;
   private final String dataSource;
   private final ClientCompactionIOConfig ioConfig;
   private final ClientCompactionTaskQueryTuningConfig tuningConfig;
@@ -42,14 +38,12 @@ public class ClientCompactionTaskQuery implements ClientTaskQuery
 
   @JsonCreator
   public ClientCompactionTaskQuery(
-      @JsonProperty("id") String id,
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("ioConfig") ClientCompactionIOConfig ioConfig,
       @JsonProperty("tuningConfig") ClientCompactionTaskQueryTuningConfig tuningConfig,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    this.id = Preconditions.checkNotNull(id, "id");
     this.dataSource = dataSource;
     this.ioConfig = ioConfig;
     this.tuningConfig = tuningConfig;
@@ -58,16 +52,9 @@ public class ClientCompactionTaskQuery implements ClientTaskQuery
 
   @JsonProperty
   @Override
-  public String getId()
-  {
-    return id;
-  }
-
-  @JsonProperty
-  @Override
   public String getType()
   {
-    return TYPE;
+    return "compact";
   }
 
   @JsonProperty
@@ -105,8 +92,7 @@ public class ClientCompactionTaskQuery implements ClientTaskQuery
       return false;
     }
     ClientCompactionTaskQuery that = (ClientCompactionTaskQuery) o;
-    return Objects.equals(id, that.id) &&
-           Objects.equals(dataSource, that.dataSource) &&
+    return Objects.equals(dataSource, that.dataSource) &&
            Objects.equals(ioConfig, that.ioConfig) &&
            Objects.equals(tuningConfig, that.tuningConfig) &&
            Objects.equals(context, that.context);
@@ -115,15 +101,14 @@ public class ClientCompactionTaskQuery implements ClientTaskQuery
   @Override
   public int hashCode()
   {
-    return Objects.hash(id, dataSource, ioConfig, tuningConfig, context);
+    return Objects.hash(dataSource, ioConfig, tuningConfig, context);
   }
 
   @Override
   public String toString()
   {
-    return "ClientCompactionTaskQuery{" +
-           "id='" + id + '\'' +
-           ", dataSource='" + dataSource + '\'' +
+    return "ClientCompactQuery{" +
+           "dataSource='" + dataSource + '\'' +
            ", ioConfig=" + ioConfig +
            ", tuningConfig=" + tuningConfig +
            ", context=" + context +

@@ -16,9 +16,6 @@
     "expectedResults": [
       {
         "server_type":"historical"
-      },
-      {
-        "server_type":"broker"
       }
     ]
   },

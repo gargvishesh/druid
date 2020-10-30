@@ -39,8 +39,7 @@ public class RegexpExtractOperatorConversion implements SqlOperatorConversion
       .operatorBuilder("REGEXP_EXTRACT")
       .operandTypes(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER)
       .requiredOperands(2)
-      .literalOperands(1, 2)
-      .returnTypeNullable(SqlTypeName.VARCHAR)
+      .returnType(SqlTypeName.VARCHAR)
       .functionCategory(SqlFunctionCategory.STRING)
       .build();
 
@@ -72,13 +71,9 @@ public class RegexpExtractOperatorConversion implements SqlOperatorConversion
                                  : null;
 
           if (arg.isSimpleExtraction() && patternExpr.isLiteral() && (indexExpr == null || indexExpr.isLiteral())) {
-            final String pattern = (String) patternExpr.getLiteralValue();
-
             return arg.getSimpleExtraction().cascade(
                 new RegexDimExtractionFn(
-                    // Undo the empty-to-null conversion from patternExpr parsing (patterns cannot be null, even in
-                    // non-SQL-compliant null handling mode).
-                    StringUtils.nullToEmptyNonDruidDataString(pattern),
+                    (String) patternExpr.getLiteralValue(),
                     indexExpr == null ? DEFAULT_INDEX : ((Number) indexExpr.getLiteralValue()).intValue(),
                     true,
                     null

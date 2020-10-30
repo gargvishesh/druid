@@ -21,9 +21,9 @@ import React from 'react';
 import { compact, pluralIfNeeded } from '../../utils';
 
 export interface PluralPairIfNeededProps {
-  firstCount: number | undefined;
+  firstCount: number;
   firstSingular: string;
-  secondCount: number | undefined;
+  secondCount: number;
   secondSingular: string;
 }
 

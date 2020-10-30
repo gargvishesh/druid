@@ -55,28 +55,26 @@ exports[`history dialog matches snapshot 1`] = `
                   <div
                     class="json-collapse"
                   >
-                    <div
-                      class="collapse-buttons"
+                    <button
+                      class="bp3-button bp3-minimal"
+                      type="button"
                     >
-                      <button
-                        class="bp3-button bp3-minimal"
-                        type="button"
+                      <span
+                        class="bp3-button-text"
                       >
-                        <span
-                          class="bp3-button-text"
-                        >
-                          Payload
-                        </span>
-                      </button>
-                    </div>
-                    <div
-                      class="bp3-collapse"
-                    >
+                        Payload
+                      </span>
+                    </button>
+                    <div>
                       <div
-                        aria-hidden="false"
-                        class="bp3-collapse-body"
-                        style="transform: translateY(-undefinedpx);"
-                      />
+                        class="bp3-collapse"
+                      >
+                        <div
+                          aria-hidden="false"
+                          class="bp3-collapse-body"
+                          style="transform: translateY(-0px);"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -104,28 +102,26 @@ exports[`history dialog matches snapshot 1`] = `
                   <div
                     class="json-collapse"
                   >
-                    <div
-                      class="collapse-buttons"
+                    <button
+                      class="bp3-button bp3-minimal"
+                      type="button"
                     >
-                      <button
-                        class="bp3-button bp3-minimal"
-                        type="button"
+                      <span
+                        class="bp3-button-text"
                       >
-                        <span
-                          class="bp3-button-text"
-                        >
-                          Payload
-                        </span>
-                      </button>
-                    </div>
-                    <div
-                      class="bp3-collapse"
-                    >
+                        Payload
+                      </span>
+                    </button>
+                    <div>
                       <div
-                        aria-hidden="false"
-                        class="bp3-collapse-body"
-                        style="transform: translateY(-undefinedpx);"
-                      />
+                        class="bp3-collapse"
+                      >
+                        <div
+                          aria-hidden="false"
+                          class="bp3-collapse-body"
+                          style="transform: translateY(-0px);"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

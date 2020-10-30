@@ -33,7 +33,6 @@ import org.apache.druid.query.TestQueryRunners;
 import org.apache.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleMinAggregatorFactory;
 import org.apache.druid.segment.TestHelper;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 @RunWith(Parameterized.class)
-public class TopNUnionQueryTest extends InitializedNullHandlingTest
+public class TopNUnionQueryTest
 {
   private static final Closer RESOURCE_CLOSER = Closer.create();
 

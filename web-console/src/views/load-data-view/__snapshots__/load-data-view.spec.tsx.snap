@@ -164,12 +164,8 @@ exports[`load data view matches snapshot 1`] = `
     </div>
   </div>
   <div
-    className="main"
-  >
-    <div
-      className="ingestion-cards"
-    />
-  </div>
+    className="main bp3-input"
+  />
   <div
     className="control"
   >

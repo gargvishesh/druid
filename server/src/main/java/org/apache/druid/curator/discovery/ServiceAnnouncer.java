@@ -33,20 +33,4 @@ public interface ServiceAnnouncer
   void announce(DruidNode node);
 
   void unannounce(DruidNode node);
-
-  class Noop implements ServiceAnnouncer
-  {
-
-    @Override
-    public void announce(DruidNode node)
-    {
-
-    }
-
-    @Override
-    public void unannounce(DruidNode node)
-    {
-
-    }
-  }
 }

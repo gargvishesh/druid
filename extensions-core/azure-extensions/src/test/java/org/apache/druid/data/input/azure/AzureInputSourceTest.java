@@ -163,7 +163,7 @@ public class AzureInputSourceTest extends EasyMockSupport
     );
 
     Stream<InputSplit<List<CloudObjectLocation>>> cloudObjectStream = azureInputSource.getPrefixesSplitStream(
-        new MaxSizeSplitHintSpec(null, 1)
+        new MaxSizeSplitHintSpec(1L)
     );
 
     List<List<CloudObjectLocation>> actualCloudLocationList = cloudObjectStream.map(InputSplit::get)

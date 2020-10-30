@@ -22,6 +22,9 @@ package org.apache.druid.benchmark;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.benchmark.datagen.BenchmarkDataGenerator;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemaInfo;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemas;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.jackson.DefaultObjectMapper;
@@ -66,9 +69,6 @@ import org.apache.druid.segment.filter.DimensionPredicateFilter;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.filter.OrFilter;
 import org.apache.druid.segment.filter.SelectorFilter;
-import org.apache.druid.segment.generator.DataGenerator;
-import org.apache.druid.segment.generator.GeneratorBasicSchemas;
-import org.apache.druid.segment.generator.GeneratorSchemaInfo;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
@@ -125,7 +125,7 @@ public class FilterPartitionBenchmark
   private Filter timeFilterHalf;
   private Filter timeFilterAll;
 
-  private GeneratorSchemaInfo schemaInfo;
+  private BenchmarkSchemaInfo schemaInfo;
 
   private static String JS_FN = "function(str) { return 'super-' + str; }";
   private static ExtractionFn JS_EXTRACTION_FN = new JavaScriptExtractionFn(JS_FN, false, JavaScriptConfig.getEnabledInstance());
@@ -153,9 +153,9 @@ public class FilterPartitionBenchmark
 
     ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde());
 
-    schemaInfo = GeneratorBasicSchemas.SCHEMA_MAP.get(schema);
+    schemaInfo = BenchmarkSchemas.SCHEMA_MAP.get(schema);
 
-    DataGenerator gen = new DataGenerator(
+    BenchmarkDataGenerator gen = new BenchmarkDataGenerator(
         schemaInfo.getColumnSchemas(),
         RNG_SEED,
         schemaInfo.getDataInterval(),
@@ -229,6 +229,7 @@ public class FilterPartitionBenchmark
   {
     return new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(schemaInfo.getAggsArray())
+        .setReportParseExceptions(false)
         .setMaxRowCount(rowsPerSegment)
         .buildOnheap();
   }
@@ -376,7 +377,7 @@ public class FilterPartitionBenchmark
     Filter orFilter = new OrFilter(Arrays.asList(filter, filter2));
 
     StorageAdapter sa = new QueryableIndexStorageAdapter(qIndex);
-    Sequence<Cursor> cursors = makeCursors(sa, Filters.toCnf(orFilter));
+    Sequence<Cursor> cursors = makeCursors(sa, Filters.toCNF(orFilter));
     readCursors(cursors, blackhole);
   }
 
@@ -450,7 +451,7 @@ public class FilterPartitionBenchmark
     );
 
     StorageAdapter sa = new QueryableIndexStorageAdapter(qIndex);
-    Sequence<Cursor> cursors = makeCursors(sa, Filters.toCnf(dimFilter3.toFilter()));
+    Sequence<Cursor> cursors = makeCursors(sa, Filters.toCNF(dimFilter3.toFilter()));
     readCursors(cursors, blackhole);
   }
 

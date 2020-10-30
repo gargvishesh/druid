@@ -100,14 +100,6 @@
           }
         ]
       }
-    },
-    {
-      "type": "thetaSketchToString",
-      "name": "sketchSummary",
-      "field": {
-        "type": "fieldAccess",
-        "fieldName": "sids_sketch_count"
-      }
     }
   ],
   "intervals": [

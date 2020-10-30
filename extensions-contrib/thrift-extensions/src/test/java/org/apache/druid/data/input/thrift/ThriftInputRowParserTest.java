@@ -68,9 +68,7 @@ public class ThriftInputRowParserTest
                                           new JSONPathFieldSpec(JSONPathFieldType.ROOT, "title", "title"),
                                           new JSONPathFieldSpec(JSONPathFieldType.PATH, "lastName", "$.author.lastName")
                                       )
-                                  ),
-                                  null,
-                                  null
+                                  ), null
     );
   }
 

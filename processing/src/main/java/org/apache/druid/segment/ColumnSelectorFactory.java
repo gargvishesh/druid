@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
  * @see org.apache.druid.segment.vector.VectorColumnSelectorFactory, the vectorized version
  */
 @PublicApi
-public interface ColumnSelectorFactory extends ColumnInspector
+public interface ColumnSelectorFactory
 {
   DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
 
@@ -50,7 +50,6 @@ public interface ColumnSelectorFactory extends ColumnInspector
    *
    * @return capabilities, or null
    */
-  @Override
   @Nullable
   ColumnCapabilities getColumnCapabilities(String column);
 }

@@ -30,7 +30,7 @@ export function guessTypeFromSample(sample: any[]): string {
     if (definedValues.every(v => v % 1 === 0)) {
       return 'long';
     } else {
-      return 'double';
+      return 'float';
     }
   } else {
     return 'string';
@@ -62,7 +62,7 @@ export function getDimensionSpecs(
   });
 }
 
-export function getMetricSpecs(headerAndRows: HeaderAndRows): MetricSpec[] {
+export function getMetricSecs(headerAndRows: HeaderAndRows): MetricSpec[] {
   return [{ name: 'count', type: 'count' }].concat(
     filterMap(headerAndRows.header, h => {
       if (h === '__time') return;
@@ -101,7 +101,7 @@ export function updateSchemaWithSample(
   if (rollup) {
     newSpec = deepSet(newSpec, 'spec.dataSchema.granularitySpec.queryGranularity', 'HOUR');
 
-    const metrics = getMetricSpecs(headerAndRows);
+    const metrics = getMetricSecs(headerAndRows);
     if (metrics) {
       newSpec = deepSet(newSpec, 'spec.dataSchema.metricsSpec', metrics);
     }

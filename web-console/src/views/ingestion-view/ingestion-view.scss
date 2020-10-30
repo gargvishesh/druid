@@ -17,7 +17,6 @@
  */
 
 @import '../../variables';
-@import '../../blueprint-overrides/common/colors';
 
 .ingestion-view {
   height: 100%;
@@ -36,7 +35,7 @@
 
   &.splitter-layout.splitter-layout-vertical > .layout-splitter {
     height: 3px;
-    background-color: $gray1;
+    background-color: #6d8ea9;
   }
 
   .bottom-pane {

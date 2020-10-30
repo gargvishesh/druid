@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
 import { AutoForm } from './auto-form';
 
 describe('auto-form snapshot', () => {
   it('matches snapshot', () => {
-    const autoForm = shallow(
+    const autoForm = (
       <AutoForm
         fields={[
           { name: 'testOne', type: 'number' },
@@ -37,8 +37,9 @@ describe('auto-form snapshot', () => {
         ]}
         model={String}
         onChange={() => {}}
-      />,
+      />
     );
-    expect(autoForm).toMatchSnapshot();
+    const { container } = render(autoForm);
+    expect(container.firstChild).toMatchSnapshot();
   });
 });

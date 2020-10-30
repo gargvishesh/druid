@@ -23,13 +23,16 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.inject.name.Named;
 import org.apache.druid.common.aws.AWSCredentialsConfig;
+import org.apache.druid.indexing.common.stats.RowIngestionMetersFactory;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTask;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskRunner;
 import org.apache.druid.segment.indexing.DataSchema;
+import org.apache.druid.segment.realtime.appenderator.AppenderatorsManager;
+import org.apache.druid.segment.realtime.firehose.ChatHandlerProvider;
+import org.apache.druid.server.security.AuthorizerMapper;
 
 import java.util.Map;
 
@@ -47,7 +50,11 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
       @JsonProperty("tuningConfig") KinesisIndexTaskTuningConfig tuningConfig,
       @JsonProperty("ioConfig") KinesisIndexTaskIOConfig ioConfig,
       @JsonProperty("context") Map<String, Object> context,
-      @JacksonInject @Named(KinesisIndexingServiceModule.AWS_SCOPE) AWSCredentialsConfig awsCredentialsConfig
+      @JacksonInject ChatHandlerProvider chatHandlerProvider,
+      @JacksonInject AuthorizerMapper authorizerMapper,
+      @JacksonInject RowIngestionMetersFactory rowIngestionMetersFactory,
+      @JacksonInject @Named(KinesisIndexingServiceModule.AWS_SCOPE) AWSCredentialsConfig awsCredentialsConfig,
+      @JacksonInject AppenderatorsManager appenderatorsManager
   )
   {
     super(
@@ -57,7 +64,11 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
         tuningConfig,
         ioConfig,
         context,
-        getFormattedGroupId(dataSchema.getDataSource(), TYPE)
+        chatHandlerProvider,
+        authorizerMapper,
+        rowIngestionMetersFactory,
+        getFormattedGroupId(dataSchema.getDataSource(), TYPE),
+        appenderatorsManager
     );
     this.awsCredentialsConfig = awsCredentialsConfig;
   }
@@ -70,6 +81,10 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
         this,
         dataSchema.getParser(),
         authorizerMapper,
+        chatHandlerProvider,
+        savedParseExceptions,
+        rowIngestionMetersFactory,
+        appenderatorsManager,
         lockGranularityToUse
     );
   }
@@ -82,12 +97,8 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
     KinesisIndexTaskTuningConfig tuningConfig = ((KinesisIndexTaskTuningConfig) super.tuningConfig);
     int fetchThreads = tuningConfig.getFetchThreads() != null
                        ? tuningConfig.getFetchThreads()
-                       : Runtime.getRuntime().availableProcessors() * 2;
+                       : Math.max(1, ioConfig.getStartSequenceNumbers().getPartitionSequenceNumberMap().size());
 
-    Preconditions.checkArgument(
-        fetchThreads > 0,
-        "Must have at least one background fetch thread for the record supplier"
-    );
     return new KinesisRecordSupplier(
         KinesisRecordSupplier.getAmazonKinesisClient(
             ioConfig.getEndpoint(),
@@ -103,8 +114,7 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
         tuningConfig.getRecordBufferOfferTimeout(),
         tuningConfig.getRecordBufferFullWait(),
         tuningConfig.getFetchSequenceNumberTimeout(),
-        tuningConfig.getMaxRecordsPerPoll(),
-        false
+        tuningConfig.getMaxRecordsPerPoll()
     );
   }
 
@@ -119,12 +129,6 @@ public class KinesisIndexTask extends SeekableStreamIndexTask<String, String>
   public String getType()
   {
     return TYPE;
-  }
-
-  @Override
-  public boolean supportsQueries()
-  {
-    return true;
   }
 
   @VisibleForTesting

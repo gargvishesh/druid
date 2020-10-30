@@ -40,21 +40,22 @@ import java.util.stream.Collectors;
 public class RowBasedExpressionColumnValueSelector extends ExpressionColumnValueSelector
 {
   private final List<String> unknownColumns;
-  private final Expr.BindingAnalysis baseBindingAnalysis;
+  private final Expr.BindingDetails baseExprBindingDetails;
   private final Set<String> ignoredColumns;
   private final Int2ObjectMap<Expr> transformedCache;
 
   public RowBasedExpressionColumnValueSelector(
-      ExpressionPlan plan,
-      Expr.ObjectBinding bindings
+      Expr expression,
+      Expr.BindingDetails baseExprBindingDetails,
+      Expr.ObjectBinding bindings,
+      Set<String> unknownColumnsSet
   )
   {
-    super(plan.getAppliedExpression(), bindings);
-    this.unknownColumns = plan.getUnknownInputs()
-                              .stream()
-                              .filter(x -> !plan.getAnalysis().getArrayBindings().contains(x))
-                              .collect(Collectors.toList());
-    this.baseBindingAnalysis = plan.getAnalysis();
+    super(expression, bindings);
+    this.unknownColumns = unknownColumnsSet.stream()
+                                           .filter(x -> !baseExprBindingDetails.getArrayBindings().contains(x))
+                                           .collect(Collectors.toList());
+    this.baseExprBindingDetails = baseExprBindingDetails;
     this.ignoredColumns = new HashSet<>();
     this.transformedCache = new Int2ObjectArrayMap<>(unknownColumns.size());
   }
@@ -78,7 +79,7 @@ public class RowBasedExpressionColumnValueSelector extends ExpressionColumnValue
       if (transformedCache.containsKey(key)) {
         return transformedCache.get(key).eval(bindings);
       }
-      Expr transformed = Parser.applyUnappliedBindings(expression, baseBindingAnalysis, arrayBindings);
+      Expr transformed = Parser.applyUnappliedBindings(expression, baseExprBindingDetails, arrayBindings);
       transformedCache.put(key, transformed);
       return transformed.eval(bindings);
     }

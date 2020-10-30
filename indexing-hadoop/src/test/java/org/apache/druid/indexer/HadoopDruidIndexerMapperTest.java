@@ -70,8 +70,7 @@ public class HadoopDruidIndexerMapperTest
                       null
                   ),
                   new JSONPathSpec(true, ImmutableList.of()),
-                  ImmutableMap.of(),
-                  null
+                  ImmutableMap.of()
               )
           ),
           JacksonUtils.TYPE_REFERENCE_MAP_STRING_OBJECT

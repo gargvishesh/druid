@@ -20,7 +20,6 @@
 package org.apache.druid.query.extraction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.junit.Assert;
@@ -63,11 +62,5 @@ public class StrlenExtractionFnTest
     // Should all actually be the same instance.
     Assert.assertTrue(extractionFn == extractionFnRoundTrip);
     Assert.assertTrue(extractionFn == StrlenExtractionFn.instance());
-  }
-
-  @Test
-  public void testEqualsContract()
-  {
-    EqualsVerifier.forClass(StrlenExtractionFn.class).verify();
   }
 }

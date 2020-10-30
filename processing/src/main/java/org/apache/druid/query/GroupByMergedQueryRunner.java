@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
@@ -31,7 +30,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.druid.collections.NonBlockingPool;
-import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.data.input.Row;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
@@ -95,7 +93,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     final boolean bySegment = QueryContexts.isBySegment(query);
     final int priority = QueryContexts.getPriority(query);
     final QueryPlus<T> threadSafeQueryPlus = queryPlus.withoutThreadUnsafeState();
-    final List<ListenableFuture<Void>> futures =
+    final ListenableFuture<List<Void>> futures = Futures.allAsList(
         Lists.newArrayList(
             Iterables.transform(
                 queryables,
@@ -138,14 +136,15 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                     );
 
                     if (isSingleThreaded) {
-                      waitForFutureCompletion(query, ImmutableList.of(future), indexAccumulatorPair.lhs);
+                      waitForFutureCompletion(query, future, indexAccumulatorPair.lhs);
                     }
 
                     return future;
                   }
                 }
             )
-        );
+        )
+    );
 
     if (!isSingleThreaded) {
       waitForFutureCompletion(query, futures, indexAccumulatorPair.lhs);
@@ -174,11 +173,10 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
 
   private void waitForFutureCompletion(
       GroupByQuery query,
-      List<ListenableFuture<Void>> futures,
+      ListenableFuture<?> future,
       IncrementalIndex<?> closeOnFailure
   )
   {
-    ListenableFuture<List<Void>> future = Futures.allAsList(futures);
     try {
       queryWatcher.registerQueryFuture(query, future);
       if (QueryContexts.hasTimeout(query)) {
@@ -189,7 +187,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     }
     catch (InterruptedException e) {
       log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
-      GuavaUtils.cancelAll(true, future, futures);
+      future.cancel(true);
       closeOnFailure.close();
       throw new QueryInterruptedException(e);
     }
@@ -200,11 +198,10 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     catch (TimeoutException e) {
       closeOnFailure.close();
       log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
-      GuavaUtils.cancelAll(true, future, futures);
+      future.cancel(true);
       throw new QueryInterruptedException(e);
     }
     catch (ExecutionException e) {
-      GuavaUtils.cancelAll(true, future, futures);
       closeOnFailure.close();
       Throwables.propagateIfPossible(e.getCause());
       throw new RuntimeException(e.getCause());

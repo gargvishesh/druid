@@ -77,7 +77,6 @@ public class EventReceiverFirehoseIdleTest
                     null
                 ), new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("d1")), null, null),
                 null,
-                null,
                 null
             )
         ),

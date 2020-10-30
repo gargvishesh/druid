@@ -164,18 +164,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType extends Overshado
    */
   public Set<ObjectType> findNonOvershadowedObjectsInInterval(Interval interval, Partitions completeness)
   {
-    final List<TimelineObjectHolder<VersionType, ObjectType>> holders;
-
-    lock.readLock().lock();
-    try {
-      holders = lookup(interval, completeness);
-    }
-    finally {
-      lock.readLock().unlock();
-    }
-
     return FluentIterable
-        .from(holders)
+        .from(lookup(interval, completeness))
         .transformAndConcat(TimelineObjectHolder::getObject)
         .transform(PartitionChunk::getObject)
         .toSet();
@@ -283,8 +273,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType extends Overshado
   }
 
   @Override
-  @Nullable
-  public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)
+  public @Nullable PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)
   {
     lock.readLock().lock();
     try {

@@ -28,8 +28,8 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.segment.join.JoinConditionAnalysis;
-import org.apache.druid.segment.join.JoinPrefixUtils;
 import org.apache.druid.segment.join.JoinType;
+import org.apache.druid.segment.join.Joinables;
 
 import java.util.HashSet;
 import java.util.List;
@@ -69,14 +69,11 @@ public class JoinDataSource implements DataSource
   {
     this.left = Preconditions.checkNotNull(left, "left");
     this.right = Preconditions.checkNotNull(right, "right");
-    this.rightPrefix = JoinPrefixUtils.validatePrefix(rightPrefix);
+    this.rightPrefix = Joinables.validatePrefix(rightPrefix);
     this.conditionAnalysis = Preconditions.checkNotNull(conditionAnalysis, "conditionAnalysis");
     this.joinType = Preconditions.checkNotNull(joinType, "joinType");
   }
 
-  /**
-   * Create a join dataSource from a string condition.
-   */
   @JsonCreator
   public static JoinDataSource create(
       @JsonProperty("left") DataSource left,
@@ -98,20 +95,6 @@ public class JoinDataSource implements DataSource
         ),
         joinType
     );
-  }
-
-  /**
-   * Create a join dataSource from an existing {@link JoinConditionAnalysis}.
-   */
-  public static JoinDataSource create(
-      final DataSource left,
-      final DataSource right,
-      final String rightPrefix,
-      final JoinConditionAnalysis conditionAnalysis,
-      final JoinType joinType
-  )
-  {
-    return new JoinDataSource(left, right, rightPrefix, conditionAnalysis, joinType);
   }
 
   @Override
@@ -175,9 +158,9 @@ public class JoinDataSource implements DataSource
   }
 
   @Override
-  public boolean isCacheable(boolean isBroker)
+  public boolean isCacheable()
   {
-    return left.isCacheable(isBroker) && right.isCacheable(isBroker);
+    return false;
   }
 
   @Override

@@ -82,7 +82,7 @@ public class LikeOperatorConversion extends DirectOperatorConversion
       VirtualColumn v = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
           druidExpression,
-          operands.get(0).getType()
+          operands.get(0).getType().getSqlTypeName()
       );
 
       return new LikeDimFilter(

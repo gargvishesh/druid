@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
 /**
  * A {@link Segment} that is based on a stream of objects.
  */
-public class RowBasedSegment<RowType> implements Segment
+public class RowBasedSegment<RowType> extends AbstractSegment
 {
   private final SegmentId segmentId;
   private final StorageAdapter storageAdapter;

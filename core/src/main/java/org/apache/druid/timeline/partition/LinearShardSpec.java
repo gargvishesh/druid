@@ -50,13 +50,7 @@ public final class LinearShardSpec implements ShardSpec
   }
 
   @Override
-  public int getNumCorePartitions()
-  {
-    return 0;
-  }
-
-  @Override
-  public ShardSpecLookup getLookup(final List<? extends ShardSpec> shardSpecs)
+  public ShardSpecLookup getLookup(final List<ShardSpec> shardSpecs)
   {
     return (long timestamp, InputRow row) -> shardSpecs.get(0);
   }
@@ -74,9 +68,21 @@ public final class LinearShardSpec implements ShardSpec
   }
 
   @Override
+  public boolean isCompatible(Class<? extends ShardSpec> other)
+  {
+    return other == LinearShardSpec.class;
+  }
+
+  @Override
   public <T> PartitionChunk<T> createChunk(T obj)
   {
     return new LinearPartitionChunk<>(partitionNum, obj);
+  }
+
+  @Override
+  public boolean isInChunk(long timestamp, InputRow inputRow)
+  {
+    return true;
   }
 
   @Override

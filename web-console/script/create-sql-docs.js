@@ -23,10 +23,6 @@ const fs = require('fs-extra');
 const readfile = '../docs/querying/sql.md';
 const writefile = 'lib/sql-docs.js';
 
-function unwrapMarkdownLinks(str) {
-  return str.replace(/\[([^\]]+)\]\([^)]+\)/g, (_, s) => s);
-}
-
 const readDoc = async () => {
   const data = await fs.readFile(readfile, 'utf-8');
   const lines = data.split('\n');
@@ -39,7 +35,7 @@ const readDoc = async () => {
       functionDocs.push({
         name: functionMatch[1],
         arguments: functionMatch[2],
-        description: unwrapMarkdownLinks(functionMatch[3]),
+        description: functionMatch[3],
       });
     }
 
@@ -47,9 +43,7 @@ const readDoc = async () => {
     if (dataTypeMatch) {
       dataTypeDocs.push({
         name: dataTypeMatch[1],
-        description: unwrapMarkdownLinks(
-          dataTypeMatch[4] || `Druid runtime type: ${dataTypeMatch[2]}`,
-        ),
+        description: dataTypeMatch[4] || `Druid runtime type: ${dataTypeMatch[2]}`,
       });
     }
   }

@@ -19,6 +19,7 @@
 
 package org.apache.druid.query.aggregation.histogram;
 
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
@@ -28,7 +29,8 @@ import java.nio.ByteBuffer;
 public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector selector;
-  private final FixedBucketsHistogramBufferAggregatorHelper innerAggregator;
+
+  private FixedBucketsHistogram histogram;
 
   public FixedBucketsHistogramBufferAggregator(
       BaseObjectColumnValueSelector selector,
@@ -39,7 +41,7 @@ public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
   )
   {
     this.selector = selector;
-    this.innerAggregator = new FixedBucketsHistogramBufferAggregatorHelper(
+    this.histogram = new FixedBucketsHistogram(
         lowerLimit,
         upperLimit,
         numBuckets,
@@ -50,20 +52,45 @@ public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    innerAggregator.init(buf, position);
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+    mutationBuffer.put(histogram.toBytesFull(false));
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+
+    FixedBucketsHistogram h0 = FixedBucketsHistogram.fromByteBufferFullNoSerdeHeader(mutationBuffer);
+
     Object val = selector.getObject();
-    innerAggregator.aggregate(buf, position, val);
+    if (val == null) {
+      if (NullHandling.replaceWithDefault()) {
+        h0.incrementMissing();
+      } else {
+        h0.add(NullHandling.defaultDoubleValue());
+      }
+    } else if (val instanceof String) {
+      h0.combineHistogram(FixedBucketsHistogram.fromBase64((String) val));
+    } else if (val instanceof FixedBucketsHistogram) {
+      h0.combineHistogram((FixedBucketsHistogram) val);
+    } else {
+      Double x = ((Number) val).doubleValue();
+      h0.add(x);
+    }
+
+    mutationBuffer.position(position);
+    mutationBuffer.put(h0.toBytesFull(false));
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return innerAggregator.get(buf, position);
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+    return FixedBucketsHistogram.fromByteBufferFullNoSerdeHeader(mutationBuffer);
   }
 
   @Override

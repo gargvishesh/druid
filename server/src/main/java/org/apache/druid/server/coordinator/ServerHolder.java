@@ -22,7 +22,6 @@ package org.apache.druid.server.coordinator;
 import org.apache.druid.client.ImmutableDruidServer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.SegmentId;
 
 import java.util.Objects;
 
@@ -115,7 +114,7 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public boolean isServingSegment(DataSegment segment)
   {
-    return isServingSegment(segment.getId());
+    return server.getSegment(segment.getId()) != null;
   }
 
   public boolean isLoadingSegment(DataSegment segment)
@@ -123,19 +122,9 @@ public class ServerHolder implements Comparable<ServerHolder>
     return peon.getSegmentsToLoad().contains(segment);
   }
 
-  public boolean isDroppingSegment(DataSegment segment)
-  {
-    return peon.getSegmentsToDrop().contains(segment);
-  }
-
   public int getNumberOfSegmentsInQueue()
   {
     return peon.getNumberOfSegmentsInQueue();
-  }
-
-  public boolean isServingSegment(SegmentId segmentId)
-  {
-    return server.getSegment(segmentId) != null;
   }
 
   @Override

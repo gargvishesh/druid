@@ -24,7 +24,6 @@ import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.task.batch.parallel.SupervisorTaskAccess;
 import org.apache.druid.indexing.common.task.batch.partition.CompletePartitionAnalysis;
 import org.apache.druid.segment.indexing.DataSchema;
-import org.apache.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.druid.segment.realtime.appenderator.SegmentAllocator;
 
 import javax.annotation.Nullable;
@@ -36,9 +35,8 @@ public final class SegmentAllocators
    * Creates a new {@link SegmentAllocator} for the linear partitioning.
    * supervisorTaskAccess can be null if this method is called by the {@link IndexTask}.
    */
-  public static SegmentAllocatorForBatch forLinearPartitioning(
+  public static SegmentAllocator forLinearPartitioning(
       final TaskToolbox toolbox,
-      final String taskId,
       final @Nullable SupervisorTaskAccess supervisorTaskAccess,
       final DataSchema dataSchema,
       final TaskLockHelper taskLockHelper,
@@ -49,7 +47,6 @@ public final class SegmentAllocators
     if (appendToExisting || taskLockHelper.isUseSegmentLock()) {
       return new OverlordCoordinatingSegmentAllocator(
           toolbox,
-          taskId,
           supervisorTaskAccess,
           dataSchema,
           taskLockHelper,
@@ -60,14 +57,12 @@ public final class SegmentAllocators
       if (supervisorTaskAccess == null) {
         return new LocalSegmentAllocator(
             toolbox,
-            taskId,
             dataSchema.getDataSource(),
             dataSchema.getGranularitySpec()
         );
       } else {
         return new SupervisorTaskCoordinatingSegmentAllocator(
             supervisorTaskAccess.getSupervisorTaskId(),
-            taskId,
             supervisorTaskAccess.getTaskClient()
         );
       }
@@ -78,11 +73,10 @@ public final class SegmentAllocators
    * Creates a new {@link SegmentAllocator} for the hash and range partitioning.
    * supervisorTaskAccess can be null if this method is called by the {@link IndexTask}.
    */
-  public static SegmentAllocatorForBatch forNonLinearPartitioning(
+  public static CachingSegmentAllocator forNonLinearPartitioning(
       final TaskToolbox toolbox,
       final String dataSource,
       final String taskId,
-      final GranularitySpec granularitySpec,
       final @Nullable SupervisorTaskAccess supervisorTaskAccess,
       final CompletePartitionAnalysis partitionAnalysis
   ) throws IOException
@@ -91,9 +85,8 @@ public final class SegmentAllocators
         toolbox,
         dataSource,
         taskId,
-        granularitySpec,
         supervisorTaskAccess,
-        partitionAnalysis
+        partitionAnalysis::convertToIntervalToSegmentIds
     );
   }
 

@@ -25,12 +25,9 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.MapBinder;
-import com.google.inject.multibindings.Multibinder;
 import org.apache.druid.query.DataSource;
-import org.apache.druid.query.GlobalTableDataSource;
 import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.query.LookupDataSource;
-import org.apache.druid.segment.join.BroadcastTableJoinableFactory;
 import org.apache.druid.segment.join.InlineJoinableFactory;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.LookupJoinableFactory;
@@ -50,22 +47,17 @@ public class JoinableFactoryModule implements Module
   static final Map<Class<? extends DataSource>, Class<? extends JoinableFactory>> FACTORY_MAPPINGS =
       ImmutableMap.of(
           InlineDataSource.class, InlineJoinableFactory.class,
-          LookupDataSource.class, LookupJoinableFactory.class,
-          GlobalTableDataSource.class, BroadcastTableJoinableFactory.class
+          LookupDataSource.class, LookupJoinableFactory.class
       );
 
   @Override
   public void configure(Binder binder)
   {
-    // this binder maps JoinableFactory implementations to the type of DataSource they can handle
-    MapBinder<Class<? extends JoinableFactory>, Class<? extends DataSource>> joinableFactoryMappingBinder =
-        DruidBinders.joinableMappingBinder(binder);
-
-    Multibinder<JoinableFactory> joinableFactoryMultibinder = DruidBinders.joinableFactoryMultiBinder(binder);
+    MapBinder<Class<? extends DataSource>, JoinableFactory> joinableFactories =
+        DruidBinders.joinableFactoryBinder(binder);
 
     FACTORY_MAPPINGS.forEach((ds, factory) -> {
-      joinableFactoryMultibinder.addBinding().to(factory);
-      joinableFactoryMappingBinder.addBinding(factory).toInstance(ds);
+      joinableFactories.addBinding(ds).to(factory);
       binder.bind(factory).in(LazySingleton.class);
     });
 

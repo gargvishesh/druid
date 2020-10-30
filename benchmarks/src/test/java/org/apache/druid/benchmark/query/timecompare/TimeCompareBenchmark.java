@@ -21,6 +21,9 @@ package org.apache.druid.benchmark.query.timecompare;
 
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.druid.benchmark.datagen.BenchmarkDataGenerator;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemaInfo;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemas;
 import org.apache.druid.benchmark.query.QueryBenchmarkUtil;
 import org.apache.druid.collections.StupidPool;
 import org.apache.druid.common.config.NullHandling;
@@ -69,9 +72,6 @@ import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.generator.DataGenerator;
-import org.apache.druid.segment.generator.GeneratorBasicSchemas;
-import org.apache.druid.segment.generator.GeneratorSchemaInfo;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
@@ -143,7 +143,7 @@ public class TimeCompareBenchmark
   private Query timeseriesQuery;
   private QueryRunner timeseriesRunner;
 
-  private GeneratorSchemaInfo schemaInfo;
+  private BenchmarkSchemaInfo schemaInfo;
   private File tmpDir;
   private Interval[] segmentIntervals;
 
@@ -172,7 +172,7 @@ public class TimeCompareBenchmark
   private void setupQueries()
   {
     // queries for the basic schema
-    GeneratorSchemaInfo basicSchema = GeneratorBasicSchemas.SCHEMA_MAP.get("basic");
+    BenchmarkSchemaInfo basicSchema = BenchmarkSchemas.SCHEMA_MAP.get("basic");
 
     QuerySegmentSpec intervalSpec =
         new MultipleIntervalSegmentSpec(Collections.singletonList(basicSchema.getDataInterval()));
@@ -291,7 +291,7 @@ public class TimeCompareBenchmark
     setupQueries();
 
     String schemaName = "basic";
-    schemaInfo = GeneratorBasicSchemas.SCHEMA_MAP.get(schemaName);
+    schemaInfo = BenchmarkSchemas.SCHEMA_MAP.get(schemaName);
     segmentIntervals = new Interval[numSegments];
 
     long startMillis = schemaInfo.getDataInterval().getStartMillis();
@@ -308,7 +308,7 @@ public class TimeCompareBenchmark
     for (int i = 0; i < numSegments; i++) {
       log.info("Generating rows for segment " + i);
 
-      DataGenerator gen = new DataGenerator(
+      BenchmarkDataGenerator gen = new BenchmarkDataGenerator(
           schemaInfo.getColumnSchemas(),
           RNG_SEED + i,
           segmentIntervals[i],
@@ -346,7 +346,7 @@ public class TimeCompareBenchmark
     List<QueryRunner<Result<TopNResultValue>>> singleSegmentRunners = new ArrayList<>();
     QueryToolChest toolChest = topNFactory.getToolchest();
     for (int i = 0; i < numSegments; i++) {
-      SegmentId segmentId = SegmentId.dummy("qIndex " + i);
+      SegmentId segmentId = SegmentId.dummy("qIndex" + i);
       QueryRunner<Result<TopNResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
           topNFactory,
           segmentId,
@@ -372,7 +372,7 @@ public class TimeCompareBenchmark
     List<QueryRunner<Result<TimeseriesResultValue>>> singleSegmentRunnersT = new ArrayList<>();
     QueryToolChest toolChestT = timeseriesFactory.getToolchest();
     for (int i = 0; i < numSegments; i++) {
-      SegmentId segmentId = SegmentId.dummy("qIndex " + i);
+      SegmentId segmentId = SegmentId.dummy("qIndex" + i);
       QueryRunner<Result<TimeseriesResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
           timeseriesFactory,
           segmentId,
@@ -406,6 +406,7 @@ public class TimeCompareBenchmark
   {
     return new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(schemaInfo.getAggsArray())
+        .setReportParseExceptions(false)
         .setMaxRowCount(rowsPerSegment)
         .buildOnheap();
   }

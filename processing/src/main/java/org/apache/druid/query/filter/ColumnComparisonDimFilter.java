@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 
 /**
  */
-public class ColumnComparisonDimFilter extends AbstractOptimizableDimFilter implements DimFilter
+public class ColumnComparisonDimFilter implements DimFilter
 {
   private static final Joiner COMMA_JOINER = Joiner.on(", ");
 

@@ -53,13 +53,13 @@ public class AuthConfig
 
   @JsonCreator
   public AuthConfig(
-      @JsonProperty("authenticatorChain") List<String> authenticatorChain,
+      @JsonProperty("authenticatorChain") List<String> authenticationChain,
       @JsonProperty("authorizers") List<String> authorizers,
       @JsonProperty("unsecuredPaths") List<String> unsecuredPaths,
       @JsonProperty("allowUnauthenticatedHttpOptions") boolean allowUnauthenticatedHttpOptions
   )
   {
-    this.authenticatorChain = authenticatorChain;
+    this.authenticatorChain = authenticationChain;
     this.authorizers = authorizers;
     this.unsecuredPaths = unsecuredPaths == null ? Collections.emptyList() : unsecuredPaths;
     this.allowUnauthenticatedHttpOptions = allowUnauthenticatedHttpOptions;

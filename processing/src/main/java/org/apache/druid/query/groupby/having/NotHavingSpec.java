@@ -59,9 +59,11 @@ public class NotHavingSpec implements HavingSpec
   @Override
   public String toString()
   {
-    return "NotHavingSpec{" +
-           "havingSpec=" + havingSpec +
-           '}';
+    final StringBuilder sb = new StringBuilder();
+    sb.append("NotHavingSpec");
+    sb.append("{havingSpec=").append(havingSpec);
+    sb.append('}');
+    return sb.toString();
   }
 
   @Override

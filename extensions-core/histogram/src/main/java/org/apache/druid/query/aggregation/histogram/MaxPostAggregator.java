@@ -27,7 +27,6 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -74,12 +73,6 @@ public class MaxPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public ValueType getType()
-  {
-    return ValueType.DOUBLE;
-  }
-
-  @Override
   public PostAggregator decorate(Map<String, AggregatorFactory> aggregators)
   {
     return this;
@@ -88,7 +81,7 @@ public class MaxPostAggregator extends ApproximateHistogramPostAggregator
   @Override
   public String toString()
   {
-    return "MaxPostAggregator{" +
+    return "QuantilePostAggregator{" +
            "fieldName='" + fieldName + '\'' +
            '}';
   }

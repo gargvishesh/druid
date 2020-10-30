@@ -21,17 +21,15 @@ package org.apache.druid.query.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.query.extraction.SubstringDimExtractionFn;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-public class LikeDimFilterTest extends InitializedNullHandlingTest
+public class LikeDimFilterTest
 {
   @Test
   public void testSerde() throws IOException
@@ -69,23 +67,5 @@ public class LikeDimFilterTest extends InitializedNullHandlingTest
   {
     final DimFilter filter = new LikeDimFilter("foo", "bar%", "@", new SubstringDimExtractionFn(1, 2));
     Assert.assertEquals(filter.getRequiredColumns(), Sets.newHashSet("foo"));
-  }
-
-  @Test
-  public void testEqualsContractForExtractionFnDruidPredicateFactory()
-  {
-    EqualsVerifier.forClass(LikeDimFilter.LikeMatcher.PatternDruidPredicateFactory.class)
-                  .withNonnullFields("pattern")
-                  .usingGetClass()
-                  .verify();
-  }
-
-  @Test
-  public void test_LikeMatcher_equals()
-  {
-    EqualsVerifier.forClass(LikeDimFilter.LikeMatcher.class)
-                  .usingGetClass()
-                  .withNonnullFields("suffixMatch", "prefix", "pattern")
-                  .verify();
   }
 }

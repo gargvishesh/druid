@@ -147,7 +147,7 @@ public class JdbcDataFetcherTest extends InitializedNullHandlingTest
       );
       Assert.assertEquals(
           "reverse lookup of none existing value should be empty list",
-          Collections.emptyList(),
+          Collections.EMPTY_LIST,
           jdbcDataFetcher.reverseFetchKeys("does't exist")
       );
     }

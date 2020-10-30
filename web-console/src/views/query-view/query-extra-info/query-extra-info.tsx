@@ -28,7 +28,6 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import copy from 'copy-to-clipboard';
-import { QueryResult } from 'druid-query-toolkit';
 import React from 'react';
 
 import { AppToaster } from '../../../singletons/toaster';
@@ -36,16 +35,25 @@ import { pluralIfNeeded } from '../../../utils';
 
 import './query-extra-info.scss';
 
+export interface QueryExtraInfoData {
+  queryId?: string;
+  sqlQueryId?: string;
+  startTime: Date;
+  endTime: Date;
+  numResults: number;
+  wrapQueryLimit: number | undefined;
+}
+
 export interface QueryExtraInfoProps {
-  queryResult: QueryResult;
+  queryExtraInfo: QueryExtraInfoData;
   onDownload: (filename: string, format: string) => void;
 }
 
 export const QueryExtraInfo = React.memo(function QueryExtraInfo(props: QueryExtraInfoProps) {
-  const { queryResult, onDownload } = props;
+  const { queryExtraInfo, onDownload } = props;
 
   function handleQueryInfoClick() {
-    const id = queryResult.queryId || queryResult.sqlQueryId;
+    const id = queryExtraInfo.queryId || queryExtraInfo.sqlQueryId;
     if (!id) return;
 
     copy(id, { format: 'text/plain' });
@@ -56,7 +64,7 @@ export const QueryExtraInfo = React.memo(function QueryExtraInfo(props: QueryExt
   }
 
   function handleDownload(format: string) {
-    const id = queryResult.queryId || queryResult.sqlQueryId;
+    const id = queryExtraInfo.queryId || queryExtraInfo.sqlQueryId;
     if (!id) return;
 
     onDownload(`query-${id}.${format}`, format);
@@ -71,38 +79,40 @@ export const QueryExtraInfo = React.memo(function QueryExtraInfo(props: QueryExt
     </Menu>
   );
 
-  const wrapQueryLimit = queryResult.getSqlOuterLimit();
   let resultCount: string;
-  if (wrapQueryLimit && queryResult.getNumResults() === wrapQueryLimit) {
-    resultCount = `${queryResult.getNumResults() - 1}+ results`;
+  if (
+    queryExtraInfo.wrapQueryLimit &&
+    queryExtraInfo.numResults === queryExtraInfo.wrapQueryLimit
+  ) {
+    resultCount = `${queryExtraInfo.numResults - 1}+ results`;
   } else {
-    resultCount = pluralIfNeeded(queryResult.getNumResults(), 'result');
+    resultCount = pluralIfNeeded(queryExtraInfo.numResults, 'result');
   }
 
+  const elapsed = queryExtraInfo.endTime.valueOf() - queryExtraInfo.startTime.valueOf();
+
   let tooltipContent: JSX.Element | undefined;
-  if (queryResult.queryId) {
+  if (queryExtraInfo.queryId) {
     tooltipContent = (
       <>
-        Query ID: <strong>{queryResult.queryId}</strong> (click to copy)
+        Query ID: <strong>{queryExtraInfo.queryId}</strong> (click to copy)
       </>
     );
-  } else if (queryResult.sqlQueryId) {
+  } else if (queryExtraInfo.sqlQueryId) {
     tooltipContent = (
       <>
-        SQL query ID: <strong>{queryResult.sqlQueryId}</strong> (click to copy)
+        SQL query ID: <strong>{queryExtraInfo.sqlQueryId}</strong> (click to copy)
       </>
     );
   }
 
   return (
     <div className="query-extra-info">
-      {typeof queryResult.queryDuration !== 'undefined' && (
-        <div className="query-info" onClick={handleQueryInfoClick}>
-          <Tooltip content={tooltipContent} hoverOpenDelay={500}>
-            {`${resultCount} in ${(queryResult.queryDuration / 1000).toFixed(2)}s`}
-          </Tooltip>
-        </div>
-      )}
+      <div className="query-info" onClick={handleQueryInfoClick}>
+        <Tooltip content={tooltipContent} hoverOpenDelay={500}>
+          {`${resultCount} in ${(elapsed / 1000).toFixed(2)}s`}
+        </Tooltip>
+      </div>
       <Popover className="download-button" content={downloadMenu} position={Position.BOTTOM_RIGHT}>
         <Button icon={IconNames.DOWNLOAD} minimal />
       </Popover>

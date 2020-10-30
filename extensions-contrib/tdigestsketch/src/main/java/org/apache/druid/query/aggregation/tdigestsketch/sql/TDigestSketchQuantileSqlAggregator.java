@@ -40,7 +40,6 @@ import org.apache.druid.query.aggregation.tdigestsketch.TDigestSketchToQuantileP
 import org.apache.druid.query.aggregation.tdigestsketch.TDigestSketchUtils;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
@@ -159,7 +158,7 @@ public class TDigestSketchQuantileSqlAggregator implements SqlAggregator
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
           input,
-          ValueType.FLOAT
+          SqlTypeName.FLOAT
       );
       virtualColumns.add(virtualColumn);
       aggregatorFactory = new TDigestSketchAggregatorFactory(

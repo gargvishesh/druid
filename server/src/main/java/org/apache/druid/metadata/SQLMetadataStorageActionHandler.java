@@ -22,6 +22,7 @@ package org.apache.druid.metadata;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
@@ -172,7 +173,8 @@ public abstract class SQLMetadataStorageActionHandler<EntryType, StatusType, Log
     }
   }
 
-  public static boolean isStatementException(Throwable e)
+  @VisibleForTesting
+  protected static boolean isStatementException(Throwable e)
   {
     return e instanceof StatementException ||
            (e instanceof CallbackFailedException && e.getCause() instanceof StatementException);

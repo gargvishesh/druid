@@ -119,7 +119,8 @@ public class ByteBufferMinMaxOffsetHeapTest
     Collections.sort(deletedValues);
 
     for (int deletedValue : deletedValues) {
-      values.remove((Integer) deletedValue);
+      int idx = values.indexOf(deletedValue);
+      values.remove(idx);
     }
 
     Assert.assertTrue(heap.getHeapSize() <= limit);
@@ -175,7 +176,8 @@ public class ByteBufferMinMaxOffsetHeapTest
     Collections.sort(deletedValues);
 
     for (int deletedValue : deletedValues) {
-      values.remove((Integer) deletedValue);
+      int idx = values.indexOf(deletedValue);
+      values.remove(idx);
     }
 
     Assert.assertTrue(heap.getHeapSize() <= limit);

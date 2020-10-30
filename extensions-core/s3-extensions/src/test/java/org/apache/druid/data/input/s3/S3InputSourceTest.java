@@ -52,7 +52,6 @@ import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.DateTimes;
-import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.JSONPathSpec;
@@ -364,7 +363,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     );
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
-        new JsonInputFormat(JSONPathSpec.DEFAULT, null, null),
+        new JsonInputFormat(JSONPathSpec.DEFAULT, null),
         null
     );
 
@@ -390,8 +389,8 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     );
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
-        new JsonInputFormat(JSONPathSpec.DEFAULT, null, null),
-        new MaxSizeSplitHintSpec(null, 1)
+        new JsonInputFormat(JSONPathSpec.DEFAULT, null),
+        new MaxSizeSplitHintSpec(1L) // set maxSplitSize to 1 so that each inputSplit has only one object
     );
 
     Assert.assertEquals(EXPECTED_COORDS, splits.map(InputSplit::get).collect(Collectors.toList()));
@@ -417,8 +416,8 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     );
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
-        new JsonInputFormat(JSONPathSpec.DEFAULT, null, null),
-        new MaxSizeSplitHintSpec(new HumanReadableBytes(CONTENT.length * 3L), null)
+        new JsonInputFormat(JSONPathSpec.DEFAULT, null),
+        new MaxSizeSplitHintSpec(CONTENT.length * 3L)
     );
 
     Assert.assertEquals(
@@ -447,7 +446,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     );
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
-        new JsonInputFormat(JSONPathSpec.DEFAULT, null, null),
+        new JsonInputFormat(JSONPathSpec.DEFAULT, null),
         null
     );
     Assert.assertEquals(
@@ -481,7 +480,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     );
 
     inputSource.createSplits(
-        new JsonInputFormat(JSONPathSpec.DEFAULT, null, null),
+        new JsonInputFormat(JSONPathSpec.DEFAULT, null),
         null
     ).collect(Collectors.toList());
   }

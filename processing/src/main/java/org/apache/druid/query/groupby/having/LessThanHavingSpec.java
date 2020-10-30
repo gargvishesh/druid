@@ -119,10 +119,12 @@ public class LessThanHavingSpec implements HavingSpec
   @Override
   public String toString()
   {
-    return "LessThanHavingSpec{" +
-           "aggregationName='" + aggregationName + '\'' +
-           ", value=" + value +
-           '}';
+    final StringBuilder sb = new StringBuilder();
+    sb.append("LessThanHavingSpec");
+    sb.append("{aggregationName='").append(aggregationName).append('\'');
+    sb.append(", value=").append(value);
+    sb.append('}');
+    return sb.toString();
   }
 
   @Override

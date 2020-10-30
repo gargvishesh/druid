@@ -22,7 +22,6 @@ package org.apache.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.data.input.impl.CombiningInputSource;
 import org.apache.druid.data.input.impl.HttpInputSource;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.LocalInputSource;
@@ -51,8 +50,7 @@ import java.io.File;
 @JsonSubTypes(value = {
     @Type(name = "local", value = LocalInputSource.class),
     @Type(name = "http", value = HttpInputSource.class),
-    @Type(name = "inline", value = InlineInputSource.class),
-    @Type(name = "combining", value = CombiningInputSource.class)
+    @Type(name = "inline", value = InlineInputSource.class)
 })
 public interface InputSource
 {

@@ -22,9 +22,9 @@ package org.apache.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.math.expr.ExprType;
@@ -260,17 +260,17 @@ public class Projection
     for (int i = 0; i < expressions.size(); i++) {
       final DruidExpression expression = expressions.get(i);
 
-      final RelDataType dataType = project.getRowType().getFieldList().get(i).getType();
+      final SqlTypeName sqlTypeName = project.getRowType().getFieldList().get(i).getType().getSqlTypeName();
       if (expression.isDirectColumnAccess()
           && inputRowSignature.getColumnType(expression.getDirectColumn()).orElse(null)
-             == Calcites.getValueTypeForRelDataType(dataType)) {
+             == Calcites.getValueTypeForSqlTypeName(sqlTypeName)) {
         // Refer to column directly when it's a direct access with matching type.
         rowOrder.add(expression.getDirectColumn());
       } else {
         final VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
             plannerContext,
             expression,
-            project.getChildExps().get(i).getType()
+            project.getChildExps().get(i).getType().getSqlTypeName()
         );
         virtualColumns.add(virtualColumn);
         rowOrder.add(virtualColumn.getOutputName());
@@ -316,9 +316,9 @@ public class Projection
     }
 
     // Check if a cast is necessary.
-    final ExprType toExprType = ExprType.fromValueTypeStrict(columnValueType);
-    final ExprType fromExprType = ExprType.fromValueTypeStrict(
-        Calcites.getValueTypeForRelDataType(rexNode.getType())
+    final ExprType toExprType = Expressions.exprTypeForValueType(columnValueType);
+    final ExprType fromExprType = Expressions.exprTypeForValueType(
+        Calcites.getValueTypeForSqlTypeName(rexNode.getType().getSqlTypeName())
     );
 
     return toExprType.equals(fromExprType);
@@ -351,7 +351,7 @@ public class Projection
                                  () -> new ISE("Encountered null type for column[%s]", expression.getDirectColumn())
                              );
 
-    final ValueType fromValueType = Calcites.getValueTypeForRelDataType(rexNode.getType());
+    final ValueType fromValueType = Calcites.getValueTypeForSqlTypeName(rexNode.getType().getSqlTypeName());
 
     return toValueType == ValueType.COMPLEX && fromValueType == ValueType.COMPLEX;
   }

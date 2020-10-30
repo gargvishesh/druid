@@ -57,7 +57,7 @@
             "type": "index_parallel",
             "firehose": {
                 "type": "local",
-                "baseDir": "/resources/data/batch_index/json",
+                "baseDir": "/resources/data/batch_index",
                 "filter": "wikipedia_index_data2*"
             }
         },
@@ -67,7 +67,7 @@
             "forceGuaranteedRollup": "%%FORCE_GUARANTEED_ROLLUP%%",
             "splitHintSpec": {
                 "type": "maxSize",
-                "maxNumFiles": 1
+                "maxSplitSize": 1
             },
             "partitionsSpec": %%PARTITIONS_SPEC%%
         }

@@ -29,9 +29,8 @@
   }
 
   .control-label {
-    font-size: 21px;
+    font-size: 30px;
     line-height: 30px;
-    font-weight: 600;
     cursor: default;
     margin-right: 20px;
   }
@@ -39,8 +38,7 @@
   label.bp3-control,
   label.bp3-label {
     display: inline-block;
-    margin-bottom: 0;
-    line-height: 30px;
+    margin-bottom: 8px;
   }
 
   .table-column-selector {

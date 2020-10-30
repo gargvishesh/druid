@@ -16,26 +16,15 @@
  * limitations under the License.
  */
 
-import { MenuItem } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
+import { Checkbox, ICheckboxProps } from '@blueprintjs/core';
 import React from 'react';
 
-export interface MenuCheckboxProps {
-  text: string;
-  checked: boolean;
-  onChange: () => void;
-}
+import './menu-checkbox.scss';
 
-export function MenuCheckbox(props: MenuCheckboxProps) {
-  const { text, checked, onChange } = props;
-
+export function MenuCheckbox(props: ICheckboxProps) {
   return (
-    <MenuItem
-      className="menu-checkbox"
-      icon={checked ? IconNames.TICK_CIRCLE : IconNames.CIRCLE}
-      text={text}
-      onClick={onChange}
-      shouldDismissPopover={false}
-    />
+    <li className="menu-checkbox">
+      <Checkbox {...props} />
+    </li>
   );
 }

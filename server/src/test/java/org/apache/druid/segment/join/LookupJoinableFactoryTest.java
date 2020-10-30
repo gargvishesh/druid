@@ -125,13 +125,6 @@ public class LookupJoinableFactoryTest
     Assert.assertEquals(Joinable.CARDINALITY_UNKNOWN, joinable.getCardinality("v"));
   }
 
-  @Test
-  public void testIsDirectlyJoinable()
-  {
-    Assert.assertTrue(factory.isDirectlyJoinable(lookupDataSource));
-    Assert.assertFalse(factory.isDirectlyJoinable(new TableDataSource("foo")));
-  }
-
   private static JoinConditionAnalysis makeCondition(final String condition)
   {
     return JoinConditionAnalysis.forExpression(condition, PREFIX, ExprMacroTable.nil());

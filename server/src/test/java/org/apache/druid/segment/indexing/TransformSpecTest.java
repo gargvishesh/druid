@@ -35,13 +35,12 @@ import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.transform.ExpressionTransform;
 import org.apache.druid.segment.transform.TransformSpec;
-import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Map;
 
-public class TransformSpecTest extends InitializedNullHandlingTest
+public class TransformSpecTest
 {
   private static final MapInputRowParser PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(

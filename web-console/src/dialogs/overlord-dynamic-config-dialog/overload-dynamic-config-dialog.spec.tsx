@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
 import { OverlordDynamicConfigDialog } from './overlord-dynamic-config-dialog';
 
 describe('overload dynamic config', () => {
   it('matches snapshot', () => {
-    const lookupEditDialog = shallow(<OverlordDynamicConfigDialog onClose={() => {}} />);
+    const lookupEditDialog = <OverlordDynamicConfigDialog onClose={() => {}} />;
 
-    expect(lookupEditDialog).toMatchSnapshot();
+    render(lookupEditDialog);
+    expect(document.body.lastChild).toMatchSnapshot();
   });
 });

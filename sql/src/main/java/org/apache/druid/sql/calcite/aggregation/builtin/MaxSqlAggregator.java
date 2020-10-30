@@ -49,7 +49,7 @@ public class MaxSqlAggregator extends SimpleSqlAggregator
       final String expression
   )
   {
-    final ValueType valueType = Calcites.getValueTypeForRelDataType(aggregateCall.getType());
+    final ValueType valueType = Calcites.getValueTypeForSqlTypeName(aggregateCall.getType().getSqlTypeName());
     return Aggregation.create(createMaxAggregatorFactory(valueType, name, fieldName, expression, macroTable));
   }
 

@@ -96,10 +96,7 @@ public class FriendlyServersTest
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
       final StatusResponseHolder response = client
           .go(
-              new Request(
-                  HttpMethod.GET,
-                  new URL(StringUtils.format("http://localhost:%d/", serverSocket.getLocalPort()))
-              ),
+              new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", serverSocket.getLocalPort()))),
               StatusResponseHandler.getInstance()
           ).get();
 
@@ -158,10 +155,7 @@ public class FriendlyServersTest
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
       final StatusResponseHolder response = client
           .go(
-              new Request(
-                  HttpMethod.GET,
-                  new URL(StringUtils.format("http://localhost:%d/", serverSocket.getLocalPort()))
-              ),
+              new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", serverSocket.getLocalPort()))),
               StatusResponseHandler.getInstance()
           ).get();
 
@@ -186,7 +180,7 @@ public class FriendlyServersTest
     HttpConfiguration https = new HttpConfiguration();
     https.addCustomizer(new SecureRequestCustomizer());
 
-    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    SslContextFactory sslContextFactory = new SslContextFactory();
     sslContextFactory.setKeyStorePath(keyStorePath);
     sslContextFactory.setKeyStorePassword("abc123");
     sslContextFactory.setKeyManagerPassword("abc123");

@@ -27,6 +27,6 @@ public class RedisCacheProvider extends RedisCacheConfig implements CacheProvide
   @Override
   public Cache get()
   {
-    return RedisCacheFactory.create(this);
+    return RedisCache.create(this);
   }
 }

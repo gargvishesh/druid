@@ -22,14 +22,14 @@ package org.apache.druid.indexing.common.task.batch.parallel;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.timeline.partition.BuildingShardSpec;
+import org.apache.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
 /**
  * This class represents the intermediary data server where the partition of {@code interval} and {@code shardSpec}
  * is stored.
  */
-public class GenericPartitionLocation extends PartitionLocation<BuildingShardSpec>
+public class GenericPartitionLocation extends PartitionLocation<ShardSpec>
 {
   @JsonCreator
   public GenericPartitionLocation(
@@ -38,7 +38,7 @@ public class GenericPartitionLocation extends PartitionLocation<BuildingShardSpe
       @JsonProperty("useHttps") boolean useHttps,
       @JsonProperty("subTaskId") String subTaskId,
       @JsonProperty("interval") Interval interval,
-      @JsonProperty("shardSpec") BuildingShardSpec shardSpec
+      @JsonProperty("shardSpec") ShardSpec shardSpec
   )
   {
     super(host, port, useHttps, subTaskId, interval, shardSpec);
@@ -46,13 +46,13 @@ public class GenericPartitionLocation extends PartitionLocation<BuildingShardSpe
 
   @JsonIgnore
   @Override
-  public int getBucketId()
+  public int getPartitionId()
   {
-    return getSecondaryPartition().getBucketId();
+    return getSecondaryPartition().getPartitionNum();
   }
 
   @JsonProperty
-  BuildingShardSpec getShardSpec()
+  ShardSpec getShardSpec()
   {
     return getSecondaryPartition();
   }

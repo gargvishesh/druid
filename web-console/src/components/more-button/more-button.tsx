@@ -18,19 +18,14 @@
 
 import { Button, Menu, Popover, Position } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import React, { useState } from 'react';
-
-type OpenState = 'open' | 'alt-open';
+import React from 'react';
 
 export interface MoreButtonProps {
-  children: React.ReactNode | React.ReactNode[];
-  altExtra?: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export const MoreButton = React.memo(function MoreButton(props: MoreButtonProps) {
-  const { children, altExtra } = props;
-
-  const [openState, setOpenState] = useState<OpenState | undefined>();
+  const { children } = props;
 
   let childCount = 0;
   // Sadly React.Children.count does not ignore nulls correctly
@@ -41,18 +36,8 @@ export const MoreButton = React.memo(function MoreButton(props: MoreButtonProps)
   return (
     <Popover
       className="more-button"
-      isOpen={Boolean(openState)}
-      content={
-        <Menu>
-          {children}
-          {openState === 'alt-open' && altExtra}
-        </Menu>
-      }
+      content={<Menu>{children}</Menu>}
       position={Position.BOTTOM_LEFT}
-      onInteraction={(nextOpenState, e: any) => {
-        if (!e) return; // For some reason this function is always called twice once with e and once without
-        setOpenState(nextOpenState ? (e.altKey ? 'alt-open' : 'open') : undefined);
-      }}
     >
       <Button icon={IconNames.MORE} disabled={!childCount} />
     </Popover>

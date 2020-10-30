@@ -89,11 +89,5 @@ public interface IntegrationTestingConfig
 
   String getCloudPath();
 
-  String getCloudRegion();
-
-  String getAzureKey();
-
-  String getHadoopGcsCredentialsPath();
-
   String getStreamEndpoint();
 }

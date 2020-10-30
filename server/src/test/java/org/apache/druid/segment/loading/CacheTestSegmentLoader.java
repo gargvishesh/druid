@@ -20,6 +20,7 @@
 package org.apache.druid.segment.loading;
 
 import org.apache.druid.java.util.common.MapUtils;
+import org.apache.druid.segment.AbstractSegment;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.StorageAdapter;
@@ -48,7 +49,7 @@ public class CacheTestSegmentLoader implements SegmentLoader
   @Override
   public Segment getSegment(final DataSegment segment, boolean lazy)
   {
-    return new Segment()
+    return new AbstractSegment()
     {
       @Override
       public SegmentId getId()

@@ -20,6 +20,9 @@
 package org.apache.druid.benchmark.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.druid.benchmark.datagen.BenchmarkDataGenerator;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemaInfo;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemas;
 import org.apache.druid.collections.StupidPool;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
@@ -62,9 +65,6 @@ import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.column.ColumnConfig;
-import org.apache.druid.segment.generator.DataGenerator;
-import org.apache.druid.segment.generator.GeneratorBasicSchemas;
-import org.apache.druid.segment.generator.GeneratorSchemaInfo;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
@@ -125,7 +125,7 @@ public class TopNBenchmark
   private List<QueryableIndex> qIndexes;
 
   private QueryRunnerFactory factory;
-  private GeneratorSchemaInfo schemaInfo;
+  private BenchmarkSchemaInfo schemaInfo;
   private TopNQueryBuilder queryBuilder;
   private TopNQuery query;
   private File tmpDir;
@@ -154,7 +154,7 @@ public class TopNBenchmark
   {
     // queries for the basic schema
     Map<String, TopNQueryBuilder> basicQueries = new LinkedHashMap<>();
-    GeneratorSchemaInfo basicSchema = GeneratorBasicSchemas.SCHEMA_MAP.get("basic");
+    BenchmarkSchemaInfo basicSchema = BenchmarkSchemas.SCHEMA_MAP.get("basic");
 
     { // basic.A
       QuerySegmentSpec intervalSpec = new MultipleIntervalSegmentSpec(Collections.singletonList(basicSchema.getDataInterval()));
@@ -228,7 +228,7 @@ public class TopNBenchmark
     String schemaName = schemaQuery[0];
     String queryName = schemaQuery[1];
 
-    schemaInfo = GeneratorBasicSchemas.SCHEMA_MAP.get(schemaName);
+    schemaInfo = BenchmarkSchemas.SCHEMA_MAP.get(schemaName);
     queryBuilder = SCHEMA_QUERY_MAP.get(schemaName).get(queryName);
     queryBuilder.threshold(threshold);
     query = queryBuilder.build();
@@ -237,7 +237,7 @@ public class TopNBenchmark
     for (int i = 0; i < numSegments; i++) {
       log.info("Generating rows for segment " + i);
 
-      DataGenerator gen = new DataGenerator(
+      BenchmarkDataGenerator gen = new BenchmarkDataGenerator(
           schemaInfo.getColumnSchemas(),
           RNG_SEED + i,
           schemaInfo.getDataInterval(),
@@ -294,6 +294,7 @@ public class TopNBenchmark
   {
     return new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(schemaInfo.getAggsArray())
+        .setReportParseExceptions(false)
         .setMaxRowCount(rowsPerSegment)
         .buildOnheap();
   }
@@ -349,7 +350,7 @@ public class TopNBenchmark
     List<QueryRunner<Result<TopNResultValue>>> singleSegmentRunners = new ArrayList<>();
     QueryToolChest toolChest = factory.getToolchest();
     for (int i = 0; i < numSegments; i++) {
-      SegmentId segmentId = SegmentId.dummy("qIndex " + i);
+      SegmentId segmentId = SegmentId.dummy("qIndex" + i);
       QueryRunner<Result<TopNResultValue>> runner = QueryBenchmarkUtil.makeQueryRunner(
           factory,
           segmentId,

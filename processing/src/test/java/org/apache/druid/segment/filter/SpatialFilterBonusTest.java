@@ -133,6 +133,7 @@ public class SpatialFilterBonusTest
                     )
                 ).build()
         )
+        .setReportParseExceptions(false)
         .setMaxRowCount(NUM_POINTS)
         .buildOnheap();
 
@@ -281,6 +282,7 @@ public class SpatialFilterBonusTest
 
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(NUM_POINTS)
           .buildOnheap();
 
@@ -303,6 +305,7 @@ public class SpatialFilterBonusTest
                       )
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(NUM_POINTS)
           .buildOnheap();
 
@@ -326,6 +329,7 @@ public class SpatialFilterBonusTest
 
                   ).build()
           )
+          .setReportParseExceptions(false)
           .setMaxRowCount(NUM_POINTS)
           .buildOnheap();
 

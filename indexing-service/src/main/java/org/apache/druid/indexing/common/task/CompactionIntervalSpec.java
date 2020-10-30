@@ -21,7 +21,6 @@ package org.apache.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.JodaUtils;
 import org.apache.druid.segment.SegmentUtils;
@@ -77,7 +76,7 @@ public class CompactionIntervalSpec implements CompactionInputSpec
   }
 
   @Override
-  public boolean validateSegments(LockGranularity lockGranularityInUse, List<DataSegment> latestSegments)
+  public boolean validateSegments(List<DataSegment> latestSegments)
   {
     final Interval segmentsInterval = JodaUtils.umbrellaInterval(
         latestSegments.stream().map(DataSegment::getInterval).collect(Collectors.toList())

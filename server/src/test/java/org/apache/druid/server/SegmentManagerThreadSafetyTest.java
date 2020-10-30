@@ -254,7 +254,7 @@ public class SegmentManagerThreadSafetyTest
         @Override
         public <T> T as(Class<T> clazz)
         {
-          return null;
+          throw new UnsupportedOperationException();
         }
 
         @Override

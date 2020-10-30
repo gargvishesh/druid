@@ -21,7 +21,6 @@ package org.apache.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.annotations.SubclassesMustOverrideEqualsAndHashCode;
 import org.apache.druid.java.util.common.Cacheable;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.extraction.ExtractionFn;
@@ -44,7 +43,6 @@ import javax.annotation.Nullable;
     @JsonSubTypes.Type(name = "listFiltered", value = ListFilteredDimensionSpec.class),
     @JsonSubTypes.Type(name = "prefixFiltered", value = PrefixFilteredDimensionSpec.class)
 })
-@SubclassesMustOverrideEqualsAndHashCode
 public interface DimensionSpec extends Cacheable
 {
   String getDimension();

@@ -28,11 +28,9 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 @JsonTypeName("quantile")
@@ -42,6 +40,7 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   static final Comparator COMPARATOR = Comparator.comparingDouble(o -> ((Number) o).doubleValue());
 
   private final float probability;
+  private final String fieldName;
 
   @JsonCreator
   public QuantilePostAggregator(
@@ -52,6 +51,7 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   {
     super(name, fieldName);
     this.probability = probability;
+    this.fieldName = fieldName;
 
     if (probability < 0 || probability > 1) {
       throw new IAE("Illegal probability[%s], must be strictly between 0 and 1", probability);
@@ -85,12 +85,6 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public ValueType getType()
-  {
-    return ValueType.FLOAT;
-  }
-
-  @Override
   public PostAggregator decorate(Map<String, AggregatorFactory> aggregators)
   {
     return this;
@@ -103,12 +97,37 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
+  public boolean equals(final Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    final QuantilePostAggregator that = (QuantilePostAggregator) o;
+
+    if (Float.compare(that.probability, probability) != 0) {
+      return false;
+    }
+    return fieldName != null ? fieldName.equals(that.fieldName) : that.fieldName == null;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = (probability != +0.0f ? Float.floatToIntBits(probability) : 0);
+    result = 31 * result + (fieldName != null ? fieldName.hashCode() : 0);
+    return result;
+  }
+
+  @Override
   public String toString()
   {
     return "QuantilePostAggregator{" +
-           "name='" + name + '\'' +
+           "probability=" + probability +
            ", fieldName='" + fieldName + '\'' +
-           ", probability=" + probability +
            '}';
   }
 
@@ -119,27 +138,5 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
         .appendString(fieldName)
         .appendFloat(probability)
         .build();
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    if (!super.equals(o)) {
-      return false;
-    }
-    QuantilePostAggregator that = (QuantilePostAggregator) o;
-    return Float.compare(that.probability, probability) == 0;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(super.hashCode(), probability);
   }
 }

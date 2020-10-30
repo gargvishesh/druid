@@ -25,9 +25,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericArray;
-import org.apache.avro.generic.GenericEnumSymbol;
-import org.apache.avro.generic.GenericFixed;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.druid.java.util.common.StringUtils;
@@ -58,9 +56,7 @@ public class AvroFlattenerMaker implements ObjectFlatteners.FlattenerMaker<Gener
       Schema.Type.INT,
       Schema.Type.LONG,
       Schema.Type.FLOAT,
-      Schema.Type.DOUBLE,
-      Schema.Type.ENUM,
-      Schema.Type.FIXED
+      Schema.Type.DOUBLE
   );
 
   private static boolean isPrimitive(Schema schema)
@@ -141,15 +137,9 @@ public class AvroFlattenerMaker implements ObjectFlatteners.FlattenerMaker<Gener
     return AVRO_JSON_PROVIDER;
   }
 
-  @Override
-  public Object finalizeConversionForMap(Object o)
-  {
-    return transformValue(o);
-  }
-
   private Object transformValue(final Object field)
   {
-    if (fromPigAvroStorage && field instanceof GenericArray) {
+    if (fromPigAvroStorage && field instanceof GenericData.Array) {
       return Lists.transform((List) field, item -> String.valueOf(((GenericRecord) item).get(0)));
     }
     if (field instanceof ByteBuffer) {
@@ -162,14 +152,6 @@ public class AvroFlattenerMaker implements ObjectFlatteners.FlattenerMaker<Gener
       return field.toString();
     } else if (field instanceof List) {
       return ((List<?>) field).stream().filter(Objects::nonNull).collect(Collectors.toList());
-    } else if (field instanceof GenericEnumSymbol) {
-      return field.toString();
-    } else if (field instanceof GenericFixed) {
-      if (binaryAsString) {
-        return StringUtils.fromUtf8(((GenericFixed) field).bytes());
-      } else {
-        return ((GenericFixed) field).bytes();
-      }
     }
     return field;
   }

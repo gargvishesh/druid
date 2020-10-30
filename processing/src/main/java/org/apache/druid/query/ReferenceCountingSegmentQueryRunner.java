@@ -22,42 +22,50 @@ package org.apache.druid.query;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.query.context.ResponseContext;
-import org.apache.druid.segment.SegmentReference;
+import org.apache.druid.segment.ReferenceCounter;
+import org.apache.druid.segment.Segment;
 
 public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
 {
   private final QueryRunnerFactory<T, Query<T>> factory;
-  private final SegmentReference segment;
+  private final Segment segment;
+  private final ReferenceCounter segmentReferenceCounter;
   private final SegmentDescriptor descriptor;
 
   public ReferenceCountingSegmentQueryRunner(
       QueryRunnerFactory<T, Query<T>> factory,
-      SegmentReference segment,
+      Segment segment,
+      ReferenceCounter segmentReferenceCounter,
       SegmentDescriptor descriptor
   )
   {
     this.factory = factory;
     this.segment = segment;
+    this.segmentReferenceCounter = segmentReferenceCounter;
     this.descriptor = descriptor;
   }
 
   @Override
   public Sequence<T> run(final QueryPlus<T> queryPlus, ResponseContext responseContext)
   {
-    return segment.acquireReferences().map(closeable -> {
+    if (segmentReferenceCounter.increment()) {
       try {
         final Sequence<T> baseSequence = factory.createRunner(segment).run(queryPlus, responseContext);
-        return Sequences.withBaggage(baseSequence, closeable);
+
+        return Sequences.withBaggage(baseSequence, segmentReferenceCounter.decrementOnceCloseable());
       }
       catch (Throwable t) {
         try {
-          closeable.close();
+          segmentReferenceCounter.decrement();
         }
         catch (Exception e) {
           t.addSuppressed(e);
         }
         throw t;
       }
-    }).orElseGet(() -> new ReportTimelineMissingSegmentQueryRunner<T>(descriptor).run(queryPlus, responseContext));
+    } else {
+      // Segment was closed before we had a chance to increment the reference count
+      return new ReportTimelineMissingSegmentQueryRunner<T>(descriptor).run(queryPlus, responseContext);
+    }
   }
 }

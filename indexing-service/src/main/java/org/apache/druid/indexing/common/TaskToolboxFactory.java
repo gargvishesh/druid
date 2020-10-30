@@ -26,8 +26,6 @@ import com.google.inject.Provider;
 import org.apache.druid.client.cache.Cache;
 import org.apache.druid.client.cache.CacheConfig;
 import org.apache.druid.client.cache.CachePopulatorStats;
-import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.discovery.DataNodeService;
 import org.apache.druid.discovery.DruidNodeAnnouncer;
 import org.apache.druid.discovery.LookupNodeService;
@@ -37,29 +35,22 @@ import org.apache.druid.guice.annotations.Processing;
 import org.apache.druid.guice.annotations.RemoteChatHandler;
 import org.apache.druid.indexing.common.actions.TaskActionClientFactory;
 import org.apache.druid.indexing.common.config.TaskConfig;
-import org.apache.druid.indexing.common.task.IndexTaskClientFactory;
 import org.apache.druid.indexing.common.task.Task;
-import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTaskClient;
-import org.apache.druid.indexing.common.task.batch.parallel.ShuffleClient;
-import org.apache.druid.indexing.worker.shuffle.IntermediaryDataManager;
+import org.apache.druid.indexing.worker.IntermediaryDataManager;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.metrics.MonitorScheduler;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMergerV9;
-import org.apache.druid.segment.incremental.RowIngestionMetersFactory;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentArchiver;
 import org.apache.druid.segment.loading.DataSegmentKiller;
 import org.apache.druid.segment.loading.DataSegmentMover;
 import org.apache.druid.segment.loading.DataSegmentPusher;
-import org.apache.druid.segment.realtime.appenderator.AppenderatorsManager;
-import org.apache.druid.segment.realtime.firehose.ChatHandlerProvider;
 import org.apache.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.coordination.DataSegmentAnnouncer;
 import org.apache.druid.server.coordination.DataSegmentServerAnnouncer;
-import org.apache.druid.server.security.AuthorizerMapper;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
@@ -83,7 +74,7 @@ public class TaskToolboxFactory
   private final Provider<QueryRunnerFactoryConglomerate> queryRunnerFactoryConglomerateProvider;
   private final ExecutorService queryExecutorService;
   private final JoinableFactory joinableFactory;
-  private final Provider<MonitorScheduler> monitorSchedulerProvider;
+  private final MonitorScheduler monitorScheduler;
   private final SegmentLoaderFactory segmentLoaderFactory;
   private final ObjectMapper jsonMapper;
   private final IndexIO indexIO;
@@ -96,17 +87,7 @@ public class TaskToolboxFactory
   private final LookupNodeService lookupNodeService;
   private final DataNodeService dataNodeService;
   private final TaskReportFileWriter taskReportFileWriter;
-  private final AuthorizerMapper authorizerMapper;
-  private final ChatHandlerProvider chatHandlerProvider;
-  private final RowIngestionMetersFactory rowIngestionMetersFactory;
-  private final AppenderatorsManager appenderatorsManager;
-  private final IndexingServiceClient indexingServiceClient;
-  private final CoordinatorClient coordinatorClient;
-
-  // Used by only native parallel tasks
   private final IntermediaryDataManager intermediaryDataManager;
-  private final IndexTaskClientFactory<ParallelIndexSupervisorTaskClient> supervisorTaskClientFactory;
-  private final ShuffleClient shuffleClient;
 
   @Inject
   public TaskToolboxFactory(
@@ -124,7 +105,7 @@ public class TaskToolboxFactory
       Provider<QueryRunnerFactoryConglomerate> queryRunnerFactoryConglomerateProvider,
       @Processing ExecutorService queryExecutorService,
       JoinableFactory joinableFactory,
-      Provider<MonitorScheduler> monitorSchedulerProvider,
+      MonitorScheduler monitorScheduler,
       SegmentLoaderFactory segmentLoaderFactory,
       @Json ObjectMapper jsonMapper,
       IndexIO indexIO,
@@ -137,15 +118,7 @@ public class TaskToolboxFactory
       LookupNodeService lookupNodeService,
       DataNodeService dataNodeService,
       TaskReportFileWriter taskReportFileWriter,
-      IntermediaryDataManager intermediaryDataManager,
-      AuthorizerMapper authorizerMapper,
-      ChatHandlerProvider chatHandlerProvider,
-      RowIngestionMetersFactory rowIngestionMetersFactory,
-      AppenderatorsManager appenderatorsManager,
-      IndexingServiceClient indexingServiceClient,
-      CoordinatorClient coordinatorClient,
-      IndexTaskClientFactory<ParallelIndexSupervisorTaskClient> supervisorTaskClientFactory,
-      ShuffleClient shuffleClient
+      IntermediaryDataManager intermediaryDataManager
   )
   {
     this.config = config;
@@ -162,7 +135,7 @@ public class TaskToolboxFactory
     this.queryRunnerFactoryConglomerateProvider = queryRunnerFactoryConglomerateProvider;
     this.queryExecutorService = queryExecutorService;
     this.joinableFactory = joinableFactory;
-    this.monitorSchedulerProvider = monitorSchedulerProvider;
+    this.monitorScheduler = monitorScheduler;
     this.segmentLoaderFactory = segmentLoaderFactory;
     this.jsonMapper = jsonMapper;
     this.indexIO = Preconditions.checkNotNull(indexIO, "Null IndexIO");
@@ -176,14 +149,6 @@ public class TaskToolboxFactory
     this.dataNodeService = dataNodeService;
     this.taskReportFileWriter = taskReportFileWriter;
     this.intermediaryDataManager = intermediaryDataManager;
-    this.authorizerMapper = authorizerMapper;
-    this.chatHandlerProvider = chatHandlerProvider;
-    this.rowIngestionMetersFactory = rowIngestionMetersFactory;
-    this.appenderatorsManager = appenderatorsManager;
-    this.indexingServiceClient = indexingServiceClient;
-    this.coordinatorClient = coordinatorClient;
-    this.supervisorTaskClientFactory = supervisorTaskClientFactory;
-    this.shuffleClient = shuffleClient;
   }
 
   public TaskToolbox build(Task task)
@@ -204,7 +169,7 @@ public class TaskToolboxFactory
         queryRunnerFactoryConglomerateProvider,
         queryExecutorService,
         joinableFactory,
-        monitorSchedulerProvider,
+        monitorScheduler,
         segmentLoaderFactory.manufacturate(taskWorkDir),
         jsonMapper,
         taskWorkDir,
@@ -218,15 +183,7 @@ public class TaskToolboxFactory
         lookupNodeService,
         dataNodeService,
         taskReportFileWriter,
-        intermediaryDataManager,
-        authorizerMapper,
-        chatHandlerProvider,
-        rowIngestionMetersFactory,
-        appenderatorsManager,
-        indexingServiceClient,
-        coordinatorClient,
-        supervisorTaskClientFactory,
-        shuffleClient
+        intermediaryDataManager
     );
   }
 }

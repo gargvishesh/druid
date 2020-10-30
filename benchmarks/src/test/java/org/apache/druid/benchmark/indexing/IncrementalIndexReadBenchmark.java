@@ -19,6 +19,9 @@
 
 package org.apache.druid.benchmark.indexing;
 
+import org.apache.druid.benchmark.datagen.BenchmarkDataGenerator;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemaInfo;
+import org.apache.druid.benchmark.datagen.BenchmarkSchemas;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -40,9 +43,6 @@ import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.data.IndexedInts;
-import org.apache.druid.segment.generator.DataGenerator;
-import org.apache.druid.segment.generator.GeneratorBasicSchemas;
-import org.apache.druid.segment.generator.GeneratorSchemaInfo;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.incremental.IncrementalIndexStorageAdapter;
@@ -91,7 +91,7 @@ public class IncrementalIndexReadBenchmark
 
   private IncrementalIndex incIndex;
 
-  private GeneratorSchemaInfo schemaInfo;
+  private BenchmarkSchemaInfo schemaInfo;
 
   @Setup
   public void setup() throws IOException
@@ -100,9 +100,9 @@ public class IncrementalIndexReadBenchmark
 
     ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde());
 
-    schemaInfo = GeneratorBasicSchemas.SCHEMA_MAP.get(schema);
+    schemaInfo = BenchmarkSchemas.SCHEMA_MAP.get(schema);
 
-    DataGenerator gen = new DataGenerator(
+    BenchmarkDataGenerator gen = new BenchmarkDataGenerator(
         schemaInfo.getColumnSchemas(),
         RNG_SEED,
         schemaInfo.getDataInterval(),
@@ -130,6 +130,7 @@ public class IncrementalIndexReadBenchmark
                 .withRollup(rollup)
                 .build()
         )
+        .setReportParseExceptions(false)
         .setMaxRowCount(rowsPerSegment)
         .buildOnheap();
   }
@@ -197,7 +198,7 @@ public class IncrementalIndexReadBenchmark
   private Sequence<Cursor> makeCursors(IncrementalIndexStorageAdapter sa, DimFilter filter)
   {
     return sa.makeCursors(
-        filter == null ? null : filter.toFilter(),
+        filter.toFilter(),
         schemaInfo.getDataInterval(),
         VirtualColumns.EMPTY,
         Granularities.ALL,

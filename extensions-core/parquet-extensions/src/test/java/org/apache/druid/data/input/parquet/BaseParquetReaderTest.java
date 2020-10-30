@@ -39,7 +39,7 @@ class BaseParquetReaderTest
 {
   ObjectWriter DEFAULT_JSON_WRITER = new ObjectMapper().writerWithDefaultPrettyPrinter();
 
-  InputEntityReader createReader(String parquetFile, InputRowSchema schema, JSONPathSpec flattenSpec)
+  InputEntityReader createReader(String parquetFile, InputRowSchema schema, JSONPathSpec flattenSpec) throws IOException
   {
     return createReader(parquetFile, schema, flattenSpec, false);
   }
@@ -49,7 +49,7 @@ class BaseParquetReaderTest
       InputRowSchema schema,
       JSONPathSpec flattenSpec,
       boolean binaryAsString
-  )
+  ) throws IOException
   {
     FileEntity entity = new FileEntity(new File(parquetFile));
     ParquetInputFormat parquet = new ParquetInputFormat(flattenSpec, binaryAsString, new Configuration());

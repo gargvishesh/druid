@@ -21,101 +21,124 @@ import axios from 'axios';
 import React from 'react';
 import ReactTable, { Filter } from 'react-table';
 
-import { Loader } from '../../components';
-import { useQueryManager } from '../../hooks';
+import { Loader } from '../../components/loader/loader';
 import { UrlBaser } from '../../singletons/url-baser';
+import { QueryManager } from '../../utils';
 
 import './status-dialog.scss';
 
-export function anywhereMatcher(filter: Filter, row: any): boolean {
-  return String(row[filter.id]).includes(filter.value);
-}
-
-interface StatusModule {
-  artifact: string;
-  name: string;
-  version: string;
-}
-
 interface StatusResponse {
   version: string;
-  modules: StatusModule[];
+  modules: any[];
 }
 
 interface StatusDialogProps {
   onClose: () => void;
 }
 
-export const StatusDialog = React.memo(function StatusDialog(props: StatusDialogProps) {
-  const { onClose } = props;
-  const [responseState] = useQueryManager<null, StatusResponse>({
-    processQuery: async () => {
-      const resp = await axios.get(`/status`);
-      return resp.data;
-    },
-    initQuery: null,
-  });
+interface StatusDialogState {
+  response?: StatusResponse;
+  loading: boolean;
+  error?: string;
+}
 
-  function renderContent(): JSX.Element | undefined {
-    if (responseState.loading) return <Loader />;
-
-    if (responseState.error) {
-      return <span>{`Error while loading status: ${responseState.error}`}</span>;
-    }
-
-    const response = responseState.data;
-    if (!response) return;
-
-    return (
-      <div className="main-container">
-        <div className="version">
-          Version:&nbsp;<strong>{response.version}</strong>
-        </div>
-        <ReactTable
-          data={response.modules}
-          columns={[
-            {
-              columns: [
-                {
-                  Header: 'Extension name',
-                  accessor: 'artifact',
-                  width: 200,
-                },
-                {
-                  Header: 'Fully qualified name',
-                  accessor: 'name',
-                },
-                {
-                  Header: 'Version',
-                  accessor: 'version',
-                  width: 200,
-                },
-              ],
-            },
-          ]}
-          loading={responseState.loading}
-          filterable
-          defaultFilterMethod={anywhereMatcher}
-        />
-      </div>
-    );
+export class StatusDialog extends React.PureComponent<StatusDialogProps, StatusDialogState> {
+  static anywhereMatcher(filter: Filter, row: any) {
+    return String(row[filter.id]).includes(filter.value);
   }
 
-  return (
-    <Dialog className="status-dialog" onClose={onClose} isOpen title="Status">
-      <div className={Classes.DIALOG_BODY}>{renderContent()}</div>
-      <div className={Classes.DIALOG_FOOTER}>
-        <div className="view-raw-button">
-          <Button
-            text="View raw"
-            minimal
-            onClick={() => window.open(UrlBaser.base(`/status`), '_blank')}
+  private showStatusQueryManager: QueryManager<null, any>;
+
+  constructor(props: StatusDialogProps, context: any) {
+    super(props, context);
+    this.state = {
+      loading: false,
+    };
+
+    this.showStatusQueryManager = new QueryManager({
+      processQuery: async () => {
+        const resp = await axios.get(`/status`);
+        return resp.data;
+      },
+      onStateChange: ({ result, loading, error }) => {
+        this.setState({
+          loading,
+          response: result,
+          error,
+        });
+      },
+    });
+  }
+
+  componentDidMount(): void {
+    this.showStatusQueryManager.runQuery(null);
+  }
+
+  renderContent(): JSX.Element | undefined {
+    const { response, loading, error } = this.state;
+
+    if (loading) return <Loader loading />;
+
+    if (error) return <span>{`Error while loading status: ${error}`}</span>;
+
+    if (response) {
+      return (
+        <div className="main-container">
+          <div className="version">
+            Version:&nbsp;<strong>{response.version}</strong>
+          </div>
+          <ReactTable
+            data={response.modules}
+            columns={[
+              {
+                columns: [
+                  {
+                    Header: 'Extension name',
+                    accessor: 'artifact',
+                    width: 200,
+                  },
+                  {
+                    Header: 'Fully qualified name',
+                    accessor: 'name',
+                  },
+                  {
+                    Header: 'Version',
+                    accessor: 'version',
+                    width: 200,
+                  },
+                ],
+              },
+            ]}
+            loading={loading}
+            filterable
+            defaultFilterMethod={StatusDialog.anywhereMatcher}
           />
         </div>
-        <div className="close-button">
-          <Button text="Close" intent={Intent.PRIMARY} onClick={onClose} />
+      );
+    }
+
+    return;
+  }
+
+  render(): JSX.Element {
+    const { onClose } = this.props;
+
+    return (
+      <Dialog className="status-dialog" onClose={onClose} isOpen title="Status">
+        <div className={Classes.DIALOG_BODY}>{this.renderContent()}</div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className="view-raw-button">
+            <Button
+              text="View raw"
+              minimal
+              onClick={() => window.open(UrlBaser.base(`/status`), '_blank')}
+            />
+          </div>
+          <div className="close-button">
+            <Button text="Close" intent={Intent.PRIMARY} onClick={onClose} />
+          </div>
         </div>
-      </div>
-    </Dialog>
-  );
-});
+      </Dialog>
+    );
+  }
+}

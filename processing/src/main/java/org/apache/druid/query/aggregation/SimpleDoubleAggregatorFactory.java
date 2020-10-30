@@ -28,14 +28,11 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
-import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
-import org.apache.druid.segment.vector.VectorValueSelector;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -122,12 +119,6 @@ public abstract class SimpleDoubleAggregatorFactory extends NullableNumericAggre
     );
   }
 
-  @Override
-  protected VectorValueSelector vectorSelector(VectorColumnSelectorFactory columnSelectorFactory)
-  {
-    return AggregatorUtil.makeVectorValueSelector(columnSelectorFactory, fieldName, expression, fieldExpression);
-  }
-
   private boolean shouldUseStringColumnAggregatorWrapper(ColumnSelectorFactory columnSelectorFactory)
   {
     if (fieldName != null) {
@@ -148,12 +139,12 @@ public abstract class SimpleDoubleAggregatorFactory extends NullableNumericAggre
   }
 
   @Override
-  public ValueType getType()
+  public String getTypeName()
   {
     if (storeDoubleAsFloat) {
-      return ValueType.FLOAT;
+      return "float";
     }
-    return ValueType.DOUBLE;
+    return "double";
   }
 
   @Override
@@ -242,12 +233,6 @@ public abstract class SimpleDoubleAggregatorFactory extends NullableNumericAggre
   public String getExpression()
   {
     return expression;
-  }
-
-  @Override
-  public boolean canVectorize(ColumnInspector columnInspector)
-  {
-    return AggregatorUtil.canVectorize(columnInspector, fieldName, expression, fieldExpression);
   }
 
   protected abstract double nullValue();

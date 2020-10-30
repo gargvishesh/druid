@@ -20,7 +20,6 @@
 package org.apache.druid.indexing.common.task;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.JodaUtils;
 import org.apache.druid.segment.SegmentUtils;
@@ -102,9 +101,7 @@ public class CompactionInputSpecTest
   @Test
   public void testValidateSegments()
   {
-    Assert.assertTrue(inputSpec.validateSegments(LockGranularity.TIME_CHUNK, SEGMENTS));
-    Assert.assertTrue(inputSpec.validateSegments(LockGranularity.SEGMENT, SEGMENTS));
-    Assert.assertFalse(inputSpec.validateSegments(LockGranularity.SEGMENT, SEGMENTS.subList(0, SEGMENTS.size() - 1)));
+    Assert.assertTrue(inputSpec.validateSegments(SEGMENTS));
   }
 
   @Test
@@ -112,10 +109,10 @@ public class CompactionInputSpecTest
   {
     final List<DataSegment> someSegmentIsMissing = new ArrayList<>(SEGMENTS);
     someSegmentIsMissing.remove(0);
-    Assert.assertFalse(inputSpec.validateSegments(LockGranularity.TIME_CHUNK, someSegmentIsMissing));
+    Assert.assertFalse(inputSpec.validateSegments(someSegmentIsMissing));
 
     final List<DataSegment> someSegmentIsUnknown = new ArrayList<>(SEGMENTS);
     someSegmentIsUnknown.add(newSegment(Intervals.of("2018-01-01/2018-01-02")));
-    Assert.assertFalse(inputSpec.validateSegments(LockGranularity.TIME_CHUNK, someSegmentIsUnknown));
+    Assert.assertFalse(inputSpec.validateSegments(someSegmentIsUnknown));
   }
 }

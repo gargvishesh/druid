@@ -22,7 +22,6 @@ package org.apache.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.annotation.Nullable;
 import java.util.Objects;
 
 public class TaskLocation
@@ -45,7 +44,7 @@ public class TaskLocation
 
   @JsonCreator
   public TaskLocation(
-      @JsonProperty("host") @Nullable String host,
+      @JsonProperty("host") String host,
       @JsonProperty("port") int port,
       @JsonProperty("tlsPort") int tlsPort
   )
@@ -55,7 +54,6 @@ public class TaskLocation
     this.tlsPort = tlsPort;
   }
 
-  @Nullable
   @JsonProperty
   public String getHost()
   {

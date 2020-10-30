@@ -23,19 +23,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.druid.utils.JvmUtils;
+import org.hibernate.validator.constraints.NotEmpty;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- *
  */
 public class SegmentLoaderConfig
 {
   @JsonProperty
-  private List<StorageLocationConfig> locations = Collections.emptyList();
+  @NotEmpty
+  private List<StorageLocationConfig> locations = null;
 
   @JsonProperty("lazyLoadOnStart")
   private boolean lazyLoadOnStart = false;
@@ -50,7 +50,7 @@ public class SegmentLoaderConfig
   private int announceIntervalMillis = 0; // do not background announce
 
   @JsonProperty("numLoadingThreads")
-  private int numLoadingThreads = Math.max(1, JvmUtils.getRuntimeInfo().getAvailableProcessors() / 6);
+  private int numLoadingThreads = JvmUtils.getRuntimeInfo().getAvailableProcessors();
 
   @JsonProperty("numBootstrapThreads")
   private Integer numBootstrapThreads = null;
@@ -63,8 +63,6 @@ public class SegmentLoaderConfig
 
   @JsonProperty
   private int statusQueueMaxSize = 100;
-
-  private long combinedMaxSize = 0;
 
   public List<StorageLocationConfig> getLocations()
   {
@@ -121,14 +119,6 @@ public class SegmentLoaderConfig
   public int getStatusQueueMaxSize()
   {
     return statusQueueMaxSize;
-  }
-
-  public long getCombinedMaxSize()
-  {
-    if (combinedMaxSize == 0) {
-      combinedMaxSize = getLocations().stream().mapToLong(StorageLocationConfig::getMaxSize).sum();
-    }
-    return combinedMaxSize;
   }
 
   public SegmentLoaderConfig withLocations(List<StorageLocationConfig> locations)

@@ -42,6 +42,7 @@ import org.apache.druid.query.DataSource;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.InsufficientResourcesException;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryConfig;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.QueryPlus;
@@ -61,7 +62,6 @@ import org.apache.druid.query.groupby.epinephelinae.GroupByBinaryFnV2;
 import org.apache.druid.query.groupby.epinephelinae.GroupByMergingQueryRunnerV2;
 import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngineV2;
 import org.apache.druid.query.groupby.epinephelinae.GroupByRowProcessor;
-import org.apache.druid.query.groupby.orderby.DefaultLimitSpec;
 import org.apache.druid.query.groupby.orderby.LimitSpec;
 import org.apache.druid.query.groupby.orderby.NoopLimitSpec;
 import org.apache.druid.query.groupby.resource.GroupByQueryResource;
@@ -89,6 +89,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
 
   private final DruidProcessingConfig processingConfig;
   private final Supplier<GroupByQueryConfig> configSupplier;
+  private final Supplier<QueryConfig> queryConfigSupplier;
   private final NonBlockingPool<ByteBuffer> bufferPool;
   private final BlockingPool<ByteBuffer> mergeBufferPool;
   private final ObjectMapper spillMapper;
@@ -98,6 +99,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
   public GroupByStrategyV2(
       DruidProcessingConfig processingConfig,
       Supplier<GroupByQueryConfig> configSupplier,
+      Supplier<QueryConfig> queryConfigSupplier,
       @Global NonBlockingPool<ByteBuffer> bufferPool,
       @Merging BlockingPool<ByteBuffer> mergeBufferPool,
       @Smile ObjectMapper spillMapper,
@@ -106,6 +108,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
   {
     this.processingConfig = processingConfig;
     this.configSupplier = configSupplier;
+    this.queryConfigSupplier = queryConfigSupplier;
     this.bufferPool = bufferPool;
     this.mergeBufferPool = mergeBufferPool;
     this.spillMapper = spillMapper;
@@ -222,11 +225,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
         query.getPostAggregatorSpecs(),
         // Don't do "having" clause until the end of this method.
         null,
-        // Potentially pass limit down the stack (i.e. limit pushdown). Notes:
-        //   (1) Limit pushdown is only supported for DefaultLimitSpec.
-        //   (2) When pushing down a limit, it must be extended to include the offset (the offset will be applied
-        //       higher-up).
-        query.isApplyLimitPushDown() ? ((DefaultLimitSpec) query.getLimitSpec()).withOffsetToLimit() : null,
+        query.getLimitSpec(),
         query.getSubtotalsSpec(),
         query.getContext()
     ).withOverriddenContext(
@@ -391,7 +390,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
       );
 
       List<String> queryDimNames = baseSubtotalQuery.getDimensions().stream().map(DimensionSpec::getOutputName)
-                                                    .collect(Collectors.toList());
+                                                 .collect(Collectors.toList());
 
       // Only needed to make LimitSpec.filterColumns(..) call later in case base query has a non default LimitSpec.
       Set<String> aggsAndPostAggs = null;
@@ -575,7 +574,8 @@ public class GroupByStrategyV2 implements GroupByStrategy
         query,
         storageAdapter,
         bufferPool,
-        configSupplier.get().withOverrides(query)
+        configSupplier.get().withOverrides(query),
+        queryConfigSupplier.get().withOverrides(query)
     );
   }
 

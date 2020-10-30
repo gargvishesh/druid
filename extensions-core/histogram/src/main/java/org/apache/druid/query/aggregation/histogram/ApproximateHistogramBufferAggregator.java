@@ -28,30 +28,54 @@ import java.nio.ByteBuffer;
 public class ApproximateHistogramBufferAggregator implements BufferAggregator
 {
   private final BaseFloatColumnValueSelector selector;
-  private final ApproximateHistogramBufferAggregatorHelper innerAggregator;
+  private final int resolution;
 
   public ApproximateHistogramBufferAggregator(BaseFloatColumnValueSelector selector, int resolution)
   {
     this.selector = selector;
-    this.innerAggregator = new ApproximateHistogramBufferAggregatorHelper(resolution);
+    this.resolution = resolution;
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    innerAggregator.init(buf, position);
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+
+    mutationBuffer.putInt(resolution);
+    mutationBuffer.putInt(0); //initial binCount
+    for (int i = 0; i < resolution; ++i) {
+      mutationBuffer.putFloat(0f);
+    }
+    for (int i = 0; i < resolution; ++i) {
+      mutationBuffer.putLong(0L);
+    }
+
+    // min
+    mutationBuffer.putFloat(Float.POSITIVE_INFINITY);
+    // max
+    mutationBuffer.putFloat(Float.NEGATIVE_INFINITY);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    innerAggregator.aggregate(buf, position, selector.getFloat());
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+
+    ApproximateHistogram h0 = ApproximateHistogram.fromBytesDense(mutationBuffer);
+    h0.offer(selector.getFloat());
+
+    mutationBuffer.position(position);
+    h0.toBytesDense(mutationBuffer);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return innerAggregator.get(buf, position);
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+    return ApproximateHistogram.fromBytes(mutationBuffer);
   }
 
   @Override

@@ -33,13 +33,12 @@ public class DoublesSketchToHistogramOperatorConversion extends DoublesSketchLis
   }
 
   @Override
-  public PostAggregator makePostAgg(String name, PostAggregator field, double[] points)
+  public PostAggregator makePostAgg(String name, PostAggregator field, double[] args)
   {
     return new DoublesSketchToHistogramPostAggregator(
         name,
         field,
-        points,
-        null
+        args
     );
   }
 }

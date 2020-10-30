@@ -60,7 +60,7 @@ public class ServerDiscoverySelector implements DiscoverySelector<Server>
     {
       Preconditions.checkState(
           instance.getPort() >= 0 || (instance.getSslPort() != null && instance.getSslPort() >= 0),
-          "Both port and sslPort not set"
+          "WTH?! Both port and sslPort not set"
       );
       final int port;
       final String scheme;

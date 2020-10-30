@@ -27,7 +27,6 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -37,6 +36,7 @@ import java.util.Set;
 public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggregator
 {
   private final float[] breaks;
+  private String fieldName;
 
   @JsonCreator
   public CustomBucketsPostAggregator(
@@ -47,6 +47,7 @@ public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggrega
   {
     super(name, fieldName);
     this.breaks = breaks;
+    this.fieldName = fieldName;
   }
 
   @Override
@@ -60,15 +61,6 @@ public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggrega
   {
     ApproximateHistogram ah = (ApproximateHistogram) values.get(fieldName);
     return ah.toHistogram(breaks);
-  }
-
-  /**
-   * actual type is {@link Histogram}
-   */
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.COMPLEX;
   }
 
   @Override
@@ -100,29 +92,5 @@ public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggrega
         .appendString(fieldName)
         .appendFloatArray(breaks)
         .build();
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    if (!super.equals(o)) {
-      return false;
-    }
-    CustomBucketsPostAggregator that = (CustomBucketsPostAggregator) o;
-    return Arrays.equals(breaks, that.breaks);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    int result = super.hashCode();
-    result = 31 * result + Arrays.hashCode(breaks);
-    return result;
   }
 }

@@ -21,7 +21,7 @@ import React from 'react';
 
 import { Field } from '../components/auto-form/auto-form';
 import { ExternalLink } from '../components/external-link/external-link';
-import { getLink } from '../links';
+import { DRUID_DOCS_VERSION } from '../variables';
 
 import {
   BASIC_TIME_FORMATS,
@@ -70,12 +70,7 @@ export type IngestionComboType =
   | 'index_parallel:hdfs';
 
 // Some extra values that can be selected in the initial screen
-export type IngestionComboTypeWithExtra =
-  | IngestionComboType
-  | 'azure-event-hubs'
-  | 'hadoop'
-  | 'example'
-  | 'other';
+export type IngestionComboTypeWithExtra = IngestionComboType | 'hadoop' | 'example' | 'other';
 
 export function adjustIngestionSpec(spec: IngestionSpec) {
   const tuningConfig = deepGet(spec, 'spec.tuningConfig');
@@ -158,9 +153,6 @@ export function getIngestionTitle(ingestionType: IngestionComboTypeWithExtra): s
     case 'hadoop':
       return 'HDFS';
 
-    case 'azure-event-hubs':
-      return 'Azure Event Hub';
-
     case 'example':
       return 'Example data';
 
@@ -183,13 +175,13 @@ export function getIngestionDocLink(spec: IngestionSpec): string {
 
   switch (type) {
     case 'kafka':
-      return `${getLink('DOCS')}/development/extensions-core/kafka-ingestion.html`;
+      return `https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/kafka-ingestion.html`;
 
     case 'kinesis':
-      return `${getLink('DOCS')}/development/extensions-core/kinesis-ingestion.html`;
+      return `https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/kinesis-ingestion.html`;
 
     default:
-      return `${getLink('DOCS')}/ingestion/native-batch.html#firehoses`;
+      return `https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/native-batch.html#firehoses`;
   }
 }
 
@@ -238,7 +230,6 @@ export interface InputFormat {
   pattern?: string;
   function?: string;
   flattenSpec?: FlattenSpec;
-  keepNullColumns?: boolean;
 }
 
 export type DimensionMode = 'specific' | 'auto-detect';
@@ -319,13 +310,15 @@ const INPUT_FORMAT_FORM_FIELDS: Field<InputFormat>[] = [
     name: 'type',
     label: 'Input format',
     type: 'string',
-    suggestions: ['json', 'csv', 'tsv', 'regex', 'parquet', 'orc', 'avro_ocf'],
+    suggestions: ['json', 'csv', 'tsv', 'regex', 'parquet', 'orc'],
     info: (
       <>
         <p>The parser used to parse the data.</p>
         <p>
           For more information see{' '}
-          <ExternalLink href={`${getLink('DOCS')}/ingestion/data-formats.html`}>
+          <ExternalLink
+            href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/data-formats.html`}
+          >
             the documentation
           </ExternalLink>
           .
@@ -390,7 +383,7 @@ const INPUT_FORMAT_FORM_FIELDS: Field<InputFormat>[] = [
     name: 'binaryAsString',
     type: 'boolean',
     defaultValue: false,
-    defined: (p: InputFormat) => p.type === 'parquet' || p.type === 'orc' || p.type === 'avro_ocf',
+    defined: (p: InputFormat) => p.type === 'parquet' || p.type === 'orc',
     info: (
       <>
         Specifies if the bytes parquet column which is not logically marked as a string or enum type
@@ -421,12 +414,7 @@ export function issueWithInputFormat(inputFormat: InputFormat | undefined): stri
 
 export function inputFormatCanFlatten(inputFormat: InputFormat): boolean {
   const inputFormatType = inputFormat.type;
-  return (
-    inputFormatType === 'json' ||
-    inputFormatType === 'parquet' ||
-    inputFormatType === 'orc' ||
-    inputFormatType === 'avro_ocf'
-  );
+  return inputFormatType === 'json' || inputFormatType === 'parquet' || inputFormatType === 'orc';
 }
 
 export interface TimestampSpec {
@@ -615,7 +603,12 @@ const FLATTEN_FIELD_FORM_FIELDS: Field<FlattenField>[] = [
     info: (
       <>
         Specify a flatten{' '}
-        <ExternalLink href={`${getLink('DOCS')}/ingestion/flatten-json`}>expression</ExternalLink>.
+        <ExternalLink
+          href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/flatten-json`}
+        >
+          expression
+        </ExternalLink>
+        .
       </>
     ),
   },
@@ -657,7 +650,12 @@ const TRANSFORM_FORM_FIELDS: Field<Transform>[] = [
     info: (
       <>
         A valid Druid{' '}
-        <ExternalLink href={`${getLink('DOCS')}/misc/math-expr.html`}>expression</ExternalLink>.
+        <ExternalLink
+          href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/misc/math-expr.html`}
+        >
+          expression
+        </ExternalLink>
+        .
       </>
     ),
   },
@@ -786,7 +784,7 @@ const METRIC_SPEC_FORM_FIELDS: Field<MetricSpec>[] = [
         </p>
         <p>
           See the{' '}
-          <ExternalLink href="https://datasketches.apache.org/docs/Theta/ThetaSize.html">
+          <ExternalLink href="https://datasketches.github.io/docs/Theta/ThetaSize.html">
             DataSketches site
           </ExternalLink>{' '}
           for details.
@@ -851,7 +849,7 @@ const METRIC_SPEC_FORM_FIELDS: Field<MetricSpec>[] = [
         </p>
         <p>
           Must be a power of 2 from 2 to 32768. See the{' '}
-          <ExternalLink href="https://datasketches.apache.org/docs/Quantiles/QuantilesAccuracy.html">
+          <ExternalLink href="https://datasketches.github.io/docs/Quantiles/QuantilesAccuracy.html">
             Quantiles Accuracy
           </ExternalLink>{' '}
           for details.
@@ -927,9 +925,7 @@ const METRIC_SPEC_FORM_FIELDS: Field<MetricSpec>[] = [
         <p>
           Supported modes are <Code>ignore</Code>, <Code>overflow</Code>, and <Code>clip</Code>. See
           <ExternalLink
-            href={`${getLink(
-              'DOCS',
-            )}/development/extensions-core/approximate-histograms.html#outlier-handling-modes`}
+            href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/approximate-histograms.html#outlier-handling-modes`}
           >
             outlier handling modes
           </ExternalLink>{' '}
@@ -1022,7 +1018,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
     info: (
       <p>
         Druid connects to raw data through{' '}
-        <ExternalLink href={`${getLink('DOCS')}/ingestion/firehose.html`}>
+        <ExternalLink
+          href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/firehose.html`}
+        >
           inputSources
         </ExternalLink>
         . You can change your selected inputSource here.
@@ -1075,7 +1073,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           required: true,
           info: (
             <>
-              <ExternalLink href={`${getLink('DOCS')}/ingestion/firehose.html#localfirehose`}>
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/firehose.html#localfirehose`}
+              >
                 inputSource.baseDir
               </ExternalLink>
               <p>Specifies the directory to search recursively for files to be ingested.</p>
@@ -1087,19 +1087,12 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           label: 'File filter',
           type: 'string',
           required: true,
-          suggestions: [
-            '*',
-            '*.json',
-            '*.json.gz',
-            '*.csv',
-            '*.tsv',
-            '*.parquet',
-            '*.orc',
-            '*.avro',
-          ],
+          suggestions: ['*', '*.json', '*.json.gz', '*.csv', '*.tsv', '*.parquet', '*.orc'],
           info: (
             <>
-              <ExternalLink href={`${getLink('DOCS')}/ingestion/firehose.html#localfirehose`}>
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/ingestion/firehose.html#localfirehose`}
+              >
                 inputSource.filter
               </ExternalLink>
               <p>
@@ -1169,7 +1162,11 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           info: (
             <p>
               The{' '}
-              <ExternalLink href={`${getLink('DOCS')}/querying/filters.html`}>filter</ExternalLink>{' '}
+              <ExternalLink
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/querying/filters.html`}
+              >
+                filter
+              </ExternalLink>{' '}
               to apply to the data as part of querying.
             </p>
           ),
@@ -1229,7 +1226,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             <>
               <p>
                 JSON array of{' '}
-                <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/s3.html`}>
+                <ExternalLink
+                  href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/s3.html`}
+                >
                   S3 Objects
                 </ExternalLink>
                 .
@@ -1391,7 +1390,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             <>
               <p>
                 JSON array of{' '}
-                <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/azure.html`}>
+                <ExternalLink
+                  href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/azure.html`}
+                >
                   S3 Objects
                 </ExternalLink>
                 .
@@ -1449,7 +1450,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             <>
               <p>
                 JSON array of{' '}
-                <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/google.html`}>
+                <ExternalLink
+                  href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/google.html`}
+                >
                   Google Cloud Storage Objects
                 </ExternalLink>
                 .
@@ -1482,9 +1485,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           info: (
             <>
               <ExternalLink
-                href={`${getLink(
-                  'DOCS',
-                )}/development/extensions-core/kafka-ingestion#kafkasupervisorioconfig`}
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/kafka-ingestion#kafkasupervisorioconfig`}
               >
                 consumerProperties
               </ExternalLink>
@@ -1508,9 +1509,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           info: (
             <>
               <ExternalLink
-                href={`${getLink(
-                  'DOCS',
-                )}/development/extensions-core/kafka-ingestion#kafkasupervisorioconfig`}
+                href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/development/extensions-core/kafka-ingestion#kafkasupervisorioconfig`}
               >
                 consumerProperties
               </ExternalLink>
@@ -1561,7 +1560,9 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           info: (
             <>
               The Amazon Kinesis stream endpoint for a region. You can find a list of endpoints{' '}
-              <ExternalLink href={`https://docs.aws.amazon.com/general/latest/gr/ak.html`}>
+              <ExternalLink
+                href={`http://docs.aws.amazon.com/general/${DRUID_DOCS_VERSION}/gr/rande.html#ak_region`}
+              >
                 here
               </ExternalLink>
               .
@@ -2115,19 +2116,15 @@ export function invalidTuningConfig(tuningConfig: TuningConfig, intervals: any):
   if (!intervals) return true;
   switch (deepGet(tuningConfig, 'partitionsSpec.type')) {
     case 'hashed':
-      return (
-        Boolean(deepGet(tuningConfig, 'partitionsSpec.targetRowsPerSegment')) &&
-        Boolean(deepGet(tuningConfig, 'partitionsSpec.numShards'))
-      );
+      if (!deepGet(tuningConfig, 'partitionsSpec.numShards')) return true;
+      break;
+
     case 'single_dim':
       if (!deepGet(tuningConfig, 'partitionsSpec.partitionDimension')) return true;
-      const hasTargetRowsPerSegment = Boolean(
-        deepGet(tuningConfig, 'partitionsSpec.targetRowsPerSegment'),
-      );
-      const hasMaxRowsPerSegment = Boolean(
-        deepGet(tuningConfig, 'partitionsSpec.maxRowsPerSegment'),
-      );
-      if (hasTargetRowsPerSegment === hasMaxRowsPerSegment) {
+      if (
+        !deepGet(tuningConfig, 'partitionsSpec.targetRowsPerSegment') &&
+        !deepGet(tuningConfig, 'partitionsSpec.maxRowsPerSegment')
+      ) {
         return true;
       }
   }
@@ -2164,7 +2161,7 @@ export function getPartitionRelatedTuningSpecFormFields(
             <p>
               For perfect rollup, you should use either <Code>hashed</Code> (partitioning based on
               the hash of dimensions in each row) or <Code>single_dim</Code> (based on ranges of a
-              single dimension). For best-effort rollup, you should use <Code>dynamic</Code>.
+              single dimension. For best-effort rollup, you should use dynamic.
             </p>
           ),
         },
@@ -2187,44 +2184,17 @@ export function getPartitionRelatedTuningSpecFormFields(
         },
         // partitionsSpec type: hashed
         {
-          name: 'partitionsSpec.targetRowsPerSegment',
-          label: 'Target rows per segment',
-          type: 'number',
-          defined: (t: TuningConfig) =>
-            deepGet(t, 'partitionsSpec.type') === 'hashed' &&
-            !deepGet(t, 'partitionsSpec.numShards'),
-          info: (
-            <>
-              <p>
-                If the segments generated are a sub-optimal size for the requested partition
-                dimensions, consider setting this field.
-              </p>
-              <p>
-                A target row count for each partition. Each partition will have a row count close to
-                the target assuming evenly distributed keys. Defaults to 5 million if numShards is
-                null.
-              </p>
-            </>
-          ),
-        },
-        {
           name: 'partitionsSpec.numShards',
           label: 'Num shards',
           type: 'number',
-          defined: (t: TuningConfig) =>
-            deepGet(t, 'partitionsSpec.type') === 'hashed' &&
-            !deepGet(t, 'partitionsSpec.targetRowsPerSegment'),
+          defined: (t: TuningConfig) => deepGet(t, 'partitionsSpec.type') === 'hashed',
+          required: true,
           info: (
             <>
-              <p>
-                If you know the optimal number of shards and want to speed up the time it takes for
-                compaction to run, set this field.
-              </p>
-              <p>
-                Directly specify the number of shards to create. If this is specified and
-                'intervals' is specified in the granularitySpec, the index task can skip the
-                determine intervals/partitions pass through the data.
-              </p>
+              Directly specify the number of shards to create. If this is specified and 'intervals'
+              is specified in the granularitySpec, the index task can skip the determine
+              intervals/partitions pass through the data. numShards cannot be specified if
+              maxRowsPerSegment is set.
             </>
           ),
         },
@@ -2249,9 +2219,7 @@ export function getPartitionRelatedTuningSpecFormFields(
           label: 'Target rows per segment',
           type: 'number',
           zeroMeansUndefined: true,
-          defined: (t: TuningConfig) =>
-            deepGet(t, 'partitionsSpec.type') === 'single_dim' &&
-            !deepGet(t, 'partitionsSpec.maxRowsPerSegment'),
+          defined: (t: TuningConfig) => deepGet(t, 'partitionsSpec.type') === 'single_dim',
           required: (t: TuningConfig) =>
             !deepGet(t, 'partitionsSpec.targetRowsPerSegment') &&
             !deepGet(t, 'partitionsSpec.maxRowsPerSegment'),
@@ -2267,9 +2235,7 @@ export function getPartitionRelatedTuningSpecFormFields(
           label: 'Max rows per segment',
           type: 'number',
           zeroMeansUndefined: true,
-          defined: (t: TuningConfig) =>
-            deepGet(t, 'partitionsSpec.type') === 'single_dim' &&
-            !deepGet(t, 'partitionsSpec.targetRowsPerSegment'),
+          defined: (t: TuningConfig) => deepGet(t, 'partitionsSpec.type') === 'single_dim',
           required: (t: TuningConfig) =>
             !deepGet(t, 'partitionsSpec.targetRowsPerSegment') &&
             !deepGet(t, 'partitionsSpec.maxRowsPerSegment'),
@@ -2454,7 +2420,7 @@ const TUNING_CONFIG_FORM_FIELDS: Field<TuningConfig>[] = [
     type: 'string',
     defaultValue: 'lz4',
     suggestions: ['lz4', 'lzf', 'uncompressed'],
-    info: <>Compression format for primitive type metric columns.</>,
+    info: <>Compression format for metric columns.</>,
   },
   {
     name: 'indexSpec.longEncoding',
@@ -2690,39 +2656,29 @@ export function fillInputFormat(spec: IngestionSpec, sampleData: string[]): Inge
   return deepSet(spec, 'spec.ioConfig.inputFormat', guessInputFormat(sampleData));
 }
 
-export function guessInputFormat(sampleData: string[]): InputFormat {
+function guessInputFormat(sampleData: string[]): InputFormat {
   let sampleDatum = sampleData[0];
   if (sampleDatum) {
     sampleDatum = String(sampleDatum); // Really ensure it is a string
 
-    // First check for magic byte sequences as they rarely yield false positives
-
-    // Parquet 4 byte magic header: https://github.com/apache/parquet-format#file-format
-    if (sampleDatum.startsWith('PAR1')) {
-      return inputFormatFromType('parquet');
-    }
-    // ORC 3 byte magic header: https://orc.apache.org/specification/ORCv1/
-    if (sampleDatum.startsWith('ORC')) {
-      return inputFormatFromType('orc');
-    }
-    // Avro OCF 4 byte magic header: https://avro.apache.org/docs/current/spec.html#Object+Container+Files
-    if (sampleDatum.startsWith('Obj') && sampleDatum.charCodeAt(3) === 1) {
-      return inputFormatFromType('avro_ocf');
-    }
-
-    // After checking for magic byte sequences perform heuristics to deduce string formats
-
-    // If the string starts and ends with curly braces assume JSON
     if (sampleDatum.startsWith('{') && sampleDatum.endsWith('}')) {
       return inputFormatFromType('json');
     }
-    // Contains more than 3 tabs assume TSV
+
     if (sampleDatum.split('\t').length > 3) {
       return inputFormatFromType('tsv', !/\t\d+\t/.test(sampleDatum));
     }
-    // Contains more than 3 commas assume CSV
+
     if (sampleDatum.split(',').length > 3) {
       return inputFormatFromType('csv', !/,\d+,/.test(sampleDatum));
+    }
+
+    if (sampleDatum.startsWith('PAR1')) {
+      return inputFormatFromType('parquet');
+    }
+
+    if (sampleDatum.startsWith('ORC')) {
+      return inputFormatFromType('orc');
     }
   }
 

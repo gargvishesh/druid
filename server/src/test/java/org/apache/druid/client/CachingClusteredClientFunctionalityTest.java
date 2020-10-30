@@ -21,7 +21,6 @@ package org.apache.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import it.unimi.dsi.fastutil.ints.Int2ObjectRBTreeMap;
@@ -48,7 +47,6 @@ import org.apache.druid.query.QueryToolChestWarehouse;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.planning.DataSourceAnalysis;
-import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.coordination.ServerType;
 import org.apache.druid.timeline.DataSegment;
@@ -334,8 +332,7 @@ public class CachingClusteredClientFunctionalityTest
           }
         },
         ForkJoinPool.commonPool(),
-        QueryStackTests.DEFAULT_NOOP_SCHEDULER,
-        new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of())
+        QueryStackTests.DEFAULT_NOOP_SCHEDULER
     );
   }
 
@@ -345,9 +342,8 @@ public class CachingClusteredClientFunctionalityTest
       final ResponseContext responseContext
   )
   {
-    final Query<T> theQuery = query.withId("queryId");
-    return client.getQueryRunnerForIntervals(theQuery, theQuery.getIntervals()).run(
-        QueryPlus.wrap(theQuery),
+    return client.getQueryRunnerForIntervals(query, query.getIntervals()).run(
+        QueryPlus.wrap(query),
         responseContext
     );
   }

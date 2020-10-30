@@ -38,7 +38,6 @@ import org.apache.druid.indexing.common.ReingestionTimelineUtils;
 import org.apache.druid.indexing.common.RetryPolicyFactory;
 import org.apache.druid.indexing.common.SegmentLoaderFactory;
 import org.apache.druid.indexing.input.DruidInputSource;
-import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.java.util.emitter.EmittingLogger;
@@ -290,14 +289,7 @@ public class IngestSegmentFirehoseFactory implements FiniteFirehoseFactory<Input
             retryPolicyFactory,
             dataSource,
             interval,
-            splitHintSpec == null
-            ? new SegmentsSplitHintSpec(
-                maxInputSegmentBytesPerTask == null
-                ? null
-                : new HumanReadableBytes(maxInputSegmentBytesPerTask),
-                null
-            )
-            : splitHintSpec
+            splitHintSpec == null ? new SegmentsSplitHintSpec(maxInputSegmentBytesPerTask) : splitHintSpec
         )
     );
   }

@@ -34,13 +34,13 @@ import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.ColumnSelectorFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -77,13 +77,14 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   OffheapIncrementalIndex(
       IncrementalIndexSchema incrementalIndexSchema,
       boolean deserializeComplexMetrics,
+      boolean reportParseExceptions,
       boolean concurrentEventAdd,
       boolean sortFacts,
       int maxRowCount,
       NonBlockingPool<ByteBuffer> bufferPool
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, concurrentEventAdd);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, concurrentEventAdd);
     this.maxRowCount = maxRowCount;
     this.bufferPool = bufferPool;
 
@@ -116,8 +117,6 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
     selectors = new HashMap<>();
     aggOffsetInBuffer = new int[metrics.length];
 
-    int aggsCurOffsetInBuffer = 0;
-
     for (int i = 0; i < metrics.length; i++) {
       AggregatorFactory agg = metrics[i];
 
@@ -132,11 +131,15 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
           new OnheapIncrementalIndex.CachingColumnSelectorFactory(columnSelectorFactory, concurrentEventAdd)
       );
 
-      aggOffsetInBuffer[i] = aggsCurOffsetInBuffer;
-      aggsCurOffsetInBuffer += agg.getMaxIntermediateSizeWithNulls();
+      if (i == 0) {
+        aggOffsetInBuffer[i] = 0;
+      } else {
+        aggOffsetInBuffer[i] = aggOffsetInBuffer[i - 1] + metrics[i - 1].getMaxIntermediateSizeWithNulls();
+      }
     }
 
-    aggsTotalSize = aggsCurOffsetInBuffer;
+    aggsTotalSize = aggOffsetInBuffer[metrics.length - 1] + metrics[metrics.length
+                                                                    - 1].getMaxIntermediateSizeWithNulls();
 
     return new BufferAggregator[metrics.length];
   }
@@ -214,14 +217,13 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
         if (IncrementalIndexRow.EMPTY_ROW_INDEX == prev) {
           getNumEntries().incrementAndGet();
         } else {
-          throw new ISE("Unexpected state: Concurrent fact addition.");
+          throw new ISE("WTF! we are in sychronized block.");
         }
       }
     }
 
     rowContainer.set(row);
 
-    final List<String> parseExceptionMessages = new ArrayList<>();
     for (int i = 0; i < getMetrics().length; i++) {
       final BufferAggregator agg = getAggs()[i];
 
@@ -231,13 +233,16 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
         }
         catch (ParseException e) {
           // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
-          log.debug(e, "Encountered parse error, skipping aggregator[%s].", getMetricAggs()[i].getName());
-          parseExceptionMessages.add(e.getMessage());
+          if (getReportParseExceptions()) {
+            throw new ParseException(e, "Encountered parse error for aggregator[%s]", getMetricAggs()[i].getName());
+          } else {
+            log.debug(e, "Encountered parse error, skipping aggregator[%s].", getMetricAggs()[i].getName());
+          }
         }
       }
     }
     rowContainer.set(null);
-    return new AddToFactsResult(getNumEntries().get(), 0, parseExceptionMessages);
+    return new AddToFactsResult(getNumEntries().get(), 0, new ArrayList<>());
   }
 
   @Override
@@ -344,39 +349,5 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       throw new RuntimeException(e);
     }
     aggBuffers.clear();
-  }
-
-  public static class Builder extends AppendableIndexBuilder
-  {
-    @Nullable
-    NonBlockingPool<ByteBuffer> bufferPool = null;
-
-    public Builder setBufferPool(final NonBlockingPool<ByteBuffer> bufferPool)
-    {
-      this.bufferPool = bufferPool;
-      return this;
-    }
-
-    @Override
-    public void validate()
-    {
-      super.validate();
-      if (bufferPool == null) {
-        throw new IllegalArgumentException("bufferPool cannot be null");
-      }
-    }
-
-    @Override
-    protected OffheapIncrementalIndex buildInner()
-    {
-      return new OffheapIncrementalIndex(
-          Objects.requireNonNull(incrementalIndexSchema, "incrementalIndexSchema is null"),
-          deserializeComplexMetrics,
-          concurrentEventAdd,
-          sortFacts,
-          maxRowCount,
-          Objects.requireNonNull(bufferPool, "bufferPool is null")
-      );
-    }
   }
 }

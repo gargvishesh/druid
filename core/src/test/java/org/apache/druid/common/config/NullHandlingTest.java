@@ -23,9 +23,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.apache.druid.common.config.NullHandling.replaceWithDefault;
-import static org.junit.Assert.assertEquals;
-
 public class NullHandlingTest
 {
   @BeforeClass
@@ -37,8 +34,8 @@ public class NullHandlingTest
   @Test
   public void test_defaultValueForClass_float()
   {
-    assertEquals(
-        replaceWithDefault() ? 0f : null,
+    Assert.assertEquals(
+        NullHandling.replaceWithDefault() ? 0f : null,
         NullHandling.defaultValueForClass(Float.class)
     );
   }
@@ -46,8 +43,8 @@ public class NullHandlingTest
   @Test
   public void test_defaultValueForClass_double()
   {
-    assertEquals(
-        replaceWithDefault() ? 0d : null,
+    Assert.assertEquals(
+        NullHandling.replaceWithDefault() ? 0d : null,
         NullHandling.defaultValueForClass(Double.class)
     );
   }
@@ -61,8 +58,8 @@ public class NullHandlingTest
   @Test
   public void test_defaultValueForClass_long()
   {
-    assertEquals(
-        replaceWithDefault() ? 0L : null,
+    Assert.assertEquals(
+        NullHandling.replaceWithDefault() ? 0L : null,
         NullHandling.defaultValueForClass(Long.class)
     );
   }
@@ -70,8 +67,8 @@ public class NullHandlingTest
   @Test
   public void test_defaultValueForClass_number()
   {
-    assertEquals(
-        replaceWithDefault() ? 0d : null,
+    Assert.assertEquals(
+        NullHandling.replaceWithDefault() ? 0d : null,
         NullHandling.defaultValueForClass(Number.class)
     );
   }
@@ -79,8 +76,8 @@ public class NullHandlingTest
   @Test
   public void test_defaultValueForClass_string()
   {
-    assertEquals(
-        replaceWithDefault() ? "" : null,
+    Assert.assertEquals(
+        NullHandling.replaceWithDefault() ? "" : null,
         NullHandling.defaultValueForClass(String.class)
     );
   }

@@ -165,7 +165,7 @@ public class LDAPCredentialsValidator implements CredentialsValidator
 
       if (!validatePassword(this.ldapConfig, userDn, password)) {
         LOG.debug("Password incorrect for LDAP user %s", username);
-        throw new BasicSecurityAuthenticationException("User LDAP authentication failed.");
+        throw new BasicSecurityAuthenticationException("User LDAP authentication failed username[%s].", userDn.toString());
       }
 
       byte[] salt = BasicAuthUtils.generateSalt();

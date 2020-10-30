@@ -19,7 +19,6 @@
 
 package org.apache.druid.query.extraction;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.common.config.NullHandling;
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,13 +44,5 @@ public class LowerExtractionFnTest
   {
     Assert.assertArrayEquals(extractionFn.getCacheKey(), extractionFn.getCacheKey());
     Assert.assertFalse(Arrays.equals(extractionFn.getCacheKey(), new UpperExtractionFn(null).getCacheKey()));
-  }
-
-  @Test
-  public void testEqualsContract()
-  {
-    EqualsVerifier.forClass(LowerExtractionFn.class)
-                  .usingGetClass()
-                  .verify();
   }
 }

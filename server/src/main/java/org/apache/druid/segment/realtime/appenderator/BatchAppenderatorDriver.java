@@ -22,11 +22,10 @@ package org.apache.druid.segment.realtime.appenderator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.AsyncFunction;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.concurrent.ListenableFutures;
 import org.apache.druid.segment.loading.DataSegmentKiller;
 import org.apache.druid.segment.realtime.appenderator.SegmentWithState.SegmentState;
 import org.apache.druid.timeline.DataSegment;
@@ -137,11 +136,14 @@ public class BatchAppenderatorDriver extends BaseAppenderatorDriver
       long pushAndClearTimeoutMs
   ) throws InterruptedException, ExecutionException, TimeoutException
   {
-    final Set<SegmentIdWithShardSpec> requestedSegmentIdsForSequences = getAppendingSegments(sequenceNames);
+    final Set<SegmentIdWithShardSpec> requestedSegmentIdsForSequences = getAppendingSegments(sequenceNames)
+        .map(SegmentWithState::getSegmentIdentifier)
+        .collect(Collectors.toSet());
 
-    final ListenableFuture<SegmentsAndCommitMetadata> future = Futures.transform(
+
+    final ListenableFuture<SegmentsAndCommitMetadata> future = ListenableFutures.transformAsync(
         pushInBackground(null, requestedSegmentIdsForSequences, false),
-        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) this::dropInBackground
+        this::dropInBackground
     );
 
     final SegmentsAndCommitMetadata segmentsAndCommitMetadata =
@@ -197,8 +199,7 @@ public class BatchAppenderatorDriver extends BaseAppenderatorDriver
    */
   public ListenableFuture<SegmentsAndCommitMetadata> publishAll(
       @Nullable final Set<DataSegment> segmentsToBeOverwritten,
-      final TransactionalSegmentPublisher publisher,
-      final Function<Set<DataSegment>, Set<DataSegment>> outputSegmentsAnnotateFunction
+      final TransactionalSegmentPublisher publisher
   )
   {
     final Map<String, SegmentsForSequence> snapshot;
@@ -223,8 +224,7 @@ public class BatchAppenderatorDriver extends BaseAppenderatorDriver
                 .collect(Collectors.toList()),
             null
         ),
-        publisher,
-        outputSegmentsAnnotateFunction
+        publisher
     );
   }
 }

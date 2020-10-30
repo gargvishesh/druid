@@ -99,7 +99,6 @@ public class JoinTestHelper
                   .add("regionIsoCode", ValueType.STRING)
                   .add("countryIsoCode", ValueType.STRING)
                   .add("regionName", ValueType.STRING)
-                  .add("extraField", ValueType.STRING)
                   .build();
 
   private static final ColumnProcessorFactory<Supplier<Object>> SIMPLE_READER =
@@ -141,9 +140,6 @@ public class JoinTestHelper
           return selector::getObject;
         }
       };
-
-  public static final String INDEXED_TABLE_VERSION = DateTimes.nowUtc().toString();
-  public static final byte[] INDEXED_TABLE_CACHE_KEY = new byte[] {1, 2, 3};
 
   private static RowAdapter<Map<String, Object>> createMapRowAdapter(final RowSignature signature)
   {
@@ -258,23 +254,7 @@ public class JoinTestHelper
             rows,
             createMapRowAdapter(COUNTRIES_SIGNATURE),
             COUNTRIES_SIGNATURE,
-            ImmutableSet.of("countryNumber", "countryIsoCode"),
-            INDEXED_TABLE_VERSION
-        )
-    );
-  }
-
-  public static RowBasedIndexedTable<Map<String, Object>> createCountriesIndexedTableWithCacheKey() throws IOException
-  {
-    return withRowsFromResource(
-        "/wikipedia/countries.json",
-        rows -> new RowBasedIndexedTable<>(
-            rows,
-            createMapRowAdapter(COUNTRIES_SIGNATURE),
-            COUNTRIES_SIGNATURE,
-            ImmutableSet.of("countryNumber", "countryIsoCode"),
-            INDEXED_TABLE_VERSION,
-            INDEXED_TABLE_CACHE_KEY
+            ImmutableSet.of("countryNumber", "countryIsoCode")
         )
     );
   }
@@ -287,8 +267,7 @@ public class JoinTestHelper
             rows,
             createMapRowAdapter(REGIONS_SIGNATURE),
             REGIONS_SIGNATURE,
-            ImmutableSet.of("regionIsoCode", "countryIsoCode"),
-            INDEXED_TABLE_VERSION
+            ImmutableSet.of("regionIsoCode", "countryIsoCode")
         )
     );
   }

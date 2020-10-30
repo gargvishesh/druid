@@ -29,7 +29,6 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorUtil;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -87,12 +86,6 @@ public class ArrayOfDoublesSketchTTestPostAggregator extends ArrayOfDoublesSketc
     return pValues;
   }
 
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.DOUBLE_ARRAY;
-  }
-
   private static SummaryStatistics[] getStats(final ArrayOfDoublesSketch sketch)
   {
     final SummaryStatistics[] stats = new SummaryStatistics[sketch.getNumValues()];
@@ -114,4 +107,5 @@ public class ArrayOfDoublesSketchTTestPostAggregator extends ArrayOfDoublesSketc
         .appendCacheables(getFields())
         .build();
   }
+
 }

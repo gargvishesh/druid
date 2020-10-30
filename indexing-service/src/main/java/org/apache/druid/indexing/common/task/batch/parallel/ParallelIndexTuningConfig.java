@@ -28,7 +28,6 @@ import org.apache.druid.indexer.partitions.SingleDimensionPartitionsSpec;
 import org.apache.druid.indexing.common.task.IndexTask.IndexTuningConfig;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.writeout.SegmentWriteOutMediumFactory;
 import org.joda.time.Duration;
 import org.joda.time.Period;
@@ -58,14 +57,14 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
 
   /**
    * Max number of segments to merge at the same time.
-   * Used only by {@link PartialGenericSegmentMergeTask}.
+   * Used only by {@link PartialHashSegmentMergeTask}.
    * This configuration was temporarily added to avoid using too much memory while merging segments,
    * and will be removed once {@link org.apache.druid.segment.IndexMerger} is improved to not use much memory.
    */
   private final int maxNumSegmentsToMerge;
 
   /**
-   * Total number of tasks for partial segment merge (that is, number of {@link PartialGenericSegmentMergeTask}s).
+   * Total number of tasks for partial segment merge (that is, number of {@link PartialHashSegmentMergeTask}s).
    * Used only when this task runs with shuffle.
    */
   private final int totalNumMergeTasks;
@@ -73,7 +72,6 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
   public static ParallelIndexTuningConfig defaultConfig()
   {
     return new ParallelIndexTuningConfig(
-        null,
         null,
         null,
         null,
@@ -107,7 +105,6 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
   public ParallelIndexTuningConfig(
       @JsonProperty("targetPartitionSize") @Deprecated @Nullable Integer targetPartitionSize,
       @JsonProperty("maxRowsPerSegment") @Deprecated @Nullable Integer maxRowsPerSegment,
-      @JsonProperty("appendableIndexSpec") @Nullable AppendableIndexSpec appendableIndexSpec,
       @JsonProperty("maxRowsInMemory") @Nullable Integer maxRowsInMemory,
       @JsonProperty("maxBytesInMemory") @Nullable Long maxBytesInMemory,
       @JsonProperty("maxTotalRows") @Deprecated @Nullable Long maxTotalRows,
@@ -137,7 +134,6 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
     super(
         targetPartitionSize,
         maxRowsPerSegment,
-        appendableIndexSpec,
         maxRowsInMemory,
         maxBytesInMemory,
         maxTotalRows,
@@ -252,7 +248,6 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
     return new ParallelIndexTuningConfig(
         null,
         null,
-        getAppendableIndexSpec(),
         getMaxRowsInMemory(),
         getMaxBytesInMemory(),
         null,

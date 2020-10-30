@@ -22,7 +22,6 @@ package org.apache.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -47,8 +46,7 @@ public interface CompactionInputSpec
    * Validate the specified input against the most recent published segments.
    * This method is used to check whether the specified input has gone stale.
    *
-   * @param lockGranularityInUse {@link LockGranularity} in use
-   * @param latestSegments       most recent published segments in the interval returned by {@link #findInterval}
+   * @param latestSegments most recent published segments in the interval returned by {@link #findInterval}
    */
-  boolean validateSegments(LockGranularity lockGranularityInUse, List<DataSegment> latestSegments);
+  boolean validateSegments(List<DataSegment> latestSegments);
 }

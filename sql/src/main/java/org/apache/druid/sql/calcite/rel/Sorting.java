@@ -21,16 +21,9 @@ package org.apache.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.primitives.Ints;
-import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.query.groupby.orderby.DefaultLimitSpec;
-import org.apache.druid.query.groupby.orderby.LimitSpec;
-import org.apache.druid.query.groupby.orderby.NoopLimitSpec;
 import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
-import org.apache.druid.sql.calcite.planner.OffsetLimit;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,31 +50,27 @@ public class Sorting
   @Nullable
   private final Projection projection;
 
-  private final OffsetLimit offsetLimit;
+  @Nullable
+  private final Long limit;
 
   private Sorting(
       final List<OrderByColumnSpec> orderBys,
-      final OffsetLimit offsetLimit,
+      @Nullable final Long limit,
       @Nullable final Projection projection
   )
   {
     this.orderBys = Preconditions.checkNotNull(orderBys, "orderBys");
-    this.offsetLimit = offsetLimit;
+    this.limit = limit;
     this.projection = projection;
   }
 
   public static Sorting create(
       final List<OrderByColumnSpec> orderBys,
-      final OffsetLimit offsetLimit,
+      @Nullable final Long limit,
       @Nullable final Projection projection
   )
   {
-    return new Sorting(orderBys, offsetLimit, projection);
-  }
-
-  public static Sorting none()
-  {
-    return new Sorting(Collections.emptyList(), OffsetLimit.none(), null);
+    return new Sorting(orderBys, limit, projection);
   }
 
   public SortKind getSortKind(final String timeColumn)
@@ -113,30 +102,15 @@ public class Sorting
     return projection;
   }
 
-  public OffsetLimit getOffsetLimit()
+  public boolean isLimited()
   {
-    return offsetLimit;
+    return limit != null;
   }
 
-  /**
-   * Returns a LimitSpec that encapsulates the orderBys, offset, and limit of this Sorting instance. Does not
-   * encapsulate the projection at all; you must still call {@link #getProjection()} for that.
-   */
-  public LimitSpec limitSpec()
+  @Nullable
+  public Long getLimit()
   {
-    if (orderBys.isEmpty() && !offsetLimit.hasOffset() && !offsetLimit.hasLimit()) {
-      return NoopLimitSpec.instance();
-    } else {
-      final Integer offsetAsInteger = offsetLimit.hasOffset() ? Ints.checkedCast(offsetLimit.getOffset()) : null;
-      final Integer limitAsInteger = offsetLimit.hasLimit() ? Ints.checkedCast(offsetLimit.getLimit()) : null;
-
-      if (limitAsInteger != null && limitAsInteger == 0) {
-        // Zero limit would be rejected by DefaultLimitSpec.
-        throw new ISE("Cannot create LimitSpec with zero limit");
-      }
-
-      return new DefaultLimitSpec(orderBys, offsetAsInteger, limitAsInteger);
-    }
+    return limit;
   }
 
   @Override
@@ -151,13 +125,13 @@ public class Sorting
     Sorting sorting = (Sorting) o;
     return Objects.equals(orderBys, sorting.orderBys) &&
            Objects.equals(projection, sorting.projection) &&
-           Objects.equals(offsetLimit, sorting.offsetLimit);
+           Objects.equals(limit, sorting.limit);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(orderBys, projection, offsetLimit);
+    return Objects.hash(orderBys, projection, limit);
   }
 
   @Override
@@ -166,7 +140,7 @@ public class Sorting
     return "Sorting{" +
            "orderBys=" + orderBys +
            ", projection=" + projection +
-           ", offsetLimit=" + offsetLimit +
+           ", limit=" + limit +
            '}';
   }
 }

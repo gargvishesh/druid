@@ -27,6 +27,7 @@ import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 
 import javax.annotation.Nullable;
+
 import java.util.List;
 
 public class SketchAggregator implements Aggregator
@@ -121,9 +122,7 @@ public class SketchAggregator implements Aggregator
       union.update((long[]) update);
     } else if (update instanceof List) {
       for (Object entry : (List) update) {
-        if (entry != null) {
-          union.update(entry.toString());
-        }
+        union.update(entry.toString());
       }
     } else {
       throw new ISE("Illegal type received while theta sketch merging [%s]", update.getClass());

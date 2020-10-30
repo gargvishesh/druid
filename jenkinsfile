@@ -285,7 +285,7 @@ def s3DeepStorageTests = { stageName, jdkVersion, envMap ->
             def cloudpath = UUID.randomUUID().toString()
             sh script: """
                 aws s3 sync \
-                ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
+                ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/ s3://druid-qa/${cloudpath} \
                 --exclude "*" --include "wikipedia_index_data*.json"
             """
             writeFile file: "jenkins/s3-config", text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]"
@@ -335,7 +335,7 @@ def azureDeepStorageTests = { stageName, jdkVersion, envMap ->
                     az storage blob upload-batch \
                     --account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
                     -d ${containerName} \
-                    --source ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
+                    --source ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/ --pattern "wikipedia_index_data*.json"
                 """
                 sh script: """
                     ${MVN_OPTS}
@@ -365,7 +365,7 @@ def gcsDeepStorageTests = { stageName, jdkVersion, envMap ->
                 mkdir -p ${WORKSPACE}/jenkins/gcs
                 cp ${env.GC_KEY} ${WORKSPACE}/jenkins/gcs/creds.json
                 chmod 764 ${WORKSPACE}/jenkins/gcs/creds.json
-                gsutil -o Credentials:gs_service_key_file=${WORKSPACE}/jenkins/gcs/creds.json cp ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json gs://${bucket}/${cloudpath}
+                gsutil -o Credentials:gs_service_key_file=${WORKSPACE}/jenkins/gcs/creds.json cp ${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/wikipedia_index_data*.json gs://${bucket}/${cloudpath}
                 """, label: "copy gcs creds"
             try {
                 sh script: MVN_OPTS + "\n" + MVN +

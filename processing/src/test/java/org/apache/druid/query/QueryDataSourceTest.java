@@ -83,15 +83,13 @@ public class QueryDataSourceTest
   @Test
   public void test_isCacheable_table()
   {
-    Assert.assertFalse(queryOnTableDataSource.isCacheable(true));
-    Assert.assertFalse(queryOnTableDataSource.isCacheable(false));
+    Assert.assertFalse(queryOnTableDataSource.isCacheable());
   }
 
   @Test
   public void test_isCacheable_lookup()
   {
-    Assert.assertFalse(queryOnLookupDataSource.isCacheable(true));
-    Assert.assertFalse(queryOnLookupDataSource.isCacheable(false));
+    Assert.assertFalse(queryOnLookupDataSource.isCacheable());
   }
 
   @Test

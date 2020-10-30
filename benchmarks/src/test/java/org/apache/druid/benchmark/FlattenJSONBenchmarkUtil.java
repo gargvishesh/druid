@@ -57,7 +57,6 @@ public class FlattenJSONBenchmarkUtil
         new TimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         null,
-        null,
         null
     );
     return spec.makeParser();
@@ -72,7 +71,6 @@ public class FlattenJSONBenchmarkUtil
         new TimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
-        null,
         null
     );
 
@@ -116,7 +114,6 @@ public class FlattenJSONBenchmarkUtil
         new TimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
-        null,
         null
     );
 
@@ -160,7 +157,6 @@ public class FlattenJSONBenchmarkUtil
         new TimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
-        null,
         null
     );
 
@@ -202,7 +198,6 @@ public class FlattenJSONBenchmarkUtil
         new TimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
-        null,
         null
     );
 

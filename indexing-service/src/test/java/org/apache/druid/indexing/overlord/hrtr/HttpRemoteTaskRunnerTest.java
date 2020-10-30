@@ -842,10 +842,6 @@ public class HttpRemoteTaskRunnerTest
 
     taskRunner.start();
 
-    Assert.assertEquals(0, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getUsedTaskSlotCount());
-
     AtomicInteger ticks = new AtomicInteger();
 
     DiscoveryDruidNode druidNode1 = new DiscoveryDruidNode(
@@ -888,19 +884,11 @@ public class HttpRemoteTaskRunnerTest
 
     druidNodeDiscovery.listener.nodesAdded(ImmutableList.of(druidNode1));
 
-    Assert.assertEquals(1, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getUsedTaskSlotCount());
-
     taskRunner.run(task1);
 
     while (ticks.get() < 1) {
       Thread.sleep(100);
     }
-
-    Assert.assertEquals(1, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getUsedTaskSlotCount());
 
     DiscoveryDruidNode druidNode2 = new DiscoveryDruidNode(
         new DruidNode("service", "host2", false, 8080, null, true, false),
@@ -930,19 +918,11 @@ public class HttpRemoteTaskRunnerTest
 
     druidNodeDiscovery.listener.nodesAdded(ImmutableList.of(druidNode2));
 
-    Assert.assertEquals(2, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getUsedTaskSlotCount());
-
     taskRunner.run(task2);
 
     while (ticks.get() < 2) {
       Thread.sleep(100);
     }
-
-    Assert.assertEquals(2, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getUsedTaskSlotCount());
 
     DiscoveryDruidNode druidNode3 = new DiscoveryDruidNode(
         new DruidNode("service", "host3", false, 8080, null, true, false),
@@ -972,11 +952,6 @@ public class HttpRemoteTaskRunnerTest
 
     druidNodeDiscovery.listener.nodesAdded(ImmutableList.of(druidNode3));
 
-    Assert.assertEquals(3, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getUsedTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getLazyTaskSlotCount());
-
     Assert.assertEquals(task1.getId(), Iterables.getOnlyElement(taskRunner.getRunningTasks()).getTaskId());
     Assert.assertEquals(task2.getId(), Iterables.getOnlyElement(taskRunner.getPendingTasks()).getTaskId());
 
@@ -985,11 +960,6 @@ public class HttpRemoteTaskRunnerTest
         Iterables.getOnlyElement(taskRunner.markWorkersLazy(Predicates.alwaysTrue(), Integer.MAX_VALUE))
                  .getHost()
     );
-
-    Assert.assertEquals(3, taskRunner.getTotalTaskSlotCount());
-    Assert.assertEquals(0, taskRunner.getIdleTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getUsedTaskSlotCount());
-    Assert.assertEquals(1, taskRunner.getLazyTaskSlotCount());
   }
 
   /*

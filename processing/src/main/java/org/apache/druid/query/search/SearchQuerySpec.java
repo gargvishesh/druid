@@ -21,7 +21,6 @@ package org.apache.druid.query.search;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.annotations.SubclassesMustOverrideEqualsAndHashCode;
 
 import javax.annotation.Nullable;
 
@@ -35,7 +34,6 @@ import javax.annotation.Nullable;
     @JsonSubTypes.Type(name = "regex", value = RegexSearchQuerySpec.class),
     @JsonSubTypes.Type(name = "all", value = AllSearchQuerySpec.class)
 })
-@SubclassesMustOverrideEqualsAndHashCode
 public interface SearchQuerySpec
 {
   boolean accept(@Nullable String dimVal);

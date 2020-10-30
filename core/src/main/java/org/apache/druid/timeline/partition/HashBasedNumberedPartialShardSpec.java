@@ -33,23 +33,16 @@ public class HashBasedNumberedPartialShardSpec implements PartialShardSpec
 
   @Nullable
   private final List<String> partitionDimensions;
-  private final int bucketId;
   private final int numBuckets;
-  @Nullable
-  private final HashPartitionFunction partitionFunction;
 
   @JsonCreator
   public HashBasedNumberedPartialShardSpec(
       @JsonProperty("partitionDimensions") @Nullable List<String> partitionDimensions,
-      @JsonProperty("bucketId") int bucketId,
-      @JsonProperty("numPartitions") int numBuckets,
-      @JsonProperty("partitionFunction") @Nullable HashPartitionFunction partitionFunction // nullable for backward compatibility
+      @JsonProperty("numPartitions") int numBuckets
   )
   {
     this.partitionDimensions = partitionDimensions;
-    this.bucketId = bucketId;
     this.numBuckets = numBuckets;
-    this.partitionFunction = partitionFunction;
   }
 
   @Nullable
@@ -59,37 +52,28 @@ public class HashBasedNumberedPartialShardSpec implements PartialShardSpec
     return partitionDimensions;
   }
 
-  @JsonProperty
-  public int getBucketId()
-  {
-    return bucketId;
-  }
-
   @JsonProperty("numPartitions")
   public int getNumBuckets()
   {
     return numBuckets;
   }
 
-  @JsonProperty
-  @Nullable
-  public HashPartitionFunction getPartitionFunction()
+  @Override
+  public ShardSpec complete(ObjectMapper objectMapper, @Nullable ShardSpec specOfPreviousMaxPartitionId)
   {
-    return partitionFunction;
+    final HashBasedNumberedShardSpec prevSpec = (HashBasedNumberedShardSpec) specOfPreviousMaxPartitionId;
+    return new HashBasedNumberedShardSpec(
+        prevSpec == null ? 0 : prevSpec.getPartitionNum() + 1,
+        numBuckets,
+        partitionDimensions,
+        objectMapper
+    );
   }
 
   @Override
-  public ShardSpec complete(ObjectMapper objectMapper, int partitionId, int numCorePartitions)
+  public ShardSpec complete(ObjectMapper objectMapper, int partitionId)
   {
-    return new HashBasedNumberedShardSpec(
-        partitionId,
-        numCorePartitions,
-        bucketId,
-        numBuckets,
-        partitionDimensions,
-        partitionFunction,
-        objectMapper
-    );
+    return new HashBasedNumberedShardSpec(partitionId, numBuckets, partitionDimensions, objectMapper);
   }
 
   @Override
@@ -108,15 +92,13 @@ public class HashBasedNumberedPartialShardSpec implements PartialShardSpec
       return false;
     }
     HashBasedNumberedPartialShardSpec that = (HashBasedNumberedPartialShardSpec) o;
-    return bucketId == that.bucketId &&
-           numBuckets == that.numBuckets &&
-           Objects.equals(partitionDimensions, that.partitionDimensions) &&
-           Objects.equals(partitionFunction, that.partitionFunction);
+    return numBuckets == that.numBuckets &&
+           Objects.equals(partitionDimensions, that.partitionDimensions);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(partitionDimensions, bucketId, numBuckets, partitionFunction);
+    return Objects.hash(partitionDimensions, numBuckets);
   }
 }

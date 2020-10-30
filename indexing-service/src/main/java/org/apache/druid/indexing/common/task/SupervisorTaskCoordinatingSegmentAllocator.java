@@ -21,6 +21,7 @@ package org.apache.druid.indexing.common.task;
 
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTaskClient;
+import org.apache.druid.segment.realtime.appenderator.SegmentAllocator;
 import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 
 import java.io.IOException;
@@ -28,21 +29,18 @@ import java.io.IOException;
 /**
  * Segment allocator that allocates new segments using the supervisor task per request.
  */
-public class SupervisorTaskCoordinatingSegmentAllocator implements SegmentAllocatorForBatch
+public class SupervisorTaskCoordinatingSegmentAllocator implements SegmentAllocator
 {
   private final String supervisorTaskId;
   private final ParallelIndexSupervisorTaskClient taskClient;
-  private final SequenceNameFunction sequenceNameFunction;
 
   SupervisorTaskCoordinatingSegmentAllocator(
       String supervisorTaskId,
-      String taskId,
       ParallelIndexSupervisorTaskClient taskClient
   )
   {
     this.supervisorTaskId = supervisorTaskId;
     this.taskClient = taskClient;
-    this.sequenceNameFunction = new LinearlyPartitionedSequenceNameFunction(taskId);
   }
 
   @Override
@@ -54,11 +52,5 @@ public class SupervisorTaskCoordinatingSegmentAllocator implements SegmentAlloca
   ) throws IOException
   {
     return taskClient.allocateSegment(supervisorTaskId, row.getTimestamp());
-  }
-
-  @Override
-  public SequenceNameFunction getSequenceNameFunction()
-  {
-    return sequenceNameFunction;
   }
 }

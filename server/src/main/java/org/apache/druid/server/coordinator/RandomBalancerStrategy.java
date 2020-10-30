@@ -26,24 +26,21 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableSet;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 public class RandomBalancerStrategy implements BalancerStrategy
 {
   @Override
   public ServerHolder findNewSegmentHomeReplicator(DataSegment proposalSegment, List<ServerHolder> serverHolders)
   {
-    // filter out servers whose avaialable size is less than required for this segment and those already serving this segment
-    final List<ServerHolder> usableServerHolders = serverHolders.stream().filter(
-        serverHolder -> serverHolder.getAvailableSize() >= proposalSegment.getSize() && !serverHolder.isServingSegment(
-            proposalSegment)
-    ).collect(Collectors.toList());
-    if (usableServerHolders.size() == 0) {
+    if (serverHolders.size() == 1) {
       return null;
     } else {
-      return usableServerHolders.get(ThreadLocalRandom.current().nextInt(usableServerHolders.size()));
+      ServerHolder holder = serverHolders.get(ThreadLocalRandom.current().nextInt(serverHolders.size()));
+      while (holder.isServingSegment(proposalSegment)) {
+        holder = serverHolders.get(ThreadLocalRandom.current().nextInt(serverHolders.size()));
+      }
+      return holder;
     }
   }
 
@@ -54,9 +51,9 @@ public class RandomBalancerStrategy implements BalancerStrategy
   }
 
   @Override
-  public BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders, Set<String> broadcastDatasources)
+  public BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders)
   {
-    return ReservoirSegmentSampler.getRandomBalancerSegmentHolder(serverHolders, broadcastDatasources);
+    return ReservoirSegmentSampler.getRandomBalancerSegmentHolder(serverHolders);
   }
 
   @Override

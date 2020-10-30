@@ -36,7 +36,6 @@ import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.column.BitmapIndex;
-import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.CloseableIndexed;
 import org.apache.druid.segment.data.ConciseBitmapSerdeFactory;
@@ -147,9 +146,9 @@ public class ExtractionDimFilterTest
     }
 
     @Override
-    public ColumnCapabilities.Capable hasMultipleValues(final String dimension)
+    public boolean hasMultipleValues(final String dimension)
     {
-      return ColumnCapabilities.Capable.TRUE;
+      return true;
     }
 
     @Override

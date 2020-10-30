@@ -37,8 +37,7 @@ import java.util.function.Function;
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITBestEffortRollupParallelIndexTest extends AbstractITBatchIndexTest
 {
-  // This ingestion spec has a splitHintSpec of maxSplitSize of 1 to test whether or not the task can handle
-  // maxSplitSize of 1 properly.
+  // The task specs here use the MaxSizeSplitHintSpec with maxSplitSize of 1. This is to create splits per file.
   private static final String INDEX_TASK = "/indexer/wikipedia_parallel_index_task.json";
   private static final String INDEX_QUERIES_RESOURCE = "/indexer/wikipedia_parallel_index_queries.json";
   private static final String REINDEX_TASK = "/indexer/wikipedia_parallel_reindex_task.json";

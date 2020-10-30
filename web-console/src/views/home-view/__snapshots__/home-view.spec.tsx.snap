@@ -1,11 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`home view matches snapshot (coordinator) 1`] = `
+exports[`home view matches snapshot (coordiantor) 1`] = `
 <div
   className="home-view app-view"
 >
-  <Memo(StatusCard) />
-  <Memo(DatasourcesCard)
+  <StatusCard />
+  <DatasourcesCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -14,7 +14,7 @@ exports[`home view matches snapshot (coordinator) 1`] = `
       }
     }
   />
-  <Memo(SegmentsCard)
+  <SegmentsCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -23,7 +23,7 @@ exports[`home view matches snapshot (coordinator) 1`] = `
       }
     }
   />
-  <Memo(ServicesCard)
+  <ServicesCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -32,7 +32,7 @@ exports[`home view matches snapshot (coordinator) 1`] = `
       }
     }
   />
-  <Memo(LookupsCard)
+  <LookupsCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -48,8 +48,8 @@ exports[`home view matches snapshot (full) 1`] = `
 <div
   className="home-view app-view"
 >
-  <Memo(StatusCard) />
-  <Memo(DatasourcesCard)
+  <StatusCard />
+  <DatasourcesCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -58,7 +58,7 @@ exports[`home view matches snapshot (full) 1`] = `
       }
     }
   />
-  <Memo(SegmentsCard)
+  <SegmentsCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -67,7 +67,7 @@ exports[`home view matches snapshot (full) 1`] = `
       }
     }
   />
-  <Memo(SupervisorsCard)
+  <SupervisorsCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -76,7 +76,7 @@ exports[`home view matches snapshot (full) 1`] = `
       }
     }
   />
-  <Memo(TasksCard)
+  <TasksCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -85,7 +85,7 @@ exports[`home view matches snapshot (full) 1`] = `
       }
     }
   />
-  <Memo(ServicesCard)
+  <ServicesCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -94,7 +94,7 @@ exports[`home view matches snapshot (full) 1`] = `
       }
     }
   />
-  <Memo(LookupsCard)
+  <LookupsCard
     capabilities={
       Capabilities {
         "coordinator": true,
@@ -110,8 +110,8 @@ exports[`home view matches snapshot (overlord) 1`] = `
 <div
   className="home-view app-view"
 >
-  <Memo(StatusCard) />
-  <Memo(SupervisorsCard)
+  <StatusCard />
+  <SupervisorsCard
     capabilities={
       Capabilities {
         "coordinator": false,
@@ -120,7 +120,7 @@ exports[`home view matches snapshot (overlord) 1`] = `
       }
     }
   />
-  <Memo(TasksCard)
+  <TasksCard
     capabilities={
       Capabilities {
         "coordinator": false,

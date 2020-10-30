@@ -21,7 +21,6 @@ package org.apache.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.annotations.SubclassesMustOverrideEqualsAndHashCode;
 import org.apache.druid.guice.annotations.ExtensionPoint;
 import org.apache.druid.java.util.common.Cacheable;
 import org.apache.druid.query.lookup.LookupExtractionFn;
@@ -55,7 +54,6 @@ import javax.annotation.Nullable;
     @JsonSubTypes.Type(name = "bucket", value = BucketExtractionFn.class),
     @JsonSubTypes.Type(name = "strlen", value = StrlenExtractionFn.class)
 })
-@SubclassesMustOverrideEqualsAndHashCode
 public interface ExtractionFn extends Cacheable
 {
   /**

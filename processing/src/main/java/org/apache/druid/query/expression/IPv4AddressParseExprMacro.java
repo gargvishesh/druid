@@ -23,10 +23,8 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExprType;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.net.Inet4Address;
 import java.util.List;
 
@@ -93,13 +91,6 @@ public class IPv4AddressParseExprMacro implements ExprMacroTable.ExprMacro
       {
         Expr newArg = arg.visit(shuttle);
         return shuttle.visit(new IPv4AddressParseExpr(newArg));
-      }
-
-      @Nullable
-      @Override
-      public ExprType getOutputType(InputBindingInspector inspector)
-      {
-        return ExprType.LONG;
       }
     }
 

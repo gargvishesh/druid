@@ -26,8 +26,8 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import org.apache.druid.client.ServerViewUtil;
 import org.apache.druid.client.TimelineServerView;
 import org.apache.druid.guice.annotations.Json;
-import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.guice.annotations.Smile;
+import org.apache.druid.query.GenericQueryMetricsFactory;
 import org.apache.druid.query.Query;
 import org.apache.druid.server.http.security.StateResourceFilter;
 import org.apache.druid.server.security.AuthConfig;
@@ -61,8 +61,7 @@ public class BrokerQueryResource extends QueryResource
       QueryScheduler queryScheduler,
       AuthConfig authConfig,
       AuthorizerMapper authorizerMapper,
-      ResponseContextConfig responseContextConfig,
-      @Self DruidNode selfNode,
+      GenericQueryMetricsFactory queryMetricsFactory,
       TimelineServerView brokerServerView
   )
   {
@@ -73,8 +72,7 @@ public class BrokerQueryResource extends QueryResource
         queryScheduler,
         authConfig,
         authorizerMapper,
-        responseContextConfig,
-        selfNode
+        queryMetricsFactory
     );
     this.brokerServerView = brokerServerView;
   }

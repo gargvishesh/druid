@@ -19,7 +19,6 @@
 
 package org.apache.druid.segment.join;
 
-import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -52,21 +51,14 @@ public class HashJoinEngine
    * not be queryable through the returned Cursor. This happens even if the right-hand joinable doesn't actually have a
    * column with this name.
    */
-  public static Cursor makeJoinCursor(
-      final Cursor leftCursor,
-      final JoinableClause joinableClause,
-      final boolean descending,
-      final Closer closer
-  )
+  public static Cursor makeJoinCursor(final Cursor leftCursor, final JoinableClause joinableClause)
   {
     final ColumnSelectorFactory leftColumnSelectorFactory = leftCursor.getColumnSelectorFactory();
     final JoinMatcher joinMatcher = joinableClause.getJoinable()
                                                   .makeJoinMatcher(
                                                       leftColumnSelectorFactory,
                                                       joinableClause.getCondition(),
-                                                      joinableClause.getJoinType().isRighty(),
-                                                      descending,
-                                                      closer
+                                                      joinableClause.getJoinType().isRighty()
                                                   );
 
     class JoinColumnSelectorFactory implements ColumnSelectorFactory

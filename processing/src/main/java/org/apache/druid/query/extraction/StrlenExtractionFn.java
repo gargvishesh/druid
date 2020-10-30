@@ -65,16 +65,4 @@ public class StrlenExtractionFn extends DimExtractionFn
   {
     return new byte[]{ExtractionCacheHelper.CACHE_TYPE_ID_STRLEN};
   }
-
-  @Override
-  public final int hashCode()
-  {
-    return StrlenExtractionFn.class.hashCode();
-  }
-
-  @Override
-  public final boolean equals(Object obj)
-  {
-    return obj instanceof StrlenExtractionFn;
-  }
 }

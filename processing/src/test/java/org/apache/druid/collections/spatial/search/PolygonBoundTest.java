@@ -19,7 +19,6 @@
 
 package org.apache.druid.collections.spatial.search;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -77,13 +76,5 @@ public class PolygonBoundTest
     Assert.assertFalse(rightTriangle.contains(new float[]{3f + delta, 3f}));
     Assert.assertTrue(rightTriangle.contains(new float[]{3f, 3f - delta}));
     Assert.assertFalse(rightTriangle.contains(new float[]{3f, 3f + delta}));
-  }
-
-  @Test
-  public void testEqualsContract()
-  {
-    EqualsVerifier.forClass(PolygonBound.class)
-                  .usingGetClass()
-                  .verify();
   }
 }

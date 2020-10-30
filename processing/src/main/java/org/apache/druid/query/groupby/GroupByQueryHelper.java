@@ -39,12 +39,9 @@ import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.dimension.DimensionSpec;
-import org.apache.druid.segment.incremental.AppendableIndexBuilder;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.incremental.IndexSizeExceededException;
-import org.apache.druid.segment.incremental.OffheapIncrementalIndex;
-import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -120,23 +117,23 @@ public class GroupByQueryHelper
         .withMinTimestamp(granTimeStart.getMillis())
         .build();
 
-
-    final AppendableIndexBuilder indexBuilder;
-
     if (query.getContextValue("useOffheap", false)) {
-      indexBuilder = new OffheapIncrementalIndex.Builder()
-          .setBufferPool(bufferPool);
+      index = new IncrementalIndex.Builder()
+          .setIndexSchema(indexSchema)
+          .setDeserializeComplexMetrics(false)
+          .setConcurrentEventAdd(true)
+          .setSortFacts(sortResults)
+          .setMaxRowCount(querySpecificConfig.getMaxResults())
+          .buildOffheap(bufferPool);
     } else {
-      indexBuilder = new OnheapIncrementalIndex.Builder();
+      index = new IncrementalIndex.Builder()
+          .setIndexSchema(indexSchema)
+          .setDeserializeComplexMetrics(false)
+          .setConcurrentEventAdd(true)
+          .setSortFacts(sortResults)
+          .setMaxRowCount(querySpecificConfig.getMaxResults())
+          .buildOnheap();
     }
-
-    index = indexBuilder
-        .setIndexSchema(indexSchema)
-        .setDeserializeComplexMetrics(false)
-        .setConcurrentEventAdd(true)
-        .setSortFacts(sortResults)
-        .setMaxRowCount(querySpecificConfig.getMaxResults())
-        .build();
 
     Accumulator<IncrementalIndex, T> accumulator = new Accumulator<IncrementalIndex, T>()
     {

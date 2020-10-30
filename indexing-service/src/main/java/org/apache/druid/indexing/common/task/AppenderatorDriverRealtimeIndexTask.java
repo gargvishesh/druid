@@ -19,17 +19,19 @@
 
 package org.apache.druid.indexing.common.task;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.commons.io.FileUtils;
 import org.apache.druid.data.input.Committer;
 import org.apache.druid.data.input.Firehose;
 import org.apache.druid.data.input.FirehoseFactory;
@@ -57,29 +59,31 @@ import org.apache.druid.indexing.common.actions.TimeChunkLockAcquireAction;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.index.RealtimeAppenderatorIngestionSpec;
 import org.apache.druid.indexing.common.index.RealtimeAppenderatorTuningConfig;
+import org.apache.druid.indexing.common.stats.RowIngestionMeters;
+import org.apache.druid.indexing.common.stats.RowIngestionMetersFactory;
 import org.apache.druid.indexing.common.stats.TaskRealtimeMetricsMonitor;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.concurrent.ListenableFutures;
 import org.apache.druid.java.util.common.guava.CloseQuietly;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.NoopQueryRunner;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryRunner;
-import org.apache.druid.segment.SegmentUtils;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.RealtimeIOConfig;
 import org.apache.druid.segment.realtime.FireDepartment;
 import org.apache.druid.segment.realtime.FireDepartmentMetrics;
 import org.apache.druid.segment.realtime.appenderator.Appenderator;
 import org.apache.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
+import org.apache.druid.segment.realtime.appenderator.AppenderatorsManager;
 import org.apache.druid.segment.realtime.appenderator.SegmentsAndCommitMetadata;
 import org.apache.druid.segment.realtime.appenderator.StreamAppenderatorDriver;
 import org.apache.druid.segment.realtime.appenderator.TransactionalSegmentPublisher;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
+import org.apache.druid.segment.realtime.firehose.ChatHandlerProvider;
 import org.apache.druid.segment.realtime.firehose.ClippedFirehoseFactory;
 import org.apache.druid.segment.realtime.firehose.EventReceiverFirehoseFactory;
 import org.apache.druid.segment.realtime.firehose.TimedShutoffFirehoseFactory;
@@ -87,7 +91,7 @@ import org.apache.druid.segment.realtime.plumber.Committers;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.timeline.partition.NumberedPartialShardSpec;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.apache.druid.utils.CircularBuffer;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
@@ -96,6 +100,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -143,6 +148,9 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   private volatile FireDepartmentMetrics metrics = null;
 
   @JsonIgnore
+  private final RowIngestionMeters rowIngestionMeters;
+
+  @JsonIgnore
   private volatile boolean gracefullyStopped = false;
 
   @JsonIgnore
@@ -152,35 +160,36 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   private volatile Thread runThread = null;
 
   @JsonIgnore
+  private CircularBuffer<Throwable> savedParseExceptions;
+
+  @JsonIgnore
+  private final Optional<ChatHandlerProvider> chatHandlerProvider;
+
+  @JsonIgnore
+  private final AuthorizerMapper authorizerMapper;
+
+  @JsonIgnore
   private final LockGranularity lockGranularity;
 
   @JsonIgnore
-  @MonotonicNonNull
-  private ParseExceptionHandler parseExceptionHandler;
-
-  @JsonIgnore
-  @MonotonicNonNull
   private IngestionState ingestionState;
 
   @JsonIgnore
-  @MonotonicNonNull
-  private AuthorizerMapper authorizerMapper;
-
-  @JsonIgnore
-  @MonotonicNonNull
-  private RowIngestionMeters rowIngestionMeters;
-
-  @JsonIgnore
-  @MonotonicNonNull
   private String errorMsg;
 
+  @JsonIgnore
+  private AppenderatorsManager appenderatorsManager;
 
   @JsonCreator
   public AppenderatorDriverRealtimeIndexTask(
       @JsonProperty("id") String id,
       @JsonProperty("resource") TaskResource taskResource,
       @JsonProperty("spec") RealtimeAppenderatorIngestionSpec spec,
-      @JsonProperty("context") Map<String, Object> context
+      @JsonProperty("context") Map<String, Object> context,
+      @JacksonInject ChatHandlerProvider chatHandlerProvider,
+      @JacksonInject AuthorizerMapper authorizerMapper,
+      @JacksonInject RowIngestionMetersFactory rowIngestionMetersFactory,
+      @JacksonInject AppenderatorsManager appenderatorsManager
   )
   {
     super(
@@ -192,8 +201,16 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
     );
     this.spec = spec;
     this.pendingHandoffs = new ConcurrentLinkedQueue<>();
+    this.chatHandlerProvider = Optional.fromNullable(chatHandlerProvider);
+    this.authorizerMapper = authorizerMapper;
+
+    if (spec.getTuningConfig().getMaxSavedParseExceptions() > 0) {
+      savedParseExceptions = new CircularBuffer<>(spec.getTuningConfig().getMaxSavedParseExceptions());
+    }
 
     this.ingestionState = IngestionState.NOT_STARTED;
+    this.rowIngestionMeters = rowIngestionMetersFactory.createRowIngestionMeters();
+    this.appenderatorsManager = appenderatorsManager;
     this.lockGranularity = getContextValue(Tasks.FORCE_TIME_CHUNK_LOCK_KEY, Tasks.DEFAULT_FORCE_TIME_CHUNK_LOCK)
                            ? LockGranularity.TIME_CHUNK
                            : LockGranularity.SEGMENT;
@@ -229,12 +246,6 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   }
 
   @Override
-  public boolean supportsQueries()
-  {
-    return true;
-  }
-
-  @Override
   public boolean isReady(TaskActionClient taskActionClient)
   {
     return true;
@@ -244,14 +255,6 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   public TaskStatus run(final TaskToolbox toolbox)
   {
     runThread = Thread.currentThread();
-    authorizerMapper = toolbox.getAuthorizerMapper();
-    rowIngestionMeters = toolbox.getRowIngestionMetersFactory().createRowIngestionMeters();
-    parseExceptionHandler = new ParseExceptionHandler(
-        rowIngestionMeters,
-        spec.getTuningConfig().isLogParseExceptions(),
-        spec.getTuningConfig().getMaxParseExceptions(),
-        spec.getTuningConfig().getMaxSavedParseExceptions()
-    );
 
     setupTimeoutAlert();
 
@@ -271,6 +274,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
     this.metrics = fireDepartmentForMetrics.getMetrics();
 
     final Supplier<Committer> committerSupplier = Committers.nilSupplier();
+    final File firehoseTempDir = toolbox.getIndexingTmpDir();
 
     DiscoveryDruidNode discoveryDruidNode = createDiscoveryDruidNode(toolbox);
 
@@ -278,10 +282,14 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
     StreamAppenderatorDriver driver = newDriver(dataSchema, appenderator, toolbox, metrics);
 
     try {
-      log.debug("Found chat handler of class[%s]", toolbox.getChatHandlerProvider().getClass().getName());
-      toolbox.getChatHandlerProvider().register(getId(), this, false);
+      if (chatHandlerProvider.isPresent()) {
+        log.info("Found chat handler of class[%s]", chatHandlerProvider.get().getClass().getName());
+        chatHandlerProvider.get().register(getId(), this, false);
+      } else {
+        log.warn("No chat handler detected");
+      }
 
-      if (toolbox.getAppenderatorsManager().shouldTaskMakeNodeAnnouncements()) {
+      if (appenderatorsManager.shouldTaskMakeNodeAnnouncements()) {
         toolbox.getDataSegmentServerAnnouncer().announce();
         toolbox.getDruidNodeAnnouncer().announce(discoveryDruidNode);
       }
@@ -316,7 +324,10 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
       );
 
       // Set up metrics emission
-      toolbox.addMonitor(metricsMonitor);
+      toolbox.getMonitorScheduler().addMonitor(metricsMonitor);
+
+      // Firehose temporary directory is automatically removed when this RealtimeIndexTask completes.
+      FileUtils.forceMkdir(firehoseTempDir);
 
       // Delay firehose connection to avoid claiming input resources while the plumber is starting up.
       final FirehoseFactory firehoseFactory = spec.getIOConfig().getFirehoseFactory();
@@ -327,10 +338,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
 
       final TransactionalSegmentPublisher publisher = (mustBeNullOrEmptySegments, segments, commitMetadata) -> {
         if (mustBeNullOrEmptySegments != null && !mustBeNullOrEmptySegments.isEmpty()) {
-          throw new ISE(
-              "Stream ingestion task unexpectedly attempted to overwrite segments: %s",
-              SegmentUtils.commaSeparatedIdentifiers(mustBeNullOrEmptySegments)
-          );
+          throw new ISE("WTH? stream ingestion tasks are overwriting segments[%s]", mustBeNullOrEmptySegments);
         }
         final SegmentTransactionalInsertAction action = SegmentTransactionalInsertAction.appendAction(
             segments,
@@ -345,7 +353,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
         if (!gracefullyStopped) {
           firehose = firehoseFactory.connect(
               Preconditions.checkNotNull(spec.getDataSchema().getParser(), "inputRowParser"),
-              toolbox.getIndexingTmpDir()
+              firehoseTempDir
           );
         }
       }
@@ -378,6 +386,12 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
               // May want configurable behavior here at some point.
               // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
               throw new ISE("Could not allocate segment for row with timestamp[%s]", inputRow.getTimestamp());
+            }
+
+            if (addResult.getParseException() != null) {
+              handleParseException(addResult.getParseException());
+            } else {
+              rowIngestionMeters.incrementProcessed();
             }
           }
         }
@@ -422,15 +436,17 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
       );
     }
     finally {
-      toolbox.getChatHandlerProvider().unregister(getId());
+      if (chatHandlerProvider.isPresent()) {
+        chatHandlerProvider.get().unregister(getId());
+      }
 
       CloseQuietly.close(firehose);
       appenderator.close();
       CloseQuietly.close(driver);
 
-      toolbox.removeMonitor(metricsMonitor);
+      toolbox.getMonitorScheduler().removeMonitor(metricsMonitor);
 
-      if (toolbox.getAppenderatorsManager().shouldTaskMakeNodeAnnouncements()) {
+      if (appenderatorsManager.shouldTaskMakeNodeAnnouncements()) {
         toolbox.getDataSegmentServerAnnouncer().unannounce();
         toolbox.getDruidNodeAnnouncer().unannounce(discoveryDruidNode);
       }
@@ -552,9 +568,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   )
   {
     IndexTaskUtils.datasourceAuthorizationCheck(req, Action.READ, getDataSource(), authorizerMapper);
-    List<String> events = IndexTaskUtils.getMessagesFromSavedParseExceptions(
-        parseExceptionHandler.getSavedParseExceptions()
-    );
+    List<String> events = IndexTaskUtils.getMessagesFromSavedParseExceptions(savedParseExceptions);
     return Response.ok(events).build();
   }
 
@@ -594,8 +608,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   {
     Map<String, Object> unparseableEventsMap = new HashMap<>();
     List<String> buildSegmentsParseExceptionMessages = IndexTaskUtils.getMessagesFromSavedParseExceptions(
-        parseExceptionHandler.getSavedParseExceptions()
-    );
+        savedParseExceptions);
     if (buildSegmentsParseExceptionMessages != null) {
       unparseableEventsMap.put(RowIngestionMeters.BUILD_SEGMENTS, buildSegmentsParseExceptionMessages);
     }
@@ -624,8 +637,8 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
       log.error(pe, "Encountered parse exception");
     }
 
-    if (parseExceptionHandler.getSavedParseExceptions() != null) {
-      parseExceptionHandler.getSavedParseExceptions().add(pe);
+    if (savedParseExceptions != null) {
+      savedParseExceptions.add(pe);
     }
 
     if (rowIngestionMeters.getUnparseable() + rowIngestionMeters.getProcessedWithError()
@@ -669,10 +682,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
         committerSupplier.get(),
         Collections.singletonList(sequenceName)
     );
-    pendingHandoffs.add(Futures.transform(
-        publishFuture,
-        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) driver::registerHandoff
-    ));
+    pendingHandoffs.add(ListenableFutures.transformAsync(publishFuture, driver::registerHandoff));
   }
 
   private void waitForSegmentPublishAndHandoff(long timeout) throws InterruptedException, ExecutionException,
@@ -749,7 +759,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
       final TaskToolbox toolbox
   )
   {
-    return toolbox.getAppenderatorsManager().createRealtimeAppenderatorForTask(
+    return appenderatorsManager.createRealtimeAppenderatorForTask(
         getId(),
         dataSchema,
         tuningConfig.withBasePersistDirectory(toolbox.getPersistDir()),
@@ -765,9 +775,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
         toolbox.getJoinableFactory(),
         toolbox.getCache(),
         toolbox.getCacheConfig(),
-        toolbox.getCachePopulatorStats(),
-        rowIngestionMeters,
-        parseExceptionHandler
+        toolbox.getCachePopulatorStats()
     );
   }
 

@@ -40,7 +40,10 @@ import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.SegmentWrangler;
+import org.apache.druid.segment.join.InlineJoinableFactory;
 import org.apache.druid.segment.join.JoinableFactory;
+import org.apache.druid.segment.join.LookupJoinableFactory;
+import org.apache.druid.segment.join.MapJoinableFactoryTest;
 import org.apache.druid.server.ClientQuerySegmentWalker;
 import org.apache.druid.server.QueryScheduler;
 import org.apache.druid.server.QueryStackTests;
@@ -88,7 +91,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, C
     final JoinableFactory joinableFactoryToUse;
 
     if (joinableFactory == null) {
-      joinableFactoryToUse = QueryStackTests.makeJoinableFactoryForLookup(lookupProvider);
+      joinableFactoryToUse = MapJoinableFactoryTest.fromMap(
+          ImmutableMap.<Class<? extends DataSource>, JoinableFactory>builder()
+              .put(InlineDataSource.class, new InlineJoinableFactory())
+              .put(LookupDataSource.class, new LookupJoinableFactory(lookupProvider))
+              .build()
+      );
     } else {
       joinableFactoryToUse = joinableFactory;
     }
@@ -112,7 +120,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, C
             scheduler
         ),
         conglomerate,
-        joinableFactoryToUse,
         new ServerConfig()
     );
   }

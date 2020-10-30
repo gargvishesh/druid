@@ -28,11 +28,9 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class DoublesSketchToRankPostAggregator implements PostAggregator
@@ -60,12 +58,6 @@ public class DoublesSketchToRankPostAggregator implements PostAggregator
     return name;
   }
 
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.DOUBLE;
-  }
-
   @JsonProperty
   public PostAggregator getField()
   {
@@ -88,20 +80,14 @@ public class DoublesSketchToRankPostAggregator implements PostAggregator
   @Override
   public Comparator<Double> getComparator()
   {
-    return Doubles::compare;
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    return new CacheKeyBuilder(PostAggregatorIds.QUANTILES_DOUBLES_SKETCH_TO_RANK_CACHE_TYPE_ID)
-        .appendCacheable(field).appendDouble(value).build();
-  }
-
-  @Override
-  public PostAggregator decorate(final Map<String, AggregatorFactory> map)
-  {
-    return this;
+    return new Comparator<Double>()
+    {
+      @Override
+      public int compare(final Double a, final Double b)
+      {
+        return Doubles.compare(a, b);
+      }
+    };
   }
 
   @Override
@@ -121,7 +107,7 @@ public class DoublesSketchToRankPostAggregator implements PostAggregator
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) {
       return true;
@@ -129,15 +115,33 @@ public class DoublesSketchToRankPostAggregator implements PostAggregator
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    DoublesSketchToRankPostAggregator that = (DoublesSketchToRankPostAggregator) o;
-    return Double.compare(that.value, value) == 0 &&
-           name.equals(that.name) &&
-           field.equals(that.field);
+    final DoublesSketchToRankPostAggregator that = (DoublesSketchToRankPostAggregator) o;
+    if (!name.equals(that.name)) {
+      return false;
+    }
+    if (value != that.value) {
+      return false;
+    }
+    return field.equals(that.field);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, field, value);
+    return (name.hashCode() * 31 + field.hashCode()) * 31 + Double.hashCode(value);
   }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    return new CacheKeyBuilder(PostAggregatorIds.QUANTILES_DOUBLES_SKETCH_TO_RANK_CACHE_TYPE_ID)
+        .appendCacheable(field).appendDouble(value).build();
+  }
+
+  @Override
+  public PostAggregator decorate(final Map<String, AggregatorFactory> map)
+  {
+    return this;
+  }
+
 }

@@ -136,6 +136,7 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
       return false;
     }
     return pattern.equals(that.pattern);
+
   }
 
   @Override

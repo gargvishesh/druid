@@ -20,7 +20,6 @@
 package org.apache.druid.math.expr;
 
 import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.UOE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,21 +28,6 @@ import java.util.Stack;
 
 public class Exprs
 {
-  public static UnsupportedOperationException cannotVectorize(Expr expr)
-  {
-    return new UOE("Unable to vectorize expression:[%s]", expr.stringify());
-  }
-
-  public static UnsupportedOperationException cannotVectorize(Function function)
-  {
-    return new UOE("Unable to vectorize function:[%s]", function.name());
-  }
-
-  public static UnsupportedOperationException cannotVectorize()
-  {
-    return new UOE("Unable to vectorize expression");
-  }
-
   /**
    * Decomposes any expr into a list of exprs that, if ANDed together, are equivalent to the input expr.
    *

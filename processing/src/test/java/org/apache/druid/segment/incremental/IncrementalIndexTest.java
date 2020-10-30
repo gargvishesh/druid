@@ -117,12 +117,12 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                 @Override
                 public IncrementalIndex createIndex()
                 {
-                  return new OnheapIncrementalIndex.Builder()
+                  return new IncrementalIndex.Builder()
                       .setIndexSchema(schema)
                       .setDeserializeComplexMetrics(false)
                       .setSortFacts(sortFacts)
                       .setMaxRowCount(1000)
-                      .build();
+                      .buildOnheap();
                 }
               },
               Closer.create()
@@ -141,12 +141,11 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                 @Override
                 public IncrementalIndex createIndex()
                 {
-                  return new OffheapIncrementalIndex.Builder()
-                      .setBufferPool(stupidPool)
+                  return new IncrementalIndex.Builder()
                       .setIndexSchema(schema)
                       .setSortFacts(sortFacts)
                       .setMaxRowCount(1000000)
-                      .build();
+                      .buildOffheap(stupidPool);
                 }
               },
               poolCloser

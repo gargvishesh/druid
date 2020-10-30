@@ -23,9 +23,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Preconditions;
+import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.guice.annotations.ExtensionPoint;
 import org.apache.druid.guice.annotations.PublicApi;
 import org.apache.druid.java.util.common.parsers.Parser;
+
+import javax.annotation.Nullable;
 
 @Deprecated
 @ExtensionPoint
@@ -64,6 +67,16 @@ public abstract class ParseSpec
   }
 
   public Parser<String, Object> makeParser()
+  {
+    return null;
+  }
+
+  /**
+   * Returns null if it's not implemented yet.
+   * This method (and maybe this class) will be removed in favor of {@link InputFormat} in the future.
+   */
+  @Nullable
+  public InputFormat toInputFormat()
   {
     return null;
   }

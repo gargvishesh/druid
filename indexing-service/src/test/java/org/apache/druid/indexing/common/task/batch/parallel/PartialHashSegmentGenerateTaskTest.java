@@ -43,7 +43,7 @@ public class PartialHashSegmentGenerateTaskTest
   private static final ObjectMapper OBJECT_MAPPER = ParallelIndexTestingFactory.createObjectMapper();
   private static final ParallelIndexIngestionSpec INGESTION_SPEC = ParallelIndexTestingFactory.createIngestionSpec(
       new LocalInputSource(new File("baseDir"), "filer"),
-      new JsonInputFormat(null, null, null),
+      new JsonInputFormat(null, null),
       new ParallelIndexTestingFactory.TuningConfigBuilder().build(),
       ParallelIndexTestingFactory.createDataSchema(ParallelIndexTestingFactory.INPUT_INTERVALS)
   );
@@ -61,7 +61,9 @@ public class PartialHashSegmentGenerateTaskTest
         ParallelIndexTestingFactory.NUM_ATTEMPTS,
         INGESTION_SPEC,
         ParallelIndexTestingFactory.CONTEXT,
-        null
+        ParallelIndexTestingFactory.INDEXING_SERVICE_CLIENT,
+        ParallelIndexTestingFactory.TASK_CLIENT_FACTORY,
+        ParallelIndexTestingFactory.APPENDERATORS_MANAGER
     );
   }
 
@@ -94,8 +96,7 @@ public class PartialHashSegmentGenerateTaskTest
                 Granularities.NONE,
                 intervals
             ),
-            new HashedPartitionsSpec(null, expectedNumBuckets, null),
-            null
+            new HashedPartitionsSpec(null, expectedNumBuckets, null)
         );
     Assert.assertEquals(intervals.size(), partitionAnalysis.getNumTimePartitions());
     for (Interval interval : intervals) {

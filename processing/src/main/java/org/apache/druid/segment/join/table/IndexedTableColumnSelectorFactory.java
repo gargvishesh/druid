@@ -19,7 +19,6 @@
 
 package org.apache.druid.segment.join.table;
 
-import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
@@ -37,13 +36,11 @@ public class IndexedTableColumnSelectorFactory implements ColumnSelectorFactory
 {
   private final IndexedTable table;
   private final IntSupplier currentRow;
-  private final Closer closer;
 
-  IndexedTableColumnSelectorFactory(IndexedTable table, IntSupplier currentRow, Closer closer)
+  IndexedTableColumnSelectorFactory(IndexedTable table, IntSupplier currentRow)
   {
     this.table = table;
     this.currentRow = currentRow;
-    this.closer = closer;
   }
 
   @Nullable
@@ -59,11 +56,7 @@ public class IndexedTableColumnSelectorFactory implements ColumnSelectorFactory
         capabilities.setDictionaryEncoded(true);
       }
 
-      capabilities.setDictionaryValuesSorted(false);
-      capabilities.setDictionaryValuesUnique(false);
-      capabilities.setHasMultipleValues(false);
-
-      return capabilities;
+      return capabilities.setIsComplete(true);
     } else {
       return null;
     }
@@ -82,8 +75,7 @@ public class IndexedTableColumnSelectorFactory implements ColumnSelectorFactory
           table,
           currentRow,
           columnNumber,
-          dimensionSpec.getExtractionFn(),
-          closer
+          dimensionSpec.getExtractionFn()
       );
 
       return dimensionSpec.decorate(undecoratedSelector);
@@ -99,7 +91,7 @@ public class IndexedTableColumnSelectorFactory implements ColumnSelectorFactory
     if (columnNumber < 0) {
       return NilColumnValueSelector.instance();
     } else {
-      return new IndexedTableColumnValueSelector(table, currentRow, columnNumber, closer);
+      return new IndexedTableColumnValueSelector(table, currentRow, columnNumber);
     }
   }
 

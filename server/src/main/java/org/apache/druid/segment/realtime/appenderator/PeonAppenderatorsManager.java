@@ -31,8 +31,6 @@ import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMerger;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
@@ -77,9 +75,7 @@ public class PeonAppenderatorsManager implements AppenderatorsManager
       JoinableFactory joinableFactory,
       Cache cache,
       CacheConfig cacheConfig,
-      CachePopulatorStats cachePopulatorStats,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      CachePopulatorStats cachePopulatorStats
   )
   {
     if (realtimeAppenderator != null) {
@@ -103,9 +99,7 @@ public class PeonAppenderatorsManager implements AppenderatorsManager
           joinableFactory,
           cache,
           cacheConfig,
-          cachePopulatorStats,
-          rowIngestionMeters,
-          parseExceptionHandler
+          cachePopulatorStats
       );
     }
     return realtimeAppenderator;
@@ -116,13 +110,12 @@ public class PeonAppenderatorsManager implements AppenderatorsManager
       String taskId,
       DataSchema schema,
       AppenderatorConfig config,
+      boolean storeCompactionState,
       FireDepartmentMetrics metrics,
       DataSegmentPusher dataSegmentPusher,
       ObjectMapper objectMapper,
       IndexIO indexIO,
-      IndexMerger indexMerger,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
+      IndexMerger indexMerger
   )
   {
     // CompactionTask does run multiple sub-IndexTasks, so we allow multiple batch appenderators
@@ -133,13 +126,12 @@ public class PeonAppenderatorsManager implements AppenderatorsManager
           taskId,
           schema,
           config,
+          storeCompactionState,
           metrics,
           dataSegmentPusher,
           objectMapper,
           indexIO,
-          indexMerger,
-          rowIngestionMeters,
-          parseExceptionHandler
+          indexMerger
       );
       return batchAppenderator;
     }

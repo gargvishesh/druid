@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskTuningConfig;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.writeout.SegmentWriteOutMediumFactory;
 import org.joda.time.Period;
 
@@ -34,7 +33,6 @@ public class KafkaIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningCon
 {
   @JsonCreator
   public KafkaIndexTaskTuningConfig(
-      @JsonProperty("appendableIndexSpec") @Nullable AppendableIndexSpec appendableIndexSpec,
       @JsonProperty("maxRowsInMemory") @Nullable Integer maxRowsInMemory,
       @JsonProperty("maxBytesInMemory") @Nullable Long maxBytesInMemory,
       @JsonProperty("maxRowsPerSegment") @Nullable Integer maxRowsPerSegment,
@@ -57,7 +55,6 @@ public class KafkaIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningCon
   )
   {
     super(
-        appendableIndexSpec,
         maxRowsInMemory,
         maxBytesInMemory,
         maxRowsPerSegment,
@@ -84,7 +81,6 @@ public class KafkaIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningCon
   public KafkaIndexTaskTuningConfig withBasePersistDirectory(File dir)
   {
     return new KafkaIndexTaskTuningConfig(
-        getAppendableIndexSpec(),
         getMaxRowsInMemory(),
         getMaxBytesInMemory(),
         getMaxRowsPerSegment(),

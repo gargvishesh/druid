@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.indexing.kinesis.KinesisIndexingServiceModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.druid.segment.indexing.TuningConfig;
 import org.joda.time.Duration;
 import org.joda.time.Period;
@@ -59,7 +58,6 @@ public class KinesisSupervisorTuningConfigTest
     );
 
     Assert.assertNotNull(config.getBasePersistDirectory());
-    Assert.assertEquals(new OnheapIncrementalIndex.Spec(), config.getAppendableIndexSpec());
     Assert.assertEquals(1000000, config.getMaxRowsInMemory());
     Assert.assertEquals(5_000_000, config.getMaxRowsPerSegment().intValue());
     Assert.assertEquals(new Period("PT10M"), config.getIntermediatePersistPeriod());
@@ -94,8 +92,7 @@ public class KinesisSupervisorTuningConfigTest
                      + "  \"chatRetries\": 14,\n"
                      + "  \"httpTimeout\": \"PT15S\",\n"
                      + "  \"shutdownTimeout\": \"PT95S\",\n"
-                     + "  \"repartitionTransitionDuration\": \"PT500S\",\n"
-                     + "  \"appendableIndexSpec\": { \"type\" : \"onheap\" }\n"
+                     + "  \"repartitionTransitionDuration\": \"PT500S\"\n"
                      + "}";
 
     KinesisSupervisorTuningConfig config = (KinesisSupervisorTuningConfig) mapper.readValue(
@@ -109,7 +106,6 @@ public class KinesisSupervisorTuningConfigTest
     );
 
     Assert.assertEquals(new File("/tmp/xxx"), config.getBasePersistDirectory());
-    Assert.assertEquals(new OnheapIncrementalIndex.Spec(), config.getAppendableIndexSpec());
     Assert.assertEquals(100, config.getMaxRowsInMemory());
     Assert.assertEquals(100, config.getMaxRowsPerSegment().intValue());
     Assert.assertEquals(new Period("PT1H"), config.getIntermediatePersistPeriod());

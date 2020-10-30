@@ -22,13 +22,12 @@ package org.apache.druid.query.aggregation.momentsketch.aggregator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.momentsketch.MomentSketchWrapper;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -58,12 +57,6 @@ public class MomentSketchMaxPostAggregator implements PostAggregator
     return name;
   }
 
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.DOUBLE;
-  }
-
   @JsonProperty
   public PostAggregator getField()
   {
@@ -78,9 +71,9 @@ public class MomentSketchMaxPostAggregator implements PostAggregator
   }
 
   @Override
-  public Comparator<Double> getComparator()
+  public Comparator<double[]> getComparator()
   {
-    return Doubles::compare;
+    throw new IAE("Comparing arrays of quantiles is not supported");
   }
 
   @Override

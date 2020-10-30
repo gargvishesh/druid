@@ -179,24 +179,9 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public String getComplexTypeName()
+  public String getTypeName()
   {
     return BloomFilterSerializersModule.BLOOM_FILTER_TYPE_NAME;
-  }
-
-  /**
-   * actual type is {@link ByteBuffer} containing {@link BloomKFilter}
-   */
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.COMPLEX;
-  }
-
-  @Override
-  public ValueType getFinalizedType()
-  {
-    return ValueType.COMPLEX;
   }
 
   @Override

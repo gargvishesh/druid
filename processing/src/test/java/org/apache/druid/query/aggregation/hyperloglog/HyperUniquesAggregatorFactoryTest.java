@@ -30,7 +30,6 @@ import org.apache.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Random;
 
@@ -172,30 +171,6 @@ public class HyperUniquesAggregatorFactoryTest
           orderedByComparator
       );
     }
-  }
-
-  @Test
-  public void testEstimateCardinalityForZeroCardinality()
-  {
-    HyperLogLogCollector emptyHyperLogLogCollector = HyperUniquesBufferAggregator.doGet(
-        ByteBuffer.allocate(HyperLogLogCollector.getLatestNumBytesForDenseStorage()),
-        0
-    );
-
-    Assert.assertEquals(0L, HyperUniquesAggregatorFactory.estimateCardinality(null, true));
-    Assert.assertEquals(0d, HyperUniquesAggregatorFactory.estimateCardinality(null, false));
-
-    Assert.assertEquals(0L, HyperUniquesAggregatorFactory.estimateCardinality(emptyHyperLogLogCollector, true));
-    Assert.assertEquals(0d, HyperUniquesAggregatorFactory.estimateCardinality(emptyHyperLogLogCollector, false));
-
-    Assert.assertEquals(
-        HyperUniquesAggregatorFactory.estimateCardinality(emptyHyperLogLogCollector, true).getClass(),
-        HyperUniquesAggregatorFactory.estimateCardinality(null, true).getClass()
-    );
-    Assert.assertEquals(
-        HyperUniquesAggregatorFactory.estimateCardinality(emptyHyperLogLogCollector, false).getClass(),
-        HyperUniquesAggregatorFactory.estimateCardinality(null, false).getClass()
-    );
   }
 
   @Test

@@ -364,7 +364,7 @@ public class DruidMeta extends MetaImpl
     }
 
     if (schemaPattern.s != null) {
-      whereBuilder.add("SCHEMATA.SCHEMA_NAME LIKE " + withEscapeClause(schemaPattern.s));
+      whereBuilder.add("SCHEMATA.SCHEMA_NAME LIKE " + Calcites.escapeStringLiteral(schemaPattern.s));
     }
 
     final String where = whereBuilder.isEmpty() ? "" : "WHERE " + Joiner.on(" AND ").join(whereBuilder);
@@ -395,11 +395,11 @@ public class DruidMeta extends MetaImpl
     }
 
     if (schemaPattern.s != null) {
-      whereBuilder.add("TABLES.TABLE_SCHEMA LIKE " + withEscapeClause(schemaPattern.s));
+      whereBuilder.add("TABLES.TABLE_SCHEMA LIKE " + Calcites.escapeStringLiteral(schemaPattern.s));
     }
 
     if (tableNamePattern.s != null) {
-      whereBuilder.add("TABLES.TABLE_NAME LIKE " + withEscapeClause(tableNamePattern.s));
+      whereBuilder.add("TABLES.TABLE_NAME LIKE " + Calcites.escapeStringLiteral(tableNamePattern.s));
     }
 
     if (typeList != null) {
@@ -446,16 +446,15 @@ public class DruidMeta extends MetaImpl
     }
 
     if (schemaPattern.s != null) {
-      whereBuilder.add("COLUMNS.TABLE_SCHEMA LIKE " + withEscapeClause(schemaPattern.s));
+      whereBuilder.add("COLUMNS.TABLE_SCHEMA LIKE " + Calcites.escapeStringLiteral(schemaPattern.s));
     }
 
     if (tableNamePattern.s != null) {
-      whereBuilder.add("COLUMNS.TABLE_NAME LIKE " + withEscapeClause(tableNamePattern.s));
+      whereBuilder.add("COLUMNS.TABLE_NAME LIKE " + Calcites.escapeStringLiteral(tableNamePattern.s));
     }
 
     if (columnNamePattern.s != null) {
-      whereBuilder.add("COLUMNS.COLUMN_NAME LIKE "
-                       + withEscapeClause(columnNamePattern.s));
+      whereBuilder.add("COLUMNS.COLUMN_NAME LIKE " + Calcites.escapeStringLiteral(columnNamePattern.s));
     }
 
     final String where = whereBuilder.isEmpty() ? "" : "WHERE " + Joiner.on(" AND ").join(whereBuilder);
@@ -638,10 +637,5 @@ public class DruidMeta extends MetaImpl
       return config.getMaxRowsPerFrame();
     }
     return Math.min(clientMaxRowsPerFrame, config.getMaxRowsPerFrame());
-  }
-
-  private static String withEscapeClause(String toEscape)
-  {
-    return Calcites.escapeStringLiteral(toEscape) + " ESCAPE '\\'";
   }
 }

@@ -23,7 +23,7 @@ import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.data.Offset;
 import org.apache.druid.segment.data.ReadableOffset;
 
-public class SimpleAscendingOffset extends SimpleSettableOffset
+public class SimpleAscendingOffset extends Offset
 {
   private final int rowCount;
   private final int initialOffset;
@@ -53,8 +53,7 @@ public class SimpleAscendingOffset extends SimpleSettableOffset
     return currentOffset < rowCount;
   }
 
-  @Override
-  public void setCurrentOffset(int currentOffset)
+  void setCurrentOffset(int currentOffset)
   {
     this.currentOffset = currentOffset;
   }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { AnchorButton, Button, ButtonGroup, Intent, Switch } from '@blueprintjs/core';
+import { AnchorButton, Button, ButtonGroup, Checkbox, Intent } from '@blueprintjs/core';
 import axios from 'axios';
 import copy from 'copy-to-clipboard';
 import React from 'react';
@@ -24,7 +24,7 @@ import React from 'react';
 import { Loader } from '../../components';
 import { AppToaster } from '../../singletons/toaster';
 import { UrlBaser } from '../../singletons/url-baser';
-import { QueryManager, QueryState } from '../../utils';
+import { QueryManager } from '../../utils';
 
 import './show-log.scss';
 
@@ -44,7 +44,9 @@ export interface ShowLogProps {
 }
 
 export interface ShowLogState {
-  logState: QueryState<string>;
+  logValue?: string;
+  loading: boolean;
+  error?: string;
   tail: boolean;
 }
 
@@ -58,8 +60,8 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
   constructor(props: ShowLogProps, context: any) {
     super(props, context);
     this.state = {
-      logState: QueryState.INIT,
       tail: true,
+      loading: true,
     };
 
     this.showLogQueryManager = new QueryManager({
@@ -72,12 +74,18 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
         if (tailOffset) logValue = removeFirstPartialLine(logValue);
         return logValue;
       },
-      onStateChange: logState => {
-        if (logState.data) {
-          this.scrollToBottomIfNeeded();
+      onStateChange: ({ result, loading, error }) => {
+        const { tail } = this.state;
+        if (result && tail) {
+          const { current } = this.log;
+          if (current) {
+            current.scrollTop = current.scrollHeight;
+          }
         }
         this.setState({
-          logState,
+          logValue: result,
+          loading,
+          error,
         });
       },
     });
@@ -94,26 +102,14 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
   }
 
   componentWillUnmount(): void {
-    this.showLogQueryManager.terminate();
     this.removeTailer();
-  }
-
-  private scrollToBottomIfNeeded(): void {
-    const { tail } = this.state;
-    if (!tail) return;
-
-    const { current } = this.log;
-    if (current) {
-      current.scrollTop = current.scrollHeight;
-    }
   }
 
   addTailer() {
     if (this.interval) return;
-    this.interval = setInterval(
-      () => this.showLogQueryManager.rerunLastQuery(true),
-      ShowLog.CHECK_INTERVAL,
-    ) as any;
+    this.interval = Number(
+      setInterval(() => this.showLogQueryManager.rerunLastQuery(true), ShowLog.CHECK_INTERVAL),
+    );
   }
 
   removeTailer() {
@@ -138,14 +134,13 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
 
   render(): JSX.Element {
     const { endpoint, downloadFilename, status } = this.props;
-    const { logState } = this.state;
+    const { logValue, error, loading } = this.state;
 
     return (
       <div className="show-log">
         <div className="top-actions">
           {status === 'RUNNING' && (
-            <Switch
-              className="tail-log"
+            <Checkbox
               label="Tail log"
               checked={this.state.tail}
               onChange={this.handleCheckboxChange}
@@ -164,7 +159,7 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
               text="Copy"
               minimal
               onClick={() => {
-                copy(logState.data || '', { format: 'text/plain' });
+                copy(logValue ? logValue : '', { format: 'text/plain' });
                 AppToaster.show({
                   message: 'Log copied to clipboard',
                   intent: Intent.SUCCESS,
@@ -179,13 +174,13 @@ export class ShowLog extends React.PureComponent<ShowLogProps, ShowLogState> {
           </ButtonGroup>
         </div>
         <div className="main-area">
-          {logState.loading ? (
-            <Loader />
+          {loading ? (
+            <Loader loadingText="" loading />
           ) : (
             <textarea
               className="bp3-input"
               readOnly
-              value={logState.data || logState.getErrorMessage()}
+              value={logValue ? logValue : error}
               ref={this.log}
             />
           )}

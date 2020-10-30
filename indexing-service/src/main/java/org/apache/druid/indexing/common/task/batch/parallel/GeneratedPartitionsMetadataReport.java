@@ -28,7 +28,7 @@ import java.util.List;
  * Report containing the {@link GenericPartitionStat}s created by a {@link PartialSegmentGenerateTask}. This report is
  * collected by {@link ParallelIndexSupervisorTask} and used to generate {@link PartialGenericSegmentMergeIOConfig}.
  */
-class GeneratedPartitionsMetadataReport extends GeneratedPartitionsReport<GenericPartitionStat>
+class GeneratedPartitionsMetadataReport extends GeneratedPartitionsReport<GenericPartitionStat> implements SubTaskReport
 {
   public static final String TYPE = "generated_partitions_metadata";
 

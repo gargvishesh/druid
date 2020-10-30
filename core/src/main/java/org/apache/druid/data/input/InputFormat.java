@@ -32,6 +32,7 @@ import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.guice.annotations.UnstableApi;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * InputFormat abstracts the file format of input data.
@@ -63,5 +64,5 @@ public interface InputFormat
       InputRowSchema inputRowSchema,
       InputEntity source,
       File temporaryDirectory
-  );
+  ) throws IOException;
 }

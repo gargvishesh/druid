@@ -107,19 +107,9 @@ public class DruidServerMetadata
     return priority;
   }
 
-  public boolean isSegmentReplicationTarget()
+  public boolean segmentReplicatable()
   {
     return type.isSegmentReplicationTarget();
-  }
-
-  public boolean isSegmentBroadcastTarget()
-  {
-    return type.isSegmentBroadcastTarget();
-  }
-
-  public boolean isSegmentReplicationOrBroadcastTarget()
-  {
-    return isSegmentReplicationTarget() || isSegmentBroadcastTarget();
   }
 
   @Override

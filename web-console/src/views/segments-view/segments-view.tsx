@@ -20,14 +20,14 @@ import { Button, ButtonGroup, Intent, Label, MenuItem } from '@blueprintjs/core'
 import { IconNames } from '@blueprintjs/icons';
 import axios from 'axios';
 import React from 'react';
-import ReactTable, { Filter } from 'react-table';
+import ReactTable from 'react-table';
+import { Filter } from 'react-table';
 
 import {
   ACTION_COLUMN_ID,
   ACTION_COLUMN_LABEL,
   ACTION_COLUMN_WIDTH,
   ActionCell,
-  BracedText,
   MoreButton,
   RefreshButton,
   TableColumnSelector,
@@ -40,12 +40,11 @@ import {
   compact,
   filterMap,
   formatBytes,
-  formatInteger,
+  formatNumber,
   LocalStorageKeys,
   makeBooleanFilter,
   queryDruidSql,
   QueryManager,
-  QueryState,
   sqlQueryCustomTableFilter,
 } from '../../utils';
 import { BasicAction } from '../../utils/basic-action';
@@ -105,19 +104,37 @@ export interface SegmentsViewProps {
   capabilities: Capabilities;
 }
 
+export interface SegmentsViewState {
+  segmentsLoading: boolean;
+  segments?: SegmentQueryResultRow[];
+  segmentsError?: string;
+  segmentFilter: Filter[];
+  allSegments?: SegmentQueryResultRow[];
+  segmentTableActionDialogId?: string;
+  datasourceTableActionDialogId?: string;
+  actions: BasicAction[];
+  terminateSegmentId?: string;
+  terminateDatasourceId?: string;
+  hiddenColumns: LocalStorageBackedArray<string>;
+  groupByInterval: boolean;
+
+  // table state
+  page: number | null;
+  pageSize: number | null;
+  filtered: number[] | null;
+  sorted: Sorted | null;
+}
+
 interface Sorted {
-  id: string;
+  id: number;
   desc: boolean;
 }
 
-interface TableState {
+interface SegmentsQuery {
   page: number;
   pageSize: number;
   filtered: Filter[];
   sorted: Sorted[];
-}
-
-interface SegmentsQuery extends TableState {
   groupByInterval: boolean;
 }
 
@@ -129,6 +146,7 @@ interface SegmentQueryResultRow {
   version: string;
   size: 0;
   partition_num: number;
+  payload: any;
   num_rows: number;
   num_replicas: number;
   is_available: number;
@@ -137,26 +155,11 @@ interface SegmentQueryResultRow {
   is_overshadowed: number;
 }
 
-export interface SegmentsViewState {
-  segmentsState: QueryState<SegmentQueryResultRow[]>;
-  trimmedSegments?: SegmentQueryResultRow[];
-  segmentFilter: Filter[];
-  segmentTableActionDialogId?: string;
-  datasourceTableActionDialogId?: string;
-  actions: BasicAction[];
-  terminateSegmentId?: string;
-  terminateDatasourceId?: string;
-  hiddenColumns: LocalStorageBackedArray<string>;
-  groupByInterval: boolean;
-}
-
 export class SegmentsView extends React.PureComponent<SegmentsViewProps, SegmentsViewState> {
   static PAGE_SIZE = 25;
 
   private segmentsSqlQueryManager: QueryManager<SegmentsQuery, SegmentQueryResultRow[]>;
   private segmentsNoSqlQueryManager: QueryManager<null, SegmentQueryResultRow[]>;
-
-  private lastTableState: TableState | undefined;
 
   constructor(props: SegmentsViewProps, context: any) {
     super(props, context);
@@ -167,17 +170,23 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
 
     this.state = {
       actions: [],
-      segmentsState: QueryState.INIT,
+      segmentsLoading: true,
       segmentFilter,
       hiddenColumns: new LocalStorageBackedArray<string>(
         LocalStorageKeys.SEGMENT_TABLE_COLUMN_SELECTION,
       ),
       groupByInterval: false,
+
+      // Table state
+      page: null,
+      pageSize: null,
+      sorted: null,
+      filtered: null,
     };
 
     this.segmentsSqlQueryManager = new QueryManager({
       debounceIdle: 500,
-      processQuery: async (query: SegmentsQuery, _cancelToken, setIntermediateQuery) => {
+      processQuery: async (query: SegmentsQuery, setIntermediateQuery) => {
         const totalQuerySize = (query.page + 1) * query.pageSize;
 
         const whereParts = filterMap(query.filtered, (f: Filter) => {
@@ -202,7 +211,6 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
             `FROM sys.segments`,
             whereClause ? `WHERE ${whereClause}` : '',
             `GROUP BY 1`,
-            `ORDER BY 1 DESC`,
             `LIMIT ${totalQuerySize}`,
           ]).join('\n');
 
@@ -213,7 +221,7 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
           queryParts = compact([
             `SELECT`,
             `  ("start" || '/' || "end") AS "interval",`,
-            `  "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime", "is_overshadowed"`,
+            `  "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime", "is_overshadowed", "payload"`,
             `FROM sys.segments`,
             `WHERE`,
             intervals ? `  ("start" || '/' || "end") IN (${intervals})` : 'FALSE',
@@ -232,7 +240,7 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
           queryParts.push(`LIMIT ${totalQuerySize * 1000}`);
         } else {
           queryParts = [
-            `SELECT "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime", "is_overshadowed"`,
+            `SELECT "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime", "is_overshadowed", "payload"`,
             `FROM sys.segments`,
           ];
 
@@ -253,11 +261,23 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
         }
         const sqlQuery = queryParts.join('\n');
         setIntermediateQuery(sqlQuery);
-        return (await queryDruidSql({ query: sqlQuery })).slice(query.page * query.pageSize);
+        const results: any[] = (await queryDruidSql({ query: sqlQuery })).slice(
+          query.page * query.pageSize,
+        );
+        results.forEach(result => {
+          try {
+            result.payload = JSON.parse(result.payload);
+          } catch {
+            result.payload = {};
+          }
+        });
+        return results;
       },
-      onStateChange: segmentsState => {
+      onStateChange: ({ result, loading, error }) => {
         this.setState({
-          segmentsState,
+          segments: result,
+          segmentsLoading: loading,
+          segmentsError: error,
         });
       },
     });
@@ -279,6 +299,7 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
                 version: segment.version,
                 partition_num: segment.shardSpec.partitionNum ? 0 : segment.shardSpec.partitionNum,
                 size: segment.size,
+                payload: segment,
                 num_rows: -1,
                 num_replicas: -1,
                 is_available: -1,
@@ -290,16 +311,16 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
           }),
         );
 
-        return nestedResults.flat().sort((d1, d2) => {
+        return nestedResults.flat().sort((d1: any, d2: any) => {
           return d2.start.localeCompare(d1.start);
         });
       },
-      onStateChange: segmentsState => {
+      onStateChange: ({ result, loading, error }) => {
         this.setState({
-          trimmedSegments: segmentsState.data
-            ? segmentsState.data.slice(0, SegmentsView.PAGE_SIZE)
-            : undefined,
-          segmentsState,
+          allSegments: result,
+          segments: result ? result.slice(0, SegmentsView.PAGE_SIZE) : undefined,
+          segmentsLoading: loading,
+          segmentsError: error,
         });
       },
     });
@@ -317,9 +338,8 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
     this.segmentsNoSqlQueryManager.terminate();
   }
 
-  private fetchData = (groupByInterval: boolean, tableState?: TableState) => {
-    if (tableState) this.lastTableState = tableState;
-    const { page, pageSize, filtered, sorted } = this.lastTableState!;
+  private fetchData = (groupByInterval: boolean, state?: any) => {
+    const { page, pageSize, filtered, sorted } = state ? state : this.state;
     this.segmentsSqlQueryManager.runQuery({
       page,
       pageSize,
@@ -329,34 +349,33 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
     });
   };
 
-  private fetchClientSideData = (tableState?: TableState) => {
-    if (tableState) this.lastTableState = tableState;
-    const { page, pageSize, filtered, sorted } = this.lastTableState!;
+  private fetchClientSideData = (state?: any) => {
+    const { page, pageSize, filtered, sorted } = state ? state : state;
+    const { allSegments } = this.state;
+    if (allSegments == null) return;
+    const startPage = page * pageSize;
+    const endPage = (page + 1) * pageSize;
+    const sortPivot = sorted[0].id;
+    const sortDesc = sorted[0].desc;
+    const selectedSegments = allSegments
+      .filter((d: any) => {
+        return filtered.every((f: any) => {
+          return d[f.id].includes(f.value);
+        });
+      })
+      .sort((d1: any, d2: any) => {
+        const v1 = d1[sortPivot];
+        const v2 = d2[sortPivot];
+        if (typeof d1[sortPivot] === 'string') {
+          return sortDesc ? v2.localeCompare(v1) : v1.localeCompare(v2);
+        } else {
+          return sortDesc ? v2 - v1 : v1 - v2;
+        }
+      })
+      .slice(startPage, endPage);
 
-    this.setState(state => {
-      const allSegments = state.segmentsState.data;
-      if (!allSegments) return {};
-      const sortKey = sorted[0].id as keyof SegmentQueryResultRow;
-      const sortDesc = sorted[0].desc;
-
-      return {
-        trimmedSegments: allSegments
-          .filter(d => {
-            return filtered.every((f: any) => {
-              return String(d[f.id as keyof SegmentQueryResultRow]).includes(f.value);
-            });
-          })
-          .sort((d1, d2) => {
-            const v1 = d1[sortKey] as any;
-            const v2 = d2[sortKey] as any;
-            if (typeof v1 === 'string') {
-              return sortDesc ? v2.localeCompare(v1) : v1.localeCompare(v2);
-            } else {
-              return sortDesc ? v2 - v1 : v1 - v2;
-            }
-          })
-          .slice(page * pageSize, (page + 1) * pageSize),
-      };
+    this.setState({
+      segments: selectedSegments,
     });
   };
 
@@ -373,26 +392,23 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
 
   renderSegmentsTable() {
     const {
-      segmentsState,
-      trimmedSegments,
+      segments,
+      segmentsLoading,
+      segmentsError,
       segmentFilter,
       hiddenColumns,
       groupByInterval,
     } = this.state;
     const { capabilities } = this.props;
 
-    const segments = trimmedSegments || segmentsState.data || [];
-
-    const sizeValues = segments.map(d => formatBytes(d.size)).concat('(realtime)');
-
-    const numRowsValues = segments.map(d => formatInteger(d.num_rows)).concat('(unknown)');
-
     return (
       <ReactTable
-        data={segments}
+        data={segments || []}
         pages={10000000} // Dummy, we are hiding the page selector
-        loading={segmentsState.loading}
-        noDataText={segmentsState.isEmpty() ? 'No segments' : segmentsState.getErrorMessage() || ''}
+        loading={segmentsLoading}
+        noDataText={
+          !segmentsLoading && segments && !segments.length ? 'No segments' : segmentsError || ''
+        }
         manual
         filterable
         filtered={segmentFilter}
@@ -400,11 +416,17 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
         onFilteredChange={filtered => {
           this.setState({ segmentFilter: filtered });
         }}
-        onFetchData={tableState => {
+        onFetchData={state => {
           if (capabilities.hasSql()) {
-            this.fetchData(groupByInterval, tableState);
+            this.setState({
+              page: state.page,
+              pageSize: state.pageSize,
+              filtered: state.filtered,
+              sorted: state.sorted,
+            });
+            this.fetchData(groupByInterval, state);
           } else if (capabilities.hasCoordinatorAccess()) {
-            this.fetchClientSideData(tableState);
+            this.fetchClientSideData(state);
           }
         }}
         showPageJump={false}
@@ -413,13 +435,12 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
         columns={[
           {
             Header: 'Segment ID',
-            show: hiddenColumns.exists('Segment ID'),
             accessor: 'segment_id',
             width: 300,
+            show: hiddenColumns.exists('Segment ID'),
           },
           {
             Header: 'Datasource',
-            show: hiddenColumns.exists('Datasource'),
             accessor: 'datasource',
             Cell: row => {
               const value = row.value;
@@ -433,10 +454,10 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
                 </a>
               );
             },
+            show: hiddenColumns.exists('Datasource'),
           },
           {
             Header: 'Interval',
-            show: groupByInterval,
             accessor: 'interval',
             width: 120,
             defaultSortDesc: true,
@@ -452,10 +473,10 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
                 </a>
               );
             },
+            show: hiddenColumns.exists('interval') && groupByInterval,
           },
           {
             Header: 'Start',
-            show: hiddenColumns.exists('Start'),
             accessor: 'start',
             width: 120,
             defaultSortDesc: true,
@@ -471,10 +492,10 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
                 </a>
               );
             },
+            show: hiddenColumns.exists('Start'),
           },
           {
             Header: 'End',
-            show: hiddenColumns.exists('End'),
             accessor: 'end',
             defaultSortDesc: true,
             width: 120,
@@ -490,90 +511,79 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
                 </a>
               );
             },
+            show: hiddenColumns.exists('End'),
           },
           {
             Header: 'Version',
-            show: hiddenColumns.exists('Version'),
             accessor: 'version',
             defaultSortDesc: true,
             width: 120,
+            show: hiddenColumns.exists('Version'),
           },
           {
             Header: 'Partition',
-            show: hiddenColumns.exists('Partition'),
             accessor: 'partition_num',
             width: 60,
             filterable: false,
+            show: hiddenColumns.exists('Partition'),
           },
           {
             Header: 'Size',
-            show: hiddenColumns.exists('Size'),
             accessor: 'size',
             filterable: false,
             defaultSortDesc: true,
-            Cell: row => (
-              <BracedText
-                text={
-                  row.value === 0 && row.original.is_realtime === 1
-                    ? '(realtime)'
-                    : formatBytes(row.value)
-                }
-                braces={sizeValues}
-              />
-            ),
+            Cell: row => {
+              if (row.value === 0 && row.original.is_realtime === 1) return '(realtime)';
+              return formatBytes(row.value);
+            },
+            show: hiddenColumns.exists('Size'),
           },
           {
             Header: 'Num rows',
-            show: capabilities.hasSql() && hiddenColumns.exists('Num rows'),
             accessor: 'num_rows',
             filterable: false,
             defaultSortDesc: true,
-            Cell: row => (
-              <BracedText
-                text={row.original.is_available ? formatInteger(row.value) : '(unknown)'}
-                braces={numRowsValues}
-              />
-            ),
+            Cell: row => (row.original.is_available ? formatNumber(row.value) : <em>(unknown)</em>),
+            show: capabilities.hasSql() && hiddenColumns.exists('Num rows'),
           },
           {
             Header: 'Replicas',
-            show: capabilities.hasSql() && hiddenColumns.exists('Replicas'),
             accessor: 'num_replicas',
             width: 60,
             filterable: false,
             defaultSortDesc: true,
+            show: capabilities.hasSql() && hiddenColumns.exists('Replicas'),
           },
           {
             Header: 'Is published',
-            show: capabilities.hasSql() && hiddenColumns.exists('Is published'),
             id: 'is_published',
             accessor: row => String(Boolean(row.is_published)),
             Filter: makeBooleanFilter(),
+            show: capabilities.hasSql() && hiddenColumns.exists('Is published'),
           },
           {
             Header: 'Is realtime',
-            show: capabilities.hasSql() && hiddenColumns.exists('Is realtime'),
             id: 'is_realtime',
             accessor: row => String(Boolean(row.is_realtime)),
             Filter: makeBooleanFilter(),
+            show: capabilities.hasSql() && hiddenColumns.exists('Is realtime'),
           },
           {
             Header: 'Is available',
-            show: capabilities.hasSql() && hiddenColumns.exists('Is available'),
             id: 'is_available',
             accessor: row => String(Boolean(row.is_available)),
             Filter: makeBooleanFilter(),
+            show: capabilities.hasSql() && hiddenColumns.exists('Is available'),
           },
           {
             Header: 'Is overshadowed',
-            show: capabilities.hasSql() && hiddenColumns.exists('Is overshadowed'),
             id: 'is_overshadowed',
             accessor: row => String(Boolean(row.is_overshadowed)),
             Filter: makeBooleanFilter(),
+            show: capabilities.hasSql() && hiddenColumns.exists('Is overshadowed'),
           },
           {
             Header: ACTION_COLUMN_LABEL,
-            show: capabilities.hasCoordinatorAccess() && hiddenColumns.exists(ACTION_COLUMN_LABEL),
             id: ACTION_COLUMN_ID,
             accessor: 'segment_id',
             width: ACTION_COLUMN_WIDTH,
@@ -596,6 +606,7 @@ export class SegmentsView extends React.PureComponent<SegmentsViewProps, Segment
               );
             },
             Aggregated: () => '',
+            show: capabilities.hasCoordinatorAccess() && hiddenColumns.exists(ACTION_COLUMN_LABEL),
           },
         ]}
         defaultPageSize={SegmentsView.PAGE_SIZE}

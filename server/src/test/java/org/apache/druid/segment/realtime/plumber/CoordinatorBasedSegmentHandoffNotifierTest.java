@@ -174,7 +174,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
         )
     );
 
-    Assert.assertTrue(
+    Assert.assertFalse(
         CoordinatorBasedSegmentHandoffNotifier.isHandOffComplete(
             Collections.singletonList(
                 new ImmutableSegmentLoadInfo(

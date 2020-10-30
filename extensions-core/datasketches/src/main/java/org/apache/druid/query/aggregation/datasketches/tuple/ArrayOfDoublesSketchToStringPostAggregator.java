@@ -26,7 +26,6 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorUtil;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -56,12 +55,6 @@ public class ArrayOfDoublesSketchToStringPostAggregator extends ArrayOfDoublesSk
   }
 
   @Override
-  public ValueType getType()
-  {
-    return ValueType.STRING;
-  }
-
-  @Override
   public Comparator<String> getComparator()
   {
     throw new IAE("Comparing sketch summaries is not supported");
@@ -74,4 +67,5 @@ public class ArrayOfDoublesSketchToStringPostAggregator extends ArrayOfDoublesSk
         .appendCacheable(getField())
         .build();
   }
+
 }

@@ -19,23 +19,19 @@
 
 package org.apache.druid.guice;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.ProvisionException;
-import com.google.inject.name.Named;
 import com.google.inject.util.Providers;
 import org.apache.druid.client.DruidServerConfig;
 import org.apache.druid.discovery.DataNodeService;
 import org.apache.druid.guice.annotations.Self;
-import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.loading.SegmentLoaderConfig;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.coordination.DruidServerMetadata;
-import org.apache.druid.server.coordination.ServerType;
 
 import javax.annotation.Nullable;
 
@@ -43,10 +39,6 @@ import javax.annotation.Nullable;
  */
 public class StorageNodeModule implements Module
 {
-  private static final EmittingLogger log = new EmittingLogger(StorageNodeModule.class);
-  @VisibleForTesting
-  static final String IS_SEGMENT_CACHE_CONFIGURED = "IS_SEGMENT_CACHE_CONFIGURED";
-
   @Override
   public void configure(Binder binder)
   {
@@ -82,39 +74,17 @@ public class StorageNodeModule implements Module
 
   @Provides
   @LazySingleton
-  public DataNodeService getDataNodeService(
-      @Nullable ServerTypeConfig serverTypeConfig,
-      DruidServerConfig config,
-      @Named(IS_SEGMENT_CACHE_CONFIGURED) Boolean isSegmentCacheConfigured
-  )
+  public DataNodeService getDataNodeService(@Nullable ServerTypeConfig serverTypeConfig, DruidServerConfig config)
   {
     if (serverTypeConfig == null) {
-      throw new ProvisionException("Must override the binding for ServerTypeConfig if you want a DataNodeService.");
-    }
-    if (!isSegmentCacheConfigured) {
-      log.info(
-          "Segment cache not configured on ServerType [%s]. It will not be assignable for segment placement",
-          serverTypeConfig.getServerType()
-      );
-      if (ServerType.HISTORICAL.equals(serverTypeConfig.getServerType())) {
-        throw new ProvisionException("Segment cache locations must be set on historicals.");
-      }
+      throw new ProvisionException("Must override the binding for ServerTypeConfig if you want a DruidServerMetadata.");
     }
 
     return new DataNodeService(
         config.getTier(),
         config.getMaxSize(),
         serverTypeConfig.getServerType(),
-        config.getPriority(),
-        isSegmentCacheConfigured
+        config.getPriority()
     );
-  }
-
-  @Provides
-  @LazySingleton
-  @Named(IS_SEGMENT_CACHE_CONFIGURED)
-  public Boolean isSegmentCacheConfigured(SegmentLoaderConfig segmentLoaderConfig)
-  {
-    return !segmentLoaderConfig.getLocations().isEmpty();
   }
 }

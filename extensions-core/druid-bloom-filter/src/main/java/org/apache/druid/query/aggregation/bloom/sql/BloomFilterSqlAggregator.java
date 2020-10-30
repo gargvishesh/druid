@@ -152,7 +152,7 @@ public class BloomFilterSqlAggregator implements SqlAggregator
     // No existing match found. Create a new one.
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
 
-    ValueType valueType = Calcites.getValueTypeForRelDataType(inputOperand.getType());
+    ValueType valueType = Calcites.getValueTypeForSqlTypeName(inputOperand.getType().getSqlTypeName());
     final DimensionSpec spec;
     if (input.isDirectColumnAccess()) {
       spec = new DefaultDimensionSpec(
@@ -171,7 +171,7 @@ public class BloomFilterSqlAggregator implements SqlAggregator
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
           input,
-          inputOperand.getType()
+          inputOperand.getType().getSqlTypeName()
       );
       virtualColumns.add(virtualColumn);
       spec = new DefaultDimensionSpec(

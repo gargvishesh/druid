@@ -21,14 +21,13 @@ package org.apache.druid.segment.realtime.appenderator;
 
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.indexing.TuningConfig;
 import org.apache.druid.segment.writeout.SegmentWriteOutMediumFactory;
 import org.joda.time.Period;
 
 import javax.annotation.Nullable;
 import java.io.File;
 
-public interface AppenderatorConfig extends TuningConfig
+public interface AppenderatorConfig
 {
   boolean isReportParseExceptions();
 
@@ -36,6 +35,11 @@ public interface AppenderatorConfig extends TuningConfig
    * Maximum number of rows in memory before persisting to local storage
    */
   int getMaxRowsInMemory();
+
+  /**
+   * Maximum number of bytes (estimated) to store in memory before persisting to local storage
+   */
+  long getMaxBytesInMemory();
 
   int getMaxPendingPersists();
 

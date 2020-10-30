@@ -21,7 +21,6 @@ package org.apache.druid.jackson;
 
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import org.apache.druid.segment.loading.BroadcastJoinableMMappedQueryableSegmentizerFactory;
 import org.apache.druid.segment.loading.MMappedQueryableSegmentizerFactory;
 
 public class SegmentizerModule extends SimpleModule
@@ -30,8 +29,5 @@ public class SegmentizerModule extends SimpleModule
   {
     super("SegmentizerModule");
     registerSubtypes(new NamedType(MMappedQueryableSegmentizerFactory.class, "mMapSegmentFactory"));
-    registerSubtypes(
-        new NamedType(BroadcastJoinableMMappedQueryableSegmentizerFactory.class, "broadcastJoinableMMapSegmentFactory")
-    );
   }
 }

@@ -29,7 +29,7 @@ export interface HomeViewCardProps {
   icon: IconName;
   title: string;
   loading: boolean;
-  error: Error | undefined;
+  error: string | undefined;
   children?: ReactNode;
 }
 
@@ -43,12 +43,12 @@ export const HomeViewCard = React.memo(function HomeViewCard(props: HomeViewCard
       href={href}
       target={href && href[0] === '/' ? '_blank' : undefined}
     >
-      <Card interactive elevation={1}>
+      <Card interactive>
         <H5>
           <Icon color="#bfccd5" icon={icon} />
           &nbsp;{title}
         </H5>
-        {loading ? <p>Loading...</p> : error ? `Error: ${error.message}` : children}
+        {loading ? <p>Loading...</p> : error ? `Error: ${error}` : children}
       </Card>
     </a>
   );

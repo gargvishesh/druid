@@ -25,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
-import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
-import org.apache.druid.segment.vector.VectorValueSelector;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -69,15 +67,6 @@ public class DoubleMinAggregatorFactory extends SimpleDoubleAggregatorFactory
   protected BufferAggregator buildBufferAggregator(BaseDoubleColumnValueSelector selector)
   {
     return new DoubleMinBufferAggregator(selector);
-  }
-
-  @Override
-  protected VectorAggregator factorizeVector(
-      VectorColumnSelectorFactory columnSelectorFactory,
-      VectorValueSelector selector
-  )
-  {
-    return new DoubleMinVectorAggregator(selector);
   }
 
   @Override

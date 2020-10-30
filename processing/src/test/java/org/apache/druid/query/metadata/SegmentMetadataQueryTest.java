@@ -208,7 +208,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                false,
                 12090,
                 null,
                 null,
@@ -219,7 +218,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
                 false,
-                false,
                 9672,
                 null,
                 null,
@@ -229,8 +227,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1,
                 preferedSize1,
                 1,
                 "preferred",
@@ -252,7 +249,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                false,
                 12090,
                 null,
                 null,
@@ -263,7 +259,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
                 false,
-                false,
                 9672,
                 null,
                 null,
@@ -273,8 +268,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap2,
                 placementSize2,
                 1,
                 null,
@@ -310,8 +304,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 0,
                 null,
@@ -322,7 +315,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 true,
-                false,
                 0,
                 0,
                 null,
@@ -380,8 +372,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 1,
                 null,
@@ -392,7 +383,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 true,
-                false,
                 0,
                 9,
                 null,
@@ -450,8 +440,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 1,
                 null,
@@ -462,7 +451,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 "hyperUnique",
                 false,
-                true,
                 0,
                 null,
                 null,
@@ -521,8 +509,7 @@ public class SegmentMetadataQueryTest
     }
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
-        false,
-        false,
+        !mmap1 || !mmap2,
         size1 + size2,
         1,
         "preferred",
@@ -543,8 +530,7 @@ public class SegmentMetadataQueryTest
     }
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
-        false,
-        false,
+        !mmap1 || !mmap2,
         size1 + size2,
         3,
         "spot",
@@ -565,8 +551,7 @@ public class SegmentMetadataQueryTest
     }
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
-        false,
-        false,
+        !mmap1 || !mmap2,
         size1 + size2,
         9,
         "automotive",
@@ -589,7 +574,6 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                false,
                 12090 * 2,
                 null,
                 null,
@@ -599,7 +583,6 @@ public class SegmentMetadataQueryTest
             "index",
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
-                false,
                 false,
                 9672 * 2,
                 null,
@@ -654,8 +637,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 0,
                 null,
@@ -717,8 +699,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 0,
                 null,
@@ -776,8 +757,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 0,
                 null,
@@ -835,8 +815,7 @@ public class SegmentMetadataQueryTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
-                false,
-                false,
+                !mmap1 || !mmap2,
                 0,
                 0,
                 null,
@@ -1294,52 +1273,4 @@ public class SegmentMetadataQueryTest
     Assert.assertEquals(analysisWCfg2, expectedAnalysisWCfg2);
   }
 
-  @Test
-  public void testLongNullableColumn()
-  {
-    ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.LONG.toString(),
-        false,
-        NullHandling.replaceWithDefault() ? false : true,
-        19344,
-        null,
-        null,
-        null,
-        null
-    );
-    testSegmentMetadataQueryWithDefaultAnalysisMerge("longNumericNull", analysis);
-  }
-
-  @Test
-  public void testDoubleNullableColumn()
-  {
-    ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.DOUBLE.toString(),
-        false,
-        NullHandling.replaceWithDefault() ? false : true,
-        19344,
-        null,
-        null,
-        null,
-        null
-    );
-    testSegmentMetadataQueryWithDefaultAnalysisMerge("doubleNumericNull", analysis);
-  }
-
-
-  @Test
-  public void testFloatNullableColumn()
-  {
-    ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.FLOAT.toString(),
-        false,
-        NullHandling.replaceWithDefault() ? false : true,
-        19344,
-        null,
-        null,
-        null,
-        null
-    );
-    testSegmentMetadataQueryWithDefaultAnalysisMerge("floatNumericNull", analysis);
-  }
 }

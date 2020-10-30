@@ -177,7 +177,7 @@ public class PollingLookupTest extends InitializedNullHandlingTest
     );
     Assert.assertEquals(
         "reverse lookup of none existing value should be empty list",
-        Collections.emptyList(),
+        Collections.EMPTY_LIST,
         pollingLookup.unapply("does't exist")
     );
   }

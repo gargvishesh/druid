@@ -36,6 +36,7 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.TableDataSource;
+import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.table.RowSignatures;
 
@@ -113,13 +114,26 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   }
 
   @Override
+  public int getQueryCount()
+  {
+    return 1 + ((DruidRel) sourceRel).getQueryCount();
+  }
+
+  @Override
   public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
     // Must finalize aggregations on subqueries.
+
     final DruidQuery subQuery = ((DruidRel) sourceRel).toDruidQuery(true);
+
+    final GroupByQuery groupByQuery = subQuery.toGroupByQuery();
+    if (groupByQuery == null) {
+      throw new CannotBuildQueryException("Subquery could not be converted to GroupBy query");
+    }
+
     final RowSignature sourceRowSignature = subQuery.getOutputRowSignature();
     return partialQuery.build(
-        new QueryDataSource(subQuery.getQuery()),
+        new QueryDataSource(groupByQuery),
         sourceRowSignature,
         getPlannerContext(),
         getCluster().getRexBuilder(),

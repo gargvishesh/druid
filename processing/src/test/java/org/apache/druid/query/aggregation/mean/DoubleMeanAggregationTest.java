@@ -21,17 +21,12 @@ package org.apache.druid.query.aggregation.mean;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import junitparams.JUnitParamsRunner;
-import junitparams.Parameters;
 import org.apache.druid.data.input.Row;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.Query;
-import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.groupby.GroupByQuery;
@@ -47,19 +42,12 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 
 import java.util.Collections;
 import java.util.List;
 
-@RunWith(JUnitParamsRunner.class)
 public class DoubleMeanAggregationTest
 {
-  public Object[] doVectorize()
-  {
-    return Lists.newArrayList(true, false).toArray();
-  }
-
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -72,13 +60,13 @@ public class DoubleMeanAggregationTest
   {
 
     groupByQueryTestHelper = AggregationTestHelper.createGroupByQueryAggregationTestHelper(
-        Collections.emptyList(),
+        Collections.EMPTY_LIST,
         new GroupByQueryConfig(),
         tempFolder
     );
 
     timeseriesQueryTestHelper = AggregationTestHelper.createTimeseriesQueryAggregationTestHelper(
-        Collections.emptyList(),
+        Collections.EMPTY_LIST,
         tempFolder
     );
 
@@ -89,8 +77,7 @@ public class DoubleMeanAggregationTest
   }
 
   @Test
-  @Parameters(method = "doVectorize")
-  public void testBufferAggretatorUsingGroupByQuery(boolean doVectorize) throws Exception
+  public void testBufferAggretatorUsingGroupByQuery() throws Exception
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource("test")
@@ -101,7 +88,6 @@ public class DoubleMeanAggregationTest
             new DoubleMeanAggregatorFactory("meanOnString", SimpleTestIndex.SINGLE_VALUE_DOUBLE_AS_STRING_DIM),
             new DoubleMeanAggregatorFactory("meanOnMultiValue", SimpleTestIndex.MULTI_VALUE_DOUBLE_AS_STRING_DIM)
         )
-        .setContext(ImmutableMap.of(QueryContexts.VECTORIZE_KEY, doVectorize))
         .build();
 
     // do json serialization and deserialization of query to ensure there are no serde issues
@@ -117,8 +103,7 @@ public class DoubleMeanAggregationTest
   }
 
   @Test
-  @Parameters(method = "doVectorize")
-  public void testVectorAggretatorUsingGroupByQueryOnDoubleColumn(boolean doVectorize) throws Exception
+  public void testVectorAggretatorUsingGroupByQueryOnDoubleColumn() throws Exception
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource("test")
@@ -127,7 +112,7 @@ public class DoubleMeanAggregationTest
         .setAggregatorSpecs(
             new DoubleMeanAggregatorFactory("meanOnDouble", SimpleTestIndex.DOUBLE_COL)
         )
-        .setContext(Collections.singletonMap(QueryContexts.VECTORIZE_KEY, doVectorize))
+        .setContext(Collections.singletonMap(GroupByQueryConfig.CTX_KEY_VECTORIZE, true))
         .build();
 
     // do json serialization and deserialization of query to ensure there are no serde issues
@@ -141,8 +126,7 @@ public class DoubleMeanAggregationTest
   }
 
   @Test
-  @Parameters(method = "doVectorize")
-  public void testAggretatorUsingTimeseriesQuery(boolean doVectorize) throws Exception
+  public void testAggretatorUsingTimeseriesQuery() throws Exception
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource("test")
@@ -159,7 +143,6 @@ public class DoubleMeanAggregationTest
                                           SimpleTestIndex.MULTI_VALUE_DOUBLE_AS_STRING_DIM
                                       )
                                   )
-                                  .context(ImmutableMap.of(QueryContexts.VECTORIZE_KEY, doVectorize))
                                   .build();
 
     // do json serialization and deserialization of query to ensure there are no serde issues

@@ -44,9 +44,7 @@ import java.util.Optional;
  *
  * <pre>
  *
- *                             Q  <-- Possible query datasource(s) [may be none, or multiple stacked]
- *                             |
- *                             Q  <-- Base query datasource, returned by {@link #getBaseQuery()} if it exists
+ *                             Q  <-- Possible outer query datasource(s) [may be multiple stacked]
  *                             |
  *                             J  <-- Possible join tree, expected to be left-leaning
  *                            / \
@@ -79,13 +77,13 @@ public class DataSourceAnalysis
   private final DataSource dataSource;
   private final DataSource baseDataSource;
   @Nullable
-  private final Query<?> baseQuery;
+  private final QuerySegmentSpec baseQuerySegmentSpec;
   private final List<PreJoinableClause> preJoinableClauses;
 
   private DataSourceAnalysis(
       DataSource dataSource,
       DataSource baseDataSource,
-      @Nullable Query<?> baseQuery,
+      @Nullable QuerySegmentSpec baseQuerySegmentSpec,
       List<PreJoinableClause> preJoinableClauses
   )
   {
@@ -97,34 +95,33 @@ public class DataSourceAnalysis
 
     this.dataSource = dataSource;
     this.baseDataSource = baseDataSource;
-    this.baseQuery = baseQuery;
+    this.baseQuerySegmentSpec = baseQuerySegmentSpec;
     this.preJoinableClauses = preJoinableClauses;
   }
 
   public static DataSourceAnalysis forDataSource(final DataSource dataSource)
   {
     // Strip outer queries, retaining querySegmentSpecs as we go down (lowest will become the 'baseQuerySegmentSpec').
-    Query<?> baseQuery = null;
+    QuerySegmentSpec baseQuerySegmentSpec = null;
     DataSource current = dataSource;
 
     while (current instanceof QueryDataSource) {
       final Query<?> subQuery = ((QueryDataSource) current).getQuery();
 
       if (!(subQuery instanceof BaseQuery)) {
-        // We must verify that the subQuery is a BaseQuery, because it is required to make "getBaseQuerySegmentSpec"
-        // work properly. All builtin query types are BaseQuery, so we only expect this with funky extension queries.
+        // All builtin query types are BaseQuery, so we only expect this with funky extension queries.
         throw new IAE("Cannot analyze subquery of class[%s]", subQuery.getClass().getName());
       }
 
-      baseQuery = subQuery;
+      baseQuerySegmentSpec = ((BaseQuery<?>) subQuery).getQuerySegmentSpec();
       current = subQuery.getDataSource();
     }
 
     if (current instanceof JoinDataSource) {
       final Pair<DataSource, List<PreJoinableClause>> flattened = flattenJoin((JoinDataSource) current);
-      return new DataSourceAnalysis(dataSource, flattened.lhs, baseQuery, flattened.rhs);
+      return new DataSourceAnalysis(dataSource, flattened.lhs, baseQuerySegmentSpec, flattened.rhs);
     } else {
-      return new DataSourceAnalysis(dataSource, current, baseQuery, Collections.emptyList());
+      return new DataSourceAnalysis(dataSource, current, baseQuerySegmentSpec, Collections.emptyList());
     }
   }
 
@@ -168,7 +165,7 @@ public class DataSourceAnalysis
   }
 
   /**
-   * Returns the base (bottom-leftmost) datasource.
+   * Returns the base (bottom-leftmost) datasource.
    */
   public DataSource getBaseDataSource()
   {
@@ -176,10 +173,8 @@ public class DataSourceAnalysis
   }
 
   /**
-   * If {@link #getBaseDataSource()} is a {@link TableDataSource}, returns it. Otherwise, returns an empty Optional.
-   *
-   * Note that this can return empty even if {@link #isConcreteTableBased()} is true. This happens if the base
-   * datasource is a {@link UnionDataSource} of {@link TableDataSource}.
+   * Returns the same datasource as {@link #getBaseDataSource()}, but only if it is a table. Useful on data servers,
+   * since they generally can only handle queries where the base datasource is a table.
    */
   public Optional<TableDataSource> getBaseTableDataSource()
   {
@@ -191,41 +186,13 @@ public class DataSourceAnalysis
   }
 
   /**
-   * If {@link #getBaseDataSource()} is a {@link UnionDataSource}, returns it. Otherwise, returns an empty Optional.
-   */
-  public Optional<UnionDataSource> getBaseUnionDataSource()
-  {
-    if (baseDataSource instanceof UnionDataSource) {
-      return Optional.of((UnionDataSource) baseDataSource);
-    } else {
-      return Optional.empty();
-    }
-  }
-
-  /**
-   * Returns the bottommost (i.e. innermost) {@link Query} from a possible stack of outer queries at the root of
-   * the datasource tree. This is the query that will be applied to the base datasource plus any joinables that might
-   * be present.
-   *
-   * @return the query associated with the base datasource if {@link #isQuery()} is true, else empty
-   */
-  public Optional<Query<?>> getBaseQuery()
-  {
-    return Optional.ofNullable(baseQuery);
-  }
-
-  /**
    * Returns the {@link QuerySegmentSpec} that is associated with the base datasource, if any. This only happens
    * when there is an outer query datasource. In this case, the base querySegmentSpec is the one associated with the
    * innermost subquery.
-   *
-   * This {@link QuerySegmentSpec} is taken from the query returned by {@link #getBaseQuery()}.
-   *
-   * @return the query segment spec associated with the base datasource if {@link #isQuery()} is true, else empty
    */
   public Optional<QuerySegmentSpec> getBaseQuerySegmentSpec()
   {
-    return getBaseQuery().map(query -> ((BaseQuery<?>) query).getQuerySegmentSpec());
+    return Optional.ofNullable(baseQuerySegmentSpec);
   }
 
   /**
@@ -238,7 +205,7 @@ public class DataSourceAnalysis
 
   /**
    * Returns true if all servers have the ability to compute this datasource. These datasources depend only on
-   * globally broadcast data, like lookups or inline data or broadcast segments.
+   * globally broadcast data, like lookups or inline data.
    */
   public boolean isGlobal()
   {
@@ -257,8 +224,8 @@ public class DataSourceAnalysis
 
   /**
    * Returns true if this datasource is concrete-based (see {@link #isConcreteBased()}, and the base datasource is a
-   * {@link TableDataSource} or a {@link UnionDataSource} composed entirely of {@link TableDataSource}. This is an
-   * important property, because it corresponds to datasources that can be handled by Druid's distributed query stack.
+   * 'table' or union of them. This is an important property because it corresponds to datasources that can be handled
+   * by Druid data servers, like Historicals.
    */
   public boolean isConcreteTableBased()
   {
@@ -273,19 +240,11 @@ public class DataSourceAnalysis
   }
 
   /**
-   * Returns true if this datasource represents a subquery (that is, whether it is a {@link QueryDataSource}).
+   * Returns true if this datasource represents a subquery.
    */
   public boolean isQuery()
   {
     return dataSource instanceof QueryDataSource;
-  }
-
-  /**
-   * Returns true if this datasource is made out of a join operation
-   */
-  public boolean isJoin()
-  {
-    return !preJoinableClauses.isEmpty();
   }
 
   @Override
@@ -298,13 +257,16 @@ public class DataSourceAnalysis
       return false;
     }
     DataSourceAnalysis that = (DataSourceAnalysis) o;
-    return Objects.equals(dataSource, that.dataSource);
+    return Objects.equals(dataSource, that.dataSource) &&
+           Objects.equals(baseDataSource, that.baseDataSource) &&
+           Objects.equals(baseQuerySegmentSpec, that.baseQuerySegmentSpec) &&
+           Objects.equals(preJoinableClauses, that.preJoinableClauses);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(dataSource);
+    return Objects.hash(dataSource, baseDataSource, baseQuerySegmentSpec, preJoinableClauses);
   }
 
   @Override
@@ -313,8 +275,8 @@ public class DataSourceAnalysis
     return "DataSourceAnalysis{" +
            "dataSource=" + dataSource +
            ", baseDataSource=" + baseDataSource +
-           ", baseQuery=" + baseQuery +
-           ", preJoinableClauses=" + preJoinableClauses +
+           ", baseQuerySegmentSpec=" + baseQuerySegmentSpec +
+           ", joinClauses=" + preJoinableClauses +
            '}';
   }
 }

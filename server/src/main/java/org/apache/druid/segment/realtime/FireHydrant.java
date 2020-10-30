@@ -19,22 +19,18 @@
 
 package org.apache.druid.segment.realtime;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.segment.IncrementalIndexSegment;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.segment.Segment;
-import org.apache.druid.segment.SegmentReference;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.timeline.SegmentId;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 /**
  */
@@ -75,47 +71,6 @@ public class FireHydrant
     return adapter.get().getDataInterval();
   }
 
-  public int getCount()
-  {
-    return count;
-  }
-
-  public boolean hasSwapped()
-  {
-    return index == null;
-  }
-
-  public void swapSegment(@Nullable Segment newSegment)
-  {
-    while (true) {
-      ReferenceCountingSegment currentSegment = adapter.get();
-      if (currentSegment == null && newSegment == null) {
-        return;
-      }
-      if (currentSegment != null && newSegment != null &&
-          !newSegment.getId().equals(currentSegment.getId())) {
-        // Sanity check: identifier should not change
-        throw new ISE(
-            "Cannot swap identifier[%s] -> [%s]",
-            currentSegment.getId(),
-            newSegment.getId()
-        );
-      }
-      if (currentSegment == newSegment) {
-        throw new ISE("Cannot swap to the same segment");
-      }
-      ReferenceCountingSegment newReferenceCountingSegment =
-          newSegment != null ? ReferenceCountingSegment.wrapRootGenerationSegment(newSegment) : null;
-      if (adapter.compareAndSet(currentSegment, newReferenceCountingSegment)) {
-        if (currentSegment != null) {
-          currentSegment.close();
-        }
-        index = null;
-        return;
-      }
-    }
-  }
-
   public ReferenceCountingSegment getIncrementedSegment()
   {
     ReferenceCountingSegment segment = adapter.get();
@@ -137,52 +92,51 @@ public class FireHydrant
     }
   }
 
-  public Pair<ReferenceCountingSegment, Closeable> getAndIncrementSegment()
+  public int getCount()
   {
-    ReferenceCountingSegment segment = getIncrementedSegment();
-    return new Pair<>(segment, segment.decrementOnceCloseable());
+    return count;
   }
 
-  /**
-   * This method is like a combined form of {@link #getIncrementedSegment} and {@link #getAndIncrementSegment} that
-   * deals in {@link SegmentReference} instead of directly with {@link ReferenceCountingSegment} in order to acquire
-   * reference count for both hydrant's segment and any tracked joinables taking part in the query.
-   */
-  public Optional<Pair<SegmentReference, Closeable>> getSegmentForQuery(
-      Function<SegmentReference, SegmentReference> segmentMapFn
-  )
+  public boolean hasSwapped()
   {
-    ReferenceCountingSegment sinkSegment = adapter.get();
-    SegmentReference segment = segmentMapFn.apply(sinkSegment);
-    while (true) {
-      Optional<Closeable> reference = segment.acquireReferences();
-      if (reference.isPresent()) {
+    return index == null;
+  }
 
-        return Optional.of(new Pair<>(segment, reference.get()));
+  public void swapSegment(@Nullable Segment newSegment)
+  {
+    while (true) {
+      ReferenceCountingSegment currentSegment = adapter.get();
+      if (currentSegment == null && newSegment == null) {
+        return;
       }
-      // segment.acquireReferences() returned false, means it is closed. Since close() in swapSegment() happens after
-      // segment swap, the new segment should already be visible.
-      ReferenceCountingSegment newSinkSegment = adapter.get();
-      if (newSinkSegment == null) {
-        throw new ISE("FireHydrant was 'closed' by swapping segment to null while acquiring a segment");
+      if (currentSegment != null && newSegment != null &&
+          !newSegment.getId().equals(currentSegment.getId())) {
+        // Sanity check: identifier should not change
+        throw new ISE(
+            "WTF?! Cannot swap identifier[%s] -> [%s]!",
+            currentSegment.getId(),
+            newSegment.getId()
+        );
       }
-      if (sinkSegment == newSinkSegment) {
-        if (newSinkSegment.isClosed()) {
-          throw new ISE("segment.close() is called somewhere outside FireHydrant.swapSegment()");
+      if (currentSegment == newSegment) {
+        throw new ISE("Cannot swap to the same segment");
+      }
+      ReferenceCountingSegment newReferenceCountingSegment =
+          newSegment != null ? ReferenceCountingSegment.wrapRootGenerationSegment(newSegment) : null;
+      if (adapter.compareAndSet(currentSegment, newReferenceCountingSegment)) {
+        if (currentSegment != null) {
+          currentSegment.close();
         }
-        // if segment is not closed, but is same segment it means we are having trouble getting references for joinables
-        // of a HashJoinSegment created by segmentMapFn
-        return Optional.empty();
+        index = null;
+        return;
       }
-      segment = segmentMapFn.apply(newSinkSegment);
-      // Spin loop.
     }
   }
 
-  @VisibleForTesting
-  public ReferenceCountingSegment getHydrantSegment()
+  public Pair<Segment, Closeable> getAndIncrementSegment()
   {
-    return adapter.get();
+    ReferenceCountingSegment segment = getIncrementedSegment();
+    return new Pair<>(segment, segment.decrementOnceCloseable());
   }
 
   @Override

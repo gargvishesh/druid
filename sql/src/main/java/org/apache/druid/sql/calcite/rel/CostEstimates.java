@@ -74,19 +74,13 @@ public class CostEstimates
    * Multiplier to apply to an outer query via {@link DruidOuterQueryRel}. Encourages pushing down time-saving
    * operations to the lowest level of the query stack, because they'll have bigger impact there.
    */
-  static final double MULTIPLIER_OUTER_QUERY = .1;
+  static final double MULTIPLIER_OUTER_QUERY = 0.1;
 
   /**
-   * Cost to add to a join when either side is a subquery. Strongly encourages avoiding subqueries, since they must be
-   * inlined and then the join must run on the Broker.
+   * Multiplier to apply to a join when the left-hand side is a subquery. Encourages avoiding subqueries. Subqueries
+   * inside joins must be inlined, which incurs substantial reduction in scalability, so this high number is justified.
    */
-  static final double COST_JOIN_SUBQUERY = 1e5;
-
-  /**
-   * Cost to perform a cross join. Strongly encourages pushing down filters into join conditions, even if it means
-   * we need to add a subquery (this is higher than {@link #COST_JOIN_SUBQUERY}).
-   */
-  static final double COST_JOIN_CROSS = 1e8;
+  static final double MULTIPLIER_JOIN_SUBQUERY = 1000000000;
 
   private CostEstimates()
   {

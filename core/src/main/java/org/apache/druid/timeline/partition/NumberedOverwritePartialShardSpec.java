@@ -22,7 +22,8 @@ package org.apache.druid.timeline.partition;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
+
+import javax.annotation.Nullable;
 
 public class NumberedOverwritePartialShardSpec implements PartialShardSpec
 {
@@ -40,12 +41,6 @@ public class NumberedOverwritePartialShardSpec implements PartialShardSpec
     this.startRootPartitionId = startRootPartitionId;
     this.endRootPartitionId = endRootPartitionId;
     this.minorVersion = minorVersion;
-  }
-
-  @VisibleForTesting
-  public NumberedOverwritePartialShardSpec(int startRootPartitionId, int endRootPartitionId, int minorVersion)
-  {
-    this(startRootPartitionId, endRootPartitionId, (short) minorVersion);
   }
 
   @JsonProperty
@@ -67,10 +62,14 @@ public class NumberedOverwritePartialShardSpec implements PartialShardSpec
   }
 
   @Override
-  public ShardSpec complete(ObjectMapper objectMapper, int partitionId, int numCorePartitions)
+  public ShardSpec complete(ObjectMapper objectMapper, @Nullable ShardSpec specOfPreviousMaxPartitionId)
   {
+    // specOfPreviousMaxPartitionId is the max partitionId of the same shardSpec
+    // and could be null if all existing segments are first-generation segments.
     return new NumberedOverwriteShardSpec(
-        partitionId,
+        specOfPreviousMaxPartitionId == null
+        ? PartitionIds.NON_ROOT_GEN_START_PARTITION_ID
+        : specOfPreviousMaxPartitionId.getPartitionNum() + 1,
         startRootPartitionId,
         endRootPartitionId,
         minorVersion
@@ -78,14 +77,14 @@ public class NumberedOverwritePartialShardSpec implements PartialShardSpec
   }
 
   @Override
-  public Class<? extends ShardSpec> getShardSpecClass()
+  public ShardSpec complete(ObjectMapper objectMapper, int partitionId)
   {
-    return NumberedOverwriteShardSpec.class;
+    return new NumberedOverwriteShardSpec(partitionId, startRootPartitionId, endRootPartitionId, minorVersion);
   }
 
   @Override
-  public boolean useNonRootGenerationPartitionSpace()
+  public Class<? extends ShardSpec> getShardSpecClass()
   {
-    return true;
+    return NumberedOverwriteShardSpec.class;
   }
 }

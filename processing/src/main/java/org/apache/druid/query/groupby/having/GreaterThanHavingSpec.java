@@ -121,10 +121,12 @@ public class GreaterThanHavingSpec implements HavingSpec
   @Override
   public String toString()
   {
-    return "GreaterThanHavingSpec{" +
-           "aggregationName='" + aggregationName + '\'' +
-           ", value=" + value +
-           '}';
+    final StringBuilder sb = new StringBuilder();
+    sb.append("GreaterThanHavingSpec");
+    sb.append("{aggregationName='").append(aggregationName).append('\'');
+    sb.append(", value=").append(value);
+    sb.append('}');
+    return sb.toString();
   }
 
   @Override

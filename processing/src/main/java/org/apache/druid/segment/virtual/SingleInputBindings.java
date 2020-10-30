@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
 
 public class SingleInputBindings implements Expr.ObjectBinding
 {
-  @Nullable
   private Object value;
 
   @Override

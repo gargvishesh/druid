@@ -68,7 +68,7 @@ public class VirtualizedColumnSelectorFactory implements ColumnSelectorFactory
   public ColumnCapabilities getColumnCapabilities(String columnName)
   {
     if (virtualColumns.exists(columnName)) {
-      return virtualColumns.getColumnCapabilities(baseFactory, columnName);
+      return virtualColumns.getColumnCapabilities(columnName);
     } else {
       return baseFactory.getColumnCapabilities(columnName);
     }

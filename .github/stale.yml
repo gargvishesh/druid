@@ -26,7 +26,6 @@ staleLabel: stale
 pulls:
   daysUntilStale: 60
   daysUntilClose: 28
-  limitPerRun: 5
   markComment: >
     This pull request has been marked as stale due to 60 days of inactivity.
     It will be closed in 4 weeks if no further activity occurs. If you think
@@ -46,7 +45,6 @@ pulls:
 issues:
   daysUntilStale: 280
   daysUntilClose: 28
-  limitPerRun: 5
   markComment: >
     This issue has been marked as stale due to 280 days of inactivity.
     It will be closed in 4 weeks if no further activity occurs. If this issue is still

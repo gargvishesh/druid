@@ -94,7 +94,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
  */
 public class JettyServerModule extends JerseyServletModule
 {
@@ -169,7 +168,7 @@ public class JettyServerModule extends JerseyServletModule
         node,
         config,
         TLSServerConfig,
-        injector.getExistingBinding(Key.get(SslContextFactory.Server.class)),
+        injector.getExistingBinding(Key.get(SslContextFactory.class)),
         injector.getInstance(TLSCertificateChecker.class)
     );
   }
@@ -198,7 +197,7 @@ public class JettyServerModule extends JerseyServletModule
       DruidNode node,
       ServerConfig config,
       TLSServerConfig tlsServerConfig,
-      Binding<SslContextFactory.Server> sslContextFactoryBinding,
+      Binding<SslContextFactory> sslContextFactoryBinding,
       TLSCertificateChecker certificateChecker
   )
   {
@@ -238,7 +237,6 @@ public class JettyServerModule extends JerseyServletModule
       }
 
       httpConfiguration.setRequestHeaderSize(config.getMaxRequestHeaderSize());
-      httpConfiguration.setSendServerVersion(false);
       final ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(httpConfiguration));
       if (node.isBindOnHost()) {
         connector.setHost(node.getHost());
@@ -247,8 +245,7 @@ public class JettyServerModule extends JerseyServletModule
       serverConnectors.add(connector);
     }
 
-    final SslContextFactory.Server sslContextFactory;
-
+    final SslContextFactory sslContextFactory;
     if (node.isEnableTlsPort()) {
       log.info("Creating https connector with port [%d]", node.getTlsPort());
       if (sslContextFactoryBinding == null) {
@@ -324,7 +321,6 @@ public class JettyServerModule extends JerseyServletModule
       httpsConfiguration.setSecurePort(node.getTlsPort());
       httpsConfiguration.addCustomizer(new SecureRequestCustomizer());
       httpsConfiguration.setRequestHeaderSize(config.getMaxRequestHeaderSize());
-      httpsConfiguration.setSendServerVersion(false);
       final ServerConnector connector = new ServerConnector(
           server,
           new SslConnectionFactory(sslContextFactory, HTTP_1_1_STRING),
@@ -502,7 +498,7 @@ public class JettyServerModule extends JerseyServletModule
     }
   }
 
-  private static class IdentityCheckOverrideSslContextFactory extends SslContextFactory.Server
+  private static class IdentityCheckOverrideSslContextFactory extends SslContextFactory
   {
     private final TLSServerConfig tlsServerConfig;
     private final TLSCertificateChecker certificateChecker;
@@ -512,7 +508,7 @@ public class JettyServerModule extends JerseyServletModule
         TLSCertificateChecker certificateChecker
     )
     {
-      super();
+      super(false);
       this.tlsServerConfig = tlsServerConfig;
       this.certificateChecker = certificateChecker;
     }

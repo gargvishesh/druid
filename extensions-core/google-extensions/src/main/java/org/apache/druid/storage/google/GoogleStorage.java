@@ -51,9 +51,11 @@ public class GoogleStorage
   public InputStream get(final String bucket, final String path, long start) throws IOException
   {
     final Get get = storage.objects().get(bucket, path);
-    InputStream inputStream = get.executeMediaAsInputStream();
-    inputStream.skip(start);
-    return inputStream;
+    if (start > 0) {
+      get.getMediaHttpDownloader().setBytesDownloaded(start);
+    }
+    get.getMediaHttpDownloader().setDirectDownloadEnabled(false);
+    return get.executeMediaAsInputStream();
   }
 
   public void delete(final String bucket, final String path) throws IOException

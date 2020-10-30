@@ -30,9 +30,6 @@ import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.io.Closer;
-import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseFloatColumnValueSelector;
 import org.apache.druid.segment.BaseLongColumnValueSelector;
@@ -42,9 +39,6 @@ import org.apache.druid.segment.ColumnProcessors;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.DimensionSelector;
-import org.apache.druid.segment.SimpleAscendingOffset;
-import org.apache.druid.segment.SimpleDescendingOffset;
-import org.apache.druid.segment.SimpleSettableOffset;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.join.Equality;
@@ -60,19 +54,18 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class IndexedTableJoinMatcher implements JoinMatcher
 {
-  static final int NO_CONDITION_MATCH = -1;
   private static final int UNINITIALIZED_CURRENT_ROW = -1;
 
   // Key column type to use when the actual key type is unknown.
   static final ValueType DEFAULT_KEY_TYPE = ValueType.STRING;
 
   private final IndexedTable table;
-  private final List<ConditionMatcher> conditionMatchers;
-  private final boolean singleRowMatching;
+  private final List<Supplier<IntIterator>> conditionMatchers;
   private final IntIterator[] currentMatchedRows;
   private final ColumnSelectorFactory selectorFactory;
 
@@ -84,44 +77,26 @@ public class IndexedTableJoinMatcher implements JoinMatcher
   @Nullable
   private IntIterator currentIterator;
   private int currentRow;
-  private final SimpleSettableOffset joinableOffset;
 
   IndexedTableJoinMatcher(
       final IndexedTable table,
       final ColumnSelectorFactory leftSelectorFactory,
       final JoinConditionAnalysis condition,
-      final boolean remainderNeeded,
-      final boolean descending,
-      final Closer closer
+      final boolean remainderNeeded
   )
   {
     this.table = table;
-    if (descending) {
-      this.joinableOffset = new SimpleDescendingOffset(table.numRows());
-    } else {
-      this.joinableOffset = new SimpleAscendingOffset(table.numRows());
-    }
-    reset();
+    this.currentRow = UNINITIALIZED_CURRENT_ROW;
 
     if (condition.isAlwaysTrue()) {
       this.conditionMatchers = Collections.singletonList(() -> IntIterators.fromTo(0, table.numRows()));
-      this.singleRowMatching = false;
     } else if (condition.isAlwaysFalse()) {
       this.conditionMatchers = Collections.singletonList(() -> IntIterators.EMPTY_ITERATOR);
-      this.singleRowMatching = false;
     } else if (condition.getNonEquiConditions().isEmpty()) {
-      final List<Pair<IndexedTable.Index, Equality>> indexes =
-          condition.getEquiConditions()
-                   .stream()
-                   .map(eq -> Pair.of(getIndex(table, eq), eq))
-                   .collect(Collectors.toCollection(ArrayList::new));
-
-      this.conditionMatchers =
-          indexes.stream()
-                 .map(pair -> makeConditionMatcher(pair.lhs, leftSelectorFactory, pair.rhs))
-                 .collect(Collectors.toList());
-
-      this.singleRowMatching = indexes.stream().allMatch(pair -> pair.lhs.areKeysUnique());
+      this.conditionMatchers = condition.getEquiConditions()
+                                        .stream()
+                                        .map(eq -> makeConditionMatcher(table, leftSelectorFactory, eq))
+                                        .collect(Collectors.toCollection(ArrayList::new));
     } else {
       throw new IAE(
           "Cannot build hash-join matcher on non-equi-join condition: %s",
@@ -129,17 +104,8 @@ public class IndexedTableJoinMatcher implements JoinMatcher
       );
     }
 
-    if (!singleRowMatching) {
-      // Only used by "matchCondition", and only in the multi-row-matching case.
-      this.currentMatchedRows = new IntIterator[conditionMatchers.size()];
-    } else {
-      this.currentMatchedRows = null;
-    }
-
-    ColumnSelectorFactory selectorFactory = table.makeColumnSelectorFactory(joinableOffset, descending, closer);
-    this.selectorFactory = selectorFactory != null
-                           ? selectorFactory
-                           : new IndexedTableColumnSelectorFactory(table, () -> currentRow, closer);
+    this.currentMatchedRows = new IntIterator[conditionMatchers.size()];
+    this.selectorFactory = new IndexedTableColumnSelectorFactory(table, () -> currentRow);
 
     if (remainderNeeded) {
       this.matchedRows = new IntRBTreeSet();
@@ -149,8 +115,9 @@ public class IndexedTableJoinMatcher implements JoinMatcher
 
   }
 
-  private static IndexedTable.Index getIndex(
+  private static Supplier<IntIterator> makeConditionMatcher(
       final IndexedTable table,
+      final ColumnSelectorFactory selectorFactory,
       final Equality condition
   )
   {
@@ -160,19 +127,15 @@ public class IndexedTableJoinMatcher implements JoinMatcher
 
     final int keyColumnNumber = table.rowSignature().indexOf(condition.getRightColumn());
 
-    return table.columnIndex(keyColumnNumber);
-  }
+    final ValueType keyType =
+        table.rowSignature().getColumnType(condition.getRightColumn()).orElse(DEFAULT_KEY_TYPE);
 
-  private static ConditionMatcher makeConditionMatcher(
-      final IndexedTable.Index index,
-      final ColumnSelectorFactory selectorFactory,
-      final Equality condition
-  )
-  {
+    final IndexedTable.Index index = table.columnIndex(keyColumnNumber);
+
     return ColumnProcessors.makeProcessor(
         condition.getLeftExpr(),
-        index.keyType(),
-        new ConditionMatcherFactory(index),
+        keyType,
+        new ConditionMatcherFactory(keyType, index),
         selectorFactory
     );
   }
@@ -188,39 +151,22 @@ public class IndexedTableJoinMatcher implements JoinMatcher
   {
     reset();
 
-    if (singleRowMatching) {
-      if (conditionMatchers.size() == 1) {
-        currentRow = conditionMatchers.get(0).matchSingleRow();
+    for (int i = 0; i < conditionMatchers.size(); i++) {
+      final IntIterator rows = conditionMatchers.get(i).get();
+      if (rows.hasNext()) {
+        currentMatchedRows[i] = rows;
       } else {
-        currentRow = conditionMatchers.get(0).matchSingleRow();
-
-        for (int i = 1; i < conditionMatchers.size(); i++) {
-          if (currentRow != conditionMatchers.get(i).matchSingleRow()) {
-            currentRow = UNINITIALIZED_CURRENT_ROW;
-            break;
-          }
-        }
+        return;
       }
-    } else {
-      if (conditionMatchers.size() == 1) {
-        currentIterator = conditionMatchers.get(0).match();
-      } else {
-        for (int i = 0; i < conditionMatchers.size(); i++) {
-          final IntIterator rows = conditionMatchers.get(i).match();
-          if (rows.hasNext()) {
-            currentMatchedRows[i] = rows;
-          } else {
-            return;
-          }
-        }
-
-        currentIterator = new SortedIntIntersectionIterator(currentMatchedRows);
-      }
-
-      advanceCurrentRow();
     }
 
-    addCurrentRowToMatchedRows();
+    if (currentMatchedRows.length == 1) {
+      currentIterator = currentMatchedRows[0];
+    } else {
+      currentIterator = new SortedIntIntersectionIterator(currentMatchedRows);
+    }
+
+    nextMatch();
   }
 
   @Override
@@ -263,7 +209,7 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     };
 
     matchingRemainder = true;
-    advanceCurrentRow();
+    nextMatch();
   }
 
   @Override
@@ -282,7 +228,10 @@ public class IndexedTableJoinMatcher implements JoinMatcher
   public void nextMatch()
   {
     advanceCurrentRow();
-    addCurrentRowToMatchedRows();
+
+    if (!matchingRemainder && matchedRows != null && hasMatch()) {
+      matchedRows.add(currentRow);
+    }
   }
 
   @Override
@@ -293,7 +242,6 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     currentIterator = null;
     currentRow = UNINITIALIZED_CURRENT_ROW;
     matchingRemainder = false;
-    joinableOffset.reset();
   }
 
   private void advanceCurrentRow()
@@ -303,40 +251,14 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     } else {
       currentIterator = null;
       currentRow = UNINITIALIZED_CURRENT_ROW;
-      joinableOffset.setCurrentOffset(currentRow);
     }
-  }
-
-  private void addCurrentRowToMatchedRows()
-  {
-    if (!matchingRemainder && matchedRows != null && hasMatch()) {
-      matchedRows.add(currentRow);
-    }
-  }
-
-  interface ConditionMatcher
-  {
-    /**
-     * Returns the first row that matches the current cursor position, or {@link #NO_CONDITION_MATCH} if nothing
-     * matches.
-     */
-    default int matchSingleRow()
-    {
-      final IntIterator it = match();
-      return it.hasNext() ? it.nextInt() : NO_CONDITION_MATCH;
-    }
-
-    /**
-     * Returns an iterator for the row numbers that match the current cursor position.
-     */
-    IntIterator match();
   }
 
   /**
    * Makes suppliers that returns the list of IndexedTable rows that match the values from selectors.
    */
   @VisibleForTesting
-  static class ConditionMatcherFactory implements ColumnProcessorFactory<ConditionMatcher>
+  static class ConditionMatcherFactory implements ColumnProcessorFactory<Supplier<IntIterator>>
   {
     @VisibleForTesting
     static final int CACHE_MAX_SIZE = 1000;
@@ -350,9 +272,9 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")  // updated via computeIfAbsent
     private final LruLoadingHashMap<DimensionSelector, Int2IntListMap> dimensionCaches;
 
-    ConditionMatcherFactory(IndexedTable.Index index)
+    ConditionMatcherFactory(ValueType keyType, IndexedTable.Index index)
     {
-      this.keyType = index.keyType();
+      this.keyType = keyType;
       this.index = index;
 
       this.dimensionCaches = new LruLoadingHashMap<>(
@@ -385,7 +307,7 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     }
 
     @Override
-    public ConditionMatcher makeDimensionProcessor(DimensionSelector selector, boolean multiValue)
+    public Supplier<IntIterator> makeDimensionProcessor(DimensionSelector selector, boolean multiValue)
     {
       // NOTE: The slow (cardinality unknown) and fast (cardinality known) code paths below only differ in the calls to
       // getRowNumbers() and getAndCacheRowNumbers(), respectively. The majority of the code path is duplicated to avoid
@@ -404,12 +326,9 @@ public class IndexedTableJoinMatcher implements JoinMatcher
             int dimensionId = row.get(0);
             IntList rowNumbers = getRowNumbers(selector, dimensionId);
             return rowNumbers.iterator();
-          } else if (row.size() == 0) {
-            return IntIterators.EMPTY_ITERATOR;
           } else {
-            // Multi-valued rows are not handled by the join system right now
-            // TODO: Remove when https://github.com/apache/druid/issues/9924 is done
-            throw new QueryUnsupportedException("Joining against a multi-value dimension is not supported.");
+            // Multi-valued rows are not handled by the join system right now; treat them as nulls.
+            return IntIterators.EMPTY_ITERATOR;
           }
         };
       } else {
@@ -422,19 +341,16 @@ public class IndexedTableJoinMatcher implements JoinMatcher
             int dimensionId = row.get(0);
             IntList rowNumbers = getAndCacheRowNumbers(selector, dimensionId);
             return rowNumbers.iterator();
-          } else if (row.size() == 0) {
-            return IntIterators.EMPTY_ITERATOR;
           } else {
-            // Multi-valued rows are not handled by the join system right now
-            // TODO: Remove when https://github.com/apache/druid/issues/9924 is done
-            throw new QueryUnsupportedException("Joining against a multi-value dimension is not supported.");
+            // Multi-valued rows are not handled by the join system right now; treat them as nulls.
+            return IntIterators.EMPTY_ITERATOR;
           }
         };
       }
     }
 
     @Override
-    public ConditionMatcher makeFloatProcessor(BaseFloatColumnValueSelector selector)
+    public Supplier<IntIterator> makeFloatProcessor(BaseFloatColumnValueSelector selector)
     {
       if (NullHandling.replaceWithDefault()) {
         return () -> index.find(selector.getFloat()).iterator();
@@ -444,7 +360,7 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     }
 
     @Override
-    public ConditionMatcher makeDoubleProcessor(BaseDoubleColumnValueSelector selector)
+    public Supplier<IntIterator> makeDoubleProcessor(BaseDoubleColumnValueSelector selector)
     {
       if (NullHandling.replaceWithDefault()) {
         return () -> index.find(selector.getDouble()).iterator();
@@ -454,58 +370,19 @@ public class IndexedTableJoinMatcher implements JoinMatcher
     }
 
     @Override
-    public ConditionMatcher makeLongProcessor(BaseLongColumnValueSelector selector)
+    public Supplier<IntIterator> makeLongProcessor(BaseLongColumnValueSelector selector)
     {
       if (NullHandling.replaceWithDefault()) {
-        return new ConditionMatcher()
-        {
-          @Override
-          public int matchSingleRow()
-          {
-            return index.findUniqueLong(selector.getLong());
-          }
-
-          @Override
-          public IntIterator match()
-          {
-            return index.find(selector.getLong()).iterator();
-          }
-        };
+        return () -> index.find(selector.getLong()).iterator();
       } else {
-        return new ConditionMatcher()
-        {
-          @Override
-          public int matchSingleRow()
-          {
-            return selector.isNull() ? NO_CONDITION_MATCH : index.findUniqueLong(selector.getLong());
-          }
-
-          @Override
-          public IntIterator match()
-          {
-            return selector.isNull() ? IntIterators.EMPTY_ITERATOR : index.find(selector.getLong()).iterator();
-          }
-        };
+        return () -> selector.isNull() ? IntIterators.EMPTY_ITERATOR : index.find(selector.getLong()).iterator();
       }
     }
 
     @Override
-    public ConditionMatcher makeComplexProcessor(BaseObjectColumnValueSelector<?> selector)
+    public Supplier<IntIterator> makeComplexProcessor(BaseObjectColumnValueSelector<?> selector)
     {
-      return new ConditionMatcher()
-      {
-        @Override
-        public int matchSingleRow()
-        {
-          return NO_CONDITION_MATCH;
-        }
-
-        @Override
-        public IntIterator match()
-        {
-          return IntIterators.EMPTY_ITERATOR;
-        }
-      };
+      return () -> IntIterators.EMPTY_ITERATOR;
     }
   }
 

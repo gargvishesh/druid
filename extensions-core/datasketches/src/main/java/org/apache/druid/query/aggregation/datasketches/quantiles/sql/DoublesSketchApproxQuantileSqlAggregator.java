@@ -39,7 +39,6 @@ import org.apache.druid.query.aggregation.datasketches.quantiles.DoublesSketchTo
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
@@ -183,7 +182,7 @@ public class DoublesSketchApproxQuantileSqlAggregator implements SqlAggregator
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
           input,
-          ValueType.FLOAT
+          SqlTypeName.FLOAT
       );
       virtualColumns.add(virtualColumn);
       aggregatorFactory = new DoublesSketchAggregatorFactory(

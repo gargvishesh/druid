@@ -21,8 +21,6 @@ package org.apache.druid.indexing.overlord.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.curator.CuratorUtils;
-import org.apache.druid.java.util.common.HumanReadableBytes;
-import org.apache.druid.java.util.common.HumanReadableBytesRange;
 import org.joda.time.Period;
 
 import javax.validation.constraints.Max;
@@ -44,8 +42,8 @@ public class RemoteTaskRunnerConfig extends WorkerTaskRunnerConfig
   private Period taskCleanupTimeout = new Period("PT15M");
 
   @JsonProperty
-  @HumanReadableBytesRange(min = 10 * 1024, max = Integer.MAX_VALUE)
-  private HumanReadableBytes maxZnodeBytes = HumanReadableBytes.valueOf(CuratorUtils.DEFAULT_MAX_ZNODE_BYTES);
+  @Min(10 * 1024)
+  private int maxZnodeBytes = CuratorUtils.DEFAULT_MAX_ZNODE_BYTES;
 
   @JsonProperty
   private Period taskShutdownLinkTimeout = new Period("PT1M");
@@ -83,13 +81,14 @@ public class RemoteTaskRunnerConfig extends WorkerTaskRunnerConfig
 
   public int getMaxZnodeBytes()
   {
-    return maxZnodeBytes.getBytesInInt();
+    return maxZnodeBytes;
   }
 
   public Period getTaskShutdownLinkTimeout()
   {
     return taskShutdownLinkTimeout;
   }
+
 
   public int getPendingTasksRunnerNumThreads()
   {
@@ -133,7 +132,7 @@ public class RemoteTaskRunnerConfig extends WorkerTaskRunnerConfig
 
     RemoteTaskRunnerConfig that = (RemoteTaskRunnerConfig) o;
 
-    if (!maxZnodeBytes.equals(that.maxZnodeBytes)) {
+    if (maxZnodeBytes != that.maxZnodeBytes) {
       return false;
     }
     if (pendingTasksRunnerNumThreads != that.pendingTasksRunnerNumThreads) {
@@ -170,7 +169,7 @@ public class RemoteTaskRunnerConfig extends WorkerTaskRunnerConfig
     int result = taskAssignmentTimeout.hashCode();
     result = 31 * result + taskCleanupTimeout.hashCode();
     result = 31 * result + getMinWorkerVersion().hashCode();
-    result = 31 * result + maxZnodeBytes.getBytesInInt();
+    result = 31 * result + maxZnodeBytes;
     result = 31 * result + taskShutdownLinkTimeout.hashCode();
     result = 31 * result + pendingTasksRunnerNumThreads;
     result = 31 * result + maxRetriesBeforeBlacklist;

@@ -37,10 +37,4 @@ public abstract class DropRule implements Rule
     stats.addToGlobalStat("deletedCount", 1);
     return stats;
   }
-
-  @Override
-  public boolean canLoadSegments()
-  {
-    return false;
-  }
 }

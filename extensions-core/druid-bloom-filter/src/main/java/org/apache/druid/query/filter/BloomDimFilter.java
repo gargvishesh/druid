@@ -38,7 +38,7 @@ import java.util.Set;
 
 /**
  */
-public class BloomDimFilter extends AbstractOptimizableDimFilter implements DimFilter
+public class BloomDimFilter implements DimFilter
 {
 
   private final String dimension;

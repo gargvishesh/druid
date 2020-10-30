@@ -26,6 +26,7 @@ import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.indexer.partitions.HashedPartitionsSpec;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
+import org.apache.druid.indexing.common.task.IndexTaskClientFactory;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.indexing.DataSchema;
@@ -106,6 +107,9 @@ public class PartialRangeSegmentGenerateTaskTest extends AbstractParallelIndexSu
     private static final InputSource INPUT_SOURCE = new InlineInputSource("data");
     private static final InputFormat INPUT_FORMAT = ParallelIndexTestingFactory.getInputFormat();
 
+    private final IndexTaskClientFactory<ParallelIndexSupervisorTaskClient> taskClientFactory =
+        ParallelIndexTestingFactory.TASK_CLIENT_FACTORY;
+
     private ParallelIndexTuningConfig tuningConfig = new ParallelIndexTestingFactory.TuningConfigBuilder()
         .partitionsSpec(new ParallelIndexTestingFactory.SingleDimensionPartitionsSpecBuilder().build())
         .build();
@@ -137,7 +141,10 @@ public class PartialRangeSegmentGenerateTaskTest extends AbstractParallelIndexSu
           ParallelIndexTestingFactory.NUM_ATTEMPTS,
           ingestionSpec,
           ParallelIndexTestingFactory.CONTEXT,
-          ImmutableMap.of(Intervals.ETERNITY, new PartitionBoundaries("a"))
+          ImmutableMap.of(Intervals.ETERNITY, new PartitionBoundaries("a")),
+          ParallelIndexTestingFactory.INDEXING_SERVICE_CLIENT,
+          taskClientFactory,
+          ParallelIndexTestingFactory.APPENDERATORS_MANAGER
       );
     }
   }

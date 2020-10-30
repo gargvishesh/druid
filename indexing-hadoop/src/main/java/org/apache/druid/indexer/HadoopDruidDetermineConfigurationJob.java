@@ -27,7 +27,6 @@ import org.apache.druid.indexer.partitions.SingleDimensionPartitionsSpec;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.partition.HashBasedNumberedShardSpec;
-import org.apache.druid.timeline.partition.HashPartitionFunction;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -62,16 +61,13 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
     } else {
       final PartitionsSpec partitionsSpec = config.getPartitionsSpec();
       final int shardsPerInterval;
-      final HashPartitionFunction partitionFunction;
       if (partitionsSpec instanceof HashedPartitionsSpec) {
         final HashedPartitionsSpec hashedPartitionsSpec = (HashedPartitionsSpec) partitionsSpec;
         shardsPerInterval = PartitionsSpec.isEffectivelyNull(hashedPartitionsSpec.getNumShards())
                             ? 1
                             : hashedPartitionsSpec.getNumShards();
-        partitionFunction = hashedPartitionsSpec.getPartitionFunction();
       } else {
         shardsPerInterval = 1;
-        partitionFunction = null;
       }
       Map<Long, List<HadoopyShardSpec>> shardSpecs = new TreeMap<>();
       int shardCount = 0;
@@ -85,10 +81,7 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
                   new HashBasedNumberedShardSpec(
                       i,
                       shardsPerInterval,
-                      i,
-                      shardsPerInterval,
                       config.getPartitionsSpec().getPartitionDimensions(),
-                      partitionFunction,
                       HadoopDruidIndexerConfig.JSON_MAPPER
                   ),
                   shardCount++

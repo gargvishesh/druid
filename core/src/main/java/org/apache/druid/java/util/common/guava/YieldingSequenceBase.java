@@ -19,8 +19,6 @@
 
 package org.apache.druid.java.util.common.guava;
 
-import java.io.IOException;
-
 /**
  * A Sequence that is based entirely on the Yielder implementation.
  * <p/>
@@ -31,33 +29,16 @@ public abstract class YieldingSequenceBase<T> implements Sequence<T>
   @Override
   public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
   {
-    final OutType retVal;
     Yielder<OutType> yielder = toYielder(initValue, YieldingAccumulators.fromAccumulator(accumulator));
 
     try {
       while (!yielder.isDone()) {
         yielder = yielder.next(yielder.get());
       }
-      retVal = yielder.get();
+      return yielder.get();
     }
-    catch (Throwable t1) {
-      try {
-        yielder.close();
-      }
-      catch (Throwable t2) {
-        t1.addSuppressed(t2);
-      }
-
-      throw t1;
+    finally {
+      CloseQuietly.close(yielder);
     }
-
-    try {
-      yielder.close();
-    }
-    catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    return retVal;
   }
 }

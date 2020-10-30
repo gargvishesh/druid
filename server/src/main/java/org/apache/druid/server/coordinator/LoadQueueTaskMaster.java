@@ -20,7 +20,6 @@
 package org.apache.druid.server.coordinator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Provider;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.druid.client.ImmutableDruidServer;
@@ -35,7 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 public class LoadQueueTaskMaster
 {
-  private final Provider<CuratorFramework> curatorFrameworkProvider;
+  private final CuratorFramework curator;
   private final ObjectMapper jsonMapper;
   private final ScheduledExecutorService peonExec;
   private final ExecutorService callbackExec;
@@ -44,7 +43,7 @@ public class LoadQueueTaskMaster
   private final ZkPathsConfig zkPaths;
 
   public LoadQueueTaskMaster(
-      Provider<CuratorFramework> curatorFrameworkProvider,
+      CuratorFramework curator,
       ObjectMapper jsonMapper,
       ScheduledExecutorService peonExec,
       ExecutorService callbackExec,
@@ -53,7 +52,7 @@ public class LoadQueueTaskMaster
       ZkPathsConfig zkPaths
   )
   {
-    this.curatorFrameworkProvider = curatorFrameworkProvider;
+    this.curator = curator;
     this.jsonMapper = jsonMapper;
     this.peonExec = peonExec;
     this.callbackExec = callbackExec;
@@ -68,7 +67,7 @@ public class LoadQueueTaskMaster
       return new HttpLoadQueuePeon(server.getURL(), jsonMapper, httpClient, config, peonExec, callbackExec);
     } else {
       return new CuratorLoadQueuePeon(
-          curatorFrameworkProvider.get(),
+          curator,
           ZKPaths.makePath(zkPaths.getLoadQueuePath(), server.getName()),
           jsonMapper,
           peonExec,

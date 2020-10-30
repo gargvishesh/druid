@@ -16,63 +16,15 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
-import { QueryState } from '../../utils';
+import { DatasourceColumnsTable } from './datasource-columns-table';
 
-import { DatasourceColumnsTable, DatasourceColumnsTableRow } from './datasource-columns-table';
-
-let columnsState: QueryState<DatasourceColumnsTableRow[]> = QueryState.INIT;
-jest.mock('../../hooks', () => {
-  return {
-    useQueryManager: () => [columnsState],
-  };
-});
-
-describe('DatasourceColumnsTable', () => {
-  function makeDatasourceColumnsTable() {
-    return <DatasourceColumnsTable datasourceId={'test'} downloadFilename={'test'} />;
-  }
-
-  it('matches snapshot on init', () => {
-    expect(shallow(makeDatasourceColumnsTable())).toMatchSnapshot();
-  });
-
-  it('matches snapshot on loading', () => {
-    columnsState = QueryState.LOADING;
-
-    expect(shallow(makeDatasourceColumnsTable())).toMatchSnapshot();
-  });
-
-  it('matches snapshot on error', () => {
-    columnsState = new QueryState({ error: new Error('test error') });
-
-    expect(shallow(makeDatasourceColumnsTable())).toMatchSnapshot();
-  });
-
-  it('matches snapshot on no data', () => {
-    columnsState = new QueryState({
-      data: [],
-    });
-
-    expect(shallow(makeDatasourceColumnsTable())).toMatchSnapshot();
-  });
-
-  it('matches snapshot on some data', () => {
-    columnsState = new QueryState({
-      data: [
-        {
-          COLUMN_NAME: 'channel',
-          DATA_TYPE: 'VARCHAR',
-        },
-        {
-          COLUMN_NAME: 'page',
-          DATA_TYPE: 'VARCHAR',
-        },
-      ],
-    });
-
-    expect(shallow(makeDatasourceColumnsTable())).toMatchSnapshot();
+describe('rule editor', () => {
+  it('matches snapshot', () => {
+    const showJson = <DatasourceColumnsTable datasourceId={'test'} downloadFilename={'test'} />;
+    const { container } = render(showJson);
+    expect(container.firstChild).toMatchSnapshot();
   });
 });

@@ -21,18 +21,17 @@ package org.apache.druid.indexing.common.stats;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
-import org.apache.druid.segment.incremental.RowIngestionMetersTotals;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class DropwizardRowIngestionMeters implements RowIngestionMeters
 {
-  private static final String ONE_MINUTE_NAME = "1m";
-  private static final String FIVE_MINUTE_NAME = "5m";
-  private static final String FIFTEEN_MINUTE_NAME = "15m";
+  public static final String ONE_MINUTE_NAME = "1m";
+  public static final String FIVE_MINUTE_NAME = "5m";
+  public static final String FIFTEEN_MINUTE_NAME = "15m";
 
+  private final MetricRegistry metricRegistry;
   private final Meter processed;
   private final Meter processedWithError;
   private final Meter unparseable;
@@ -40,7 +39,7 @@ public class DropwizardRowIngestionMeters implements RowIngestionMeters
 
   public DropwizardRowIngestionMeters()
   {
-    MetricRegistry metricRegistry = new MetricRegistry();
+    this.metricRegistry = new MetricRegistry();
     this.processed = metricRegistry.meter(PROCESSED);
     this.processedWithError = metricRegistry.meter(PROCESSED_WITH_ERROR);
     this.unparseable = metricRegistry.meter(UNPARSEABLE);

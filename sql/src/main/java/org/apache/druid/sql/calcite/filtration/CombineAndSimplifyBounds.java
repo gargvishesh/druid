@@ -153,8 +153,7 @@ public class CombineAndSimplifyBounds extends BottomUpTransform
         // We found a simplification. Remove the old filters and add new ones.
         for (final BoundDimFilter bound : filterList) {
           if (!newChildren.remove(bound)) {
-            // Don't expect this to happen, but include it as a sanity check.
-            throw new ISE("Tried to remove bound, but couldn't");
+            throw new ISE("WTF?! Tried to remove bound but couldn't?");
           }
         }
 

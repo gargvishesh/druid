@@ -34,7 +34,7 @@ public class DoublesSketchRankOperatorConversion extends DoublesSketchSingleArgB
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
       .operandTypes(SqlTypeFamily.ANY, SqlTypeFamily.NUMERIC)
-      .returnTypeNonNull(SqlTypeName.DOUBLE)
+      .returnType(SqlTypeName.DOUBLE)
       .build();
 
   public DoublesSketchRankOperatorConversion()

@@ -62,7 +62,6 @@ public class AppenderatorPlumberTest
                 EasyMock.anyObject())).andReturn(true).anyTimes();
     
     RealtimeTuningConfig tuningConfig = new RealtimeTuningConfig(
-        null,
         1,
         null,
         null,

@@ -20,7 +20,6 @@
 package org.apache.druid.discovery;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.server.coordination.ServerType;
 
@@ -37,7 +36,6 @@ public class DataNodeService extends DruidService
   private final long maxSize;
   private final ServerType type;
   private final int priority;
-  private final boolean isDiscoverable;
 
   @JsonCreator
   public DataNodeService(
@@ -47,22 +45,10 @@ public class DataNodeService extends DruidService
       @JsonProperty("priority") int priority
   )
   {
-    this(tier, maxSize, type, priority, true);
-  }
-
-  public DataNodeService(
-      String tier,
-      long maxSize,
-      ServerType type,
-      int priority,
-      boolean isDiscoverable
-  )
-  {
     this.tier = tier;
     this.maxSize = maxSize;
     this.type = type;
     this.priority = priority;
-    this.isDiscoverable = isDiscoverable;
   }
 
   @Override
@@ -93,13 +79,6 @@ public class DataNodeService extends DruidService
   public int getPriority()
   {
     return priority;
-  }
-
-  @Override
-  @JsonIgnore
-  public boolean isDiscoverable()
-  {
-    return isDiscoverable;
   }
 
   @Override

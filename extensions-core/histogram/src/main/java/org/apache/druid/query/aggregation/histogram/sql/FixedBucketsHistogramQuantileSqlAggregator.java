@@ -39,7 +39,6 @@ import org.apache.druid.query.aggregation.histogram.FixedBucketsHistogramAggrega
 import org.apache.druid.query.aggregation.histogram.QuantilePostAggregator;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
@@ -239,7 +238,7 @@ public class FixedBucketsHistogramQuantileSqlAggregator implements SqlAggregator
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
           input,
-          ValueType.FLOAT
+          SqlTypeName.FLOAT
       );
       virtualColumns.add(virtualColumn);
       aggregatorFactory = new FixedBucketsHistogramAggregatorFactory(

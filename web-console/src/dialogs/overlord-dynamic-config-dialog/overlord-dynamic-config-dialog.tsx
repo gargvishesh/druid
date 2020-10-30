@@ -19,14 +19,13 @@
 import { Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import axios from 'axios';
-import React, { useState } from 'react';
+import React from 'react';
 
-import { SnitchDialog } from '..';
 import { AutoForm, ExternalLink } from '../../components';
-import { useQueryManager } from '../../hooks';
-import { getLink } from '../../links';
 import { AppToaster } from '../../singletons/toaster';
-import { getDruidErrorMessage } from '../../utils';
+import { getDruidErrorMessage, QueryManager } from '../../utils';
+import { DRUID_DOCS_VERSION } from '../../variables';
+import { SnitchDialog } from '../snitch-dialog/snitch-dialog';
 
 import './overlord-dynamic-config-dialog.scss';
 
@@ -34,42 +33,65 @@ export interface OverlordDynamicConfigDialogProps {
   onClose: () => void;
 }
 
-export const OverlordDynamicConfigDialog = React.memo(function OverlordDynamicConfigDialog(
-  props: OverlordDynamicConfigDialogProps,
-) {
-  const { onClose } = props;
-  const [dynamicConfig, setDynamicConfig] = useState<Record<string, any>>({});
+export interface OverlordDynamicConfigDialogState {
+  dynamicConfig?: Record<string, any>;
+  historyRecords: any[];
+}
 
-  const [historyRecordsState] = useQueryManager<null, any[]>({
-    processQuery: async () => {
-      const historyResp = await axios(`/druid/indexer/v1/worker/history?count=100`);
-      return historyResp.data;
-    },
-    initQuery: null,
-  });
+export class OverlordDynamicConfigDialog extends React.PureComponent<
+  OverlordDynamicConfigDialogProps,
+  OverlordDynamicConfigDialogState
+> {
+  private historyQueryManager: QueryManager<string, any>;
 
-  useQueryManager<null, Record<string, any>>({
-    processQuery: async () => {
-      try {
-        const configResp = await axios(`/druid/indexer/v1/worker`);
-        setDynamicConfig(configResp.data);
-      } catch (e) {
-        AppToaster.show({
-          icon: IconNames.ERROR,
-          intent: Intent.DANGER,
-          message: `Could not load overlord dynamic config: ${getDruidErrorMessage(e)}`,
+  constructor(props: OverlordDynamicConfigDialogProps) {
+    super(props);
+    this.state = {
+      historyRecords: [],
+    };
+
+    this.historyQueryManager = new QueryManager({
+      processQuery: async () => {
+        const historyResp = await axios(`/druid/indexer/v1/worker/history?count=100`);
+        return historyResp.data;
+      },
+      onStateChange: ({ result }) => {
+        this.setState({
+          historyRecords: result,
         });
-        setDynamicConfig({});
-        onClose();
-      }
-      return {};
-    },
-    initQuery: null,
-  });
+      },
+    });
+  }
 
-  async function saveConfig(comment: string) {
+  componentDidMount() {
+    this.getConfig();
+
+    this.historyQueryManager.runQuery(`dummy`);
+  }
+
+  async getConfig() {
+    let config: Record<string, any> | undefined;
     try {
-      await axios.post('/druid/indexer/v1/worker', dynamicConfig, {
+      const configResp = await axios.get('/druid/indexer/v1/worker');
+      config = configResp.data || {};
+    } catch (e) {
+      AppToaster.show({
+        icon: IconNames.ERROR,
+        intent: Intent.DANGER,
+        message: `Could not load overlord dynamic config: ${getDruidErrorMessage(e)}`,
+      });
+      return;
+    }
+    this.setState({
+      dynamicConfig: config,
+    });
+  }
+
+  private saveConfig = async (comment: string) => {
+    const { onClose } = this.props;
+    const newState: any = this.state.dynamicConfig;
+    try {
+      await axios.post('/druid/indexer/v1/worker', newState, {
         headers: {
           'X-Druid-Author': 'console',
           'X-Druid-Comment': comment,
@@ -88,39 +110,45 @@ export const OverlordDynamicConfigDialog = React.memo(function OverlordDynamicCo
       intent: Intent.SUCCESS,
     });
     onClose();
-  }
+  };
 
-  return (
-    <SnitchDialog
-      className="overlord-dynamic-config-dialog"
-      onSave={saveConfig}
-      onClose={onClose}
-      title="Overlord dynamic config"
-      historyRecords={historyRecordsState.data}
-    >
-      <p>
-        Edit the overlord dynamic configuration on the fly. For more information please refer to the{' '}
-        <ExternalLink
-          href={`${getLink('DOCS')}/configuration/index.html#overlord-dynamic-configuration`}
-        >
-          documentation
-        </ExternalLink>
-        .
-      </p>
-      <AutoForm
-        fields={[
-          {
-            name: 'selectStrategy',
-            type: 'json',
-          },
-          {
-            name: 'autoScaler',
-            type: 'json',
-          },
-        ]}
-        model={dynamicConfig}
-        onChange={m => setDynamicConfig(m)}
-      />
-    </SnitchDialog>
-  );
-});
+  render(): JSX.Element {
+    const { onClose } = this.props;
+    const { dynamicConfig, historyRecords } = this.state;
+
+    return (
+      <SnitchDialog
+        className="overlord-dynamic-config-dialog"
+        onSave={this.saveConfig}
+        onClose={onClose}
+        title="Overlord dynamic config"
+        historyRecords={historyRecords}
+      >
+        <p>
+          Edit the overlord dynamic configuration on the fly. For more information please refer to
+          the{' '}
+          <ExternalLink
+            href={`https://druid.apache.org/docs/${DRUID_DOCS_VERSION}/configuration/index.html#overlord-dynamic-configuration`}
+          >
+            documentation
+          </ExternalLink>
+          .
+        </p>
+        <AutoForm
+          fields={[
+            {
+              name: 'selectStrategy',
+              type: 'json',
+            },
+            {
+              name: 'autoScaler',
+              type: 'json',
+            },
+          ]}
+          model={dynamicConfig}
+          onChange={m => this.setState({ dynamicConfig: m })}
+        />
+      </SnitchDialog>
+    );
+  }
+}

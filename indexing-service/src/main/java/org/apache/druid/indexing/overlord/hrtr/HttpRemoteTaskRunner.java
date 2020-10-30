@@ -27,7 +27,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -181,11 +180,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
 
   // ZK_CLEANUP_TODO : Remove these when RemoteTaskRunner and WorkerTaskMonitor are removed.
   private static final Joiner JOINER = Joiner.on("/");
-
-  @Nullable // Null, if zk is disabled
   private final CuratorFramework cf;
-
-  @Nullable // Null, if zk is disabled
   private final ScheduledExecutorService zkCleanupExec;
   private final IndexerZkConfig indexerZkConfig;
 
@@ -197,7 +192,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
       ProvisioningStrategy<WorkerTaskRunner> provisioningStrategy,
       DruidNodeDiscoveryProvider druidNodeDiscoveryProvider,
       TaskStorage taskStorage,
-      @Nullable CuratorFramework cf,
+      CuratorFramework cf,
       IndexerZkConfig indexerZkConfig
   )
   {
@@ -222,18 +217,12 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
         ScheduledExecutors.fixed(1, "HttpRemoteTaskRunner-Worker-Cleanup-%d")
     );
 
-    if (cf != null) {
-      this.cf = cf;
-      this.zkCleanupExec = ScheduledExecutors.fixed(
-          1,
-          "HttpRemoteTaskRunner-zk-cleanup-%d"
-      );
-    } else {
-      this.cf = null;
-      this.zkCleanupExec = null;
-    }
-
+    this.cf = cf;
     this.indexerZkConfig = indexerZkConfig;
+    this.zkCleanupExec = ScheduledExecutors.fixed(
+        1,
+        "HttpRemoteTaskRunner-zk-cleanup-%d"
+    );
 
     this.provisioningStrategy = provisioningStrategy;
   }
@@ -280,10 +269,6 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
 
   private void scheduleCompletedTaskStatusCleanupFromZk()
   {
-    if (cf == null) {
-      return;
-    }
-
     zkCleanupExec.scheduleAtFixedRate(
         () -> {
           try {
@@ -502,7 +487,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     long workerDiscoveryStartTime = System.currentTimeMillis();
     while (!workerViewInitialized.await(30, TimeUnit.SECONDS)) {
       if (System.currentTimeMillis() - workerDiscoveryStartTime > TimeUnit.MINUTES.toMillis(5)) {
-        throw new ISE("Couldn't discover workers.");
+        throw new ISE("WTF! Couldn't discover workers.");
       } else {
         log.info("Waiting for worker discovery...");
       }
@@ -1184,7 +1169,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
         }
 
         if (immutableWorker == null) {
-          throw new ISE("Unexpected state: null immutableWorker");
+          throw new ISE("WTH! NULL immutableWorker");
         }
 
         try {
@@ -1357,11 +1342,6 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     ).collect(Collectors.toList());
   }
 
-  public Collection<ImmutableWorkerInfo> getBlackListedWorkers()
-  {
-    return ImmutableList.copyOf(Collections2.transform(blackListedWorkers.values(), WorkerHolder::toImmutable));
-  }
-
   /**
    * Must not be used outside of this class and {@link HttpRemoteTaskRunnerResource} , used for read only.
    */
@@ -1425,7 +1405,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
               break;
             default:
               log.makeAlert(
-                  "Found unrecognized state[%s] of task[%s] in taskStorage. Notification[%s] from worker[%s] is ignored.",
+                  "WTF! Found unrecognized state[%s] of task[%s] in taskStorage. Notification[%s] from worker[%s] is ignored.",
                   knownStatusInStorage.get().getStatusCode(),
                   taskId,
                   announcement,
@@ -1488,7 +1468,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                 break;
               default:
                 log.makeAlert(
-                    "Found unrecognized state[%s] of task[%s]. Notification[%s] from worker[%s] is ignored.",
+                    "WTF! Found unrecognized state[%s] of task[%s]. Notification[%s] from worker[%s] is ignored.",
                     taskItem.getState(),
                     taskId,
                     announcement,
@@ -1533,7 +1513,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                 break;
               default:
                 log.makeAlert(
-                    "Found unrecognized state[%s] of task[%s]. Notification[%s] from worker[%s] is ignored.",
+                    "WTF! Found unrecognized state[%s] of task[%s]. Notification[%s] from worker[%s] is ignored.",
                     taskItem.getState(),
                     taskId,
                     announcement,
@@ -1543,7 +1523,7 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
             break;
           default:
             log.makeAlert(
-                "Worker[%s] reported unrecognized state[%s] for task[%s].",
+                "WTF! Worker[%s] reported unrecognized state[%s] for task[%s].",
                 worker.getHost(),
                 announcement.getTaskStatus().getStatusCode(),
                 taskId
@@ -1565,61 +1545,6 @@ public class HttpRemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     synchronized (statusLock) {
       statusLock.notifyAll();
     }
-  }
-
-  @Override
-  public long getTotalTaskSlotCount()
-  {
-    long totalPeons = 0;
-    for (ImmutableWorkerInfo worker : getWorkers()) {
-      totalPeons += worker.getWorker().getCapacity();
-    }
-
-    return totalPeons;
-  }
-
-  @Override
-  public long getIdleTaskSlotCount()
-  {
-    long totalIdlePeons = 0;
-    for (ImmutableWorkerInfo worker : getWorkersEligibleToRunTasks().values()) {
-      totalIdlePeons += worker.getAvailableCapacity();
-    }
-
-    return totalIdlePeons;
-  }
-
-  @Override
-  public long getUsedTaskSlotCount()
-  {
-    long totalUsedPeons = 0;
-    for (ImmutableWorkerInfo worker : getWorkers()) {
-      totalUsedPeons += worker.getCurrCapacityUsed();
-    }
-
-    return totalUsedPeons;
-  }
-
-  @Override
-  public long getLazyTaskSlotCount()
-  {
-    long totalLazyPeons = 0;
-    for (Worker worker : getLazyWorkers()) {
-      totalLazyPeons += worker.getCapacity();
-    }
-
-    return totalLazyPeons;
-  }
-
-  @Override
-  public long getBlacklistedTaskSlotCount()
-  {
-    long totalBlacklistedPeons = 0;
-    for (ImmutableWorkerInfo worker : getBlackListedWorkers()) {
-      totalBlacklistedPeons += worker.getWorker().getCapacity();
-    }
-
-    return totalBlacklistedPeons;
   }
 
   private static class HttpRemoteTaskRunnerWorkItem extends RemoteTaskRunnerWorkItem

@@ -21,15 +21,11 @@ package org.apache.druid.server.coordinator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.data.input.SegmentsSplitHintSpec;
-import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.jackson.DefaultObjectMapper;
-import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.data.BitmapSerde.DefaultBitmapSerdeFactory;
-import org.apache.druid.segment.data.CompressionFactory.LongEncodingStrategy;
+import org.apache.druid.segment.data.CompressionFactory;
 import org.apache.druid.segment.data.CompressionStrategy;
-import org.apache.druid.segment.writeout.TmpFileSegmentWriteOutMediumFactory;
-import org.joda.time.Duration;
+import org.apache.druid.segment.data.RoaringBitmapSerdeFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,25 +39,7 @@ public class UserCompactionTaskQueryTuningConfigTest
   public void testSerdeNulls() throws IOException
   {
     final UserCompactionTaskQueryTuningConfig config =
-        new UserCompactionTaskQueryTuningConfig(
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
+        new UserCompactionTaskQueryTuningConfig(null, null, null, null, null, null, null, null);
     final String json = OBJECT_MAPPER.writeValueAsString(config);
     // Check maxRowsPerSegment doesn't exist in the JSON string
     Assert.assertFalse(json.contains("maxRowsPerSegment"));
@@ -74,33 +52,19 @@ public class UserCompactionTaskQueryTuningConfigTest
   public void testSerde() throws IOException
   {
     final UserCompactionTaskQueryTuningConfig tuningConfig = new UserCompactionTaskQueryTuningConfig(
-        40000,
-        2000L,
-        null,
-        new SegmentsSplitHintSpec(new HumanReadableBytes(42L), null),
-        new DynamicPartitionsSpec(1000, 20000L),
-        new IndexSpec(
-            new DefaultBitmapSerdeFactory(),
-            CompressionStrategy.LZ4,
-            CompressionStrategy.LZF,
-            LongEncodingStrategy.LONGS
-        ),
-        new IndexSpec(
-            new DefaultBitmapSerdeFactory(),
-            CompressionStrategy.LZ4,
-            CompressionStrategy.UNCOMPRESSED,
-            LongEncodingStrategy.AUTO
-        ),
-        2,
-        1000L,
-        TmpFileSegmentWriteOutMediumFactory.instance(),
-        100,
-        5,
-        1000L,
-        new Duration(3000L),
-        7,
         1000,
-        100
+        10000L,
+        2000L,
+        new SegmentsSplitHintSpec(42L),
+        new IndexSpec(
+            new RoaringBitmapSerdeFactory(false),
+            CompressionStrategy.LZF,
+            CompressionStrategy.UNCOMPRESSED,
+            CompressionFactory.LongEncodingStrategy.LONGS
+        ),
+        1,
+        3000L,
+        5
     );
 
     final String json = OBJECT_MAPPER.writeValueAsString(tuningConfig);

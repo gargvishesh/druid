@@ -31,10 +31,11 @@ import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.overlord.hrtr.WorkerHolder;
 import org.apache.druid.indexing.worker.WorkerHistoryItem;
-import org.apache.druid.indexing.worker.WorkerTaskManager;
+import org.apache.druid.indexing.worker.WorkerTaskMonitor;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.server.coordination.ChangeRequestHistory;
 import org.apache.druid.server.coordination.ChangeRequestsSnapshot;
+import org.apache.druid.server.http.SegmentListerResource;
 import org.apache.druid.server.http.security.StateResourceFilter;
 
 import javax.servlet.AsyncContext;
@@ -60,22 +61,22 @@ import java.io.IOException;
 @ResourceFilters(StateResourceFilter.class)
 public class TaskManagementResource
 {
-  protected static final EmittingLogger log = new EmittingLogger(TaskManagementResource.class);
+  protected static final EmittingLogger log = new EmittingLogger(SegmentListerResource.class);
 
   protected final ObjectMapper jsonMapper;
   protected final ObjectMapper smileMapper;
-  private final WorkerTaskManager workerTaskManager;
+  private final WorkerTaskMonitor workerTaskMonitor;
 
   @Inject
   public TaskManagementResource(
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
-      WorkerTaskManager workerTaskManager
+      WorkerTaskMonitor workerTaskMonitor
   )
   {
     this.jsonMapper = jsonMapper;
     this.smileMapper = smileMapper;
-    this.workerTaskManager = workerTaskManager;
+    this.workerTaskMonitor = workerTaskMonitor;
   }
 
   /**
@@ -118,7 +119,7 @@ public class TaskManagementResource
 
     final ResponseContext context = createContext(req.getHeader("Accept"));
 
-    final ListenableFuture<ChangeRequestsSnapshot<WorkerHistoryItem>> future = workerTaskManager.getChangesSince(
+    final ListenableFuture<ChangeRequestsSnapshot<WorkerHistoryItem>> future = workerTaskMonitor.getChangesSince(
         new ChangeRequestHistory.Counter(
             counter,
             hash
@@ -204,7 +205,7 @@ public class TaskManagementResource
   public Response assignTask(Task task)
   {
     try {
-      workerTaskManager.assignTask(task);
+      workerTaskMonitor.assignTask(task);
       return Response.ok().build();
     }
     catch (RuntimeException ex) {

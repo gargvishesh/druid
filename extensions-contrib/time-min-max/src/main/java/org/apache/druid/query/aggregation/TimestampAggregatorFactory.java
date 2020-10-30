@@ -25,7 +25,6 @@ import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.column.ValueType;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -201,18 +200,9 @@ public class TimestampAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ValueType getType()
+  public String getTypeName()
   {
-    return ValueType.LONG;
-  }
-
-  /**
-   * actual type is {@link DateTime}
-   */
-  @Override
-  public ValueType getFinalizedType()
-  {
-    return ValueType.COMPLEX;
+    return "long";
   }
 
   @Override

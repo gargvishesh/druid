@@ -51,7 +51,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -257,7 +257,7 @@ public class OldApiSketchAggregationTest extends InitializedNullHandlingTest
   {
     return Files.asCharSource(
         new File(OldApiSketchAggregationTest.class.getClassLoader().getResource(fileName).getFile()),
-        StandardCharsets.UTF_8
+        Charset.forName("UTF-8")
     ).read();
   }
 }

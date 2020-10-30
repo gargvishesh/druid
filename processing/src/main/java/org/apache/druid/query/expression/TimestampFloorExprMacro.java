@@ -25,15 +25,9 @@ import org.apache.druid.java.util.common.granularity.PeriodGranularity;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExprType;
-import org.apache.druid.math.expr.vector.CastToTypeVectorProcessor;
-import org.apache.druid.math.expr.vector.ExprVectorProcessor;
-import org.apache.druid.math.expr.vector.LongOutLongInFunctionVectorProcessor;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class TimestampFloorExprMacro implements ExprMacroTable.ExprMacro
@@ -115,60 +109,6 @@ public class TimestampFloorExprMacro implements ExprMacroTable.ExprMacro
 
       return shuttle.visit(new TimestampFloorExpr(newArgs));
     }
-
-    @Nullable
-    @Override
-    public ExprType getOutputType(InputBindingInspector inspector)
-    {
-      return ExprType.LONG;
-    }
-
-    @Override
-    public boolean canVectorize(InputBindingInspector inspector)
-    {
-      return args.get(0).canVectorize(inspector);
-    }
-
-    @Override
-    public <T> ExprVectorProcessor<T> buildVectorized(VectorInputBindingInspector inspector)
-    {
-      ExprVectorProcessor<?> processor;
-      processor = new LongOutLongInFunctionVectorProcessor(
-          CastToTypeVectorProcessor.cast(args.get(0).buildVectorized(inspector), ExprType.LONG),
-          inspector.getMaxVectorSize()
-      )
-      {
-        @Override
-        public long apply(long input)
-        {
-          return granularity.bucketStart(DateTimes.utc(input)).getMillis();
-        }
-      };
-
-      return (ExprVectorProcessor<T>) processor;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      if (!super.equals(o)) {
-        return false;
-      }
-      TimestampFloorExpr that = (TimestampFloorExpr) o;
-      return Objects.equals(granularity, that.granularity);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(super.hashCode(), granularity);
-    }
   }
 
   public static class TimestampFloorDynamicExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
@@ -191,13 +131,6 @@ public class TimestampFloorExprMacro implements ExprMacroTable.ExprMacro
     {
       List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
       return shuttle.visit(new TimestampFloorDynamicExpr(newArgs));
-    }
-
-    @Nullable
-    @Override
-    public ExprType getOutputType(InputBindingInspector inspector)
-    {
-      return ExprType.LONG;
     }
   }
 }

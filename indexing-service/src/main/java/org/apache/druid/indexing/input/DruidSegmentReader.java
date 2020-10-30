@@ -21,6 +21,7 @@ package org.apache.druid.indexing.input;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import org.apache.druid.data.input.InputEntity;
 import org.apache.druid.data.input.InputEntity.CleanableFile;
 import org.apache.druid.data.input.InputRow;
@@ -48,7 +49,6 @@ import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.realtime.firehose.WindowedStorageAdapter;
-import org.apache.druid.utils.CollectionUtils;
 import org.joda.time.DateTime;
 
 import java.io.File;
@@ -245,8 +245,7 @@ public class DruidSegmentReader extends IntermediateRowParsingReader<Map<String,
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      final Map<String, Object> theEvent =
-          CollectionUtils.newLinkedHashMapWithExpectedSize(dimSelectors.size() + metSelectors.size() + 1);
+      final Map<String, Object> theEvent = Maps.newLinkedHashMap();
 
       for (Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
         final String dim = dimSelector.getKey();

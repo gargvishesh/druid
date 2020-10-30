@@ -26,7 +26,6 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.AggregatorUtil;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.segment.column.ValueType;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -61,19 +60,6 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   }
 
   @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @JsonProperty
-  public PostAggregator getField()
-  {
-    return field;
-  }
-
-  @Override
   public Comparator<String> getComparator()
   {
     return Comparator.nullsFirst(Comparator.naturalOrder());
@@ -87,9 +73,10 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueType getType()
+  @JsonProperty
+  public String getName()
   {
-    return ValueType.STRING;
+    return name;
   }
 
   @Override
@@ -98,13 +85,10 @@ public class HllSketchToStringPostAggregator implements PostAggregator
     return this;
   }
 
-  @Override
-  public byte[] getCacheKey()
+  @JsonProperty
+  public PostAggregator getField()
   {
-    return new CacheKeyBuilder(AggregatorUtil.HLL_SKETCH_TO_STRING_CACHE_TYPE_ID)
-        .appendString(name)
-        .appendCacheable(field)
-        .build();
+    return field;
   }
 
   @Override
@@ -117,17 +101,22 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof HllSketchToStringPostAggregator)) {
       return false;
     }
-    HllSketchToStringPostAggregator that = (HllSketchToStringPostAggregator) o;
-    return name.equals(that.name) &&
-           field.equals(that.field);
+
+    final HllSketchToStringPostAggregator that = (HllSketchToStringPostAggregator) o;
+
+    if (!name.equals(that.name)) {
+      return false;
+    }
+
+    return field.equals(that.field);
   }
 
   @Override
@@ -135,4 +124,14 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   {
     return Objects.hash(name, field);
   }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    return new CacheKeyBuilder(AggregatorUtil.HLL_SKETCH_TO_STRING_CACHE_TYPE_ID)
+        .appendString(name)
+        .appendCacheable(field)
+        .build();
+  }
+
 }

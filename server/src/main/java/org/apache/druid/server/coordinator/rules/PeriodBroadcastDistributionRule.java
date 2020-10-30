@@ -26,6 +26,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
+import java.util.List;
 import java.util.Objects;
 
 public class PeriodBroadcastDistributionRule extends BroadcastDistributionRule
@@ -35,15 +36,18 @@ public class PeriodBroadcastDistributionRule extends BroadcastDistributionRule
 
   private final Period period;
   private final boolean includeFuture;
+  private final List<String> colocatedDataSources;
 
   @JsonCreator
   public PeriodBroadcastDistributionRule(
       @JsonProperty("period") Period period,
-      @JsonProperty("includeFuture") Boolean includeFuture
+      @JsonProperty("includeFuture") Boolean includeFuture,
+      @JsonProperty("colocatedDataSources") List<String> colocatedDataSources
   )
   {
     this.period = period;
     this.includeFuture = includeFuture == null ? DEFAULT_INCLUDE_FUTURE : includeFuture;
+    this.colocatedDataSources = colocatedDataSources;
   }
 
   @Override
@@ -51,6 +55,13 @@ public class PeriodBroadcastDistributionRule extends BroadcastDistributionRule
   public String getType()
   {
     return TYPE;
+  }
+
+  @Override
+  @JsonProperty
+  public List<String> getColocatedDataSources()
+  {
+    return colocatedDataSources;
   }
 
   @Override
@@ -83,17 +94,25 @@ public class PeriodBroadcastDistributionRule extends BroadcastDistributionRule
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+
+    if (o == null || o.getClass() != getClass()) {
       return false;
     }
+
     PeriodBroadcastDistributionRule that = (PeriodBroadcastDistributionRule) o;
-    return isIncludeFuture() == that.isIncludeFuture() &&
-           Objects.equals(getPeriod(), that.getPeriod());
+
+    if (!Objects.equals(period, that.period)) {
+      return false;
+    }
+    if (includeFuture != that.includeFuture) {
+      return false;
+    }
+    return Objects.equals(colocatedDataSources, that.colocatedDataSources);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(getPeriod(), isIncludeFuture());
+    return Objects.hash(getType(), period, colocatedDataSources);
   }
 }

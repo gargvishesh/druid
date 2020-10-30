@@ -81,7 +81,6 @@ public class SegmentMetadataQueryQueryToolChestTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 true,
-                false,
                 10881,
                 1,
                 "preferred",

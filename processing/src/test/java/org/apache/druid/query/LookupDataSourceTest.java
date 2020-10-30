@@ -52,8 +52,7 @@ public class LookupDataSourceTest
   @Test
   public void test_isCacheable()
   {
-    Assert.assertFalse(lookylooDataSource.isCacheable(true));
-    Assert.assertFalse(lookylooDataSource.isCacheable(false));
+    Assert.assertFalse(lookylooDataSource.isCacheable());
   }
 
   @Test

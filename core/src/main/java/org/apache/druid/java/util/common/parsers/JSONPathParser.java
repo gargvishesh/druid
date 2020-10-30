@@ -32,17 +32,17 @@ public class JSONPathParser implements Parser<String, Object>
 {
   private final ObjectMapper mapper;
   private final ObjectFlattener<JsonNode> flattener;
+
   /**
    * Constructor
    *
    * @param flattenSpec Provide a path spec for flattening and field discovery.
    * @param mapper      Optionally provide an ObjectMapper, used by the parser for reading the input JSON.
    */
-
-  public JSONPathParser(JSONPathSpec flattenSpec, ObjectMapper mapper, boolean keepNullColumns)
+  public JSONPathParser(JSONPathSpec flattenSpec, ObjectMapper mapper)
   {
     this.mapper = mapper == null ? new ObjectMapper() : mapper;
-    this.flattener = ObjectFlatteners.create(flattenSpec, new JSONFlattenerMaker(keepNullColumns));
+    this.flattener = ObjectFlatteners.create(flattenSpec, new JSONFlattenerMaker());
   }
 
   @Override

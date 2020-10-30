@@ -25,7 +25,6 @@ import org.apache.druid.indexing.kafka.KafkaIndexTaskModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.data.CompressionStrategy;
-import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.druid.segment.indexing.TuningConfig;
 import org.joda.time.Duration;
 import org.joda.time.Period;
@@ -60,7 +59,6 @@ public class KafkaSupervisorTuningConfigTest
     );
 
     Assert.assertNotNull(config.getBasePersistDirectory());
-    Assert.assertEquals(new OnheapIncrementalIndex.Spec(), config.getAppendableIndexSpec());
     Assert.assertEquals(1000000, config.getMaxRowsInMemory());
     Assert.assertEquals(5_000_000, config.getMaxRowsPerSegment().intValue());
     Assert.assertEquals(new Period("PT10M"), config.getIntermediatePersistPeriod());
@@ -96,8 +94,7 @@ public class KafkaSupervisorTuningConfigTest
                      + "  \"shutdownTimeout\": \"PT95S\",\n"
                      + "  \"offsetFetchPeriod\": \"PT20S\",\n"
                      + "  \"indexSpec\": { \"metricCompression\" : \"NONE\" },\n"
-                     + "  \"indexSpecForIntermediatePersists\": { \"dimensionCompression\" : \"uncompressed\" },\n"
-                     + "  \"appendableIndexSpec\": { \"type\" : \"onheap\" }\n"
+                     + "  \"indexSpecForIntermediatePersists\": { \"dimensionCompression\" : \"uncompressed\" }\n"
                      + "}";
 
     KafkaSupervisorTuningConfig config = (KafkaSupervisorTuningConfig) mapper.readValue(
@@ -111,7 +108,6 @@ public class KafkaSupervisorTuningConfigTest
     );
 
     Assert.assertEquals(new File("/tmp/xxx"), config.getBasePersistDirectory());
-    Assert.assertEquals(new OnheapIncrementalIndex.Spec(), config.getAppendableIndexSpec());
     Assert.assertEquals(100, config.getMaxRowsInMemory());
     Assert.assertEquals(100, config.getMaxRowsPerSegment().intValue());
     Assert.assertEquals(new Period("PT1H"), config.getIntermediatePersistPeriod());

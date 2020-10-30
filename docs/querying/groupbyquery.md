@@ -23,10 +23,6 @@ sidebar_label: "GroupBy"
   ~ under the License.
   -->
 
-> Apache Druid supports two query languages: [Druid SQL](sql.md) and [native queries](querying.md).
-> This document describes a query
-> type in the native language. For information about when Druid SQL will use this query type, refer to the
-> [SQL documentation](sql.md#query-types).
 
 These types of Apache Druid queries take a groupBy query object and return an array of JSON objects where each object represents a
 grouping asked for by the query.
@@ -138,10 +134,7 @@ improve performance.
 See [Multi-value dimensions](multi-value-dimensions.html) for more details.
 
 ## More on subtotalsSpec
-
-The subtotals feature allows computation of multiple sub-groupings in a single query. To use this feature, add a "subtotalsSpec" to your query as a list of subgroup dimension sets. It should contain the `outputName` from dimensions in your `dimensions` attribute, in the same order as they appear in the `dimensions` attribute (although, of course, you may skip some). 
-
-For example, consider a groupBy query like this one:
+The subtotals feature allows computation of multiple sub-groupings in a single query. To use this feature, add a "subtotalsSpec" to your query, which should be a list of subgroup dimension sets. It should contain the "outputName" from dimensions in your "dimensions" attribute, in the same order as they appear in the "dimensions" attribute (although, of course, you may skip some). For example, consider a groupBy query like this one:
 
 ```json
 {
@@ -175,8 +168,8 @@ For example, consider a groupBy query like this one:
 }
 ```
 
-The result of the subtotalsSpec would be equivalent to concatenating the result of three groupBy queries, with the "dimensions" field being `["D1", "D2", D3"]`, `["D1", "D3"]` and `["D3"]`, given the `DimensionSpec` shown above.
-The response for the query above would look something like: 
+Response returned would be equivalent to concatenating result of 3 groupBy queries with "dimensions" field being ["D1", "D2", D3"], ["D1", "D3"] and ["D3"] with appropriate `DimensionSpec` json blob as used in above query.
+Response for above query would look something like below...
 
 ```json
 [
@@ -198,13 +191,13 @@ The response for the query above would look something like:
    {
     "version" : "v1",
     "timestamp" : "t1",
-    "event" : { "D1": "..", "D2": null, "D3": ".." }
+    "event" : { "D1": "..", "D3": ".." }
     }
   },
     {
     "version" : "v1",
     "timestamp" : "t2",
-    "event" : { "D1": "..", "D2": null, "D3": ".." }
+    "event" : { "D1": "..", "D3": ".." }
     }
   },
   ...
@@ -213,21 +206,18 @@ The response for the query above would look something like:
   {
     "version" : "v1",
     "timestamp" : "t1",
-    "event" : { "D1": null, "D2": null, "D3": ".." }
+    "event" : { "D3": ".." }
     }
   },
     {
     "version" : "v1",
     "timestamp" : "t2",
-    "event" : { "D1": null, "D2": null, "D3": ".." }
+    "event" : { "D3": ".." }
     }
   },
 ...
 ]
 ```
-
-> Notice that dimensions that are not included in an individual subtotalsSpec grouping are returned with a `null` value. This response format represents a behavior change as of Apache Druid 0.18.0. In release 0.17.0 and earlier, such dimensions were entirely excluded from the result.   
-
 
 ## Implementation details
 
@@ -420,7 +410,7 @@ Supported runtime properties:
 |`druid.query.groupBy.forceHashAggregation`|Force to use hash-based aggregation.|false|
 |`druid.query.groupBy.intermediateCombineDegree`|Number of intermediate nodes combined together in the combining tree. Higher degrees will need less threads which might be helpful to improve the query performance by reducing the overhead of too many threads if the server has sufficiently powerful cpu cores.|8|
 |`druid.query.groupBy.numParallelCombineThreads`|Hint for the number of parallel combining threads. This should be larger than 1 to turn on the parallel combining feature. The actual number of threads used for parallel combining is min(`druid.query.groupBy.numParallelCombineThreads`, `druid.processing.numThreads`).|1 (disabled)|
-|`druid.query.groupBy.applyLimitPushDownToSegment`|If Broker pushes limit down to queryable data server (historicals, peons) then limit results during segment scan. If typically there are a large number of segments taking part in a query on a data server, this setting may counterintuitively reduce performance if enabled.|false (disabled)|
+|`druid.query.groupBy.applyLimitPushDownToSegment`|If Broker pushes limit down to queryable nodes (historicals, peons) then limit results during segment scan.|true (enabled)|
 
 Supported query contexts:
 

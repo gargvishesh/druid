@@ -108,7 +108,7 @@ public class LookupCoordinatorManagerTest
   private static final LookupsState<LookupExtractorFactoryMapContainer> LOOKUPS_STATE = new LookupsState<>(
       SINGLE_LOOKUP_MAP_V0,
       SINGLE_LOOKUP_MAP_V1,
-      Collections.emptySet()
+      Collections.EMPTY_SET
   );
 
   private static final AtomicLong EVENT_EMITS = new AtomicLong(0L);
@@ -1352,7 +1352,7 @@ public class LookupCoordinatorManagerTest
                         EasyMock.<TypeReference>anyObject(),
                         EasyMock.<AtomicReference>isNull()
                     )).andReturn(
-        new AtomicReference<>(Collections.emptyMap())).anyTimes();
+        new AtomicReference<>(Collections.EMPTY_MAP)).anyTimes();
 
     EasyMock.replay(configManager);
 

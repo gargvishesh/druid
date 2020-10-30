@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.druid.indexing.kinesis.KinesisIndexTaskTuningConfig;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.writeout.SegmentWriteOutMediumFactory;
 import org.joda.time.Period;
 
@@ -38,7 +37,6 @@ public class TestModifiedKinesisIndexTaskTuningConfig extends KinesisIndexTaskTu
 
   @JsonCreator
   public TestModifiedKinesisIndexTaskTuningConfig(
-      @JsonProperty("appendableIndexSpec") @Nullable AppendableIndexSpec appendableIndexSpec,
       @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
       @JsonProperty("maxBytesInMemory") Long maxBytesInMemory,
       @JsonProperty("maxRowsPerSegment") Integer maxRowsPerSegment,
@@ -68,7 +66,6 @@ public class TestModifiedKinesisIndexTaskTuningConfig extends KinesisIndexTaskTu
   )
   {
     super(
-        appendableIndexSpec,
         maxRowsInMemory,
         maxBytesInMemory,
         maxRowsPerSegment,
@@ -101,7 +98,6 @@ public class TestModifiedKinesisIndexTaskTuningConfig extends KinesisIndexTaskTu
   public TestModifiedKinesisIndexTaskTuningConfig(KinesisIndexTaskTuningConfig base, String extra)
   {
     super(
-        base.getAppendableIndexSpec(),
         base.getMaxRowsInMemory(),
         base.getMaxBytesInMemory(),
         base.getMaxRowsPerSegment(),

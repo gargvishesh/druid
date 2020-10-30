@@ -28,13 +28,10 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.segment.BaseFloatColumnValueSelector;
-import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
-import org.apache.druid.segment.vector.VectorValueSelector;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -114,12 +111,6 @@ public abstract class SimpleFloatAggregatorFactory extends NullableNumericAggreg
   }
 
   @Override
-  protected VectorValueSelector vectorSelector(VectorColumnSelectorFactory columnSelectorFactory)
-  {
-    return AggregatorUtil.makeVectorValueSelector(columnSelectorFactory, fieldName, expression, fieldExpression);
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     // handle "NaN" / "Infinity" values serialized as strings in JSON
@@ -130,9 +121,9 @@ public abstract class SimpleFloatAggregatorFactory extends NullableNumericAggreg
   }
 
   @Override
-  public ValueType getType()
+  public String getTypeName()
   {
-    return ValueType.FLOAT;
+    return "float";
   }
 
   @Override
@@ -221,12 +212,6 @@ public abstract class SimpleFloatAggregatorFactory extends NullableNumericAggreg
   public String getExpression()
   {
     return expression;
-  }
-
-  @Override
-  public boolean canVectorize(ColumnInspector columnInspector)
-  {
-    return AggregatorUtil.canVectorize(columnInspector, fieldName, expression, fieldExpression);
   }
 
   private boolean shouldUseStringColumnAggregatorWrapper(ColumnSelectorFactory columnSelectorFactory)

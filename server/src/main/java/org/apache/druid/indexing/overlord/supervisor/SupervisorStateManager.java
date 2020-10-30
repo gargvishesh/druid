@@ -92,7 +92,7 @@ public class SupervisorStateManager
 
   private final Deque<ExceptionEvent> recentEventsQueue = new ConcurrentLinkedDeque<>();
 
-  private volatile State supervisorState = BasicState.PENDING;
+  private State supervisorState = BasicState.PENDING;
 
   private boolean atLeastOneSuccessfulRun = false;
   private boolean currentRunSuccessful = true;
@@ -212,11 +212,6 @@ public class SupervisorStateManager
   public boolean isHealthy()
   {
     return supervisorState != null && supervisorState.isHealthy();
-  }
-
-  public boolean isSteadyState()
-  {
-    return healthySteadyState.equals(supervisorState);
   }
 
   public boolean isAtLeastOneSuccessfulRun()

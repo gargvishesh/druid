@@ -391,7 +391,7 @@ public class ChangeRequestHttpSyncer<T>
         } else {
           log.makeAlert(
               th,
-              "Couldn't schedule next sync. [%s] is not being synced any more, restarting Druid process on that "
+              "WTF! Couldn't schedule next sync. [%s] is not being synced any more, restarting Druid process on that "
               + "server might fix the issue.",
               logIdentity
           ).emit();

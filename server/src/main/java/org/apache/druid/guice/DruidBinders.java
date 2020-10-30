@@ -71,20 +71,12 @@ public class DruidBinders
     );
   }
 
-  public static Multibinder<JoinableFactory> joinableFactoryMultiBinder(Binder binder)
-  {
-    return Multibinder.newSetBinder(
-        binder,
-        new TypeLiteral<JoinableFactory>() {}
-    );
-  }
-
-  public static MapBinder<Class<? extends JoinableFactory>, Class<? extends DataSource>> joinableMappingBinder(Binder binder)
+  public static MapBinder<Class<? extends DataSource>, JoinableFactory> joinableFactoryBinder(Binder binder)
   {
     return MapBinder.newMapBinder(
         binder,
-        new TypeLiteral<Class<? extends JoinableFactory>>() {},
-        new TypeLiteral<Class<? extends DataSource>>() {}
+        new TypeLiteral<Class<? extends DataSource>>() {},
+        new TypeLiteral<JoinableFactory>() {}
     );
   }
 }

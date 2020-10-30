@@ -37,6 +37,7 @@ import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -52,6 +53,8 @@ import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.filter.DimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.having.DimFilterHavingSpec;
+import org.apache.druid.query.groupby.orderby.DefaultLimitSpec;
+import org.apache.druid.query.groupby.orderby.NoopLimitSpec;
 import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.druid.query.ordering.StringComparator;
 import org.apache.druid.query.ordering.StringComparators;
@@ -73,7 +76,6 @@ import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.Calcites;
-import org.apache.druid.sql.calcite.planner.OffsetLimit;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rule.GroupByRules;
 import org.apache.druid.sql.calcite.table.RowSignatures;
@@ -86,7 +88,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -111,6 +112,7 @@ public class DruidQuery
   private final Sorting sorting;
 
   private final Query query;
+  private final RowSignature sourceRowSignature;
   private final RowSignature outputRowSignature;
   private final RelDataType outputRowType;
   private final VirtualColumnRegistry virtualColumnRegistry;
@@ -133,6 +135,7 @@ public class DruidQuery
     this.selectProjection = selectProjection;
     this.grouping = grouping;
     this.sorting = sorting;
+    this.sourceRowSignature = Preconditions.checkNotNull(sourceRowSignature, "sourceRowSignature");
     this.outputRowSignature = computeOutputRowSignature(sourceRowSignature, selectProjection, grouping, sorting);
     this.outputRowType = Preconditions.checkNotNull(outputRowType, "outputRowType");
     this.virtualColumnRegistry = Preconditions.checkNotNull(virtualColumnRegistry, "virtualColumnRegistry");
@@ -190,7 +193,7 @@ public class DruidQuery
           computeGrouping(
               partialQuery,
               plannerContext,
-              computeOutputRowSignature(sourceRowSignature, null, null, null),
+              computeOutputRowSignature(sourceRowSignature, selectProjection, null, null),
               virtualColumnRegistry,
               rexBuilder,
               finalizeAggregations
@@ -390,8 +393,8 @@ public class DruidQuery
         throw new CannotBuildQueryException(aggregate, rexNode);
       }
 
-      final RelDataType dataType = rexNode.getType();
-      final ValueType outputType = Calcites.getValueTypeForRelDataType(dataType);
+      final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
+      final ValueType outputType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
       if (outputType == null || outputType == ValueType.COMPLEX) {
         // Can't group on unknown or COMPLEX types.
         throw new CannotBuildQueryException(aggregate, rexNode);
@@ -405,7 +408,7 @@ public class DruidQuery
         virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
             plannerContext,
             druidExpression,
-            dataType
+            sqlTypeName
         );
         dimensions.add(DimensionExpression.ofVirtualColumn(
             virtualColumn.getOutputName(),
@@ -432,13 +435,7 @@ public class DruidQuery
     final Aggregate aggregate = partialQuery.getAggregate();
 
     // dimBitMapping maps from input field position to group set position (dimension number).
-    final int[] dimBitMapping;
-    if (partialQuery.getSelectProject() != null) {
-      dimBitMapping = new int[partialQuery.getSelectProject().getRowType().getFieldCount()];
-    } else {
-      dimBitMapping = new int[rowSignature.size()];
-    }
-
+    final int[] dimBitMapping = new int[rowSignature.size()];
     int i = 0;
     for (int dimBit : aggregate.getGroupSet()) {
       dimBitMapping[dimBit] = i++;
@@ -524,11 +521,16 @@ public class DruidQuery
     final Sort sort = Preconditions.checkNotNull(partialQuery.getSort(), "sort");
     final Project sortProject = partialQuery.getSortProject();
 
-    // Extract limit and offset.
-    final OffsetLimit offsetLimit = OffsetLimit.fromSort(sort);
+    // Extract limit.
+    final Long limit = sort.fetch != null ? ((Number) RexLiteral.value(sort.fetch)).longValue() : null;
+    final List<OrderByColumnSpec> orderBys = new ArrayList<>(sort.getChildExps().size());
+
+    if (sort.offset != null) {
+      // Druid cannot currently handle LIMIT with OFFSET.
+      throw new CannotBuildQueryException(sort);
+    }
 
     // Extract orderBy column specs.
-    final List<OrderByColumnSpec> orderBys = new ArrayList<>(sort.getChildExps().size());
     for (int sortKey = 0; sortKey < sort.getChildExps().size(); sortKey++) {
       final RexNode sortExpression = sort.getChildExps().get(sortKey);
       final RelFieldCollation collation = sort.getCollation().getFieldCollations().get(sortKey);
@@ -577,7 +579,7 @@ public class DruidQuery
       projection = Projection.postAggregation(sortProject, plannerContext, rowSignature, "s");
     }
 
-    return Sorting.create(orderBys, offsetLimit, projection);
+    return Sorting.create(orderBys, limit, projection);
   }
 
   /**
@@ -734,9 +736,6 @@ public class DruidQuery
     final Granularity queryGranularity;
     final boolean descending;
     int timeseriesLimit = 0;
-    final Map<String, Object> theContext = new HashMap<>();
-    theContext.put("skipEmptyBuckets", true);
-    theContext.putAll(plannerContext.getQueryContext());
     if (grouping.getDimensions().isEmpty()) {
       queryGranularity = Granularities.ALL;
       descending = false;
@@ -751,25 +750,11 @@ public class DruidQuery
         // Timeseries only applies if the single dimension is granular __time.
         return null;
       }
-      theContext.put(
-          TimeseriesQuery.CTX_TIMESTAMP_RESULT_FIELD,
-          Iterables.getOnlyElement(grouping.getDimensions()).toDimensionSpec().getOutputName()
-      );
+
       if (sorting != null) {
-        if (sorting.getOffsetLimit().hasOffset()) {
-          // Timeseries cannot handle offsets.
-          return null;
-        }
-
-        if (sorting.getOffsetLimit().hasLimit()) {
-          final long limit = sorting.getOffsetLimit().getLimit();
-
-          if (limit == 0) {
-            // Can't handle zero limit (the Timeseries query engine would treat it as unlimited).
-            return null;
-          }
-
-          timeseriesLimit = Ints.checkedCast(limit);
+        // If there is sorting, set timeseriesLimit to given value if less than Integer.Max_VALUE
+        if (sorting.isLimited()) {
+          timeseriesLimit = Ints.checkedCast(sorting.getLimit());
         }
 
         switch (sorting.getSortKind(dimensionExpression.getOutputName())) {
@@ -799,6 +784,9 @@ public class DruidQuery
     if (sorting != null && sorting.getProjection() != null) {
       postAggregators.addAll(sorting.getProjection().getPostAggregators());
     }
+    final Map<String, Object> theContext = new HashMap<>();
+    theContext.put("skipEmptyBuckets", true);
+    theContext.putAll(plannerContext.getQueryContext());
 
     return new TimeseriesQuery(
         dataSource,
@@ -822,18 +810,14 @@ public class DruidQuery
   @Nullable
   public TopNQuery toTopNQuery()
   {
-    // Must have GROUP BY one column, no GROUPING SETS, ORDER BY ≤ 1 column, LIMIT > 0 and ≤ maxTopNLimit,
-    // no OFFSET, no HAVING.
+    // Must have GROUP BY one column, no GROUPING SETS, ORDER BY ≤ 1 column, limit less than maxTopNLimit, no HAVING.
     final boolean topNOk = grouping != null
                            && grouping.getDimensions().size() == 1
                            && !grouping.getSubtotals().hasEffect(grouping.getDimensionSpecs())
                            && sorting != null
                            && (sorting.getOrderBys().size() <= 1
-                               && sorting.getOffsetLimit().hasLimit()
-                               && sorting.getOffsetLimit().getLimit() > 0
-                               && sorting.getOffsetLimit().getLimit() <= plannerContext.getPlannerConfig()
-                                                                                       .getMaxTopNLimit()
-                               && !sorting.getOffsetLimit().hasOffset())
+                               && sorting.isLimited() && sorting.getLimit() <= plannerContext.getPlannerConfig()
+                                                                                             .getMaxTopNLimit())
                            && grouping.getHavingFilter() == null;
 
     if (!topNOk) {
@@ -884,7 +868,7 @@ public class DruidQuery
         getVirtualColumns(true),
         dimensionSpec,
         topNMetricSpec,
-        Ints.checkedCast(sorting.getOffsetLimit().getLimit()),
+        Ints.checkedCast(sorting.getLimit()),
         filtration.getQuerySegmentSpec(),
         filtration.getDimFilter(),
         Granularities.ALL,
@@ -903,11 +887,6 @@ public class DruidQuery
   public GroupByQuery toGroupByQuery()
   {
     if (grouping == null) {
-      return null;
-    }
-
-    if (sorting != null && sorting.getOffsetLimit().hasLimit() && sorting.getOffsetLimit().getLimit() <= 0) {
-      // Cannot handle zero or negative limits.
       return null;
     }
 
@@ -939,7 +918,12 @@ public class DruidQuery
         grouping.getAggregatorFactories(),
         postAggregators,
         havingSpec,
-        Optional.ofNullable(sorting).orElse(Sorting.none()).limitSpec(),
+        sorting != null
+        ? new DefaultLimitSpec(
+            sorting.getOrderBys(),
+            sorting.isLimited() ? Ints.checkedCast(sorting.getLimit()) : null
+        )
+        : NoopLimitSpec.instance(),
         grouping.getSubtotals().toSubtotalsSpec(grouping.getDimensionSpecs()),
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );
@@ -965,21 +949,11 @@ public class DruidQuery
 
     final Filtration filtration = Filtration.create(filter).optimize(virtualColumnRegistry.getFullRowSignature());
     final ScanQuery.Order order;
-    long scanOffset = 0L;
     long scanLimit = 0L;
 
     if (sorting != null) {
-      scanOffset = sorting.getOffsetLimit().getOffset();
-
-      if (sorting.getOffsetLimit().hasLimit()) {
-        final long limit = sorting.getOffsetLimit().getLimit();
-
-        if (limit == 0) {
-          // Can't handle zero limit (the Scan query engine would treat it as unlimited).
-          return null;
-        }
-
-        scanLimit = limit;
+      if (sorting.isLimited()) {
+        scanLimit = sorting.getLimit();
       }
 
       final Sorting.SortKind sortKind = sorting.getSortKind(ColumnHolder.TIME_COLUMN_NAME);
@@ -1002,7 +976,6 @@ public class DruidQuery
 
     // Compute the list of columns to select.
     final Set<String> columns = new HashSet<>(outputRowSignature.getColumnNames());
-
     if (order != ScanQuery.Order.NONE) {
       columns.add(ColumnHolder.TIME_COLUMN_NAME);
     }
@@ -1013,7 +986,6 @@ public class DruidQuery
         getVirtualColumns(true),
         ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST,
         0,
-        scanOffset,
         scanLimit,
         order,
         filtration.getDimFilter(),

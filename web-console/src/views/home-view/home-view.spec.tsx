@@ -29,7 +29,7 @@ describe('home view', () => {
     expect(homeView).toMatchSnapshot();
   });
 
-  it('matches snapshot (coordinator)', () => {
+  it('matches snapshot (coordiantor)', () => {
     const homeView = shallow(<HomeView capabilities={Capabilities.COORDINATOR} />);
     expect(homeView).toMatchSnapshot();
   });

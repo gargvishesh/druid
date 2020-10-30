@@ -80,8 +80,7 @@ public class JobHelperTest
                       null
                   ),
                   new JSONPathSpec(true, ImmutableList.of()),
-                  ImmutableMap.of(),
-                  null
+                  ImmutableMap.of()
               )
           ),
           JacksonUtils.TYPE_REFERENCE_MAP_STRING_OBJECT
@@ -158,7 +157,6 @@ public class JobHelperTest
             ),
             new HadoopTuningConfig(
                 tmpDir.getCanonicalPath(),
-                null,
                 null,
                 null,
                 null,

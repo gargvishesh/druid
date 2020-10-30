@@ -24,7 +24,7 @@ import org.joda.time.Interval;
 
 /**
  */
-public class QueryableIndexSegment implements Segment
+public class QueryableIndexSegment extends AbstractSegment
 {
   private final QueryableIndex index;
   private final QueryableIndexStorageAdapter storageAdapter;

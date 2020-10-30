@@ -321,8 +321,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           rMultiValuedColumn = null;
         }
 
-        final String firstDictionaryEntry = rDictionary.get(0);
-
         DictionaryEncodedColumnSupplier dictionaryEncodedColumnSupplier = new DictionaryEncodedColumnSupplier(
             rDictionary,
             rSingleValuedColumn,
@@ -331,7 +329,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         );
         builder
             .setHasMultipleValues(hasMultipleValues)
-            .setHasNulls(firstDictionaryEntry == null)
             .setDictionaryEncodedColumnSupplier(dictionaryEncodedColumnSupplier);
 
         if (!Feature.NO_BITMAP_INDEX.isSet(rFlags)) {

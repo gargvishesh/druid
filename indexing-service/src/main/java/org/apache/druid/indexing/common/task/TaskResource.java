@@ -21,7 +21,6 @@ package org.apache.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 
 /**
  */
@@ -36,8 +35,7 @@ public class TaskResource
       @JsonProperty("requiredCapacity") int requiredCapacity
   )
   {
-    this.availabilityGroup = Preconditions.checkNotNull(availabilityGroup, "availabilityGroup");
-    Preconditions.checkArgument(requiredCapacity > 0);
+    this.availabilityGroup = availabilityGroup;
     this.requiredCapacity = requiredCapacity;
   }
 

@@ -20,7 +20,6 @@
 package org.apache.druid.segment.join.table;
 
 import org.apache.druid.common.config.NullHandling;
-import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
 
@@ -32,11 +31,10 @@ public class IndexedTableColumnValueSelector implements ColumnValueSelector<Obje
   private final IntSupplier currentRow;
   private final IndexedTable.Reader columnReader;
 
-  IndexedTableColumnValueSelector(IndexedTable table, IntSupplier currentRow, int columnNumber, Closer closer)
+  IndexedTableColumnValueSelector(IndexedTable table, IntSupplier currentRow, int columnNumber)
   {
     this.currentRow = currentRow;
     this.columnReader = table.columnReader(columnNumber);
-    closer.register(columnReader);
   }
 
   @Override
@@ -54,7 +52,6 @@ public class IndexedTableColumnValueSelector implements ColumnValueSelector<Obje
 
     // Otherwise this shouldn't have been called (due to isNull returning true).
     assert NullHandling.replaceWithDefault();
-    //noinspection ConstantConditions assert statement above guarantees this is non null.
     return NullHandling.defaultDoubleValue();
   }
 
@@ -73,7 +70,6 @@ public class IndexedTableColumnValueSelector implements ColumnValueSelector<Obje
 
     // Otherwise this shouldn't have been called (due to isNull returning true).
     assert NullHandling.replaceWithDefault();
-    //noinspection ConstantConditions assert statement above guarantees this is non null.
     return NullHandling.defaultFloatValue();
   }
 
@@ -92,7 +88,6 @@ public class IndexedTableColumnValueSelector implements ColumnValueSelector<Obje
 
     // Otherwise this shouldn't have been called (due to isNull returning true).
     assert NullHandling.replaceWithDefault();
-    //noinspection ConstantConditions assert statement above guarantees this is non null.
     return NullHandling.defaultLongValue();
   }
 

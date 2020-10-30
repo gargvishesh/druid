@@ -59,7 +59,6 @@ public class IndexTaskSerdeTest
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
         null,
         null,
-        null,
         100,
         2000L,
         null,
@@ -91,7 +90,6 @@ public class IndexTaskSerdeTest
   public void testSerdeTuningConfigWithHashedPartitionsSpec() throws IOException
   {
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
-        null,
         null,
         null,
         100,
@@ -127,7 +125,6 @@ public class IndexTaskSerdeTest
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
         null,
         1000,
-        null,
         100,
         2000L,
         3000L,
@@ -161,7 +158,6 @@ public class IndexTaskSerdeTest
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
         null,
         null,
-        null,
         100,
         2000L,
         null,
@@ -192,10 +188,9 @@ public class IndexTaskSerdeTest
   @Test
   public void testForceGuaranteedRollupWithDynamicPartitionsSpec()
   {
-    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("DynamicPartitionsSpec cannot be used for perfect rollup");
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
-        null,
         null,
         null,
         100,
@@ -227,10 +222,9 @@ public class IndexTaskSerdeTest
   @Test
   public void testBestEffortRollupWithHashedPartitionsSpec()
   {
-    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("DynamicPartitionsSpec must be used for best-effort rollup");
     final IndexTuningConfig tuningConfig = new IndexTuningConfig(
-        null,
         null,
         null,
         100,

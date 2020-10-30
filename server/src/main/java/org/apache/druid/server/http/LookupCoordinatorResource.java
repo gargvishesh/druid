@@ -42,7 +42,6 @@ import org.apache.druid.server.http.security.ConfigResourceFilter;
 import org.apache.druid.server.lookup.cache.LookupCoordinatorManager;
 import org.apache.druid.server.lookup.cache.LookupExtractorFactoryMapContainer;
 
-import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -67,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Contains information about lookups exposed through the coordinator
@@ -542,12 +540,9 @@ public class LookupCoordinatorResource
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/nodeStatus")
   public Response getAllNodesStatus(
-      @QueryParam("discover") boolean discover,
-      @QueryParam("detailed") @Nullable Boolean detailed
+      @QueryParam("discover") boolean discover
   )
   {
-    boolean full = detailed == null || detailed;
-
     try {
       Collection<String> tiers;
       if (discover) {
@@ -563,16 +558,27 @@ public class LookupCoordinatorResource
         tiers = configuredLookups.keySet();
       }
 
-      Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> lookupsStateOnHosts =
-          lookupCoordinatorManager.getLastKnownLookupsStateOnNodes();
+      Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> lookupsStateOnHosts = lookupCoordinatorManager
+          .getLastKnownLookupsStateOnNodes();
 
-      final Map result;
-      if (full) {
-        result = getDetailedAllNodeStatus(lookupsStateOnHosts, tiers);
-      } else {
-        // lookups to load per host by version
-        result = getSimpleAllNodeStatus(lookupsStateOnHosts, tiers);
+      Map<String, Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>>> result = new HashMap<>();
+
+      for (String tier : tiers) {
+        Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> tierNodesStatus = new HashMap<>();
+        result.put(tier, tierNodesStatus);
+
+        Collection<HostAndPort> nodes = lookupCoordinatorManager.discoverNodesInTier(tier);
+
+        for (HostAndPort node : nodes) {
+          LookupsState<LookupExtractorFactoryMapContainer> lookupsState = lookupsStateOnHosts.get(node);
+          if (lookupsState == null) {
+            tierNodesStatus.put(node, new LookupsState<>(null, null, null));
+          } else {
+            tierNodesStatus.put(node, lookupsState);
+          }
+        }
       }
+
       return Response.ok(result).build();
     }
     catch (Exception ex) {
@@ -639,82 +645,6 @@ public class LookupCoordinatorResource
       LOG.error(ex, "Error getting node status for [%s].", hostAndPort);
       return Response.serverError().entity(ServletResourceUtils.sanitizeException(ex)).build();
     }
-  }
-
-
-
-  /**
-   * Build 'simple' lookup cluster status, broken down by tier, host, and then the {@link LookupsState} with
-   * the lookup name and version ({@link LookupExtractorFactoryMapContainer#version})
-   */
-  private Map<String, Map<HostAndPort, LookupsState<String>>> getSimpleAllNodeStatus(
-      Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> lookupsStateOnHosts,
-      Collection<String> tiers
-  )
-  {
-    Map<String, Map<HostAndPort, LookupsState<String>>> results = new HashMap<>();
-    for (String tier : tiers) {
-      Map<HostAndPort, LookupsState<String>> tierNodesStatus = new HashMap<>();
-      results.put(tier, tierNodesStatus);
-
-      Collection<HostAndPort> nodes = lookupCoordinatorManager.discoverNodesInTier(tier);
-
-      for (HostAndPort node : nodes) {
-        LookupsState<LookupExtractorFactoryMapContainer> lookupsState = lookupsStateOnHosts.get(node);
-        if (lookupsState == null) {
-          tierNodesStatus.put(node, new LookupsState<>(null, null, null));
-        } else {
-          Map<String, String> current = lookupsState.getCurrent()
-                                                    .entrySet()
-                                                    .stream()
-                                                    .collect(
-                                                        Collectors.toMap(
-                                                            Map.Entry::getKey,
-                                                            e -> e.getValue().getVersion()
-                                                        )
-                                                    );
-          Map<String, String> toLoad = lookupsState.getToLoad()
-                                                   .entrySet()
-                                                   .stream()
-                                                   .collect(
-                                                       Collectors.toMap(
-                                                           Map.Entry::getKey,
-                                                           e -> e.getValue().getVersion()
-                                                       )
-                                                   );
-          tierNodesStatus.put(node, new LookupsState<>(current, toLoad, lookupsState.getToDrop()));
-        }
-      }
-    }
-    return results;
-  }
-
-  /**
-   * Build 'detailed' lookup cluster status, broken down by tier, host, and then the full {@link LookupsState} with
-   * complete {@link LookupExtractorFactoryMapContainer} information.
-   */
-  private Map<String, Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>>> getDetailedAllNodeStatus(
-      Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> lookupsStateOnHosts,
-      Collection<String> tiers
-  )
-  {
-    Map<String, Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>>> result = new HashMap<>();
-    for (String tier : tiers) {
-      Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> tierNodesStatus = new HashMap<>();
-      result.put(tier, tierNodesStatus);
-
-      Collection<HostAndPort> nodes = lookupCoordinatorManager.discoverNodesInTier(tier);
-
-      for (HostAndPort node : nodes) {
-        LookupsState<LookupExtractorFactoryMapContainer> lookupsState = lookupsStateOnHosts.get(node);
-        if (lookupsState == null) {
-          tierNodesStatus.put(node, new LookupsState<>(null, null, null));
-        } else {
-          tierNodesStatus.put(node, lookupsState);
-        }
-      }
-    }
-    return result;
   }
 
   @VisibleForTesting

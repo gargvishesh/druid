@@ -19,21 +19,24 @@
 
 package org.apache.druid.indexing.common.task.batch.parallel;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.indexer.partitions.SingleDimensionPartitionsSpec;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
-import org.apache.druid.indexing.common.task.SegmentAllocatorForBatch;
+import org.apache.druid.indexing.common.task.CachingSegmentAllocator;
+import org.apache.druid.indexing.common.task.IndexTaskClientFactory;
 import org.apache.druid.indexing.common.task.SegmentAllocators;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.common.task.batch.parallel.iterator.RangePartitionIndexTaskInputRowIteratorBuilder;
 import org.apache.druid.indexing.common.task.batch.partition.RangePartitionAnalysis;
-import org.apache.druid.indexing.worker.shuffle.ShuffleDataSegmentPusher;
+import org.apache.druid.indexing.worker.ShuffleDataSegmentPusher;
+import org.apache.druid.segment.realtime.appenderator.AppenderatorsManager;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.partition.BucketNumberedShardSpec;
 import org.apache.druid.timeline.partition.PartitionBoundaries;
 import org.joda.time.Interval;
 
@@ -69,7 +72,10 @@ public class PartialRangeSegmentGenerateTask extends PartialSegmentGenerateTask<
       @JsonProperty("numAttempts") int numAttempts, // zero-based counting
       @JsonProperty(PROP_SPEC) ParallelIndexIngestionSpec ingestionSchema,
       @JsonProperty("context") Map<String, Object> context,
-      @JsonProperty("intervalToPartitions") Map<Interval, PartitionBoundaries> intervalToPartitions
+      @JsonProperty("intervalToPartitions") Map<Interval, PartitionBoundaries> intervalToPartitions,
+      @JacksonInject IndexingServiceClient indexingServiceClient,
+      @JacksonInject IndexTaskClientFactory<ParallelIndexSupervisorTaskClient> taskClientFactory,
+      @JacksonInject AppenderatorsManager appenderatorsManager
   )
   {
     super(
@@ -79,6 +85,9 @@ public class PartialRangeSegmentGenerateTask extends PartialSegmentGenerateTask<
         supervisorTaskId,
         ingestionSchema,
         context,
+        indexingServiceClient,
+        taskClientFactory,
+        appenderatorsManager,
         new RangePartitionIndexTaskInputRowIteratorBuilder(getPartitionDimension(ingestionSchema), !SKIP_NULL)
     );
 
@@ -141,7 +150,7 @@ public class PartialRangeSegmentGenerateTask extends PartialSegmentGenerateTask<
   }
 
   @Override
-  SegmentAllocatorForBatch createSegmentAllocator(TaskToolbox toolbox, ParallelIndexSupervisorTaskClient taskClient)
+  CachingSegmentAllocator createSegmentAllocator(TaskToolbox toolbox, ParallelIndexSupervisorTaskClient taskClient)
       throws IOException
   {
     final RangePartitionAnalysis partitionAnalysis = new RangePartitionAnalysis(
@@ -152,7 +161,6 @@ public class PartialRangeSegmentGenerateTask extends PartialSegmentGenerateTask<
         toolbox,
         getDataSource(),
         getId(),
-        ingestionSchema.getDataSchema().getGranularitySpec(),
         new SupervisorTaskAccess(supervisorTaskId, taskClient),
         partitionAnalysis
     );
@@ -174,7 +182,7 @@ public class PartialRangeSegmentGenerateTask extends PartialSegmentGenerateTask<
         toolbox.getTaskExecutorNode().getPortToUse(),
         toolbox.getTaskExecutorNode().isEnableTlsPort(),
         segment.getInterval(),
-        (BucketNumberedShardSpec) segment.getShardSpec(),
+        segment.getShardSpec(),
         null, // numRows is not supported yet
         null  // sizeBytes is not supported yet
     );

@@ -22,7 +22,7 @@ package org.apache.druid.sql.calcite.rule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Sort;
-import org.apache.druid.sql.calcite.planner.OffsetLimit;
+import org.apache.druid.sql.calcite.planner.Calcites;
 
 /**
  * Collapses two adjacent Sort operations together. Useful for queries like
@@ -50,13 +50,21 @@ public class SortCollapseRule extends RelOptRule
 
     if (outerSort.collation.getFieldCollations().isEmpty()
         || outerSort.collation.getFieldCollations().equals(innerSort.collation.getFieldCollations())) {
-      final OffsetLimit offsetLimit = OffsetLimit.fromSort(innerSort).andThen(OffsetLimit.fromSort(outerSort));
+      final int innerOffset = Calcites.getOffset(innerSort);
+      final int innerFetch = Calcites.getFetch(innerSort);
+      final int outerOffset = Calcites.getOffset(outerSort);
+      final int outerFetch = Calcites.getFetch(outerSort);
+
+      // Add up the offsets.
+      final int offset = innerOffset + outerOffset;
+      final int fetch = Calcites.collapseFetch(innerFetch, outerFetch, outerOffset);
+
       final Sort combined = innerSort.copy(
           innerSort.getTraitSet(),
           innerSort.getInput(),
           innerSort.getCollation(),
-          offsetLimit.getOffsetAsRexNode(call.builder().getRexBuilder()),
-          offsetLimit.getLimitAsRexNode(call.builder().getRexBuilder())
+          offset == 0 ? null : call.builder().literal(offset),
+          fetch < 0 ? null : call.builder().literal(fetch)
       );
 
       call.transformTo(combined);

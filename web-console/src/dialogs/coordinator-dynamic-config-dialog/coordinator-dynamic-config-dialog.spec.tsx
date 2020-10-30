@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
 import { CoordinatorDynamicConfigDialog } from './coordinator-dynamic-config-dialog';
 
 describe('coordinator dynamic config', () => {
   it('matches snapshot', () => {
-    const coordinatorDynamicConfig = shallow(<CoordinatorDynamicConfigDialog onClose={() => {}} />);
-
-    expect(coordinatorDynamicConfig).toMatchSnapshot();
+    const coordinatorDynamicConfig = <CoordinatorDynamicConfigDialog onClose={() => {}} />;
+    render(coordinatorDynamicConfig);
+    expect(document.body.lastChild).toMatchSnapshot();
   });
 });

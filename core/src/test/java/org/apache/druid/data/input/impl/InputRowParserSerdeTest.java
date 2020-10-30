@@ -52,7 +52,6 @@ public class InputRowParserSerdeTest
             new TimestampSpec("timestamp", "iso", null),
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")), null, null),
             null,
-            null,
             null
         ),
         null
@@ -99,7 +98,6 @@ public class InputRowParserSerdeTest
                 null
             ),
             null,
-            null,
             null
         )
     );
@@ -132,7 +130,6 @@ public class InputRowParserSerdeTest
                 ImmutableList.of("toobig", "value"),
                 null
             ),
-            null,
             null,
             null
         )
@@ -170,7 +167,6 @@ public class InputRowParserSerdeTest
         new JSONParseSpec(
             new TimestampSpec("timestamp", "iso", null),
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")), null, null),
-            null,
             null,
             null
         ),
@@ -212,7 +208,6 @@ public class InputRowParserSerdeTest
             new TimestampSpec("timestamp", "iso", null),
             new DimensionsSpec(null, null, null),
             flattenSpec,
-            null,
             null
         ),
         null

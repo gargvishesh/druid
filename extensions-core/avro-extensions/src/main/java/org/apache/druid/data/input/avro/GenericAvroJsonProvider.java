@@ -193,6 +193,6 @@ public class GenericAvroJsonProvider implements JsonProvider
   @Override
   public Object unwrap(final Object o)
   {
-    return o;
+    throw new UnsupportedOperationException("Unused");
   }
 }

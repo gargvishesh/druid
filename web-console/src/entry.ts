@@ -29,7 +29,6 @@ import './ace-modes/dsql';
 import './ace-modes/hjson';
 import './bootstrap/react-table-defaults';
 import { ConsoleApplication } from './console-application';
-import { Links, setLinkOverrides } from './links';
 import { UrlBaser } from './singletons/url-baser';
 
 import './entry.scss';
@@ -59,9 +58,6 @@ interface ConsoleConfig {
 
   // Extra context properties that will be added to all query requests
   mandatoryQueryContext?: Record<string, any>;
-
-  // Allow for link overriding to different docs
-  linkOverrides?: Links;
 }
 
 const consoleConfig: ConsoleConfig = (window as any).consoleConfig;
@@ -78,9 +74,6 @@ if (consoleConfig.customHeaderName && consoleConfig.customHeaderValue) {
 }
 if (consoleConfig.customHeaders) {
   Object.assign(axios.defaults.headers, consoleConfig.customHeaders);
-}
-if (consoleConfig.linkOverrides) {
-  setLinkOverrides(consoleConfig.linkOverrides);
 }
 
 ReactDOM.render(

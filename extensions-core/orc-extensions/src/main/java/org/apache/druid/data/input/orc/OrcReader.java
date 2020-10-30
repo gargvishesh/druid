@@ -147,7 +147,8 @@ public class OrcReader extends IntermediateRowParsingReader<OrcStruct>
   {
     return Collections.singletonList(
         MapInputRowParser.parse(
-            inputRowSchema,
+            inputRowSchema.getTimestampSpec(),
+            inputRowSchema.getDimensionsSpec(),
             orcStructFlattener.flatten(intermediateRow)
         )
     );

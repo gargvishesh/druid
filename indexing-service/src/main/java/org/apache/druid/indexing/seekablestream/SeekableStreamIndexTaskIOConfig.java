@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import org.apache.druid.data.input.InputFormat;
+import org.apache.druid.data.input.impl.ParseSpec;
 import org.apache.druid.segment.indexing.IOConfig;
 import org.joda.time.DateTime;
 
@@ -125,9 +126,8 @@ public abstract class SeekableStreamIndexTaskIOConfig<PartitionIdType, SequenceO
     return inputFormat;
   }
 
-  @Nullable
-  public InputFormat getInputFormat()
+  public InputFormat getInputFormat(ParseSpec parseSpec)
   {
-    return inputFormat;
+    return inputFormat == null ? Preconditions.checkNotNull(parseSpec, "parseSpec").toInputFormat() : inputFormat;
   }
 }

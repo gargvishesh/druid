@@ -43,6 +43,7 @@ const path = `./src/${where}/${name}/`;
 fs.ensureDirSync(path);
 console.log('Making path:', path);
 
+const spaceName = name.replace(/-/g, ' ');
 const camelName = name.replace(/(^|-)[a-z]/g, s => s.replace('-', '').toUpperCase());
 const snakeName = camelName[0].toLowerCase() + camelName.substr(1);
 
@@ -143,18 +144,18 @@ writeFile(
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 import React from 'react';
 
 import { ${camelName} } from './${name}';
 
-describe('${camelName}', () => {
+describe('${spaceName}', () => {
   it('matches snapshot', () => {
-    const ${snakeName} = shallow(
-      <${camelName}/>
-    );
-   
-    expect(${snakeName}).toMatchSnapshot();
+    const ${snakeName} = <${camelName}
+    />;
+
+    const { container } = render(${snakeName});
+    expect(container.firstChild).toMatchSnapshot();
   });
 });
 `,

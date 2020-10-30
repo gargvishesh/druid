@@ -21,11 +21,11 @@ package org.apache.druid.query.aggregation.datasketches.hll.sql;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.datasketches.hll.HllSketchAggregatorFactory;
@@ -129,14 +129,10 @@ public abstract class HllSketchBaseSqlAggregator implements SqlAggregator
           ROUND
       );
     } else {
-      final RelDataType dataType = columnRexNode.getType();
-      final ValueType inputType = Calcites.getValueTypeForRelDataType(dataType);
+      final SqlTypeName sqlTypeName = columnRexNode.getType().getSqlTypeName();
+      final ValueType inputType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
       if (inputType == null) {
-        throw new ISE(
-            "Cannot translate sqlTypeName[%s] to Druid type for field[%s]",
-            dataType.getSqlTypeName(),
-            aggregatorName
-        );
+        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, aggregatorName);
       }
 
       final DimensionSpec dimensionSpec;
@@ -147,7 +143,7 @@ public abstract class HllSketchBaseSqlAggregator implements SqlAggregator
         VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
             plannerContext,
             columnArg,
-            dataType
+            sqlTypeName
         );
         dimensionSpec = new DefaultDimensionSpec(virtualColumn.getOutputName(), null, inputType);
         virtualColumns.add(virtualColumn);

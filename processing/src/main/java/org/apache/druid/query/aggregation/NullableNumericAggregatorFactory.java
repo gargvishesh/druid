@@ -26,7 +26,6 @@ import org.apache.druid.guice.annotations.ExtensionPoint;
 import org.apache.druid.segment.BaseNullableColumnValueSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 import org.apache.druid.segment.vector.VectorValueSelector;
 
@@ -66,7 +65,7 @@ public abstract class NullableNumericAggregatorFactory<T extends BaseNullableCol
   @Override
   public final VectorAggregator factorizeVector(VectorColumnSelectorFactory columnSelectorFactory)
   {
-    Preconditions.checkState(canVectorize(columnSelectorFactory), "Cannot vectorize");
+    Preconditions.checkState(canVectorize(), "Cannot vectorize");
     VectorValueSelector selector = vectorSelector(columnSelectorFactory);
     VectorAggregator aggregator = factorizeVector(columnSelectorFactory, selector);
     return NullHandling.replaceWithDefault() ? aggregator : new NullableNumericVectorAggregator(aggregator, selector);
@@ -136,20 +135,15 @@ public abstract class NullableNumericAggregatorFactory<T extends BaseNullableCol
    * @see BufferAggregator
    */
   protected VectorAggregator factorizeVector(
-      VectorColumnSelectorFactory columnSelectorFactory,
+      // Not used by current aggregators, but here for parity with "factorizeBuffered".
+      @SuppressWarnings("unused") VectorColumnSelectorFactory columnSelectorFactory,
       VectorValueSelector selector
   )
   {
-    if (!canVectorize(columnSelectorFactory)) {
+    if (!canVectorize()) {
       throw new UnsupportedOperationException("Cannot vectorize");
     } else {
       throw new UnsupportedOperationException("canVectorize returned true but 'factorizeVector' is not implemented");
     }
-  }
-
-  @Override
-  public ValueType getFinalizedType()
-  {
-    return getType();
   }
 }

@@ -19,28 +19,16 @@
 
 package org.apache.druid.indexing.seekablestream;
 
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
-import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
-import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.InputRowParser;
-import org.apache.druid.indexing.common.task.FilteringCloseableInputRowIterator;
-import org.apache.druid.java.util.common.CloseableIterators;
-import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.segment.incremental.ParseExceptionHandler;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
-import org.apache.druid.segment.transform.TransformSpec;
+import org.apache.druid.java.util.common.parsers.CloseableIterator;
 
 import javax.annotation.Nullable;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.function.Predicate;
 
 /**
  * Abstraction for parsing stream data which internally uses {@link org.apache.druid.data.input.InputEntityReader}
@@ -50,76 +38,33 @@ class StreamChunkParser
 {
   @Nullable
   private final InputRowParser<ByteBuffer> parser;
-  @Nullable
   private final SettableByteEntityReader byteEntityReader;
-  private final Predicate<InputRow> rowFilter;
-  private final RowIngestionMeters rowIngestionMeters;
-  private final ParseExceptionHandler parseExceptionHandler;
 
-  /**
-   * Either parser or inputFormat shouldn't be null.
-   */
-  StreamChunkParser(
-      @Nullable InputRowParser<ByteBuffer> parser,
-      @Nullable InputFormat inputFormat,
-      InputRowSchema inputRowSchema,
-      TransformSpec transformSpec,
-      File indexingTmpDir,
-      Predicate<InputRow> rowFilter,
-      RowIngestionMeters rowIngestionMeters,
-      ParseExceptionHandler parseExceptionHandler
-  )
+  StreamChunkParser(@Nullable InputRowParser<ByteBuffer> parser, SettableByteEntityReader byteEntityReader)
   {
-    if (parser == null && inputFormat == null) {
-      throw new IAE("Either parser or inputFormat should be set");
-    }
-    // parser is already decorated with transformSpec in DataSchema
     this.parser = parser;
-    if (inputFormat != null) {
-      this.byteEntityReader = new SettableByteEntityReader(
-          inputFormat,
-          inputRowSchema,
-          transformSpec,
-          indexingTmpDir
-      );
-    } else {
-      this.byteEntityReader = null;
-    }
-    this.rowFilter = rowFilter;
-    this.rowIngestionMeters = rowIngestionMeters;
-    this.parseExceptionHandler = parseExceptionHandler;
+    this.byteEntityReader = byteEntityReader;
   }
 
-  List<InputRow> parse(@Nullable List<byte[]> streamChunk) throws IOException
+  List<InputRow> parse(List<byte[]> streamChunk) throws IOException
   {
-    if (streamChunk == null || streamChunk.isEmpty()) {
-      rowIngestionMeters.incrementThrownAway();
-      return Collections.emptyList();
+    if (parser != null) {
+      return parseWithParser(parser, streamChunk);
     } else {
-      if (byteEntityReader != null) {
-        return parseWithInputFormat(byteEntityReader, streamChunk);
-      } else {
-        return parseWithParser(parser, streamChunk);
-      }
+      return parseWithInputFormat(byteEntityReader, streamChunk);
     }
   }
 
-  private List<InputRow> parseWithParser(InputRowParser<ByteBuffer> parser, List<byte[]> valueBytess)
+  private static List<InputRow> parseWithParser(InputRowParser<ByteBuffer> parser, List<byte[]> valueBytess)
   {
-    final FluentIterable<InputRow> iterable = FluentIterable
-        .from(valueBytess)
-        .transformAndConcat(bytes -> parser.parseBatch(ByteBuffer.wrap(bytes)));
-
-    final FilteringCloseableInputRowIterator rowIterator = new FilteringCloseableInputRowIterator(
-        CloseableIterators.withEmptyBaggage(iterable.iterator()),
-        rowFilter,
-        rowIngestionMeters,
-        parseExceptionHandler
-    );
-    return Lists.newArrayList(rowIterator);
+    final List<InputRow> rows = new ArrayList<>();
+    for (byte[] valueBytes : valueBytess) {
+      rows.addAll(parser.parseBatch(ByteBuffer.wrap(valueBytes)));
+    }
+    return rows;
   }
 
-  private List<InputRow> parseWithInputFormat(
+  private static List<InputRow> parseWithInputFormat(
       SettableByteEntityReader byteEntityReader,
       List<byte[]> valueBytess
   ) throws IOException
@@ -127,12 +72,7 @@ class StreamChunkParser
     final List<InputRow> rows = new ArrayList<>();
     for (byte[] valueBytes : valueBytess) {
       byteEntityReader.setEntity(new ByteEntity(valueBytes));
-      try (FilteringCloseableInputRowIterator rowIterator = new FilteringCloseableInputRowIterator(
-          byteEntityReader.read(),
-          rowFilter,
-          rowIngestionMeters,
-          parseExceptionHandler
-      )) {
+      try (CloseableIterator<InputRow> rowIterator = byteEntityReader.read()) {
         rowIterator.forEachRemaining(rows::add);
       }
     }

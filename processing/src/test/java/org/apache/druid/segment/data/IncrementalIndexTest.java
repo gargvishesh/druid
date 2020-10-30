@@ -63,10 +63,9 @@ import org.apache.druid.segment.CloserRule;
 import org.apache.druid.segment.IncrementalIndexSegment;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.incremental.IncrementalIndex;
+import org.apache.druid.segment.incremental.IncrementalIndex.Builder;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.incremental.IndexSizeExceededException;
-import org.apache.druid.segment.incremental.OffheapIncrementalIndex;
-import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.joda.time.Interval;
 import org.junit.AfterClass;
@@ -131,11 +130,10 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
     RESOURCE_CLOSER.register(pool1);
     params.add(
         new Object[] {
-            (IndexCreator) factories -> new OffheapIncrementalIndex.Builder()
-                .setBufferPool(pool1)
+            (IndexCreator) factories -> new Builder()
                 .setSimpleTestingIndexSchema(factories)
                 .setMaxRowCount(1000000)
-                .build()
+                .buildOffheap(pool1)
         }
     );
     params.add(new Object[] {(IndexCreator) IncrementalIndexTest::createNoRollupIndex});
@@ -146,8 +144,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
     RESOURCE_CLOSER.register(pool2);
     params.add(
         new Object[] {
-            (IndexCreator) factories -> new OffheapIncrementalIndex.Builder()
-                .setBufferPool(pool2)
+            (IndexCreator) factories -> new Builder()
                 .setIndexSchema(
                     new IncrementalIndexSchema.Builder()
                         .withMetrics(factories)
@@ -155,7 +152,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                         .build()
                 )
                 .setMaxRowCount(1000000)
-                .build()
+                .buildOffheap(pool2)
         }
     );
 
@@ -176,7 +173,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
       aggregatorFactories = DEFAULT_AGGREGATOR_FACTORIES;
     }
 
-    return new OnheapIncrementalIndex.Builder()
+    return new IncrementalIndex.Builder()
         .setIndexSchema(
             new IncrementalIndexSchema.Builder()
                 .withDimensionsSpec(dimensionsSpec)
@@ -184,7 +181,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                 .build()
         )
         .setMaxRowCount(1000000)
-        .build();
+        .buildOnheap();
   }
 
   public static IncrementalIndex createIndex(AggregatorFactory[] aggregatorFactories)
@@ -193,10 +190,10 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
       aggregatorFactories = DEFAULT_AGGREGATOR_FACTORIES;
     }
 
-    return new OnheapIncrementalIndex.Builder()
+    return new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(aggregatorFactories)
         .setMaxRowCount(1000000)
-        .build();
+        .buildOnheap();
   }
 
   public static IncrementalIndex createNoRollupIndex(AggregatorFactory[] aggregatorFactories)
@@ -205,10 +202,10 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
       aggregatorFactories = DEFAULT_AGGREGATOR_FACTORIES;
     }
 
-    return new OnheapIncrementalIndex.Builder()
+    return new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(false, aggregatorFactories)
         .setMaxRowCount(1000000)
-        .build();
+        .buildOnheap();
   }
 
   public static void populateIndex(long timestamp, IncrementalIndex index) throws IndexSizeExceededException
@@ -725,7 +722,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
   @Test
   public void testgetDimensions()
   {
-    final IncrementalIndex<Aggregator> incrementalIndex = (OnheapIncrementalIndex) new OnheapIncrementalIndex.Builder()
+    final IncrementalIndex<Aggregator> incrementalIndex = new IncrementalIndex.Builder()
         .setIndexSchema(
             new IncrementalIndexSchema.Builder()
                 .withMetrics(new CountAggregatorFactory("count"))
@@ -739,7 +736,7 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                 .build()
         )
         .setMaxRowCount(1000000)
-        .build();
+        .buildOnheap();
     closerRule.closeLater(incrementalIndex);
 
     Assert.assertEquals(Arrays.asList("dim0", "dim1"), incrementalIndex.getDimensionNames());
@@ -748,10 +745,10 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
   @Test
   public void testDynamicSchemaRollup() throws IndexSizeExceededException
   {
-    IncrementalIndex<Aggregator> index = (OnheapIncrementalIndex) new OnheapIncrementalIndex.Builder()
+    IncrementalIndex<Aggregator> index = new IncrementalIndex.Builder()
         .setSimpleTestingIndexSchema(/* empty */)
         .setMaxRowCount(10)
-        .build();
+        .buildOnheap();
     closerRule.closeLater(index);
     index.add(
         new MapBasedInputRow(

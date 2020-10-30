@@ -28,7 +28,6 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.ObjectAggregateCombiner;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.column.ValueType;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -167,21 +166,6 @@ public abstract class HllSketchAggregatorFactory extends AggregatorFactory
         return HllSketch.class;
       }
     };
-  }
-
-  /**
-   * actual type is {@link HllSketch}
-   */
-  @Override
-  public ValueType getType()
-  {
-    return ValueType.COMPLEX;
-  }
-
-  @Override
-  public ValueType getFinalizedType()
-  {
-    return round ? ValueType.LONG : ValueType.DOUBLE;
   }
 
   @Nullable

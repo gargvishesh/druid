@@ -25,7 +25,6 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
-import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ValueType;
@@ -92,8 +91,6 @@ public class ColumnProcessors
 
             return new ColumnCapabilitiesImpl()
                 .setType(ValueType.STRING)
-                .setDictionaryValuesSorted(dimensionSpec.getExtractionFn().preservesOrdering())
-                .setDictionaryValuesUnique(dimensionSpec.getExtractionFn().getExtractionType() == ExtractionFn.ExtractionType.ONE_TO_ONE)
                 .setHasMultipleValues(dimensionSpec.mustDecorate() || mayBeMultiValue(dimensionCapabilities));
           } else {
             // No transformation. Pass through.
@@ -132,10 +129,7 @@ public class ColumnProcessors
       return makeProcessor(expr.getBindingIfIdentifier(), processorFactory, selectorFactory);
     } else {
       return makeProcessorInternal(
-          factory -> new ColumnCapabilitiesImpl().setType(exprTypeHint)
-                                                 .setHasMultipleValues(true)
-                                                 .setDictionaryValuesUnique(false)
-                                                 .setDictionaryValuesSorted(false),
+          factory -> new ColumnCapabilitiesImpl().setType(exprTypeHint).setHasMultipleValues(true),
           factory -> ExpressionSelectors.makeDimensionSelector(factory, expr, null),
           factory -> ExpressionSelectors.makeColumnValueSelector(factory, expr),
           processorFactory,
@@ -197,6 +191,6 @@ public class ColumnProcessors
    */
   private static boolean mayBeMultiValue(@Nullable final ColumnCapabilities capabilities)
   {
-    return capabilities == null || capabilities.hasMultipleValues().isMaybeTrue();
+    return capabilities == null || !capabilities.isComplete() || capabilities.hasMultipleValues();
   }
 }

@@ -86,7 +86,7 @@ public class RowBasedStorageAdapterTest
           }
       );
 
-  // VectorProcessors used by the "allProcessors" tasks.
+  // Processors used by the "allProcessors" tasks.
   private static final LinkedHashMap<String, Function<Cursor, Supplier<Object>>> PROCESSORS = new LinkedHashMap<>();
 
   @BeforeClass
@@ -332,7 +332,8 @@ public class RowBasedStorageAdapterTest
 
     final ColumnCapabilities capabilities = adapter.getColumnCapabilities(ValueType.FLOAT.name());
     Assert.assertEquals(ValueType.FLOAT, capabilities.getType());
-    Assert.assertFalse(capabilities.hasMultipleValues().isMaybeTrue());
+    Assert.assertFalse(capabilities.hasMultipleValues());
+    Assert.assertTrue(capabilities.isComplete());
   }
 
   @Test
@@ -342,7 +343,8 @@ public class RowBasedStorageAdapterTest
 
     final ColumnCapabilities capabilities = adapter.getColumnCapabilities(ValueType.DOUBLE.name());
     Assert.assertEquals(ValueType.DOUBLE, capabilities.getType());
-    Assert.assertFalse(capabilities.hasMultipleValues().isMaybeTrue());
+    Assert.assertFalse(capabilities.hasMultipleValues());
+    Assert.assertTrue(capabilities.isComplete());
   }
 
   @Test
@@ -352,7 +354,8 @@ public class RowBasedStorageAdapterTest
 
     final ColumnCapabilities capabilities = adapter.getColumnCapabilities(ValueType.LONG.name());
     Assert.assertEquals(ValueType.LONG, capabilities.getType());
-    Assert.assertFalse(capabilities.hasMultipleValues().isMaybeTrue());
+    Assert.assertFalse(capabilities.hasMultipleValues());
+    Assert.assertTrue(capabilities.isComplete());
   }
 
   @Test
@@ -366,7 +369,8 @@ public class RowBasedStorageAdapterTest
     // Note: unlike numeric types, STRING-typed columns might have multiple values, so they report as incomplete. It
     // would be good in the future to support some way of changing this, when it is known ahead of time that
     // multi-valuedness is definitely happening or is definitely impossible.
-    Assert.assertTrue(capabilities.hasMultipleValues().isUnknown());
+    Assert.assertFalse(capabilities.hasMultipleValues());
+    Assert.assertFalse(capabilities.isComplete());
   }
 
   @Test
@@ -378,7 +382,8 @@ public class RowBasedStorageAdapterTest
 
     // Note: unlike numeric types, COMPLEX-typed columns report that they are incomplete.
     Assert.assertEquals(ValueType.COMPLEX, capabilities.getType());
-    Assert.assertTrue(capabilities.hasMultipleValues().isUnknown());
+    Assert.assertFalse(capabilities.hasMultipleValues());
+    Assert.assertFalse(capabilities.isComplete());
   }
 
   @Test

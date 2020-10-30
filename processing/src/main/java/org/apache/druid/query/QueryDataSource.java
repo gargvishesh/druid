@@ -71,7 +71,7 @@ public class QueryDataSource implements DataSource
   }
 
   @Override
-  public boolean isCacheable(boolean isBroker)
+  public boolean isCacheable()
   {
     return false;
   }

@@ -229,7 +229,6 @@ public class AppendableByteArrayInputStreamTest
             try {
               byte[] readBytes = new byte[10];
               while (in.read(readBytes) != -1) {
-                /* Do nothing. Read bytes till the end of the stream. */
               }
               return readBytes;
             }

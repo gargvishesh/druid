@@ -18,7 +18,6 @@
 
 # remove lib/sql-function-doc.* for back compat cleanup
 rm -rf \
-  coverage \
   lib/react-table.css \
   lib/sql-docs.js \
   lib/sql-function-doc.* \

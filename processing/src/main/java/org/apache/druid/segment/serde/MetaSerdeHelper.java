@@ -117,7 +117,7 @@ public final class MetaSerdeHelper<T>
 
   public interface FieldWriter<T>
   {
-    void writeTo(ByteBuffer buffer, T x);
+    void writeTo(ByteBuffer buffer, T x) throws IOException;
 
     int size(T x);
   }
@@ -125,10 +125,10 @@ public final class MetaSerdeHelper<T>
   @FunctionalInterface
   public interface IntFieldWriter<T> extends FieldWriter<T>
   {
-    int getField(T x);
+    int getField(T x) throws IOException;
 
     @Override
-    default void writeTo(ByteBuffer buffer, T x)
+    default void writeTo(ByteBuffer buffer, T x) throws IOException
     {
       buffer.putInt(getField(x));
     }
