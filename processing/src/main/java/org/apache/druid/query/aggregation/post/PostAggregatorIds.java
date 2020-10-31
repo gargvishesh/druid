@@ -19,6 +19,8 @@
 
 package org.apache.druid.query.aggregation.post;
 
+import org.apache.druid.annotations.UsedInContribExtensions;
+
 public class PostAggregatorIds
 {
   public static final byte ARITHMETIC = 0;
@@ -45,13 +47,18 @@ public class PostAggregatorIds
   public static final byte ZTEST = 21;
   public static final byte PVALUE_FROM_ZTEST = 22;
   public static final byte THETA_SKETCH_CONSTANT = 23;
+  @UsedInContribExtensions
   public static final byte MOMENTS_SKETCH_TO_QUANTILES_CACHE_TYPE_ID = 24;
+  @UsedInContribExtensions
   public static final byte MOMENTS_SKETCH_TO_MIN_CACHE_TYPE_ID = 25;
+  @UsedInContribExtensions
   public static final byte MOMENTS_SKETCH_TO_MAX_CACHE_TYPE_ID = 26;
   public static final byte QUANTILES_DOUBLES_SKETCH_TO_RANK_CACHE_TYPE_ID = 27;
   public static final byte QUANTILES_DOUBLES_SKETCH_TO_CDF_CACHE_TYPE_ID = 28;
   public static final byte THETA_SKETCH_TO_STRING = 29;
+  @UsedInContribExtensions
   public static final byte TDIGEST_SKETCH_TO_QUANTILES_CACHE_TYPE_ID = 30;
+  @UsedInContribExtensions
   public static final byte TDIGEST_SKETCH_TO_QUANTILE_CACHE_TYPE_ID = 31;
   public static final byte HLL_SKETCH_TO_ESTIMATE_CACHE_TYPE_ID = 32;
 }

@@ -21,6 +21,7 @@ package org.apache.druid.query.aggregation;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import org.apache.druid.annotations.UsedInContribExtensions;
 import org.apache.druid.guice.annotations.PublicApi;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.math.expr.Expr;
@@ -66,6 +67,7 @@ public class AggregatorUtil
   public static final byte FLOAT_MAX_CACHE_TYPE_ID = 0xD;
   public static final byte FLOAT_MIN_CACHE_TYPE_ID = 0xE;
   public static final byte SKETCH_MERGE_CACHE_TYPE_ID = 0xF;
+  @UsedInContribExtensions
   public static final byte DISTINCT_COUNT_CACHE_KEY = 0x10;
   public static final byte FLOAT_LAST_CACHE_TYPE_ID = 0x11;
   public static final byte APPROX_HIST_CACHE_TYPE_ID = 0x12;
@@ -75,6 +77,7 @@ public class AggregatorUtil
   public static final byte FLOAT_FIRST_CACHE_TYPE_ID = 0x16;
   public static final byte LONG_FIRST_CACHE_TYPE_ID = 0x17;
   public static final byte LONG_LAST_CACHE_TYPE_ID = 0x18;
+  @UsedInContribExtensions
   public static final byte TIMESTAMP_CACHE_TYPE_ID = 0x19;
   public static final byte VARIANCE_CACHE_TYPE_ID = 0x1A;
 
@@ -120,10 +123,13 @@ public class AggregatorUtil
   public static final byte BLOOM_FILTER_MERGE_CACHE_TYPE_ID = 0x35;
 
   // Quantiles sketch in momentsketch extension
+  @UsedInContribExtensions
   public static final byte MOMENTS_SKETCH_BUILD_CACHE_TYPE_ID = 0x36;
+  @UsedInContribExtensions
   public static final byte MOMENTS_SKETCH_MERGE_CACHE_TYPE_ID = 0x37;
 
   // TDigest sketch aggregators
+  @UsedInContribExtensions
   public static final byte TDIGEST_BUILD_SKETCH_CACHE_TYPE_ID = 0x38;
 
   public static final byte MEAN_CACHE_TYPE_ID = 0x41;

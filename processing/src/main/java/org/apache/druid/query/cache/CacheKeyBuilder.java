@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
+import org.apache.druid.annotations.UsedInContribExtensions;
 import org.apache.druid.guice.annotations.PublicApi;
 import org.apache.druid.java.util.common.Cacheable;
 import org.apache.druid.java.util.common.StringUtils;
@@ -270,6 +271,7 @@ public class CacheKeyBuilder
     return this;
   }
 
+  @UsedInContribExtensions
   public CacheKeyBuilder appendDoubleArray(double[] input)
   {
     appendItem(DOUBLE_ARRAY_KEY, doubleArrayToByteArray(input));
