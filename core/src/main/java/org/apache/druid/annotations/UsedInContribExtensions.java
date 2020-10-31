@@ -17,22 +17,19 @@
  * under the License.
  */
 
-package org.apache.druid.segment.virtual;
+package org.apache.druid.annotations;
 
-import org.apache.druid.annotations.UsedInContribExtensions;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class VirtualColumnCacheHelper
+/**
+ * Annotation for members, which are used in generated code (e. g. by Antlr), but not in regular code. IntelliJ's
+ *  * inspection "Unused declarations" knows about this annotation.
+ */
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR})
+@Retention(RetentionPolicy.SOURCE)
+public @interface UsedInContribExtensions
 {
-  @UsedInContribExtensions
-  public static final byte CACHE_TYPE_ID_MAP = 0x00;
-  public static final byte CACHE_TYPE_ID_EXPRESSION = 0x01;
-
-  // Starting byte 0xFF is reserved for site-specific virtual columns.
-  @SuppressWarnings("unused")
-  public static final byte CACHE_TYPE_ID_USER_DEFINED = (byte) 0xFF;
-
-  private VirtualColumnCacheHelper()
-  {
-    // No instantiation.
-  }
 }
