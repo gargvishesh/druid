@@ -152,7 +152,6 @@
         <module>extensions-core/datasketches</module>
         <module>extensions-core/druid-bloom-filter</module>
         <module>extensions-core/druid-kerberos</module>
-        <module>extensions-core/druid-pac4j</module>
         <module>extensions-core/hdfs-storage</module>
         <module>extensions-core/histogram</module>
         <module>extensions-core/stats</module>
@@ -171,7 +170,6 @@
         <module>extensions-core/simple-client-sslcontext</module>
         <module>extensions-core/druid-basic-security</module>
         <module>extensions-core/google-extensions</module>
-        <module>extensions-core/druid-ranger-security</module>
         <!-- Community extensions -->
         <module>extensions-contrib/influx-extensions</module>
         <module>extensions-contrib/cassandra-storage</module>
