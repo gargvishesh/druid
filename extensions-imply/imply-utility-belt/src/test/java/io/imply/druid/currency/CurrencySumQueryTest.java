@@ -11,7 +11,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.druid.collections.StupidPool;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -114,27 +113,27 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
             ImmutableList.of(
                 new MapBasedInputRow(
                     CurrencySumSerdeTest.DAY1.getMillis(),
-                    Lists.newArrayList(VISITOR_ID),
+                    Collections.singletonList(VISITOR_ID),
                     ImmutableMap.of(VISITOR_ID, "0", REVENUE, 10)
                 ),
                 new MapBasedInputRow(
                     CurrencySumSerdeTest.DAY1.getMillis() + 10,
-                    Lists.newArrayList(VISITOR_ID),
+                    Collections.singletonList(VISITOR_ID),
                     ImmutableMap.of(VISITOR_ID, "1", REVENUE, 100)
                 ),
                 new MapBasedInputRow(
                     CurrencySumSerdeTest.DAY2.getMillis(),
-                    Lists.newArrayList(VISITOR_ID),
+                    Collections.singletonList(VISITOR_ID),
                     ImmutableMap.of(VISITOR_ID, "2", REVENUE, 1000)
                 ),
                 new MapBasedInputRow(
                     CurrencySumSerdeTest.DAY2.getMillis(),
-                    Lists.newArrayList(VISITOR_ID),
+                    Collections.singletonList(VISITOR_ID),
                     ImmutableMap.of(VISITOR_ID, "3", REVENUE, 1500)
                 ),
                 new MapBasedInputRow(
                     CurrencySumSerdeTest.DAY3.getMillis(),
-                    Lists.newArrayList(VISITOR_ID),
+                    Collections.singletonList(VISITOR_ID),
                     ImmutableMap.of(VISITOR_ID, "4", REVENUE, 10000)
                 )
             )
@@ -143,7 +142,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
   }
 
   @Parameterized.Parameters(name = "{0}")
-  public static Collection<Object[]> constructorFeeder() throws IOException
+  public static Collection<Object[]> constructorFeeder()
   {
     return makeConstructors();
   }
@@ -224,7 +223,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
         ).run(QueryPlus.wrap(query), DefaultResponseContext.createEmpty())
          .toList();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
+    List<Result<TimeseriesResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             CurrencySumSerdeTest.DAY1,
             new TimeseriesResultValue(
@@ -276,7 +275,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
         ).run(QueryPlus.wrap(query), DefaultResponseContext.createEmpty())
          .toList();
 
-    List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
+    List<Result<TimeseriesResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             CurrencySumSerdeTest.DAY1,
             new TimeseriesResultValue(
@@ -322,7 +321,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
         ).run(QueryPlus.wrap(query), DefaultResponseContext.createEmpty())
          .toList();
 
-    List<Result<TopNResultValue>> expectedResults = Arrays.asList(
+    List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             CurrencySumSerdeTest.DAY1,
             new TopNResultValue(
