@@ -23,6 +23,7 @@
   </parent>
   <properties>
     <checkstyle.skip>true</checkstyle.skip>
+    <jmh.version>1.21</jmh.version>
   </properties>
 
   <dependencies>
@@ -183,7 +184,6 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -214,38 +214,6 @@
           <argLine>-Duser.timezone=UTC</argLine>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.5.5</version>
-        <executions>
-          <execution>
-            <id>distro-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-            <configuration>
-              <finalName>${project.artifactId}-${project.version}</finalName>
-              <tarLongFileMode>posix</tarLongFileMode>
-              <descriptors>
-                <descriptor>src/assembly/assembly.xml</descriptor>
-              </descriptors>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-release-plugin</artifactId>
-        <version>2.5.3</version>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.maven.scm</groupId>
-            <artifactId>maven-scm-provider-gitexe</artifactId>
-            <version>1.9.5</version>
-          </dependency>
-        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

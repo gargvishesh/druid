@@ -62,7 +62,7 @@ public class CurrencySumBufferAggregator implements BufferAggregator
     if (t >= nextTime) {
       final Map.Entry<Long, Double> entry = conversions.floorEntry(t);
       if (entry.getKey() < nextTime) {
-        throw new ISE("WTF?! Expected next entry to be at or after nextTime[%s]?!", DateTimes.utc(nextTime));
+        throw new ISE("Expected next entry to be at or after nextTime[%s]?!", DateTimes.utc(nextTime));
       }
       currentConversion = entry.getValue();
       byteBuffer.putDouble(position + CURRENT_CONVERSION, entry.getValue());

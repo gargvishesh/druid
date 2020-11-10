@@ -1959,7 +1959,8 @@
                                     <familyName>Allan Jardine</familyName>
                                 </licenseFamily>
                             </licenseFamilies>
-                            <excludes>
+                            <excludes><groupId>junit</groupId>
+                              <artifactId>junit</artifactId>
                                 <exclude>publications/**</exclude>
                                 <exclude>codestyle/*-forbidden-apis.txt</exclude>
                                 <exclude>conf/**</exclude>
