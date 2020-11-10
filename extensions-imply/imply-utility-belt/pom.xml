@@ -23,7 +23,6 @@
   </parent>
   <properties>
     <checkstyle.skip>true</checkstyle.skip>
-    <jmh.version>1.21</jmh.version>
   </properties>
 
   <dependencies>
@@ -189,23 +188,13 @@
     <dependency>
       <groupId>org.openjdk.jmh</groupId>
       <artifactId>jmh-core</artifactId>
-      <version>${jmh.version}</version>
+      <version>1.21</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
-        <configuration>
-          <compilerArgument>-Xlint:unchecked</compilerArgument>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
