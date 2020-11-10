@@ -142,7 +142,7 @@ public class CurrencySumAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return ImmutableList.<AggregatorFactory>of(
+    return ImmutableList.of(
         new DoubleSumAggregatorFactory(fieldName, fieldName)
     );
   }
