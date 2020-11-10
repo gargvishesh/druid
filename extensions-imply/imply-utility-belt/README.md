@@ -1,3 +1,10 @@
+<!--
+  ~ Copyright (c) 2019 Imply Data, Inc. All rights reserved.
+  ~
+  ~ This software is the confidential and proprietary information
+  ~  of Imply Data, Inc.
+  -->
+
 <img src="https://static.imply.io/img/bat-belt.jpg" />
 
 ## CloudWatch logs parser

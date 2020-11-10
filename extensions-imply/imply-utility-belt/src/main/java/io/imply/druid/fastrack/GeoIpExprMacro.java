@@ -17,6 +17,7 @@ import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.model.CityResponse;
 import io.imply.druid.UtilityBeltConfig;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.math.expr.Expr;
@@ -173,7 +174,7 @@ public class GeoIpExprMacro implements ExprMacroTable.ExprMacro
       return null;
     }
     catch (Exception e) {
-      throw new RuntimeException(StringUtils.format("Could not look up geo data for[%s]", addressString), e);
+      throw new RE(StringUtils.format("Could not look up geo data for[%s]", addressString), e);
     }
   }
 }

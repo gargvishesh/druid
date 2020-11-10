@@ -1901,6 +1901,13 @@
                             <outputDirectory>${project.basedir}/rat</outputDirectory>
                             <licenses>
                                 <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+                                    <licenseFamilyCategory>Imply</licenseFamilyCategory>
+                                    <licenseFamilyName>Imply</licenseFamilyName>
+                                    <patterns>
+                                        <pattern>Imply Data, Inc. All rights reserved.</pattern>
+                                    </patterns>
+                                </license>
+                                <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
                                     <licenseFamilyCategory>MIT</licenseFamilyCategory>
                                     <licenseFamilyName>MIT JQuery</licenseFamilyName>
                                     <notes />
@@ -1939,6 +1946,9 @@
                             </licenses>
 
                             <licenseFamilies>
+                                <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+                                    <familyName>Imply</familyName>
+                                </licenseFamily>
                                 <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
                                     <familyName>MIT JQuery</familyName>
                                 </licenseFamily>
