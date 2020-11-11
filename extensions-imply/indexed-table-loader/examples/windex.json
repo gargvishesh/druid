@@ -1,0 +1,6 @@
+{"key": "a", "stringDim": "a", "longDim": 65, "floatDim": 65.0, "doubleDim": 130.1, "stringDimExt": "The letter A"}
+{"key": "abc", "stringDim": "xabc", "longDim": 286, "floatDim": 286.0, "doubleDim": 572.5, "stringDimExt": "The letters ABC"}
+{"key": "nosuchkey", "stringDim": "mysteryValue", "longDim": 1, "floatDim": 1.0, "doubleDim": 2.2, "stringDimExt": "A key that does not exist"}
+{"key": 6, "stringDim": "x6", "longDim": 2, "floatDim": 2.0, "doubleDim": 4.4, "stringDimExt": "The number 6"}
+{"key": "d", "stringDim": null, "longDim": 68, "floatDim": 68.0, "doubleDim": 136.1, "stringDimExt": "The letter d"}
+{"key": null, "stringDim": null, "longDim": 0, "floatDim": 0, "doubleDim": 0, "stringDimExt": "A null key"}

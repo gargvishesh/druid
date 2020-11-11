@@ -1,0 +1,58 @@
+{
+  "windex": {
+    "ingestionSpec": {
+      "dataSchema": {
+        "dataSource": "windex",
+        "timestampSpec": {
+          "column": "!!!_no_such_column_!!!",
+          "missingValue": "2010-01-01T00:00:00Z"
+        },
+        "dimensionsSpec": {
+          "dimensions": [
+            {
+              "type": "double",
+              "name": "doubleDim"
+            },
+            {
+              "type": "float",
+              "name": "floatDim"
+            },
+            "key",
+            {
+              "type": "long",
+              "name": "longDim"
+            },
+            "stringDim",
+            "stringDimExt"
+          ]
+        },
+        "metricsSpec": [],
+        "granularitySpec": {
+          "type": "uniform",
+          "segmentGranularity": "YEAR",
+          "queryGranularity": "NONE",
+          "rollup": false,
+          "intervals": null
+        }
+      },
+      "ioConfig": {
+        "type": "index",
+        "inputSource": {
+          "type": "local",
+          "filter": "windex.json",
+          "baseDir": "."
+        },
+        "inputFormat": {
+          "type": "json"
+        },
+        "appendToExisting": false
+      }
+    },
+    "keys": [
+      "key",
+      "stringDim",
+      "longDim",
+      "floatDim"
+    ]
+  }
+}

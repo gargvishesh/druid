@@ -220,7 +220,7 @@
     </module>
 
     <module name="PackageName">
-      <property name="format" value="^org.apache.druid.*$"/>
+      <property name="format" value="^(org.apache.druid.*)|(io.imply.druid.*)$"/>
     </module>
     <module name="PackageDeclaration"/>
 

@@ -172,6 +172,7 @@
         <module>extensions-core/google-extensions</module>
         <!-- Imply extensions -->
         <module>extensions-imply/imply-utility-belt</module>
+        <module>extensions-imply/indexed-table-loader</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>
