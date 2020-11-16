@@ -33,6 +33,11 @@ env:
       MAVEN_SKIP="-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
     - MAVEN_SKIP_TESTS="-Pskip-tests"
 
+addons:
+  apt:
+    packages:
+      - maven
+    
 # Add various options to make 'mvn install' fast and skip javascript compile (-Ddruid.console.skip=true) since it is not
 # needed. Depending on network speeds, "mvn -q install" may take longer than the default 10 minute timeout to print any
 # output.  To compensate, use travis_wait to extend the timeout.
@@ -136,6 +141,11 @@ jobs:
       script: >
         MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end
         -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
+
+    - <<: *package
+      name: "Build and test on ARM64 CPU architecture"
+      arch: arm64
+      jdk: openjdk11
 
     - &test_processing_module
       name: "(openjdk8) processing module test"
