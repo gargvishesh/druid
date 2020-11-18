@@ -145,7 +145,6 @@ jobs:
     - <<: *package
       name: "Build and test on ARM64 CPU architecture"
       arch: arm64
-      jdk: openjdk11
 
     - &test_processing_module
       name: "(openjdk8) processing module test"
