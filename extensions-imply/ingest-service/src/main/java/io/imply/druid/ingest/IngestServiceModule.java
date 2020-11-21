@@ -58,7 +58,6 @@ public class IngestServiceModule implements Module
     binder.bind(JettyServerInitializer.class).to(IngestServiceJettyServerInitializer.class).in(LazySingleton.class);
     Jerseys.addResource(binder, TablesResource.class);
 
-
     LifecycleModule.register(binder, Server.class);
     LifecycleModule.register(binder, JobProcessor.class);
   }

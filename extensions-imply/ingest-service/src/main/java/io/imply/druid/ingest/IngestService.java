@@ -45,6 +45,7 @@ public class IngestService extends ServerRunnable
   {
     return ImmutableList.of(
         new IndexingServiceTuningConfigModule(),
+        new IngestServiceDiscoveryModule(),
         new IngestServiceModule()
     );
   }

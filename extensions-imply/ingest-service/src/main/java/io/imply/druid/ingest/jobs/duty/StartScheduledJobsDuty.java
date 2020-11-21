@@ -81,6 +81,11 @@ public class StartScheduledJobsDuty implements JobProcessorDuty
         //       based?
         int numRetries = jobProcessingContext.getMetadataStore().jobRetry(job.getJobId());
         if (numRetries > 3) {
+          LOG.warn(
+              "Too many failures for job[%s], changing state to [%s]",
+              job.getJobId(),
+              JobState.FAILED
+          );
           jobProcessingContext.getMetadataStore().setJobStateAndStatus(
               job.getJobId(),
               new FailedJobStatus("too many retries"),

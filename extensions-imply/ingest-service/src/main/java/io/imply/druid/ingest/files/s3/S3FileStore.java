@@ -9,6 +9,7 @@
 
 package io.imply.druid.ingest.files.s3;
 
+import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -71,7 +72,12 @@ public class S3FileStore extends BaseFileStore
   @Override
   public URI makeDropoffUri(String file)
   {
-    URL url = s3.generatePresignedUrl(s3Config.getBucket(), makeObjectPath(file), DateTimes.nowUtc().plusDays(1).toDate());
+    URL url = s3.generatePresignedUrl(
+        s3Config.getBucket(),
+        makeObjectPath(file),
+        DateTimes.nowUtc().plusDays(1).toDate(),
+        HttpMethod.PUT
+    );
     try {
       return url.toURI();
     }
@@ -83,9 +89,10 @@ public class S3FileStore extends BaseFileStore
   @Override
   public Map<String, Object> makeInputSourceMap(String file)
   {
+    final String s3Uri = StringUtils.format("s3://%s/%s", s3Config.getBucket(), makeObjectPath(file));
     return ImmutableMap.of(
         "type", S3FileStoreModule.TYPE,
-        "uris", ImmutableList.of(StringUtils.format("s3://%s", makeObjectPath(file)))
+        "uris", ImmutableList.of(s3Uri)
     );
   }
 
