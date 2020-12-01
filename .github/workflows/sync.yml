@@ -1,7 +1,7 @@
 name: Update implydata/druid master from apache/druid master
 on:
   schedule:
-    - cron:  '*/15 * * * *' #Every 15 minutes
+    - cron:  '0 */2 * * *' #Every 2 hours
 jobs:
   updateMaster:
     runs-on: ubuntu-latest
