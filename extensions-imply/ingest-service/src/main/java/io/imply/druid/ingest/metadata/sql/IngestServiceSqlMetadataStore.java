@@ -121,26 +121,23 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public void scheduleJob(String jobId, IngestSchema schema)
+  public int scheduleJob(String jobId, IngestSchema schema)
   {
     final long scheduled = DateTimes.nowUtc().getMillis();
-    metadataConnector.getDBI().inTransaction(
-        (handle, transactionStatus) -> {
-          handle.createStatement(
-              StringUtils.format(
-                  "UPDATE %1$s SET scheduled_timestamp=:ts, schema_blob=:sc, job_state=:st WHERE job_id=:jid",
-                  ingestConfig.get().getJobsTable()
-              )
-          )
-                .bind("ts", scheduled)
-                .bind("sc", jsonMapper.writeValueAsBytes(schema))
-                .bind("st", JobState.SCHEDULED)
-                .bind("jid", jobId)
-                .execute();
-          return null;
-        }
+    return metadataConnector.getDBI().inTransaction(
+        (handle, transactionStatus) ->
+            handle.createStatement(
+                StringUtils.format(
+                    "UPDATE %1$s SET scheduled_timestamp=:ts, schema_blob=:sc, job_state=:st WHERE job_id=:jid",
+                    ingestConfig.get().getJobsTable()
+                )
+            )
+                  .bind("ts", scheduled)
+                  .bind("sc", jsonMapper.writeValueAsBytes(schema))
+                  .bind("st", JobState.SCHEDULED)
+                  .bind("jid", jobId)
+                  .execute()
     );
-
   }
 
   @Override
@@ -189,11 +186,11 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
         (handle, transactionStatus) -> {
           final byte[] blob = status != null ? jsonMapper.writeValueAsBytes(status) : null;
           handle.createStatement(
-                StringUtils.format(
-                    "UPDATE %1$s SET job_state=:st, job_status=:js WHERE job_id=:jid",
-                    ingestConfig.get().getJobsTable()
-                )
-            )
+              StringUtils.format(
+                  "UPDATE %1$s SET job_state=:st, job_status=:js WHERE job_id=:jid",
+                  ingestConfig.get().getJobsTable()
+              )
+          )
                 .bind("st", jobState)
                 .bind("js", blob)
                 .bind("jid", jobId)

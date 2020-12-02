@@ -219,7 +219,15 @@ public class TablesResource
   )
   {
     // this is not enough, we need to handle the alternative where schemaId is set
-    metadataStore.scheduleJob(jobId, scheduleRequest.getSchema());
-    return Response.noContent().build();
+    int updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchema());
+
+    if (updated == 0) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } else if (updated > 1) {
+      // this should never happen
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+    return Response.created(URI.create("")).build();
   }
+
 }

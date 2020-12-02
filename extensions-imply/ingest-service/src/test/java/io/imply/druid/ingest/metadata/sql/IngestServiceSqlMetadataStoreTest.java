@@ -113,7 +113,7 @@ public class IngestServiceSqlMetadataStoreTest
   }
 
   @Test
-  public void testScheduleJob()
+  public void testScheduleJobShouldSucceedWhenJobExists()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
     IngestSchema someSchema = new IngestSchema(
@@ -126,13 +126,36 @@ public class IngestServiceSqlMetadataStoreTest
         ),
         new JsonInputFormat(null, null, null)
     );
-    metadataStore.scheduleJob(jobId, someSchema);
+    int updated = metadataStore.scheduleJob(jobId, someSchema);
+
+    Assert.assertEquals(updated, 1);
 
     IngestJob job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
     Assert.assertEquals(JobState.SCHEDULED, job.getJobState());
     Assert.assertNotNull(job.getScheduledTime());
     Assert.assertEquals(someSchema, job.getSchema());
+  }
+
+  @Test
+  public void testScheduleJobShouldFailWhenJobDoesNotExist()
+  {
+    String jobId = "i_do_not_exist";
+    IngestSchema someSchema = new IngestSchema(
+        new TimestampSpec("time", "iso", null),
+        new DimensionsSpec(
+            ImmutableList.of(
+                StringDimensionSchema.create("x"),
+                StringDimensionSchema.create("y")
+            )
+        ),
+        new JsonInputFormat(null, null, null)
+    );
+
+    int updated = metadataStore.scheduleJob(jobId, someSchema);
+
+    Assert.assertEquals(updated, 0);
+
   }
 
   @Test

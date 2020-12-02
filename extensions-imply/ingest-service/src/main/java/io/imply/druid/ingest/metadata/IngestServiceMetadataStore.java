@@ -30,7 +30,7 @@ public interface IngestServiceMetadataStore
 
   // jobs
   String stageJob(String tableName, JobRunner jobType);
-  void scheduleJob(String jobId, IngestSchema schema);
+  int scheduleJob(String jobId, IngestSchema schema);
   void setJobStatus(String jobId, JobStatus jobStatus);
   void setJobState(String jobId, JobState jobState);
   void setJobStateAndStatus(String jobId, @Nullable JobStatus status, @Nullable JobState jobState);
