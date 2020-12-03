@@ -9,12 +9,16 @@
 
 package io.imply.druid.ingest.metadata;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
 import org.joda.time.DateTime;
 
-// todo: this probably needs JSON stuff eventually, and maybe should be less mutable
+import java.util.Objects;
+
+// todo: maybe this should be less mutable
 public class IngestJob
 {
   private final String tableName;
@@ -30,10 +34,11 @@ public class IngestJob
   private DateTime taskCreatedTime;
   private int retryCount;
 
+  @JsonCreator
   public IngestJob(
-      String tableName,
-      String jobId,
-      JobState jobState
+      @JsonProperty("tableName") String tableName,
+      @JsonProperty("jobId") String jobId,
+      @JsonProperty("jobState") JobState jobState
   )
   {
     this.tableName = tableName;
@@ -41,16 +46,19 @@ public class IngestJob
     this.jobState = jobState;
   }
 
+  @JsonProperty
   public String getTableName()
   {
     return tableName;
   }
 
+  @JsonProperty
   public String getJobId()
   {
     return jobId;
   }
 
+  @JsonProperty
   public JobState getJobState()
   {
     return jobState;
@@ -154,5 +162,44 @@ public class IngestJob
   {
     this.jobRunner = jobRunner;
     return this;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    IngestJob ingestJob = (IngestJob) o;
+    return getRetryCount() == ingestJob.getRetryCount() &&
+           Objects.equals(getTableName(), ingestJob.getTableName()) &&
+           Objects.equals(getJobId(), ingestJob.getJobId()) &&
+           getJobState() == ingestJob.getJobState() &&
+           Objects.equals(getJobStatus(), ingestJob.getJobStatus()) &&
+           Objects.equals(getSchemaId(), ingestJob.getSchemaId()) &&
+           Objects.equals(getSchema(), ingestJob.getSchema()) &&
+           Objects.equals(getCreatedTime(), ingestJob.getCreatedTime()) &&
+           Objects.equals(getScheduledTime(), ingestJob.getScheduledTime()) &&
+           Objects.equals(getTaskCreatedTime(), ingestJob.getTaskCreatedTime());
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(
+        getTableName(),
+        getJobId(),
+        getJobState(),
+        getJobStatus(),
+        getSchemaId(),
+        getSchema(),
+        getCreatedTime(),
+        getScheduledTime(),
+        getTaskCreatedTime(),
+        getRetryCount()
+    );
   }
 }

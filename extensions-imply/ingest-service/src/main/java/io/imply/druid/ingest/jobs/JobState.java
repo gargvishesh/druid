@@ -9,6 +9,11 @@
 
 package io.imply.druid.ingest.jobs;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.druid.java.util.common.StringUtils;
+
+import javax.annotation.Nullable;
+
 public enum JobState
 {
   STAGED,
@@ -16,5 +21,15 @@ public enum JobState
   RUNNING,
   COMPLETE,
   CANCELLED,
-  FAILED
+  FAILED;
+
+  @Nullable
+  @JsonCreator
+  public static JobState fromString(@Nullable String name)
+  {
+    if (name == null) {
+      return null;
+    }
+    return valueOf(StringUtils.toUpperCase(name));
+  }
 }

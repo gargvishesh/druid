@@ -10,11 +10,13 @@
 package io.imply.druid.ingest.server;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import io.imply.druid.ingest.config.IngestServiceTenantConfig;
+import io.imply.druid.ingest.jobs.JobState;
+import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -26,6 +28,7 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -37,18 +40,15 @@ import java.util.List;
 @Path("/ingest/v1/jobs")
 public class JobsResource
 {
-  private final IngestServiceTenantConfig config;
   private final AuthorizerMapper authorizerMapper;
   private final IngestServiceMetadataStore metadataStore;
 
   @Inject
   public JobsResource(
-      IngestServiceTenantConfig config,
       AuthorizerMapper authorizerMapper,
       IngestServiceMetadataStore metadataStore
   )
   {
-    this.config = config;
     this.authorizerMapper = authorizerMapper;
     this.metadataStore = metadataStore;
   }
@@ -60,22 +60,58 @@ public class JobsResource
       @QueryParam("jobState") @Nullable String jobState
   )
   {
-    // iterate through list of tables, filter by write authorized
-    Function<String, Iterable<ResourceAction>> raGenerator = table -> Collections.singletonList(
-        new ResourceAction(new Resource(table, ResourceType.DATASOURCE), Action.WRITE)
+    // iterate through list of jobs, filter by read authorized on associated table name
+    Function<IngestJob, Iterable<ResourceAction>> raGenerator = job -> Collections.singletonList(
+        new ResourceAction(new Resource(job.getTableName(), ResourceType.DATASOURCE), Action.READ)
     );
 
-    // todo: get list of all jobs here
-    List<String> allTables = ImmutableList.of("somejob", "someotherjob");
+    JobState targetState;
+    try {
+      targetState = JobState.fromString(jobState);
+    }
+    catch (IllegalArgumentException iae) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
 
-    List<String> authorizedTables = Lists.newArrayList(
+    List<IngestJob> jobsFromMetadata = metadataStore.getJobs(targetState);
+    List<IngestJob> authorizedJobs = Lists.newArrayList(
         AuthorizationUtils.filterAuthorizedResources(
             req,
-            allTables,
+            jobsFromMetadata,
             raGenerator,
             authorizerMapper
         )
     );
-    return Response.ok(authorizedTables).build();
+    return Response.ok(ImmutableMap.of("jobs", authorizedJobs)).build();
+  }
+
+  @GET
+  @Path("/{jobId}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getJob(
+      @Context final HttpServletRequest req,
+      @PathParam("jobId") String jobId
+  )
+  {
+    // this is not enough, we need to handle the alternative where schemaId is set
+    IngestJob job = metadataStore.getJob(jobId);
+    if (job == null) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
+
+    Access authResult = AuthorizationUtils.authorizeResourceAction(
+        req,
+        new ResourceAction(
+            new Resource(job.getTableName(), ResourceType.DATASOURCE),
+            Action.READ
+        ),
+        authorizerMapper
+    );
+
+    if (!authResult.isAllowed()) {
+      return Response.status(Response.Status.FORBIDDEN).build();
+    }
+
+    return Response.ok(job).build();
   }
 }
