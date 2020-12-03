@@ -1,0 +1,9 @@
+{
+  "realm" : "internal-realm",
+  "resource" : "internal-client",
+  "auth-server-url" : "http://localhost:8080/auth",
+  "credentials" : {
+    "secret" : "secret"
+  },
+  "bearer-only" : true
+}
