@@ -40,7 +40,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 
-
 public class TablesResourceTest
 {
   private static final String TABLE = "test";
@@ -100,7 +99,7 @@ public class TablesResourceTest
   }
 
   @Test
-  public void testStageJob() throws URISyntaxException
+  public void testStageJobShoulWorkWhenTableExists() throws URISyntaxException
   {
     // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
     // see https://github.com/apache/druid/issues/6685
@@ -123,7 +122,25 @@ public class TablesResourceTest
 
     Assert.assertEquals(200, response.getStatus());
   }
-  
+
+  @Test
+  public void testStageJobShoulReturn404WhenTableDoesNotExist()
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+    String id = UUIDUtils.generateUuid();
+    EasyMock.expect(metadataStore.druidTableExists(EasyMock.eq(TABLE))).andReturn(false).once();
+
+    EasyMock.replay(fileStore, metadataStore, req);
+
+    Response response = tablesResource.stageIngestJob(null, TABLE);
+
+    Map<String, Object> responseEntity = (Map<String, Object>) response.getEntity();
+
+    Assert.assertEquals(404, response.getStatus());
+  }
+
+
   @Test
   public void testScheduleIngestJobShouldSucceedWhenJobExists()
   {

@@ -10,7 +10,6 @@
 package io.imply.druid.ingest.server;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
@@ -168,7 +167,9 @@ public class TablesResource
       @PathParam("table") String tableName
   )
   {
-    Preconditions.checkArgument(metadataStore.druidTableExists(tableName));
+    if (!metadataStore.druidTableExists(tableName)) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
     // make jobId uuid, generate URL for file dropoff
     // write staging job to somewhere with 'staged' state
     final JobRunner jobTypeToUse = jobType != null ? jobType : new BatchAppendJobRunner();
