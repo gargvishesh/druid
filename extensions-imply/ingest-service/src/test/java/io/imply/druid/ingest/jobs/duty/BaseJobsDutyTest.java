@@ -46,7 +46,8 @@ public abstract class BaseJobsDutyTest
               StringDimensionSchema.create("column2")
           )
       ),
-      new JsonInputFormat(null, null, null)
+      new JsonInputFormat(null, null, null),
+      "test schema"
   );
 
   FileStore fileStore;

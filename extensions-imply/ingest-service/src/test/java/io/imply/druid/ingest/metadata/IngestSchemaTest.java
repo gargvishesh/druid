@@ -35,7 +35,8 @@ public class IngestSchemaTest
                 StringDimensionSchema.create("dim2")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     Assert.assertEquals(schema, MAPPER.readValue(MAPPER.writeValueAsString(schema), IngestSchema.class));

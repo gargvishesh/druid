@@ -37,7 +37,8 @@ public class IngestServiceSqlMetatadataConfigTest
     IngestServiceSqlMetatadataConfig defaultConfig = new IngestServiceSqlMetatadataConfig(
         false,
         "some_custom_jobs_table",
-        "some_custom_tables_table"
+        "some_custom_tables_table",
+        "some_custom_schemas_table"
     );
     Assert.assertEquals(
         defaultConfig,

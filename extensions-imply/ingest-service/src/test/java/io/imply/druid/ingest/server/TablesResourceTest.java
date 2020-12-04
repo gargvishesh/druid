@@ -157,7 +157,8 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     // Now we can mock the scheduleJob call:
@@ -191,7 +192,8 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     // Now we can mock the scheduleJob call:
@@ -224,7 +226,8 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     // Now we can mock the scheduleJob call:

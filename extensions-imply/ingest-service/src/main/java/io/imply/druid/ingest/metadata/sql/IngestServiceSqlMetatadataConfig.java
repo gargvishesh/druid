@@ -18,7 +18,7 @@ import java.util.Objects;
 public class IngestServiceSqlMetatadataConfig
 {
   public static final IngestServiceSqlMetatadataConfig DEFAULT_CONFIG =
-      new IngestServiceSqlMetatadataConfig(null, null, null);
+      new IngestServiceSqlMetatadataConfig(null, null, null, null);
 
   @JsonProperty("createTables")
   private final boolean createTables;
@@ -29,16 +29,21 @@ public class IngestServiceSqlMetatadataConfig
   @JsonProperty("tables")
   private final String tablesTable;
 
+  @JsonProperty("schemas")
+  private final String schemasTable;
+
   @JsonCreator
   public IngestServiceSqlMetatadataConfig(
       @JsonProperty("createTables") @Nullable Boolean createTables,
       @JsonProperty("jobs") String jobsTable,
-      @JsonProperty("tables") String tablesTable
+      @JsonProperty("tables") String tablesTable,
+      @JsonProperty("schemas") String schemasTable
   )
   {
     this.createTables = createTables == null ? true : createTables;
     this.tablesTable = tablesTable == null ? "ingest_tables" : tablesTable;
     this.jobsTable = jobsTable == null ? "ingest_jobs" : jobsTable;
+    this.schemasTable = schemasTable == null ? "ingest_schemas" : schemasTable;
   }
 
   public String getJobsTable()
@@ -49,6 +54,16 @@ public class IngestServiceSqlMetatadataConfig
   public String getTablesTable()
   {
     return tablesTable;
+  }
+
+  public String getSchemasTable()
+  {
+    return schemasTable;
+  }
+
+  public boolean isCreateTables()
+  {
+    return createTables;
   }
 
   public boolean shouldCreateTables()
@@ -66,14 +81,15 @@ public class IngestServiceSqlMetatadataConfig
       return false;
     }
     IngestServiceSqlMetatadataConfig that = (IngestServiceSqlMetatadataConfig) o;
-    return createTables == that.createTables &&
-           Objects.equals(jobsTable, that.jobsTable) &&
-           Objects.equals(tablesTable, that.tablesTable);
+    return isCreateTables() == that.isCreateTables() &&
+           Objects.equals(getJobsTable(), that.getJobsTable()) &&
+           Objects.equals(getTablesTable(), that.getTablesTable()) &&
+           Objects.equals(getSchemasTable(), that.getSchemasTable());
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(createTables, jobsTable, tablesTable);
+    return Objects.hash(isCreateTables(), getJobsTable(), getTablesTable(), getSchemasTable());
   }
 }

@@ -24,12 +24,14 @@ public class IngestSchema
   protected final TimestampSpec timestampSpec;
   protected final DimensionsSpec dimensionsSpec;
   protected final InputFormat inputFormat;
+  protected final String description;
 
   @JsonCreator
   public IngestSchema(
       @JsonProperty("timestampSpec") @Nullable TimestampSpec timestampSpec,
       @JsonProperty("dimensionsSpec") @Nullable DimensionsSpec dimensionsSpec,
-      @JsonProperty("inputFormat") @Nullable InputFormat inputFormat
+      @JsonProperty("inputFormat") InputFormat inputFormat,
+      @JsonProperty("description") @Nullable String description
   )
   {
     this.timestampSpec = timestampSpec == null
@@ -37,6 +39,7 @@ public class IngestSchema
                          : timestampSpec;
     this.dimensionsSpec = dimensionsSpec;
     this.inputFormat = Preconditions.checkNotNull(inputFormat, "'inputFormat' must be specified");
+    this.description = description;
   }
 
   @JsonProperty("timestampSpec")
@@ -58,6 +61,12 @@ public class IngestSchema
     return inputFormat;
   }
 
+  @JsonProperty("description")
+  public String getDescription()
+  {
+    return description;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -68,14 +77,15 @@ public class IngestSchema
       return false;
     }
     IngestSchema that = (IngestSchema) o;
-    return Objects.equals(timestampSpec, that.timestampSpec) &&
-           Objects.equals(dimensionsSpec, that.dimensionsSpec) &&
-           Objects.equals(inputFormat, that.inputFormat);
+    return Objects.equals(getTimestampSpec(), that.getTimestampSpec()) &&
+           Objects.equals(getDimensionsSpec(), that.getDimensionsSpec()) &&
+           Objects.equals(getInputFormat(), that.getInputFormat()) &&
+           Objects.equals(getDescription(), that.getDescription());
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(timestampSpec, dimensionsSpec, inputFormat);
+    return Objects.hash(getTimestampSpec(), getDimensionsSpec(), getInputFormat(), getDescription());
   }
 }

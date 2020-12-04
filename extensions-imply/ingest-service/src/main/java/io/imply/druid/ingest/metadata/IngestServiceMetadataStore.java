@@ -42,7 +42,10 @@ public interface IngestServiceMetadataStore
   IngestJob getJob(String jobId);
 
   // schemas
+  int createSchema(IngestSchema schema);
   IngestSchema getSchema(int schemaId);
+  List<IngestSchema> getAllSchemas();
+  int deleteSchema(int schemaId);
 
   // formats
   InputFormat getFormat(int formatId);

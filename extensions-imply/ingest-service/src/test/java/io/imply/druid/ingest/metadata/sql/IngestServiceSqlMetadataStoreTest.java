@@ -68,11 +68,16 @@ public class IngestServiceSqlMetadataStoreTest
     Assert.assertTrue(connector.retryWithHandle((handle) -> connector.tableExists(handle, config.getTablesTable())));
   }
 
-
   @Test
   public void testCreateJobsTable()
   {
     Assert.assertTrue(connector.retryWithHandle((handle) -> connector.tableExists(handle, config.getJobsTable())));
+  }
+
+  @Test
+  public void testCreateSchemasTable()
+  {
+    Assert.assertTrue(connector.retryWithHandle((handle) -> connector.tableExists(handle, config.getSchemasTable())));
   }
 
   @Test
@@ -124,7 +129,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     int updated = metadataStore.scheduleJob(jobId, someSchema);
 
@@ -149,7 +155,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     int updated = metadataStore.scheduleJob(jobId, someSchema);
@@ -170,7 +177,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     metadataStore.scheduleJob(jobId, someSchema);
     metadataStore.setJobState(jobId, JobState.RUNNING);
@@ -193,7 +201,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     metadataStore.scheduleJob(jobId, someSchema);
     metadataStore.setJobState(jobId, JobState.RUNNING);
@@ -218,7 +227,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     metadataStore.scheduleJob(jobId, someSchema);
     metadataStore.setJobState(jobId, JobState.RUNNING);
@@ -243,7 +253,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     metadataStore.scheduleJob(jobId, someSchema);
     metadataStore.setJobState(jobId, JobState.RUNNING);
@@ -267,7 +278,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     String job1 = metadataStore.stageJob(TABLE, jobType);
@@ -299,7 +311,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
 
     String job1 = metadataStore.stageJob(TABLE, jobType);
@@ -328,7 +341,8 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
-        new JsonInputFormat(null, null, null)
+        new JsonInputFormat(null, null, null),
+        "test schema"
     );
     metadataStore.scheduleJob(jobId, someSchema);
     IngestJob job = metadataStore.getJob(jobId);
@@ -343,5 +357,77 @@ public class IngestServiceSqlMetadataStoreTest
     job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
     Assert.assertEquals(3, job.getRetryCount());
+  }
+
+  @Test
+  public void testCreateAndGetSchemas()
+  {
+    IngestSchema someSchema = new IngestSchema(
+        new TimestampSpec("time", "iso", null),
+        new DimensionsSpec(
+            ImmutableList.of(
+                StringDimensionSchema.create("x"),
+                StringDimensionSchema.create("y")
+            )
+        ),
+        new JsonInputFormat(null, null, null),
+        "test schema"
+    );
+
+    IngestSchema someSchema2 = new IngestSchema(
+        new TimestampSpec("time", "iso", null),
+        new DimensionsSpec(
+            ImmutableList.of(
+                StringDimensionSchema.create("q"),
+                StringDimensionSchema.create("z")
+            )
+        ),
+        new JsonInputFormat(null, null, null),
+        "test schema2"
+    );
+
+    int schemaId = metadataStore.createSchema(someSchema);
+    Assert.assertEquals(schemaId, 1);
+    IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
+    Assert.assertEquals(someSchema, schemaFromMetadata);
+
+    schemaId = metadataStore.createSchema(someSchema2);
+    Assert.assertEquals(schemaId, 2);
+    schemaFromMetadata = metadataStore.getSchema(2);
+    Assert.assertEquals(someSchema2, schemaFromMetadata);
+
+    List<IngestSchema> ingestSchemas = metadataStore.getAllSchemas();
+    Assert.assertEquals(ImmutableList.of(someSchema, someSchema2), ingestSchemas);
+  }
+
+  @Test
+  public void testDeleteSchema()
+  {
+    IngestSchema someSchema = new IngestSchema(
+        new TimestampSpec("time", "iso", null),
+        new DimensionsSpec(
+            ImmutableList.of(
+                StringDimensionSchema.create("x"),
+                StringDimensionSchema.create("y")
+            )
+        ),
+        new JsonInputFormat(null, null, null),
+        "test schema"
+    );
+
+    int schemaId = metadataStore.createSchema(someSchema);
+    Assert.assertEquals(schemaId, 1);
+    IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
+    Assert.assertEquals(someSchema, schemaFromMetadata);
+
+    int numDeleted = metadataStore.deleteSchema(1);
+    Assert.assertEquals(1, numDeleted);
+    schemaFromMetadata = metadataStore.getSchema(1);
+    Assert.assertNull(schemaFromMetadata);
+    numDeleted = metadataStore.deleteSchema(1);
+    Assert.assertEquals(0, numDeleted);
+
+    numDeleted = metadataStore.deleteSchema(999);
+    Assert.assertEquals(0, numDeleted);
   }
 }

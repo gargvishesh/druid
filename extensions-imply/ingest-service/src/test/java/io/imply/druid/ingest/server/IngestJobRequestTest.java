@@ -37,7 +37,8 @@ public class IngestJobRequestTest
                     StringDimensionSchema.create("bar")
                 )
             ),
-            new JsonInputFormat(null, null, null)
+            new JsonInputFormat(null, null, null),
+            "A test schema"
         ),
         null
     );

@@ -25,7 +25,10 @@ import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.metadata.SQLMetadataConnector;
+import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.TransactionCallback;
+import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.annotation.Nonnull;
@@ -58,6 +61,7 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
     if (ingestConfig.get().shouldCreateTables()) {
       createTablesTable();
       createJobsTable();
+      createSchemasTable();
     }
   }
 
@@ -330,11 +334,108 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
     );
   }
 
-  // todo: add rest of create statements, methods to get and put data to tables
+  public void createSchemasTable()
+  {
+    final String tableName = ingestConfig.get().getSchemasTable();
+    metadataConnector.createTable(
+        tableName,
+        ImmutableList.of(
+            StringUtils.format(
+                "CREATE TABLE %1$s (\n"
+                + "  id %2$s NOT NULL,\n"
+                + "  created_timestamp BIGINT NOT NULL,\n"
+                + "  schema_blob %3$s,\n"
+                + "  PRIMARY KEY (id)\n"
+                + ")",
+                tableName,
+                metadataConnector.getSerialType(),
+                metadataConnector.getPayloadType()
+            )
+        )
+    );
+  }
+
+  @Override
+  public int createSchema(IngestSchema ingestSchema)
+  {
+    long timeStamp = DateTimes.nowUtc().getMillis();
+    return metadataConnector.getDBI().inTransaction(
+        (handle, transactionStatus) ->
+            handle.createStatement(
+                StringUtils.format(
+                    "INSERT INTO %1$s (created_timestamp, schema_blob) VALUES (:ts, :schemablob)",
+                    ingestConfig.get().getSchemasTable()
+                )
+            )
+                  .bind("ts", timeStamp)
+                  .bind("schemablob", jsonMapper.writeValueAsBytes(ingestSchema))
+                  .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first()
+    );
+  }
+
+  private String getSchemaBaseQuery()
+  {
+    return StringUtils.format(
+        "SELECT created_timestamp, schema_blob FROM %1$s",
+        ingestConfig.get().getSchemasTable()
+    );
+  }
+
+  @Nonnull
+  private IngestSchema resultRowAsIngestSchema(ResultSet r) throws SQLException
+  {
+    try {
+      byte[] ingestSchemaBlob = r.getBytes("schema_blob");
+      if (ingestSchemaBlob != null) {
+        return jsonMapper.readValue(ingestSchemaBlob, IngestSchema.class);
+      } else {
+        throw new RuntimeException("schema blob was null!");
+      }
+    }
+    catch (IOException e) {
+      // todo: something?
+      throw new RuntimeException();
+    }
+  }
+
   @Override
   public IngestSchema getSchema(int schemaId)
   {
-    return null;
+    return metadataConnector.getDBI().inTransaction(
+        (handle, status) ->
+            handle.createQuery(StringUtils.format("%s WHERE id=:scid", getSchemaBaseQuery()))
+                  .bind("scid", schemaId)
+                  .map((index, r, ctx) -> resultRowAsIngestSchema(r))
+                  .first()
+    );
+  }
+
+  @Override
+  public List<IngestSchema> getAllSchemas()
+  {
+    return metadataConnector.getDBI().inTransaction(
+        (handle, status) -> {
+          final Query<Map<String, Object>> query = handle.createQuery(getSchemaBaseQuery());
+          return query.map((index, r, ctx) -> resultRowAsIngestSchema(r))
+                      .list();
+        });
+  }
+
+  @Override
+  public int deleteSchema(int schemaId)
+  {
+    return metadataConnector.getDBI().inTransaction(
+        new TransactionCallback<Integer>()
+        {
+          @Override
+          public Integer inTransaction(Handle handle, TransactionStatus transactionStatus)
+          {
+            return handle.createStatement(StringUtils.format("DELETE from %1$s WHERE id = :id", ingestConfig.get().getSchemasTable()))
+                  .bind("id", schemaId)
+                  .execute();
+          }
+        }
+    );
   }
 
   @Override
@@ -342,7 +443,6 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   {
     return null;
   }
-
 
   // tables
   public void createTablesTable()
@@ -397,7 +497,6 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
     );
     return existingName != null;
   }
-
 
   @Override
   public List<String> getAllTableNames()
