@@ -231,6 +231,7 @@ libraries:
   - com.fasterxml.jackson.jaxrs: jackson-jaxrs-json-provider
   - com.fasterxml.jackson.jaxrs: jackson-jaxrs-smile-provider
   - com.fasterxml.jackson.module: jackson-module-jaxb-annotations
+  - com.fasterxml.jackson.module: jackson-module-guice
 notice: |
   # Jackson JSON processor
 
@@ -4136,16 +4137,6 @@ libraries:
 
 ---
 
-name: "Jackson Module: Guice"
-license_category: binary
-module: java-core
-license_name: Apache License version 2.0
-version: 2.6.7
-libraries:
-  - com.fasterxml.jackson.module: jackson-module-guice
-
----
-
 name: Google APIs Client Library For Java
 license_category: binary
 module: java-core
@@ -4761,7 +4752,7 @@ license_category: binary
 module: web-console
 license_name: Apache License version 2.0
 copyright: Imply Data
-version: 0.10.4
+version: 0.10.5
 
 ---
 
@@ -4922,6 +4913,16 @@ license_name: MIT License
 copyright: Simon Lydell
 version: 4.0.0
 license_file_path: licenses/bin/js-tokens.MIT
+
+---
+
+name: "json-bigint-native"
+license_category: binary
+module: web-console
+license_name: MIT License
+copyright: Vadim Ogievetsky, Andrey Sidorov
+version: 1.0.0
+license_file_path: licenses/bin/json-bigint-native.MIT
 
 ---
 
