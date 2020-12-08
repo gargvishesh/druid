@@ -21,6 +21,7 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.StringUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -89,7 +90,7 @@ public class CloudWatchInputRowParserTest extends NullHandlingTest
     );
 
     final ByteBuffer input = ByteBuffer.wrap(
-        BaseEncoding.base64().decode(
+        StringUtils.decodeBase64String(
             "H4sIAAAAAAAAAL2X3W4bNxCFX4XQtbWYH3LIyZ3hqAFaFC1q3xVBocbrQIBsGZKcoAjy7j2UbFderQ1vIxnWQhR3xeGnGZ45/"
             + "ja6bler6ef24p/bdvRu9P704vSvXyfn56cfJqOT0eLrTbvEtJiXnNw0GmN6vvj8Ybm4u8WdL7efxlfzxdcx5lbjy/Zqejdfb"
             + "x85Xy/b6TWeaW9m4/ZyeiWx9fF0Psft1d3fq0/L2e16trj5aTZft8vV6N2fz6z2cbPc5Et7s65PfRvNLrGqRsIrsWoRIdGYx"
