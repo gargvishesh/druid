@@ -16,6 +16,7 @@ import org.apache.druid.data.input.InputFormat;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Persistence layer for ingest service, for storage of ingest jobs, ingest schemas
@@ -25,21 +26,39 @@ public interface IngestServiceMetadataStore
 
   // tables
   int insertTable(String name);
+
   boolean druidTableExists(String name);
-  List<String> getAllTableNames();
+
+  List<Table> getTables();
 
   // jobs
   String stageJob(String tableName, JobRunner jobType);
+
   int scheduleJob(String jobId, IngestSchema schema);
+
   void setJobStatus(String jobId, JobStatus jobStatus);
+
   void setJobState(String jobId, JobState jobState);
+
   void setJobStateAndStatus(String jobId, @Nullable JobStatus status, @Nullable JobState jobState);
+
   void setJobCancelled(String jobId, JobStatus status);
+
   int jobRetry(String jobId);
 
   List<IngestJob> getJobs(@Nullable JobState jobState);
+
   @Nullable
   IngestJob getJob(String jobId);
+
+  /**
+   * @param jobStatesToFilterOn If null then return all tables with associated job states even when the table does not
+   *                            have jobs (in this case job states will be an empty list).
+   *                            If the list is empty return tables with no jobs.
+   *                            If the list is non-empty return tables only having states specified.
+   * @return A list of tables with their associated job state count
+   */
+  Set<TableJobStateStats> getJobCountPerTablePerState(@Nullable Set<JobState> jobStatesToFilterOn);
 
   // schemas
   int createSchema(IngestSchema schema);

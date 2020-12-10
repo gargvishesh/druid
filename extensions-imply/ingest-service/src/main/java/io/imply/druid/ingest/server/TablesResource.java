@@ -17,9 +17,13 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobRunner;
+import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.Table;
+import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
@@ -28,6 +32,7 @@ import org.apache.druid.server.security.ResourceType;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -38,8 +43,13 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Path("/ingest/v1/tables")
 public class TablesResource
@@ -65,30 +75,46 @@ public class TablesResource
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getAllTables(
+  public Response getTables(
+      @DefaultValue("RUNNING") @QueryParam("states") String states,
       @Context final HttpServletRequest req
   )
   {
-    // iterate through list of tables, filter by write authorized
-    Function<String, Iterable<ResourceAction>> raGenerator = table -> Collections.singletonList(
-        new ResourceAction(new Resource(table, ResourceType.DATASOURCE), Action.WRITE)
-    );
-
-
-    List<String> allTables = metadataStore.getAllTableNames();
-
-    List<String> authorizedTables = Lists.newArrayList(
-        AuthorizationUtils.filterAuthorizedResources(
-            req,
-            allTables,
-            raGenerator,
-            authorizerMapper
-        )
-    );
-    return Response.ok(ImmutableMap.of("tables", authorizedTables)).build();
+    Set<TableJobStateStats> allTables;
+    Set<JobState> jss = null; // this is the value for "ALL"
+    String badArgument = null;
+    if (states.toUpperCase(Locale.ROOT).equals("NONE")) {
+      jss = Collections.emptySet();
+    } else if (!states.toUpperCase(Locale.ROOT).equals("ALL")) {
+      // only valid state names are allowed here, note that "ALL" AND "NONE" are not
+      // valid here and will be rejected...
+      jss = new HashSet<>();
+      String[] statesList = states.split(",");
+      for (String state : statesList) {
+        try {
+          jss.add(JobState.valueOf(state.toUpperCase(Locale.ROOT)));
+        }
+        catch (Exception e) {
+          badArgument = state;
+        }
+      }
+    }
+    Response response;
+    if (badArgument != null) {
+      response = Response.status(400).entity(String.format("Bad state name: %s", badArgument)).build();
+    } else {
+      // all ok....
+      allTables = metadataStore.getJobCountPerTablePerState(jss);
+      assignPermissions(allTables, req);
+      List<TableJobStateStats> sorted = new ArrayList<>(allTables);
+      sorted.sort(Comparator.comparing(TableJobStateStats::getName));
+      response = Response.ok(ImmutableMap.of("tables", sorted)).build();
+    }
+    return response;
   }
 
   @POST
+  @Produces(MediaType.APPLICATION_JSON)
   @Path("/{table}")
   public Response createTable(
       @PathParam("table") String tableName,
@@ -109,16 +135,29 @@ public class TablesResource
       metadataStore.insertTable(tableName);
     }
     catch (Exception e) {
-      // TODO: we should be more fine grained here with respect to what happened...
+      // One interesting case if when the table already exists...one approach is just to return
+      // a 200 in this case but that may be misleading to the client since some data in the table
+      // (i.e. created time) will not be updated. But this maybe good enough since 200 is ok
+      // and when we create we return 201 (created).
+      // Another caveat is that parsing the
+      // exception that we get here is not straightforward since the cause is wrapped inside and the
+      // actual exception will depend on the database behind it. It seems more reasonable to
+      // create our own exception and manage the exceptions closer to the where the server is called and
+      // throw our own exceptions there...
+      //
+      // For now just saying that all exceptions are errors and
+      // propagating the message to the client...
       issue = e.getMessage();
       isOk = false;
     }
 
     Response r;
     if (isOk) {
-      r = Response.ok().build();
+      // the table resource is abnormal in the sense that it has no id, the name itself is its own id
+      // in a more RESTful way we would append the newly created id to the req.getPathInfo()...
+      r = Response.created(URI.create("")).build();
     } else {
-      r = Response.serverError().entity(issue).build();
+      r = Response.serverError().entity(ImmutableMap.of("error", issue)).build();
     }
     return r;
   }
@@ -164,7 +203,8 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response stageIngestJob(
       final JobRunner jobType,
-      @PathParam("table") String tableName
+      @PathParam("table")
+          String tableName
   )
   {
     if (!metadataStore.druidTableExists(tableName)) {
@@ -197,8 +237,10 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response sampleIngestJob(
       final IngestJobRequest sampleRequest,
-      @PathParam("table") String tableName,
-      @PathParam("jobId") String jobId
+      @PathParam("table")
+          String tableName,
+      @PathParam("jobId")
+          String jobId
   )
   {
     // most of this logic should probably live somewhere else, but;
@@ -215,8 +257,10 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response scheduleIngestJob(
       final IngestJobRequest scheduleRequest,
-      @PathParam("table") String tableName,
-      @PathParam("jobId") String jobId
+      @PathParam("table")
+          String tableName,
+      @PathParam("jobId")
+          String jobId
   )
   {
     // this is not enough, we need to handle the alternative where schemaId is set
@@ -231,4 +275,35 @@ public class TablesResource
     return Response.created(URI.create("")).build();
   }
 
+  private void assignPermissions(Set<TableJobStateStats> tables, HttpServletRequest req)
+  {
+    // decorate WRITE tables:
+    // iterate through list of tables, filter by write authorized
+    Function<Table, Iterable<ResourceAction>> raGenerator = table -> Collections.singletonList(
+        new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.WRITE)
+    );
+    Lists.newArrayList(
+        AuthorizationUtils.filterAuthorizedResources(
+            req,
+            tables,
+            raGenerator,
+            authorizerMapper
+        )
+    ).forEach(ts -> ts.addPermissions(Action.WRITE));
+
+    // another pass with Action.READ
+    // Need to reset the checked flag...
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, null);
+    raGenerator = table -> Collections.singletonList(
+        new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.READ)
+    );
+    Lists.newArrayList(
+        AuthorizationUtils.filterAuthorizedResources(
+            req,
+            tables,
+            raGenerator,
+            authorizerMapper
+        )
+    ).forEach(ts -> ts.addPermissions(Action.READ));
+  }
 }

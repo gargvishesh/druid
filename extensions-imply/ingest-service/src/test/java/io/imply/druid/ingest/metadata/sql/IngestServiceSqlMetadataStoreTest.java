@@ -20,6 +20,8 @@ import io.imply.druid.ingest.jobs.status.FailedJobStatus;
 import io.imply.druid.ingest.jobs.status.TaskBasedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.Table;
+import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -33,8 +35,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class IngestServiceSqlMetadataStoreTest
 {
@@ -52,6 +56,7 @@ public class IngestServiceSqlMetadataStoreTest
   @Before
   public void setup()
   {
+    // using derby because mocking was too complex
     connector = derbyConnectorRule.getConnector();
     metadataStore = new IngestServiceSqlMetadataStore(() -> config, connector, MAPPER);
   }
@@ -81,24 +86,80 @@ public class IngestServiceSqlMetadataStoreTest
   }
 
   @Test
-  public void testInsertTable()
+  public void testTablesInsert()
   {
-    List<String> tables = metadataStore.getAllTableNames();
+    List<Table> tables = metadataStore.getTables();
     Assert.assertEquals(0, tables.size());
     int updateCount = metadataStore.insertTable(TABLE);
-    tables = metadataStore.getAllTableNames();
+    tables = metadataStore.getTables();
     Assert.assertEquals(1, tables.size());
-    Assert.assertEquals(TABLE, tables.get(0));
+    Assert.assertEquals(TABLE, tables.get(0).getName());
     Assert.assertEquals(1, updateCount);
   }
 
-  @Test
-  public void testTableExists()
+  @Test(expected = Exception.class)
+  public void testTablesInsertDup()
   {
-    Assert.assertFalse(metadataStore.druidTableExists("not-yet"));
+    int updateCount = metadataStore.insertTable(TABLE);
+    metadataStore.insertTable(TABLE);
+  }
+
+  @Test
+  public void testTablesExists()
+  {
+    Assert.assertFalse(metadataStore.druidTableExists(TABLE));
     metadataStore.insertTable(TABLE);
     Assert.assertTrue(metadataStore.druidTableExists(TABLE));
   }
+
+
+  @Test
+  public void testGetJobCountPerTablePerState()
+  {
+    metadataStore.insertTable(TABLE);
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    IngestSchema someSchema = new IngestSchema(
+        new TimestampSpec("time", "iso", null),
+        new DimensionsSpec(
+            ImmutableList.of(
+                StringDimensionSchema.create("x"),
+                StringDimensionSchema.create("y")
+            )
+        ),
+        new JsonInputFormat(null, null, null),
+        "test schema"
+    );
+    metadataStore.scheduleJob(jobId, someSchema);
+    metadataStore.setJobState(jobId, JobState.RUNNING);
+
+    Set<TableJobStateStats> stats =
+        metadataStore.getJobCountPerTablePerState(Collections.singleton(JobState.RUNNING));
+    Assert.assertTrue(stats.size() == 1);
+    stats.forEach(s -> {
+      Assert.assertTrue(s.getJobStateCounts().get(0).getJobState().equals(JobState.RUNNING));
+      Assert.assertTrue(s.getJobStateCounts().size() == 1);
+    });
+
+
+    JobStatus expectedStatus = new TaskBasedJobStatus(null);
+    metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.COMPLETE);
+
+
+    IngestJob job = metadataStore.getJob(jobId);
+    Assert.assertNotNull(job);
+    Assert.assertEquals(JobState.COMPLETE, job.getJobState());
+    Assert.assertEquals(expectedStatus, job.getJobStatus());
+
+    stats =
+        metadataStore.getJobCountPerTablePerState(Collections.singleton(JobState.COMPLETE));
+    Assert.assertTrue(stats.size() == 1);
+    stats.forEach(s -> {
+      Assert.assertTrue(s.getJobStateCounts().get(0).getJobState().equals(JobState.COMPLETE));
+      Assert.assertTrue(s.getJobStateCounts().size() == 1);
+    });
+
+  }
+
 
   @Test
   public void testStageJob()
@@ -328,6 +389,26 @@ public class IngestServiceSqlMetadataStoreTest
     Assert.assertEquals(4, scheduledJobs.size());
     Assert.assertTrue(scheduledJobs.stream().allMatch(job -> expectedScheduled.contains(job.getJobId())));
   }
+
+  @Test
+  public void testTablesGetAll()
+  {
+    Set<String> expected = ImmutableSet.of("foo", "bar", "another", "one-more");
+
+    expected.forEach(table -> metadataStore.insertTable(table));
+
+    List<Table> tables = metadataStore.getTables();
+    Assert.assertEquals(4, tables.size());
+    Assert.assertTrue(expected.containsAll(tables.stream().map(t -> t.getName()).collect(Collectors.toList())));
+  }
+
+  @Test
+  public void testTablesGetAllEmpty()
+  {
+    List<Table> tables = metadataStore.getTables();
+    Assert.assertEquals(0, tables.size());
+  }
+
 
   @Test
   public void testIncrementRetry()

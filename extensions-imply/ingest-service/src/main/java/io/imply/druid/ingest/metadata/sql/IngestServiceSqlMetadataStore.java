@@ -19,12 +19,15 @@ import io.imply.druid.ingest.jobs.JobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.Table;
+import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.common.utils.UUIDUtils;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.metadata.SQLMetadataConnector;
+import org.joda.time.DateTime;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.TransactionCallback;
@@ -36,8 +39,12 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * fill me out
@@ -246,7 +253,8 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public @Nullable IngestJob getJob(String jobId)
+  public @Nullable
+  IngestJob getJob(String jobId)
   {
     return metadataConnector.getDBI().inTransaction(
         (handle, status) ->
@@ -280,6 +288,66 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
           return query.map((index, r, ctx) -> resultRowAsIngestJob(r))
                       .list();
         });
+  }
+
+  @Override
+  public Set<TableJobStateStats> getJobCountPerTablePerState(@Nullable Set<JobState> statesToFilterOn)
+  {
+    final String baseQueryStr = "SELECT t.name as tn,  count(j.job_state) as cnt, j.job_state as js, "
+                                + "t.created_timestamp as tcs FROM ingest_tables t "
+                                + "LEFT JOIN ingest_jobs j ON j.table_name  = t.name "
+                                + "GROUP BY t.name, t.created_timestamp, j.job_state "
+                                + "%s ";
+
+    List<TableJobStateStats> tableJobStateStats =
+        metadataConnector.getDBI().inTransaction(
+            (handle, status) -> {
+              String queryStr;
+              if (statesToFilterOn == null) {
+                // all tables
+                queryStr = String.format(baseQueryStr, "ORDER BY t.name");
+              } else if (statesToFilterOn.size() == 0) {
+                // only tables with no jobs
+                queryStr = String.format(baseQueryStr, "HAVING cnt = 0 ORDER BY t.name");
+              } else {
+                // Add states constraint HAVING clause....
+                // build IN list:
+                StringBuilder inList = new StringBuilder("(");
+                boolean first = true;
+                for (JobState st : statesToFilterOn) {
+                  if (!first) {
+                    inList.append(",");
+                  } else {
+                    first = false;
+                  }
+                  inList.append("'").append(st.name()).append("'");
+                }
+                inList.append(")");
+
+                String tail = String.format("HAVING j.job_state IN %s ORDER by t.name", inList);
+                queryStr = String.format(baseQueryStr, tail);
+              }
+              final Query<Map<String, Object>> query = handle.createQuery(queryStr);
+              // get tables with their corresponding states
+              Map<String, TableJobStateStats> tableJobsMap = new HashMap<>();
+              return query.map(
+                  (index, r, ctx) -> {
+                    // get sql results:
+                    String tn = r.getString("tn");
+                    int count = r.getInt("cnt");
+                    JobState js = Optional.ofNullable(r.getString("js")).map(jss -> JobState.fromString(jss))
+                                          .orElse(null);
+                    DateTime tct = DateTimes.of(r.getString("tcs"));
+                    // update table map cache:
+                    if (tableJobsMap.computeIfPresent(tn, (k, v) -> v.addJobState(js, count)) == null) {
+                      tableJobsMap.put(tn, new TableJobStateStats(tn, tct, js, count));
+                    }
+                    return tableJobsMap.get(tn);
+                  }).list();
+            }
+        );
+
+    return new HashSet<>(tableJobStateStats);
   }
 
   @Nonnull
@@ -430,9 +498,12 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
           @Override
           public Integer inTransaction(Handle handle, TransactionStatus transactionStatus)
           {
-            return handle.createStatement(StringUtils.format("DELETE from %1$s WHERE id = :id", ingestConfig.get().getSchemasTable()))
-                  .bind("id", schemaId)
-                  .execute();
+            return handle.createStatement(StringUtils.format(
+                "DELETE from %1$s WHERE id = :id",
+                ingestConfig.get().getSchemasTable()
+            ))
+                         .bind("id", schemaId)
+                         .execute();
           }
         }
     );
@@ -499,12 +570,23 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public List<String> getAllTableNames()
+  public List<Table> getTables()
   {
-    final String query = StringUtils.format("SELECT name FROM %s", ingestConfig.get().getTablesTable());
-    return metadataConnector.getDBI().withHandle(
-        handle -> handle.createQuery(query).map((index, r, ctx) -> r.getString("name")).list()
+    final String query = StringUtils.format(
+        "SELECT name, created_timestamp FROM %s",
+        ingestConfig.get().getTablesTable()
     );
+    List<Table> tables = metadataConnector.getDBI().withHandle(
+        handle -> handle.createQuery(query)
+                        .map((index, r, ctx) ->
+                                 new Table(
+                                     r.getString("name"),
+                                     DateTimes.of(r.getString("created_timestamp"))
+                                 )
+                        ).list()
+    );
+
+    return tables;
   }
 
 }
