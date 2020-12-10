@@ -288,4 +288,12 @@
      <packageUrl regex="true">^pkg:maven/org\.apache\.hadoop/hadoop\-.*@.*$</packageUrl>
      <cve>CVE-2018-11765</cve>
   </suppress>
+  <suppress>
+    <!-- These are for keycloak server, but Druid uses only keycloak client. -->
+    <notes><![CDATA[
+     file name: keycloak-core-11.0.3.jar
+     ]]></notes>
+    <cve>CVE-2020-14366</cve>
+    <cve>CVE-2020-14389</cve>
+  </suppress>
 </suppressions>
