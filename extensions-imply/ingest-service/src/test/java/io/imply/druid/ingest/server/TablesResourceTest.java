@@ -81,7 +81,6 @@ public class TablesResourceTest
   private static final List<String> TABLE_NAMES_WRITE;
   private static final List<String> TABLE_NAMES_READ;
   private static final List<String> TABLE_NAMES_UNAUTHORIZED;
-  private static final List<String> TABLE_NAMES;
 
   static {
 
@@ -114,10 +113,6 @@ public class TablesResourceTest
     TABLE_NAMES_WRITE = TABLE_LIST_WRITE.stream().map(Table::getName).collect(Collectors.toList());
     TABLE_NAMES_READ = TABLE_LIST_READ.stream().map(Table::getName).collect(Collectors.toList());
     TABLE_NAMES_UNAUTHORIZED = TABLE_LIST_UNAUTHORIZED.stream().map(Table::getName).collect(Collectors.toList());
-    TABLE_NAMES = new ArrayList<>();
-    TABLE_NAMES.addAll(TABLE_NAMES_WRITE);
-    TABLE_NAMES.addAll(TABLE_NAMES_READ);
-    TABLE_NAMES.addAll(TABLE_NAMES_UNAUTHORIZED);
   }
 
   @Before

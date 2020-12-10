@@ -305,10 +305,10 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
               String queryStr;
               if (statesToFilterOn == null) {
                 // all tables
-                queryStr = String.format(baseQueryStr, "ORDER BY t.name");
+                queryStr = StringUtils.format(baseQueryStr, "ORDER BY t.name");
               } else if (statesToFilterOn.size() == 0) {
                 // only tables with no jobs
-                queryStr = String.format(baseQueryStr, "HAVING cnt = 0 ORDER BY t.name");
+                queryStr = StringUtils.format(baseQueryStr, "HAVING cnt = 0 ORDER BY t.name");
               } else {
                 // Add states constraint HAVING clause....
                 // build IN list:
@@ -324,8 +324,8 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
                 }
                 inList.append(")");
 
-                String tail = String.format("HAVING j.job_state IN %s ORDER by t.name", inList);
-                queryStr = String.format(baseQueryStr, tail);
+                String tail = StringUtils.format("HAVING j.job_state IN %s ORDER by t.name", inList);
+                queryStr = StringUtils.format(baseQueryStr, tail);
               }
               final Query<Map<String, Object>> query = handle.createQuery(queryStr);
               // get tables with their corresponding states

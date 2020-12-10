@@ -22,6 +22,7 @@ import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizationUtils;
@@ -101,7 +102,7 @@ public class TablesResource
     }
     Response response;
     if (badArgument != null) {
-      response = Response.status(400).entity(String.format("Bad state name: %s", badArgument)).build();
+      response = Response.status(400).entity(StringUtils.format("Bad state name: %s", badArgument)).build();
     } else {
       // all ok....
       allTables = metadataStore.getJobCountPerTablePerState(jss);
