@@ -23,6 +23,7 @@ public class IngestSchema
 {
   protected final TimestampSpec timestampSpec;
   protected final DimensionsSpec dimensionsSpec;
+  protected final PartitionScheme partitionScheme;
   protected final InputFormat inputFormat;
   protected final String description;
 
@@ -30,6 +31,7 @@ public class IngestSchema
   public IngestSchema(
       @JsonProperty("timestampSpec") @Nullable TimestampSpec timestampSpec,
       @JsonProperty("dimensionsSpec") @Nullable DimensionsSpec dimensionsSpec,
+      @JsonProperty("partitionScheme") @Nullable PartitionScheme partitionScheme,
       @JsonProperty("inputFormat") InputFormat inputFormat,
       @JsonProperty("description") @Nullable String description
   )
@@ -38,6 +40,7 @@ public class IngestSchema
                          ? new TimestampSpec(null, null, null)
                          : timestampSpec;
     this.dimensionsSpec = dimensionsSpec;
+    this.partitionScheme = partitionScheme == null ? new PartitionScheme(null, null) : partitionScheme;
     this.inputFormat = Preconditions.checkNotNull(inputFormat, "'inputFormat' must be specified");
     this.description = description;
   }
@@ -48,11 +51,17 @@ public class IngestSchema
     return timestampSpec;
   }
 
-
+  @Nullable
   @JsonProperty("dimensionsSpec")
   public DimensionsSpec getDimensionsSpec()
   {
     return dimensionsSpec;
+  }
+
+  @JsonProperty("partitionScheme")
+  public PartitionScheme getPartitionScheme()
+  {
+    return partitionScheme;
   }
 
   @JsonProperty("inputFormat")
@@ -61,6 +70,7 @@ public class IngestSchema
     return inputFormat;
   }
 
+  @Nullable
   @JsonProperty("description")
   public String getDescription()
   {
@@ -77,15 +87,16 @@ public class IngestSchema
       return false;
     }
     IngestSchema that = (IngestSchema) o;
-    return Objects.equals(getTimestampSpec(), that.getTimestampSpec()) &&
-           Objects.equals(getDimensionsSpec(), that.getDimensionsSpec()) &&
-           Objects.equals(getInputFormat(), that.getInputFormat()) &&
-           Objects.equals(getDescription(), that.getDescription());
+    return Objects.equals(timestampSpec, that.timestampSpec) &&
+           Objects.equals(dimensionsSpec, that.dimensionsSpec) &&
+           Objects.equals(partitionScheme, that.partitionScheme) &&
+           Objects.equals(inputFormat, that.inputFormat) &&
+           Objects.equals(description, that.description);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(getTimestampSpec(), getDimensionsSpec(), getInputFormat(), getDescription());
+    return Objects.hash(timestampSpec, dimensionsSpec, partitionScheme, inputFormat, description);
   }
 }

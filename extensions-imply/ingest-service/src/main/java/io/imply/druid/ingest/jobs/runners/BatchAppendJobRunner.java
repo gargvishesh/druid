@@ -26,7 +26,6 @@ import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIOConfi
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIngestionSpec;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTask;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
-import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -90,7 +89,7 @@ public class BatchAppendJobRunner implements JobRunner
             job.getSchema().getTimestampSpec(),
             job.getSchema().getDimensionsSpec(),
             null,
-            new UniformGranularitySpec(Granularities.MONTH, null, null),
+            new UniformGranularitySpec(job.getSchema().getPartitionScheme().getSegmentGranularity(), null, null),
             null
         ),
         new ParallelIndexIOConfig(null, inputSource, job.getSchema().getInputFormat(), true),
