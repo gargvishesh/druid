@@ -13,10 +13,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.PartitionScheme;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,6 +39,7 @@ public class IngestJobRequestTest
                     StringDimensionSchema.create("bar")
                 )
             ),
+            new PartitionScheme(Granularities.MONTH, null),
             new JsonInputFormat(null, null, null),
             "A test schema"
         ),

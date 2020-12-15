@@ -20,12 +20,14 @@ import io.imply.druid.ingest.jobs.status.FailedJobStatus;
 import io.imply.druid.ingest.jobs.status.TaskBasedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector;
 import org.apache.druid.segment.TestHelper;
@@ -126,6 +128,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -190,6 +193,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -216,6 +220,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -238,6 +243,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -262,6 +268,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -288,6 +295,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -314,6 +322,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -339,6 +348,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -372,6 +382,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -422,6 +433,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -451,6 +463,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -463,6 +476,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("z")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema2"
     );
@@ -492,6 +506,7 @@ public class IngestServiceSqlMetadataStoreTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );

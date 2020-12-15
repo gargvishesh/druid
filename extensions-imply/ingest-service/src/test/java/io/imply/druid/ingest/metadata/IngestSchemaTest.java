@@ -16,6 +16,7 @@ import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,6 +36,7 @@ public class IngestSchemaTest
                 StringDimensionSchema.create("dim2")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );

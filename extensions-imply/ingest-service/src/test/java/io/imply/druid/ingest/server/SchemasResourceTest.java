@@ -12,12 +12,14 @@ package io.imply.druid.ingest.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetadataStore;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector;
 import org.apache.druid.segment.TestHelper;
@@ -96,6 +98,7 @@ public class SchemasResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.MONTH, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -140,6 +143,7 @@ public class SchemasResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.MONTH, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -152,6 +156,7 @@ public class SchemasResourceTest
                 StringDimensionSchema.create("b")
             )
         ),
+        new PartitionScheme(Granularities.HOUR, null),
         new JsonInputFormat(null, null, null),
         "test schema 2"
     );
@@ -195,6 +200,7 @@ public class SchemasResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.MONTH, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );

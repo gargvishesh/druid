@@ -16,6 +16,7 @@ import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.common.utils.UUIDUtils;
@@ -25,6 +26,7 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthConfig;
@@ -204,6 +206,7 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -239,6 +242,7 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
@@ -273,6 +277,7 @@ public class TablesResourceTest
                 StringDimensionSchema.create("y")
             )
         ),
+        new PartitionScheme(Granularities.DAY, null),
         new JsonInputFormat(null, null, null),
         "test schema"
     );
