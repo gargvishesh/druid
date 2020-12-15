@@ -20,6 +20,8 @@ import io.imply.druid.ingest.jobs.JobProcessor;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import io.imply.druid.ingest.server.IngestServiceJettyServerInitializer;
+import io.imply.druid.ingest.server.JobsResource;
+import io.imply.druid.ingest.server.SchemasResource;
 import io.imply.druid.ingest.server.TablesResource;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.client.indexing.HttpIndexingServiceClient;
@@ -57,6 +59,8 @@ public class IngestServiceModule implements Module
 
     binder.bind(JettyServerInitializer.class).to(IngestServiceJettyServerInitializer.class).in(LazySingleton.class);
     Jerseys.addResource(binder, TablesResource.class);
+    Jerseys.addResource(binder, JobsResource.class);
+    Jerseys.addResource(binder, SchemasResource.class);
 
     LifecycleModule.register(binder, Server.class);
     LifecycleModule.register(binder, JobProcessor.class);

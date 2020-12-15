@@ -77,7 +77,7 @@ public class TablesResource
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Response getTables(
-      @DefaultValue("RUNNING") @QueryParam("states") String states,
+      @DefaultValue("ALL") @QueryParam("states") String states,
       @Context final HttpServletRequest req
   )
   {
