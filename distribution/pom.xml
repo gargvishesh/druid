@@ -386,6 +386,8 @@
                                         <argument>--no-default-hadoop</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply.druid.extensions:ingest-service</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-keycloak</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
