@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 # setup client keystore
 ./docker/tls/generate-client-certs-and-keystores.sh
 rm -rf docker/client_tls
@@ -31,6 +33,7 @@ mkdir -p $SHARED_DIR/docker/credentials
 rm -rf $SHARED_DIR/docker
 cp -R docker $SHARED_DIR/docker
 mvn -B dependency:copy-dependencies -DoutputDirectory=$SHARED_DIR/docker/lib
+rm $SHARED_DIR/docker/lib/okhttp-2.4.0*
 
 # install logging config
 cp src/main/resources/log4j2.xml $SHARED_DIR/docker/lib/log4j2.xml
