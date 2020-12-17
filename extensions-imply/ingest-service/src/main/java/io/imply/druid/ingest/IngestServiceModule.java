@@ -18,7 +18,6 @@ import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.files.local.LocalFileStoreModule;
 import io.imply.druid.ingest.jobs.JobProcessor;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
-import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import io.imply.druid.ingest.server.IngestServiceJettyServerInitializer;
 import io.imply.druid.ingest.server.JobsResource;
 import io.imply.druid.ingest.server.SchemasResource;
@@ -45,7 +44,6 @@ public class IngestServiceModule implements Module
 
     JsonConfigProvider.bind(binder, "imply.ingest.tenant", IngestServiceTenantConfig.class);
 
-    JsonConfigProvider.bind(binder, "imply.ingest.metadata.tables", IngestServiceSqlMetatadataConfig.class);
     PolyBind.createChoice(binder, "imply.ingest.metadata.type", Key.get(IngestServiceMetadataStore.class), null);
     PolyBind.createChoiceWithDefault(
         binder,

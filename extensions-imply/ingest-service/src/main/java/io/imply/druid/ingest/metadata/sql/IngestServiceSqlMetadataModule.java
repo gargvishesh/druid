@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
@@ -33,6 +34,7 @@ public class IngestServiceSqlMetadataModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
+    JsonConfigProvider.bind(binder, "imply.ingest.metadata.tables", IngestServiceSqlMetatadataConfig.class);
     binder.bind(IngestServiceSqlMetadataStore.class).in(LazySingleton.class);
     PolyBind
         .optionBinder(binder, Key.get(IngestServiceMetadataStore.class))
