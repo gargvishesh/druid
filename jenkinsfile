@@ -18,7 +18,7 @@ def TRAVIS_SLUG_ID                  = "travis-ci"
 def MVN_INSTALL_CACHE_EXCLUDE       = "web-console"
 def ARTIFACTORY_SERVER_ID           = "repo-qa-imply-io"
 def ARTIFACTORY_REPO                = "tgz-local"
-def ACTIVE_DEV_BRANCH_REGEX         = /^0\.20\.0-iap$/
+def ACTIVE_DEV_BRANCH_REGEX         = /^(\d+\.\d+\.\d+-iap|master)$/
 def RELEASE_BRANCH_PREFIX_REGEX     = /^release\//
 def RELEASE_BRANCH_SUFFIX_REGEX     = /\d{4}\.\d{2}([-.]\d+)?$/
 
@@ -36,6 +36,7 @@ properties([
         booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name'),
         booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile. Does not apply to travis tests'),
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile. Does not apply to travis tests'),
+        booleanParam(name: 'SKIP_TRAVIS_STATUS_POLLING', defaultValue: false, description: 'Proceed to continue build pipeline (to build artifact) regardless travis commit status'),
         string(name: 'BUILD_DOCKER_IMAGE', defaultValue: '269875963461.dkr.ecr.us-east-1.amazonaws.com/buildabear:20200923', description: 'ECR image with dependencies')
     ])
 ])
@@ -648,7 +649,7 @@ stage('Build and publish') {
         }
 
         stage('poll commit status') {
-            skipStageIf(SKIP_PUBLISH_STAGES, env.STAGE_NAME) {
+            skipStageIf(SKIP_PUBLISH_STAGES || params.SKIP_TRAVIS_STATUS_POLLING, env.STAGE_NAME) {
                 def untilSmthAttemptsNumber = 1
                 def untilPassAttemptsNumber = 1
 
@@ -735,21 +736,15 @@ stage('Build and publish') {
                                 NETTY_UPSTREAM_NAME="netty"
                                 NETTY_UPSTREAM_ORG=${NETTY_UPSTREAM_ORG:-"implydata"}
                                 NETTY_UPSTREAM_REPO="https://github.com/$NETTY_UPSTREAM_ORG/$NETTY_UPSTREAM_NAME.git"
-                                NETTY_UPSTREAM_VERSION=${NETTY_UPSTREAM_VERSION:-"3.10.6.Final-iap1"}
+                                NETTY_UPSTREAM_VERSION=${NETTY_UPSTREAM_VERSION:-"3.10.6.Final-iap2"}
                                 NETTY_UPSTREAM_COMMITISH=${NETTY_UPSTREAM_COMMITISH:-"netty-$NETTY_UPSTREAM_VERSION"}
                                 NETTY_UPSTREAM_DIR="$TMP_DIR/$NETTY_UPSTREAM_NAME.git"
 
                                 CLARITY_EMITTER_UPSTREAM_NAME="clarity-emitter"
                                 CLARITY_EMITTER_UPSTREAM_ORG=${CLARITY_EMITTER_UPSTREAM_ORG:-"implydata"}
                                 CLARITY_EMITTER_UPSTREAM_REPO="https://github.com/$CLARITY_EMITTER_UPSTREAM_ORG/$CLARITY_EMITTER_UPSTREAM_NAME.git"
-                                CLARITY_EMITTER_UPSTREAM_COMMITISH=${CLARITY_EMITTER_UPSTREAM_COMMITISH:-"master"}
+                                CLARITY_EMITTER_UPSTREAM_COMMITISH=${CLARITY_EMITTER_UPSTREAM_COMMITISH:-"clarity-emitter-0.20.0_1"}
                                 CLARITY_EMITTER_UPSTREAM_DIR="$TMP_DIR/$CLARITY_EMITTER_UPSTREAM_NAME.git"
-
-                                IMPLY_DRUID_SECURITY_UPSTREAM_NAME="imply-druid-security"
-                                IMPLY_DRUID_SECURITY_UPSTREAM_ORG=${IMPLY_DRUID_SECURITY_UPSTREAM_ORG:-"implydata"}
-                                IMPLY_DRUID_SECURITY_UPSTREAM_REPO="https://github.com/$IMPLY_DRUID_SECURITY_UPSTREAM_ORG/$IMPLY_DRUID_SECURITY_UPSTREAM_NAME.git"
-                                IMPLY_DRUID_SECURITY_UPSTREAM_COMMITISH=${IMPLY_DRUID_SECURITY_UPSTREAM_COMMITISH:-"master"}
-                                IMPLY_DRUID_SECURITY_UPSTREAM_DIR="$TMP_DIR/$IMPLY_DRUID_SECURITY_UPSTREAM_NAME.git"
 
                                 DERBYTOOLS_VERSION="10.11.1.1"
 
@@ -860,14 +855,6 @@ stage('Build and publish') {
 
                                 tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/http/target/clarity-emitter-http-*.tar.gz
                                 tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/kafka/target/clarity-emitter-kafka-*.tar.gz
-
-                                # Add imply-druid-security to extensions
-                                git clone -b "$IMPLY_DRUID_SECURITY_UPSTREAM_COMMITISH" --single-branch --depth 1 "$IMPLY_DRUID_SECURITY_UPSTREAM_REPO" "$IMPLY_DRUID_SECURITY_UPSTREAM_DIR"
-                                (cd "$IMPLY_DRUID_SECURITY_UPSTREAM_DIR" && git checkout "$IMPLY_DRUID_SECURITY_UPSTREAM_COMMITISH")
-                                (cd "$IMPLY_DRUID_SECURITY_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
-
-                                mkdir -p "$STAGING_DIR/dist/druid/extensions/imply-druid-security"
-                                cp "$IMPLY_DRUID_SECURITY_UPSTREAM_DIR"/target/imply-druid-security-*.jar "$STAGING_DIR/dist/druid/extensions/imply-druid-security"
 
                                 # Remove unsupported open-source extensions
                                 for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
