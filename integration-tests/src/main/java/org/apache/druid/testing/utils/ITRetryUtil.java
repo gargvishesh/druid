@@ -32,16 +32,16 @@ public class ITRetryUtil
 
   public static final int DEFAULT_RETRY_COUNT = 150; // 5 minutes
 
-  public static final long DEFAULT_RETRY_SLEEP_MS = TimeUnit.SECONDS.toMillis(15);
+  public static final long DEFAULT_RETRY_SLEEP = TimeUnit.SECONDS.toMillis(2);
 
   public static void retryUntilTrue(Callable<Boolean> callable, String task)
   {
-    retryUntil(callable, true, DEFAULT_RETRY_SLEEP_MS, DEFAULT_RETRY_COUNT, task);
+    retryUntil(callable, true, DEFAULT_RETRY_SLEEP, DEFAULT_RETRY_COUNT, task);
   }
 
   public static void retryUntilFalse(Callable<Boolean> callable, String task)
   {
-    retryUntil(callable, false, DEFAULT_RETRY_SLEEP_MS, DEFAULT_RETRY_COUNT, task);
+    retryUntil(callable, false, DEFAULT_RETRY_SLEEP, DEFAULT_RETRY_COUNT, task);
   }
 
   public static void retryUntil(

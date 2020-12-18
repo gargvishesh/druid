@@ -17,22 +17,23 @@
  * under the License.
  */
 
-package org.apache.druid.tests.indexer;
+package org.apache.druid.tests.parallelized;
 
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.tests.TestNGGroup;
+import org.apache.druid.tests.indexer.AbstractKinesisIndexingServiceTest;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
 @Test(groups = TestNGGroup.KINESIS_INDEX)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
-public class ITKinesisIndexingServiceSerializedTest extends AbstractKinesisIndexingServiceTest
+public class ITKinesisIndexingServiceParallelizedTest extends AbstractKinesisIndexingServiceTest
 {
   @Override
   public String getTestNamePrefix()
   {
-    return "kinesis_serialized";
+    return "kinesis_parallelized";
   }
 
   @BeforeClass
@@ -42,29 +43,32 @@ public class ITKinesisIndexingServiceSerializedTest extends AbstractKinesisIndex
   }
 
   /**
-   * This test must be run individually since the test affect and modify the state of the Druid cluster
+   * This test can be run concurrently with other tests as it creates/modifies/teardowns a unique datasource
+   * and supervisor maintained and scoped within this test only
    */
   @Test
-  public void testKinesisIndexDataWithLosingCoordinator() throws Exception
+  public void testKinesisIndexDataWithStartStopSupervisor() throws Exception
   {
-    doTestIndexDataWithLosingCoordinator(null);
+    doTestIndexDataWithStartStopSupervisor(null);
   }
 
   /**
-   * This test must be run individually since the test affect and modify the state of the Druid cluster
+   * This test can be run concurrently with other tests as it creates/modifies/teardowns a unique datasource
+   * and supervisor maintained and scoped within this test only
    */
   @Test
-  public void testKinesisIndexDataWithLosingOverlord() throws Exception
+  public void testKinesisIndexDataWithKinesisReshardSplit() throws Exception
   {
-    doTestIndexDataWithLosingOverlord(null);
+    doTestIndexDataWithStreamReshardSplit(null);
   }
 
   /**
-   * This test must be run individually since the test affect and modify the state of the Druid cluster
+   * This test can be run concurrently with other tests as it creates/modifies/teardowns a unique datasource
+   * and supervisor maintained and scoped within this test only
    */
   @Test
-  public void testKinesisIndexDataWithLosingHistorical() throws Exception
+  public void testKinesisIndexDataWithKinesisReshardMerge() throws Exception
   {
-    doTestIndexDataWithLosingHistorical(null);
+    doTestIndexDataWithStreamReshardMerge();
   }
 }
