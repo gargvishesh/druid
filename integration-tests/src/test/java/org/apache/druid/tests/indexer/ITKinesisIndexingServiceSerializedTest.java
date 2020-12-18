@@ -67,4 +67,22 @@ public class ITKinesisIndexingServiceSerializedTest extends AbstractKinesisIndex
   {
     doTestIndexDataWithLosingHistorical(null);
   }
+
+  @Test
+  public void testKinesisIndexDataWithStartStopSupervisor() throws Exception
+  {
+    doTestIndexDataWithStartStopSupervisor(null);
+  }
+
+  @Test
+  public void testKinesisIndexDataWithKinesisReshardSplit() throws Exception
+  {
+    doTestIndexDataWithStreamReshardSplit(null);
+  }
+
+  @Test
+  public void testKinesisIndexDataWithKinesisReshardMerge() throws Exception
+  {
+    doTestIndexDataWithStreamReshardMerge();
+  }
 }

@@ -223,7 +223,7 @@ public class OverlordResourceTestClient
 
   public void waitUntilTaskCompletes(final String taskID)
   {
-    waitUntilTaskCompletes(taskID, ITRetryUtil.DEFAULT_RETRY_SLEEP, ITRetryUtil.DEFAULT_RETRY_COUNT);
+    waitUntilTaskCompletes(taskID, ITRetryUtil.DEFAULT_RETRY_SLEEP_MS, ITRetryUtil.DEFAULT_RETRY_COUNT);
   }
 
   public void waitUntilTaskCompletes(final String taskID, final long millisEach, final int numTimes)
