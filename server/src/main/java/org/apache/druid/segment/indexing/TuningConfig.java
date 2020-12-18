@@ -39,7 +39,6 @@ public interface TuningConfig
   int DEFAULT_MAX_PARSE_EXCEPTIONS = Integer.MAX_VALUE;
   int DEFAULT_MAX_SAVED_PARSE_EXCEPTIONS = 0;
   int DEFAULT_MAX_ROWS_IN_MEMORY = 1_000_000;
-  int DEFAULT_MAX_MEMORY_PERCENTAGE_OF_JVM = 16;
 
   /**
    * The incremental index implementation to use
@@ -66,17 +65,10 @@ public interface TuningConfig
     // maxBytes to max jvm memory of the process that starts first. Instead we set the default based on
     // the actual task node's jvm memory.
     final long maxBytesInMemory = getMaxBytesInMemory();
-    if (maxBytesInMemory > 0 && maxBytesInMemory < 100) {
-      // maxBytesInMemory between 0 and 100 is treated as percentage of max JVM memory
-      return (long) (getAppendableIndexSpec().getMaxJvmMemory() * (maxBytesInMemory / 100.0f));
-    } else if (maxBytesInMemory == 0) {
-      // We initially estimated this to be 1/3(max jvm memory), but bytesCurrentlyInMemory only
-      // tracks active index and not the index being flushed to disk, to account for that
-      // we halved default to 1/6(max jvm memory)
-      return (long) (getAppendableIndexSpec().getMaxJvmMemory() * (DEFAULT_MAX_MEMORY_PERCENTAGE_OF_JVM / 100.0f));
-    } else if (maxBytesInMemory >= 100) {
-      // maxBytesInMemory greater than or equal to 100 is treated as absolute number of byte
+    if (maxBytesInMemory > 0) {
       return maxBytesInMemory;
+    } else if (maxBytesInMemory == 0) {
+      return getAppendableIndexSpec().getDefaultMaxBytesInMemory();
     } else {
       return Long.MAX_VALUE;
     }
