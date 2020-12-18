@@ -1,4 +1,5 @@
 name: Publish @implydata/web-console package
+on: workflow_dispatch
 # Uncomment to auto-publish when master is merged and anything in web-console has changed
 # on:
 #   push:
