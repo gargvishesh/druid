@@ -21,31 +21,21 @@
 const fs = require('fs-extra');
 const path = require('path');
 
-function mergePackageJsonFiles(...packageJsons) {
-  return packageJsons.reduce(
-    (merged, fileName) => ({ ...merged, ...fs.readJSONSync(fileName) }),
-    {},
-  );
-}
-
-function writeNewPackageJson(json, outFile) {
-  fs.writeJSONSync(outFile, json, { spaces: 2 });
-}
-
-function main(version) {
+function mergePackageVersions(version) {
+  const packageJsons = [
+    path.resolve(__dirname, '../package.json'),
+    path.resolve(__dirname, '../package.dist.json'),
+  ];
   const json = {
-    ...mergePackageJsonFiles(
-      path.resolve(__dirname, '../package.json'),
-      path.resolve(__dirname, '../package.dist.json'),
-    ),
+    ...packageJsons.reduce((merged, fileName) => ({ ...merged, ...fs.readJSONSync(fileName) }), {}),
     version,
   };
-  writeNewPackageJson(json, path.resolve(__dirname, '../dist/package.json'));
+  fs.writeJSONSync(path.resolve(__dirname, '../dist/package.json'), json, { spaces: 2 });
 }
 
 if (process.argv.length !== 3) {
   console.error('Expected to receive the next version number as the only argument');
   process.exitCode = 1;
 } else {
-  main(process.argv[2]);
+  mergePackageVersions(process.argv[2]);
 }
