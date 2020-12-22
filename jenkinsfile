@@ -545,6 +545,17 @@ def hdfsDeepStorageTests = { stageName, jdkVersion, envMap ->
     }
 }
 
+def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
+    integrationTestsWrapper(stageName, jdkVersion, envMap) {
+        sh script: """
+            ${MVN_OPTS}
+            ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply\
+            -Dgroups=query -Dit.indexer=middleManager  \${JVM_RUNTIME}  -Ddruid.test.config.extraDatasourceNameSuffix=""\
+            -ff ${MAVEN_SKIP} -Djacoco.skip=true
+        """, label: "imply query integration tests with ${env.JVM_RUNTIME}"
+    }
+}
+
 stage('Maven install') {
     skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
         heavyNode {
@@ -595,6 +606,9 @@ stage("Checks") {
                 }
             }
         },
+        "(Compile=openjdk8, Run=openjdk8) imply query integration tests": {
+            implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk8) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
+        },
         "(Compile=openjdk8, Run=openjdk8) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk8) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
@@ -611,6 +625,9 @@ stage("Checks") {
             gcsDeepStorageTests("(Compile=openjdk8, Run=openjdk8) gcs deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
 
+        "(Compile=openjdk8, Run=openjdk11) imply query integration tests": {
+            implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk11) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
+        },
         "(Compile=openjdk8, Run=openjdk11) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk11) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
         },
