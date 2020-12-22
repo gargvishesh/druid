@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.discovery.DruidLeaderSelector;
 import org.apache.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import org.apache.druid.segment.TestHelper;
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class JobProcessorTest
 {
   private static final ObjectMapper MAPPER = TestHelper.makeJsonMapper();
-  private IndexingServiceClient indexingServiceClient;
+  private OverlordClient overlordClient;
   private CoordinatorClient coordinatorClient;
   private IngestServiceMetadataStore metadataStore;
   private FileStore fileStore;
@@ -43,14 +42,14 @@ public class JobProcessorTest
   @Before
   public void setup()
   {
-    indexingServiceClient = EasyMock.createMock(IndexingServiceClient.class);
+    overlordClient = EasyMock.createMock(OverlordClient.class);
     coordinatorClient = EasyMock.createMock(CoordinatorClient.class);
     metadataStore = EasyMock.createMock(IngestServiceMetadataStore.class);
     fileStore = EasyMock.createMock(FileStore.class);
     scheduledExecutorFactory = EasyMock.createMock(ScheduledExecutorFactory.class);
     leaderSelector = EasyMock.createMock(DruidLeaderSelector.class);
     jobProcessor = new JobProcessor(
-        indexingServiceClient,
+        overlordClient,
         coordinatorClient,
         metadataStore,
         fileStore,
@@ -106,7 +105,7 @@ public class JobProcessorTest
   void verifyAll()
   {
     EasyMock.verify(
-        indexingServiceClient,
+        overlordClient,
         coordinatorClient,
         metadataStore,
         fileStore,
@@ -119,7 +118,7 @@ public class JobProcessorTest
   void replayAll()
   {
     EasyMock.replay(
-        indexingServiceClient,
+        overlordClient,
         coordinatorClient,
         metadataStore,
         fileStore,

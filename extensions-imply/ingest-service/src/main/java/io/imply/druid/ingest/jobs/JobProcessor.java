@@ -19,7 +19,6 @@ import io.imply.druid.ingest.jobs.duty.StartScheduledJobsDuty;
 import io.imply.druid.ingest.jobs.duty.UpdateRunningJobsStatusDuty;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.discovery.DruidLeaderSelector;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Json;
@@ -51,7 +50,7 @@ public class JobProcessor
 
   @Inject
   public JobProcessor(
-      IndexingServiceClient indexingServiceClient,
+      OverlordClient indexingServiceClient,
       CoordinatorClient coordinatorClient,
       IngestServiceMetadataStore metadataStore,
       FileStore fileStore,

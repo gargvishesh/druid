@@ -13,14 +13,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 
 /**
  * Useful facilities for {@link JobRunner} to make use of while processing jobs.
  */
 public class JobProcessingContext
 {
-  private final IndexingServiceClient indexingClient;
+  private final OverlordClient overlordClient;
   private final CoordinatorClient coordinatorClient;
   private final IngestServiceMetadataStore metadataStore;
   private final FileStore fileStore;
@@ -28,14 +27,14 @@ public class JobProcessingContext
   private final ObjectMapper jsonMapper;
 
   public JobProcessingContext(
-      IndexingServiceClient indexingClient,
+      OverlordClient indexingClient,
       CoordinatorClient coordinatorClient,
       IngestServiceMetadataStore metadataStore,
       FileStore fileStore,
       ObjectMapper jsonMapper
   )
   {
-    this.indexingClient = indexingClient;
+    this.overlordClient = indexingClient;
     this.coordinatorClient = coordinatorClient;
     this.metadataStore = metadataStore;
     this.fileStore = fileStore;
@@ -62,8 +61,8 @@ public class JobProcessingContext
     return jsonMapper;
   }
 
-  public IndexingServiceClient getIndexingClient()
+  public OverlordClient getOverlordClient()
   {
-    return indexingClient;
+    return overlordClient;
   }
 }

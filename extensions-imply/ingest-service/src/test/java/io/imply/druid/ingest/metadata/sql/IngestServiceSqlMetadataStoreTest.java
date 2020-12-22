@@ -144,7 +144,7 @@ public class IngestServiceSqlMetadataStoreTest
     });
 
 
-    JobStatus expectedStatus = new TaskBasedJobStatus(null);
+    JobStatus expectedStatus = new TaskBasedJobStatus(null, null);
     metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.COMPLETE);
 
 
@@ -274,7 +274,7 @@ public class IngestServiceSqlMetadataStoreTest
     );
     metadataStore.scheduleJob(jobId, someSchema);
     metadataStore.setJobState(jobId, JobState.RUNNING);
-    JobStatus expectedStatus = new TaskBasedJobStatus(null);
+    JobStatus expectedStatus = new TaskBasedJobStatus(null, null);
     metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.COMPLETE);
 
     IngestJob job = metadataStore.getJob(jobId);

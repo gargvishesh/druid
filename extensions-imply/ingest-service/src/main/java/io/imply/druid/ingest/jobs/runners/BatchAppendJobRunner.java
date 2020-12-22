@@ -15,12 +15,14 @@ import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
 import io.imply.druid.ingest.jobs.JobUpdateStateResult;
+import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.jobs.status.TaskBasedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIOConfig;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIngestionSpec;
@@ -44,7 +46,7 @@ public class BatchAppendJobRunner implements JobRunner
   @Override
   public boolean startJob(JobProcessingContext jobProcessingContext, IngestJob job)
   {
-    final IndexingServiceClient overlordClient = jobProcessingContext.getIndexingClient();
+    final IndexingServiceClient overlordClient = jobProcessingContext.getOverlordClient();
     final Task theTask = createTask(
         job,
         // someday this might take a list of files instead of the jobId as the file...
@@ -57,15 +59,17 @@ public class BatchAppendJobRunner implements JobRunner
 
   /**
    * Given an {@link IngestJob}, check the {@link TaskStatus} from the Druid Overlord.
+   *
    * @return
    */
   @Override
   public JobUpdateStateResult updateJobStatus(JobProcessingContext jobProcessingContext, IngestJob job)
   {
-    final IndexingServiceClient overlordClient = jobProcessingContext.getIndexingClient();
+    final OverlordClient overlordClient = jobProcessingContext.getOverlordClient();
     TaskStatusResponse statusResponse = overlordClient.getTaskStatus(job.getJobId());
+    TaskReport taskReport = overlordClient.getTaskReport(job.getJobId());
     final JobState jobState;
-    final JobStatus jobStatus = new TaskBasedJobStatus(statusResponse.getStatus());
+    final JobStatus jobStatus = new TaskBasedJobStatus(statusResponse.getStatus(), taskReport);
     if (statusResponse.getStatus().getStatusCode().isSuccess()) {
       jobState = JobState.COMPLETE;
     } else if (statusResponse.getStatus().getStatusCode().isFailure()) {

@@ -21,14 +21,14 @@ public class FailedJobStatus implements JobStatus
 
   @JsonCreator
   public FailedJobStatus(
-      @JsonProperty("errorMessage") String errorMessage
+      @JsonProperty("message") String errorMessage
   )
   {
     this.errorMessage = errorMessage;
   }
 
-  @JsonProperty("errorMessage")
-  public String getErrorMessage()
+  @Override
+  public String getUserFacingMessage()
   {
     return errorMessage;
   }

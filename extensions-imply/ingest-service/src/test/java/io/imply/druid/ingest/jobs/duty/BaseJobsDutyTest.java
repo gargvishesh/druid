@@ -13,13 +13,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobProcessingContext;
+import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetadataStore;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -55,7 +55,7 @@ public abstract class BaseJobsDutyTest
 
   FileStore fileStore;
   IngestServiceMetadataStore metadataStore;
-  IndexingServiceClient indexingServiceClient;
+  OverlordClient indexingServiceClient;
   CoordinatorClient coordinatorClient;
   JobProcessingContext jobProcessingContext;
 
@@ -69,9 +69,15 @@ public abstract class BaseJobsDutyTest
         MAPPER
     );
     fileStore = EasyMock.createMock(FileStore.class);
-    indexingServiceClient = EasyMock.createMock(IndexingServiceClient.class);
+    indexingServiceClient = EasyMock.createMock(OverlordClient.class);
     coordinatorClient = EasyMock.createMock(CoordinatorClient.class);
-    jobProcessingContext = new JobProcessingContext(indexingServiceClient, coordinatorClient, metadataStore, fileStore, MAPPER);
+    jobProcessingContext = new JobProcessingContext(
+        indexingServiceClient,
+        coordinatorClient,
+        metadataStore,
+        fileStore,
+        MAPPER
+    );
   }
 
   @After

@@ -9,22 +9,27 @@
 
 package io.imply.druid.ingest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.files.local.LocalFileStoreModule;
 import io.imply.druid.ingest.jobs.JobProcessor;
+import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.server.IngestServiceJettyServerInitializer;
 import io.imply.druid.ingest.server.JobsResource;
 import io.imply.druid.ingest.server.SchemasResource;
 import io.imply.druid.ingest.server.TablesResource;
+import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.client.indexing.HttpIndexingServiceClient;
 import org.apache.druid.client.indexing.IndexingServiceClient;
+import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
@@ -62,5 +67,15 @@ public class IngestServiceModule implements Module
 
     LifecycleModule.register(binder, Server.class);
     LifecycleModule.register(binder, JobProcessor.class);
+  }
+
+  @Provides
+  public OverlordClient getOverlordClient(
+      IndexingServiceClient indexingServiceClient,
+      @Coordinator DruidLeaderClient overlordLeaderClient,
+      ObjectMapper jsonMapper
+  )
+  {
+    return new OverlordClient(indexingServiceClient, overlordLeaderClient, jsonMapper);
   }
 }

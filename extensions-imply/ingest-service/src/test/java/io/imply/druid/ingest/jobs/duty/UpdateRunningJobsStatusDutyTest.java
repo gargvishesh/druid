@@ -55,6 +55,10 @@ public class UpdateRunningJobsStatusDutyTest extends BaseJobsDutyTest
     metadataStore.scheduleJob(job3, ingestSchema);
     metadataStore.setJobState(job3, JobState.RUNNING);
 
+    EasyMock.expect(indexingServiceClient.getTaskReport(job1)).andReturn(null);
+    EasyMock.expect(indexingServiceClient.getTaskReport(job2)).andReturn(null);
+    EasyMock.expect(indexingServiceClient.getTaskReport(job3)).andReturn(null);
+
     expectTaskRequest(job1, TaskState.SUCCESS);
     expectTaskRequest(job2, TaskState.FAILED);
     expectTaskRequest(job3, TaskState.RUNNING);

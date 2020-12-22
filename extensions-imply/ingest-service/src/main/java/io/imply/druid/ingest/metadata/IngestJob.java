@@ -16,7 +16,9 @@ import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
+import java.util.Optional;
 
 // todo: maybe this should be less mutable
 public class IngestJob
@@ -62,6 +64,13 @@ public class IngestJob
   public JobState getJobState()
   {
     return jobState;
+  }
+
+  @JsonProperty("message")
+  @Nullable
+  public String getUserFacingMessage()
+  {
+    return Optional.ofNullable(jobStatus).map(JobStatus::getUserFacingMessage).orElse(null);
   }
 
   public IngestJob setJobState(JobState jobState)
