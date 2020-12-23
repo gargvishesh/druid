@@ -113,11 +113,7 @@ def mavenInstall = {
 }
 
 def needMvnInstall = { wsPath ->
-    shellOutput("[ -f ${wsPath}@tmp/.needMvnInstall ] && echo 'true'")
-}
-
-def markMvnInstall = { wsPath ->
-    sh script: "touch ${wsPath}@tmp/.needMvnInstall", label: "mark to mvn install in place"
+    shellOutput("ls ${wsPath}@tmp/.missing* 1> /dev/null 2>&1 && echo 'true' || echo -n ''")
 }
 
 def skipStageIf = { boolean expression, stageName, body ->
@@ -254,6 +250,7 @@ def withM2Cache = { wsPath, body ->
     def destination = "${wsPath}@tmp/.m2Cache"
     def buildContext = "${wsPath}@tmp/.m2CacheBuildContext"
     ecrLogin(M2_CACHE_IMAGE)
+    sh script: "rm -f ${wsPath}@tmp/.missingM2Cache", label: "clear m2 cache missing mark if exists"
     try {
         timeout(time: 10, unit: 'MINUTES') {
             sh script: """
@@ -267,7 +264,7 @@ def withM2Cache = { wsPath, body ->
     } catch(err) {
         if (isTimeoutException(err) || isShellFailedException(err)) {
             sh script: "mkdir -p ${destination}/.m2", label: "creating empty .m2 dir anyway"
-            markMvnInstall(wsPath)
+            sh script: "touch ${wsPath}@tmp/.missingM2Cache", label: "mark m2 cache missing"
         } else {
             throw err
         }
@@ -296,6 +293,7 @@ def downloadInstallCache = { wsPath ->
     def buildContext = "${wsPath}@tmp/.cacheBuildContext"
     ecrLogin(BUILD_CACHE_IMAGE)
     dir(wsPath) {
+        sh script: "rm -f ${wsPath}@tmp/.missingInstallCache", label: "clear install cache missing mark if exists"
         try {
             timeout(time: 10, unit: 'MINUTES') {
                 sh script: """
@@ -308,7 +306,7 @@ def downloadInstallCache = { wsPath ->
             }
         } catch(err) {
             if (isTimeoutException(err)) {
-                markMvnInstall(wsPath)
+                sh script: "touch ${wsPath}@tmp/.missingInstallCache", label: "mark install cache missing"
             } else {
                 throw err
             }
