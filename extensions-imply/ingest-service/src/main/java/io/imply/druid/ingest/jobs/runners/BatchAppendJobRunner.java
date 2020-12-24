@@ -16,6 +16,7 @@ import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
 import io.imply.druid.ingest.jobs.JobUpdateStateResult;
 import io.imply.druid.ingest.jobs.OverlordClient;
+import io.imply.druid.ingest.jobs.status.FailedJobStatus;
 import io.imply.druid.ingest.jobs.status.TaskBasedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import org.apache.druid.client.indexing.IndexingServiceClient;
@@ -28,9 +29,13 @@ import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIOConfi
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexIngestionSpec;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTask;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
+import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
+
+import javax.annotation.Nullable;
 
 /**
  * {@link JobRunner} which can submit batch 'append' {@link ParallelIndexSupervisorTask} to a Druid Overlord
@@ -47,42 +52,85 @@ public class BatchAppendJobRunner implements JobRunner
   public boolean startJob(JobProcessingContext jobProcessingContext, IngestJob job)
   {
     final IndexingServiceClient overlordClient = jobProcessingContext.getOverlordClient();
+    final String previousTaskId = getTaskIdFromJobStatus(job);
+    final String taskId;
+    if (previousTaskId != null) {
+      TaskStatusResponse previousAttempt = overlordClient.getTaskStatus(previousTaskId);
+      // task status should not be null if the task actually exists (overlord can return an empty status response for
+      // non-existent tasks)
+      if (previousAttempt != null && previousAttempt.getStatus() != null) {
+        LOG.warn(
+            "Found job [%s], it already has a taskId in state [%s], but is in the [%s] state here. This should"
+            + " not happen but could be a transient situation due to a system outage between scheduling"
+            + " the task and updating to the running state. Allowing the job to transition state to %s.",
+            job.getJobId(),
+            previousAttempt.getStatus(),
+            JobState.SCHEDULED,
+            JobState.RUNNING
+        );
+        // let it fall through to handle by update status
+        return true;
+      }
+
+      // lets try same task id again, it doesn't exist as far as overlord is concerned again
+      taskId = previousTaskId;
+    } else {
+      taskId = generateTaskId(job.getJobId());
+    }
+    TaskBasedJobStatus initialStatus = new TaskBasedJobStatus(taskId, null, null);
+    jobProcessingContext.getMetadataStore().setJobStatus(job.getJobId(), initialStatus);
     final Task theTask = createTask(
+        taskId,
         job,
         // someday this might take a list of files instead of the jobId as the file...
         jobProcessingContext.getFileStore().makeInputSource(job.getJobId())
     );
-    String taskId = overlordClient.runTask(theTask.getId(), theTask);
+    overlordClient.runTask(theTask.getId(), theTask);
     LOG.info("Successfully submitted task [%s] for job [%s]", taskId, job.getJobId());
     return true;
   }
 
   /**
    * Given an {@link IngestJob}, check the {@link TaskStatus} from the Druid Overlord.
-   *
-   * @return
    */
   @Override
   public JobUpdateStateResult updateJobStatus(JobProcessingContext jobProcessingContext, IngestJob job)
   {
     final OverlordClient overlordClient = jobProcessingContext.getOverlordClient();
-    TaskStatusResponse statusResponse = overlordClient.getTaskStatus(job.getJobId());
-    TaskReport taskReport = overlordClient.getTaskReport(job.getJobId());
-    final JobState jobState;
-    final JobStatus jobStatus = new TaskBasedJobStatus(statusResponse.getStatus(), taskReport);
-    if (statusResponse.getStatus().getStatusCode().isSuccess()) {
-      jobState = JobState.COMPLETE;
-    } else if (statusResponse.getStatus().getStatusCode().isFailure()) {
-      jobState = JobState.FAILED;
+    final String taskId = getTaskIdFromJobStatus(job);
+    if (taskId != null) {
+      TaskStatusResponse statusResponse = overlordClient.getTaskStatus(taskId);
+      TaskReport taskReport = overlordClient.getTaskReport(taskId);
+      final JobStatus jobStatus = new TaskBasedJobStatus(taskId, statusResponse.getStatus(), taskReport);
+      final JobState jobState;
+      if (statusResponse.getStatus().getStatusCode().isSuccess()) {
+        jobState = JobState.COMPLETE;
+      } else if (statusResponse.getStatus().getStatusCode().isFailure()) {
+        jobState = JobState.FAILED;
+      } else {
+        LOG.info(
+            "job [%s] task [%s] is in state [%s]",
+            job.getJobId(),
+            taskId,
+            statusResponse.getStatus().getStatusCode()
+        );
+        jobState = JobState.RUNNING;
+      }
+      return new JobUpdateStateResult(jobState, jobStatus);
     } else {
-      LOG.info("job [%s] is in state", statusResponse.getStatus().getStatusCode());
-      jobState = JobState.RUNNING;
+      final String errorMessage = StringUtils.format("Cannot update status of job [%s], no taskId set", job.getJobId());
+      LOG.error(errorMessage);
+      return new JobUpdateStateResult(
+          JobState.FAILED,
+          new FailedJobStatus(errorMessage)
+      );
     }
-    return new JobUpdateStateResult(jobState, jobStatus);
   }
+
 
   @VisibleForTesting
   public static Task createTask(
+      String taskId,
       IngestJob job,
       InputSource inputSource
   )
@@ -100,6 +148,23 @@ public class BatchAppendJobRunner implements JobRunner
         // todo: probably want some external gizmo to compute this, maybe based on cluster state?
         ParallelIndexTuningConfig.defaultConfig()
     );
-    return new ParallelIndexSupervisorTask(job.getJobId(), null, null, spec, null);
+    return new ParallelIndexSupervisorTask(taskId, null, null, spec, null);
+  }
+
+  @VisibleForTesting
+  public static String generateTaskId(String jobId)
+  {
+    return StringUtils.format("ingest_append_job_%s_%s", jobId, DateTimes.nowUtc().getMillis());
+  }
+
+  @VisibleForTesting
+  @Nullable
+  public static String getTaskIdFromJobStatus(IngestJob job)
+  {
+    final JobStatus jobStatus = job.getJobStatus();
+    if (jobStatus instanceof TaskBasedJobStatus) {
+      return ((TaskBasedJobStatus) jobStatus).getTaskId();
+    }
+    return null;
   }
 }

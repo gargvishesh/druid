@@ -10,48 +10,23 @@
 package io.imply.druid.ingest.jobs.duty;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobProcessingContext;
+import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.OverlordClient;
-import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
-import io.imply.druid.ingest.metadata.PartitionScheme;
-import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetadataStore;
-import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.impl.JsonInputFormat;
-import org.apache.druid.data.input.impl.StringDimensionSchema;
-import org.apache.druid.data.input.impl.TimestampSpec;
-import org.apache.druid.java.util.common.granularity.Granularities;
-import org.apache.druid.metadata.TestDerbyConnector;
 import org.apache.druid.segment.TestHelper;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 
 public abstract class BaseJobsDutyTest
 {
-  static final String TABLE = "saasy-table";
+  static final String JOB_ID = "somejobid";
+
   static final ObjectMapper MAPPER = TestHelper.makeJsonMapper();
-
-  @Rule
-  public final TestDerbyConnector.DerbyConnectorRule derbyConnectorRule = new TestDerbyConnector.DerbyConnectorRule();
-
-  final IngestSchema ingestSchema = new IngestSchema(
-      new TimestampSpec("time", "iso", null),
-      new DimensionsSpec(
-          ImmutableList.of(
-              StringDimensionSchema.create("column1"),
-              StringDimensionSchema.create("column2")
-          )
-      ),
-      new PartitionScheme(Granularities.DAY, null),
-      new JsonInputFormat(null, null, null),
-      "test schema"
-  );
 
   FileStore fileStore;
   IngestServiceMetadataStore metadataStore;
@@ -59,45 +34,39 @@ public abstract class BaseJobsDutyTest
   CoordinatorClient coordinatorClient;
   JobProcessingContext jobProcessingContext;
 
+  IngestJob job;
+  JobRunner runner;
+
+  boolean shouldVerify = false;
 
   @Before
   public void setup()
   {
-    metadataStore = new IngestServiceSqlMetadataStore(
-        () -> IngestServiceSqlMetatadataConfig.DEFAULT_CONFIG,
-        derbyConnectorRule.getConnector(),
-        MAPPER
-    );
+    metadataStore = EasyMock.createMock(IngestServiceMetadataStore.class);
     fileStore = EasyMock.createMock(FileStore.class);
     indexingServiceClient = EasyMock.createMock(OverlordClient.class);
     coordinatorClient = EasyMock.createMock(CoordinatorClient.class);
-    jobProcessingContext = new JobProcessingContext(
-        indexingServiceClient,
-        coordinatorClient,
-        metadataStore,
-        fileStore,
-        MAPPER
-    );
+    jobProcessingContext = new JobProcessingContext(indexingServiceClient, coordinatorClient, metadataStore, fileStore, MAPPER);
+    job = EasyMock.createMock(IngestJob.class);
+    runner = EasyMock.createMock(JobRunner.class);
   }
 
   @After
   public void teardown()
   {
-    verifyAll();
+    if (shouldVerify) {
+      verifyAll();
+    }
   }
 
   void verifyAll()
   {
-    EasyMock.verify(fileStore, coordinatorClient, indexingServiceClient);
+    EasyMock.verify(fileStore, coordinatorClient, indexingServiceClient, job, runner, metadataStore);
   }
 
   void replayAll()
   {
-    EasyMock.replay(fileStore, coordinatorClient, indexingServiceClient);
-  }
-
-  void resetAll()
-  {
-    EasyMock.reset(fileStore, coordinatorClient, indexingServiceClient);
+    shouldVerify = true;
+    EasyMock.replay(fileStore, coordinatorClient, indexingServiceClient, job, runner, metadataStore);
   }
 }

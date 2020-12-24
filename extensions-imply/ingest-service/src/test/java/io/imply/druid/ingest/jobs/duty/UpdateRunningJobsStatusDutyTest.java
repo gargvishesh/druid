@@ -9,89 +9,102 @@
 
 package io.imply.druid.ingest.jobs.duty;
 
-import io.imply.druid.ingest.jobs.JobRunner;
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.jobs.JobState;
-import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
-import org.apache.druid.client.indexing.TaskStatusResponse;
-import org.apache.druid.indexer.TaskLocation;
-import org.apache.druid.indexer.TaskState;
-import org.apache.druid.indexer.TaskStatusPlus;
-import org.apache.druid.java.util.common.DateTimes;
+import io.imply.druid.ingest.jobs.JobStatus;
+import io.imply.druid.ingest.jobs.JobUpdateStateResult;
 import org.easymock.EasyMock;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 public class UpdateRunningJobsStatusDutyTest extends BaseJobsDutyTest
 {
-  UpdateRunningJobsStatusDuty jobUpdater;
-  final JobRunner jobType = new BatchAppendJobRunner();
-
-  @Before
-  @Override
-  public void setup()
-  {
-    super.setup();
-    jobUpdater = new UpdateRunningJobsStatusDuty(jobProcessingContext);
-  }
-
   @Test
-  public void testDoesBasicallyNothingIfNoRunningJobs()
+  public void testUpdateDoesNothingOnNoPhaseChange()
   {
-    replayAll();
-    jobUpdater.run();
-  }
+    EasyMock.expect(job.getJobId()).andReturn(JOB_ID).anyTimes();
+    EasyMock.expect(job.getJobRunner()).andReturn(runner).once();
+    EasyMock.expect(job.getJobState()).andReturn(JobState.RUNNING).anyTimes();
 
-  @Test
-  public void testFetchesTaskStatusForRunningJobsAndSetsTerminalStates()
-  {
-    String job1 = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(job1, ingestSchema);
-    metadataStore.setJobState(job1, JobState.RUNNING);
-    String job2 = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(job2, ingestSchema);
-    metadataStore.setJobState(job2, JobState.RUNNING);
-    String job3 = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(job3, ingestSchema);
-    metadataStore.setJobState(job3, JobState.RUNNING);
+    JobStatus mockStatus = EasyMock.createMock(JobStatus.class);
+    EasyMock.expect(job.getJobStatus()).andReturn(mockStatus).once();
 
-    EasyMock.expect(indexingServiceClient.getTaskReport(job1)).andReturn(null);
-    EasyMock.expect(indexingServiceClient.getTaskReport(job2)).andReturn(null);
-    EasyMock.expect(indexingServiceClient.getTaskReport(job3)).andReturn(null);
-
-    expectTaskRequest(job1, TaskState.SUCCESS);
-    expectTaskRequest(job2, TaskState.FAILED);
-    expectTaskRequest(job3, TaskState.RUNNING);
-    replayAll();
-    jobUpdater.run();
-
-    Assert.assertEquals(JobState.COMPLETE, metadataStore.getJob(job1).getJobState());
-    Assert.assertEquals(JobState.FAILED, metadataStore.getJob(job2).getJobState());
-    Assert.assertEquals(JobState.RUNNING, metadataStore.getJob(job3).getJobState());
-  }
-
-  private void expectTaskRequest(String taskId, TaskState expectedState)
-  {
-    EasyMock.expect(indexingServiceClient.getTaskStatus(taskId))
-            .andReturn(new TaskStatusResponse(taskId, makeTaskStatusPlus(taskId, expectedState)))
+    EasyMock.expect(metadataStore.getJobs(JobState.RUNNING)).andReturn(ImmutableList.of(job)).once();
+    EasyMock.expect(runner.updateJobStatus(jobProcessingContext, job))
+            .andReturn(new JobUpdateStateResult(JobState.RUNNING, mockStatus))
             .once();
+
+    replayAll();
+
+    UpdateRunningJobsStatusDuty duty = new UpdateRunningJobsStatusDuty(jobProcessingContext);
+    duty.run();
   }
 
-  TaskStatusPlus makeTaskStatusPlus(String jobId, TaskState taskState)
+  @Test
+  public void testUpdatesStatusOnStatusChange()
   {
-    return new TaskStatusPlus(
-        jobId,
-        null,
-        null,
-        DateTimes.nowUtc(),
-        DateTimes.nowUtc(),
-        taskState,
-        null,
-        null,
-        1000L,
-        TaskLocation.unknown(),
-        TABLE,
-        taskState.isFailure() ? "failed" : null
-    );
+    EasyMock.expect(job.getJobId()).andReturn(JOB_ID).anyTimes();
+    EasyMock.expect(job.getJobRunner()).andReturn(runner).once();
+    EasyMock.expect(job.getJobState()).andReturn(JobState.RUNNING).anyTimes();
+
+    JobStatus mockStatus = EasyMock.createMock(JobStatus.class);
+    JobStatus differentStatus = EasyMock.createMock(JobStatus.class);
+    EasyMock.expect(job.getJobStatus()).andReturn(mockStatus).once();
+
+    EasyMock.expect(metadataStore.getJobs(JobState.RUNNING)).andReturn(ImmutableList.of(job)).once();
+    EasyMock.expect(runner.updateJobStatus(jobProcessingContext, job))
+            .andReturn(new JobUpdateStateResult(JobState.RUNNING, differentStatus))
+            .once();
+    metadataStore.setJobStatus(JOB_ID, differentStatus);
+    EasyMock.expectLastCall();
+
+    replayAll();
+
+    UpdateRunningJobsStatusDuty duty = new UpdateRunningJobsStatusDuty(jobProcessingContext);
+    duty.run();
+  }
+
+  @Test
+  public void testUpdatesStateAndStatusOnStateAndStatusChange()
+  {
+    JobStatus mockStatus = EasyMock.createMock(JobStatus.class);
+    JobStatus differentStatus = EasyMock.createMock(JobStatus.class);
+    EasyMock.expect(job.getJobId()).andReturn(JOB_ID).anyTimes();
+    EasyMock.expect(job.getJobRunner()).andReturn(runner).once();
+    EasyMock.expect(job.getJobState()).andReturn(JobState.RUNNING).anyTimes();
+    EasyMock.expect(job.getJobStatus()).andReturn(mockStatus).anyTimes();
+
+    EasyMock.expect(metadataStore.getJobs(JobState.RUNNING)).andReturn(ImmutableList.of(job)).once();
+    EasyMock.expect(runner.updateJobStatus(jobProcessingContext, job))
+            .andReturn(new JobUpdateStateResult(JobState.COMPLETE, differentStatus))
+            .once();
+    metadataStore.setJobStateAndStatus(JOB_ID, JobState.COMPLETE, differentStatus);
+    EasyMock.expectLastCall();
+
+    replayAll();
+
+    UpdateRunningJobsStatusDuty duty = new UpdateRunningJobsStatusDuty(jobProcessingContext);
+    duty.run();
+  }
+
+  @Test
+  public void testUpdatesStateAndStatusStatusOnStateChange()
+  {
+    JobStatus mockStatus = EasyMock.createMock(JobStatus.class);
+    EasyMock.expect(job.getJobId()).andReturn(JOB_ID).anyTimes();
+    EasyMock.expect(job.getJobRunner()).andReturn(runner).once();
+    EasyMock.expect(job.getJobState()).andReturn(JobState.RUNNING).anyTimes();
+    EasyMock.expect(job.getJobStatus()).andReturn(mockStatus).anyTimes();
+
+    EasyMock.expect(metadataStore.getJobs(JobState.RUNNING)).andReturn(ImmutableList.of(job)).once();
+    EasyMock.expect(runner.updateJobStatus(jobProcessingContext, job))
+            .andReturn(new JobUpdateStateResult(JobState.COMPLETE, mockStatus))
+            .once();
+    metadataStore.setJobStateAndStatus(JOB_ID, JobState.COMPLETE, mockStatus);
+    EasyMock.expectLastCall();
+
+    replayAll();
+
+    UpdateRunningJobsStatusDuty duty = new UpdateRunningJobsStatusDuty(jobProcessingContext);
+    duty.run();
   }
 }

@@ -99,4 +99,15 @@ public class IngestSchema
   {
     return Objects.hash(timestampSpec, dimensionsSpec, partitionScheme, inputFormat, description);
   }
+
+  @Override
+  public String toString()
+  {
+    return "IngestSchema{" +
+           "timestampSpec=" + timestampSpec +
+           ", dimensionsSpec=" + dimensionsSpec +
+           ", inputFormat=" + inputFormat +
+           ", description='" + description + '\'' +
+           '}';
+  }
 }

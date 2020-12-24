@@ -32,4 +32,9 @@ public enum JobState
     }
     return valueOf(StringUtils.toUpperCase(name));
   }
+
+  public boolean canSchedule()
+  {
+    return this == STAGED || this == CANCELLED || this == FAILED;
+  }
 }

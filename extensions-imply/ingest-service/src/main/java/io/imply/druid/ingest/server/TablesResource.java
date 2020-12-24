@@ -20,6 +20,7 @@ import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.java.util.common.StringUtils;
@@ -204,8 +205,7 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response stageIngestJob(
       final JobRunner jobType,
-      @PathParam("table")
-          String tableName
+      @PathParam("table") String tableName
   )
   {
     if (!metadataStore.druidTableExists(tableName)) {
@@ -238,10 +238,8 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response sampleIngestJob(
       final IngestJobRequest sampleRequest,
-      @PathParam("table")
-          String tableName,
-      @PathParam("jobId")
-          String jobId
+      @PathParam("table") String tableName,
+      @PathParam("jobId") String jobId
   )
   {
     // most of this logic should probably live somewhere else, but;
@@ -258,14 +256,36 @@ public class TablesResource
   @ResourceFilters(TablesResourceFilter.class)
   public Response scheduleIngestJob(
       final IngestJobRequest scheduleRequest,
-      @PathParam("table")
-          String tableName,
-      @PathParam("jobId")
-          String jobId
+      @PathParam("table") String tableName,
+      @PathParam("jobId") String jobId
   )
   {
-    // this is not enough, we need to handle the alternative where schemaId is set
-    int updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchema());
+    final String jobTable = metadataStore.getJobTable(jobId);
+    if (!tableName.equals(jobTable)) {
+      return badRequest(StringUtils.format("job [%s] does not belong to table [%s]", jobId, tableName));
+    }
+    int updated;
+    try {
+      if (scheduleRequest.getSchema() != null) {
+        updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchema());
+      } else if (scheduleRequest.getSchemaId() != null) {
+        if (!metadataStore.schemaExists(scheduleRequest.getSchemaId())) {
+          return badRequest(
+              StringUtils.format(
+                  "schema [%s] does not exist, cannot schedule job [%s]",
+                  scheduleRequest.getSchemaId(),
+                  jobId
+              )
+          );
+        }
+        updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchemaId());
+      } else {
+        return badRequest(StringUtils.format("must specify 'schema' or 'schemaId' to schedule job [%s]", jobId));
+      }
+    }
+    catch (JobScheduleException jex) {
+      return badRequest(jex.getMessage());
+    }
 
     if (updated == 0) {
       return Response.status(Response.Status.NOT_FOUND).build();
@@ -274,6 +294,11 @@ public class TablesResource
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
     return Response.created(URI.create("")).build();
+  }
+
+  private Response badRequest(String error)
+  {
+    return Response.status(Response.Status.BAD_REQUEST).entity(ImmutableMap.of("error", error)).build();
   }
 
   private void assignPermissions(Set<TableJobStateStats> tables, HttpServletRequest req)

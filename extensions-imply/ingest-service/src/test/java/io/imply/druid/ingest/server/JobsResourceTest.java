@@ -12,6 +12,7 @@ package io.imply.druid.ingest.server;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthConfig;
@@ -20,6 +21,7 @@ import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
 import org.easymock.EasyMock;
+import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,19 +45,21 @@ public class JobsResourceTest
   private static final List<IngestJob> JOB_LIST_AUTHORIZED;
   private static final List<IngestJob> JOB_LIST_UNAUTHORIZED;
 
+  private static final DateTime CREATED_TIME = DateTimes.nowUtc();
+
   static {
     JOB_LIST_AUTHORIZED = Arrays.asList(
-        new IngestJob(TABLE, "job1", JobState.CANCELLED),
-        new IngestJob(TABLE, "job2", JobState.COMPLETE),
-        new IngestJob(TABLE, "job3", JobState.FAILED),
-        new IngestJob(TABLE, "job4", JobState.RUNNING),
-        new IngestJob(TABLE, "job5", JobState.SCHEDULED),
-        new IngestJob(TABLE, "job6", JobState.STAGED)
+        makeJob(TABLE, "job1", JobState.CANCELLED),
+        makeJob(TABLE, "job2", JobState.COMPLETE),
+        makeJob(TABLE, "job3", JobState.FAILED),
+        makeJob(TABLE, "job4", JobState.RUNNING),
+        makeJob(TABLE, "job5", JobState.SCHEDULED),
+        makeJob(TABLE, "job6", JobState.STAGED)
     );
 
     JOB_LIST_UNAUTHORIZED = Arrays.asList(
-        new IngestJob(TABLE2, "jobA", JobState.RUNNING),
-        new IngestJob(TABLE2, "jobB", JobState.COMPLETE)
+        makeJob(TABLE2, "jobA", JobState.RUNNING),
+        makeJob(TABLE2, "jobB", JobState.COMPLETE)
     );
 
     JOB_LIST = new ArrayList<>();
@@ -118,7 +122,7 @@ public class JobsResourceTest
   public void testGetAllJobsSpecificState()
   {
     List<IngestJob> expectedJobList = Collections.singletonList(
-        new IngestJob(TABLE, "job4", JobState.RUNNING)
+        makeJob(TABLE, "job4", JobState.RUNNING)
     );
 
     List<IngestJob> metadataReturnList = JOB_LIST
@@ -153,7 +157,7 @@ public class JobsResourceTest
   {
     String id = "jobA";
     expectAuthorizationTokenCheck();
-    EasyMock.expect(metadataStore.getJob(id)).andReturn(new IngestJob(TABLE, id, JobState.COMPLETE)).anyTimes();
+    EasyMock.expect(metadataStore.getJob(id)).andReturn(makeJob(TABLE, id, JobState.COMPLETE)).anyTimes();
     EasyMock.replay(metadataStore, req);
 
     Response response = jobsResource.getJob(req, id);
@@ -182,7 +186,7 @@ public class JobsResourceTest
   {
     String id = "jobA";
     expectAuthorizationTokenCheck();
-    EasyMock.expect(metadataStore.getJob(id)).andReturn(new IngestJob(TABLE2, id, JobState.COMPLETE)).anyTimes();
+    EasyMock.expect(metadataStore.getJob(id)).andReturn(makeJob(TABLE2, id, JobState.COMPLETE)).anyTimes();
     EasyMock.replay(metadataStore, req);
 
     Response response = jobsResource.getJob(req, id);
@@ -204,5 +208,10 @@ public class JobsResourceTest
 
     req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
     EasyMock.expectLastCall().anyTimes();
+  }
+
+  private static IngestJob makeJob(String table, String jobId, JobState jobState)
+  {
+    return new IngestJob(table, jobId, jobState, null, null, null, CREATED_TIME, null, 0);
   }
 }

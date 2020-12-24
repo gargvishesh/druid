@@ -10,12 +10,14 @@
 package io.imply.druid.ingest.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
@@ -56,6 +58,18 @@ import java.util.stream.Collectors;
 public class TablesResourceTest
 {
   private static final String TABLE = "test";
+  private static final IngestSchema TEST_SCHEMA = new IngestSchema(
+      new TimestampSpec("time", "iso", null),
+      new DimensionsSpec(
+          ImmutableList.of(
+              StringDimensionSchema.create("x"),
+              StringDimensionSchema.create("y")
+          )
+      ),
+      new PartitionScheme(Granularities.DAY, null),
+      new JsonInputFormat(null, null, null),
+      "test schema"
+  );
   private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig()
   {
     @Override
@@ -197,24 +211,35 @@ public class TablesResourceTest
     // see https://github.com/apache/druid/issues/6685
     String id = UUIDUtils.generateUuid();
 
-    // create fake schema for mocking:
-    IngestSchema schema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
-    // Now we can mock the scheduleJob call:
     IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
-    EasyMock.expect(scheduleRequest.getSchema()).andReturn(schema).anyTimes();
-    EasyMock.expect(metadataStore.scheduleJob(id, schema)).andReturn(1).anyTimes();
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(TEST_SCHEMA).atLeastOnce();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.scheduleJob(id, TEST_SCHEMA)).andReturn(1).once();
+
+    EasyMock.replay(fileStore, metadataStore, req);
+    EasyMock.replay(scheduleRequest);
+
+    Response response = tablesResource.scheduleIngestJob(scheduleRequest, TABLE, id);
+
+    Assert.assertTrue(response.getMetadata().containsKey("Location"));
+    Assert.assertEquals(201, response.getStatus());
+    EasyMock.verify(scheduleRequest);
+  }
+
+  @Test
+  public void testScheduleIngestJobShouldSucceedWhenJobAndSchemaIdExists()
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+    String id = UUIDUtils.generateUuid();
+
+    IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(null).atLeastOnce();
+    EasyMock.expect(scheduleRequest.getSchemaId()).andReturn(1).atLeastOnce();
+
+    EasyMock.expect(metadataStore.schemaExists(1)).andReturn(true).once();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.scheduleJob(id, 1)).andReturn(1).once();
 
     EasyMock.replay(fileStore, metadataStore, req);
     EasyMock.replay(scheduleRequest);
@@ -233,24 +258,10 @@ public class TablesResourceTest
     // see https://github.com/apache/druid/issues/6685
     String id = UUIDUtils.generateUuid();
 
-    // create fake schema for mocking:
-    IngestSchema schema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
-    // Now we can mock the scheduleJob call:
     IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
-    EasyMock.expect(scheduleRequest.getSchema()).andReturn(schema).anyTimes();
-    EasyMock.expect(metadataStore.scheduleJob(id, schema)).andReturn(0).anyTimes();
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(TEST_SCHEMA).atLeastOnce();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.scheduleJob(id, TEST_SCHEMA)).andReturn(0).once();
 
     EasyMock.replay(fileStore, metadataStore, req);
     EasyMock.replay(scheduleRequest);
@@ -261,6 +272,56 @@ public class TablesResourceTest
     EasyMock.verify(scheduleRequest);
   }
 
+
+  @Test
+  public void testScheduleIngestJobShouldFailWhenSchemaNotExist()
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+    String id = UUIDUtils.generateUuid();
+
+    IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(null).atLeastOnce();
+    EasyMock.expect(scheduleRequest.getSchemaId()).andReturn(1).atLeastOnce();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.schemaExists(1)).andReturn(false).atLeastOnce();
+
+    EasyMock.replay(fileStore, metadataStore, req);
+    EasyMock.replay(scheduleRequest);
+
+    Response response = tablesResource.scheduleIngestJob(scheduleRequest, TABLE, id);
+
+    Assert.assertEquals(400, response.getStatus());
+    Assert.assertEquals(
+        ImmutableMap.of("error", StringUtils.format("schema [1] does not exist, cannot schedule job [%s]", id)),
+        response.getEntity()
+    );
+    EasyMock.verify(scheduleRequest);
+  }
+
+  @Test
+  public void testScheduleIngestJobShouldFailWhenJobDoesNotMatchTable()
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+    String id = UUIDUtils.generateUuid();
+
+    IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn("another_table").once();
+
+    EasyMock.replay(fileStore, metadataStore, req);
+    EasyMock.replay(scheduleRequest);
+
+    Response response = tablesResource.scheduleIngestJob(scheduleRequest, TABLE, id);
+
+    Assert.assertEquals(400, response.getStatus());
+    Assert.assertEquals(
+        ImmutableMap.of("error", StringUtils.format("job [%s] does not belong to table [test]", id)),
+        response.getEntity()
+    );
+    EasyMock.verify(scheduleRequest);
+  }
+
   @Test
   public void testScheduleIngestJobShouldFailWhenTooManyJobsForSameJobIdExist()
   {
@@ -268,24 +329,10 @@ public class TablesResourceTest
     // see https://github.com/apache/druid/issues/6685
     String id = UUIDUtils.generateUuid();
 
-    // create fake schema for mocking:
-    IngestSchema schema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
-    // Now we can mock the scheduleJob call:
     IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
-    EasyMock.expect(scheduleRequest.getSchema()).andReturn(schema).anyTimes();
-    EasyMock.expect(metadataStore.scheduleJob(id, schema)).andReturn(10).anyTimes();
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(TEST_SCHEMA).atLeastOnce();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.scheduleJob(id, TEST_SCHEMA)).andReturn(10).once();
 
     EasyMock.replay(fileStore, metadataStore, req);
     EasyMock.replay(scheduleRequest);
@@ -293,6 +340,31 @@ public class TablesResourceTest
     Response response = tablesResource.scheduleIngestJob(scheduleRequest, TABLE, id);
 
     Assert.assertEquals(500, response.getStatus());
+    EasyMock.verify(scheduleRequest);
+  }
+
+  @Test
+  public void testScheduleIngestJobShouldFailWhenJobInBadJobState()
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+    String id = UUIDUtils.generateUuid();
+
+    IngestJobRequest scheduleRequest = EasyMock.mock(IngestJobRequest.class);
+    EasyMock.expect(scheduleRequest.getSchema()).andReturn(TEST_SCHEMA).atLeastOnce();
+    EasyMock.expect(metadataStore.getJobTable(id)).andReturn(TABLE).once();
+    EasyMock.expect(metadataStore.scheduleJob(id, TEST_SCHEMA)).andThrow(new JobScheduleException(id, JobState.RUNNING)).once();
+
+    EasyMock.replay(fileStore, metadataStore, req);
+    EasyMock.replay(scheduleRequest);
+
+    Response response = tablesResource.scheduleIngestJob(scheduleRequest, TABLE, id);
+
+    Assert.assertEquals(400, response.getStatus());
+    Assert.assertEquals(
+        ImmutableMap.of("error", StringUtils.format("Cannot schedule job [%s] because it is in [RUNNING] state", id)),
+        response.getEntity()
+    );
     EasyMock.verify(scheduleRequest);
   }
 

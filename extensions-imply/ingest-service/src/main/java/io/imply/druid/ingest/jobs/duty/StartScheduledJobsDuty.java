@@ -15,6 +15,7 @@ import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.status.FailedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 
 import java.util.Comparator;
@@ -88,8 +89,10 @@ public class StartScheduledJobsDuty implements JobProcessorDuty
           );
           jobProcessingContext.getMetadataStore().setJobStateAndStatus(
               job.getJobId(),
-              new FailedJobStatus("too many retries"),
-              JobState.FAILED
+              JobState.FAILED,
+              new FailedJobStatus(
+                  StringUtils.format("Unable to successfully submit task after [%s] attempts", numRetries)
+              )
           );
         }
       }

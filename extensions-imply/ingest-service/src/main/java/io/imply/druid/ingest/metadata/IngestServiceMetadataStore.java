@@ -36,11 +36,17 @@ public interface IngestServiceMetadataStore
 
   int scheduleJob(String jobId, IngestSchema schema);
 
+  int scheduleJob(String jobId, int schemaId) throws JobScheduleException;
+
   void setJobStatus(String jobId, JobStatus jobStatus);
 
   void setJobState(String jobId, JobState jobState);
 
-  void setJobStateAndStatus(String jobId, @Nullable JobStatus status, @Nullable JobState jobState);
+  void setJobStateAndStatus(
+      String jobId,
+      @Nullable JobState jobState,
+      @Nullable JobStatus status
+  );
 
   void setJobCancelled(String jobId, JobStatus status);
 
@@ -50,6 +56,9 @@ public interface IngestServiceMetadataStore
 
   @Nullable
   IngestJob getJob(String jobId);
+
+  @Nullable
+  String getJobTable(String jobId);
 
   /**
    * @param jobStatesToFilterOn If null then return all tables with associated job states even when the table does not
@@ -63,6 +72,7 @@ public interface IngestServiceMetadataStore
   // schemas
   int createSchema(IngestSchema schema);
   IngestSchema getSchema(int schemaId);
+  boolean schemaExists(int schemaId);
   List<IngestSchema> getAllSchemas();
   int deleteSchema(int schemaId);
 

@@ -16,10 +16,12 @@ import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
 import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
+import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunnerTest;
 import io.imply.druid.ingest.jobs.status.FailedJobStatus;
 import io.imply.druid.ingest.jobs.status.TaskBasedJobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
@@ -27,6 +29,8 @@ import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.indexer.TaskState;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector;
@@ -36,6 +40,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Collections;
 import java.util.List;
@@ -46,11 +51,26 @@ public class IngestServiceSqlMetadataStoreTest
 {
   private static final ObjectMapper MAPPER = TestHelper.makeJsonMapper();
   private static final String TABLE = "some_table";
+  private static final IngestSchema TEST_SCHEMA = new IngestSchema(
+      new TimestampSpec("time", "iso", null),
+      new DimensionsSpec(
+          ImmutableList.of(
+              StringDimensionSchema.create("x"),
+              StringDimensionSchema.create("y")
+          )
+      ),
+      new PartitionScheme(Granularities.DAY, null),
+      new JsonInputFormat(null, null, null),
+      "test schema"
+  );
   private final IngestServiceSqlMetatadataConfig config = IngestServiceSqlMetatadataConfig.DEFAULT_CONFIG;
 
   private IngestServiceSqlMetadataStore metadataStore;
   private SQLMetadataConnector connector;
   private final JobRunner jobType = new BatchAppendJobRunner();
+
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   @Rule
   public final TestDerbyConnector.DerbyConnectorRule derbyConnectorRule = new TestDerbyConnector.DerbyConnectorRule();
@@ -120,20 +140,15 @@ public class IngestServiceSqlMetadataStoreTest
   {
     metadataStore.insertTable(TABLE);
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    metadataStore.scheduleJob(jobId, someSchema);
-    metadataStore.setJobState(jobId, JobState.RUNNING);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+    String taskId = BatchAppendJobRunner.generateTaskId(jobId);
+    JobStatus expectedStatus = new TaskBasedJobStatus(taskId, null, null);
+    metadataStore.setJobStateAndStatus(jobId, JobState.RUNNING, expectedStatus);
+
+    IngestJob job = metadataStore.getJob(jobId);
+    Assert.assertNotNull(job);
+    Assert.assertEquals(JobState.RUNNING, job.getJobState());
+    Assert.assertEquals(expectedStatus, job.getJobStatus());
 
     Set<TableJobStateStats> stats =
         metadataStore.getJobCountPerTablePerState(Collections.singleton(JobState.RUNNING));
@@ -144,11 +159,15 @@ public class IngestServiceSqlMetadataStoreTest
     });
 
 
-    JobStatus expectedStatus = new TaskBasedJobStatus(null, null);
-    metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.COMPLETE);
+    expectedStatus = new TaskBasedJobStatus(
+        taskId,
+        BatchAppendJobRunnerTest.makeTaskStatusPlus(taskId, TaskState.SUCCESS),
+        null
+    );
+    metadataStore.setJobStateAndStatus(jobId, JobState.COMPLETE, expectedStatus);
 
 
-    IngestJob job = metadataStore.getJob(jobId);
+    job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
     Assert.assertEquals(JobState.COMPLETE, job.getJobState());
     Assert.assertEquals(expectedStatus, job.getJobStatus());
@@ -163,7 +182,6 @@ public class IngestServiceSqlMetadataStoreTest
 
   }
 
-
   @Test
   public void testStageJob()
   {
@@ -177,7 +195,6 @@ public class IngestServiceSqlMetadataStoreTest
 
     Assert.assertNull(job.getScheduledTime());
     Assert.assertNull(job.getSchema());
-    Assert.assertNull(job.getSchemaId());
     Assert.assertNull(job.getJobStatus());
   }
 
@@ -185,19 +202,7 @@ public class IngestServiceSqlMetadataStoreTest
   public void testScheduleJobShouldSucceedWhenJobExists()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    int updated = metadataStore.scheduleJob(jobId, someSchema);
+    int updated = metadataStore.scheduleJob(jobId, TEST_SCHEMA);
 
     Assert.assertEquals(updated, 1);
 
@@ -205,49 +210,90 @@ public class IngestServiceSqlMetadataStoreTest
     Assert.assertNotNull(job);
     Assert.assertEquals(JobState.SCHEDULED, job.getJobState());
     Assert.assertNotNull(job.getScheduledTime());
-    Assert.assertEquals(someSchema, job.getSchema());
+    Assert.assertEquals(TEST_SCHEMA, job.getSchema());
+  }
+
+  @Test
+  public void testRetryScheduleJobShouldFailWhenJobInRunningState()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    expectedException.expect(JobScheduleException.class);
+    expectedException.expectMessage(
+        StringUtils.format("Cannot schedule job [%s] because it is in [%s] state", jobId, JobState.RUNNING)
+    );
+    metadataStore.setJobState(jobId, JobState.RUNNING);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+  }
+
+  @Test
+  public void testRetryScheduleJobShouldFailWhenJobInCompletedState()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    expectedException.expect(JobScheduleException.class);
+    expectedException.expectMessage(
+        StringUtils.format("Cannot schedule job [%s] because it is in [%s] state", jobId, JobState.COMPLETE)
+    );
+    metadataStore.setJobState(jobId, JobState.COMPLETE);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+  }
+
+  @Test
+  public void testRetryScheduleJobShouldFailWhenJobInScheduledState()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    expectedException.expect(JobScheduleException.class);
+    expectedException.expectMessage(
+        StringUtils.format("Cannot schedule job [%s] because it is in [%s] state", jobId, JobState.SCHEDULED)
+    );
+    metadataStore.setJobState(jobId, JobState.SCHEDULED);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+  }
+
+  @Test
+  public void testRetryScheduleJobShouldSucceedWhenJobFailed()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    metadataStore.setJobState(jobId, JobState.FAILED);
+    int updated = metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+
+    Assert.assertEquals(updated, 1);
+
+    IngestJob job = metadataStore.getJob(jobId);
+    Assert.assertNotNull(job);
+    Assert.assertEquals(JobState.SCHEDULED, job.getJobState());
+    Assert.assertNotNull(job.getScheduledTime());
+    Assert.assertEquals(TEST_SCHEMA, job.getSchema());
+  }
+
+  @Test
+  public void testRetryScheduleJobShouldSucceedWhenJobCancelled()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    metadataStore.setJobState(jobId, JobState.CANCELLED);
+    int updated = metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+
+    Assert.assertEquals(updated, 1);
+
+    IngestJob job = metadataStore.getJob(jobId);
+    Assert.assertNotNull(job);
+    Assert.assertEquals(JobState.SCHEDULED, job.getJobState());
+    Assert.assertNotNull(job.getScheduledTime());
+    Assert.assertEquals(TEST_SCHEMA, job.getSchema());
   }
 
   @Test
   public void testScheduleJobShouldFailWhenJobDoesNotExist()
   {
     String jobId = "i_do_not_exist";
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
-    int updated = metadataStore.scheduleJob(jobId, someSchema);
-
+    int updated = metadataStore.scheduleJob(jobId, TEST_SCHEMA);
     Assert.assertEquals(updated, 0);
-
   }
 
   @Test
   public void testSetJobRunning()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    metadataStore.scheduleJob(jobId, someSchema);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
     metadataStore.setJobState(jobId, JobState.RUNNING);
 
     IngestJob job = metadataStore.getJob(jobId);
@@ -260,22 +306,14 @@ public class IngestServiceSqlMetadataStoreTest
   public void testSetJobComplete()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+    String taskId = BatchAppendJobRunner.generateTaskId(jobId);
+    JobStatus expectedStatus = new TaskBasedJobStatus(
+        taskId,
+        BatchAppendJobRunnerTest.makeTaskStatusPlus(taskId, TaskState.SUCCESS),
+        null
     );
-    metadataStore.scheduleJob(jobId, someSchema);
-    metadataStore.setJobState(jobId, JobState.RUNNING);
-    JobStatus expectedStatus = new TaskBasedJobStatus(null, null);
-    metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.COMPLETE);
+    metadataStore.setJobStateAndStatus(jobId, JobState.COMPLETE, expectedStatus);
 
     IngestJob job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
@@ -287,22 +325,10 @@ public class IngestServiceSqlMetadataStoreTest
   public void testSetJobFailed()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    metadataStore.scheduleJob(jobId, someSchema);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
     metadataStore.setJobState(jobId, JobState.RUNNING);
     JobStatus expectedStatus = new FailedJobStatus("fail");
-    metadataStore.setJobStateAndStatus(jobId, expectedStatus, JobState.FAILED);
+    metadataStore.setJobStateAndStatus(jobId, JobState.FAILED, expectedStatus);
 
     IngestJob job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
@@ -314,19 +340,7 @@ public class IngestServiceSqlMetadataStoreTest
   public void testSetJobCancelled()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    metadataStore.scheduleJob(jobId, someSchema);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
     metadataStore.setJobState(jobId, JobState.RUNNING);
     JobStatus expectedStatus = new FailedJobStatus("cancel");
     metadataStore.setJobCancelled(jobId, expectedStatus);
@@ -340,28 +354,16 @@ public class IngestServiceSqlMetadataStoreTest
   @Test
   public void testListScheduledJobs() throws InterruptedException
   {
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
 
     String job1 = metadataStore.stageJob(TABLE, jobType);
     String job2 = metadataStore.stageJob(TABLE, jobType);
     String job3 = metadataStore.stageJob(TABLE, jobType);
     String job4 = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(job1, someSchema);
+    metadataStore.scheduleJob(job1, TEST_SCHEMA);
     Thread.sleep(500);
-    metadataStore.scheduleJob(job3, someSchema);
+    metadataStore.scheduleJob(job3, TEST_SCHEMA);
     Thread.sleep(500);
-    metadataStore.scheduleJob(job2, someSchema);
+    metadataStore.scheduleJob(job2, TEST_SCHEMA);
 
     List<IngestJob> scheduledJobs = metadataStore.getJobs(JobState.SCHEDULED);
     Assert.assertEquals(3, scheduledJobs.size());
@@ -374,26 +376,13 @@ public class IngestServiceSqlMetadataStoreTest
   @Test
   public void testGetAllJobs()
   {
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
     String job1 = metadataStore.stageJob(TABLE, jobType);
     String job2 = metadataStore.stageJob(TABLE, jobType);
     String job3 = metadataStore.stageJob(TABLE, jobType);
     String job4 = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(job1, someSchema);
-    metadataStore.scheduleJob(job2, someSchema);
-    metadataStore.scheduleJob(job3, someSchema);
+    metadataStore.scheduleJob(job1, TEST_SCHEMA);
+    metadataStore.scheduleJob(job2, TEST_SCHEMA);
+    metadataStore.scheduleJob(job3, TEST_SCHEMA);
     Set<String> expectedScheduled = ImmutableSet.of(job1, job2, job3, job4);
 
     List<IngestJob> scheduledJobs = metadataStore.getJobs(null);
@@ -425,19 +414,7 @@ public class IngestServiceSqlMetadataStoreTest
   public void testIncrementRetry()
   {
     String jobId = metadataStore.stageJob(TABLE, jobType);
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-    metadataStore.scheduleJob(jobId, someSchema);
+    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
     IngestJob job = metadataStore.getJob(jobId);
     Assert.assertNotNull(job);
     Assert.assertEquals(0, job.getRetryCount());
@@ -455,19 +432,6 @@ public class IngestServiceSqlMetadataStoreTest
   @Test
   public void testCreateAndGetSchemas()
   {
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
     IngestSchema someSchema2 = new IngestSchema(
         new TimestampSpec("time", "iso", null),
         new DimensionsSpec(
@@ -481,10 +445,11 @@ public class IngestServiceSqlMetadataStoreTest
         "test schema2"
     );
 
-    int schemaId = metadataStore.createSchema(someSchema);
+    int schemaId = metadataStore.createSchema(TEST_SCHEMA);
     Assert.assertEquals(schemaId, 1);
+    Assert.assertTrue(metadataStore.schemaExists(schemaId));
     IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
-    Assert.assertEquals(someSchema, schemaFromMetadata);
+    Assert.assertEquals(TEST_SCHEMA, schemaFromMetadata);
 
     schemaId = metadataStore.createSchema(someSchema2);
     Assert.assertEquals(schemaId, 2);
@@ -492,29 +457,28 @@ public class IngestServiceSqlMetadataStoreTest
     Assert.assertEquals(someSchema2, schemaFromMetadata);
 
     List<IngestSchema> ingestSchemas = metadataStore.getAllSchemas();
-    Assert.assertEquals(ImmutableList.of(someSchema, someSchema2), ingestSchemas);
+    Assert.assertEquals(ImmutableList.of(TEST_SCHEMA, someSchema2), ingestSchemas);
+  }
+
+  @Test
+  public void testJobWithExternalSchema()
+  {
+    String jobId = metadataStore.stageJob(TABLE, jobType);
+    int schemaId = metadataStore.createSchema(TEST_SCHEMA);
+    metadataStore.scheduleJob(jobId, schemaId);
+
+    IngestJob job = metadataStore.getJob(jobId);
+    Assert.assertNotNull(job);
+    Assert.assertEquals(TEST_SCHEMA, job.getSchema());
   }
 
   @Test
   public void testDeleteSchema()
   {
-    IngestSchema someSchema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("x"),
-                StringDimensionSchema.create("y")
-            )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
-    );
-
-    int schemaId = metadataStore.createSchema(someSchema);
+    int schemaId = metadataStore.createSchema(TEST_SCHEMA);
     Assert.assertEquals(schemaId, 1);
     IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
-    Assert.assertEquals(someSchema, schemaFromMetadata);
+    Assert.assertEquals(TEST_SCHEMA, schemaFromMetadata);
 
     int numDeleted = metadataStore.deleteSchema(1);
     Assert.assertEquals(1, numDeleted);

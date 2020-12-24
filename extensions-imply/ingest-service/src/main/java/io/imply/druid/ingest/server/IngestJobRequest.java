@@ -31,10 +31,18 @@ public class IngestJobRequest
     this.schemaId = schemaId;
   }
 
+  @Nullable
   @JsonProperty("schema")
   public IngestSchema getSchema()
   {
     return schema;
+  }
+
+  @Nullable
+  @JsonProperty("schemaId")
+  public Integer getSchemaId()
+  {
+    return schemaId;
   }
 
   @Override

@@ -19,6 +19,7 @@ import io.imply.druid.ingest.jobs.JobStatus;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
 import org.apache.druid.common.utils.UUIDUtils;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * fill me out
@@ -135,20 +137,78 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   public int scheduleJob(String jobId, IngestSchema schema)
   {
     final long scheduled = DateTimes.nowUtc().getMillis();
-    return metadataConnector.getDBI().inTransaction(
-        (handle, transactionStatus) ->
-            handle.createStatement(
-                StringUtils.format(
-                    "UPDATE %1$s SET scheduled_timestamp=:ts, schema_blob=:sc, job_state=:st WHERE job_id=:jid",
-                    ingestConfig.get().getJobsTable()
-                )
-            )
-                  .bind("ts", scheduled)
-                  .bind("sc", jsonMapper.writeValueAsBytes(schema))
-                  .bind("st", JobState.SCHEDULED)
-                  .bind("jid", jobId)
-                  .execute()
+    final AtomicReference<JobState> invalidState = new AtomicReference<>();
+    final int updated = metadataConnector.getDBI().inTransaction(
+        (handle, transactionStatus) -> {
+          final String selectQuery = StringUtils.format(
+              "SELECT job_state FROM %1$s WHERE job_id=:jid",
+              ingestConfig.get().getJobsTable()
+          );
+
+          JobState currentState = handle.createQuery(selectQuery)
+                                        .bind("jid", jobId)
+                                        .map((index, r, ctx) -> JobState.valueOf(r.getString("job_state")))
+                                        .first();
+
+          if (currentState != null && !currentState.canSchedule()) {
+            invalidState.set(currentState);
+            return 0;
+          }
+          final String updateQuery = StringUtils.format(
+              "UPDATE %1$s SET scheduled_timestamp=:ts, schema_blob=:sc, schema_id=null, job_state=:st, job_status=null WHERE job_id=:jid",
+              ingestConfig.get().getJobsTable()
+          );
+          return handle.createStatement(updateQuery)
+                       .bind("ts", scheduled)
+                       .bind("sc", jsonMapper.writeValueAsBytes(schema))
+                       .bind("st", JobState.SCHEDULED)
+                       .bind("jid", jobId)
+                       .execute();
+        }
     );
+    if (updated == 0 && invalidState.get() != null) {
+      throw new JobScheduleException(jobId, invalidState.get());
+    }
+    return updated;
+  }
+
+  @Override
+  public int scheduleJob(String jobId, int schemaId) throws JobScheduleException
+  {
+    final long scheduled = DateTimes.nowUtc().getMillis();
+    final AtomicReference<JobState> invalidState = new AtomicReference<>();
+    final int updated = metadataConnector.getDBI().inTransaction(
+        (handle, transactionStatus) -> {
+          final String selectQuery = StringUtils.format(
+              "SELECT job_state FROM %1$s WHERE job_id=:jid",
+              ingestConfig.get().getJobsTable()
+          );
+
+          JobState currentState = handle.createQuery(selectQuery)
+                                        .bind("jid", jobId)
+                                        .map((index, r, ctx) -> JobState.valueOf(r.getString("job_state")))
+                                        .first();
+
+          if (currentState != null && !currentState.canSchedule()) {
+            invalidState.set(currentState);
+            return 0;
+          }
+          final String updateQuery = StringUtils.format(
+              "UPDATE %1$s SET scheduled_timestamp=:ts, schema_blob=null, schema_id=:sc, job_state=:st, job_status=null WHERE job_id=:jid",
+              ingestConfig.get().getJobsTable()
+          );
+          return handle.createStatement(updateQuery)
+                       .bind("ts", scheduled)
+                       .bind("sc", schemaId)
+                       .bind("st", JobState.SCHEDULED)
+                       .bind("jid", jobId)
+                       .execute();
+        }
+    );
+    if (updated == 0 && invalidState.get() != null) {
+      throw new JobScheduleException(jobId, invalidState.get());
+    }
+    return updated;
   }
 
   @Override
@@ -191,7 +251,11 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public void setJobStateAndStatus(String jobId, @Nullable JobStatus status, @Nullable JobState jobState)
+  public void setJobStateAndStatus(
+      String jobId,
+      @Nullable JobState jobState,
+      @Nullable JobStatus status
+  )
   {
     metadataConnector.getDBI().inTransaction(
         (handle, transactionStatus) -> {
@@ -214,7 +278,7 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   @Override
   public void setJobCancelled(String jobId, JobStatus status)
   {
-    setJobStateAndStatus(jobId, status, JobState.CANCELLED);
+    setJobStateAndStatus(jobId, JobState.CANCELLED, status);
   }
 
   @Override
@@ -261,6 +325,23 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
             handle.createQuery(StringUtils.format("%s WHERE job_id=:jid", getIngestJobBaseQuery()))
                   .bind("jid", jobId)
                   .map((index, r, ctx) -> resultRowAsIngestJob(r))
+                  .first()
+    );
+  }
+
+  @Nullable
+  @Override
+  public String getJobTable(String jobId)
+  {
+    final String query = StringUtils.format(
+        "SELECT table_name FROM %1$s WHERE job_id=:jid",
+        ingestConfig.get().getJobsTable()
+    );
+    return metadataConnector.getDBI().inTransaction(
+        (handle, status) ->
+            handle.createQuery(query)
+                  .bind("jid", jobId)
+                  .map((index, r, ctx) -> r.getString("table_name"))
                   .first()
     );
   }
@@ -354,39 +435,43 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   private IngestJob resultRowAsIngestJob(ResultSet r) throws SQLException
   {
     try {
-      IngestJob job = new IngestJob(
-          r.getString("table_name"),
-          r.getString("job_id"),
-          JobState.valueOf(r.getString("job_state"))
-      )
-          .setRetryCount(r.getInt("retry_count"))
-          .setCreatedTime(DateTimes.utc((r.getLong("created_timestamp"))));
-
-      Long scheduledTime = (Long) r.getObject("scheduled_timestamp");
-      if (scheduledTime != null) {
-        job.setScheduledTime(DateTimes.utc(scheduledTime));
-      }
-
-      Long schemaId = (Long) r.getObject("schema_id");
-      if (schemaId != null) {
-        job.setSchemaId(schemaId);
-      }
-
-      byte[] ingestSchemaBlob = r.getBytes("schema_blob");
-      if (ingestSchemaBlob != null) {
-        job.setSchema(jsonMapper.readValue(ingestSchemaBlob, IngestSchema.class));
-      }
-
       byte[] jobStatusBlob = r.getBytes("job_status");
+      JobStatus jobStatus = null;
       if (jobStatusBlob != null) {
-        job.setJobStatus(jsonMapper.readValue(jobStatusBlob, JobStatus.class));
+        jobStatus = jsonMapper.readValue(jobStatusBlob, JobStatus.class);
       }
 
       byte[] jobType = r.getBytes("job_type");
+      JobRunner jobRunner = null;
       if (jobType != null) {
-        job.setJobRunner(jsonMapper.readValue(jobType, JobRunner.class));
+        jobRunner = jsonMapper.readValue(jobType, JobRunner.class);
       }
-      return job;
+
+      byte[] ingestSchemaBlob = r.getBytes("schema_blob");
+      byte[] externalSchemaBlob = r.getBytes("external_schema_blob");
+      IngestSchema schema = null;
+      if (ingestSchemaBlob != null) {
+        schema = jsonMapper.readValue(ingestSchemaBlob, IngestSchema.class);
+      } else if (externalSchemaBlob != null) {
+        schema = jsonMapper.readValue(externalSchemaBlob, IngestSchema.class);
+      }
+      Long scheduledTimeMillis = (Long) r.getObject("scheduled_timestamp");
+      DateTime scheduledTime = null;
+      if (scheduledTimeMillis != null) {
+        scheduledTime = DateTimes.utc(scheduledTimeMillis);
+      }
+
+      return new IngestJob(
+          r.getString("table_name"),
+          r.getString("job_id"),
+          JobState.valueOf(r.getString("job_state")),
+          jobStatus,
+          jobRunner,
+          schema,
+          DateTimes.utc((r.getLong("created_timestamp"))),
+          scheduledTime,
+          r.getInt("retry_count")
+      );
     }
     catch (IOException e) {
       // todo: something?
@@ -397,8 +482,21 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   private String getIngestJobBaseQuery()
   {
     return StringUtils.format(
-        "SELECT created_timestamp, table_name, job_id, job_state, job_type, schema_blob, schema_id, scheduled_timestamp, job_status, retry_count  FROM %1$s",
-        ingestConfig.get().getJobsTable()
+        "SELECT"
+        + " j.created_timestamp as created_timestamp,"
+        + " table_name,"
+        + " job_id,"
+        + " job_state,"
+        + " job_type,"
+        + " j.schema_blob as schema_blob,"
+        + " s.schema_blob as external_schema_blob,"
+        + " scheduled_timestamp,"
+        + " job_status,"
+        + " retry_count "
+        + " FROM %1$s j"
+        + " LEFT JOIN %2$s s ON j.schema_id = s.id",
+        ingestConfig.get().getJobsTable(),
+        ingestConfig.get().getSchemasTable()
     );
   }
 
@@ -476,6 +574,18 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
                   .map((index, r, ctx) -> resultRowAsIngestSchema(r))
                   .first()
     );
+  }
+
+  @Override
+  public boolean schemaExists(int schemaId)
+  {
+    return metadataConnector.getDBI().inTransaction(
+        (handle, status) ->
+            handle.createQuery(StringUtils.format("SELECT COUNT(1) as count FROM %1$s WHERE id=:scid", ingestConfig.get().getSchemasTable()))
+                  .bind("scid", schemaId)
+                  .map((index, r, ctx) -> r.getInt("count"))
+                  .first()
+    ) > 0;
   }
 
   @Override

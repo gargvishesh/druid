@@ -24,6 +24,7 @@ import java.util.Objects;
 
 public class TaskBasedJobStatus implements JobStatus
 {
+  private final String taskId;
   private final TaskStatusPlus taskStatus;
   private final TaskReport taskReport;
   private final IngestionStatsAndErrorsTaskReportData taskReportPayload;
@@ -31,10 +32,12 @@ public class TaskBasedJobStatus implements JobStatus
 
   @JsonCreator
   public TaskBasedJobStatus(
+      @JsonProperty("taskId") @Nullable String taskId,
       @JsonProperty("status") @Nullable TaskStatusPlus taskStatus,
       @JsonProperty("taskReport") @Nullable TaskReport taskReport
   )
   {
+    this.taskId = taskId;
     this.taskStatus = taskStatus;
     this.taskReport = taskReport;
     // The error in the taskReport contains a stack trace, remove it and get the message
@@ -49,6 +52,12 @@ public class TaskBasedJobStatus implements JobStatus
       taskReportPayload = null;
     }
     userFacingMsg = computeMessage();
+  }
+
+  @JsonProperty("taskId")
+  public String getTaskId()
+  {
+    return taskId;
   }
 
   @JsonProperty("status")
@@ -79,13 +88,15 @@ public class TaskBasedJobStatus implements JobStatus
       return false;
     }
     TaskBasedJobStatus that = (TaskBasedJobStatus) o;
-    return Objects.equals(taskStatus, that.taskStatus);
+    return Objects.equals(taskId, that.taskId) &&
+           Objects.equals(taskStatus, that.taskStatus) &&
+           Objects.equals(taskReport, that.taskReport);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(taskStatus);
+    return Objects.hash(taskId, taskStatus, taskReport);
   }
 
 

@@ -49,7 +49,7 @@ public class UpdateRunningJobsStatusDuty implements JobProcessorDuty
     try {
       for (IngestJob job : jobs) {
         JobUpdateStateResult result = job.getJobRunner().updateJobStatus(jobProcessingContext, job);
-        if (result.getJobState() != null) {
+        if (result.getJobState() != job.getJobState()) {
           LOG.info(
               "Updating state to [%s] and status to [%s] for job [%s]",
               result.getJobState(),
@@ -57,7 +57,7 @@ public class UpdateRunningJobsStatusDuty implements JobProcessorDuty
               job.getJobId()
           );
           jobProcessingContext.getMetadataStore()
-                              .setJobStateAndStatus(job.getJobId(), result.getJobStatus(), result.getJobState());
+                              .setJobStateAndStatus(job.getJobId(), result.getJobState(), result.getJobStatus());
         } else if (!Objects.equals(job.getJobStatus(), result.getJobStatus())) {
           LOG.info("Updating status to [%s] for job [%s]", result.getJobStatus(), job.getJobId());
           jobProcessingContext.getMetadataStore()

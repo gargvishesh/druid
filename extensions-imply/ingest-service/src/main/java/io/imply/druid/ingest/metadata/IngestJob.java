@@ -20,32 +20,41 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.Optional;
 
-// todo: maybe this should be less mutable
 public class IngestJob
 {
   private final String tableName;
   private final String jobId;
 
-  private JobState jobState;
-  private JobStatus jobStatus;
-  private JobRunner jobRunner;
-  private Long schemaId;
-  private IngestSchema schema;
-  private DateTime createdTime;
-  private DateTime scheduledTime;
-  private DateTime taskCreatedTime;
-  private int retryCount;
+  private final JobState jobState;
+  private final JobStatus jobStatus;
+  private final JobRunner jobRunner;
+  private final IngestSchema schema;
+  private final DateTime createdTime;
+  private final DateTime scheduledTime;
+  private final int retryCount;
 
   @JsonCreator
   public IngestJob(
       @JsonProperty("tableName") String tableName,
       @JsonProperty("jobId") String jobId,
-      @JsonProperty("jobState") JobState jobState
+      @JsonProperty("jobState") JobState jobState,
+      @JsonProperty("jobStatus") @Nullable JobStatus jobStatus,
+      @JsonProperty("jobRunner") @Nullable JobRunner jobRunner,
+      @JsonProperty("schema") @Nullable IngestSchema schema,
+      @JsonProperty("createdTime") DateTime createdTime,
+      @JsonProperty("scheduledTime") @Nullable DateTime scheduledTime,
+      @JsonProperty("retryCount") @Nullable int retryCount
   )
   {
     this.tableName = tableName;
     this.jobId = jobId;
     this.jobState = jobState;
+    this.jobStatus = jobStatus;
+    this.jobRunner = jobRunner;
+    this.schema = schema;
+    this.createdTime = createdTime;
+    this.scheduledTime = scheduledTime;
+    this.retryCount = retryCount;
   }
 
   @JsonProperty
@@ -66,6 +75,18 @@ public class IngestJob
     return jobState;
   }
 
+  @JsonProperty
+  public DateTime getCreatedTime()
+  {
+    return createdTime;
+  }
+
+  @JsonProperty
+  public DateTime getScheduledTime()
+  {
+    return scheduledTime;
+  }
+
   @JsonProperty("message")
   @Nullable
   public String getUserFacingMessage()
@@ -73,32 +94,9 @@ public class IngestJob
     return Optional.ofNullable(jobStatus).map(JobStatus::getUserFacingMessage).orElse(null);
   }
 
-  public IngestJob setJobState(JobState jobState)
-  {
-    this.jobState = jobState;
-    return this;
-  }
-
-  public Long getSchemaId()
-  {
-    return schemaId;
-  }
-
-  public IngestJob setSchemaId(Long schemaId)
-  {
-    this.schemaId = schemaId;
-    return this;
-  }
-
   public IngestSchema getSchema()
   {
     return schema;
-  }
-
-  public IngestJob setSchema(IngestSchema schema)
-  {
-    this.schema = schema;
-    return this;
   }
 
   public JobStatus getJobStatus()
@@ -106,71 +104,14 @@ public class IngestJob
     return jobStatus;
   }
 
-  public IngestJob setJobStatus(JobStatus jobStatus)
-  {
-    this.jobStatus = jobStatus;
-    return this;
-  }
-
-  public DateTime getCreatedTime()
-  {
-    return createdTime;
-  }
-
-  public IngestJob setCreatedTime(DateTime createdTime)
-  {
-    this.createdTime = createdTime;
-    return this;
-  }
-
-  public DateTime getScheduledTime()
-  {
-    return scheduledTime;
-  }
-
-  public IngestJob setScheduledTime(DateTime scheduledTime)
-  {
-    this.scheduledTime = scheduledTime;
-    return this;
-  }
-
-  public DateTime getTaskCreatedTime()
-  {
-    return taskCreatedTime;
-  }
-
-  public IngestJob setTaskCreatedTime(DateTime taskCreatedTime)
-  {
-    this.taskCreatedTime = taskCreatedTime;
-    return this;
-  }
-
-  public int getRetryCount()
-  {
-    return retryCount;
-  }
-
-  public IngestJob setRetryCount(int retryCount)
-  {
-    this.retryCount = retryCount;
-    return this;
-  }
-
-  public IngestJob incrementRetry()
-  {
-    this.retryCount++;
-    return this;
-  }
-
   public JobRunner getJobRunner()
   {
     return jobRunner;
   }
 
-  public IngestJob setJobRunner(JobRunner jobRunner)
+  public int getRetryCount()
   {
-    this.jobRunner = jobRunner;
-    return this;
+    return retryCount;
   }
 
   @Override
@@ -183,32 +124,46 @@ public class IngestJob
       return false;
     }
     IngestJob ingestJob = (IngestJob) o;
-    return getRetryCount() == ingestJob.getRetryCount() &&
-           Objects.equals(getTableName(), ingestJob.getTableName()) &&
-           Objects.equals(getJobId(), ingestJob.getJobId()) &&
-           getJobState() == ingestJob.getJobState() &&
-           Objects.equals(getJobStatus(), ingestJob.getJobStatus()) &&
-           Objects.equals(getSchemaId(), ingestJob.getSchemaId()) &&
-           Objects.equals(getSchema(), ingestJob.getSchema()) &&
-           Objects.equals(getCreatedTime(), ingestJob.getCreatedTime()) &&
-           Objects.equals(getScheduledTime(), ingestJob.getScheduledTime()) &&
-           Objects.equals(getTaskCreatedTime(), ingestJob.getTaskCreatedTime());
+    return retryCount == ingestJob.retryCount &&
+           Objects.equals(tableName, ingestJob.tableName) &&
+           Objects.equals(jobId, ingestJob.jobId) &&
+           jobState == ingestJob.jobState &&
+           Objects.equals(jobStatus, ingestJob.jobStatus) &&
+           Objects.equals(jobRunner, ingestJob.jobRunner) &&
+           Objects.equals(schema, ingestJob.schema) &&
+           Objects.equals(createdTime, ingestJob.createdTime) &&
+           Objects.equals(scheduledTime, ingestJob.scheduledTime);
   }
 
   @Override
   public int hashCode()
   {
     return Objects.hash(
-        getTableName(),
-        getJobId(),
-        getJobState(),
-        getJobStatus(),
-        getSchemaId(),
-        getSchema(),
-        getCreatedTime(),
-        getScheduledTime(),
-        getTaskCreatedTime(),
-        getRetryCount()
+        tableName,
+        jobId,
+        jobState,
+        jobStatus,
+        jobRunner,
+        schema,
+        createdTime,
+        scheduledTime,
+        retryCount
     );
+  }
+
+  @Override
+  public String toString()
+  {
+    return "IngestJob{" +
+           "tableName='" + tableName + '\'' +
+           ", jobId='" + jobId + '\'' +
+           ", jobState=" + jobState +
+           ", jobStatus=" + jobStatus +
+           ", jobRunner=" + jobRunner +
+           ", schema=" + schema +
+           ", createdTime=" + createdTime +
+           ", scheduledTime=" + scheduledTime +
+           ", retryCount=" + retryCount +
+           '}';
   }
 }
