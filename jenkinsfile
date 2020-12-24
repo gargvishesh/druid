@@ -281,7 +281,6 @@ def integrationTestsWrapper = { stageName, jdkVersion, envMap, body ->
                 checkout scm
                 workspaceCleanup()
                 docker.image(buildDockerBinaryImage("maven:3.6.3-jdk-${jdkVersion}")).inside("""\
-                    -v ${cacheDir}/.m2:/root/.m2 \
                     -v /var/run/docker.sock:/var/run/docker.sock \
                     -v /root/shared:/root/shared \
                     -e DOCKER_IP=127.0.0.1 \
@@ -458,7 +457,7 @@ stage("Checks") {
             stage("security vulnerabilities") {
                 lightweightNode {
                     docker.image("maven:3.6.3-jdk-8").inside(
-                        "--memory=8g --memory-reservation=4g -v ${cacheDir}/.m2:/root/.m2 -u root:root") {
+                        "--memory=8g --memory-reservation=4g -u root:root") {
                         checkout scm
                         withArtifactorySettings {
                             mavenInstall()
