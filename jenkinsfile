@@ -91,11 +91,6 @@ def withCurrentGitCredentials = { body ->
     }
 }
 
-def isTimeoutException = { err ->
-    err instanceof org.jenkinsci.plugins.workflow.steps.FlowInterruptedException &&
-    err.causes.collect {it.getClass()}.contains(org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution.ExceededTimeout)
-}
-
 def isShellFailedException = { err ->
     err instanceof hudson.AbortException &&
     "${err}" =~ /script\s+returned\s+exit\s+code/
@@ -242,103 +237,6 @@ def ecrLogin = { imageURL ->
     }
 }
 
-def withM2Cache = { body ->
-    def destination = "${env.WORKSPACE}@tmp/.m2Cache"
-    def buildContext = "${env.WORKSPACE}@tmp/.m2CacheBuildContext"
-    ecrLogin(M2_CACHE_IMAGE)
-    try {
-        timeout(time: 10, unit: 'MINUTES') {
-            sh script: """
-                docker pull ${M2_CACHE_IMAGE}:latest && \
-                rm -rf ${buildContext} && mkdir -p ${buildContext} && \
-                echo "FROM ${M2_CACHE_IMAGE}:latest" > ${buildContext}/Dockerfile && \
-                DOCKER_BUILDKIT=1 docker build --output type=local,dest=${destination} ${buildContext}
-            """,
-            label: "pull ${M2_CACHE_IMAGE}:latest to local .m2 repository"
-        }
-    } catch(err) {
-        if (isTimeoutException(err) || isShellFailedException(err)) {
-            sh script: "mkdir -p ${destination}/.m2", label: "creating empty .m2 dir anyway"
-        } else {
-            throw err
-        }
-    } finally {
-        sh script: "sudo chmod a+w ${destination}/.m2", label: "setting .m2 permissions"
-    }
-    body(destination)
-}
-
-def uploadM2Cache = { cacheDirPath ->
-    def dockerfilePath = "${cacheDirPath}/m2CacheDockerfile"
-    ecrLogin(M2_CACHE_IMAGE)
-    sh script: """
-        cd ${cacheDirPath}
-        echo "FROM scratch" > ${dockerfilePath}
-        echo "ADD .m2 /.m2" >> ${dockerfilePath}
-        docker build -t ${M2_CACHE_IMAGE}:${BUILD_CACHE_TAG} -f ${dockerfilePath} .
-        docker tag ${M2_CACHE_IMAGE}:${BUILD_CACHE_TAG} ${M2_CACHE_IMAGE}:latest
-        docker push ${M2_CACHE_IMAGE}:${BUILD_CACHE_TAG}
-        docker push ${M2_CACHE_IMAGE}:latest
-        docker rmi ${M2_CACHE_IMAGE}:${BUILD_CACHE_TAG} ${M2_CACHE_IMAGE}:latest
-    """
-}
-
-def downloadInstallCache = { wsPath ->
-    def buildContext = "${wsPath}@tmp/.cacheBuildContext"
-    ecrLogin(BUILD_CACHE_IMAGE)
-    dir(wsPath) {
-        try {
-            timeout(time: 10, unit: 'MINUTES') {
-                sh script: """
-                    rm -rf ${buildContext}
-                    mkdir -p ${buildContext}
-                    echo "FROM ${BUILD_CACHE_IMAGE}:${BUILD_CACHE_TAG}" > ${buildContext}/Dockerfile
-                    DOCKER_BUILDKIT=1 docker build --output type=local,dest=\$(pwd) ${buildContext}
-                """,
-                label: "pull ${BUILD_CACHE_IMAGE}:${BUILD_CACHE_TAG} to workspace"
-            }
-        } catch(err) {
-            if (isTimeoutException(err)) {
-                mavenInstall()
-            } else {
-                throw err
-            }
-        }
-    }
-}
-
-def uploadInstallCache = { wsPath ->
-    def contextPath = "${wsPath}@tmp/.buildcachecontext"
-    def dockerfileName = "BuildCacheDockerfile"
-
-    sh script: """
-        rm -rf ${contextPath}
-        mkdir -p ${contextPath}
-
-        cd ${wsPath}
-        git status --ignored --porcelain | \
-            egrep '^\\!\\!' | \
-            egrep -v '${MVN_INSTALL_CACHE_EXCLUDE}' | \
-            sed 's|/\$||' | \
-            awk -F'\\!\\! ' '{print \$2}'  | \
-            tee -a ${contextPath}/artifacts.txt
-        for aname in \$(cat ${contextPath}/artifacts.txt | grep -F '/')
-        do
-            mkdir -p \$(dirname -- "${contextPath}/root/\${aname}")
-        done
-        cat ${contextPath}/artifacts.txt | \
-            xargs -I BUILDSOURCE mv BUILDSOURCE ${contextPath}/root/BUILDSOURCE
-
-        cd ${contextPath}
-        echo "FROM scratch" > ${dockerfileName}
-        echo "COPY root/ /" >> ${dockerfileName}
-        docker build  -t ${BUILD_CACHE_IMAGE}:${BUILD_CACHE_TAG} -f ${dockerfileName} .
-        docker push ${BUILD_CACHE_IMAGE}:${BUILD_CACHE_TAG}
-        docker rmi ${BUILD_CACHE_IMAGE}:${BUILD_CACHE_TAG}
-    """,
-    label: 'upload target files'
-}
-
 def buildDockerBinaryImage = { fromImage ->
     writeFile file: "${env.WORKSPACE}@tmp/DockerBinaryImageDockerfile", text: """\
 FROM ${fromImage}
@@ -380,45 +278,42 @@ def integrationTestsWrapper = { stageName, jdkVersion, envMap, body ->
                 dockerInitCleanup()
                 sh script: "sudo rm -rf /root/shared"
                 sh script: "sudo mkdir -p /root/shared"
-                withM2Cache { cacheDir ->
-                    checkout scm
-                    workspaceCleanup()
-                    downloadInstallCache(env.WORKSPACE)
-                    docker.image(buildDockerBinaryImage("maven:3.6.3-jdk-${jdkVersion}")).inside("""\
-                        -v ${cacheDir}/.m2:/root/.m2 \
-                        -v /var/run/docker.sock:/var/run/docker.sock \
-                        -v /root/shared:/root/shared \
-                        -e DOCKER_IP=127.0.0.1 \
-                        --net host \
-                        -u root:root \
-                        """) {
-                        withArtifactorySettings {
-                            withEnv(envMap) {
-                                sh script: """
-                                    echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
-                                    apt-get update -y
-                                    apt-get install dnsutils -y
-                                    apt-get install openssl=1.0.1t-1+deb8u12 -y --allow-downgrades
-                                """
-                                try {
-                                    timeout(time: 90, unit: 'MINUTES') {
-                                        body()
-                                    }
-                                } finally {
-                                    sh script: """#!/bin/bash -ex
-                                        if  ls ~/shared/logs/*.log; then
-                                            for v in ~/shared/logs/*.log; do
-                                                echo \$v logtail ========================
-                                                tail -100 \$v
-                                            done
-                                        fi
-                                        docker ps -a
-                                        for v in broker middlemanager overlord router coordinator historical; do
-                                            echo \$v dmesg ========================
-                                            docker ps --format {{.Names}} | grep -q druid-\$v && docker exec druid-\$v sh -c 'dmesg | tail -3' || true
-                                        done
-                                    """
+                checkout scm
+                workspaceCleanup()
+                docker.image(buildDockerBinaryImage("maven:3.6.3-jdk-${jdkVersion}")).inside("""\
+                    -v /var/run/docker.sock:/var/run/docker.sock \
+                    -v /root/shared:/root/shared \
+                    -e DOCKER_IP=127.0.0.1 \
+                    --net host \
+                    -u root:root \
+                    """) {
+                    withArtifactorySettings {
+                        mavenInstall()
+                        withEnv(envMap) {
+                            sh script: """
+                                echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
+                                apt-get update -y
+                                apt-get install dnsutils -y
+                                apt-get install openssl=1.0.1t-1+deb8u12 -y --allow-downgrades
+                            """
+                            try {
+                                timeout(time: 90, unit: 'MINUTES') {
+                                    body()
                                 }
+                            } finally {
+                                sh script: """#!/bin/bash -ex
+                                    if  ls ~/shared/logs/*.log; then
+                                        for v in ~/shared/logs/*.log; do
+                                            echo \$v logtail ========================
+                                            tail -100 \$v
+                                        done
+                                    fi
+                                    docker ps -a
+                                    for v in broker middlemanager overlord router coordinator historical; do
+                                        echo \$v dmesg ========================
+                                        docker ps --format {{.Names}} | grep -q druid-\$v && docker exec druid-\$v sh -c 'dmesg | tail -3' || true
+                                    done
+                                """
                             }
                         }
                     }
@@ -556,50 +451,28 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
-stage('Maven install') {
-    skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
-        heavyNode {
-            withM2Cache { cacheDir ->
-                checkout scm
-                workspaceCleanup()
-                docker.image('maven:3.6.3-jdk-8').inside("""\
-                    --memory=8g --memory-reservation=4g \
-                    -e HOME=/tmp -e _JAVA_OPTIONS=-Duser.home=/tmp -v ${cacheDir}/.m2:/tmp/.m2 \
-                    """ ) {
-                    withArtifactorySettings {
-                        mavenInstall()
-                    }
-                }
-                uploadM2Cache(cacheDir)
-                uploadInstallCache(env.WORKSPACE)
-            }
-        }
-    }
-}
-
 stage("Checks") {
     skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
         parallel "security vulnerabilities": {
             stage("security vulnerabilities") {
                 lightweightNode {
-                    withM2Cache { cacheDir ->
-                        docker.image("maven:3.6.3-jdk-8").inside(
-                            "--memory=8g --memory-reservation=4g -v ${cacheDir}/.m2:/root/.m2 -u root:root") {
-                            checkout scm
-                            withArtifactorySettings {
-                                retryOnNonEmpty(env.WORKSPACE, 30, 3) { outputFile ->
-                                    sh script: """#!/bin/bash
-                                        set -o pipefail
+                    docker.image("maven:3.6.3-jdk-8").inside(
+                        "--memory=8g --memory-reservation=4g -u root:root") {
+                        checkout scm
+                        withArtifactorySettings {
+                            mavenInstall()
+                            retryOnNonEmpty(env.WORKSPACE, 30, 3) { outputFile ->
+                                sh script: """#!/bin/bash
+                                    set -o pipefail
 
-                                        ${MVN} dependency-check:check 2>&1 | \
-                                        tee >(grep -F 'Failed to request component-reports' >> ${outputFile}) || \
-                                        { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
-                                        of the dependency that does not have vulnerabilities. If the analysis has false positives,
-                                        they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
-                                        information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
-                                        " && false; }
-                                    """
-                                }
+                                    ${MVN} dependency-check:check 2>&1 | \
+                                    tee >(grep -F 'Failed to request component-reports' >> ${outputFile}) || \
+                                    { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
+                                    of the dependency that does not have vulnerabilities. If the analysis has false positives,
+                                    they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
+                                    information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
+                                    " && false; }
+                                """
                             }
                         }
                     }
