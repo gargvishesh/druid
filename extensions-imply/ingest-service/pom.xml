@@ -167,7 +167,11 @@
       <artifactId>netty</artifactId>
       <scope>provided</scope>
     </dependency>
-
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-common</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- test dependencies -->
     <dependency>
       <groupId>junit</groupId>

@@ -40,6 +40,14 @@ public class OverlordClient implements IndexingServiceClient
   private DruidLeaderClient druidLeaderClient;
   private final ObjectMapper jsonMapper;
 
+  static final TypeReference<Map<String, TaskReport>> TASK_REPORT_TYPE_REFERENCE;
+
+  static {
+    // this is mainly to make this unit testable...
+    TASK_REPORT_TYPE_REFERENCE = new TypeReference<Map<String, TaskReport>>()
+    {
+    };
+  }
 
   public OverlordClient(IndexingServiceClient delegate, DruidLeaderClient druidLeaderClient, ObjectMapper jsonMapper)
   {
@@ -136,11 +144,7 @@ public class OverlordClient implements IndexingServiceClient
         return null;
       }
       Map<String, TaskReport> taskReport = jsonMapper.readValue(
-          responseHolder.getContent(),
-          new TypeReference<Map<String, TaskReport>>()
-          {
-          }
-      );
+          responseHolder.getContent(), TASK_REPORT_TYPE_REFERENCE);
       return taskReport.get("ingestionStatsAndErrors");
     }
     catch (IOException | InterruptedException e) {
