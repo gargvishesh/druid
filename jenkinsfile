@@ -683,7 +683,7 @@ stage('Build and publish') {
                                     echo "Built Druid, version: $DRUID_VERSION"
 
                                     # Stage Druid
-                                    STAGING_DIR=${STAGING_BASE_DIR}/${profile}
+                                    export STAGING_DIR=${STAGING_BASE_DIR}/${profile}
                                     mkdir -p "$STAGING_DIR/dist"
                                     tar -C "$TMP_DIR" -xzf "$UPSTREAM_DIR"/distribution/target/apache-druid-*-bin.tar.gz
                                     mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
