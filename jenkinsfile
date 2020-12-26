@@ -648,6 +648,11 @@ stage('Build and publish') {
                                 (cd "$NETTY_UPSTREAM_DIR" && git checkout "$NETTY_UPSTREAM_COMMITISH")
                                 (cd "$NETTY_UPSTREAM_DIR" && mvn install -DskipTests)
 
+                                # Package clarity-emitter
+                                git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
+                                (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
+                                (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
+
                                 cd $UPSTREAM_DIR
 
                                 # remove snapshot suffix from pom files
@@ -727,10 +732,6 @@ stage('Build and publish') {
                                     fi
 
                                     # Add clarity-emitter to extensions
-                                    git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
-                                    (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
-                                    (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
-
                                     tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/http/target/clarity-emitter-http-*.tar.gz
                                     tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/kafka/target/clarity-emitter-kafka-*.tar.gz
 
