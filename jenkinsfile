@@ -643,6 +643,13 @@ stage('Build and publish') {
                                 # This should match the version used in druid
                                 MYSQL_CONNECTOR_VERSION="5.1.48"
 
+                                cd $UPSTREAM_DIR
+
+                                # remove snapshot suffix from pom files
+                                INIT_DRUID_VERSION=$(mvn help:evaluate -Dexpression=project.version | egrep -v '^[\\[D]' | fgrep -v 'Download')
+                                DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+
                                 # Install our patched version of Netty.
                                 git clone -b "$NETTY_UPSTREAM_COMMITISH" --single-branch --depth 1 "$NETTY_UPSTREAM_REPO" "$NETTY_UPSTREAM_DIR"
                                 (cd "$NETTY_UPSTREAM_DIR" && git checkout "$NETTY_UPSTREAM_COMMITISH")
@@ -652,13 +659,6 @@ stage('Build and publish') {
                                 git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
                                 (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
                                 (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
-
-                                cd $UPSTREAM_DIR
-
-                                # remove snapshot suffix from pom files
-                                INIT_DRUID_VERSION=$(mvn help:evaluate -Dexpression=project.version | egrep -v '^[\\[D]' | fgrep -v 'Download')
-                                DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
-                                mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
 
                                 run_druid_mvn_install()
                                 {
