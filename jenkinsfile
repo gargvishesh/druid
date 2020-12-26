@@ -727,6 +727,8 @@ stage('Build and publish') {
                                     fi
 
                                     # Add clarity-emitter to extensions
+                                    rm -rf $CLARITY_EMITTER_UPSTREAM_DIR
+                                    mkdir -p $CLARITY_EMITTER_UPSTREAM_DIR
                                     git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
                                     (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
                                     (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
