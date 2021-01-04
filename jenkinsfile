@@ -651,7 +651,7 @@ stage('Build and publish') {
                                 cd $UPSTREAM_DIR
 
                                 # remove snapshot suffix from pom files
-                                INIT_DRUID_VERSION=$(mvn help:evaluate -Dexpression=project.version | egrep -v '^[\\[D]' | fgrep -v 'Download')
+                                INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
                                 DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
                                 mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
 
