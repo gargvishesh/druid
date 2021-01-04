@@ -599,9 +599,8 @@ stage('Build and publish') {
                             -e GIT_ASKPASS=/tmp/askpass.sh \
                             -e GIT_CREDS_USR=${gitUser} \
                             -e BUILD_DIR=/tmp/druid-build \
-                            -e STAGING_DIR=/tmp/druid-build/stage \
+                            -e STAGING_BASE_DIR=/tmp/druid-build/stage \
                             -e TMP_DIR=/tmp/druid-build/tmp \
-                            -e DRUID_COMPILE_JAVA_VERSION='' \
                             -e UPSTREAM_DIR=${env.WORKSPACE} \
                             -e UPSTREAM_COMMIT_SHA=${HEAD_COMMIT_SHA}"""
                         ) {
@@ -652,11 +651,13 @@ stage('Build and publish') {
                                 cd $UPSTREAM_DIR
 
                                 # remove snapshot suffix from pom files
-                                mvn versions:set -DremoveSnapshot -DgenerateBackupPoms=false
+                                INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                                DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
 
                                 run_druid_mvn_install()
                                 {
-                                  mvn install \
+                                  mvn clean install \
                                   -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
                                   -Dhadoop.compile.version="$HADOOP_VERSION" \
                                   -Dmysql.version="$MYSQL_CONNECTOR_VERSION" \
@@ -670,113 +671,110 @@ stage('Build and publish') {
                                   -Dspotbugs.skip=true \
                                   -DskipTests \
                                   -T1C \
-                                  -Dtar
+                                  -Dtar \
+                                  $@
                                 }
 
-                                if [ -z "$DRUID_COMPILE_JAVA_VERSION" ]
-                                then
-                                      current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
-                                      echo "\$DRUID_COMPILE_JAVA_VERSION is not set. Compiling Druid with current Java version set. Java version=$current_java_version"
-                                      (
-                                        cd "$UPSTREAM_DIR" && \
-                                        run_druid_mvn_install
-                                      )
-                                else
-                                      echo "Compiling Druid with Java version DRUID_COMPILE_JAVA_VERSION=$DRUID_COMPILE_JAVA_VERSION"
-                                      (
-                                        sudo update-java-alternatives -s zulu-"${DRUID_COMPILE_JAVA_VERSION}"-amd64 && \
-                                        export JAVA_HOME="/usr/lib/jvm/zulu-${DRUID_COMPILE_JAVA_VERSION}-amd64" && \
-                                        export PATH="$PATH:$JAVA_HOME" && \
-                                        cd "$UPSTREAM_DIR" && \
-                                        run_druid_mvn_install
-                                      )
-                                fi
+                                current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
+                                echo "Compiling Druid with current Java version set. Java version=$current_java_version"
 
-                                DRUID_VERSION=$(cd "$UPSTREAM_DIR" && mvn help:evaluate -Dexpression=project.version | egrep -v '^[\\[D]' | fgrep -v 'Download')
-                                echo "Built Druid, version: $DRUID_VERSION"
+                                for profile in dist imply-saas; do
+                                    run_druid_mvn_install -P${profile}
+                                    echo "Built Druid, version: $DRUID_VERSION"
 
-                                # Stage Druid
-                                mkdir -p "$STAGING_DIR/dist"
-                                tar -C "$TMP_DIR" -xzf "$UPSTREAM_DIR"/distribution/target/apache-druid-*-bin.tar.gz
-                                mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
+                                    # Stage Druid
+                                    export STAGING_DIR=${STAGING_BASE_DIR}/${profile}
+                                    mkdir -p "$STAGING_DIR/dist"
+                                    tar -C "$TMP_DIR" -xzf "$UPSTREAM_DIR"/distribution/target/apache-druid-*-bin.tar.gz
+                                    mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
 
-                                # Fetch the MySQL JDBC driver from Maven Central
-                                MYSQL_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
-                                mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
-                                curl -o "$MYSQL_CONNECTOR_LOCATION" --retry 10 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${MYSQL_CONNECTOR_VERSION}/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
+                                    # Fetch the MySQL JDBC driver from Maven Central
+                                    MYSQL_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
+                                    mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
+                                    curl -o "$MYSQL_CONNECTOR_LOCATION" --retry 10 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${MYSQL_CONNECTOR_VERSION}/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
 
-                                if [ "$(sha1sum "$MYSQL_CONNECTOR_LOCATION" | awk '{print $1}')" != "9140be77aafa5050bf4bb936d560cbacb5a6b5c1" ]
-                                then
-                                  echo "$MYSQL_CONNECTOR_LOCATION: checksum mismatch" >&2
-                                  exit 1
-                                fi
+                                    if [ "$(sha1sum "$MYSQL_CONNECTOR_LOCATION" | awk '{print $1}')" != "9140be77aafa5050bf4bb936d560cbacb5a6b5c1" ]
+                                    then
+                                      echo "$MYSQL_CONNECTOR_LOCATION: checksum mismatch" >&2
+                                      exit 1
+                                    fi
 
-                                # Add materialized-view-maintenance and materialized-view-selection
-                                if [ -d "${UPSTREAM_DIR}/extensions-contrib/materialized-view-maintenance/target" ]
-                                then
-                                    mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-maintenance"
-                                    mv  "${UPSTREAM_DIR}"/extensions-contrib/materialized-view-maintenance/target/materialized-view-maintenance* \
-                                        "${STAGING_DIR}"/dist/druid/extensions/materialized-view-maintenance
-                                fi
-                                if [ -d "${UPSTREAM_DIR}/extensions-contrib/materialized-view-selection/target" ]
-                                then
-                                    mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-selection"
-                                    mv  "${UPSTREAM_DIR}"/extensions-contrib/materialized-view-selection/target/materialized-view-selection* \
-                                        "${STAGING_DIR}"/dist/druid/materialized-view-selection
-                                fi
+                                    # Add materialized-view-maintenance and materialized-view-selection
+                                    if [ -d "${UPSTREAM_DIR}/extensions-contrib/materialized-view-maintenance/target" ]
+                                    then
+                                        mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-maintenance"
+                                        mv  "${UPSTREAM_DIR}"/extensions-contrib/materialized-view-maintenance/target/materialized-view-maintenance* \
+                                            "${STAGING_DIR}"/dist/druid/extensions/materialized-view-maintenance
+                                    fi
+                                    if [ -d "${UPSTREAM_DIR}/extensions-contrib/materialized-view-selection/target" ]
+                                    then
+                                        mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-selection"
+                                        mv  "${UPSTREAM_DIR}"/extensions-contrib/materialized-view-selection/target/materialized-view-selection* \
+                                            "${STAGING_DIR}"/dist/druid/materialized-view-selection
+                                    fi
 
-                                # Add hadoop-aws
-                                (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
+                                    # Add hadoop-aws
+                                    (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
 
-                                # Add derbytools to lib
-                                DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
-                                curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
+                                    # Add derbytools to lib
+                                    DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
+                                    curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
 
-                                if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "10a124a8962c6f8ea70a368d711ce6883889ca34" ]
-                                then
-                                  echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
-                                  exit 1
-                                fi
+                                    if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "10a124a8962c6f8ea70a368d711ce6883889ca34" ]
+                                    then
+                                      echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
+                                      exit 1
+                                    fi
 
-                                # Add clarity-emitter to extensions
-                                git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
-                                (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
-                                (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
+                                    # Add clarity-emitter to extensions
+                                    rm -rf $CLARITY_EMITTER_UPSTREAM_DIR
+                                    mkdir -p $CLARITY_EMITTER_UPSTREAM_DIR
+                                    git clone -b "$CLARITY_EMITTER_UPSTREAM_COMMITISH" --single-branch --depth 1 "$CLARITY_EMITTER_UPSTREAM_REPO" "$CLARITY_EMITTER_UPSTREAM_DIR"
+                                    (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && git checkout "$CLARITY_EMITTER_UPSTREAM_COMMITISH")
+                                    (cd "$CLARITY_EMITTER_UPSTREAM_DIR" && mvn package -DskipTests -Ddruid.version="$DRUID_VERSION")
 
-                                tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/http/target/clarity-emitter-http-*.tar.gz
-                                tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/kafka/target/clarity-emitter-kafka-*.tar.gz
+                                    tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/http/target/clarity-emitter-http-*.tar.gz
+                                    tar -C "$STAGING_DIR/dist/druid/extensions" -xzf "$CLARITY_EMITTER_UPSTREAM_DIR"/kafka/target/clarity-emitter-kafka-*.tar.gz
 
-                                # Remove unsupported open-source extensions
-                                for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
-                                    rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
+                                    # Remove unsupported open-source extensions
+                                    for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
+                                        rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
+                                    done
+
+                                    # Put druid on a diet
+                                    perl - <<'EOT'
+                                    use strict;
+                                    use File::Basename;
+
+                                    my $dir = "$ENV{STAGING_DIR}/dist/druid";
+                                    chdir $dir or die "chdir $dir: $!";
+
+                                    my %jars;
+                                    for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
+                                      chomp $jar;
+                                      my $jarname = basename($jar);
+                                      if (exists $jars{$jarname}) {
+                                        my $depth = $jar =~ tr !/!/! - 1;
+                                        my $dots = "";
+                                        for my $x (1..$depth) {
+                                          $dots .= "../";
+                                        }
+                                        system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
+                                      } else {
+                                        $jars{$jarname} = $jar;
+                                      }
+                                    }
+                                    EOT
+
+                                    ARTIFACT_NAME_SUFFIX=""
+                                    if [ "${profile}" == "imply-saas" ]
+                                    then
+                                        ARTIFACT_NAME_SUFFIX="-saas"
+                                    fi
+                                    tar -C $STAGING_DIR/dist -czf $UPSTREAM_DIR/druid${ARTIFACT_NAME_SUFFIX}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
                                 done
 
-                                # Put druid on a diet
-                                perl - <<'EOT'
-                                use strict;
-                                use File::Basename;
-
-                                my $dir = "$ENV{STAGING_DIR}/dist/druid";
-                                chdir $dir or die "chdir $dir: $!";
-
-                                my %jars;
-                                for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
-                                  chomp $jar;
-                                  my $jarname = basename($jar);
-                                  if (exists $jars{$jarname}) {
-                                    my $depth = $jar =~ tr !/!/! - 1;
-                                    my $dots = "";
-                                    for my $x (1..$depth) {
-                                      $dots .= "../";
-                                    }
-                                    system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
-                                  } else {
-                                    $jars{$jarname} = $jar;
-                                  }
-                                }
-                                EOT
-
-                                tar -C $STAGING_DIR/dist -czf $UPSTREAM_DIR/druid-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
+                                echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $UPSTREAM_DIR/build.version
                             '''.replaceAll(/\n\s+/, "\n"),
                             label: 'build druid'
                         }
@@ -797,22 +795,33 @@ stage('Build and publish') {
                             """
                         )
                     }
-                    def build_version = shellOutput('''#!/bin/bash -ex
-                            ls druid-*.tar.gz | head -n 1 | sed -E "s/druid-(.+)\\.tar\\.gz/\\1/"
-                        '''
+                    def build_version = shellOutput('cat build.version')
+                    rtUpload (
+                        serverId: ARTIFACTORY_SERVER_ID,
+                        spec: """{
+                            "files": [
+                                {
+                                  "pattern": "druid-${build_version}.tar.gz",
+                                  "target": "${ARTIFACTORY_REPO}/druid/",
+                                  "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${HEAD_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${HEAD_BRANCH_NAME};build.version=${build_version}"
+                                }
+                            ]
+                        }""",
+                        buildName: "druid",
+                        buildNumber: "${BUILD_NUMBER}"
                     )
                     rtUpload (
                         serverId: ARTIFACTORY_SERVER_ID,
                         spec: """{
                             "files": [
                                 {
-                                  "pattern": "druid-*.tar.gz",
-                                  "target": "${ARTIFACTORY_REPO}/${REPO_NAME}/",
+                                  "pattern": "druid-saas-${build_version}.tar.gz",
+                                  "target": "${ARTIFACTORY_REPO}/druid-saas/",
                                   "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${HEAD_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${HEAD_BRANCH_NAME};build.version=${build_version}"
                                 }
                             ]
                         }""",
-                        buildName: "${REPO_NAME}",
+                        buildName: "druid.saas",
                         buildNumber: "${BUILD_NUMBER}"
                     )
                 }
