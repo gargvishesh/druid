@@ -297,9 +297,7 @@ def integrationTestsWrapper = { stageName, jdkVersion, envMap, body ->
                                 apt-get install openssl=1.0.1t-1+deb8u12 -y --allow-downgrades
                             """
                             try {
-                                timeout(time: 90, unit: 'MINUTES') {
-                                    body()
-                                }
+                                body()
                             } finally {
                                 sh script: """#!/bin/bash -ex
                                     if  ls ~/shared/logs/*.log; then
@@ -451,6 +449,7 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
+timeout(time: 120, unit: 'MINUTES') {
 stage("Checks") {
     skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
         parallel "security vulnerabilities": {
@@ -514,7 +513,7 @@ stage("Checks") {
             gcsDeepStorageTests("(Compile=openjdk8, Run=openjdk11) gcs deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
         }
     }
-}
+} // stage("Checks")
 
 stage('Build and publish') {
     heavyNode {
@@ -780,7 +779,7 @@ stage('Build and publish') {
                         }
                     }
                 }
-            }
+            } // build
 
             stage('upload') {
                 skipStageIf(SKIP_PUBLISH_STAGES, env.STAGE_NAME) {
@@ -825,7 +824,9 @@ stage('Build and publish') {
                         buildNumber: "${BUILD_NUMBER}"
                     )
                 }
-            }
-        }
-    }
-}
+            } // upload
+        } // withCurrentGitCredentials
+    } // heavyNode
+} // stage('Build and publish')
+
+} // timeout
