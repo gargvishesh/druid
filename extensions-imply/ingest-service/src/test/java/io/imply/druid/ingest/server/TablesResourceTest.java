@@ -9,24 +9,34 @@
 
 package io.imply.druid.ingest.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
+import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
+import io.imply.druid.ingest.samples.SampleStore;
+import io.imply.druid.ingest.samples.local.LocalSampleStore;
+import io.imply.druid.ingest.samples.local.LocalSampleStoreConfig;
+import org.apache.druid.client.indexing.SamplerResponse;
+import org.apache.druid.client.indexing.SamplerSpec;
 import org.apache.druid.common.utils.UUIDUtils;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
+import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.server.security.Access;
@@ -43,6 +53,8 @@ import org.junit.Test;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -70,25 +82,18 @@ public class TablesResourceTest
       new JsonInputFormat(null, null, null),
       "test schema"
   );
-  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig()
-  {
-    @Override
-    public String getAccountId()
-    {
-      return "test-account";
-    }
-
-    @Override
-    public String getClusterId()
-    {
-      return "test-cluster-1";
-    }
-  };
+  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig(
+      "test-account",
+      "test-cluster-1"
+  );
 
   private FileStore fileStore;
   private IngestServiceMetadataStore metadataStore;
   private HttpServletRequest req;
   private TablesResource tablesResource;
+  private SampleStore sampleStore;
+  private OverlordClient overlordClient;
+  private ObjectMapper jsonMapper;
 
   private static final List<Table> TABLE_LIST;
   private static final List<Table> TABLE_LIST_WRITE;
@@ -134,6 +139,8 @@ public class TablesResourceTest
   @Before
   public void setup()
   {
+    jsonMapper = new DefaultObjectMapper();
+
     fileStore = EasyMock.createMock(FileStore.class);
     metadataStore = EasyMock.createMock(IngestServiceMetadataStore.class);
     req = EasyMock.createMock(HttpServletRequest.class);
@@ -154,7 +161,23 @@ public class TablesResourceTest
         };
       }
     };
-    tablesResource = new TablesResource(tenantConfig, authMapper, fileStore, metadataStore);
+    overlordClient = EasyMock.createMock(OverlordClient.class);
+
+    File tmpDir = FileUtils.createTempDir();
+    sampleStore = new LocalSampleStore(
+        tenantConfig,
+        new LocalSampleStoreConfig(tmpDir.getAbsolutePath()),
+        jsonMapper
+    );
+    tablesResource = new TablesResource(
+        tenantConfig,
+        authMapper,
+        fileStore,
+        metadataStore,
+        sampleStore,
+        overlordClient,
+        jsonMapper
+    );
   }
 
   @After
@@ -565,6 +588,78 @@ public class TablesResourceTest
     Assert.assertEquals(responseTableStatsMap.get("tables"), expectedTablesList);
 
     Assert.assertEquals(200, response.getStatus());
+  }
+
+  @Test
+  public void testSample() throws IOException
+  {
+    // expectAuthorizationTokenCheck(); see resource filter annotations are not called when testing in this manner
+    // see https://github.com/apache/druid/issues/6685
+
+    IngestJobRequest ingestJobRequest = new IngestJobRequest(
+        TEST_SCHEMA,
+        null
+    );
+
+    String tableName = "testSample_table";
+    String jobId = "testSample_jobId";
+
+    SamplerResponse samplerResponse = new SamplerResponse(
+        2,
+        2,
+        ImmutableList.of(
+            new SamplerResponse.SamplerResponseRow(
+                ImmutableMap.of("time", "2020-01-01", "x", "123", "y", "456"),
+                ImmutableMap.of("time", "2020-01-01", "x", "123", "y", "456"),
+                false,
+                null
+            )
+        )
+    );
+
+    EasyMock.expect(fileStore.makeInputSource(EasyMock.anyString()))
+            .andReturn(new LocalInputSource(new File("a"), "a", null))
+            .anyTimes();
+    EasyMock.expect(overlordClient.sample(EasyMock.anyObject(SamplerSpec.class)))
+            .andReturn(samplerResponse)
+            .anyTimes();
+    EasyMock.replay(fileStore, overlordClient, metadataStore, req);
+
+    Response httpResponse = tablesResource.sampleIngestJob(
+        ingestJobRequest,
+        tableName,
+        jobId
+    );
+    SamplerResponse samplerResponseFromAPICall = (SamplerResponse) httpResponse.getEntity();
+    Assert.assertEquals(samplerResponse, samplerResponseFromAPICall);
+
+    // make sure the first response has been cached successfully
+    SamplerResponse cachedSamplerResponse = sampleStore.getSamplerResponse(jobId);
+    Assert.assertEquals(samplerResponse, cachedSamplerResponse);
+
+    // call the sample API again after first response has been cached
+    httpResponse = tablesResource.sampleIngestJob(
+        ingestJobRequest,
+        tableName,
+        jobId
+    );
+    samplerResponseFromAPICall = (SamplerResponse) httpResponse.getEntity();
+    Assert.assertEquals(samplerResponse, samplerResponseFromAPICall);
+
+    // delete the sample from cache
+    sampleStore.deleteSample(jobId);
+    Assert.assertNull(sampleStore.getSamplerResponse(jobId));
+
+    // make sure sampling works again after deleting
+    httpResponse = tablesResource.sampleIngestJob(
+        ingestJobRequest,
+        tableName,
+        jobId
+    );
+    samplerResponseFromAPICall = (SamplerResponse) httpResponse.getEntity();
+    Assert.assertEquals(samplerResponse, samplerResponseFromAPICall);
+
+    EasyMock.verify(overlordClient);
   }
 
   private void expectAuthorizationTokenCheck()

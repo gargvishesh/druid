@@ -89,7 +89,7 @@ public class LocalFileStore extends BaseFileStore
   private String makeFullPath(String name)
   {
     return StringUtils.format(
-        "%s%s",
+        "%s/%s",
         fileConfig.getBaseDir(),
         getSubPath(name)
     );

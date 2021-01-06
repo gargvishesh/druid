@@ -9,7 +9,10 @@
 
 package io.imply.druid.ingest.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
@@ -18,12 +21,26 @@ import io.imply.druid.ingest.config.IngestServiceTenantConfig;
 import io.imply.druid.ingest.files.FileStore;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
+import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.jobs.runners.BatchAppendJobRunner;
+import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.Table;
 import io.imply.druid.ingest.metadata.TableJobStateStats;
+import io.imply.druid.ingest.samples.SampleStore;
+import org.apache.druid.client.indexing.SamplerResponse;
+import org.apache.druid.client.indexing.SamplerSpec;
+import org.apache.druid.data.input.InputSource;
+import org.apache.druid.data.input.impl.InlineInputSource;
+import org.apache.druid.indexing.common.task.IndexTask;
+import org.apache.druid.indexing.overlord.sampler.IndexTaskSamplerSpec;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.segment.indexing.DataSchema;
+import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizationUtils;
@@ -44,6 +61,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,23 +74,34 @@ import java.util.Set;
 @Path("/ingest/v1/tables")
 public class TablesResource
 {
+  private static final Logger LOG = new Logger(TablesResource.class);
+
   private final IngestServiceTenantConfig config;
   private final AuthorizerMapper authorizerMapper;
   private final FileStore fileStore;
   private final IngestServiceMetadataStore metadataStore;
+  private final SampleStore sampleStore;
+  private final OverlordClient overlordClient;
+  private final ObjectMapper jsonMapper;
 
   @Inject
   public TablesResource(
       IngestServiceTenantConfig config,
       AuthorizerMapper authorizerMapper,
       FileStore fileStore,
-      IngestServiceMetadataStore metadataStore
+      IngestServiceMetadataStore metadataStore,
+      SampleStore sampleStore,
+      OverlordClient overlordClient,
+      ObjectMapper jsonMapper
   )
   {
     this.config = config;
     this.authorizerMapper = authorizerMapper;
     this.fileStore = fileStore;
     this.metadataStore = metadataStore;
+    this.sampleStore = sampleStore;
+    this.overlordClient = overlordClient;
+    this.jsonMapper = jsonMapper;
   }
 
   @GET
@@ -242,12 +271,40 @@ public class TablesResource
       @PathParam("jobId") String jobId
   )
   {
-    // most of this logic should probably live somewhere else, but;
+    if (Strings.isNullOrEmpty(tableName)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("table name cannot be empty or null").build();
+    }
+
+    if (Strings.isNullOrEmpty(jobId)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("jobId cannot be empty or null").build();
+    }
+
     // check for existing sample file in sample store
     // - if exists, issue sample request to overlord using sample file as inline input source
     // - if not, issue sample request to overlord using actual file as s3 input source, and save sampled output into
     //   new sample file
-    return Response.noContent().build();
+    final SamplerSpec samplerSpec;
+    try {
+      samplerSpec = buildSamplerSpec(sampleRequest, tableName, jobId);
+    }
+    catch (IOException ioe) {
+      // IOException means there was an issue reading from the sample store, our fault probably
+      LOG.error("Encountered IOException while reading from sample store for jobId[%s], table[%s]", jobId, tableName);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+    catch (Exception ex) {
+      // Other exceptions are probably from user error, such as a malformed request
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
+
+    try {
+      SamplerResponse samplerResponse = overlordClient.sample(samplerSpec);
+      sampleStore.storeSample(jobId, samplerResponse);
+      return Response.ok(samplerResponse).build();
+    }
+    catch (Exception ex) {
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
   }
 
   @POST
@@ -331,5 +388,61 @@ public class TablesResource
             authorizerMapper
         )
     ).forEach(ts -> ts.addPermissions(Action.READ));
+  }
+
+  protected SamplerSpec buildSamplerSpec(
+      IngestJobRequest jobRequest,
+      String tableName,
+      String jobId
+  ) throws IOException
+  {
+    final IngestSchema ingestSchema = jobRequest.getSchema();
+    final DataSchema dataSchema = new DataSchema(
+        tableName,
+        ingestSchema.getTimestampSpec(),
+        ingestSchema.getDimensionsSpec(),
+        new AggregatorFactory[]{}, // no rollup for now
+        new UniformGranularitySpec(
+            ingestSchema.getPartitionScheme().getSegmentGranularity(),
+            Granularities.NONE,
+            false, // no rollup for now
+            null
+        ),
+        null
+    );
+
+    // if we've already sampled before, use the cached response data from the previous sampling
+    // otherwise, use the input file from the file store
+    final SamplerResponse cachedSamplerResponse = sampleStore.getSamplerResponse(jobId);
+    final InputSource inputSource = cachedSamplerResponse != null ?
+                                    makeInlineInputSource(cachedSamplerResponse) :
+                                    fileStore.makeInputSource(jobId);
+
+    final IndexTask.IndexIOConfig ioConfig = new IndexTask.IndexIOConfig(
+        null,
+        inputSource,
+        ingestSchema.getInputFormat(),
+        null
+    );
+
+    return new IndexTaskSamplerSpec(
+        new IndexTask.IndexIngestionSpec(
+            dataSchema,
+            ioConfig,
+            null
+        ),
+        null,
+        null
+    );
+  }
+
+  private InlineInputSource makeInlineInputSource(SamplerResponse cachedSamplerResponse)
+  {
+    try {
+      return new InlineInputSource(jsonMapper.writeValueAsString(cachedSamplerResponse.getData()));
+    }
+    catch (JsonProcessingException jpe) {
+      throw new RuntimeException(jpe);
+    }
   }
 }

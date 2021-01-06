@@ -9,6 +9,19 @@
 
 package io.imply.druid.ingest.samples;
 
+import org.apache.druid.client.indexing.SamplerResponse;
+
+import javax.annotation.Nullable;
+import java.io.IOException;
+
 public interface SampleStore
 {
+  String STORE_PROPERTY_BASE = "imply.ingest.sampleStore";
+
+  @Nullable
+  SamplerResponse getSamplerResponse(String jobId) throws IOException;
+
+  void storeSample(String jobId, SamplerResponse samplerResponse);
+
+  void deleteSample(String jobId);
 }

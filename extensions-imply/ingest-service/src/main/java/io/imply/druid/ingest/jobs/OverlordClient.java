@@ -13,6 +13,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.client.indexing.ClientCompactionTaskQueryTuningConfig;
 import org.apache.druid.client.indexing.IndexingServiceClient;
+import org.apache.druid.client.indexing.SamplerResponse;
+import org.apache.druid.client.indexing.SamplerSpec;
 import org.apache.druid.client.indexing.TaskPayloadResponse;
 import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.client.indexing.TaskStatusResponse;
@@ -128,6 +130,12 @@ public class OverlordClient implements IndexingServiceClient
   public TaskPayloadResponse getTaskPayload(String taskId)
   {
     return delegate.getTaskPayload(taskId);
+  }
+
+  @Override
+  public SamplerResponse sample(SamplerSpec samplerSpec)
+  {
+    return delegate.sample(samplerSpec);
   }
 
   @Nullable
