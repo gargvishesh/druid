@@ -24,7 +24,7 @@ import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.PartitionScheme;
 import io.imply.druid.ingest.metadata.Table;
-import io.imply.druid.ingest.metadata.TableJobStateStats;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -42,15 +42,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class IngestServiceSqlMetadataStoreTest
 {
   private static final ObjectMapper MAPPER = TestHelper.makeJsonMapper();
   private static final String TABLE = "some_table";
+  private static final String OTHER_TABLE = "other_table";
+  private static final String ANOTHER_TABLE = "another_table";
   private static final IngestSchema TEST_SCHEMA = new IngestSchema(
       new TimestampSpec("time", "iso", null),
       new DimensionsSpec(
@@ -136,50 +141,110 @@ public class IngestServiceSqlMetadataStoreTest
 
 
   @Test
-  public void testGetJobCountPerTablePerState()
+  public void testTableJobSummaryNoJobs()
   {
     metadataStore.insertTable(TABLE);
-    String jobId = metadataStore.stageJob(TABLE, jobType);
-    metadataStore.scheduleJob(jobId, TEST_SCHEMA);
-    String taskId = BatchAppendJobRunner.generateTaskId(jobId);
-    JobStatus expectedStatus = new TaskBasedJobStatus(taskId, null, null);
-    metadataStore.setJobStateAndStatus(jobId, JobState.RUNNING, expectedStatus);
+    metadataStore.insertTable(TABLE + "_1");
 
-    IngestJob job = metadataStore.getJob(jobId);
-    Assert.assertNotNull(job);
-    Assert.assertEquals(JobState.RUNNING, job.getJobState());
-    Assert.assertEquals(expectedStatus, job.getJobStatus());
+    Assert.assertEquals(0, metadataStore.getJobs(null).size());
 
-    Set<TableJobStateStats> stats =
-        metadataStore.getJobCountPerTablePerState(Collections.singleton(JobState.RUNNING));
-    Assert.assertTrue(stats.size() == 1);
-    stats.forEach(s -> {
-      Assert.assertTrue(s.getJobStateCounts().get(0).getJobState().equals(JobState.RUNNING));
-      Assert.assertTrue(s.getJobStateCounts().size() == 1);
-    });
+    // expect 2 tables
+    List<Table> tables = metadataStore.getTables();
+    Assert.assertEquals(2, tables.size());
 
+    // expect no running jobs,
+    Map<Table, Object2IntMap<JobState>> summaries =
+        metadataStore.getTableJobSummary(Collections.singleton(JobState.RUNNING));
+    Assert.assertEquals(0, summaries.size());
 
-    expectedStatus = new TaskBasedJobStatus(
-        taskId,
-        BatchAppendJobRunnerTest.makeTaskStatusPlus(taskId, TaskState.SUCCESS),
-        null
-    );
-    metadataStore.setJobStateAndStatus(jobId, JobState.COMPLETE, expectedStatus);
+    // expect two table summaries, null states
+    summaries = metadataStore.getTableJobSummary(null);
+    Assert.assertEquals(2, summaries.size());
+    for (Table t : tables) {
+      Assert.assertTrue(summaries.containsKey(t));
+      Assert.assertNull(summaries.get(t));
+    }
+  }
 
+  @Test
+  public void testTableJobSummaryFilter()
+  {
+    metadataStore.insertTable(TABLE);
+    metadataStore.insertTable(OTHER_TABLE);
+    metadataStore.insertTable(ANOTHER_TABLE);
 
-    job = metadataStore.getJob(jobId);
-    Assert.assertNotNull(job);
-    Assert.assertEquals(JobState.COMPLETE, job.getJobState());
-    Assert.assertEquals(expectedStatus, job.getJobStatus());
+    List<Table> tables = metadataStore.getTables();
+    Map<String, Table> tableMap = tables.stream().collect(Collectors.toMap(Table::getName, Function.identity()));
 
-    stats =
-        metadataStore.getJobCountPerTablePerState(Collections.singleton(JobState.COMPLETE));
-    Assert.assertTrue(stats.size() == 1);
-    stats.forEach(s -> {
-      Assert.assertTrue(s.getJobStateCounts().get(0).getJobState().equals(JobState.COMPLETE));
-      Assert.assertTrue(s.getJobStateCounts().size() == 1);
-    });
+    // TABLE has scheduled, running, and complete jobs
+    stageSomeJobsAndSetStates(TABLE, JobState.SCHEDULED, 3);
+    stageSomeJobsAndSetStates(TABLE, JobState.RUNNING, 5);
+    stageSomeJobsAndSetStates(TABLE, JobState.COMPLETE, 15);
 
+    // OTHER_TABLE has scheduled and complete jobs
+    stageSomeJobsAndSetStates(OTHER_TABLE, JobState.SCHEDULED, 1);
+    stageSomeJobsAndSetStates(OTHER_TABLE, JobState.COMPLETE, 3);
+
+    // ANOTHER_TABLE has no jobs
+
+    // no job state filter, expect all tables, expect 2 state count maps, 1 null valued state count map since no jobs
+    // on that table
+    Map<Table, Object2IntMap<JobState>> summaries = metadataStore.getTableJobSummary(null);
+    Assert.assertEquals(3, summaries.get(tableMap.get(TABLE)).keySet().size());
+    Assert.assertEquals(5, summaries.get(tableMap.get(TABLE)).getInt(JobState.RUNNING));
+    Assert.assertEquals(3, summaries.get(tableMap.get(TABLE)).getInt(JobState.SCHEDULED));
+    Assert.assertEquals(15, summaries.get(tableMap.get(TABLE)).getInt(JobState.COMPLETE));
+
+    Assert.assertEquals(2, summaries.get(tableMap.get(OTHER_TABLE)).keySet().size());
+    Assert.assertEquals(1, summaries.get(tableMap.get(OTHER_TABLE)).getInt(JobState.SCHEDULED));
+    Assert.assertEquals(3, summaries.get(tableMap.get(OTHER_TABLE)).getInt(JobState.COMPLETE));
+
+    // this one has no jobs, expect empty map
+    Assert.assertNull(summaries.get(tableMap.get(ANOTHER_TABLE)));
+
+    // filter by running, expect all tables, expect 1 state count map, 2 null valued state count maps since no running
+    // jobs on those tables
+    summaries = metadataStore.getTableJobSummary(ImmutableSet.of(JobState.RUNNING));
+    Assert.assertEquals(5, summaries.get(tableMap.get(TABLE)).getInt(JobState.RUNNING));
+    Assert.assertFalse(summaries.get(tableMap.get(TABLE)).containsKey(JobState.SCHEDULED));
+    Assert.assertFalse(summaries.get(tableMap.get(TABLE)).containsKey(JobState.COMPLETE));
+
+    // this one has no running jobs, expect empty map
+    Assert.assertNull(summaries.get(tableMap.get(OTHER_TABLE)));
+
+    // this one has no jobs, expect empty map
+    Assert.assertNull(summaries.get(tableMap.get(ANOTHER_TABLE)));
+
+    // filter by scheduled, expect all tables, expect 2 state count maps, 1 null valued state count map since no jobs
+    // on that table
+    summaries = metadataStore.getTableJobSummary(ImmutableSet.of(JobState.SCHEDULED));
+    Assert.assertEquals(3, summaries.get(tableMap.get(TABLE)).getInt(JobState.SCHEDULED));
+    Assert.assertFalse(summaries.get(tableMap.get(TABLE)).containsKey(JobState.RUNNING));
+    Assert.assertFalse(summaries.get(tableMap.get(TABLE)).containsKey(JobState.COMPLETE));
+
+    Assert.assertEquals(1, summaries.get(tableMap.get(OTHER_TABLE)).getInt(JobState.SCHEDULED));
+    Assert.assertFalse(summaries.get(tableMap.get(OTHER_TABLE)).containsKey(JobState.COMPLETE));
+
+    // this one has no jobs, expect empty map
+    Assert.assertNull(summaries.get(tableMap.get(ANOTHER_TABLE)));
+  }
+
+  private List<IngestJob> stageSomeJobsAndSetStates(String table, JobState jobState, int count)
+  {
+    List<IngestJob> jobs = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      String jobId = metadataStore.stageJob(table, jobType);
+      metadataStore.scheduleJob(jobId, TEST_SCHEMA);
+      String taskId = BatchAppendJobRunner.generateTaskId(jobId);
+      JobStatus expectedStatus = new TaskBasedJobStatus(taskId, null, null);
+      metadataStore.setJobStateAndStatus(jobId, jobState, expectedStatus);
+      IngestJob job = metadataStore.getJob(jobId);
+      Assert.assertNotNull(job);
+      Assert.assertEquals(jobState, job.getJobState());
+      Assert.assertEquals(expectedStatus, job.getJobStatus());
+      jobs.add(job);
+    }
+    return jobs;
   }
 
   @Test

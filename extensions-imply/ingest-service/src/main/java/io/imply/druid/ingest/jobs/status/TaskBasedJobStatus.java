@@ -27,8 +27,6 @@ public class TaskBasedJobStatus implements JobStatus
   private final String taskId;
   private final TaskStatusPlus taskStatus;
   private final TaskReport taskReport;
-  private final IngestionStatsAndErrorsTaskReportData taskReportPayload;
-  private final String userFacingMsg;
 
   @JsonCreator
   public TaskBasedJobStatus(
@@ -40,18 +38,6 @@ public class TaskBasedJobStatus implements JobStatus
     this.taskId = taskId;
     this.taskStatus = taskStatus;
     this.taskReport = taskReport;
-    // The error in the taskReport contains a stack trace, remove it and get the message
-    // only to avoid communicating internals to the user
-    // An alternative to cleaning up would be to just store the message when
-    // creating the task report in druid rather than the whole stack trace.
-    // For now this is good enough to experiment with error handling in the
-    // ingest service
-    if (taskReport != null && taskReport.getPayload() instanceof IngestionStatsAndErrorsTaskReportData) {
-      taskReportPayload = (IngestionStatsAndErrorsTaskReportData) taskReport.getPayload();
-    } else {
-      taskReportPayload = null;
-    }
-    userFacingMsg = computeMessage();
   }
 
   @JsonProperty("taskId")
@@ -73,9 +59,9 @@ public class TaskBasedJobStatus implements JobStatus
   }
 
   @Override
-  public String getUserFacingMessage()
+  public String getMessage()
   {
-    return userFacingMsg;
+    return computeMessage();
   }
 
   @Override
@@ -109,12 +95,20 @@ public class TaskBasedJobStatus implements JobStatus
   // for now it is all put together in a structured String...
   private String computeMessage()
   {
-    String message = null;
-    if (taskReportPayload != null) {
 
+    // The error in the taskReport contains a stack trace, remove it and get the message
+    // only to avoid communicating internals to the user
+    // An alternative to cleaning up would be to just store the message when
+    // creating the task report in druid rather than the whole stack trace.
+    // For now this is good enough to experiment with error handling in the
+    // ingest service
+    String message = null;
+    if (taskReport != null && taskReport.getPayload() instanceof IngestionStatsAndErrorsTaskReportData) {
+      IngestionStatsAndErrorsTaskReportData taskReportPayload =
+          (IngestionStatsAndErrorsTaskReportData) taskReport.getPayload();
       message = StackTraceUtils.extractMessageFromStackTraceIfNeeded(taskReportPayload.getErrorMsg());
 
-      Map determinePartitions = (Map) taskReportPayload.getRowStats().get("determinePartitions");
+      Map<?, ?> determinePartitions = (Map<?, ?>) taskReportPayload.getRowStats().get("determinePartitions");
       Integer processed = (Integer) determinePartitions.get("processed");
       if (processed != null) {
         Integer processedWithError = (Integer) determinePartitions.get("processedWithError");

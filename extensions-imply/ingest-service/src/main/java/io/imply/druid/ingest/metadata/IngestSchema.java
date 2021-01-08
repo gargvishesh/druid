@@ -19,6 +19,10 @@ import org.apache.druid.data.input.impl.TimestampSpec;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
+/**
+ * Ingestion schema which defines how an {@link IngestJob} might load data into a table. Decorated for JSON
+ * serialization so that it can be persisted as a JSON blob, as well as be used directly by API requests and responses.
+ */
 public class IngestSchema
 {
   protected final TimestampSpec timestampSpec;

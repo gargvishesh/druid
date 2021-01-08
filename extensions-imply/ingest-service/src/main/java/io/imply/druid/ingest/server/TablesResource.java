@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
@@ -27,8 +26,8 @@ import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.Table;
-import io.imply.druid.ingest.metadata.TableJobStateStats;
 import io.imply.druid.ingest.samples.SampleStore;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.apache.druid.client.indexing.SamplerResponse;
 import org.apache.druid.client.indexing.SamplerSpec;
 import org.apache.druid.data.input.InputSource;
@@ -42,7 +41,7 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
 import org.apache.druid.server.security.Action;
-import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
@@ -63,18 +62,28 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Path("/ingest/v1/tables")
 public class TablesResource
 {
   private static final Logger LOG = new Logger(TablesResource.class);
+
+  private static final Function<Table, Iterable<ResourceAction>> TABLE_WRITE_RA_GENERATOR =
+      table -> Collections.singletonList(
+          new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.WRITE)
+      );
+  private static final Function<Table, Iterable<ResourceAction>> TABLE_READ_RA_GENERATOR =
+      table -> Collections.singletonList(
+          new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.READ)
+      );
 
   private final IngestServiceTenantConfig config;
   private final AuthorizerMapper authorizerMapper;
@@ -111,19 +120,18 @@ public class TablesResource
       @Context final HttpServletRequest req
   )
   {
-    Set<TableJobStateStats> allTables;
-    Set<JobState> jss = null; // this is the value for "ALL"
+    Set<JobState> jobStateFilter = null; // this is the value for "ALL"
     String badArgument = null;
-    if (states.toUpperCase(Locale.ROOT).equals("NONE")) {
-      jss = Collections.emptySet();
-    } else if (!states.toUpperCase(Locale.ROOT).equals("ALL")) {
+    if ("NONE".equals(StringUtils.toUpperCase(states))) {
+      jobStateFilter = Collections.emptySet();
+    } else if (!"ALL".equals(StringUtils.toUpperCase(states))) {
       // only valid state names are allowed here, note that "ALL" AND "NONE" are not
       // valid here and will be rejected...
-      jss = new HashSet<>();
+      jobStateFilter = new HashSet<>();
       String[] statesList = states.split(",");
       for (String state : statesList) {
         try {
-          jss.add(JobState.valueOf(state.toUpperCase(Locale.ROOT)));
+          jobStateFilter.add(JobState.valueOf(StringUtils.toUpperCase(state)));
         }
         catch (Exception e) {
           badArgument = state;
@@ -132,17 +140,15 @@ public class TablesResource
     }
     Response response;
     if (badArgument != null) {
-      response = Response.status(400).entity(StringUtils.format("Bad state name: %s", badArgument)).build();
+      response = badRequest(StringUtils.format("Bad state name: %s", badArgument));
     } else {
-      // all ok....
-      allTables = metadataStore.getJobCountPerTablePerState(jss);
-      assignPermissions(allTables, req);
-      List<TableJobStateStats> sorted = new ArrayList<>(allTables);
-      sorted.sort(Comparator.comparing(TableJobStateStats::getName));
-      response = Response.ok(ImmutableMap.of("tables", sorted)).build();
+      List<TableInfo> tables = getTablesInfo(req, jobStateFilter);
+      response = Response.ok(new TablesResponse(tables)).build();
     }
     return response;
   }
+
+
 
   @POST
   @Produces(MediaType.APPLICATION_JSON)
@@ -217,17 +223,6 @@ public class TablesResource
     return Response.noContent().build();
   }
 
-  @GET
-  @Path("/{table}/jobs")
-  @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(TablesResourceFilter.class)
-  public Response listIngestJobs(
-      @PathParam("table") String tableName
-  )
-  {
-    return Response.noContent().build();
-  }
-
   @POST
   @Path("/{table}/jobs")
   @Produces(MediaType.APPLICATION_JSON)
@@ -246,19 +241,6 @@ public class TablesResource
     String jobId = metadataStore.stageJob(tableName, jobTypeToUse);
     URI dropoff = fileStore.makeDropoffUri(jobId);
     return Response.ok(ImmutableMap.of("jobId", jobId, "dropoffUri", dropoff)).build();
-  }
-
-  @DELETE
-  @Path("/{table}/jobs/{jobId}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(TablesResourceFilter.class)
-  public Response cancelIngestJob(
-      @PathParam("table") String tableName,
-      @PathParam("jobId") String jobId
-  )
-  {
-    // cancel job
-    return Response.noContent().build();
   }
 
   @POST
@@ -358,36 +340,60 @@ public class TablesResource
     return Response.status(Response.Status.BAD_REQUEST).entity(ImmutableMap.of("error", error)).build();
   }
 
-  private void assignPermissions(Set<TableJobStateStats> tables, HttpServletRequest req)
+  private List<TableInfo> getTablesInfo(HttpServletRequest req, Set<JobState> jobStateFilter)
   {
-    // decorate WRITE tables:
-    // iterate through list of tables, filter by write authorized
-    Function<Table, Iterable<ResourceAction>> raGenerator = table -> Collections.singletonList(
-        new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.WRITE)
-    );
-    Lists.newArrayList(
+    final Map<Table, Object2IntMap<JobState>> tableJobSummaries = metadataStore.getTableJobSummary(jobStateFilter);
+    final Set<String> writeTables = StreamSupport.stream(
         AuthorizationUtils.filterAuthorizedResources(
             req,
-            tables,
-            raGenerator,
+            tableJobSummaries.keySet(),
+            TABLE_WRITE_RA_GENERATOR,
             authorizerMapper
-        )
-    ).forEach(ts -> ts.addPermissions(Action.WRITE));
+        ).spliterator(),
+        false
+    ).map(Table::getName).collect(Collectors.toSet());
+    // re-use auth result for 2nd pass so it doesn't get set twice
+    final AuthenticationResult authResult = AuthorizationUtils.authenticationResultFromRequest(req);
+    final Set<String> readTables = StreamSupport.stream(
+        AuthorizationUtils.filterAuthorizedResources(
+            authResult,
+            tableJobSummaries.keySet(),
+            TABLE_READ_RA_GENERATOR,
+            authorizerMapper
+        ).spliterator(),
+        false
+    ).map(Table::getName).collect(Collectors.toSet());
 
-    // another pass with Action.READ
-    // Need to reset the checked flag...
-    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, null);
-    raGenerator = table -> Collections.singletonList(
-        new ResourceAction(new Resource(table.getName(), ResourceType.DATASOURCE), Action.READ)
-    );
-    Lists.newArrayList(
-        AuthorizationUtils.filterAuthorizedResources(
-            req,
-            tables,
-            raGenerator,
-            authorizerMapper
-        )
-    ).forEach(ts -> ts.addPermissions(Action.READ));
+    return tableJobSummaries.entrySet()
+                        .stream()
+                        .map(kvp -> {
+                          final Set<Action> actions = new HashSet<>();
+                          final Table t = kvp.getKey();
+                          if (readTables.contains(t.getName())) {
+                            actions.add(Action.READ);
+                          }
+                          if (writeTables.contains(t.getName())) {
+                            actions.add(Action.WRITE);
+                          }
+                          final List<TableInfo.JobStateCount> jobStateCounts;
+                          if (kvp.getValue() != null) {
+                            jobStateCounts = kvp.getValue()
+                                                .object2IntEntrySet()
+                                                .stream()
+                                                .map(e -> new TableInfo.JobStateCount(e.getKey(), e.getIntValue()))
+                                                .collect(Collectors.toList());
+                          } else {
+                            jobStateCounts = null;
+                          }
+                          return new TableInfo(
+                              t.getName(),
+                              t.getCreatedTime(),
+                              actions.size() > 0 ? actions : null,
+                              jobStateCounts
+                          );
+                        })
+                        .sorted(Comparator.comparing(TableInfo::getName))
+                        .collect(Collectors.toList());
   }
 
   protected SamplerSpec buildSamplerSpec(

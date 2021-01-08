@@ -9,8 +9,6 @@
 
 package io.imply.druid.ingest.metadata;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
@@ -20,6 +18,11 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Materialized object form of job table data stored in the jobs table of the {@link IngestServiceMetadataStore}.
+ * {@link IngestSchema} will be created either from inline stored blob, or from
+ * {@link IngestServiceMetadataStore#getSchema} if the row refers to an external schema.
+ */
 public class IngestJob
 {
   private final String tableName;
@@ -33,17 +36,16 @@ public class IngestJob
   private final DateTime scheduledTime;
   private final int retryCount;
 
-  @JsonCreator
   public IngestJob(
-      @JsonProperty("tableName") String tableName,
-      @JsonProperty("jobId") String jobId,
-      @JsonProperty("jobState") JobState jobState,
-      @JsonProperty("jobStatus") @Nullable JobStatus jobStatus,
-      @JsonProperty("jobRunner") @Nullable JobRunner jobRunner,
-      @JsonProperty("schema") @Nullable IngestSchema schema,
-      @JsonProperty("createdTime") DateTime createdTime,
-      @JsonProperty("scheduledTime") @Nullable DateTime scheduledTime,
-      @JsonProperty("retryCount") @Nullable int retryCount
+      String tableName,
+      String jobId,
+      JobState jobState,
+      @Nullable JobStatus jobStatus,
+      @Nullable JobRunner jobRunner,
+      @Nullable IngestSchema schema,
+      DateTime createdTime,
+      @Nullable DateTime scheduledTime,
+      @Nullable int retryCount
   )
   {
     this.tableName = tableName;
@@ -57,41 +59,35 @@ public class IngestJob
     this.retryCount = retryCount;
   }
 
-  @JsonProperty
   public String getTableName()
   {
     return tableName;
   }
 
-  @JsonProperty
   public String getJobId()
   {
     return jobId;
   }
 
-  @JsonProperty
   public JobState getJobState()
   {
     return jobState;
   }
 
-  @JsonProperty
   public DateTime getCreatedTime()
   {
     return createdTime;
   }
 
-  @JsonProperty
   public DateTime getScheduledTime()
   {
     return scheduledTime;
   }
 
-  @JsonProperty("message")
   @Nullable
   public String getUserFacingMessage()
   {
-    return Optional.ofNullable(jobStatus).map(JobStatus::getUserFacingMessage).orElse(null);
+    return Optional.ofNullable(jobStatus).map(JobStatus::getMessage).orElse(null);
   }
 
   public IngestSchema getSchema()

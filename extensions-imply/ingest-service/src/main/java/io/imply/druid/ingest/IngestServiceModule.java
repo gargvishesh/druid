@@ -25,16 +25,20 @@ import io.imply.druid.ingest.server.IngestServiceJettyServerInitializer;
 import io.imply.druid.ingest.server.JobsResource;
 import io.imply.druid.ingest.server.SchemasResource;
 import io.imply.druid.ingest.server.TablesResource;
+import org.apache.druid.cli.ServerRunnable;
 import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.client.indexing.HttpIndexingServiceClient;
 import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.discovery.DruidLeaderClient;
+import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.PolyBind;
+import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.server.http.SelfDiscoveryResource;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
 import org.eclipse.jetty.server.Server;
 
@@ -67,13 +71,22 @@ public class IngestServiceModule implements Module
 
     LifecycleModule.register(binder, Server.class);
     LifecycleModule.register(binder, JobProcessor.class);
+
+    ServerRunnable.bindNodeRoleAndAnnouncer(
+        binder,
+        ServerRunnable.DiscoverySideEffectsProvider.builder(
+            new NodeRole(IngestService.SERVICE_NAME)
+        ).build()
+    );
+    Jerseys.addResource(binder, SelfDiscoveryResource.class);
+    LifecycleModule.registerKey(binder, Key.get(SelfDiscoveryResource.class));
   }
 
   @Provides
   public OverlordClient getOverlordClient(
       IndexingServiceClient indexingServiceClient,
       @Coordinator DruidLeaderClient overlordLeaderClient,
-      ObjectMapper jsonMapper
+      @Json ObjectMapper jsonMapper
   )
   {
     return new OverlordClient(indexingServiceClient, overlordLeaderClient, jsonMapper);

@@ -21,7 +21,8 @@ import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.Table;
-import io.imply.druid.ingest.metadata.TableJobStateStats;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.druid.common.utils.UUIDUtils;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.guice.annotations.Json;
@@ -29,6 +30,7 @@ import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.joda.time.DateTime;
+import org.skife.jdbi.v2.Folder2;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.TransactionCallback;
@@ -41,7 +43,6 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -372,63 +373,72 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public Set<TableJobStateStats> getJobCountPerTablePerState(@Nullable Set<JobState> statesToFilterOn)
+  public Map<Table, Object2IntMap<JobState>> getTableJobSummary(@Nullable Set<JobState> statesToFilterOn)
   {
-    final String baseQueryStr = "SELECT t.name as tn,  count(j.job_state) as cnt, j.job_state as js, "
-                                + "t.created_timestamp as tcs FROM ingest_tables t "
-                                + "LEFT JOIN ingest_jobs j ON j.table_name  = t.name "
-                                + "GROUP BY t.name, t.created_timestamp, j.job_state "
-                                + "%s ";
+    final String baseQueryStr = "SELECT"
+                                + " t.name as tn,"
+                                + " count(j.job_state) as cnt,"
+                                + " j.job_state as js,"
+                                + " t.created_timestamp as tcs"
+                                + " FROM ingest_tables t"
+                                + " LEFT JOIN ingest_jobs j ON j.table_name = t.name"
+                                + " GROUP BY t.name, t.created_timestamp, j.job_state"
+                                + " %s ";
 
-    List<TableJobStateStats> tableJobStateStats =
-        metadataConnector.getDBI().inTransaction(
-            (handle, status) -> {
-              String queryStr;
-              if (statesToFilterOn == null) {
-                // all tables
-                queryStr = StringUtils.format(baseQueryStr, "ORDER BY t.name");
-              } else if (statesToFilterOn.size() == 0) {
-                // only tables with no jobs
-                queryStr = StringUtils.format(baseQueryStr, "HAVING cnt = 0 ORDER BY t.name");
+    return metadataConnector.getDBI().inTransaction(
+        (handle, status) -> {
+          String queryStr;
+          if (statesToFilterOn == null) {
+            // all tables
+            queryStr = StringUtils.format(baseQueryStr, "ORDER BY t.name");
+          } else if (statesToFilterOn.size() == 0) {
+            // only tables with no jobs
+            queryStr = StringUtils.format(baseQueryStr, "HAVING cnt = 0 ORDER BY t.name");
+          } else {
+            // Add states constraint HAVING clause....
+            // build IN list:
+            StringBuilder inList = new StringBuilder("(");
+            boolean first = true;
+            for (JobState st : statesToFilterOn) {
+              if (!first) {
+                inList.append(",");
               } else {
-                // Add states constraint HAVING clause....
-                // build IN list:
-                StringBuilder inList = new StringBuilder("(");
-                boolean first = true;
-                for (JobState st : statesToFilterOn) {
-                  if (!first) {
-                    inList.append(",");
-                  } else {
-                    first = false;
-                  }
-                  inList.append("'").append(st.name()).append("'");
-                }
-                inList.append(")");
-
-                String tail = StringUtils.format("HAVING j.job_state IN %s ORDER by t.name", inList);
-                queryStr = StringUtils.format(baseQueryStr, tail);
+                first = false;
               }
-              final Query<Map<String, Object>> query = handle.createQuery(queryStr);
-              // get tables with their corresponding states
-              Map<String, TableJobStateStats> tableJobsMap = new HashMap<>();
-              return query.map(
-                  (index, r, ctx) -> {
-                    // get sql results:
-                    String tn = r.getString("tn");
-                    int count = r.getInt("cnt");
-                    JobState js = Optional.ofNullable(r.getString("js")).map(jss -> JobState.fromString(jss))
-                                          .orElse(null);
-                    DateTime tct = DateTimes.of(r.getString("tcs"));
-                    // update table map cache:
-                    if (tableJobsMap.computeIfPresent(tn, (k, v) -> v.addJobState(js, count)) == null) {
-                      tableJobsMap.put(tn, new TableJobStateStats(tn, tct, js, count));
-                    }
-                    return tableJobsMap.get(tn);
-                  }).list();
+              inList.append("'").append(st.name()).append("'");
             }
-        );
+            inList.append(")");
 
-    return new HashSet<>(tableJobStateStats);
+            String tail = StringUtils.format("HAVING j.job_state IN %s ORDER by t.name", inList);
+            queryStr = StringUtils.format(baseQueryStr, tail);
+          }
+          return handle.createQuery(queryStr)
+                       .fold(new HashMap<>(), (Folder2<Map<Table, Object2IntMap<JobState>>>) (accumulator, rs, ctx) -> {
+                         // get sql results:
+                         final String tableName = rs.getString("tn");
+                         final DateTime createdTime = DateTimes.of(rs.getString("tcs"));
+                         final JobState jobState = Optional.ofNullable(rs.getString("js"))
+                                                     .map(JobState::fromString)
+                                                     .orElse(null);
+                         final int jobStateCount = rs.getInt("cnt");
+                         final Table t = new Table(tableName, createdTime);
+                         if (jobState != null) {
+                           accumulator.compute(t, (table, map) -> {
+                             if (map == null) {
+                               map = new Object2IntOpenHashMap<>();
+                             }
+                             // since this is part of group by, individual job states will already be fully
+                             // accumulated, so can just use count directly
+                             map.put(jobState, jobStateCount);
+                             return map;
+                           });
+                         }
+                         // if no jobs in any state, still include the table
+                         accumulator.putIfAbsent(t, null);
+
+                         return accumulator;
+                       });
+        });
   }
 
   @Nonnull

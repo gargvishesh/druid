@@ -9,84 +9,59 @@
 
 package io.imply.druid.ingest.metadata;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.server.security.Action;
 import org.joda.time.DateTime;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Objects;
 
+/**
+ * Materialized object form of table data stored in the tables table of the {@link IngestServiceMetadataStore}.
+ */
 public class Table
 {
   private String name;
   private DateTime createdTime;
-  private Set<Action> permissions = new HashSet<>();
 
-  public Table(Table table)
-  {
-    this.name = table.getName();
-    this.createdTime = table.getCreatedTime();
-    this.permissions = new HashSet<>(table.getPermissions());
-  }
-
-  @JsonCreator
-  public Table(
-      @JsonProperty("name") String name,
-      @JsonProperty("createdTime") DateTime createdTime
-  )
+  public Table(String name, DateTime createdTime)
   {
     this.name = name;
     this.createdTime = createdTime;
   }
 
-  @JsonProperty
   public String getName()
   {
     return name;
   }
 
-  @JsonProperty
   public DateTime getCreatedTime()
   {
     return createdTime;
   }
 
-
-  @JsonProperty
-  public Set<Action> getPermissions()
-  {
-    return permissions;
-  }
-
-  public Table addPermissions(Action permission)
-  {
-    this.permissions.add(permission);
-    return this;
-  }
-
   @Override
   public boolean equals(Object o)
   {
-    if (o == this) {
+    if (this == o) {
       return true;
     }
-    if (!(o instanceof Table)) {
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Table other = (Table) o;
-    return this.name.equals(other.getName())
-           && (this.getCreatedTime().equals(other.getCreatedTime()))
-           && (this.getPermissions().equals(other.getPermissions()));
+    Table table = (Table) o;
+    return Objects.equals(name, table.name) && Objects.equals(createdTime, table.createdTime);
   }
 
   @Override
   public int hashCode()
   {
-    return 31 * this.getName().hashCode() +
-           this.getCreatedTime().hashCode() +
-           this.getPermissions().hashCode() +
-           super.hashCode();
+    return Objects.hash(name, createdTime);
   }
 
+  @Override
+  public String toString()
+  {
+    return "Table{" +
+           "name='" + name + '\'' +
+           ", createdTime=" + createdTime +
+           '}';
+  }
 }

@@ -9,6 +9,7 @@
 
 package io.imply.druid.ingest.server;
 
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
@@ -29,43 +30,38 @@ import org.junit.Test;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class JobsResourceTest
 {
   private static final String TABLE = "test";
   private static final String TABLE2 = "testNotAllowed";
-
-  private static final List<IngestJob> JOB_LIST;
-  private static final List<IngestJob> JOB_LIST_AUTHORIZED;
-  private static final List<IngestJob> JOB_LIST_UNAUTHORIZED;
-
   private static final DateTime CREATED_TIME = DateTimes.nowUtc();
 
-  static {
-    JOB_LIST_AUTHORIZED = Arrays.asList(
-        makeJob(TABLE, "job1", JobState.CANCELLED),
-        makeJob(TABLE, "job2", JobState.COMPLETE),
-        makeJob(TABLE, "job3", JobState.FAILED),
-        makeJob(TABLE, "job4", JobState.RUNNING),
-        makeJob(TABLE, "job5", JobState.SCHEDULED),
-        makeJob(TABLE, "job6", JobState.STAGED)
-    );
+  private static final List<IngestJob> JOB_LIST_AUTHORIZED = ImmutableList.of(
+      makeJob(TABLE, "job1", JobState.CANCELLED),
+      makeJob(TABLE, "job2", JobState.COMPLETE),
+      makeJob(TABLE, "job3", JobState.FAILED),
+      makeJob(TABLE, "job4", JobState.RUNNING),
+      makeJob(TABLE, "job5", JobState.SCHEDULED),
+      makeJob(TABLE, "job6", JobState.STAGED)
+  );
+  private static final List<IngestJobInfo> JOB_LIST_AUTHORIZED_INFO =
+      JOB_LIST_AUTHORIZED.stream()
+                         .map(IngestJobInfo::fromIngestJob)
+                         .collect(Collectors.toList());
 
-    JOB_LIST_UNAUTHORIZED = Arrays.asList(
-        makeJob(TABLE2, "jobA", JobState.RUNNING),
-        makeJob(TABLE2, "jobB", JobState.COMPLETE)
-    );
+  private static final List<IngestJob> JOB_LIST_UNAUTHORIZED = ImmutableList.of(
+      makeJob(TABLE2, "jobA", JobState.RUNNING),
+      makeJob(TABLE2, "jobB", JobState.COMPLETE)
+  );
 
-    JOB_LIST = new ArrayList<>();
-    JOB_LIST.addAll(JOB_LIST_AUTHORIZED);
-    JOB_LIST.addAll(JOB_LIST_UNAUTHORIZED);
-  }
+  private static final List<IngestJob> JOB_LIST = ImmutableList.<IngestJob>builder().addAll(JOB_LIST_AUTHORIZED)
+                                                                                    .addAll(JOB_LIST_UNAUTHORIZED)
+                                                                                    .build();
+
 
   private IngestServiceMetadataStore metadataStore;
   private HttpServletRequest req;
@@ -113,8 +109,8 @@ public class JobsResourceTest
     EasyMock.replay(metadataStore, req);
 
     Response response = jobsResource.getAllJobs(req, null);
-    Map<String, List<IngestJob>> responseJobList = (Map<String, List<IngestJob>>) response.getEntity();
-    Assert.assertEquals(JOB_LIST_AUTHORIZED, responseJobList.get("jobs"));
+    IngestJobsResponse jobsResponse = (IngestJobsResponse) response.getEntity();
+    Assert.assertEquals(JOB_LIST_AUTHORIZED_INFO, jobsResponse.getJobs());
     Assert.assertEquals(200, response.getStatus());
   }
 
@@ -139,8 +135,11 @@ public class JobsResourceTest
     EasyMock.replay(metadataStore, req);
 
     Response response = jobsResource.getAllJobs(req, JobState.RUNNING.toString());
-    Map<String, List<IngestJob>> responseJobList = (Map<String, List<IngestJob>>) response.getEntity();
-    Assert.assertEquals(expectedJobList, responseJobList.get("jobs"));
+    IngestJobsResponse jobsResponse = (IngestJobsResponse) response.getEntity();
+    Assert.assertEquals(
+        expectedJobList.stream().map(IngestJobInfo::fromIngestJob).collect(Collectors.toList()),
+        jobsResponse.getJobs()
+    );
     Assert.assertEquals(200, response.getStatus());
   }
 
@@ -162,7 +161,7 @@ public class JobsResourceTest
 
     Response response = jobsResource.getJob(req, id);
 
-    IngestJob ingestJob = (IngestJob) response.getEntity();
+    IngestJobInfo ingestJob = (IngestJobInfo) response.getEntity();
     Assert.assertEquals(id, ingestJob.getJobId());
     Assert.assertEquals(JobState.COMPLETE, ingestJob.getJobState());
 

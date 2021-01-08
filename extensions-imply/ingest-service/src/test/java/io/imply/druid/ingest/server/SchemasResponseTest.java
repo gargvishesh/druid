@@ -7,11 +7,14 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.ingest.metadata;
+package io.imply.druid.ingest.server;
+
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.PartitionScheme;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -21,34 +24,38 @@ import org.apache.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class IngestSchemaTest
+public class SchemasResponseTest
 {
   private static final ObjectMapper MAPPER = TestHelper.makeJsonMapper();
 
   @Test
   public void testSerde() throws JsonProcessingException
   {
-    IngestSchema schema = new IngestSchema(
-        new TimestampSpec("time", "iso", null),
-        new DimensionsSpec(
-            ImmutableList.of(
-                StringDimensionSchema.create("dim1"),
-                StringDimensionSchema.create("dim2")
+    SchemasResponse response = new SchemasResponse(
+        ImmutableList.of(
+            new IngestSchema(
+                new TimestampSpec("time", "iso", null),
+                new DimensionsSpec(
+                    ImmutableList.of(
+                        StringDimensionSchema.create("some_dimension")
+                    )
+                ),
+                new PartitionScheme(Granularities.HOUR, null),
+                new JsonInputFormat(null, null, null),
+                "test schema"
             )
-        ),
-        new PartitionScheme(Granularities.DAY, null),
-        new JsonInputFormat(null, null, null),
-        "test schema"
+        )
     );
-
-    Assert.assertEquals(schema, MAPPER.readValue(MAPPER.writeValueAsString(schema), IngestSchema.class));
+    String serialized = MAPPER.writeValueAsString(response);
+    SchemasResponse andBack = MAPPER.readValue(serialized, SchemasResponse.class);
+    Assert.assertEquals(response, andBack);
   }
 
   @Test
-  public void testEqualsAndHashcode()
+  public void testEqualsAndHashCode()
   {
     // DimensionSchema implementations delegate to the abstract method for hashcode method, which makes equals verifier
     // sad and im not sure how to fix
-    // EqualsVerifier.forClass(IngestSchema.class).usingGetClass().verify();
+    // EqualsVerifier.forClass(SchemasResponse.class).usingGetClass().verify();
   }
 }

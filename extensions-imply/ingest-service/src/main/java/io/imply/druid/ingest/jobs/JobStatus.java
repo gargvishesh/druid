@@ -9,7 +9,6 @@
 
 package io.imply.druid.ingest.jobs;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.imply.druid.ingest.jobs.status.FailedJobStatus;
@@ -29,7 +28,6 @@ public interface JobStatus
   without the stack trace so that it does not reveal internals for SaaS
   users.
    */
-  @JsonProperty("message")
   @Nullable
-  String getUserFacingMessage();
+  String getMessage();
 }

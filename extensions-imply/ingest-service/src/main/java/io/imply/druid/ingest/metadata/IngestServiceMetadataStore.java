@@ -12,10 +12,12 @@ package io.imply.druid.ingest.metadata;
 import io.imply.druid.ingest.jobs.JobRunner;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.jobs.JobStatus;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.apache.druid.data.input.InputFormat;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -60,14 +62,7 @@ public interface IngestServiceMetadataStore
   @Nullable
   String getJobTable(String jobId);
 
-  /**
-   * @param jobStatesToFilterOn If null then return all tables with associated job states even when the table does not
-   *                            have jobs (in this case job states will be an empty list).
-   *                            If the list is empty return tables with no jobs.
-   *                            If the list is non-empty return tables only having states specified.
-   * @return A list of tables with their associated job state count
-   */
-  Set<TableJobStateStats> getJobCountPerTablePerState(@Nullable Set<JobState> jobStatesToFilterOn);
+  Map<Table, Object2IntMap<JobState>> getTableJobSummary(@Nullable Set<JobState> statesToFilterOn);
 
   // schemas
   int createSchema(IngestSchema schema);

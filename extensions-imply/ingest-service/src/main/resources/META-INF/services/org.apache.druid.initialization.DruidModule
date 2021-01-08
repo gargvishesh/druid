@@ -12,3 +12,4 @@ io.imply.druid.ingest.files.s3.S3FileStoreModule
 io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetadataModule
 io.imply.druid.ingest.samples.local.LocalSampleStoreModule
 io.imply.druid.ingest.samples.s3.S3SampleStoreModule
+io.imply.druid.sql.calcite.schema.IngestServiceSchemaModule

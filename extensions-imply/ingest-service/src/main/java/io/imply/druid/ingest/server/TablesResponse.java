@@ -7,31 +7,30 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.ingest.jobs.status;
+package io.imply.druid.ingest.server;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.imply.druid.ingest.jobs.JobStatus;
 
+import java.util.List;
 import java.util.Objects;
 
-public class FailedJobStatus implements JobStatus
+public class TablesResponse
 {
-  private final String errorMessage;
+  private final List<TableInfo> tables;
 
   @JsonCreator
-  public FailedJobStatus(
-      @JsonProperty("message") String errorMessage
+  public TablesResponse(
+      @JsonProperty("tables") List<TableInfo> tables
   )
   {
-    this.errorMessage = errorMessage;
+    this.tables = tables;
   }
 
   @JsonProperty
-  @Override
-  public String getMessage()
+  public List<TableInfo> getTables()
   {
-    return errorMessage;
+    return tables;
   }
 
   @Override
@@ -43,13 +42,21 @@ public class FailedJobStatus implements JobStatus
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FailedJobStatus that = (FailedJobStatus) o;
-    return Objects.equals(errorMessage, that.errorMessage);
+    TablesResponse that = (TablesResponse) o;
+    return Objects.equals(tables, that.tables);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(errorMessage);
+    return Objects.hash(tables);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "TablesResponse{" +
+           "tables=" + tables +
+           '}';
   }
 }

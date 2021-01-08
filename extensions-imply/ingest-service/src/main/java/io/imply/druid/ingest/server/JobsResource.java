@@ -10,8 +10,6 @@
 package io.imply.druid.ingest.server;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestJob;
@@ -36,6 +34,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Path("/ingest/v1/jobs")
 public class JobsResource
@@ -74,15 +74,17 @@ public class JobsResource
     }
 
     List<IngestJob> jobsFromMetadata = metadataStore.getJobs(targetState);
-    List<IngestJob> authorizedJobs = Lists.newArrayList(
+    List<IngestJobInfo> jobs = StreamSupport.stream(
         AuthorizationUtils.filterAuthorizedResources(
             req,
             jobsFromMetadata,
             raGenerator,
             authorizerMapper
-        )
-    );
-    return Response.ok(ImmutableMap.of("jobs", authorizedJobs)).build();
+        ).spliterator(),
+        false
+    ).map(IngestJobInfo::fromIngestJob).collect(Collectors.toList());
+
+    return Response.ok(new IngestJobsResponse(jobs)).build();
   }
 
   @GET
@@ -112,6 +114,6 @@ public class JobsResource
       return Response.status(Response.Status.FORBIDDEN).build();
     }
 
-    return Response.ok(job).build();
+    return Response.ok(IngestJobInfo.fromIngestJob(job)).build();
   }
 }
