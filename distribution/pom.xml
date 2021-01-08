@@ -247,6 +247,10 @@
                                         <argument>io.imply:indexed-table-loader</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter-kafka</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>
