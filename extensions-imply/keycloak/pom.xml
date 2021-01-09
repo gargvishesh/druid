@@ -184,6 +184,14 @@
       <version>1.0.3.Final</version>
     </dependency>
 
+    <!-- Version override to address CVE-2020-28052 -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk15on</artifactId>
+      <version>1.68</version>
+      <scope>runtime</scope>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>junit</groupId>
