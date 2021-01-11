@@ -14,7 +14,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class IngestServiceTenantConfig
 {
+  @JsonProperty("accountId")
   private String accountId;
+
+  @JsonProperty("clusterId")
   private String clusterId;
 
   @JsonCreator

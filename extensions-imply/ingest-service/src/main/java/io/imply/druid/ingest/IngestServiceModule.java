@@ -21,6 +21,8 @@ import io.imply.druid.ingest.files.local.LocalFileStoreModule;
 import io.imply.druid.ingest.jobs.JobProcessor;
 import io.imply.druid.ingest.jobs.OverlordClient;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.samples.SampleStore;
+import io.imply.druid.ingest.samples.caffeine.CaffeineSampleStoreModule;
 import io.imply.druid.ingest.server.IngestServiceJettyServerInitializer;
 import io.imply.druid.ingest.server.JobsResource;
 import io.imply.druid.ingest.server.SchemasResource;
@@ -59,6 +61,12 @@ public class IngestServiceModule implements Module
         "imply.ingest.files.type",
         Key.get(FileStore.class),
         LocalFileStoreModule.TYPE
+    );
+    PolyBind.createChoiceWithDefault(
+        binder,
+        "imply.ingest.sampler.type",
+        Key.get(SampleStore.class),
+        CaffeineSampleStoreModule.TYPE
     );
 
     binder.bind(IndexingServiceClient.class).to(HttpIndexingServiceClient.class).in(LazySingleton.class);

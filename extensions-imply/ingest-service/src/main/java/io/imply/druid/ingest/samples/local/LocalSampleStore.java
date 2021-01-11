@@ -20,6 +20,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 public class LocalSampleStore implements SampleStore
 {
@@ -85,11 +86,7 @@ public class LocalSampleStore implements SampleStore
 
   private String makeFullPath(String jobId)
   {
-    return StringUtils.format(
-        "%s/%s",
-        sampleStoreConfig.getBaseDir(),
-        getSampleFileSubPath(jobId)
-    );
+    return Paths.get(sampleStoreConfig.getBaseDir(), getSampleFileSubPath(jobId)).toString();
   }
 
   private String getSampleFileSubPath(String jobId)

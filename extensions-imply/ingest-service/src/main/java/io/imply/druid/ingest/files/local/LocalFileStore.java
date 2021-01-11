@@ -22,6 +22,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.Map;
 
 // don't really use this, is for testing against local disk
@@ -88,11 +89,7 @@ public class LocalFileStore extends BaseFileStore
 
   private String makeFullPath(String name)
   {
-    return StringUtils.format(
-        "%s/%s",
-        fileConfig.getBaseDir(),
-        getSubPath(name)
-    );
+    return Paths.get(fileConfig.getBaseDir(), getSubPath(name)).toString();
   }
 
   private String getSubPath(String name)
