@@ -36,7 +36,7 @@ properties([
         booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name'),
         booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile. Does not apply to travis tests'),
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile. Does not apply to travis tests'),
-        booleanParam(name: 'SKIP_TRAVIS_STATUS_POLLING', defaultValue: false, description: 'Proceed to continue build pipeline (to build artifact) regardless travis commit status'),
+        booleanParam(name: 'SKIP_TRAVIS_STATUS_POLLING', defaultValue: true, description: 'Proceed to continue build pipeline (to build artifact) regardless travis commit status'),
         string(name: 'BUILD_DOCKER_IMAGE', defaultValue: '269875963461.dkr.ecr.us-east-1.amazonaws.com/buildabear:20200923', description: 'ECR image with dependencies')
     ])
 ])
@@ -449,6 +449,37 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
+def tryNotify = { body ->
+    try {
+        body()
+    } catch (err) {
+        echo "Sending notification is failed!"
+        echo "Exception: ${err}"
+    }
+}
+
+def notificationWrapper = { body ->
+    try {
+        body()
+    } catch (err) {
+        tryNotify {
+            slackSend   color: '#FF0000',
+                        channel: "#javabeans",
+                        message: "${env.JOB_NAME} with Build Number: ${env.BUILD_NUMBER} failed ${env.BUILD_URL}"
+        }
+        tryNotify {
+            mail    body: "Classic link: ${env.BUILD_URL}<br/>Blueocean link: ${env.RUN_DISPLAY_URL}",
+                    cc: '', bcc: '', replyTo: '',
+                    from: 'jenkins@qa.imply.io',
+                    mimeType: 'text/html',
+                    subject: "${env.JOB_NAME} with Build Number: ${env.BUILD_NUMBER} failed",
+                    to: 'eng.druid@imply.io'
+        }
+        throw err
+    }
+}
+
+notificationWrapper {
 timeout(time: 120, unit: 'MINUTES') {
 stage("Checks") {
     skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
@@ -814,3 +845,4 @@ stage('Build and publish') {
 } // stage('Build and publish')
 
 } // timeout
+} // notificationWrapper
