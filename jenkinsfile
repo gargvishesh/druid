@@ -463,23 +463,26 @@ def tryNotify = { body ->
 def notificationWrapper = { body ->
     try {
         body()
-    } catch (err) {
+    } finally {
         if(env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/ ) {
-            tryNotify {
-                slackSend   color: '#FF0000',
-                            channel: SLACK_NOTIFICATIONS_TARGET,
-                            message: "*Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
-            }
-            tryNotify {
-                mail    body: "classic link: ${env.BUILD_URL}<br/>blueocean link: ${env.RUN_DISPLAY_URL}",
-                        cc: '', bcc: '', replyTo: '',
-                        from: 'jenkins@qa.imply.io',
-                        mimeType: 'text/html',
-                        subject: "Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
-                        to: EMAIL_NOTIFICATIONS_TARGET
-            }
+            echo currentBuild.result
+            echo currentBuild.previousCompletedBuild.result
+            // if() {
+            //     tryNotify {
+            //         slackSend   color: '#FF0000',
+            //                     channel: SLACK_NOTIFICATIONS_TARGET,
+            //                     message: "*Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
+            //     }
+            //     tryNotify {
+            //         mail    body: "classic link: ${env.BUILD_URL}<br/>blueocean link: ${env.RUN_DISPLAY_URL}",
+            //                 cc: '', bcc: '', replyTo: '',
+            //                 from: 'jenkins@qa.imply.io',
+            //                 mimeType: 'text/html',
+            //                 subject: "Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
+            //                 to: EMAIL_NOTIFICATIONS_TARGET
+            //     }
+            // }
         }
-        throw err
     }
 }
 
