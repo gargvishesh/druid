@@ -21,6 +21,8 @@ def ARTIFACTORY_REPO                = "tgz-local"
 def ACTIVE_DEV_BRANCH_REGEX         = /^(\d+\.\d+\.\d+-iap|master)$/
 def RELEASE_BRANCH_PREFIX_REGEX     = /^release\//
 def RELEASE_BRANCH_SUFFIX_REGEX     = /\d{4}\.\d{2}([-.]\d+)?$/
+def SLACK_NOTIFICATIONS_TARGET      = "linsong-wang"
+def EMAIL_NOTIFICATIONS_TARGET      = "viatcheslav.mogilevsky@imply.io"
 
 
 // global variables
@@ -462,18 +464,20 @@ def notificationWrapper = { body ->
     try {
         body()
     } catch (err) {
-        tryNotify {
-            slackSend   color: '#FF0000',
-                        channel: "#javabeans",
-                        message: "${env.JOB_NAME} with Build Number: ${env.BUILD_NUMBER} failed ${env.BUILD_URL}"
-        }
-        tryNotify {
-            mail    body: "Classic link: ${env.BUILD_URL}<br/>Blueocean link: ${env.RUN_DISPLAY_URL}",
-                    cc: '', bcc: '', replyTo: '',
-                    from: 'jenkins@qa.imply.io',
-                    mimeType: 'text/html',
-                    subject: "${env.JOB_NAME} with Build Number: ${env.BUILD_NUMBER} failed",
-                    to: 'eng.druid@imply.io'
+        if(env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/ ) {
+            tryNotify {
+                slackSend   color: '#FF0000',
+                            channel: SLACK_NOTIFICATIONS_TARGET,
+                            message: "Failed implydata/druid build\nbranch: ${env.BRANCH_NAME}\nbuild number: ${env.BUILD_NUMBER}\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
+            }
+            tryNotify {
+                mail    body: "Classic link: ${env.BUILD_URL}<br/>Blueocean link: ${env.RUN_DISPLAY_URL}",
+                        cc: '', bcc: '', replyTo: '',
+                        from: 'jenkins@qa.imply.io',
+                        mimeType: 'text/html',
+                        subject: "Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
+                        to: EMAIL_NOTIFICATIONS_TARGET
+            }
         }
         throw err
     }
