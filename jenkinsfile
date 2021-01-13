@@ -493,6 +493,7 @@ def notificationWrapper = { body ->
             }
         }
         bodySucceeded = false
+        throw err
     } finally {
         if(bodySucceeded) {
             if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
