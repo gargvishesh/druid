@@ -451,7 +451,7 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
-def tryNotify = { body ->
+def tryWrapper = { body ->
     try {
         body()
     } catch (err) {
@@ -460,28 +460,46 @@ def tryNotify = { body ->
     }
 }
 
+def isEligibleToNotify = {
+    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/
+}
+
+def notify = { fixed ->
+    def slackMessageColor = fixed ? '#00FF00' : '#FF0000'
+    def titleBeginning = fixed ? 'Fixed' : 'Failed'
+    tryWrapper {
+        slackSend   color: slackMessageColor,
+                    channel: SLACK_NOTIFICATIONS_TARGET,
+                    message: "*${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
+    }
+    tryWrapper {
+        mail    body: "classic link: ${env.BUILD_URL}<br/>blueocean link: ${env.RUN_DISPLAY_URL}",
+                cc: '', bcc: '', replyTo: '',
+                from: 'jenkins@qa.imply.io',
+                mimeType: 'text/html',
+                subject: "${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
+                to: EMAIL_NOTIFICATIONS_TARGET
+    }
+}
+
 def notificationWrapper = { body ->
+    def bodySucceeded = true
     try {
         body()
+    } catch (err) {
+        if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
+            if(isEligibleToNotify) {
+                notify(false)
+            }
+        }
+        bodySucceeded = false
     } finally {
-        if(env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/ ) {
-            echo currentBuild.result
-            echo currentBuild.previousCompletedBuild.result
-            // if() {
-            //     tryNotify {
-            //         slackSend   color: '#FF0000',
-            //                     channel: SLACK_NOTIFICATIONS_TARGET,
-            //                     message: "*Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
-            //     }
-            //     tryNotify {
-            //         mail    body: "classic link: ${env.BUILD_URL}<br/>blueocean link: ${env.RUN_DISPLAY_URL}",
-            //                 cc: '', bcc: '', replyTo: '',
-            //                 from: 'jenkins@qa.imply.io',
-            //                 mimeType: 'text/html',
-            //                 subject: "Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
-            //                 to: EMAIL_NOTIFICATIONS_TARGET
-            //     }
-            // }
+        if(bodySucceeded) {
+            if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
+                if(isEligibleToNotify) {
+                    notify(true)
+                }
+            }
         }
     }
 }
