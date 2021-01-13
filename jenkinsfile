@@ -468,10 +468,10 @@ def notificationWrapper = { body ->
             tryNotify {
                 slackSend   color: '#FF0000',
                             channel: SLACK_NOTIFICATIONS_TARGET,
-                            message: "Failed implydata/druid build\nbranch: ${env.BRANCH_NAME}\nbuild number: ${env.BUILD_NUMBER}\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
+                            message: "*Failed implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*\nclassic link: ${env.BUILD_URL}\nblueocean link: ${env.RUN_DISPLAY_URL}"
             }
             tryNotify {
-                mail    body: "Classic link: ${env.BUILD_URL}<br/>Blueocean link: ${env.RUN_DISPLAY_URL}",
+                mail    body: "classic link: ${env.BUILD_URL}<br/>blueocean link: ${env.RUN_DISPLAY_URL}",
                         cc: '', bcc: '', replyTo: '',
                         from: 'jenkins@qa.imply.io',
                         mimeType: 'text/html',
