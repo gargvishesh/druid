@@ -17,9 +17,9 @@ def ARTIFACTORY_REPO                = "tgz-local"
 def ACTIVE_DEV_BRANCH_REGEX         = /^(\d+\.\d+\.\d+-iap|master)$/
 def RELEASE_BRANCH_PREFIX_REGEX     = /^release\//
 def RELEASE_BRANCH_SUFFIX_REGEX     = /\d{4}\.\d{2}([-.]\d+)?$/
-def SLACK_NOTIFICATIONS_TARGET      = "#linsong-wang"
-def EMAIL_NOTIFICATIONS_TARGET      = "viatcheslav.mogilevsky@imply.io"
-def FAILED_BUILD_SILENCE_PERIOD     = 1000*60*6
+def SLACK_NOTIFICATIONS_TARGET      = "#javabeans"
+def EMAIL_NOTIFICATIONS_TARGET      = "eng.druid@imply.io"
+def FAILED_BUILD_SILENCE_PERIOD     = 1000*60*60*24
 
 
 // global variables
@@ -458,7 +458,7 @@ def tryWrapper = { body ->
 }
 
 def isEligibleToNotify = {
-    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/
+    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX)
 }
 
 def notify = { fixed ->
@@ -867,9 +867,6 @@ stage('Build and publish') {
                     )
                 }
             } // upload
-            stage("bad stage") {
-                throw new Exception("test failure") 
-            }
         } // withCurrentGitCredentials
     } // heavyNode
 } // stage('Build and publish')
