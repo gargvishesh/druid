@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.inject.Inject;
 import io.imply.druid.ingest.samples.SampleStore;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -34,6 +35,7 @@ public class CaffeineSampleStore implements SampleStore
   private final Cache<String, byte[]> cache;
   private final ObjectMapper jsonMapper;
 
+  @Inject
   public CaffeineSampleStore(CaffeineSampleStoreConfig config, ObjectMapper jsonMapper)
   {
     this.jsonMapper = jsonMapper;

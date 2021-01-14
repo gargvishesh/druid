@@ -86,10 +86,20 @@ public class TablesResourceTest
       "test schema"
   );
 
-  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig(
-      "test-account",
-      "test-cluster-1"
-  );
+  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig()
+  {
+    @Override
+    public String getAccountId()
+    {
+      return "test-account";
+    }
+
+    @Override
+    public String getClusterId()
+    {
+      return "test-cluster-1";
+    }
+  };
 
   private static final DateTime CREATED = DateTimes.nowUtc();
   private static final List<Table> TABLE_LIST_WRITE = ImmutableList.of(
