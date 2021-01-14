@@ -4,25 +4,22 @@ def MVN                             = "mvn -B"
 def MVN_OPTS                        = "export MAVEN_OPTS=\"-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m\""
 def MAVEN_SKIP                      = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
 def MAVEN_SKIP_TESTS                = "-DskipTests -Djacoco.skip=true"
-def M2_CACHE_IMAGE                  = "018895040333.dkr.ecr.us-east-1.amazonaws.com/druid-m2-cache"
-def BUILD_CACHE_IMAGE               = "018895040333.dkr.ecr.us-east-1.amazonaws.com/druid-build-cache"
 def AWS_CREDS_ID                    = "aws"
 def AZURE_CREDS_ID                  = "azure_credentials"
 def GCS_CREDS_ID                    = "gcs-bucket-qa"
-def BUILD_CACHE_TAG                 = env.BUILD_TAG.toLowerCase().replaceAll(~/[^a-z0-9-]/,'')
 def MVN_SETTINGS_FILE               = 'maven-artifactory-settings'
 def COMMIT_STATUS_INTERVAL          = 60
 def TRAVIS_UNTIL_SMTH_MAX_ATTEMPTS  = 10
 def TRAVIS_UNTIL_PASS_MAX_ATTEMPTS  = 200
 def TRAVIS_SLUG_ID                  = "travis-ci"
-def MVN_INSTALL_CACHE_EXCLUDE       = "web-console"
 def ARTIFACTORY_SERVER_ID           = "repo-qa-imply-io"
 def ARTIFACTORY_REPO                = "tgz-local"
 def ACTIVE_DEV_BRANCH_REGEX         = /^(\d+\.\d+\.\d+-iap|master)$/
 def RELEASE_BRANCH_PREFIX_REGEX     = /^release\//
 def RELEASE_BRANCH_SUFFIX_REGEX     = /\d{4}\.\d{2}([-.]\d+)?$/
-def SLACK_NOTIFICATIONS_TARGET      = "#javabeans"
-def EMAIL_NOTIFICATIONS_TARGET      = "eng.druid@imply.io"
+def SLACK_NOTIFICATIONS_TARGET      = "#linsong-wang"
+def EMAIL_NOTIFICATIONS_TARGET      = "viatcheslav.mogilevsky@imply.io"
+def FAILED_BUILD_SILENCE_PERIOD     = 1000*60*6
 
 
 // global variables
@@ -36,7 +33,7 @@ boolean SKIP_PUBLISH_STAGES
 properties([
     parameters([
         booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name'),
-        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile. Does not apply to travis tests'),
+        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: true, description: 'Skip all jenkins tests defined in the jenkinsfile. Does not apply to travis tests'),
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile. Does not apply to travis tests'),
         booleanParam(name: 'SKIP_TRAVIS_STATUS_POLLING', defaultValue: true, description: 'Proceed to continue build pipeline (to build artifact) regardless travis commit status'),
         string(name: 'BUILD_DOCKER_IMAGE', defaultValue: '269875963461.dkr.ecr.us-east-1.amazonaws.com/buildabear:20200923', description: 'ECR image with dependencies')
@@ -461,7 +458,7 @@ def tryWrapper = { body ->
 }
 
 def isEligibleToNotify = {
-    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX)
+    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX) || env.BRANCH_NAME =~ /^IMPLY-5224/
 }
 
 def notify = { fixed ->
@@ -488,8 +485,14 @@ def notificationWrapper = { body ->
         body()
     } catch (err) {
         if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
-            if(isEligibleToNotify) {
-                notify(false)
+            if(isEligibleToNotify) { notify(false) }
+        } else {
+            def nowInMillis = new Date().getTime()
+            def previousCompletedBuildStarted = currentBuild.previousCompletedBuild?.startTimeInMillis ?: nowInMillis
+            def previousCompletedBuildDuration = currentBuild.previousCompletedBuild?.duration ?: 0
+            def previousCompletedBuildFinished = previousCompletedBuildStarted + previousCompletedBuildDuration
+            if(previousCompletedBuildFinished < nowInMillis-FAILED_BUILD_SILENCE_PERIOD) {
+                if(isEligibleToNotify) { notify(false) }
             }
         }
         bodySucceeded = false
@@ -497,9 +500,7 @@ def notificationWrapper = { body ->
     } finally {
         if(bodySucceeded) {
             if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
-                if(isEligibleToNotify) {
-                    notify(true)
-                }
+                if(isEligibleToNotify) { notify(true) }
             }
         }
     }
@@ -866,6 +867,9 @@ stage('Build and publish') {
                     )
                 }
             } // upload
+            stage("bad stage") {
+                throw new Exception("test failure") 
+            }
         } // withCurrentGitCredentials
     } // heavyNode
 } // stage('Build and publish')
