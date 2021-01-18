@@ -28,6 +28,7 @@ import org.apache.druid.segment.IndexMerger;
 import org.apache.druid.segment.IndexMergerV9;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.QueryableIndexSegment;
+import org.apache.druid.segment.SegmentLazyLoadFailCallback;
 import org.apache.druid.segment.TestIndex;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.incremental.IncrementalIndex;
@@ -114,7 +115,12 @@ public class ArrayBasedTableTest
         null,
         segment.getTotalSpace()
     );
-    QueryableIndexSegment loaded = (QueryableIndexSegment) factory.factorize(dataSegment, segment, false);
+    QueryableIndexSegment loaded = (QueryableIndexSegment) factory.factorize(
+        dataSegment,
+        segment,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
 
     columnNames = ImmutableList.<String>builder().add(ColumnHolder.TIME_COLUMN_NAME)
                                                  .addAll(loaded.asQueryableIndex().getColumnNames()).build();
