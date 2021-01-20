@@ -31,6 +31,7 @@ import org.apache.druid.segment.TestHelper;
 import org.apache.druid.server.DruidNode;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.After;
 import org.junit.Assert;
@@ -166,7 +167,7 @@ public class IngestServiceClientTest
     EasyMock.expect(responseHolder.getContent())
             .andReturn(new ByteArrayInputStream(MAPPER.writeValueAsBytes(expectedResponse)))
             .once();
-    Request expectedRequest = IngestServiceClient.getRequestForNode(INGEST_NODE, expectedPath);
+    Request expectedRequest = IngestServiceClient.getRequestForNode(INGEST_NODE, HttpMethod.GET, expectedPath);
     Capture<Request> capture = EasyMock.newCapture();
     EasyMock.expect(
         httpClient.go(
@@ -197,7 +198,7 @@ public class IngestServiceClientTest
     ListenableFuture<Object> future = EasyMock.createMock(ListenableFuture.class);
     EasyMock.expect(future.get()).andReturn(responseHolder).once();
     EasyMock.expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.INTERNAL_SERVER_ERROR).times(3);
-    Request expectedRequest = IngestServiceClient.getRequestForNode(INGEST_NODE, expectedPath);
+    Request expectedRequest = IngestServiceClient.getRequestForNode(INGEST_NODE, HttpMethod.GET, expectedPath);
     Capture<Request> capture = EasyMock.newCapture();
     EasyMock.expect(
         httpClient.go(

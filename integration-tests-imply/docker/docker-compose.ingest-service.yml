@@ -1,0 +1,37 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+version: "2.2"
+services:
+  imply-ingest-service:
+    image: druid/cluster
+    container_name: imply-ingest-service
+    ports:
+      - 6001:6001
+      - 9001:9001
+      - 9101:9101
+    networks:
+      druid-it-net:
+        ipv4_address: 172.172.172.120
+    privileged: true
+    volumes:
+      - ${HOME}/shared:/shared
+      - ./../../integration-tests/docker/service-supervisords/druid.conf:/usr/lib/druid/conf/druid.conf
+    env_file:
+      - ./../../integration-tests/docker/environment-configs/common
+      - ./environment-configs/ingest_service
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+
+networks:
+  druid-it-net:
+    name: druid-it-net
+    ipam:
+      config:
+        - subnet: 172.172.172.0/24

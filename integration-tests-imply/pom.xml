@@ -27,21 +27,30 @@
       <version>${project.parent.version}</version>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>io.imply.druid.extensions</groupId>
+      <artifactId>ingest-service</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.druid</groupId>
       <artifactId>druid-server</artifactId>
       <version>${project.parent.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>
       <artifactId>druid-core</artifactId>
       <version>${project.parent.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>
       <artifactId>druid-integration-tests</artifactId>
       <version>${project.parent.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>
@@ -49,6 +58,11 @@
       <version>${project.parent.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -172,7 +186,7 @@
                     </DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH>
                     <DRUID_INTEGRATION_TEST_INDEXER>${it.indexer}</DRUID_INTEGRATION_TEST_INDEXER>
                   </environmentVariables>
-                  <executable>${project.parent.basedir}/integration-tests/stop_cluster.sh</executable>
+                  <executable>${project.basedir}/stop_cluster.sh</executable>
                 </configuration>
               </execution>
             </executions>

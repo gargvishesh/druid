@@ -452,6 +452,17 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
+def implyIngestServiceIntegrationTests = { stageName, jdkVersion, envMap ->
+    integrationTestsWrapper(stageName, jdkVersion, envMap) {
+        sh script: """
+            ${MVN_OPTS}
+            ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply\
+            -Dgroups=ingest-service -Dit.indexer=middleManager  \${JVM_RUNTIME}\
+            -ff ${MAVEN_SKIP} -Djacoco.skip=true
+        """, label: "imply ingest service integration tests with ${env.JVM_RUNTIME}"
+    }
+}
+
 timeout(time: 120, unit: 'MINUTES') {
 stage("Checks") {
     skipStageIf(params.SKIP_ALL_JENKINS_TESTS, env.STAGE_NAME) {
@@ -484,6 +495,9 @@ stage("Checks") {
         "(Compile=openjdk8, Run=openjdk8) imply query integration tests": {
             implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk8) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
+        "(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests": {
+            implyIngestServiceIntegrationTests("(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
+        },
         "(Compile=openjdk8, Run=openjdk8) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk8) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
@@ -502,6 +516,9 @@ stage("Checks") {
 
         "(Compile=openjdk8, Run=openjdk11) imply query integration tests": {
             implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk11) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
+        },
+        "(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests": {
+            implyIngestServiceIntegrationTests("(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
         },
         "(Compile=openjdk8, Run=openjdk11) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk11) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])

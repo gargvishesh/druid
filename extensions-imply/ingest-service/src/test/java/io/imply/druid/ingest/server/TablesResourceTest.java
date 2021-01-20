@@ -209,9 +209,9 @@ public class TablesResourceTest
 
     Response response = tablesResource.stageIngestJob(null, TABLE);
 
-    Map<String, Object> responseEntity = (Map<String, Object>) response.getEntity();
-    Assert.assertEquals(id, responseEntity.get("jobId"));
-    Assert.assertEquals(new URI(uri), responseEntity.get("dropoffUri"));
+    StageBatchAppendPushIngestJobResponse responseEntity = (StageBatchAppendPushIngestJobResponse) response.getEntity();
+    Assert.assertEquals(id, responseEntity.getJobId());
+    Assert.assertEquals(new URI(uri), responseEntity.getDropoffUri());
 
     Assert.assertEquals(200, response.getStatus());
   }
