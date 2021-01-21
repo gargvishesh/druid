@@ -86,10 +86,20 @@ public class TablesResourceTest
       "test schema"
   );
 
-  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig(
-      "test-account",
-      "test-cluster-1"
-  );
+  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig()
+  {
+    @Override
+    public String getAccountId()
+    {
+      return "test-account";
+    }
+
+    @Override
+    public String getClusterId()
+    {
+      return "test-cluster-1";
+    }
+  };
 
   private static final DateTime CREATED = DateTimes.nowUtc();
   private static final List<Table> TABLE_LIST_WRITE = ImmutableList.of(
@@ -199,9 +209,9 @@ public class TablesResourceTest
 
     Response response = tablesResource.stageIngestJob(null, TABLE);
 
-    Map<String, Object> responseEntity = (Map<String, Object>) response.getEntity();
-    Assert.assertEquals(id, responseEntity.get("jobId"));
-    Assert.assertEquals(new URI(uri), responseEntity.get("dropoffUri"));
+    StageBatchAppendPushIngestJobResponse responseEntity = (StageBatchAppendPushIngestJobResponse) response.getEntity();
+    Assert.assertEquals(id, responseEntity.getJobId());
+    Assert.assertEquals(new URI(uri), responseEntity.getDropoffUri());
 
     Assert.assertEquals(200, response.getStatus());
   }

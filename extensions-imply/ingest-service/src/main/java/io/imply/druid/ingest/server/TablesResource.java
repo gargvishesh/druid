@@ -9,6 +9,8 @@
 
 package io.imply.druid.ingest.server;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
@@ -34,6 +36,7 @@ import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.indexing.common.task.IndexTask;
 import org.apache.druid.indexing.overlord.sampler.IndexTaskSamplerSpec;
+import org.apache.druid.indexing.overlord.sampler.InputSourceSampler;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -240,7 +243,7 @@ public class TablesResource
     final JobRunner jobTypeToUse = jobType != null ? jobType : new BatchAppendJobRunner();
     String jobId = metadataStore.stageJob(tableName, jobTypeToUse);
     URI dropoff = fileStore.makeDropoffUri(jobId);
-    return Response.ok(ImmutableMap.of("jobId", jobId, "dropoffUri", dropoff)).build();
+    return Response.ok(new StageBatchAppendPushIngestJobResponse(jobId, dropoff)).build();
   }
 
   @POST
@@ -430,25 +433,51 @@ public class TablesResource
         ingestSchema.getInputFormat(),
         null
     );
-
-    return new IndexTaskSamplerSpec(
+    return new SerializableSamplerRequest(
         new IndexTask.IndexIngestionSpec(
             dataSchema,
             ioConfig,
             null
         ),
-        null,
         null
     );
   }
 
   private InlineInputSource makeInlineInputSource(SamplerResponse cachedSamplerResponse)
   {
-    try {
-      return new InlineInputSource(jsonMapper.writeValueAsString(cachedSamplerResponse.getData()));
+    return new InlineInputSource(
+        cachedSamplerResponse.getData()
+                             .stream()
+                             .map(x -> {
+                               try {
+                                 return jsonMapper.writeValueAsString(x.getInput());
+                               }
+                               catch (JsonProcessingException e) {
+                                 throw new RuntimeException(e);
+                               }
+                             })
+                             .collect(Collectors.joining("\n"))
+    );
+  }
+
+  @JsonTypeName("index")
+  private static class SerializableSamplerRequest extends IndexTaskSamplerSpec
+  {
+    private final IndexTask.IndexIngestionSpec spec;
+
+    public SerializableSamplerRequest(
+        IndexTask.IndexIngestionSpec ingestionSpec,
+        InputSourceSampler inputSourceSampler
+    )
+    {
+      super(ingestionSpec, null, inputSourceSampler);
+      this.spec = ingestionSpec;
     }
-    catch (JsonProcessingException jpe) {
-      throw new RuntimeException(jpe);
+
+    @JsonProperty
+    public IndexTask.IndexIngestionSpec getSpec()
+    {
+      return spec;
     }
   }
 }
