@@ -70,7 +70,7 @@ public class JobsResource
       targetState = JobState.fromString(jobState);
     }
     catch (IllegalArgumentException iae) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
+      return ApiErrors.badRequest(iae, iae.getMessage());
     }
 
     List<IngestJob> jobsFromMetadata = metadataStore.getJobs(targetState);

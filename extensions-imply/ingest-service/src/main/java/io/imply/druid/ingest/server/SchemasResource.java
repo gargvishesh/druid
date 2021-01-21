@@ -65,7 +65,7 @@ public class SchemasResource
       ingestSchema = jsonMapper.readValue(in, IngestSchema.class);
     }
     catch (IOException ioe) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
+      return ApiErrors.badRequest(ioe, "Failed to create schema");
     }
 
     // anyone can make schemas for now
@@ -81,7 +81,7 @@ public class SchemasResource
       return Response.ok(ImmutableMap.of("schemaId", newSchemaId)).build();
     }
     catch (Exception e) {
-      return Response.serverError().entity(e.getMessage()).build();
+      return ApiErrors.serverError(e, "Failed to create schema");
     }
   }
 
@@ -103,7 +103,7 @@ public class SchemasResource
       return Response.ok(ImmutableMap.of("schemas", schemaList)).build();
     }
     catch (Exception e) {
-      return Response.serverError().entity(e.getMessage()).build();
+      return ApiErrors.serverError(e, "Failed to fetch list of schemas");
     }
   }
 
@@ -127,7 +127,7 @@ public class SchemasResource
       schemaId = Integer.valueOf(schemaIdStr);
     }
     catch (NumberFormatException nfe) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
+      return ApiErrors.badRequest(nfe, nfe.getMessage());
     }
 
     try {
@@ -139,7 +139,7 @@ public class SchemasResource
       }
     }
     catch (Exception e) {
-      return Response.serverError().entity(e.getMessage()).build();
+      return ApiErrors.serverError(e, "Failed to fetch schema [%s]", schemaId);
     }
   }
 
@@ -162,7 +162,7 @@ public class SchemasResource
       schemaId = Integer.valueOf(schemaIdStr);
     }
     catch (NumberFormatException nfe) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
+      return ApiErrors.badRequest(nfe, nfe.getMessage());
     }
 
     try {
@@ -174,7 +174,7 @@ public class SchemasResource
       }
     }
     catch (Exception e) {
-      return Response.serverError().entity(e.getMessage()).build();
+      return ApiErrors.serverError(e, "Failed to delete schema [%s]", schemaId);
     }
   }
 }
