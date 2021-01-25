@@ -21,6 +21,9 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
 
+      - name: mvn install
+        run: 
+        export MAVEN_OPTS=\"-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m\" && mvn -B clean install -q -ff -Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true -DskipTests -Djacoco.skip=true -T 1C
       - name: Run dependency check
         run: |
           mvn -B dependency-check:check || { echo "
