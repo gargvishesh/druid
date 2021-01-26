@@ -1,0 +1,30 @@
+name: Publish @implydata/web-console package
+on: workflow_dispatch
+# Uncomment to auto-publish when master is merged and anything in web-console has changed
+# on:
+#   push:
+#     branches:
+#       - master
+#     paths:
+#       - "web-console/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Setup .npmrc file to publish to npm
+      - uses: actions/setup-node@v1
+        with:
+          node-version: "12.x"
+          registry-url: "https://registry.npmjs.org"
+      - name: npm install
+        run: npm install
+        working-directory: ./web-console
+      - name: build-dist
+        run: ./script/build-dist
+        working-directory: ./web-console
+      - name: publish
+        run: ./script/publish
+        working-directory: ./web-console
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
