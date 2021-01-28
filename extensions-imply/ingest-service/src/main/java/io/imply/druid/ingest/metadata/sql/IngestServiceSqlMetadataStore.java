@@ -20,6 +20,7 @@ import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
 import io.imply.druid.ingest.metadata.JobScheduleException;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.metadata.Table;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -552,18 +553,18 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   private String getSchemaBaseQuery()
   {
     return StringUtils.format(
-        "SELECT created_timestamp, schema_blob FROM %1$s",
+        "SELECT id, created_timestamp, schema_blob FROM %1$s",
         ingestConfig.get().getSchemasTable()
     );
   }
 
   @Nonnull
-  private IngestSchema resultRowAsIngestSchema(ResultSet r) throws SQLException
+  private StoredIngestSchema resultRowAsIngestSchema(int schemaId, ResultSet r) throws SQLException
   {
     try {
       byte[] ingestSchemaBlob = r.getBytes("schema_blob");
       if (ingestSchemaBlob != null) {
-        return jsonMapper.readValue(ingestSchemaBlob, IngestSchema.class);
+        return new StoredIngestSchema(schemaId, jsonMapper.readValue(ingestSchemaBlob, IngestSchema.class));
       } else {
         throw new RuntimeException("schema blob was null!");
       }
@@ -575,13 +576,13 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public IngestSchema getSchema(int schemaId)
+  public StoredIngestSchema getSchema(int schemaId)
   {
     return metadataConnector.getDBI().inTransaction(
         (handle, status) ->
             handle.createQuery(StringUtils.format("%s WHERE id=:scid", getSchemaBaseQuery()))
                   .bind("scid", schemaId)
-                  .map((index, r, ctx) -> resultRowAsIngestSchema(r))
+                  .map((index, r, ctx) -> resultRowAsIngestSchema(schemaId, r))
                   .first()
     );
   }
@@ -599,12 +600,12 @@ public class IngestServiceSqlMetadataStore implements IngestServiceMetadataStore
   }
 
   @Override
-  public List<IngestSchema> getAllSchemas()
+  public List<StoredIngestSchema> getAllSchemas()
   {
     return metadataConnector.getDBI().inTransaction(
         (handle, status) -> {
           final Query<Map<String, Object>> query = handle.createQuery(getSchemaBaseQuery());
-          return query.map((index, r, ctx) -> resultRowAsIngestSchema(r))
+          return query.map((index, r, ctx) -> resultRowAsIngestSchema(r.getInt("id"), r))
                       .list();
         });
   }

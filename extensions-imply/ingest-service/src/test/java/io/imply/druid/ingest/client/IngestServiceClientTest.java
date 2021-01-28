@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.ingest.IngestService;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.server.IngestJobsResponse;
 import io.imply.druid.ingest.server.SchemasResponse;
 import io.imply.druid.ingest.server.TablesResponse;
@@ -99,7 +100,10 @@ public class IngestServiceClientTest
   public void testGetSchemas() throws ExecutionException, InterruptedException, IOException
   {
     final SchemasResponse expectedResponse = new SchemasResponse(
-        ImmutableList.of(IngestServiceSchemaTest.TEST_SCHEMA, IngestServiceSchemaTest.OTHER_TEST_SCHEMA)
+        ImmutableList.of(
+            new StoredIngestSchema(1, IngestServiceSchemaTest.TEST_SCHEMA),
+            new StoredIngestSchema(2, IngestServiceSchemaTest.OTHER_TEST_SCHEMA)
+        )
     );
     testDiscoAndGet(expectedResponse, IngestServiceClient.INGEST_SCHEMAS_PATH, () -> client.getSchemas());
   }

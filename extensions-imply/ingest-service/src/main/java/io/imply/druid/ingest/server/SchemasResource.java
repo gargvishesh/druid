@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.IngestServiceMetadataStore;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
 
@@ -99,7 +100,7 @@ public class SchemasResource
     );
 
     try {
-      List<IngestSchema> schemaList = metadataStore.getAllSchemas();
+      List<StoredIngestSchema> schemaList = metadataStore.getAllSchemas();
       return Response.ok(ImmutableMap.of("schemas", schemaList)).build();
     }
     catch (Exception e) {
@@ -131,7 +132,7 @@ public class SchemasResource
     }
 
     try {
-      IngestSchema ingestSchema = metadataStore.getSchema(schemaId);
+      StoredIngestSchema ingestSchema = metadataStore.getSchema(schemaId);
       if (ingestSchema == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       } else {

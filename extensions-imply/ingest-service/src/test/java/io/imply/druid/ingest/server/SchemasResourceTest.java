@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.PartitionScheme;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetadataStore;
 import io.imply.druid.ingest.metadata.sql.IngestServiceSqlMetatadataConfig;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -116,8 +117,8 @@ public class SchemasResourceTest
     Assert.assertEquals(200, response.getStatus());
 
     response = schemasResource.getSchema("1", req);
-    IngestSchema getSchemaResponse = (IngestSchema) response.getEntity();
-    Assert.assertEquals(someSchema, getSchemaResponse);
+    StoredIngestSchema getSchemaResponse = (StoredIngestSchema) response.getEntity();
+    Assert.assertEquals(new StoredIngestSchema(1, someSchema), getSchemaResponse);
   }
 
   @Test
@@ -185,8 +186,14 @@ public class SchemasResourceTest
 
     // check that both schemas are in the list
     Response getAllSchemasResponse = schemasResource.getAllSchemas(req);
-    Map<String, List<IngestSchema>> allSchemas = (Map<String, List<IngestSchema>>) getAllSchemasResponse.getEntity();
-    Assert.assertEquals(ImmutableList.of(someSchema, someSchema2), allSchemas.get("schemas"));
+    Map<String, List<StoredIngestSchema>> allSchemas = (Map<String, List<StoredIngestSchema>>) getAllSchemasResponse.getEntity();
+    Assert.assertEquals(
+        ImmutableList.of(
+            new StoredIngestSchema(1, someSchema),
+            new StoredIngestSchema(2, someSchema2)
+        ),
+        allSchemas.get("schemas")
+    );
   }
 
   @Test
@@ -222,8 +229,8 @@ public class SchemasResourceTest
     Assert.assertEquals(200, response.getStatus());
 
     response = schemasResource.getSchema("1", req);
-    IngestSchema getSchemaResponse = (IngestSchema) response.getEntity();
-    Assert.assertEquals(someSchema, getSchemaResponse);
+    StoredIngestSchema getSchemaResponse = (StoredIngestSchema) response.getEntity();
+    Assert.assertEquals(new StoredIngestSchema(1, someSchema), getSchemaResponse);
 
     // Delete and check that the schema is gone
     response = schemasResource.deleteSchema("1", req);
