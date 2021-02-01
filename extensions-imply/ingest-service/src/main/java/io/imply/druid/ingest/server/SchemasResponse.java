@@ -11,25 +11,25 @@ package io.imply.druid.ingest.server;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 
 import java.util.List;
 import java.util.Objects;
 
 public class SchemasResponse
 {
-  private final List<IngestSchema> schemas;
+  private final List<StoredIngestSchema> schemas;
 
   @JsonCreator
   public SchemasResponse(
-      @JsonProperty("schemas") List<IngestSchema> schemas
+      @JsonProperty("schemas") List<StoredIngestSchema> schemas
   )
   {
     this.schemas = schemas;
   }
 
   @JsonProperty
-  public List<IngestSchema> getSchemas()
+  public List<StoredIngestSchema> getSchemas()
   {
     return schemas;
   }

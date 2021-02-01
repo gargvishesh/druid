@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.PartitionScheme;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -33,16 +34,19 @@ public class SchemasResponseTest
   {
     SchemasResponse response = new SchemasResponse(
         ImmutableList.of(
-            new IngestSchema(
-                new TimestampSpec("time", "iso", null),
-                new DimensionsSpec(
-                    ImmutableList.of(
-                        StringDimensionSchema.create("some_dimension")
-                    )
-                ),
-                new PartitionScheme(Granularities.HOUR, null),
-                new JsonInputFormat(null, null, null),
-                "test schema"
+            new StoredIngestSchema(
+                1,
+                new IngestSchema(
+                    new TimestampSpec("time", "iso", null),
+                    new DimensionsSpec(
+                        ImmutableList.of(
+                            StringDimensionSchema.create("some_dimension")
+                        )
+                    ),
+                    new PartitionScheme(Granularities.HOUR, null),
+                    new JsonInputFormat(null, null, null),
+                    "test schema"
+                )
             )
         )
     );

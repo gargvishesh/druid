@@ -23,6 +23,7 @@ import io.imply.druid.ingest.metadata.IngestJob;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.JobScheduleException;
 import io.imply.druid.ingest.metadata.PartitionScheme;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.metadata.Table;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -513,16 +514,19 @@ public class IngestServiceSqlMetadataStoreTest
     int schemaId = metadataStore.createSchema(TEST_SCHEMA);
     Assert.assertEquals(schemaId, 1);
     Assert.assertTrue(metadataStore.schemaExists(schemaId));
-    IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
-    Assert.assertEquals(TEST_SCHEMA, schemaFromMetadata);
+    StoredIngestSchema schemaFromMetadata = metadataStore.getSchema(1);
+    Assert.assertEquals(new StoredIngestSchema(1, TEST_SCHEMA), schemaFromMetadata);
 
     schemaId = metadataStore.createSchema(someSchema2);
     Assert.assertEquals(schemaId, 2);
     schemaFromMetadata = metadataStore.getSchema(2);
-    Assert.assertEquals(someSchema2, schemaFromMetadata);
+    Assert.assertEquals(new StoredIngestSchema(2, someSchema2), schemaFromMetadata);
 
-    List<IngestSchema> ingestSchemas = metadataStore.getAllSchemas();
-    Assert.assertEquals(ImmutableList.of(TEST_SCHEMA, someSchema2), ingestSchemas);
+    List<StoredIngestSchema> ingestSchemas = metadataStore.getAllSchemas();
+    Assert.assertEquals(
+        ImmutableList.of(new StoredIngestSchema(1, TEST_SCHEMA), new StoredIngestSchema(2, someSchema2)),
+        ingestSchemas
+    );
   }
 
   @Test
@@ -542,8 +546,8 @@ public class IngestServiceSqlMetadataStoreTest
   {
     int schemaId = metadataStore.createSchema(TEST_SCHEMA);
     Assert.assertEquals(schemaId, 1);
-    IngestSchema schemaFromMetadata = metadataStore.getSchema(1);
-    Assert.assertEquals(TEST_SCHEMA, schemaFromMetadata);
+    StoredIngestSchema schemaFromMetadata = metadataStore.getSchema(1);
+    Assert.assertEquals(new StoredIngestSchema(schemaId, TEST_SCHEMA), schemaFromMetadata);
 
     int numDeleted = metadataStore.deleteSchema(1);
     Assert.assertEquals(1, numDeleted);

@@ -20,6 +20,7 @@ import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.SegmentLazyLoadFailCallback;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
@@ -68,12 +69,13 @@ public class OnHeapIndexedTableSegmentizerFactory implements SegmentizerFactory
   public Segment factorize(
       DataSegment dataSegment,
       File parentDir,
-      boolean lazy
+      boolean lazy,
+      SegmentLazyLoadFailCallback loadFailed
   ) throws SegmentLoadingException
   {
     try {
       QueryableIndexSegment theSegment = new QueryableIndexSegment(
-          indexIO.loadIndex(parentDir, lazy),
+          indexIO.loadIndex(parentDir, lazy, loadFailed),
           dataSegment.getId()
       );
 

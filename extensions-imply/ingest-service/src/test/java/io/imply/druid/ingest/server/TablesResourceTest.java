@@ -86,10 +86,20 @@ public class TablesResourceTest
       "test schema"
   );
 
-  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig(
-      "test-account",
-      "test-cluster-1"
-  );
+  private final IngestServiceTenantConfig tenantConfig = new IngestServiceTenantConfig()
+  {
+    @Override
+    public String getAccountId()
+    {
+      return "test-account";
+    }
+
+    @Override
+    public String getClusterId()
+    {
+      return "test-cluster-1";
+    }
+  };
 
   private static final DateTime CREATED = DateTimes.nowUtc();
   private static final List<Table> TABLE_LIST_WRITE = ImmutableList.of(
@@ -199,9 +209,9 @@ public class TablesResourceTest
 
     Response response = tablesResource.stageIngestJob(null, TABLE);
 
-    Map<String, Object> responseEntity = (Map<String, Object>) response.getEntity();
-    Assert.assertEquals(id, responseEntity.get("jobId"));
-    Assert.assertEquals(new URI(uri), responseEntity.get("dropoffUri"));
+    StageBatchAppendPushIngestJobResponse responseEntity = (StageBatchAppendPushIngestJobResponse) response.getEntity();
+    Assert.assertEquals(id, responseEntity.getJobId());
+    Assert.assertEquals(new URI(uri), responseEntity.getDropoffUri());
 
     Assert.assertEquals(200, response.getStatus());
   }
@@ -311,7 +321,7 @@ public class TablesResourceTest
 
     Assert.assertEquals(400, response.getStatus());
     Assert.assertEquals(
-        ImmutableMap.of("error", StringUtils.format("schema [1] does not exist, cannot schedule job [%s]", id)),
+        new ApiErrors.ErrorResponse(StringUtils.format("schema [1] does not exist, cannot schedule job [%s]", id)),
         response.getEntity()
     );
     EasyMock.verify(scheduleRequest);
@@ -334,7 +344,7 @@ public class TablesResourceTest
 
     Assert.assertEquals(400, response.getStatus());
     Assert.assertEquals(
-        ImmutableMap.of("error", StringUtils.format("job [%s] does not belong to table [test]", id)),
+        new ApiErrors.ErrorResponse(StringUtils.format("job [%s] does not belong to table [test]", id)),
         response.getEntity()
     );
     EasyMock.verify(scheduleRequest);
@@ -380,7 +390,7 @@ public class TablesResourceTest
 
     Assert.assertEquals(400, response.getStatus());
     Assert.assertEquals(
-        ImmutableMap.of("error", StringUtils.format("Cannot schedule job [%s] because it is in [RUNNING] state", id)),
+        new ApiErrors.ErrorResponse(StringUtils.format("Cannot schedule job [%s] because it is in [RUNNING] state", id)),
         response.getEntity()
     );
     EasyMock.verify(scheduleRequest);
@@ -410,8 +420,8 @@ public class TablesResourceTest
     Response response = tablesResource.createTable(TABLE, req);
 
     Assert.assertEquals(500, response.getStatus());
-    Map<String, Object> responseEntity = (Map<String, Object>) response.getEntity();
-    Assert.assertTrue(responseEntity.get("error").toString().length() > 0);
+    ApiErrors.ErrorResponse responseEntity = (ApiErrors.ErrorResponse) response.getEntity();
+    Assert.assertTrue(responseEntity.getError().length() > 0);
   }
 
 

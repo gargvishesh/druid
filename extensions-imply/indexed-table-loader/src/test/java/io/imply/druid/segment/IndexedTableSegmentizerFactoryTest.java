@@ -32,6 +32,7 @@ import org.apache.druid.segment.IndexMergerV9;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.SegmentLazyLoadFailCallback;
 import org.apache.druid.segment.TestIndex;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.join.table.IndexedTable;
@@ -146,7 +147,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegment, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegment,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
 
     // unload the segment
@@ -169,7 +175,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegment, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegment,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
 
     // load newer segment, expect to replace old segment
@@ -184,7 +195,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loadedNewer = factory.factorize(dataSegmentNewer, persistedSegmentRoot, false);
+    final Segment loadedNewer = factory.factorize(
+        dataSegmentNewer,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loadedNewer);
 
     // close old segment does not drop new segment or table
@@ -208,7 +224,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegment, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegment,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
     final IndexedTable table = indexedTableManager.getIndexedTable(TABLE_NAME);
 
@@ -224,7 +245,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loadedOlder = factory.factorize(dataSegmentOlder, persistedSegmentRoot, false);
+    final Segment loadedOlder = factory.factorize(
+        dataSegmentOlder,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
 
     // expect same object since expect do nothing
@@ -256,12 +282,22 @@ public class IndexedTableSegmentizerFactoryTest
     );
 
     // load segment
-    final Segment loaded = factory.factorize(dataSegment, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegment,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
     final IndexedTable table = indexedTableManager.getIndexedTable(TABLE_NAME);
 
     // load segment again somehow, expect to do nothing
-    final Segment reloaded = factory.factorize(dataSegment, persistedSegmentRoot, false);
+    final Segment reloaded = factory.factorize(
+        dataSegment,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
     // expect same object since expect do nothing
     Assert.assertTrue(table == indexedTableManager.getIndexedTable(TABLE_NAME));
@@ -289,7 +325,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegmentFirst, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegmentFirst,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
     final IndexedTable table = indexedTableManager.getIndexedTable(TABLE_NAME);
 
@@ -305,7 +346,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment partition = factory.factorize(dataSegmentSecond, persistedSegmentRoot, false);
+    final Segment partition = factory.factorize(
+        dataSegmentSecond,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     Assert.assertTrue(partition instanceof QueryableIndexSegment);
     assertEmptyTable();
 
@@ -332,7 +378,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegmentFirst, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegmentFirst,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
 
     // loading a segment from a different interval will drop the table
@@ -347,7 +398,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment different = factory.factorize(dataSegmentSecond, persistedSegmentRoot, false);
+    final Segment different = factory.factorize(
+        dataSegmentSecond,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     Assert.assertTrue(different instanceof QueryableIndexSegment);
     assertEmptyTable();
 
@@ -363,7 +419,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment different3 = factory.factorize(dataSegmentThird, persistedSegmentRoot, false);
+    final Segment different3 = factory.factorize(
+        dataSegmentThird,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     Assert.assertTrue(different3 instanceof QueryableIndexSegment);
     assertEmptyTable();
 
@@ -391,7 +452,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loaded = factory.factorize(dataSegmentFirst, persistedSegmentRoot, false);
+    final Segment loaded = factory.factorize(
+        dataSegmentFirst,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loaded);
 
     // loading a segment from a different interval will drop the table
@@ -406,7 +472,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment different = factory.factorize(dataSegmentSecond, persistedSegmentRoot, false);
+    final Segment different = factory.factorize(
+        dataSegmentSecond,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     Assert.assertTrue(different instanceof QueryableIndexSegment);
     assertEmptyTable();
 
@@ -422,7 +493,12 @@ public class IndexedTableSegmentizerFactoryTest
         null,
         persistedSegmentRoot.getTotalSpace()
     );
-    final Segment loadedNewer = factory.factorize(dataSegmentThird, persistedSegmentRoot, false);
+    final Segment loadedNewer = factory.factorize(
+        dataSegmentThird,
+        persistedSegmentRoot,
+        false,
+        SegmentLazyLoadFailCallback.NOOP
+    );
     assertIndexedTableExpectedSegmentLoaded(loadedNewer);
 
     // ensure no ill effect from closing previously loaded segment (which will try to drop the table)

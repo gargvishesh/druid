@@ -9,11 +9,12 @@
 
 package io.imply.druid.ingest.server;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.ingest.config.IngestServiceTenantConfig;
@@ -34,6 +35,7 @@ import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.indexing.common.task.IndexTask;
 import org.apache.druid.indexing.overlord.sampler.IndexTaskSamplerSpec;
+import org.apache.druid.indexing.overlord.sampler.InputSourceSampler;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -140,7 +142,7 @@ public class TablesResource
     }
     Response response;
     if (badArgument != null) {
-      response = badRequest(StringUtils.format("Bad state name: %s", badArgument));
+      response = ApiErrors.badRequest("Bad state name: %s", badArgument);
     } else {
       List<TableInfo> tables = getTablesInfo(req, jobStateFilter);
       response = Response.ok(new TablesResponse(tables)).build();
@@ -166,10 +168,9 @@ public class TablesResource
         new ResourceAction(new Resource(tableName, ResourceType.DATASOURCE), Action.WRITE),
         authorizerMapper
     );
-    boolean isOk = true;
-    String issue = null;
     try {
       metadataStore.insertTable(tableName);
+      return Response.created(URI.create("")).build();
     }
     catch (Exception e) {
       // One interesting case if when the table already exists...one approach is just to return
@@ -184,19 +185,8 @@ public class TablesResource
       //
       // For now just saying that all exceptions are errors and
       // propagating the message to the client...
-      issue = e.getMessage();
-      isOk = false;
+      return ApiErrors.serverError(e, "Failed to create table [%s]", tableName);
     }
-
-    Response r;
-    if (isOk) {
-      // the table resource is abnormal in the sense that it has no id, the name itself is its own id
-      // in a more RESTful way we would append the newly created id to the req.getPathInfo()...
-      r = Response.created(URI.create("")).build();
-    } else {
-      r = Response.serverError().entity(ImmutableMap.of("error", issue)).build();
-    }
-    return r;
   }
 
   @DELETE
@@ -240,7 +230,7 @@ public class TablesResource
     final JobRunner jobTypeToUse = jobType != null ? jobType : new BatchAppendJobRunner();
     String jobId = metadataStore.stageJob(tableName, jobTypeToUse);
     URI dropoff = fileStore.makeDropoffUri(jobId);
-    return Response.ok(ImmutableMap.of("jobId", jobId, "dropoffUri", dropoff)).build();
+    return Response.ok(new StageBatchAppendPushIngestJobResponse(jobId, dropoff)).build();
   }
 
   @POST
@@ -254,11 +244,11 @@ public class TablesResource
   )
   {
     if (Strings.isNullOrEmpty(tableName)) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("table name cannot be empty or null").build();
+      return ApiErrors.badRequest("table name cannot be empty or null");
     }
 
     if (Strings.isNullOrEmpty(jobId)) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("jobId cannot be empty or null").build();
+      return ApiErrors.badRequest("jobId cannot be empty or null");
     }
 
     // check for existing sample file in sample store
@@ -271,12 +261,12 @@ public class TablesResource
     }
     catch (IOException ioe) {
       // IOException means there was an issue reading from the sample store, our fault probably
-      LOG.error("Encountered IOException while reading from sample store for jobId[%s], table[%s]", jobId, tableName);
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      return ApiErrors.serverError(ioe, "Failed to sample job [%s]", jobId);
     }
     catch (Exception ex) {
-      // Other exceptions are probably from user error, such as a malformed request
-      return Response.status(Response.Status.BAD_REQUEST).build();
+      // Other exceptions are probably from user error, such as a malformed request, we could possibly be more
+      // descriptive...
+      return ApiErrors.badRequest(ex, "Failed to sample job [%s]", jobId);
     }
 
     try {
@@ -285,7 +275,7 @@ public class TablesResource
       return Response.ok(samplerResponse).build();
     }
     catch (Exception ex) {
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      return ApiErrors.serverError(ex, "Failed to sample job [%s]", jobId);
     }
   }
 
@@ -301,7 +291,7 @@ public class TablesResource
   {
     final String jobTable = metadataStore.getJobTable(jobId);
     if (!tableName.equals(jobTable)) {
-      return badRequest(StringUtils.format("job [%s] does not belong to table [%s]", jobId, tableName));
+      return ApiErrors.badRequest("job [%s] does not belong to table [%s]", jobId, tableName);
     }
     int updated;
     try {
@@ -309,35 +299,33 @@ public class TablesResource
         updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchema());
       } else if (scheduleRequest.getSchemaId() != null) {
         if (!metadataStore.schemaExists(scheduleRequest.getSchemaId())) {
-          return badRequest(
-              StringUtils.format(
-                  "schema [%s] does not exist, cannot schedule job [%s]",
-                  scheduleRequest.getSchemaId(),
-                  jobId
-              )
+          return ApiErrors.badRequest(
+              "schema [%s] does not exist, cannot schedule job [%s]",
+              scheduleRequest.getSchemaId(),
+              jobId
           );
         }
         updated = metadataStore.scheduleJob(jobId, scheduleRequest.getSchemaId());
       } else {
-        return badRequest(StringUtils.format("must specify 'schema' or 'schemaId' to schedule job [%s]", jobId));
+        return ApiErrors.badRequest("must specify 'schema' or 'schemaId' to schedule job [%s]", jobId);
       }
     }
     catch (JobScheduleException jex) {
-      return badRequest(jex.getMessage());
+      // this one has a friendly message...
+      return ApiErrors.badRequest(jex, jex.getMessage());
     }
 
     if (updated == 0) {
       return Response.status(Response.Status.NOT_FOUND).build();
     } else if (updated > 1) {
       // this should never happen
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      return ApiErrors.serverError(
+          new Exception(StringUtils.format("unexpected state, multiple rows updated for job [%s]", jobId)),
+          "Failed to schedule job [%s]",
+          jobId
+      );
     }
     return Response.created(URI.create("")).build();
-  }
-
-  private Response badRequest(String error)
-  {
-    return Response.status(Response.Status.BAD_REQUEST).entity(ImmutableMap.of("error", error)).build();
   }
 
   private List<TableInfo> getTablesInfo(HttpServletRequest req, Set<JobState> jobStateFilter)
@@ -430,25 +418,51 @@ public class TablesResource
         ingestSchema.getInputFormat(),
         null
     );
-
-    return new IndexTaskSamplerSpec(
+    return new SerializableSamplerRequest(
         new IndexTask.IndexIngestionSpec(
             dataSchema,
             ioConfig,
             null
         ),
-        null,
         null
     );
   }
 
   private InlineInputSource makeInlineInputSource(SamplerResponse cachedSamplerResponse)
   {
-    try {
-      return new InlineInputSource(jsonMapper.writeValueAsString(cachedSamplerResponse.getData()));
+    return new InlineInputSource(
+        cachedSamplerResponse.getData()
+                             .stream()
+                             .map(x -> {
+                               try {
+                                 return jsonMapper.writeValueAsString(x.getInput());
+                               }
+                               catch (JsonProcessingException e) {
+                                 throw new RuntimeException(e);
+                               }
+                             })
+                             .collect(Collectors.joining("\n"))
+    );
+  }
+
+  @JsonTypeName("index")
+  private static class SerializableSamplerRequest extends IndexTaskSamplerSpec
+  {
+    private final IndexTask.IndexIngestionSpec spec;
+
+    public SerializableSamplerRequest(
+        IndexTask.IndexIngestionSpec ingestionSpec,
+        InputSourceSampler inputSourceSampler
+    )
+    {
+      super(ingestionSpec, null, inputSourceSampler);
+      this.spec = ingestionSpec;
     }
-    catch (JsonProcessingException jpe) {
-      throw new RuntimeException(jpe);
+
+    @JsonProperty
+    public IndexTask.IndexIngestionSpec getSpec()
+    {
+      return spec;
     }
   }
 }

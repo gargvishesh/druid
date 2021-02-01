@@ -9,7 +9,6 @@
 
 package io.imply.druid.ingest.config;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class IngestServiceTenantConfig
@@ -20,23 +19,11 @@ public class IngestServiceTenantConfig
   @JsonProperty("clusterId")
   private String clusterId;
 
-  @JsonCreator
-  public IngestServiceTenantConfig(
-      @JsonProperty("accountId") String accountId,
-      @JsonProperty("clusterId") String clusterId
-  )
-  {
-    this.accountId = accountId;
-    this.clusterId = clusterId;
-  }
-
-  @JsonProperty
   public String getAccountId()
   {
     return accountId;
   }
 
-  @JsonProperty
   public String getClusterId()
   {
     return clusterId;

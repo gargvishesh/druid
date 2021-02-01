@@ -1,0 +1,6 @@
+{
+  "name": "@implydata/web-console",
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "web-console.js",
+  "typings": "index.d.ts"
+}

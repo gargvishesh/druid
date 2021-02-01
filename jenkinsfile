@@ -37,7 +37,10 @@ properties([
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile. Does not apply to travis tests'),
         booleanParam(name: 'SKIP_TRAVIS_STATUS_POLLING', defaultValue: true, description: 'Proceed to continue build pipeline (to build artifact) regardless travis commit status'),
         string(name: 'BUILD_DOCKER_IMAGE', defaultValue: '269875963461.dkr.ecr.us-east-1.amazonaws.com/buildabear:20200923', description: 'ECR image with dependencies')
-    ])
+    ]),
+    buildDiscarder(
+        logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20')
+    )
 ])
 
 def dockerInitCleanup = {
@@ -448,11 +451,22 @@ def implyQueryIntegrationTests = { stageName, jdkVersion, envMap ->
     }
 }
 
+def implyIngestServiceIntegrationTests = { stageName, jdkVersion, envMap ->
+    integrationTestsWrapper(stageName, jdkVersion, envMap) {
+        sh script: """
+            ${MVN_OPTS}
+            ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply\
+            -Dgroups=ingest-service -Dit.indexer=middleManager  \${JVM_RUNTIME}\
+            -ff ${MAVEN_SKIP} -Djacoco.skip=true
+        """, label: "imply ingest service integration tests with ${env.JVM_RUNTIME}"
+    }
+}
+
 def tryWrapper = { body ->
     try {
         body()
     } catch (err) {
-        echo "Sending notification is failed!"
+        echo "Closure is failed!"
         echo "Exception: ${err}"
     }
 }
@@ -539,6 +553,9 @@ stage("Checks") {
         "(Compile=openjdk8, Run=openjdk8) imply query integration tests": {
             implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk8) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
+        "(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests": {
+            implyIngestServiceIntegrationTests("(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
+        },
         "(Compile=openjdk8, Run=openjdk8) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk8) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=8'])
         },
@@ -557,6 +574,9 @@ stage("Checks") {
 
         "(Compile=openjdk8, Run=openjdk11) imply query integration tests": {
             implyQueryIntegrationTests("(Compile=openjdk8, Run=openjdk11) imply query integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
+        },
+        "(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests": {
+            implyIngestServiceIntegrationTests("(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
         },
         "(Compile=openjdk8, Run=openjdk11) s3 deep storage test": {
             s3DeepStorageTests("(Compile=openjdk8, Run=openjdk11) s3 deep storage test", 8, ['JVM_RUNTIME=-Djvm.runtime=11'])
