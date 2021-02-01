@@ -472,7 +472,7 @@ def tryWrapper = { body ->
 }
 
 def isEligibleToNotify = {
-    env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX)
+    !env.CHANGE_ID && (env.BRANCH_NAME ==~ ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (RELEASE_BRANCH_PREFIX_REGEX + RELEASE_BRANCH_SUFFIX_REGEX))
 }
 
 def notify = { fixed ->
