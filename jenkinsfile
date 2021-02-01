@@ -500,14 +500,14 @@ def notificationWrapper = { body ->
         body()
     } catch (err) {
         if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
-            if(isEligibleToNotify) { notify(false) }
+            if(isEligibleToNotify()) { notify(false) }
         } else {
             def nowInMillis = new Date().getTime()
             def previousCompletedBuildStarted = currentBuild.previousCompletedBuild?.startTimeInMillis ?: nowInMillis
             def previousCompletedBuildDuration = currentBuild.previousCompletedBuild?.duration ?: 0
             def previousCompletedBuildFinished = previousCompletedBuildStarted + previousCompletedBuildDuration
             if(previousCompletedBuildFinished < nowInMillis-FAILED_BUILD_SILENCE_PERIOD) {
-                if(isEligibleToNotify) { notify(false) }
+                if(isEligibleToNotify()) { notify(false) }
             }
         }
         bodySucceeded = false
@@ -515,7 +515,7 @@ def notificationWrapper = { body ->
     } finally {
         if(bodySucceeded) {
             if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
-                if(isEligibleToNotify) { notify(true) }
+                if(isEligibleToNotify()) { notify(true) }
             }
         }
     }
