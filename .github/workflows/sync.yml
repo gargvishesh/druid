@@ -27,4 +27,5 @@ jobs:
         env:
           SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required."
           SLACK_TITLE: "[FAILED] Update implydata/druid master from apache/druid master"
+          SLACK_COLOR: "danger"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
