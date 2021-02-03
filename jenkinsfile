@@ -19,7 +19,7 @@ def RELEASE_BRANCH_PREFIX_REGEX     = /^release\//
 def RELEASE_BRANCH_SUFFIX_REGEX     = /\d{4}\.\d{2}([-.]\d+)?$/
 def SLACK_NOTIFICATIONS_TARGET      = "#javabeans"
 def EMAIL_NOTIFICATIONS_TARGET      = "eng.druid@imply.io"
-def FAILED_BUILD_SILENCE_PERIOD     = 1000*60*60*24
+def FAILED_BUILD_SILENCE_PERIOD     = 0
 
 
 // global variables
