@@ -37,11 +37,11 @@ addons:
   apt:
     packages:
       - maven
-    
+
 # Add various options to make 'mvn install' fast and skip javascript compile (-Ddruid.console.skip=true) since it is not
 # needed. Depending on network speeds, "mvn -q install" may take longer than the default 10 minute timeout to print any
 # output.  To compensate, use travis_wait to extend the timeout.
-install: MAVEN_OPTS='-Xmx3000m' travis_wait 15 ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
+install: MAVEN_OPTS='-Xmx3000m' travis_wait 15 ${MVN} clean install -q -ff -pl '!distribution' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C && ${MVN} install -q -ff -pl 'distribution' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
 
 stages:
   - name: test  # jobs that do not specify a stage get this default value
@@ -50,15 +50,6 @@ stages:
     if: type != cron
   - name: cron
     if: type = cron
-
-branches:
-  only:
-  - master
-  - nightly
-  - nightly-test
-  - latest
-  - /.*-iap.*$/
-  - /.*release\/.*$/
 
 jobs:
   include:
@@ -146,13 +137,18 @@ jobs:
         -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
 
     - <<: *package
+      name: "(openjdk11) packaging check"
+      jdk: openjdk11
+
+    - <<: *package
       name: "Build and test on ARM64 CPU architecture"
       arch: arm64
+      jdk: openjdk11
 
     - &test_processing_module
       name: "(openjdk8) processing module test"
       env:
-      - MAVEN_PROJECTS='processing'
+        - MAVEN_PROJECTS='processing'
       before_script:
         - export DRUID_USE_DEFAULT_VALUE_FOR_NULL=true
       script:
@@ -209,22 +205,38 @@ jobs:
         - travis_retry curl -o codecov.sh -s https://codecov.io/bash
         - travis_retry bash codecov.sh -X gcov
 
+    - <<: *test_processing_module
+      name: "(openjdk11) processing module test"
+      jdk: openjdk11
+
     - &test_processing_module_sqlcompat
       <<: *test_processing_module
       name: "(openjdk8) processing module test (SQL Compatibility)"
       before_script: &setup_sqlcompat
-      - export DRUID_USE_DEFAULT_VALUE_FOR_NULL=false
+        - export DRUID_USE_DEFAULT_VALUE_FOR_NULL=false
+
+    - <<: *test_processing_module_sqlcompat
+      name: "(openjdk11) processing module test (SQL Compatibility)"
+      jdk: openjdk11
 
     - &test_indexing_module
       <<: *test_processing_module
       name: "(openjdk8) indexing modules test"
       env:
-      - MAVEN_PROJECTS='indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service'
+        - MAVEN_PROJECTS='indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service'
+
+    - <<: *test_indexing_module
+      name: "(openjdk11) indexing modules test"
+      jdk: openjdk11
 
     - &test_indexing_module_sqlcompat
       <<: *test_indexing_module
       name: "(openjdk8) indexing modules test (SQL Compatibility)"
       before_script: *setup_sqlcompat
+
+    - <<: *test_indexing_module_sqlcompat
+      name: "(openjdk11) indexing modules test (SQL Compatibility)"
+      jdk: openjdk11
 
     - &test_server_module
       <<: *test_processing_module
@@ -232,10 +244,18 @@ jobs:
       env:
         - MAVEN_PROJECTS='server'
 
+    - <<: *test_server_module
+      name: "(openjdk11) server module test"
+      jdk: openjdk11
+
     - &test_server_module_sqlcompat
       <<: *test_server_module
       name: "(openjdk8) server module test (SQL Compatibility)"
       before_script: *setup_sqlcompat
+
+    - <<: *test_server_module_sqlcompat
+      name: "(openjdk11) server module test (SQL Compatibility)"
+      jdk: openjdk11
 
     - &test_other_modules
       <<: *test_processing_module
@@ -243,10 +263,18 @@ jobs:
       env:
         - MAVEN_PROJECTS='!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests'
 
+    - <<: *test_other_modules
+      name: "(openjdk11) other modules test"
+      jdk: openjdk11
+
     - &test_other_modules_sqlcompat
       <<: *test_other_modules
       name: "(openjdk8) other modules test (SQL Compatibility)"
       before_script: *setup_sqlcompat
+
+    - <<: *test_other_modules_sqlcompat
+      name: "(openjdk11) other modules test (SQL Compatibility)"
+      jdk: openjdk11
 
     - name: "web console"
       install: skip
@@ -498,6 +526,89 @@ jobs:
 
     # END - Integration tests for Compile with Java 8 and Run with Java 8
 
+    # START - Integration tests for Compile with Java 8 and Run with Java 11
+    - <<: *integration_batch_index
+      name: "(Compile=openjdk8, Run=openjdk11) batch index integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=batch-index' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_input_format
+      name: "(Compile=openjdk8, Run=openjdk11) input format integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=input-format' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_input_source
+      name: "(Compile=openjdk8, Run=openjdk11) input source integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=input-source' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_perfect_rollup_parallel_batch_index
+      name: "(Compile=openjdk8, Run=openjdk11) perfect rollup parallel batch index integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=perfect-rollup-parallel-batch-index' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_query
+      name: "(Compile=openjdk8, Run=openjdk11) query integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=query' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_query_retry
+      name: "(Compile=openjdk8, Run=openjdk11) query retry integration test for missing segments"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=query-retry' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_security
+      name: "(Compile=openjdk8, Run=openjdk11) security integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=security' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_realtime_index
+      name: "(Compile=openjdk8, Run=openjdk11) realtime index integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=realtime-index' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_append_ingestion
+      name: "(Compile=openjdk8, Run=openjdk11) append ingestion integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=append-ingestion' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_compaction_tests
+      name: "(Compile=openjdk8, Run=openjdk11) compaction integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=compaction' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_tests
+      name: "(Compile=openjdk8, Run=openjdk11) other integration test"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    - <<: *integration_tests
+      name: "(Compile=openjdk8, Run=openjdk11) leadership and high availability integration tests"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=high-availability' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager'
+
+    # Subset of integration tests to run with ZooKeeper 3.4.x for backwards compatibility
+    - <<: *integration_tests
+      name: "(Compile=openjdk8, Run=openjdk11, ZK=3.4) leadership and high availability integration tests"
+      jdk: openjdk8
+      env: TESTNG_GROUPS='-Dgroups=high-availability' JVM_RUNTIME='-Djvm.runtime=11' USE_INDEXER='middleManager' ZK_VERSION=3.4
+
+    # END - Integration tests for Compile with Java 8 and Run with Java 11
+
+    - &integration_batch_index_k8s
+      name: "(Compile=openjdk8, Run=openjdk8, Cluster Build On K8s) ITNestedQueryPushDownTest integration test"
+      stage: it
+      jdk: openjdk8
+      services: &integration_test_services_k8s
+        - docker
+      env: CONFIG_FILE='k8s_run_config_file.json' IT_TEST='-Dit.test=ITNestedQueryPushDownTest' POD_NAME=int-test POD_NAMESPACE=default BUILD_DRUID_CLSUTER=true
+      script: &run_integration_test_k8s
+        - ${MVN} verify -pl integration-tests -P int-tests-config-file ${IT_TEST} ${MAVEN_SKIP} -Dpod.name=${POD_NAME} -Dpod.namespace=${POD_NAMESPACE} -Dbuild.druid.cluster=${BUILD_DRUID_CLSUTER}
+      after_failure: &integration_test_diags_k8s
+        - for v in broker middlemanager router coordinator historical ; do
+          echo "------------------------druid-tiny-cluster-"$v"s-0-------------------------";
+          sudo /usr/local/bin/kubectl logs --tail 1000 druid-tiny-cluster-"$v"s-0;
+          done
     - name: "security vulnerabilities"
       stage: cron
       install: skip
@@ -523,3 +634,7 @@ notifications:
       - secure: "MupjX/0jLwh3XzHPl74BTk2/Kp5r+8TrEewfRhpQdWKFMBXLKNqu0k2VXf5C/NIg3uvPianq3REk+qeTHI8dL2ShjiWS/eIRkJOHLfObdNNBuos5fo4TxAuBQcXyT4VjAq5jnAkH84Pxf2Nl0rkisWoIhvwSX7+kNrjW1qdu7K0="
     on_success: change
     on_failure: change
+
+import:
+  - source: .travis-exclude.yml
+    mode: deep_merge_prepend
