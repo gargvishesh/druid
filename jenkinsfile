@@ -265,8 +265,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
     |  apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
     && apt-get update -y \
     && apt-get install google-cloud-sdk -y
-RUN curl -s https://curl.haxx.se/ca/cacert.pem > /etc/ssl/certs/cacert.pem
-ENV SSL_CERT_FILE=/etc/ssl/certs/cacert.pem
+RUN apt-get install -y dnsutils
 ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 """
     def imageName = "${fromImage}-dbin-${env.STAGE_NAME.replaceAll(~/[^a-z0-9]/,'')}${env.BUILD_ID}"
@@ -287,18 +286,13 @@ def integrationTestsWrapper = { stageName, jdkVersion, envMap, body ->
                     -v /var/run/docker.sock:/var/run/docker.sock \
                     -v /root/shared:/root/shared \
                     -e DOCKER_IP=127.0.0.1 \
+                    -e ZK_VERSION=3.5 \
                     --net host \
                     -u root:root \
                     """) {
                     withArtifactorySettings {
                         mavenInstall()
                         withEnv(envMap) {
-                            sh script: """
-                                echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
-                                apt-get update -y
-                                apt-get install dnsutils -y
-                                apt-get install openssl=1.0.1t-1+deb8u12 -y --allow-downgrades
-                            """
                             try {
                                 body()
                             } finally {
