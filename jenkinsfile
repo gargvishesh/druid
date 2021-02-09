@@ -527,7 +527,10 @@ stage("Checks") {
                         checkout scm
                         withArtifactorySettings {
                             mavenInstall()
-                            retryOnNonEmpty(env.WORKSPACE, 30, 3) { outputFile ->
+                            // Retry this job 10 times with 30s between runs if the job fails because
+                            // of known flakiness `Failed to request component-reports`
+                            // This is only a temporary solution till we find the root cause in IMPLY-5064
+                            retryOnNonEmpty(env.WORKSPACE, 30, 10) { outputFile ->
                                 sh script: """#!/bin/bash
                                     set -o pipefail
 
