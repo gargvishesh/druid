@@ -13,8 +13,10 @@ on:
 jobs:
   dependencyVulnerabilities:
     runs-on: ubuntu-latest
-    fail-fast: false
     strategy:
+      # NIST can get overwhelmed with requests, so run checks one at a time
+      max-parallel: 1
+      fail-fast: false
       matrix:
         branch:
           # There is an existing automated check on master

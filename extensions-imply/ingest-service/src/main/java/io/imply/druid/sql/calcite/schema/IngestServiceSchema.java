@@ -15,7 +15,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.ingest.client.IngestServiceClient;
-import io.imply.druid.ingest.metadata.IngestSchema;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.server.IngestJobInfo;
 import io.imply.druid.ingest.server.IngestJobsResponse;
 import io.imply.druid.ingest.server.SchemasResponse;
@@ -57,6 +57,7 @@ public class IngestServiceSchema extends AbstractSchema
 
   static final RowSignature SCHEMAS_SIGNATURE = RowSignature
       .builder()
+      .add("schema_id", ValueType.STRING)
       .add("description", ValueType.STRING)
       .add("timestamp_spec", ValueType.STRING)
       .add("dimensions_spec", ValueType.STRING)
@@ -141,7 +142,7 @@ public class IngestServiceSchema extends AbstractSchema
     }
   }
 
-  static class SchemasTable extends IngestServiceClientTable<IngestSchema>
+  static class SchemasTable extends IngestServiceClientTable<StoredIngestSchema>
   {
     public SchemasTable(
         IngestServiceClient ingestServiceClient,
@@ -153,7 +154,7 @@ public class IngestServiceSchema extends AbstractSchema
     }
 
     @Override
-    Iterator<IngestSchema> getObjectIterator(DataContext root) throws IOException
+    Iterator<StoredIngestSchema> getObjectIterator(DataContext root) throws IOException
     {
       SchemasResponse response = ingestServiceClient.getSchemas();
       // not really any auth on ingest schemas right now here...
@@ -161,7 +162,7 @@ public class IngestServiceSchema extends AbstractSchema
     }
 
     @Override
-    Function<IngestSchema, Object[]> getRowFunction()
+    Function<StoredIngestSchema, Object[]> getRowFunction()
     {
       return schema -> {
         String timestampBlob = "";
@@ -179,6 +180,7 @@ public class IngestServiceSchema extends AbstractSchema
         }
 
         return new Object[]{
+            schema.getSchemaId(),
             schema.getDescription(),
             timestampBlob,
             dimensionBlob,

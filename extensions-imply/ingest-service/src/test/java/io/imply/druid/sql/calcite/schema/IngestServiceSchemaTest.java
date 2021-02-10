@@ -16,6 +16,7 @@ import io.imply.druid.ingest.client.IngestServiceClient;
 import io.imply.druid.ingest.jobs.JobState;
 import io.imply.druid.ingest.metadata.IngestSchema;
 import io.imply.druid.ingest.metadata.PartitionScheme;
+import io.imply.druid.ingest.metadata.StoredIngestSchema;
 import io.imply.druid.ingest.server.IngestJobInfo;
 import io.imply.druid.ingest.server.IngestJobsResponse;
 import io.imply.druid.ingest.server.SchemasResponse;
@@ -215,7 +216,14 @@ public class IngestServiceSchemaTest
   public void testSchemasTable() throws IOException
   {
     EasyMock.expect(client.getSchemas())
-            .andReturn(new SchemasResponse(ImmutableList.of(TEST_SCHEMA, OTHER_TEST_SCHEMA)))
+            .andReturn(
+                new SchemasResponse(
+                    ImmutableList.of(
+                        new StoredIngestSchema(1, TEST_SCHEMA),
+                        new StoredIngestSchema(2, OTHER_TEST_SCHEMA)
+                    )
+                )
+            )
             .once();
     replayAll();
 
@@ -226,6 +234,7 @@ public class IngestServiceSchemaTest
 
     Assert.assertArrayEquals(
         new Object[]{
+            1,
             TEST_SCHEMA.getDescription(),
             MAPPER.writeValueAsString(TEST_SCHEMA.getTimestampSpec()),
             MAPPER.writeValueAsString(TEST_SCHEMA.getDimensionsSpec()),
@@ -236,6 +245,7 @@ public class IngestServiceSchemaTest
     );
     Assert.assertArrayEquals(
         new Object[]{
+            2,
             OTHER_TEST_SCHEMA.getDescription(),
             MAPPER.writeValueAsString(OTHER_TEST_SCHEMA.getTimestampSpec()),
             MAPPER.writeValueAsString(OTHER_TEST_SCHEMA.getDimensionsSpec()),

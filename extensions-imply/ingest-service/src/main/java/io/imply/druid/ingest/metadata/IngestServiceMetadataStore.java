@@ -66,9 +66,9 @@ public interface IngestServiceMetadataStore
 
   // schemas
   int createSchema(IngestSchema schema);
-  IngestSchema getSchema(int schemaId);
+  StoredIngestSchema getSchema(int schemaId);
   boolean schemaExists(int schemaId);
-  List<IngestSchema> getAllSchemas();
+  List<StoredIngestSchema> getAllSchemas();
   int deleteSchema(int schemaId);
 
   // formats

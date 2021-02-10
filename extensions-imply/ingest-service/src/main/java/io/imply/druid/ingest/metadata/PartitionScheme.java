@@ -67,4 +67,13 @@ public class PartitionScheme
   {
     return Objects.hash(segmentGranularity, secondaryPartitionsSpec);
   }
+
+  @Override
+  public String toString()
+  {
+    return "PartitionScheme{" +
+           "segmentGranularity=" + segmentGranularity +
+           ", secondaryPartitionsSpec=" + secondaryPartitionsSpec +
+           '}';
+  }
 }

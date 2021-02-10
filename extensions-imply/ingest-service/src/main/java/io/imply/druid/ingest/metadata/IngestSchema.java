@@ -110,6 +110,7 @@ public class IngestSchema
     return "IngestSchema{" +
            "timestampSpec=" + timestampSpec +
            ", dimensionsSpec=" + dimensionsSpec +
+           ", partitionScheme=" + partitionScheme +
            ", inputFormat=" + inputFormat +
            ", description='" + description + '\'' +
            '}';
