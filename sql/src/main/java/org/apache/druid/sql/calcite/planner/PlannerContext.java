@@ -29,18 +29,14 @@ import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.AuthenticationResult;
-import org.apache.druid.server.security.Resource;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -67,30 +63,29 @@ public class PlannerContext
   private final PlannerConfig plannerConfig;
   private final DateTime localNow;
   private final Map<String, Object> queryContext;
+  private final List<TypedValue> parameters;
+  private final AuthenticationResult authenticationResult;
   private final String sqlQueryId;
   private final List<String> nativeQueryIds = new CopyOnWriteArrayList<>();
-  // bindings for dynamic parameters to bind during planning
-  private List<TypedValue> parameters = Collections.emptyList();
-  // result of authentication, providing identity to authorize set of resources produced by validation
-  private AuthenticationResult authenticationResult;
-  // set of datasources and views which must be authorized
-  private Set<Resource> resources = Collections.emptySet();
-  // result of authorizing set of resources against authentication identity
-  private Access authorizationResult;
+
 
   private PlannerContext(
       final DruidOperatorTable operatorTable,
       final ExprMacroTable macroTable,
       final PlannerConfig plannerConfig,
       final DateTime localNow,
-      final Map<String, Object> queryContext
+      final Map<String, Object> queryContext,
+      final List<TypedValue> parameters,
+      final AuthenticationResult authenticationResult
   )
   {
     this.operatorTable = operatorTable;
     this.macroTable = macroTable;
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
     this.queryContext = queryContext != null ? new HashMap<>(queryContext) : new HashMap<>();
+    this.parameters = Preconditions.checkNotNull(parameters);
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
+    this.authenticationResult = Preconditions.checkNotNull(authenticationResult, "authenticationResult");
 
     String sqlQueryId = (String) this.queryContext.get(CTX_SQL_QUERY_ID);
     // special handling for DruidViewMacro, normal client will allocate sqlid in SqlLifecyle
@@ -104,7 +99,9 @@ public class PlannerContext
       final DruidOperatorTable operatorTable,
       final ExprMacroTable macroTable,
       final PlannerConfig plannerConfig,
-      final Map<String, Object> queryContext
+      final Map<String, Object> queryContext,
+      final List<TypedValue> parameters,
+      final AuthenticationResult authenticationResult
   )
   {
     final DateTime utcNow;
@@ -135,7 +132,9 @@ public class PlannerContext
         macroTable,
         plannerConfig.withOverrides(queryContext),
         utcNow.withZone(timeZone),
-        queryContext
+        queryContext,
+        parameters,
+        authenticationResult
     );
   }
 
@@ -205,7 +204,8 @@ public class PlannerContext
               new DateTime("1970-01-01T00:00:00.000", localNow.getZone()),
               localNow
           ).toDurationMillis(),
-          DataContext.Variable.TIME_ZONE.camelName, localNow.getZone().toTimeZone().clone()
+          DataContext.Variable.TIME_ZONE.camelName, localNow.getZone().toTimeZone().clone(),
+          DATA_CTX_AUTHENTICATION_RESULT, authenticationResult
       );
       private final Map<String, Object> context;
 
@@ -217,9 +217,6 @@ public class PlannerContext
         for (TypedValue parameter : parameters) {
           builder.put("?" + i, parameter.value);
           i++;
-        }
-        if (authenticationResult != null) {
-          builder.put(DATA_CTX_AUTHENTICATION_RESULT, authenticationResult);
         }
         context = builder.build();
       }
@@ -250,36 +247,5 @@ public class PlannerContext
     }
 
     return new DruidDataContext();
-  }
-
-
-  public Access getAuthorizationResult()
-  {
-    return authorizationResult;
-  }
-
-  public void setParameters(List<TypedValue> parameters)
-  {
-    this.parameters = Preconditions.checkNotNull(parameters, "parameters");
-  }
-
-  public void setAuthenticationResult(AuthenticationResult authenticationResult)
-  {
-    this.authenticationResult = Preconditions.checkNotNull(authenticationResult, "authenticationResult");
-  }
-
-  public void setAuthorizationResult(Access access)
-  {
-    this.authorizationResult = Preconditions.checkNotNull(access, "authorizationResult");
-  }
-
-  public Set<Resource> getResources()
-  {
-    return resources;
-  }
-
-  public void setResources(Set<Resource> resources)
-  {
-    this.resources = Preconditions.checkNotNull(resources, "resources");
   }
 }

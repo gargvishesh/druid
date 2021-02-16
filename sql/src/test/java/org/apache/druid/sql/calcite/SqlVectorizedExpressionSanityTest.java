@@ -40,6 +40,8 @@ import org.apache.druid.segment.generator.GeneratorSchemaInfo;
 import org.apache.druid.segment.generator.SegmentGenerator;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.security.AuthTestUtils;
+import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.NoopEscalator;
 import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.DruidPlanner;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
@@ -163,6 +165,7 @@ public class SqlVectorizedExpressionSanityTest extends InitializedNullHandlingTe
     sanityTestVectorizedSqlQueries(PLANNER_FACTORY, query);
   }
 
+
   public static void sanityTestVectorizedSqlQueries(PlannerFactory plannerFactory, String query)
       throws ValidationException, RelConversionException, SqlParseException
   {
@@ -174,10 +177,12 @@ public class SqlVectorizedExpressionSanityTest extends InitializedNullHandlingTe
         QueryContexts.VECTORIZE_KEY, "false",
         QueryContexts.VECTORIZE_VIRTUAL_COLUMNS_KEY, "false"
     );
+    final AuthenticationResult authenticationResult = NoopEscalator.getInstance()
+                                                                   .createEscalatedAuthenticationResult();
 
     try (
-        final DruidPlanner vectorPlanner = plannerFactory.createPlannerForTesting(vector, query);
-        final DruidPlanner nonVectorPlanner = plannerFactory.createPlannerForTesting(nonvector, query)
+        final DruidPlanner vectorPlanner = plannerFactory.createPlanner(vector, ImmutableList.of(), authenticationResult);
+        final DruidPlanner nonVectorPlanner = plannerFactory.createPlanner(nonvector, ImmutableList.of(), authenticationResult)
     ) {
       final PlannerResult vectorPlan = vectorPlanner.plan(query);
       final PlannerResult nonVectorPlan = nonVectorPlanner.plan(query);

@@ -28,6 +28,7 @@ import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ViewTable;
+import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Escalator;
 import org.apache.druid.sql.calcite.planner.DruidPlanner;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
@@ -60,7 +61,10 @@ public class DruidViewMacro implements TableMacro
   public TranslatableTable apply(final List<Object> arguments)
   {
     final RelDataType rowType;
-    try (final DruidPlanner planner = plannerFactory.createPlanner(null)) {
+    // Using an escalator here is a hack, but it's currently needed to get the row type. Ideally, some
+    // later refactoring would make this unnecessary, since there is no actual query going out herem.
+    final AuthenticationResult authResult = escalator.createEscalatedAuthenticationResult();
+    try (final DruidPlanner planner = plannerFactory.createPlanner(null, ImmutableList.of(), authResult)) {
 
       rowType = planner.plan(viewSql).rowType();
     }

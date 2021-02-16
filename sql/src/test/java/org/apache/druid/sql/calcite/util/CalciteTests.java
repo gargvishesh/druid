@@ -118,7 +118,6 @@ import org.apache.druid.sql.calcite.schema.InformationSchema;
 import org.apache.druid.sql.calcite.schema.LookupSchema;
 import org.apache.druid.sql.calcite.schema.MetadataSegmentView;
 import org.apache.druid.sql.calcite.schema.SystemSchema;
-import org.apache.druid.sql.calcite.schema.ViewSchema;
 import org.apache.druid.sql.calcite.view.DruidViewMacroFactory;
 import org.apache.druid.sql.calcite.view.NoopViewManager;
 import org.apache.druid.sql.calcite.view.ViewManager;
@@ -164,7 +163,6 @@ public class CalciteTests
   public static final String INFORMATION_SCHEMA_NAME = "INFORMATION_SCHEMA";
   public static final String SYSTEM_SCHEMA_NAME = "sys";
   public static final String LOOKUP_SCHEMA_NAME = "lookup";
-  public static final String VIEW_SCHEMA_NAME = "view";
 
   public static final String TEST_SUPERUSER_NAME = "testSuperuser";
   public static final AuthorizerMapper TEST_AUTHORIZER_MAPPER = new AuthorizerMapper(null)
@@ -178,8 +176,6 @@ public class CalciteTests
         }
 
         if (resource.getType() == ResourceType.DATASOURCE && resource.getName().equals(FORBIDDEN_DATASOURCE)) {
-          return new Access(false);
-        } else if (resource.getType() == ResourceType.VIEW && resource.getName().equals("forbiddenView")) {
           return new Access(false);
         } else {
           return Access.OK;
@@ -605,8 +601,7 @@ public class CalciteTests
 
 
   public static final List<InputRow> FORBIDDEN_ROWS = ImmutableList.of(
-      createRow("2000-01-01", "forbidden", "abcd", 9999.0),
-      createRow("2000-01-02", "forbidden", "a", 1234.0)
+      createRow("2000-01-01", "forbidden", "abcd", 9999.0)
   );
 
   // Hi, I'm Troy McClure. You may remember these rows from such benchmarks generator schemas as basic and expression
@@ -1102,7 +1097,6 @@ public class CalciteTests
     rootSchema.add(CalciteTests.INFORMATION_SCHEMA_NAME, informationSchema);
     rootSchema.add(CalciteTests.SYSTEM_SCHEMA_NAME, systemSchema);
     rootSchema.add(CalciteTests.LOOKUP_SCHEMA_NAME, lookupSchema);
-    rootSchema.add(CalciteTests.VIEW_SCHEMA_NAME, new ViewSchema(viewManager));
     return rootSchema;
   }
 
@@ -1150,6 +1144,7 @@ public class CalciteTests
         },
         createDefaultJoinableFactory(),
         plannerConfig,
+        viewManager,
         TEST_AUTHENTICATOR_ESCALATOR
     );
 
