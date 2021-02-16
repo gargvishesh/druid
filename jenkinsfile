@@ -1,1 +1,35 @@
+pipeline {
+  options {
+      timeout(time: 2, unit: 'HOURS')
+  }
+  agent {
+      docker {
+          image 'docker/druid-ci-jdk8:1613483962'
+          registryUrl 'https://repo.qa.imply.io/artifactory'
+          registryCredentialsId 'repo.qa.imply.io'
+          args '-u root:root --runtime=sysbox-runc'
+      }
+  }
+  stages {
+    stage('docker test') {
+      steps {
+        sh '''#!/bin/bash -x
+            echo \
+            "{\"registry-mirrors\": [\"https://registry-mirror.qa.imply.io:443\"], \"debug\": true, \"bip\": \"172.20.0.1/16\"}" \
+            > /etc/docker/daemon.json
+            dockerd  > /var/log/dockerd.log 2>&1 &
+            sleep 5
+            docker ps -a
 
+            docker run --rm --entrypoint=ash alpine:latest ls -alt
+            tail -n 100 /var/log/dockerd.log
+        '''
+      }
+    }
+    // stage ('helm') {
+    //   steps {
+    //     sh 'printenv'
+    //   }
+    // }
+  }
+}
