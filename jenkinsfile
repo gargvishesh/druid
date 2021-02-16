@@ -14,14 +14,15 @@ pipeline {
     stage('docker test') {
       steps {
         sh '''#!/bin/bash -x
+            mkdir -p /etc/docker
             echo \
-            "{\"registry-mirrors\": [\"https://registry-mirror.qa.imply.io:443\"], \"debug\": true, \"bip\": \"172.20.0.1/16\"}" \
+            "{\\"registry-mirrors\\": [\\"https://registry-mirror.qa.imply.io:443\\"], \\"debug\\": true, \\"bip\\": \\"172.20.0.1/16\\"}" \
             > /etc/docker/daemon.json
             dockerd  > /var/log/dockerd.log 2>&1 &
             sleep 5
             docker ps -a
 
-            docker run --rm --entrypoint=ash alpine:latest ls -alt
+            docker run --rm alpine:latest ls -alt
             tail -n 100 /var/log/dockerd.log
         '''
       }
