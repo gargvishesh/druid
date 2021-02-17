@@ -15,6 +15,9 @@ pipeline {
   environment {
     // MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
     MVN = "mvn -B"
+    MVN_OPTS = "export MAVEN_OPTS=\"-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m\""
+    MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
+    MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
   }
 
   stages {
@@ -49,8 +52,9 @@ pipeline {
                     sh script: '''
                       mkdir -p ~/.m2
                       ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
+                      ${MVN_OPTS} && ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
                     ''',
-                    label: 'setting mvn settings symlink'
+                    label: 'mvn install'
                     sh script: '''#!/bin/bash
                         set -o pipefail
 
@@ -69,7 +73,7 @@ pipeline {
                 //     }
                 // }
             }
-            stage('Test On Linux') {
+            stage('Filler') {
                 agent {
                     docker {
                         image 'maven:3.6.3-jdk-8'
