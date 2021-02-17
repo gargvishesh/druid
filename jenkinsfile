@@ -18,10 +18,10 @@ def mavenInstall() {
 }
 
 pipeline {
-  options {
-      timeout(time: 2, unit: 'HOURS')
-  }
-  agent none
+    options {
+        timeout(time: 2, unit: 'HOURS')
+    }
+  //agent none
   // agent {
   //     docker {
   //         image 'docker/druid-ci-jdk8:latest'
@@ -31,6 +31,14 @@ pipeline {
   //         label 'jenkinsOnDemand'
   //     }
   // }
+
+    agent {
+        docker {
+            image 'maven:3.6.3-jdk-8'
+            args '--memory=8g --memory-reservation=4g -u root:root'
+            label 'jenkinsOnDemandMultiExec'
+        }
+    }
 
   environment {
     MVN = "mvn -B"
@@ -56,13 +64,6 @@ pipeline {
     // }
     stage('Checks') {
         parallel {
-            agent {
-                docker {
-                    image 'maven:3.6.3-jdk-8'
-                    args '--memory=8g --memory-reservation=4g -u root:root'
-                    label 'jenkinsOnDemandMultiExec'
-                }
-            }
             stage('security vulnerabilities') {
                 // agent {
                 //     docker {
