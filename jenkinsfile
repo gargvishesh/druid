@@ -1,3 +1,19 @@
+def loadEnvironment() {
+    environment {
+        MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+    }
+}
+
+def mavenInstall() {
+    sh script: '''
+        mkdir -p ~/.m2
+        ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
+        export MAVEN_OPTS='-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m'
+        ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
+    ''',
+    label: 'mvn install'
+}
+
 pipeline {
   options {
       timeout(time: 2, unit: 'HOURS')
@@ -13,9 +29,7 @@ pipeline {
   //     }
   // }
   environment {
-    // MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
     MVN = "mvn -B"
-    MVN_OPTS = "export MAVEN_OPTS=\"-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m\""
     MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
     MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
   }
@@ -38,9 +52,10 @@ pipeline {
     stage('Checks') {
         parallel {
             stage('security vulnerabilities') {
-                environment {
-                  MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
-                }
+                // environment {
+                //   MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+                // }
+                loadEnvironment()
                 agent {
                     docker {
                         image 'maven:3.6.3-jdk-8'
@@ -49,12 +64,7 @@ pipeline {
                     }
                 }
                 steps {
-                    sh script: '''
-                      mkdir -p ~/.m2
-                      ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
-                      ${MVN_OPTS} && ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
-                    ''',
-                    label: 'mvn install'
+                    mavenInstall()
                     sh script: '''#!/bin/bash
                         set -o pipefail
 
