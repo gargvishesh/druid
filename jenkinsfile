@@ -26,7 +26,45 @@ def prepareIfconfig() {
 }
 
 def imageJDK8() {
-    return 'maven:3.6.3-jdk-8'
+    return 'docker/druid-ci-jdk8:latest'
+}
+
+def rtRegistryUrl() {
+    return 'https://repo.qa.imply.io/artifactory'
+}
+
+def rtRegistryCredentialsId() {
+    return 'repo.qa.imply.io'
+}
+
+def dockerAgentArgs() {
+    return '-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443'
+}
+
+def dockerAgentLabel() {
+    return 'jenkinsOnDemand'
+}
+
+
+def implyQueryIntegrationTests(jdkRuntimeArg) {
+    mavenInstall()
+    prepareIfconfig()
+    sh script: """
+        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+        -Dgroups=query -Dit.indexer=middleManager  ${jdkRuntimeArg}  -Ddruid.test.config.extraDatasourceNameSuffix="" \
+        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+    """,
+    label: "imply query integration tests with ${jdkRuntimeArg}"
+}
+
+def implyIngestServiceIntegrationTests(jdkRuntimeArg) {
+    mavenInstall()
+    prepareIfconfig()
+    sh script: """
+        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+        -Dgroups=ingest-service -Dit.indexer=middleManager  ${jdkRuntimeArg} \
+        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+    """, label: "imply ingest service integration tests with ${jdkRuntimeArg}"
 }
 
 pipeline {
@@ -51,7 +89,6 @@ pipeline {
         MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
-
     }
 
   stages {
@@ -102,52 +139,46 @@ pipeline {
             // }
 
             stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                environment {
-                    JVM_RUNTIME='-Djvm.runtime=8'
-                }
-                agent {
-                    docker {
-                        image 'docker/druid-ci-jdk8:latest'
-                        registryUrl 'https://repo.qa.imply.io/artifactory'
-                        registryCredentialsId 'repo.qa.imply.io'
-                        args '-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443'
-                        label 'jenkinsOnDemand'
-                    }
-                }
-                steps {
-                    sh script: "printenv"
-                    mavenInstall()
-                    prepareIfconfig()
-                    sh script: "mkdir -p /root/shared"
-                    sh script: '''
-                        ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-                        -Dgroups=query -Dit.indexer=middleManager  ${JVM_RUNTIME}  -Ddruid.test.config.extraDatasourceNameSuffix="" \
-                        -ff ${MAVEN_SKIP} -Djacoco.skip=true
-                    '''
-                }
+                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
+            }
+
+            stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+            }
+
+            stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
+                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
+            }
+
+            stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
             }
 
 
-            stage('Filler') {
-                // agent {
-                //     docker {
-                //         image 'maven:3.6.3-jdk-8'
-                //         args '--memory=8g --memory-reservation=4g -u root:root'
-                //         label 'jenkinsOnDemandMultiExec'
-                //     }
-                // }
-                agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-                steps {
-                    sh script: 'echo $HOSTNAME'
-                    sh 'printenv'
-                    sh "echo 'this is filler!'"
-                }
-                // post {
-                //     always {
-                //         junit "**/TEST-*.xml"
-                //     }
-                // }
-            }
+            // stage('Filler') {
+            //     // agent {
+            //     //     docker {
+            //     //         image 'maven:3.6.3-jdk-8'
+            //     //         args '--memory=8g --memory-reservation=4g -u root:root'
+            //     //         label 'jenkinsOnDemandMultiExec'
+            //     //     }
+            //     // }
+            //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
+            //     steps {
+            //         sh script: 'echo $HOSTNAME'
+            //         sh 'printenv'
+            //         sh "echo 'this is filler!'"
+            //     }
+            //     // post {
+            //     //     always {
+            //     //         junit "**/TEST-*.xml"
+            //     //     }
+            //     // }
+            // }
         }
         //     stage('Filler2') {
         //         // agent {
