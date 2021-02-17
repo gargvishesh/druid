@@ -66,8 +66,8 @@ def buildArtifacts(stageName) {
         sh script: "mkdir -p ${stageArtifactsDirPath}"
         // copy logs
         sh script: """#!/bin/bash -x
-            [ -d "~/shared/logs" ] && cp -R ~/shared/logs ${stageArtifactsDirPath}/ || true
-            [ -d "~/shared/tasklogs" ] && cp -R ~/shared/tasklogs ${stageArtifactsDirPath}/ || true
+            [ -d ~/shared/logs ] && cp -R ~/shared/logs ${stageArtifactsDirPath}/ || true
+            [ -d ~/shared/tasklogs ] && cp -R ~/shared/tasklogs ${stageArtifactsDirPath}/ || true
         """
         // copy test reports
         copyFilesByPattern("**/target/surefire-reports/*.xml", stageArtifactsDirPath)
@@ -183,11 +183,11 @@ pipeline {
                 //     // }
                 // }
 
-                // stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) } }
-                // }
+                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) } }
+                }
 
                 stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
                     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
