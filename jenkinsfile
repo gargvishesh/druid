@@ -68,7 +68,7 @@ pipeline {
                 //         label 'jenkinsOnDemandMultiExec'
                 //     }
                 // }
-                agent { image imageJDK8() args '--memory=8g --memory-reservation=4g -u root:root' label 'jenkinsOnDemandMultiExec' }
+                agent { image(imageJDK8()); args('--memory=8g --memory-reservation=4g -u root:root'); label('jenkinsOnDemandMultiExec') }
                 steps {
                     mavenInstall()
                     sh script: 'echo $HOSTNAME'
@@ -98,7 +98,7 @@ pipeline {
                 //         label 'jenkinsOnDemandMultiExec'
                 //     }
                 // }
-                agent { image imageJDK8() args '--memory=8g --memory-reservation=4g -u root:root' label 'jenkinsOnDemandMultiExec' }
+                agent { image(imageJDK8()); args('--memory=8g --memory-reservation=4g -u root:root') label('jenkinsOnDemandMultiExec') }
                 steps {
                     sh script: 'echo $HOSTNAME'
                     sh 'printenv'
@@ -118,7 +118,7 @@ pipeline {
                 //         label 'jenkinsOnDemandMultiExec'
                 //     }
                 // }
-                agent { image 'maven:3.6.3-jdk-11' args '--memory=8g --memory-reservation=4g -u root:root' label 'jenkinsOnDemandMultiExec' }
+                agent { image('maven:3.6.3-jdk-11'); args('--memory=8g --memory-reservation=4g -u root:root') label('jenkinsOnDemandMultiExec') }
                 steps {
                     sh script: 'echo $HOSTNAME'
                     sh 'printenv'
