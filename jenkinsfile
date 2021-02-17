@@ -31,6 +31,7 @@ pipeline {
   //         label 'jenkinsOnDemand'
   //     }
   // }
+
   environment {
     MVN = "mvn -B"
     MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
@@ -54,21 +55,25 @@ pipeline {
     //   }
     // }
     stage('Checks') {
+        agent {
+            docker {
+                image 'maven:3.6.3-jdk-8'
+                args '--memory=8g --memory-reservation=4g -u root:root'
+                label 'jenkinsOnDemandMultiExec'
+            }
+        }
         parallel {
             stage('security vulnerabilities') {
-                // environment {
-                //   MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+                // agent {
+                //     docker {
+                //         image 'maven:3.6.3-jdk-8'
+                //         args '--memory=8g --memory-reservation=4g -u root:root'
+                //         label 'jenkinsOnDemandMultiExec'
+                //     }
                 // }
-                // loadEnvironment()
-                agent {
-                    docker {
-                        image 'maven:3.6.3-jdk-8'
-                        args '--memory=8g --memory-reservation=4g -u root:root'
-                        label 'jenkinsOnDemandMultiExec'
-                    }
-                }
                 steps {
                     mavenInstall()
+                    sh script: 'echo $HOSTNAME'
                     sh script: '''#!/bin/bash
                         set -o pipefail
 
@@ -88,16 +93,36 @@ pipeline {
                 // }
             }
             stage('Filler') {
+                // agent {
+                //     docker {
+                //         image 'maven:3.6.3-jdk-8'
+                //         args '--memory=8g --memory-reservation=4g -u root:root'
+                //         label 'jenkinsOnDemandMultiExec'
+                //     }
+                // }
+                steps {
+                    sh script: 'echo $HOSTNAME'
+                    sh 'printenv'
+                    sh "echo 'this is filler!'"
+                }
+                // post {
+                //     always {
+                //         junit "**/TEST-*.xml"
+                //     }
+                // }
+            }
+            stage('Filler2') {
                 agent {
                     docker {
-                        image 'maven:3.6.3-jdk-8'
+                        image 'maven:3.6.3-jdk-11'
                         args '--memory=8g --memory-reservation=4g -u root:root'
                         label 'jenkinsOnDemandMultiExec'
                     }
                 }
                 steps {
+                    sh script: 'echo $HOSTNAME'
                     sh 'printenv'
-                    sh "echo 'this is filler!'"
+                    sh "echo 'this is filler2!'"
                 }
                 // post {
                 //     always {
