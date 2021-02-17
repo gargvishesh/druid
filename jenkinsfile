@@ -203,64 +203,6 @@ pipeline {
             //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
             // }
 
-
-            // stage('Filler') {
-            //     // agent {
-            //     //     docker {
-            //     //         image 'maven:3.6.3-jdk-8'
-            //     //         args '--memory=8g --memory-reservation=4g -u root:root'
-            //     //         label 'jenkinsOnDemandMultiExec'
-            //     //     }
-            //     // }
-            //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-            //     steps {
-            //         sh script: 'echo $HOSTNAME'
-            //         sh 'printenv'
-            //         sh "echo 'this is filler!'"
-            //     }
-            //     // post {
-            //     //     always {
-            //     //         junit "**/TEST-*.xml"
-            //     //     }
-            //     // }
-            // }
-        }
-        //     stage('Filler2') {
-        //         // agent {
-        //         //     docker {
-        //         //         image 'maven:3.6.3-jdk-11'
-        //         //         args '--memory=8g --memory-reservation=4g -u root:root'
-        //         //         label 'jenkinsOnDemandMultiExec'
-        //         //     }
-        //         // }
-        //         agent { docker { image 'maven:3.6.3-jdk-11'; args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-        //         steps {
-        //             sh script: 'echo $HOSTNAME'
-        //             sh 'printenv'
-        //             sh "echo 'this is filler2!'"
-        //         }
-        //         // post {
-        //         //     always {
-        //         //         junit "**/TEST-*.xml"
-        //         //     }
-        //         // }
-        //     }
-        // }
-
-        post {
-            always {
-                script {
-                    def stageArtifactsDirPath = "stage_${env.STAGE_NAME.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
-                }
-                archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
-            }
-        }
     }
-    }
-    // stage ('helm') {
-    //   steps {
-    //     sh 'printenv'
-    //   }
-    // }
   }
 }
