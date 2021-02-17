@@ -6,7 +6,7 @@
 
 def mavenInstall() {
     script {
-        withCredentials([file(credentialsId: MVN_SETTINGS_FILE, variable: 'MVN_SETTINGS_PATH')]) {
+        withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
             sh script: '''
                 mkdir -p ~/.m2
                 ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
