@@ -8,7 +8,6 @@ def mavenInstall() {
     sh script: '''
         mkdir -p ~/.m2
         ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
-        export MAVEN_OPTS='-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m'
         ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
     ''',
     label: 'mvn install'
@@ -32,6 +31,7 @@ pipeline {
     MVN = "mvn -B"
     MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
     MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
+    MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
   }
 
   stages {
@@ -92,6 +92,7 @@ pipeline {
                     }
                 }
                 steps {
+                    sh 'printenv'
                     sh "echo 'this is filler!'"
                 }
                 // post {
