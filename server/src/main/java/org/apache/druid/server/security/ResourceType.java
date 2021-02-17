@@ -25,7 +25,6 @@ import org.apache.druid.java.util.common.StringUtils;
 public enum ResourceType
 {
   DATASOURCE,
-  VIEW,
   CONFIG,
   STATE;
 

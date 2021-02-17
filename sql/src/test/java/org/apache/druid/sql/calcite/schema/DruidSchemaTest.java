@@ -61,6 +61,7 @@ import org.apache.druid.sql.calcite.util.CalciteTestBase;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestServerInventoryView;
+import org.apache.druid.sql.calcite.view.NoopViewManager;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.DataSegment.PruneSpecsHolder;
 import org.apache.druid.timeline.SegmentId;
@@ -256,6 +257,7 @@ public class DruidSchemaTest extends CalciteTestBase
         segmentManager,
         new MapJoinableFactory(ImmutableSet.of(globalTableJoinable), ImmutableMap.of(globalTableJoinable.getClass(), GlobalTableDataSource.class)),
         PLANNER_CONFIG_DEFAULT,
+        new NoopViewManager(),
         new NoopEscalator()
     )
     {
@@ -274,6 +276,7 @@ public class DruidSchemaTest extends CalciteTestBase
             segmentManager,
             new MapJoinableFactory(ImmutableSet.of(globalTableJoinable), ImmutableMap.of(globalTableJoinable.getClass(), GlobalTableDataSource.class)),
             PLANNER_CONFIG_DEFAULT,
+            new NoopViewManager(),
             new NoopEscalator()
     )
     {
