@@ -180,16 +180,16 @@ pipeline {
                 //     // }
                 // }
 
-                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                    steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
-                    post { failure { buildArtifacts(env.STAGE_NAME) } }
-                }
+                // stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
+                //     post { always { buildArtifacts(env.STAGE_NAME) } }
+                // }
 
                 stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
                     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                    post { failure { buildArtifacts(env.STAGE_NAME) } }
+                    post { always { buildArtifacts(env.STAGE_NAME) } }
                 }
 
 
