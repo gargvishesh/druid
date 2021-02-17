@@ -2,30 +2,88 @@ pipeline {
   options {
       timeout(time: 2, unit: 'HOURS')
   }
-  agent {
-      docker {
-          image 'docker/druid-ci-jdk8:1613483962'
-          registryUrl 'https://repo.qa.imply.io/artifactory'
-          registryCredentialsId 'repo.qa.imply.io'
-          args '-u root:root --runtime=sysbox-runc'
-      }
+  agent none
+  // agent {
+  //     docker {
+  //         image 'docker/druid-ci-jdk8:latest'
+  //         registryUrl 'https://repo.qa.imply.io/artifactory'
+  //         registryCredentialsId 'repo.qa.imply.io'
+  //         args '-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443'
+  //         label 'jenkinsOnDemand'
+  //     }
+  // }
+  environment {
+    MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+    MVN = "mvn -B"
   }
-  stages {
-    stage('docker test') {
-      steps {
-        sh '''#!/bin/bash -x
-            mkdir -p /etc/docker
-            echo \
-            "{\\"registry-mirrors\\": [\\"https://registry-mirror.qa.imply.io:443\\"], \\"debug\\": true, \\"bip\\": \\"172.20.0.1/16\\"}" \
-            > /etc/docker/daemon.json
-            dockerd  > /var/log/dockerd.log 2>&1 &
-            sleep 5
-            docker ps -a
 
-            docker run --rm alpine:latest ls -alt
-            tail -n 100 /var/log/dockerd.log
-        '''
-      }
+  stages {
+    // stage('docker test') {
+    //   steps {
+    //     sh '''#!/bin/bash -x
+    //         cat /etc/docker/daemon.json
+    //         printenv
+    //         docker run --rm -t alpine:latest ls -alt
+    //         tail -n 200 /var/log/dockerd.log
+    //     '''
+
+    //     // script {
+    //     //     input message: "Do you want to repackage"
+    //     // }
+    //   }
+    // }
+    stage('Checks') {
+        parallel {
+            stage('security vulnerabilities') {
+                agent {
+                    docker {
+                        image 'maven:3.6.3-jdk-8'
+                        args '--memory=8g --memory-reservation=4g -u root:root'
+                        label 'jenkinsOnDemandMultiExec'
+                    }
+                }
+                steps {
+                    sh script: '''
+                      mkdir -p ~/.m2
+                      ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
+                    ''',
+                    label: 'setting mvn settings symlink'
+                    sh script: '''#!/bin/bash
+                        set -o pipefail
+
+                        ${MVN} dependency-check:check || \
+                        { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
+                        of the dependency that does not have vulnerabilities. If the analysis has false positives,
+                        they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
+                        information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
+                        " && false; }
+                    ''',
+                    label: 'dependency check'
+                }
+                // post {
+                //     always {
+                //         junit "**/TEST-*.xml"
+                //     }
+                // }
+            }
+            stage('Test On Linux') {
+                agent {
+                    docker {
+                        image 'maven:3.6.3-jdk-8'
+                        args '--memory=8g --memory-reservation=4g -u root:root'
+                        label 'jenkinsOnDemandMultiExec'
+                    }
+                }
+                steps {
+                    sh "echo 'this is filler!'"
+                }
+                // post {
+                //     always {
+                //         junit "**/TEST-*.xml"
+                //     }
+                // }
+            }
+        }
     }
     // stage ('helm') {
     //   steps {
