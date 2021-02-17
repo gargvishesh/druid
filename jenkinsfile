@@ -13,7 +13,7 @@ pipeline {
   //     }
   // }
   environment {
-    MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+    // MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
     MVN = "mvn -B"
   }
 
@@ -35,6 +35,9 @@ pipeline {
     stage('Checks') {
         parallel {
             stage('security vulnerabilities') {
+                environment {
+                  MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+                }
                 agent {
                     docker {
                         image 'maven:3.6.3-jdk-8'
