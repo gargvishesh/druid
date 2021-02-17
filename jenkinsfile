@@ -17,11 +17,15 @@ def mavenInstall() {
     }
 }
 
+def imageJDK8() {
+    return 'maven:3.6.3-jdk-8'
+}
+
 pipeline {
     options {
         timeout(time: 2, unit: 'HOURS')
     }
-  //agent none
+    agent none
   // agent {
   //     docker {
   //         image 'docker/druid-ci-jdk8:latest'
@@ -31,14 +35,6 @@ pipeline {
   //         label 'jenkinsOnDemand'
   //     }
   // }
-
-    agent {
-        docker {
-            image 'maven:3.6.3-jdk-8'
-            args '--memory=8g --memory-reservation=4g -u root:root'
-            label 'jenkinsOnDemandMultiExec'
-        }
-    }
 
   environment {
     MVN = "mvn -B"
@@ -72,6 +68,7 @@ pipeline {
                 //         label 'jenkinsOnDemandMultiExec'
                 //     }
                 // }
+                agent { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec' }
                 steps {
                     mavenInstall()
                     sh script: 'echo $HOSTNAME'
@@ -101,6 +98,7 @@ pipeline {
                 //         label 'jenkinsOnDemandMultiExec'
                 //     }
                 // }
+                agent { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec' }
                 steps {
                     sh script: 'echo $HOSTNAME'
                     sh 'printenv'
@@ -113,13 +111,14 @@ pipeline {
                 // }
             }
             stage('Filler2') {
-                agent {
-                    docker {
-                        image 'maven:3.6.3-jdk-11'
-                        args '--memory=8g --memory-reservation=4g -u root:root'
-                        label 'jenkinsOnDemandMultiExec'
-                    }
-                }
+                // agent {
+                //     docker {
+                //         image 'maven:3.6.3-jdk-11'
+                //         args '--memory=8g --memory-reservation=4g -u root:root'
+                //         label 'jenkinsOnDemandMultiExec'
+                //     }
+                // }
+                agent { image 'maven:3.6.3-jdk-11'; args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec' }
                 steps {
                     sh script: 'echo $HOSTNAME'
                     sh 'printenv'
