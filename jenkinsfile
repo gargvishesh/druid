@@ -133,7 +133,7 @@ pipeline {
         ZK_VERSION = "3.5"
     }
 
-  stages {
+    stages {
     // stage('docker test') {
     //   steps {
     //     sh '''#!/bin/bash -x
@@ -148,61 +148,62 @@ pipeline {
     //     // }
     //   }
     // }
-    stage('Checks') {
-        parallel {
-            // stage('security vulnerabilities') {
-            //     // agent {
-            //     //     docker {
-            //     //         image 'maven:3.6.3-jdk-8'
-            //     //         args '--memory=8g --memory-reservation=4g -u root:root'
-            //     //         label 'jenkinsOnDemandMultiExec'
-            //     //     }
-            //     // }
-            //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-            //     steps {
-            //         mavenInstall()
-            //         sh script: '''#!/bin/bash
-            //             set -o pipefail
+        stage('Checks') {
+            parallel {
+                // stage('security vulnerabilities') {
+                //     // agent {
+                //     //     docker {
+                //     //         image 'maven:3.6.3-jdk-8'
+                //     //         args '--memory=8g --memory-reservation=4g -u root:root'
+                //     //         label 'jenkinsOnDemandMultiExec'
+                //     //     }
+                //     // }
+                //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
+                //     steps {
+                //         mavenInstall()
+                //         sh script: '''#!/bin/bash
+                //             set -o pipefail
 
-            //             ${MVN} dependency-check:check || \
-            //             { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
-            //             of the dependency that does not have vulnerabilities. If the analysis has false positives,
-            //             they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
-            //             information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
-            //             " && false; }
-            //         ''',
-            //         label: 'dependency check'
-            //     }
-            //     // post {
-            //     //     always {
-            //     //         junit "**/TEST-*.xml"
-            //     //     }
-            //     // }
-            // }
+                //             ${MVN} dependency-check:check || \
+                //             { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
+                //             of the dependency that does not have vulnerabilities. If the analysis has false positives,
+                //             they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
+                //             information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
+                //             " && false; }
+                //         ''',
+                //         label: 'dependency check'
+                //     }
+                //     // post {
+                //     //     always {
+                //     //         junit "**/TEST-*.xml"
+                //     //     }
+                //     // }
+                // }
 
-            stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
-                post { failure { buildArtifacts(env.STAGE_NAME) } }
+                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
+                    post { failure { buildArtifacts(env.STAGE_NAME) } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
+                    post { failure { buildArtifacts(env.STAGE_NAME) } }
+                }
+
+
+                // stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+                // }
+
+                // stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
+                // }
+
             }
-
-            stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
-                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                post { failure { buildArtifacts(env.STAGE_NAME) } }
-            }
-
-
-            // stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-            //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-            //     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
-            // }
-
-            // stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
-            //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-            //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
-            // }
-
+        }
     }
-  }
 }
