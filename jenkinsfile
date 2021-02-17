@@ -17,6 +17,14 @@ def mavenInstall() {
     }
 }
 
+def prepareIfconfig() {
+    sh script: '''
+        echo -e '#!/bin/bash\nPATH=/sbin:$PATH exec ifconfig eth0 $@' > /usr/bin/ifconfig
+        chmod +x /usr/bin/ifconfig
+        hash -r
+    ''', label: "prepare ifconfig"
+}
+
 def imageJDK8() {
     return 'maven:3.6.3-jdk-8'
 }
@@ -36,12 +44,15 @@ pipeline {
   //     }
   // }
 
-  environment {
-    MVN = "mvn -B"
-    MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
-    MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
-    MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
-  }
+    environment {
+        MVN = "mvn -B"
+        MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
+        MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
+        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+        DOCKER_IP = "127.0.0.1"
+        ZK_VERSION = "3.5"
+
+    }
 
   stages {
     // stage('docker test') {
@@ -71,7 +82,6 @@ pipeline {
                 agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
                 steps {
                     mavenInstall()
-                    sh script: 'echo $HOSTNAME'
                     sh script: '''#!/bin/bash
                         set -o pipefail
 
@@ -90,47 +100,76 @@ pipeline {
                 //     }
                 // }
             }
-            stage('Filler') {
-                // agent {
-                //     docker {
-                //         image 'maven:3.6.3-jdk-8'
-                //         args '--memory=8g --memory-reservation=4g -u root:root'
-                //         label 'jenkinsOnDemandMultiExec'
-                //     }
-                // }
-                agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-                steps {
-                    sh script: 'echo $HOSTNAME'
-                    sh 'printenv'
-                    sh "echo 'this is filler!'"
+
+            stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                environment {
+                    JVM_RUNTIME='-Djvm.runtime=8'
                 }
-                // post {
-                //     always {
-                //         junit "**/TEST-*.xml"
-                //     }
-                // }
-            }
-            stage('Filler2') {
-                // agent {
-                //     docker {
-                //         image 'maven:3.6.3-jdk-11'
-                //         args '--memory=8g --memory-reservation=4g -u root:root'
-                //         label 'jenkinsOnDemandMultiExec'
-                //     }
-                // }
-                agent { docker { image 'maven:3.6.3-jdk-11'; args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
-                steps {
-                    sh script: 'echo $HOSTNAME'
-                    sh 'printenv'
-                    sh "echo 'this is filler2!'"
+                agent {
+                    docker {
+                        image 'docker/druid-ci-jdk8:latest'
+                        registryUrl 'https://repo.qa.imply.io/artifactory'
+                        registryCredentialsId 'repo.qa.imply.io'
+                        args '-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443'
+                        label 'jenkinsOnDemand'
+                    }
                 }
-                // post {
-                //     always {
-                //         junit "**/TEST-*.xml"
-                //     }
-                // }
+                steps {
+                    sh script: "printenv"
+                    mavenInstall()
+                    prepareIfconfig()
+                    sh script: "mkdir -p /root/shared"
+                    sh script: '''
+                        ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                        -Dgroups=query -Dit.indexer=middleManager  ${JVM_RUNTIME}  -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                        -ff ${MAVEN_SKIP} -Djacoco.skip=true
+                    '''
+                }
             }
         }
+
+
+            // stage('Filler') {
+            //     // agent {
+            //     //     docker {
+            //     //         image 'maven:3.6.3-jdk-8'
+            //     //         args '--memory=8g --memory-reservation=4g -u root:root'
+            //     //         label 'jenkinsOnDemandMultiExec'
+            //     //     }
+            //     // }
+            //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
+            //     steps {
+            //         sh script: 'echo $HOSTNAME'
+            //         sh 'printenv'
+            //         sh "echo 'this is filler!'"
+            //     }
+            //     // post {
+            //     //     always {
+            //     //         junit "**/TEST-*.xml"
+            //     //     }
+            //     // }
+            // }
+        //     stage('Filler2') {
+        //         // agent {
+        //         //     docker {
+        //         //         image 'maven:3.6.3-jdk-11'
+        //         //         args '--memory=8g --memory-reservation=4g -u root:root'
+        //         //         label 'jenkinsOnDemandMultiExec'
+        //         //     }
+        //         // }
+        //         agent { docker { image 'maven:3.6.3-jdk-11'; args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
+        //         steps {
+        //             sh script: 'echo $HOSTNAME'
+        //             sh 'printenv'
+        //             sh "echo 'this is filler2!'"
+        //         }
+        //         // post {
+        //         //     always {
+        //         //         junit "**/TEST-*.xml"
+        //         //     }
+        //         // }
+        //     }
+        // }
     }
     // stage ('helm') {
     //   steps {
