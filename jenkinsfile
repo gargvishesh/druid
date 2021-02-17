@@ -1,16 +1,20 @@
-def loadEnvironment() {
-    environment {
-        MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
-    }
-}
+// def loadEnvironment() {
+//     environment {
+//         MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
+//     }
+// }
 
 def mavenInstall() {
-    sh script: '''
-        mkdir -p ~/.m2
-        ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
-        ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
-    ''',
-    label: 'mvn install'
+    script {
+        withCredentials([file(credentialsId: MVN_SETTINGS_FILE, variable: 'MVN_SETTINGS_PATH')]) {
+            sh script: '''
+                mkdir -p ~/.m2
+                ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
+                ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
+            ''',
+            label: 'mvn install'
+        }
+    }
 }
 
 pipeline {
@@ -55,7 +59,7 @@ pipeline {
                 // environment {
                 //   MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
                 // }
-                loadEnvironment()
+                // loadEnvironment()
                 agent {
                     docker {
                         image 'maven:3.6.3-jdk-8'
