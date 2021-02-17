@@ -45,6 +45,48 @@ def dockerAgentLabel() {
     return 'jenkinsOnDemand'
 }
 
+def copyFilesByPattern(filesPattern, destDir) {
+    sh script: """#!/bin/bash -x
+        shopt -s globstar
+        if  ls ${filesPattern}; then
+            for fname in ${filesPattern}; do
+                fname_root=\$(echo \${fname} | cut -d "/" -f1)
+                if ! [[ "\$fname_root" = "${destDir}" ]]; then
+                    mkdir -p \$(dirname -- "${destDir}/\${fname}")
+                    cp \$fname ${destDir}/\${fname}
+                fi
+            done
+        fi
+    """
+}
+
+def buildArtifacts(stageName) {
+    script {
+        def stageArtifactsDirPath = "stage_${stageName.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
+        sh script: "mkdir -p ${stageArtifactsDirPath}"
+        // copy logs
+        sh script: """
+            [ -d "~/shared/logs" ] && cp -R ~/shared/logs ${stageArtifactsDirPath}/ || true
+            [ -d "~/shared/tasklogs" ] && cp -R ~/shared/tasklogs ${stageArtifactsDirPath}/ || true
+        """
+        // copy test reports
+        copyFilesByPattern("**/target/surefire-reports/*.xml", stageArtifactsDirPath)
+        copyFilesByPattern("**/target/failsafe-reports/*.xml", stageArtifactsDirPath)
+        // copy top-level jacoco reports
+        copyFilesByPattern("**/target/*.exec", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/*.html", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/*.xml", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/*.csv", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/jacoco-resources/*", stageArtifactsDirPath)
+        // copy detailed jacoco reports
+        copyFilesByPattern("**/jacoco/**/*.html", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/**/*.xml", stageArtifactsDirPath)
+        copyFilesByPattern("**/jacoco/**/*.csv", stageArtifactsDirPath)
+        // fixate artifacts
+        archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
+    }
+}
+
 
 def implyQueryIntegrationTests(jdkRuntimeArg) {
     mavenInstall()
@@ -141,22 +183,25 @@ pipeline {
             stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
                 agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                 steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
-            }
-
-            stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+                post { failure { buildArtifacts(env.STAGE_NAME) } }
             }
 
             stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
                 agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                 steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
+                post { failure { buildArtifacts(env.STAGE_NAME) } }
             }
 
-            stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
-                agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
-            }
+
+            // stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+            //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+            //     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+            // }
+
+            // stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+            //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+            //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
+            // }
 
 
             // stage('Filler') {
@@ -201,6 +246,16 @@ pipeline {
         //         // }
         //     }
         // }
+
+        post {
+            always {
+                script {
+                    def stageArtifactsDirPath = "stage_${env.STAGE_NAME.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
+                }
+                archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
+            }
+        }
+    }
     }
     // stage ('helm') {
     //   steps {
