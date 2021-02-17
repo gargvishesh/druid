@@ -65,7 +65,7 @@ def buildArtifacts(stageName) {
         def stageArtifactsDirPath = "stage_${stageName.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
         sh script: "mkdir -p ${stageArtifactsDirPath}"
         // copy logs
-        sh script: """
+        sh script: """#!/bin/bash -x
             [ -d "~/shared/logs" ] && cp -R ~/shared/logs ${stageArtifactsDirPath}/ || true
             [ -d "~/shared/tasklogs" ] && cp -R ~/shared/tasklogs ${stageArtifactsDirPath}/ || true
         """
@@ -87,6 +87,9 @@ def buildArtifacts(stageName) {
     }
 }
 
+def resetWs() {
+    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+}
 
 def implyQueryIntegrationTests(jdkRuntimeArg) {
     mavenInstall()
@@ -189,7 +192,7 @@ pipeline {
                 stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
                     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) } }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
 
