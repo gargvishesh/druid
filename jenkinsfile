@@ -479,9 +479,6 @@ pipeline {
                                             fi
                                         fi
 
-                                        ls -lat ~/.m2/settings.xml
-                                        echp $BUILD_PROFILE
-
                                         NETTY_UPSTREAM_NAME="netty"
                                         NETTY_UPSTREAM_ORG=${NETTY_UPSTREAM_ORG:-"implydata"}
                                         NETTY_UPSTREAM_REPO="https://github.com/$NETTY_UPSTREAM_ORG/$NETTY_UPSTREAM_NAME.git"
@@ -671,6 +668,11 @@ pipeline {
                                         )
                                     }
                                 }
+                            }
+                        }
+                        post {
+                            cleanup {
+                                resetWs()
                             }
                         }
                     }
