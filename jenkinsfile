@@ -426,6 +426,20 @@ pipeline {
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
                             BUILD_DIR = "/tmp/druid-build"
+                            ARTIFACT_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid-saas"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
+                            ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid.saas"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
                         }
                         agent {
                             docker {
@@ -601,11 +615,7 @@ pipeline {
                                         }
                                         EOT
 
-                                        ARTIFACT_NAME_SUFFIX=""
-                                        if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
-                                            ARTIFACT_NAME_SUFFIX="-saas"
-                                        fi
-                                        tar -C $STAGING_DIR/dist -czf $WORKSPACE/druid${ARTIFACT_NAME_SUFFIX}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
+                                        tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
 
                                         echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
                                         echo "${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/upstreamCommitSha
@@ -630,19 +640,6 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
-                                        def artifactory_upload_mapping = [
-                                            "dist": [
-                                                "artifact_name": "druid",
-                                                "artifactory_build_name": "druid"
-                                            ],
-                                            "imply-saas": [
-                                                "artifact_name": "druid-saas",
-                                                "artifactory_build_name": "druid.saas"
-                                            ]
-                                        ]
-                                        def artifact_name = artifactory_upload_mapping["${BUILD_PROFILE}"]["artifact_name"]
-                                        def artifactory_build_name = artifactory_upload_mapping["${BUILD_PROFILE}"]["artifactory_build_name"]
-
                                         def artifact_build_version = sh(
                                             script: 'cat build.version',
                                             returnStdout: true
@@ -660,13 +657,13 @@ pipeline {
                                             spec: """{
                                                 "files": [
                                                     {
-                                                      "pattern": "${artifact_name}-${artifact_build_version}.tar.gz",
-                                                      "target": "tgz-local/${artifact_name}/",
+                                                      "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
+                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
                                                       "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${upstream_commit_sha};vcs.url=${repo_url};vcs.branch=${headBranchName()};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
-                                            buildName: "${artifactory_build_name}",
+                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
                                             buildNumber: "${BUILD_NUMBER}"
                                         )
                                     }
