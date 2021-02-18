@@ -617,11 +617,12 @@ pipeline {
                             stage('upload') {
                                 steps {
                                     script {
+                                        def release_version = "None"
                                         if(headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
-                                            def release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
+                                            release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
                                         } else if(headBranchName() ==~ activeDevBranchRegex()){
-                                            def release_version = sh(
-                                                script: '''#!/bin/bash
+                                            release_version = sh(
+                                                script: '''#!/bin/bash -e
                                                     curl -s -u $($GIT_ASKPASS Username):$($GIT_ASKPASS Password) -H "Accept: application/vnd.github.v3.raw" \
                                                     https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
                                                     tee /dev/stderr
@@ -629,14 +630,19 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
-                                        def artifact_name = sh(
-                                            script: 'if [ "${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid-saas"; else echo "druid"; fi',
-                                            returnStdout: true
-                                        ).trim()
-                                        def artifactory_build_name = sh(
-                                            script: 'if [ "${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid.saas"; else echo "druid"; fi',
-                                            returnStdout: true
-                                        ).trim()
+                                        def artifactory_upload_mapping = [
+                                            "dist": [
+                                                "artifact_name": "druid",
+                                                "artifactory_build_name": "druid"
+                                            ],
+                                            "imply-saas": [
+                                                "artifact_name": "druid-saas",
+                                                "artifactory_build_name": "druid.saas"
+                                            ]
+                                        ]
+                                        def artifact_name = artifactory_upload_mapping["${BUILD_PROFILE}"]["artifact_name"]
+                                        def artifactory_build_name = artifactory_upload_mapping["${BUILD_PROFILE}"]["artifactory_build_name"]
+
                                         def artifact_build_version = sh(
                                             script: 'cat build.version',
                                             returnStdout: true
