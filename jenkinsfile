@@ -3,7 +3,7 @@ def setupMavenSettings() {
         withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
             sh script: '''
                 mkdir -p ~/.m2
-                ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
+                cp -f $MVN_SETTINGS_PATH ~/.m2/settings.xml
             ''',
             label: 'setup maven settings'
         }
@@ -508,6 +508,9 @@ pipeline {
 
                                         current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
                                         echo "Compiling Druid with current Java version set. Java version=$current_java_version"
+
+                                        ls -lat ~/.m2/settings.xml
+                                        cat ~/.m2/settings.xml
 
                                         mvn clean install \
                                             -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
