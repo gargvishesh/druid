@@ -107,6 +107,8 @@ def headBranchName() {
     return env.CHANGE_BRANCH ?: env.BRANCH_NAME
 }
 
+
+
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
     prepareIfconfig()
@@ -420,7 +422,6 @@ pipeline {
                 stages {
                     stage('profile build and upload') {
                         environment {
-                            GIT_CREDS = credentials(scm.getUserRemoteConfigs()[0].getCredentialsId())
                             GIT_ASKPASS = "/tmp/askpass.sh"
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
@@ -436,24 +437,33 @@ pipeline {
                             }
                         }
                         stages {
+                            stage('prepare to build') {
+                                steps {
+                                    script {
+                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId())
+                                        withCredentials(usernamePassword(credentialsId: gitCredsId, passwordVariable: 'GIT_CREDS_USR', usernameVariable: 'GIT_CREDS_PSW'){
+                                            sh script:'''#!/bin/bash -eux
+                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                                                chmod u+x /usr/bin/mvn
+
+                                                cat <<EOF > "${GIT_ASKPASS}"
+                                                #!/bin/sh
+                                                case "\\$1" in
+                                                    Username*) echo "\\$GIT_CREDS_USR" ;;
+                                                    Password*) echo "\\$GIT_CREDS_PSW" ;;
+                                                esac
+                                                EOF
+
+                                                chmod u+x "${GIT_ASKPASS}"
+                                            '''.replaceAll(/\n\s+/, "\n"),
+                                            label: 'prepare for build'
+                                        }
+                                    }
+                                }
+                            }
                             stage('build') {
                                 steps {
                                     setupMavenSettings()
-                                    sh script:'''#!/bin/bash -eux
-                                        echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                                        chmod u+x /usr/bin/mvn
-
-                                        cat <<EOF > "${GIT_ASKPASS}"
-                                        #!/bin/sh
-                                        case "\\$1" in
-                                            Username*) echo "\\$GIT_CREDS_USR" ;;
-                                            Password*) echo "\\$GIT_CREDS_PSW" ;;
-                                        esac
-                                        EOF
-
-                                        chmod u+x "${GIT_ASKPASS}"
-                                    '''.replaceAll(/\n\s+/, "\n"),
-                                    label: 'prepare for build'
                                     sh script:'''#!/bin/bash -eux
                                         COMMIT_SHA=$(git rev-parse HEAD)
                                         if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
@@ -606,7 +616,6 @@ pipeline {
                                     label: 'build druid'
                                 }
                             }
-
                             stage('upload') {
                                 environment {
                                     ARTIFACT_NAME = sh(
@@ -636,8 +645,8 @@ pipeline {
                                             def release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
                                         } else if(headBranchName() ==~ activeDevBranchRegex()){
                                             def release_version = sh(
-                                                script: '''
-                                                    curl -s -u ${GIT_CREDS_USR}:${GIT_CREDS_PSW} -H "Accept: application/vnd.github.v3.raw" \
+                                                script: '''#!/bin/bash
+                                                    curl -s -u $($GIT_ASKPASS Username):$($GIT_ASKPASS Password) -H "Accept: application/vnd.github.v3.raw" \
                                                     https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
                                                     tee /dev/stderr
                                                 ''',
