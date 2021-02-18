@@ -441,7 +441,7 @@ pipeline {
                                 steps {
                                     script {
                                         def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
-                                        withCredentials(usernamePassword(credentialsId: gitCredsId, passwordVariable: 'GIT_CREDS_USR', usernameVariable: 'GIT_CREDS_PSW'){
+                                        withCredentials(usernamePassword(credentialsId: gitCredsId, passwordVariable: 'GIT_CREDS_USR', usernameVariable: 'GIT_CREDS_PSW')) {
                                             sh script:'''#!/bin/bash -eux
                                                 echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
                                                 chmod u+x /usr/bin/mvn
