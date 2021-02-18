@@ -103,6 +103,10 @@ def releaseBranchSuffixRegex() {
     return '[^/]+$'
 }
 
+def headBranchName() {
+    return env.CHANGE_BRANCH ?: env.BRANCH_NAME
+}
+
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
     prepareIfconfig()
@@ -318,7 +322,6 @@ pipeline {
         MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
-        HEAD_BRANCH_NAME = env.CHANGE_BRANCH ?: env.BRANCH_NAME
     }
 
     stages {
@@ -402,7 +405,7 @@ pipeline {
         stage("Build and publish") {
             when {
                 expression {
-                    return env.HEAD_BRANCH_NAME ==~ activeDevBranchRegex() || env.HEAD_BRANCH_NAME ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex()) || params.PUBLISH_ON_ANY_BRANCH
+                    return headBranchName() ==~ activeDevBranchRegex() || headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex()) || params.PUBLISH_ON_ANY_BRANCH
                 }
                 beforeAgent true
             }
@@ -629,9 +632,9 @@ pipeline {
                                 }
                                 steps {
                                     script {
-                                        if(env.HEAD_BRANCH_NAME ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
-                                            def release_version = (env.HEAD_BRANCH_NAME =~ RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
-                                        } else if(HEAD_BRANCH_NAME ==~ activeDevBranchRegex()){
+                                        if(headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
+                                            def release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
+                                        } else if(headBranchName() ==~ activeDevBranchRegex()){
                                             def release_version = sh(
                                                 script: '''
                                                     curl -s -u ${GIT_CREDS_USR}:${GIT_CREDS_PSW} -H "Accept: application/vnd.github.v3.raw" \
@@ -648,7 +651,7 @@ pipeline {
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${ARTIFACT_BUILD_VERSION}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${UPSTREAM_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${HEAD_BRANCH_NAME};build.version=${ARTIFACT_BUILD_VERSION}"
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${UPSTREAM_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${headBranchName()};build.version=${ARTIFACT_BUILD_VERSION}"
                                                     }
                                                 ]
                                             }""",
