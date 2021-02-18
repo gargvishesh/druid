@@ -426,7 +426,7 @@ pipeline {
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
                             BUILD_DIR = "/tmp/druid-build"
-                            BUILD_PROFILE = sh(script: "echo ${BUILD_PROFILE}", returnStdout: true).trim()
+                            // BUILD_PROFILE = sh(script: "echo ${BUILD_PROFILE}", returnStdout: true).trim()
                         }
                         agent {
                             docker {
@@ -480,6 +480,7 @@ pipeline {
                                         fi
 
                                         ls -lat ~/.m2/settings.xml
+                                        echp $BUILD_PROFILE
 
                                         NETTY_UPSTREAM_NAME="netty"
                                         NETTY_UPSTREAM_ORG=${NETTY_UPSTREAM_ORG:-"implydata"}
@@ -511,8 +512,6 @@ pipeline {
                                         current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
                                         echo "Compiling Druid with current Java version set. Java version=$current_java_version"
 
-                                        run_druid_mvn_install -P${}
-
                                         mvn clean install \
                                             -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
                                             -Dhadoop.compile.version="$HADOOP_VERSION" \
@@ -528,7 +527,7 @@ pipeline {
                                             -DskipTests \
                                             -T1C \
                                             -Dtar \
-                                            ${BUILD_PROFILE}
+                                            -P${BUILD_PROFILE}
                                         echo "Built Druid, version: $DRUID_VERSION"
 
                                         # Stage Druid
