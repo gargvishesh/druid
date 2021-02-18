@@ -426,7 +426,6 @@ pipeline {
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
                             BUILD_DIR = "/tmp/druid-build"
-                            // BUILD_PROFILE = sh(script: "echo ${BUILD_PROFILE}", returnStdout: true).trim()
                         }
                         agent {
                             docker {
@@ -509,9 +508,6 @@ pipeline {
                                         current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
                                         echo "Compiling Druid with current Java version set. Java version=$current_java_version"
 
-                                        ls -lat ~/.m2/settings.xml
-                                        cat ~/.m2/settings.xml
-
                                         mvn clean install \
                                             -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
                                             -Dhadoop.compile.version="$HADOOP_VERSION" \
@@ -528,6 +524,7 @@ pipeline {
                                             -T1C \
                                             -Dtar \
                                             -P${BUILD_PROFILE}
+
                                         echo "Built Druid, version: $DRUID_VERSION"
 
                                         # Stage Druid
@@ -605,8 +602,7 @@ pipeline {
                                         EOT
 
                                         ARTIFACT_NAME_SUFFIX=""
-                                        if [ "${BUILD_PROFILE}" == "imply-saas" ]
-                                        then
+                                        if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                             ARTIFACT_NAME_SUFFIX="-saas"
                                         fi
                                         tar -C $STAGING_DIR/dist -czf $WORKSPACE/druid${ARTIFACT_NAME_SUFFIX}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
@@ -619,28 +615,6 @@ pipeline {
                                 }
                             }
                             stage('upload') {
-                                environment {
-                                    ARTIFACT_NAME = sh(
-                                        script: 'if ["${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid-saas"; else echo "druid"; fi',
-                                        returnStdout: true
-                                    ).trim()
-                                    ARTIFACTORY_BUILD_NAME = sh(
-                                        script: 'if ["${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid.saas"; else echo "druid"; fi',
-                                        returnStdout: true
-                                    ).trim()
-                                    ARTIFACT_BUILD_VERSION = sh(
-                                        script: 'cat build.version',
-                                        returnStdout: true
-                                    ).trim()
-                                    UPSTREAM_COMMIT_SHA = sh(
-                                        script: 'cat upstreamCommitSha',
-                                        returnStdout: true
-                                    ).trim()
-                                    REPO_URL = sh(
-                                        script: 'git config --get remote.origin.url',
-                                        returnStdout: true
-                                    ).trim()
-                                }
                                 steps {
                                     script {
                                         if(headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
@@ -655,18 +629,38 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
+                                        def artifact_name = sh(
+                                            script: 'if [ "${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid-saas"; else echo "druid"; fi',
+                                            returnStdout: true
+                                        ).trim()
+                                        def artifactory_build_name = sh(
+                                            script: 'if [ "${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid.saas"; else echo "druid"; fi',
+                                            returnStdout: true
+                                        ).trim()
+                                        def artifact_build_version = sh(
+                                            script: 'cat build.version',
+                                            returnStdout: true
+                                        ).trim()
+                                        def upstream_commit_sha = sh(
+                                            script: 'cat upstreamCommitSha',
+                                            returnStdout: true
+                                        ).trim()
+                                        def repo_url = sh(
+                                            script: 'git config --get remote.origin.url',
+                                            returnStdout: true
+                                        ).trim()
                                         rtUpload (
                                             serverId: 'repo-qa-imply-io',
                                             spec: """{
                                                 "files": [
                                                     {
-                                                      "pattern": "${ARTIFACT_NAME}-${ARTIFACT_BUILD_VERSION}.tar.gz",
-                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${UPSTREAM_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${headBranchName()};build.version=${ARTIFACT_BUILD_VERSION}"
+                                                      "pattern": "${artifact_name}-${artifact_build_version}.tar.gz",
+                                                      "target": "tgz-local/${artifact_name}/",
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${upstream_commit_sha};vcs.url=${repo_url};vcs.branch=${headBranchName()};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
-                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
+                                            buildName: "${artifactory_build_name}",
                                             buildNumber: "${BUILD_NUMBER}"
                                         )
                                     }
