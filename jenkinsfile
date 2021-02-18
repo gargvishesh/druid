@@ -92,15 +92,15 @@ def resetWs() {
 }
 
 def activeDevBranchRegex() {
-    return /^(\d+\.\d+\.\d+-iap|master)$/
+    return '^(\\d+\\.\\d+\\.\\d+-iap|master)$'
 }
 
 def releaseBranchPrefixRegex() {
-    return /^release\//
+    return '^release\\/'
 }
 
 def releaseBranchSuffixRegex() {
-    return /.+$/
+    return '[^/]+$'
 }
 
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
@@ -626,19 +626,11 @@ pipeline {
                                         script: 'git config --get remote.origin.url',
                                         returnStdout: true
                                     ).trim()
-                                    RELEASE_VERSION = sh(
-                                        script: '''
-                                            curl -s -u ${GIT_CREDS_USR}:${GIT_CREDS_PSW} -H "Accept: application/vnd.github.v3.raw" \
-                                            https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
-                                            tee /dev/stderr
-                                        ''',
-                                        returnStdout: true
-                                    ).trim()
                                 }
                                 steps {
                                     script {
                                         if(env.HEAD_BRANCH_NAME ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
-                                            def release_version = (env.HEAD_BRANCH_NAME =~ RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)[0]
+                                            def release_version = (env.HEAD_BRANCH_NAME =~ RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
                                         } else if(HEAD_BRANCH_NAME ==~ activeDevBranchRegex()){
                                             def release_version = sh(
                                                 script: '''
