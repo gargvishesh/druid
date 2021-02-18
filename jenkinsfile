@@ -304,7 +304,7 @@ pipeline {
         buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
     }
     parameters {
-        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: true, description: 'Skip all jenkins tests defined in the jenkinsfile'),
+        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: true, description: 'Skip all jenkins tests defined in the jenkinsfile')
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
         booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: true, description: 'Build and publish to artifactory regardless branch name')
     }
