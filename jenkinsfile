@@ -423,6 +423,7 @@ pipeline {
                     stage('profile build and upload') {
                         environment {
                             GIT_ASKPASS = "/tmp/askpass.sh"
+                            GITHUB_NETRC = "/tmp/github-netrc"
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
                             BUILD_DIR = "/tmp/druid-build"
@@ -455,7 +456,7 @@ pipeline {
                                 steps {
                                     script {
                                         def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
-                                        withCredentials([usernamePassword(credentialsId: gitCredsId, passwordVariable: 'GIT_CREDS_PSW', usernameVariable: 'GIT_CREDS_USR')]) {
+                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
                                             sh script:'''#!/bin/bash -eux
                                                 echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
                                                 chmod u+x /usr/bin/mvn
@@ -468,7 +469,14 @@ pipeline {
                                                 esac
                                                 EOF
 
+                                                cat <<EOF > "${GITHUB_NETRC}"
+                                                machine api.github.com
+                                                login ${GIT_CREDS_USR}
+                                                password ${GIT_CREDS_PSW}
+                                                EOF
+
                                                 chmod u+x "${GIT_ASKPASS}"
+                                                chmod 400 "${GITHUB_NETRC}"
                                             '''.replaceAll(/\n\s+/, "\n"),
                                             label: 'prepare for build'
                                         }
@@ -633,7 +641,8 @@ pipeline {
                                         } else if(headBranchName() ==~ activeDevBranchRegex()){
                                             release_version = sh(
                                                 script: '''#!/bin/bash -e
-                                                    curl -s -u $($GIT_ASKPASS Username):$($GIT_ASKPASS Password) -H "Accept: application/vnd.github.v3.raw" \
+                                                    curl -s --netrc-file ${GITHUB_NETRC} \
+                                                    -H "Accept: application/vnd.github.v3.raw" \
                                                     https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
                                                     tee /dev/stderr
                                                 ''',
