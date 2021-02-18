@@ -426,7 +426,7 @@ pipeline {
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
                             BUILD_DIR = "/tmp/druid-build"
-                            BUILD_PROFILE = sh("echo ${BUILD_PROFILE}", returnStdout: true).trim()
+                            BUILD_PROFILE = sh(script: "echo ${BUILD_PROFILE}", returnStdout: true).trim()
                         }
                         agent {
                             docker {
