@@ -1,20 +1,19 @@
-// def loadEnvironment() {
-//     environment {
-//         MVN_SETTINGS_PATH = credentials('maven-artifactory-settings')
-//     }
-// }
-
-def mavenInstall() {
+def setupMavenSettings() {
     script {
         withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
             sh script: '''
                 mkdir -p ~/.m2
                 ln -sf $MVN_SETTINGS_PATH ~/.m2/settings.xml
-                ${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C
             ''',
-            label: 'mvn install'
+            label: 'setup maven settings'
         }
     }
+}
+
+def mavenInstall() {
+    setupMavenSettings()
+    sh  script: '${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C',
+        label: 'mvn install'
 }
 
 def prepareIfconfig() {
@@ -22,7 +21,8 @@ def prepareIfconfig() {
         echo -e '#!/bin/bash\nPATH=/sbin:$PATH exec ifconfig eth0 $@' > /usr/bin/ifconfig
         chmod +x /usr/bin/ifconfig
         hash -r
-    ''', label: "prepare ifconfig"
+    ''',
+    label: "prepare ifconfig"
 }
 
 def imageJDK8() {
@@ -91,41 +91,225 @@ def resetWs() {
     sh script: "git clean -fdx", label: "Clean up everything but files from git"
 }
 
-def implyQueryIntegrationTests(jdkRuntimeArg) {
-    mavenInstall()
-    prepareIfconfig()
-    sh script: """
-        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-        -Dgroups=query -Dit.indexer=middleManager  ${jdkRuntimeArg}  -Ddruid.test.config.extraDatasourceNameSuffix="" \
-        -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """,
-    label: "imply query integration tests with ${jdkRuntimeArg}"
+def activeDevBranchRegex() {
+    return /^(\d+\.\d+\.\d+-iap|master)$/
 }
 
-def implyIngestServiceIntegrationTests(jdkRuntimeArg) {
+def releaseBranchPrefixRegex() {
+    return /^release\//
+}
+
+def releaseBranchSuffixRegex() {
+    return /.+$/
+}
+
+def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
     prepareIfconfig()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-        -Dgroups=ingest-service -Dit.indexer=middleManager  ${jdkRuntimeArg} \
+        -Dgroups=query \
+        -Dit.indexer=middleManager \
+        ${jvmRuntimeOpt} \
+        -Ddruid.test.config.extraDatasourceNameSuffix="" \
         -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """, label: "imply ingest service integration tests with ${jdkRuntimeArg}"
+    """,
+    label: "imply query integration tests with ${jvmRuntimeOpt}"
 }
+
+def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    sh script: """
+        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+        -Dgroups=ingest-service \
+        -Dit.indexer=middleManager \
+        ${jvmRuntimeOpt} \
+        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+    """,
+    label: "imply ingest service integration tests with ${jvmRuntimeOpt}"
+}
+
+def s3DeepStorageTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            def cloudpath = UUID.randomUUID().toString()
+            sh script: """
+                aws s3 sync \
+                ./integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
+                --exclude "*" --include "wikipedia_index_data*.json"
+            """
+            writeFile   file: "jenkins/s3-config",
+                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]"
+            try {
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Dgroups=s3-deep-storage \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.cloudBucket=druid-qa \
+                    -Ddruid.test.config.cloudPath=${cloudpath}/ \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "s3-deep-storage with ${jvmRuntimeOpt}"
+            }
+            finally {
+                sh script: "aws s3 rm s3://druid-qa/${cloudpath}  --recursive"
+            }
+        }
+    }
+}
+
+def kinesisDeepStorageTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId:  'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            lock('awsResource') {
+                writeFile   file: "jenkins/kinesis-config",
+                            text: "druid_kinesis_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_kinesis_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-kinesis-indexing-service\"]"
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Dgroups=kinesis-index \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/kinesis-config \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.streamEndpoint=kinesis.us-east-1.amazonaws.com \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
+            }
+        }
+    }
+}
+
+def azureDeepStorageTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    script {
+        withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
+            def containerName = UUID.randomUUID().toString()
+            sh script: """
+                az storage container create -n ${containerName} \
+                --public-access blob \
+                --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+            """
+            writeFile   file: "jenkins/azure-config",
+                        text: "druid_storage_type=azure\ndruid_azure_account=${AZURE_ACCOUNT}\ndruid_azure_key=${AZURE_KEY}\ndruid_azure_container=${containerName}\ndruid_extensions_loadList=[\"druid-azure-extensions\",\"druid-hdfs-storage\"]"
+            try {
+                sh script: """
+                    az storage blob upload-batch \
+                    --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
+                    -d ${containerName} \
+                    --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
+                """
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Dgroups=azure-deep-storage \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/azure-config \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.cloudBucket=${containerName} \
+                    -Ddruid.test.config.cloudPath= \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "azure-deep-storage with ${jvmRuntimeOpt}"
+            }
+            finally {
+                sh script: """
+                    az storage container delete -n ${containerName}\
+                    --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+                """
+            }
+        }
+    }
+}
+
+def gcsDeepStorageTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    script {
+        withCredentials([file(credentialsId: 'gcs-bucket-qa', variable: 'GC_KEY')]) {
+            def cloudpath = "gcs-test-${UUID.randomUUID().toString()}/"
+            def bucket = "imply-qa-testing"
+
+            writeFile   file: "jenkins/gcs-config",
+                        text: "druid_storage_type=google\ndruid_google_bucket=${bucket}\ndruid_google_prefix=${cloudpath}\ndruid_extensions_loadList=[\"druid-google-extensions\",\"druid-hdfs-storage\"]\nGOOGLE_APPLICATION_CREDENTIALS=/shared/docker/credentials/creds.json"
+            sh script: """
+                mkdir -p jenkins/gcs
+                cp \${GC_KEY} jenkins/gcs/creds.json
+                chmod 764 jenkins/gcs/creds.json
+                gsutil \
+                    -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json \
+                    cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
+                    gs://${bucket}/${cloudpath}
+                """,
+                label: "copy gcs creds"
+            try {
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
+                    -Dresource.file.dir.path=\${WORKSPACE}/jenkins/gcs \
+                    -Dgroups=gcs-deep-storage \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.cloudBucket=${bucket} \
+                    -Ddruid.test.config.cloudPath=${cloudpath} \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "gcs-deep-storage with ${jvmRuntimeOpt}"
+            } finally {
+                sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
+            }
+        }
+    }
+}
+
+def hdfsDeepStorageTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    writeFile   file:   "jenkins/hdfs-config",
+                text:   "druid_storage_type=hdfs\n" +
+                        "druid_storage_storageDirectory=/druid/segments\n" +
+                        "druid_extensions_loadList=[\"druid-hdfs-storage\"]\n" +
+                        "druid_indexer_logs_type=hdfs\n" +
+                        "druid_indexer_logs_directory=/druid/indexing-logs"
+    sh script: """
+        \${MVN} verify -P integration-tests -pl integration-tests \
+        -Doverride.config.path=\${WORKSPACE}/jenkins/hdfs-config \
+        -Dgroups=hdfs-deep-storage \
+        -Ddocker.build.hadoop=true \
+        -Dstart.hadoop.docker=true \
+        ${jvmRuntimeOpt} \
+        -Ddruid.test.config.extraDatasourceNameSuffix="" \
+        -Dit.test=ITHdfsToHdfsParallelIndexTest \
+        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+    """,
+    label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
+}
+
+
+
 
 pipeline {
     options {
         timeout(time: 2, unit: 'HOURS')
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
+    }
+    parameters {
+        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: true, description: 'Skip all jenkins tests defined in the jenkinsfile'),
+        booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
+        booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: true, description: 'Build and publish to artifactory regardless branch name')
     }
     agent none
-  // agent {
-  //     docker {
-  //         image 'docker/druid-ci-jdk8:latest'
-  //         registryUrl 'https://repo.qa.imply.io/artifactory'
-  //         registryCredentialsId 'repo.qa.imply.io'
-  //         args '-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443'
-  //         label 'jenkinsOnDemand'
-  //     }
-  // }
+
 
     environment {
         MVN = "mvn -B"
@@ -134,40 +318,30 @@ pipeline {
         MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
+        HEAD_BRANCH_NAME = env.CHANGE_BRANCH ?: env.BRANCH_NAME
     }
 
     stages {
-    // stage('docker test') {
-    //   steps {
-    //     sh '''#!/bin/bash -x
-    //         cat /etc/docker/daemon.json
-    //         printenv
-    //         docker run --rm -t alpine:latest ls -alt
-    //         tail -n 200 /var/log/dockerd.log
-    //     '''
-
-    //     // script {
-    //     //     input message: "Do you want to repackage"
-    //     // }
-    //   }
-    // }
         stage('Checks') {
+            when {
+                expression { !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
             parallel {
                 // stage('security vulnerabilities') {
-                //     // agent {
-                //     //     docker {
-                //     //         image 'maven:3.6.3-jdk-8'
-                //     //         args '--memory=8g --memory-reservation=4g -u root:root'
-                //     //         label 'jenkinsOnDemandMultiExec'
-                //     //     }
-                //     // }
-                //     agent { docker { image imageJDK8(); args '--memory=8g --memory-reservation=4g -u root:root'; label 'jenkinsOnDemandMultiExec'} }
+                //     agent {
+                //         docker {
+                //             image 'maven:3.6.3-jdk-8'
+                //             args '--memory=8g --memory-reservation=4g -u root:root'
+                //             label 'jenkinsOnDemandMultiExec'
+                //         }
+                //     }
                 //     steps {
                 //         mavenInstall()
                 //         sh script: '''#!/bin/bash
                 //             set -o pipefail
 
-                //             ${MVN} dependency-check:check || \
+                //             ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' || \
                 //             { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
                 //             of the dependency that does not have vulnerabilities. If the analysis has false positives,
                 //             they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
@@ -176,38 +350,325 @@ pipeline {
                 //         ''',
                 //         label: 'dependency check'
                 //     }
-                //     // post {
-                //     //     always {
-                //     //         junit "**/TEST-*.xml"
-                //     //     }
-                //     // }
                 // }
 
                 stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                     steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
-                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
+                // stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
+                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
+                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                // }
+
+                // stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
+                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { s3DeepStorageTests('-Djvm.runtime=8') }
+                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                // }
+
+
 
 
                 // stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                 //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                 //     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
                 //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 // }
 
                 // stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                 //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
                 //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
                 //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 // }
 
+                // stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
+                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                //     steps { s3DeepStorageTests('-Djvm.runtime=11') }
+                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                // }
+            }
+        }
+
+        stage("Build and publish") {
+            when {
+                expression {
+                    return env.HEAD_BRANCH_NAME ==~ activeDevBranchRegex() || env.HEAD_BRANCH_NAME ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex()) || params.PUBLISH_ON_ANY_BRANCH
+                }
+                beforeAgent true
+            }
+
+            matrix {
+                axes {
+                    axis {
+                        name 'BUILD_PROFILE'
+                        values 'dist', 'imply-saas'
+                    }
+                }
+                stages {
+                    stage('profile build and upload') {
+                        environment {
+                            GIT_CREDS = credentials(scm.getUserRemoteConfigs()[0].getCredentialsId())
+                            GIT_ASKPASS = "/tmp/askpass.sh"
+                            STAGING_BASE_DIR= "/tmp/druid-build/stage"
+                            TMP_DIR = "/tmp/druid-build/tmp"
+                            BUILD_DIR = "/tmp/druid-build"
+                        }
+                        agent {
+                            docker {
+                                image 'docker/buildabear:20200923'
+                                args '-u root:root'
+                                label 'jenkinsOnDemand'
+                                registryUrl rtRegistryUrl()
+                                registryCredentialsId rtRegistryCredentialsId()
+                            }
+                        }
+                        stages {
+                            stage('build') {
+                                steps {
+                                    setupMavenSettings()
+                                    sh script:'''#!/bin/bash -eux
+                                        echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                                        chmod u+x /usr/bin/mvn
+
+                                        cat <<EOF > "${GIT_ASKPASS}"
+                                        #!/bin/sh
+                                        case "\\$1" in
+                                            Username*) echo "\\$GIT_CREDS_USR" ;;
+                                            Password*) echo "\\$GIT_CREDS_PSW" ;;
+                                        esac
+                                        EOF
+
+                                        chmod u+x "${GIT_ASKPASS}"
+                                    '''.replaceAll(/\n\s+/, "\n"),
+                                    label: 'prepare for build'
+                                    sh script:'''#!/bin/bash -eux
+                                        COMMIT_SHA=$(git rev-parse HEAD)
+                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                        else
+                                            COMMIT_SHA=$(git rev-parse HEAD^)
+                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                            else
+                                                echo "head branch commit SHA is not found"
+                                                exit 1
+                                            fi
+                                        fi
+
+                                        NETTY_UPSTREAM_NAME="netty"
+                                        NETTY_UPSTREAM_ORG=${NETTY_UPSTREAM_ORG:-"implydata"}
+                                        NETTY_UPSTREAM_REPO="https://github.com/$NETTY_UPSTREAM_ORG/$NETTY_UPSTREAM_NAME.git"
+                                        NETTY_UPSTREAM_VERSION=${NETTY_UPSTREAM_VERSION:-"3.10.6.Final-iap2"}
+                                        NETTY_UPSTREAM_COMMITISH=${NETTY_UPSTREAM_COMMITISH:-"netty-$NETTY_UPSTREAM_VERSION"}
+                                        NETTY_UPSTREAM_DIR="$TMP_DIR/$NETTY_UPSTREAM_NAME.git"
+
+                                        DERBYTOOLS_VERSION="10.11.1.1"
+
+                                        # Imply includes additional hadoop libraries (e.g., hadoop-aws)
+                                        HADOOP_VERSION="2.8.5"
+
+                                        # This should match the version used in druid
+                                        MYSQL_CONNECTOR_VERSION="5.1.48"
+
+                                        # Install our patched version of Netty.
+                                        git clone -b "$NETTY_UPSTREAM_COMMITISH" --single-branch --depth 1 "$NETTY_UPSTREAM_REPO" "$NETTY_UPSTREAM_DIR"
+                                        (cd "$NETTY_UPSTREAM_DIR" && git checkout "$NETTY_UPSTREAM_COMMITISH")
+                                        (cd "$NETTY_UPSTREAM_DIR" && mvn install -DskipTests)
+
+                                        cd $WORKSPACE
+
+                                        # remove snapshot suffix from pom files
+                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+
+                                        current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
+                                        echo "Compiling Druid with current Java version set. Java version=$current_java_version"
+
+                                        run_druid_mvn_install -P${}
+
+                                        mvn clean install \
+                                            -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
+                                            -Dhadoop.compile.version="$HADOOP_VERSION" \
+                                            -Dmysql.version="$MYSQL_CONNECTOR_VERSION" \
+                                            -Danimal.sniffer.skip=true \
+                                            -Dcheckstyle.skip=true \
+                                            -Denforcer.skip=true \
+                                            -Dforbiddenapis.skip=true \
+                                            -Djacoco.skip=true \
+                                            -Dmaven.javadoc.skip=true \
+                                            -Dpmd.skip=true \
+                                            -Dspotbugs.skip=true \
+                                            -DskipTests \
+                                            -T1C \
+                                            -Dtar \
+                                            ${BUILD_PROFILE}
+                                        echo "Built Druid, version: $DRUID_VERSION"
+
+                                        # Stage Druid
+                                        export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
+                                        mkdir -p "$STAGING_DIR/dist"
+                                        tar -C "$TMP_DIR" -xzf "$WORKSPACE"/distribution/target/apache-druid-*-bin.tar.gz
+                                        mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
+
+                                        # Fetch the MySQL JDBC driver from Maven Central
+                                        MYSQL_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
+                                        mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
+                                        curl -o "$MYSQL_CONNECTOR_LOCATION" --retry 10 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${MYSQL_CONNECTOR_VERSION}/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
+
+                                        if [ "$(sha1sum "$MYSQL_CONNECTOR_LOCATION" | awk '{print $1}')" != "9140be77aafa5050bf4bb936d560cbacb5a6b5c1" ]
+                                        then
+                                          echo "$MYSQL_CONNECTOR_LOCATION: checksum mismatch" >&2
+                                          exit 1
+                                        fi
+
+                                        # Add materialized-view-maintenance and materialized-view-selection
+                                        if [ -d "${WORKSPACE}/extensions-contrib/materialized-view-maintenance/target" ]
+                                        then
+                                            mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-maintenance"
+                                            mv  "${WORKSPACE}"/extensions-contrib/materialized-view-maintenance/target/materialized-view-maintenance* \
+                                                "${STAGING_DIR}"/dist/druid/extensions/materialized-view-maintenance
+                                        fi
+                                        if [ -d "${WORKSPACE}/extensions-contrib/materialized-view-selection/target" ]
+                                        then
+                                            mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-selection"
+                                            mv  "${WORKSPACE}"/extensions-contrib/materialized-view-selection/target/materialized-view-selection* \
+                                                "${STAGING_DIR}"/dist/druid/materialized-view-selection
+                                        fi
+
+                                        # Add hadoop-aws
+                                        (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
+
+                                        # Add derbytools to lib
+                                        DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
+                                        curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
+
+                                        if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "10a124a8962c6f8ea70a368d711ce6883889ca34" ]
+                                        then
+                                          echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
+                                          exit 1
+                                        fi
+
+                                        # Remove unsupported open-source extensions
+                                        for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
+                                            rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
+                                        done
+
+                                        # Put druid on a diet
+                                        perl - <<'EOT'
+                                        use strict;
+                                        use File::Basename;
+
+                                        my $dir = "$ENV{STAGING_DIR}/dist/druid";
+                                        chdir $dir or die "chdir $dir: $!";
+
+                                        my %jars;
+                                        for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
+                                          chomp $jar;
+                                          my $jarname = basename($jar);
+                                          if (exists $jars{$jarname}) {
+                                            my $depth = $jar =~ tr !/!/! - 1;
+                                            my $dots = "";
+                                            for my $x (1..$depth) {
+                                              $dots .= "../";
+                                            }
+                                            system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
+                                          } else {
+                                            $jars{$jarname} = $jar;
+                                          }
+                                        }
+                                        EOT
+
+                                        ARTIFACT_NAME_SUFFIX=""
+                                        if [ "${BUILD_PROFILE}" == "imply-saas" ]
+                                        then
+                                            ARTIFACT_NAME_SUFFIX="-saas"
+                                        fi
+                                        tar -C $STAGING_DIR/dist -czf $WORKSPACE/druid${ARTIFACT_NAME_SUFFIX}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
+
+                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
+                                        echo "${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/upstreamCommitSha
+
+                                    '''.replaceAll(/\n\s+/, "\n"),
+                                    label: 'build druid'
+                                }
+                            }
+
+                            stage('upload') {
+                                environment {
+                                    ARTIFACT_NAME = sh(
+                                        script: 'if ["${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid-saas"; else echo "druid"; fi',
+                                        returnStdout: true
+                                    ).trim()
+                                    ARTIFACTORY_BUILD_NAME = sh(
+                                        script: 'if ["${BUILD_PROFILE}" == "imply-saas" ]; then echo "druid.saas"; else echo "druid"; fi',
+                                        returnStdout: true
+                                    ).trim()
+                                    ARTIFACT_BUILD_VERSION = sh(
+                                        script: 'cat build.version',
+                                        returnStdout: true
+                                    ).trim()
+                                    UPSTREAM_COMMIT_SHA = sh(
+                                        script: 'cat upstreamCommitSha',
+                                        returnStdout: true
+                                    ).trim()
+                                    REPO_URL = sh(
+                                        script: 'git config --get remote.origin.url',
+                                        returnStdout: true
+                                    ).trim()
+                                    RELEASE_VERSION = sh(
+                                        script: '''
+                                            curl -s -u ${GIT_CREDS_USR}:${GIT_CREDS_PSW} -H "Accept: application/vnd.github.v3.raw" \
+                                            https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
+                                            tee /dev/stderr
+                                        ''',
+                                        returnStdout: true
+                                    ).trim()
+                                }
+                                steps {
+                                    script {
+                                        if(env.HEAD_BRANCH_NAME ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
+                                            def release_version = (env.HEAD_BRANCH_NAME =~ RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)[0]
+                                        } else if(HEAD_BRANCH_NAME ==~ activeDevBranchRegex()){
+                                            def release_version = sh(
+                                                script: '''
+                                                    curl -s -u ${GIT_CREDS_USR}:${GIT_CREDS_PSW} -H "Accept: application/vnd.github.v3.raw" \
+                                                    https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
+                                                    tee /dev/stderr
+                                                ''',
+                                                returnStdout: true
+                                            ).trim()
+                                        }
+                                        rtUpload (
+                                            serverId: 'repo-qa-imply-io',
+                                            spec: """{
+                                                "files": [
+                                                    {
+                                                      "pattern": "${ARTIFACT_NAME}-${ARTIFACT_BUILD_VERSION}.tar.gz",
+                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${UPSTREAM_COMMIT_SHA};vcs.url=${REPO_URL};vcs.branch=${HEAD_BRANCH_NAME};build.version=${ARTIFACT_BUILD_VERSION}"
+                                                    }
+                                                ]
+                                            }""",
+                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
+                                            buildNumber: "${BUILD_NUMBER}"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
