@@ -24,6 +24,17 @@ cache:
   directories:
     - $HOME/.m2
 
+# -------- Imply specific --------
+branches:
+  only:
+  - master
+  - nightly
+  - nightly-test
+  - latest
+  - /.*-iap.*$/
+  - /^release\//
+# -------- End Imply specific --------
+
 env:
   global:
     - ZK_VERSION=3.5 # default ZK version for integration tests
