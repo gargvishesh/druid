@@ -1,3 +1,38 @@
+//////////
+////////// System part
+//////////
+
+
+import io.jenkins.blueocean.rest.impl.pipeline.PipelineNodeGraphVisitor
+import io.jenkins.blueocean.rest.impl.pipeline.FlowNodeWrapper
+import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
+
+// Get information about all stages, including the failure causes.
+// Returns a list of maps: [[id, displayName, result]]
+// The 'errors' member is a list of unique exceptions.
+
+@NonCPS
+List<Map> getStageResults( RunWrapper build ) {
+
+    // Get all pipeline nodes that represent stages
+    def visitor = new PipelineNodeGraphVisitor( build.rawBuild )
+    def stages = visitor.pipelineNodes.findAll{ it.type == FlowNodeWrapper.NodeType.STAGE || it.type == FlowNodeWrapper.NodeType.PARALLEL }
+
+    return stages.collect{ stage ->
+        return [
+            id: stage.id,
+            displayName: stage.displayName,
+            result: "${stage.status.result}",
+        ]
+    }
+}
+
+// Get information of all failed stages
+@NonCPS
+List<Map> getFailedStages( RunWrapper build ) {
+    return getStageResults( build ).findAll{ it.result == 'FAILURE' }
+}
+
 def setupMavenSettings() {
     script {
         withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
@@ -27,6 +62,10 @@ def prepareIfconfig() {
 
 def imageJDK8() {
     return 'docker/druid-ci-jdk8:latest'
+}
+
+def imageJDK11() {
+    return 'docker/druid-ci-jdk11:latest'
 }
 
 def rtRegistryUrl() {
@@ -103,11 +142,61 @@ def releaseBranchSuffixRegex() {
     return '[^/]+$'
 }
 
+def releaseBranchRegex() {
+    return releaseBranchPrefixRegex() + releaseBranchSuffixRegex()
+}
+
 def headBranchName() {
     return env.CHANGE_BRANCH ?: env.BRANCH_NAME
 }
 
+def isEligibleToNotify() {
+    return  !(env.BRANCH_NAME == "master") \
+            && !env.CHANGE_ID \
+            && (env.BRANCH_NAME ==~ activeDevBranchRegex() || env.BRANCH_NAME ==~ releaseBranchRegex())
+}
 
+def notify(fixed, failedStageNames) {
+    def slackMessageColor = fixed ? '#33CC33' : '#FF3333'
+    def titleBeginning = fixed ? 'Fixed' : 'Failed'
+
+    def artifactSlackTip = fixed ? "" : "\ncheck artifacts (docker logs): ${env.BUILD_URL}artifact"
+    def artifactEmailTip = fixed ? "" : "<br/>check artifacts (docker logs) :${env.BUILD_URL}artifact"
+
+    def failedStageSlackTip = fixed ? "" : "\nFailed stages:\n" + failedStageNames.collect { "* ${it}" }.join("\n")
+    def failedStageEmailTip = fixed ? "" : "<br/>Failed stages:<br/>" + failedStageNames.collect { "* ${it}" }.join("<br/>")
+
+    def slackTarget = "#javabeans"
+    def emailTarget = "eng.druid@imply.io"
+
+    try {
+        slackSend   color: slackMessageColor,
+                    channel: slackTarget,
+                    message: """
+                        *${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*
+                        classic link: ${env.BUILD_URL}
+                        blueocean link: ${env.RUN_DISPLAY_URL} ${artifactSlackTip} ${failedStageSlackTip}
+                    """.replaceAll(/\n\s+/, "\n")
+    } catch (err) {
+        echo "Couldn't send slack notification"
+        echo "Exception: ${err}"
+    }
+
+    try {
+        mail    body: """
+                    classic link: ${env.BUILD_URL}
+                    <br/>blueocean link: ${env.RUN_DISPLAY_URL} ${artifactEmailTip} ${failedStageEmailTip}
+                """.replaceAll(/\n\s+/, "\n"),
+                cc: '', bcc: '', replyTo: '',
+                from: 'jenkins@qa.imply.io',
+                mimeType: 'text/html',
+                subject: "${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
+                to: emailTarget
+    } catch (err) {
+        echo "Couldn't send email notification"
+        echo "Exception: ${err}"
+    }
+}
 
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
@@ -302,20 +391,23 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
 }
 
 
-
+//////////
+////////// Pipeline part
+//////////
 
 pipeline {
     options {
         timeout(time: 2, unit: 'HOURS')
         buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
     }
-    parameters {
-        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: true, description: 'Skip all jenkins tests defined in the jenkinsfile')
-        booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
-        booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: true, description: 'Build and publish to artifactory regardless branch name')
-    }
-    agent none
 
+    parameters {
+        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile')
+        booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
+        booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name')
+    }
+
+    agent none
 
     environment {
         MVN = "mvn -B"
@@ -333,81 +425,157 @@ pipeline {
                 beforeAgent true
             }
             parallel {
-                // stage('security vulnerabilities') {
-                //     agent {
-                //         docker {
-                //             image 'maven:3.6.3-jdk-8'
-                //             args '--memory=8g --memory-reservation=4g -u root:root'
-                //             label 'jenkinsOnDemandMultiExec'
-                //         }
-                //     }
-                //     steps {
-                //         mavenInstall()
-                //         sh script: '''#!/bin/bash
-                //             set -o pipefail
+                stage('security vulnerabilities') {
+                    agent {
+                        docker {
+                            image 'maven:3.6.3-jdk-8'
+                            args '--memory=8g --memory-reservation=4g -u root:root'
+                            label 'jenkinsOnDemandMultiExec'
+                        }
+                    }
+                    steps {
+                        mavenInstall()
+                        sh script: '''#!/bin/bash
+                            set -o pipefail
 
-                //             ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' || \
-                //             { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
-                //             of the dependency that does not have vulnerabilities. If the analysis has false positives,
-                //             they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
-                //             information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
-                //             " && false; }
-                //         ''',
-                //         label: 'dependency check'
-                //     }
-                // }
+                            ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' || \
+                            { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
+                            of the dependency that does not have vulnerabilities. If the analysis has false positives,
+                            they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
+                            information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
+                            " && false; }
+                        ''',
+                        label: 'dependency check'
+                    }
+                }
 
+                // example of integration tests stage:
                 stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    when {
+                        expression { !params.SKIP_JENKINS_INTEGRATION_TESTS } // skip on demand (based on parameter)
+                        beforeAgent true
+                    }
+                    agent {
+                        docker {
+                            // docker image:
+                            image imageJDK8()
+                            // docker run arguments:
+                            args dockerAgentArgs()
+                            // configure artifactory registry credentials:
+                            registryUrl rtRegistryUrl()
+                            registryCredentialsId rtRegistryCredentialsId()
+                            // specify jenkins agent node where container should start:
+                            label dockerAgentLabel()
+                        }
+                    }
+                    steps {
+                        // integration tests here:
+                        // jvm runtime is specified here:
+                        implyQueryIntegrationTests('-Djvm.runtime=8')
+                    }
+                    post {
+                        // collect artifacts (docker logs and task logs):
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        // clean untracked files from cloned repo:
+                        cleanup { resetWs() }
+                    }
+                }
+
+                // here is short format of integration tests stage:
+                stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
                     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                    steps { implyQueryIntegrationTests('-Djvm.runtime=8') }
+                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                // stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
-                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                // }
+                stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { s3DeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
-                // stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
-                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { s3DeepStorageTests('-Djvm.runtime=8') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                // }
+                stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { azureDeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
+                stage('(Compile=openjdk8, Run=openjdk8) hdfs deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { hdfsDeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
+                stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { gcsDeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
+                stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
-                // stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                // }
+                // -Djvm.runtime=11
 
-                // stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
-                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                // }
+                stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
-                // stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
-                //     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                //     agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
-                //     steps { s3DeepStorageTests('-Djvm.runtime=11') }
-                //     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                // }
-            }
-        }
+                stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { s3DeepStorageTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { azureDeepStorageTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk11) hdfs deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { hdfsDeepStorageTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image imageJDK8();args dockerAgentArgs();registryUrl rtRegistryUrl();registryCredentialsId rtRegistryCredentialsId();label dockerAgentLabel()}}
+                    steps { gcsDeepStorageTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+            } // end of parallel
+        } // end of stage('Checks')
 
         stage("Build and publish") {
             when {
-                expression {
-                    return headBranchName() ==~ activeDevBranchRegex() || headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex()) || params.PUBLISH_ON_ANY_BRANCH
+                anyOf {
+                    expression { headBranchName() ==~ activeDevBranchRegex() }
+                    expression { headBranchName() ==~ releaseBranchRegex() }
+                    expression { params.PUBLISH_ON_ANY_BRANCH }
                 }
                 beforeAgent true
             }
@@ -464,8 +632,8 @@ pipeline {
                                                 cat <<EOF > "${GIT_ASKPASS}"
                                                 #!/bin/sh
                                                 case "\\$1" in
-                                                    Username*) echo "\\$GIT_CREDS_USR" ;;
-                                                    Password*) echo "\\$GIT_CREDS_PSW" ;;
+                                                    Username*) echo "${GIT_CREDS_USR}" ;;
+                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
                                                 esac
                                                 EOF
 
@@ -566,20 +734,6 @@ pipeline {
                                           exit 1
                                         fi
 
-                                        # Add materialized-view-maintenance and materialized-view-selection
-                                        if [ -d "${WORKSPACE}/extensions-contrib/materialized-view-maintenance/target" ]
-                                        then
-                                            mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-maintenance"
-                                            mv  "${WORKSPACE}"/extensions-contrib/materialized-view-maintenance/target/materialized-view-maintenance* \
-                                                "${STAGING_DIR}"/dist/druid/extensions/materialized-view-maintenance
-                                        fi
-                                        if [ -d "${WORKSPACE}/extensions-contrib/materialized-view-selection/target" ]
-                                        then
-                                            mkdir -p "${STAGING_DIR}/dist/druid/extensions/materialized-view-selection"
-                                            mv  "${WORKSPACE}"/extensions-contrib/materialized-view-selection/target/materialized-view-selection* \
-                                                "${STAGING_DIR}"/dist/druid/materialized-view-selection
-                                        fi
-
                                         # Add hadoop-aws
                                         (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
 
@@ -630,13 +784,14 @@ pipeline {
 
                                     '''.replaceAll(/\n\s+/, "\n"),
                                     label: 'build druid'
-                                }
-                            }
+                                } // end of steps
+                            } // end of stage('build')
+
                             stage('upload') {
                                 steps {
                                     script {
                                         def release_version = "None"
-                                        if(headBranchName() ==~ (releaseBranchPrefixRegex() + releaseBranchSuffixRegex())) {
+                                        if(headBranchName() ==~ releaseBranchRegex()) {
                                             release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
                                         } else if(headBranchName() ==~ activeDevBranchRegex()){
                                             release_version = sh(
@@ -677,14 +832,43 @@ pipeline {
                                         )
                                     }
                                 }
-                            }
-                        }
+                            } // end of stage('upload')
+                        } // end of stages
                         post {
                             cleanup {
                                 resetWs()
                             }
                         }
+                    } // end of stage('profile build and upload')
+                } // end of stages
+            } // end of matrix
+        } // end of stage("Build and publish")
+    } // end of stages
+    post {
+        failure {
+            // notify about failed build
+            script {
+                def failedStageNames = getFailedStages( currentBuild ).collect { it.displayName }.findAll { !(it =~ /^(Checks|Matrix)/) }
+                if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
+                    if(isEligibleToNotify()) { notify(false, failedStageNames) }
+                } else {
+                    def failedBuildSilencePeriodInHours = 0
+                    def failedBuildSilencePeriodInMillis = 1000 * 60 * 60 * failedBuildSilencePeriodInHours
+                    def nowInMillis = new Date().getTime()
+                    def previousCompletedBuildStarted = currentBuild.previousCompletedBuild?.startTimeInMillis ?: nowInMillis
+                    def previousCompletedBuildDuration = currentBuild.previousCompletedBuild?.duration ?: 0
+                    def previousCompletedBuildFinished = previousCompletedBuildStarted + previousCompletedBuildDuration
+                    if(previousCompletedBuildFinished < nowInMillis-failedBuildSilencePeriodInMillis) {
+                        if(isEligibleToNotify()) { notify(false, failedStageNames) }
                     }
+                }
+            }
+        }
+        success {
+            // notify about fixed build
+            script {
+                if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
+                    if(isEligibleToNotify()) { notify(true, []) }
                 }
             }
         }
