@@ -2,7 +2,6 @@
 ////////// System part
 //////////
 
-
 import io.jenkins.blueocean.rest.impl.pipeline.PipelineNodeGraphVisitor
 import io.jenkins.blueocean.rest.impl.pipeline.FlowNodeWrapper
 import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
@@ -389,7 +388,6 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
     """,
     label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
 }
-
 
 //////////
 ////////// Pipeline part
