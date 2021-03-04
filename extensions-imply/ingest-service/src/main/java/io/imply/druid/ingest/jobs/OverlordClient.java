@@ -11,7 +11,7 @@ package io.imply.druid.ingest.jobs;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.druid.client.indexing.ClientCompactionTaskQueryGranularitySpec;
+import org.apache.druid.client.indexing.ClientCompactionTaskGranularitySpec;
 import org.apache.druid.client.indexing.ClientCompactionTaskQueryTuningConfig;
 import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.client.indexing.SamplerResponse;
@@ -77,7 +77,7 @@ public class OverlordClient implements IndexingServiceClient
       List<DataSegment> segments,
       int compactionTaskPriority,
       @Nullable ClientCompactionTaskQueryTuningConfig tuningConfig,
-      @Nullable ClientCompactionTaskQueryGranularitySpec granularitySpec,
+      @Nullable ClientCompactionTaskGranularitySpec granularitySpec,
       @Nullable Map<String, Object> context
   )
   {
