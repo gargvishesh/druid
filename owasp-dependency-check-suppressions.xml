@@ -301,11 +301,19 @@
      <cve>CVE-2020-9492</cve>
   </suppress>
   <suppress>
+    <!-- We don't use scala compilation daemon. -->
+    <notes><![CDATA[
+     file name: kafka-clients-2.7.0.jar
+     ]]></notes>
+    <cve>CVE-2017-15288</cve>
+  </suppress>
+  <suppress>
     <!-- These are for keycloak server, but Druid uses only keycloak client. -->
     <notes><![CDATA[
      file name: keycloak-core-11.0.3.jar
      ]]></notes>
     <cve>CVE-2020-14366</cve>
     <cve>CVE-2020-14389</cve>
+    <cve>CVE-2020-14359</cve>
   </suppress>
 </suppressions>
