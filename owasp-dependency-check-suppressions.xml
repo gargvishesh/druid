@@ -314,5 +314,6 @@
      ]]></notes>
     <cve>CVE-2020-14366</cve>
     <cve>CVE-2020-14389</cve>
+    <cve>CVE-2020-14359</cve>
   </suppress>
 </suppressions>
