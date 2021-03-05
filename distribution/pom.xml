@@ -244,6 +244,8 @@
                                         <argument>-c</argument>
                                         <argument>io.imply:indexed-table-loader</argument>
                                         <argument>-c</argument>
+                                        <argument>io.imply:imply-view-manager</argument>
+                                        <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>

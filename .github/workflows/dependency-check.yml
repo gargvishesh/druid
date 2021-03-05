@@ -45,7 +45,7 @@ jobs:
         run: export MAVEN_OPTS="-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m" && mvn -B clean install -q -ff -Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true -DskipTests -Djacoco.skip=true -T 1C
       - name: Run dependency check
         run: |
-          mvn -B dependency-check:check || { echo "
+          mvn -B dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' || { echo "
           
           The OWASP dependency check has found security vulnerabilities. Please use a newer version
           of the dependency that does not have vulnerabilities. If the analysis has false positives,
