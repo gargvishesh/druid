@@ -623,8 +623,8 @@ pipeline {
                                 image 'docker/buildabear:20200923'
                                 args '-u root:root'
                                 label 'jenkinsOnDemand'
-                                registryUrl rtRegistryUrl()
-                                registryCredentialsId rtRegistryCredentialsId()
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
                             }
                         }
                         stages {
