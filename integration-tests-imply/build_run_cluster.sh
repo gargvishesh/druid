@@ -49,7 +49,12 @@ popd
 
 if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   bash ${IMPLYTESTDIR}/stop_cluster.sh
-  bash ${DIR}/script/docker_run_cluster.sh
+  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query" ]
+  then
+    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.query.yml up -d
+  else
+    bash ${DIR}/script/docker_run_cluster.sh
+  fi
   # start ingest service if needed
   if [ "$DRUID_INTEGRATION_TEST_GROUP" = "ingest-service" ]
   then

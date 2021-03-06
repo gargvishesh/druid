@@ -11,6 +11,7 @@ package io.imply.druid.sql.calcite.view;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
@@ -134,11 +135,13 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   public void test_temporary_view_loader() throws IOException
   {
     ImplyViewCacheUpdateMessage message = new ImplyViewCacheUpdateMessage(
-        ImmutableList.of(
+        ImmutableMap.of(
+            "cloned_foo",
             new ImplyViewDefinition(
                 "cloned_foo",
                 "SELECT * FROM foo"
             ),
+            "filter_bar",
             new ImplyViewDefinition(
                 "filter_bar",
                 "SELECT * FROM bar WHERE col = 'a'"

@@ -1,0 +1,16 @@
+[
+  {
+    "description": "query a view",
+    "query": {
+      "query": "SELECT \"user\", SUM(\"added\") as \"total_added\" FROM \"view\".\"%%VIEW%%\" GROUP BY 1 ORDER BY 2 DESC LIMIT 5",
+      "resultFormat": "OBJECT"
+    },
+    "expectedResults":  [
+      {"user":"ClueBot NG","total_added":1.546932E7},
+      {"user":"JBradley Bot","total_added":4607893.0},
+      {"user":"Widr","total_added":1919961.0},
+      {"user":"Happysailor","total_added":1132740.0},
+      {"user":"Carlossuarez46","total_added":1111498.0}
+    ]
+  }
+]

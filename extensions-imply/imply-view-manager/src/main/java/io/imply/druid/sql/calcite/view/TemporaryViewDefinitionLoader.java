@@ -71,7 +71,7 @@ public class TemporaryViewDefinitionLoader
       catch (IOException ioe) {
         throw new RuntimeException(ioe);
       }
-      for (ImplyViewDefinition viewDefinition : views.getViews()) {
+      for (ImplyViewDefinition viewDefinition : views.getViews().values()) {
         viewManager.createView(plannerFactory, viewDefinition.getViewName(), viewDefinition.getViewSql());
       }
       started = true;

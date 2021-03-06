@@ -43,6 +43,10 @@ public class ImplyViewDefinitionTest
   @Test
   public void test_equals()
   {
-    EqualsVerifier.forClass(ImplyViewDefinition.class).usingGetClass().withNonnullFields("viewName", "viewSql").verify();
+    EqualsVerifier.forClass(ImplyViewDefinition.class)
+                  .usingGetClass()
+                  .withNonnullFields("viewName", "viewSql", "lastModified")
+                  .withIgnoredFields("viewKey", "lastModified")
+                  .verify();
   }
 }
