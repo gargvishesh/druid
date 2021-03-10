@@ -12,6 +12,7 @@ package io.imply.druid.tests.query;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import org.apache.druid.curator.discovery.ServerDiscoveryFactory;
@@ -22,10 +23,15 @@ import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHolder;
+import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceType;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.clients.CoordinatorResourceTestClient;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.testing.guice.TestClient;
+import org.apache.druid.testing.utils.HttpUtil;
 import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.testing.utils.SqlTestQueryHelper;
 import org.apache.druid.tests.TestNGGroup;
@@ -43,6 +49,7 @@ import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -89,6 +96,54 @@ public class ITViewManagerAndQueryTest
   @Test
   public void testHappyPath() throws Exception
   {
+    // admin user needs view read permissions.. grant everything
+    List<ResourceAction> permissions = ImmutableList.of(
+        new ResourceAction(
+            new Resource(".*", ResourceType.DATASOURCE),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.DATASOURCE),
+            Action.WRITE
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.VIEW),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.VIEW),
+            Action.WRITE
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.CONFIG),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.CONFIG),
+            Action.WRITE
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.STATE),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.STATE),
+            Action.WRITE
+        )
+    );
+
+    byte[] permissionsBytes = objectMapper.writeValueAsBytes(permissions);
+    HttpUtil.makeRequest(
+        httpClient,
+        HttpMethod.POST,
+        StringUtils.format(
+            "%s/druid-ext/basic-security/authorization/db/basic/roles/%s/permissions",
+            config.getCoordinatorUrl(),
+            "admin"
+        ),
+        permissionsBytes
+    );
+
     Map<String, ImplyViewDefinition> views = getViews();
 
     Assert.assertEquals(views.size(), 0);
