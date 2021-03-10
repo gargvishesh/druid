@@ -107,7 +107,7 @@ def resetWs() {
 }
 
 def activeDevBranchRegex() {
-    return '^(\\d+\\.\\d+\\.\\d+-iap|master)$'
+    return '^\\d+\\.\\d+\\.\\d+-iap$'
 }
 
 def releaseBranchPrefixRegex() {

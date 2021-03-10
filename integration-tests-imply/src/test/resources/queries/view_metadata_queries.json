@@ -1,0 +1,24 @@
+[
+  {
+    "description": "query information schema to make sure view is there",
+    "query": {
+      "query": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%%VIEW%%' AND TABLE_SCHEMA = 'view'"
+    },
+    "expectedResults": [
+      {
+        "TABLE_NAME": "%%VIEW%%"
+      }
+    ]
+  },
+  {
+    "description": "query information schema to make sure view schema is refreshed",
+    "query": {
+      "query": "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%%VIEW%%'"
+    },
+    "expectedResults": [
+      {
+        "EXPR$0": 25
+      }
+    ]
+  }
+]

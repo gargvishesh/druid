@@ -12,23 +12,23 @@ package io.imply.druid.sql.calcite.view;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class ImplyViewCacheUpdateMessage
 {
-  private final List<ImplyViewDefinition> views;
+  private final Map<String, ImplyViewDefinition> views;
 
   @JsonCreator
   public ImplyViewCacheUpdateMessage(
-      @JsonProperty("views") List<ImplyViewDefinition> views
+      @JsonProperty("views") Map<String, ImplyViewDefinition> views
   )
   {
     this.views = views;
   }
 
   @JsonProperty
-  public List<ImplyViewDefinition> getViews()
+  public Map<String, ImplyViewDefinition> getViews()
   {
     return views;
   }

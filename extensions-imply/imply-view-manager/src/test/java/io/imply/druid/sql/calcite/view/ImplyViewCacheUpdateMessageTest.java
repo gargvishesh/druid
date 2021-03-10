@@ -10,7 +10,7 @@
 package io.imply.druid.sql.calcite.view;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.junit.Assert;
@@ -29,18 +29,19 @@ public class ImplyViewCacheUpdateMessageTest
   public void test_serde() throws Exception
   {
     ImplyViewCacheUpdateMessage message = new ImplyViewCacheUpdateMessage(
-        ImmutableList.of(
+        ImmutableMap.of(
+            "cloned_foo",
             new ImplyViewDefinition(
                 "cloned_foo",
                 "SELECT * FROM foo"
             ),
+            "filter_bar",
             new ImplyViewDefinition(
                 "filter_bar",
                 "SELECT * FROM bar WHERE col = 'a'"
             )
         )
     );
-
 
     final ImplyViewCacheUpdateMessage fromJson = objectMapper.readValue(
         objectMapper.writeValueAsBytes(message),
