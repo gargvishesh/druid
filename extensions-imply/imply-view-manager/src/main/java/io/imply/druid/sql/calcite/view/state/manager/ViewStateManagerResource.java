@@ -11,15 +11,33 @@ package io.imply.druid.sql.calcite.view.state.manager;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import org.apache.druid.common.utils.IdUtils;
+import org.apache.druid.discovery.DiscoveryDruidNode;
+import org.apache.druid.discovery.DruidNodeDiscovery;
+import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
+import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.guice.annotations.EscalatedClient;
+import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.java.util.http.client.HttpClient;
+import org.apache.druid.java.util.http.client.Request;
+import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
+import org.apache.druid.java.util.http.client.response.StatusResponseHolder;
+import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.http.security.ConfigResourceFilter;
+import org.apache.druid.sql.http.SqlQuery;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -34,8 +52,15 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Path("/druid-ext/view-manager/v1/views")
 @ResourceFilters(ConfigResourceFilter.class)
@@ -43,13 +68,22 @@ public class ViewStateManagerResource
 {
   private static final Logger LOG = new Logger(ViewStateManagerResource.class);
   private final ViewStateManager viewStateManager;
+  private final DruidNodeDiscoveryProvider discoveryProvider;
+  private final HttpClient httpClient;
+  private final ObjectMapper objectMapper;
 
   @Inject
   public ViewStateManagerResource(
-      final ViewStateManager viewStateManager
+      final ViewStateManager viewStateManager,
+      final DruidNodeDiscoveryProvider discoveryProvider,
+      @EscalatedClient HttpClient httpClient,
+      ObjectMapper objectMapper
   )
   {
     this.viewStateManager = viewStateManager;
+    this.discoveryProvider = discoveryProvider;
+    this.httpClient = httpClient;
+    this.objectMapper = objectMapper;
   }
 
   @GET
@@ -81,6 +115,22 @@ public class ViewStateManagerResource
   {
     try {
       IdUtils.validateId("view", name);
+    }
+    catch (IllegalArgumentException iae) {
+      return clientError(iae.getMessage());
+    }
+
+    try {
+      if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
+        return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
+      }
+    }
+    catch (Exception e) {
+      LOG.error(e, "Encountered exception while validating view definition.");
+      return serverError(e.getMessage());
+    }
+
+    try {
       int updated = viewStateManager.createView(new ImplyViewDefinition(name, viewDefinitionRequest.getViewSql()));
       if (updated != 1) {
         // how can this be?
@@ -90,9 +140,6 @@ public class ViewStateManagerResource
     }
     catch (ViewAlreadyExistsException alreadyExistsException) {
       return clientError(alreadyExistsException.getMessage());
-    }
-    catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
     }
     catch (Exception ex) {
       LOG.error(ex, "Failed to create view");
@@ -111,6 +158,22 @@ public class ViewStateManagerResource
   {
     try {
       IdUtils.validateId("view", name);
+    }
+    catch (IllegalArgumentException iae) {
+      return clientError(iae.getMessage());
+    }
+
+    try {
+      if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
+        return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
+      }
+    }
+    catch (Exception e) {
+      LOG.error(e, "Encountered exception while validating view definition.");
+      return serverError(e.getMessage());
+    }
+
+    try {
       int updated = viewStateManager.alterView(new ImplyViewDefinition(name, viewDefinitionRequest.getViewSql()));
       if (updated != 1) {
         return Response.status(Response.Status.NOT_FOUND).build();
@@ -135,6 +198,12 @@ public class ViewStateManagerResource
   {
     try {
       IdUtils.validateId("view", name);
+    }
+    catch (IllegalArgumentException iae) {
+      return clientError(iae.getMessage());
+    }
+
+    try {
       int deleted = viewStateManager.deleteView(name, null);
       if (deleted != 1) {
         return Response.status(Response.Status.NOT_FOUND).build();
@@ -206,6 +275,77 @@ public class ViewStateManagerResource
       return "ViewDefinitionRequest{" +
              "viewSql='" + viewSql + '\'' +
              '}';
+    }
+  }
+
+  private boolean validateViewDefinition(String viewSql)
+  {
+    // pick a random broker
+    DruidNodeDiscovery nodeDiscovery = discoveryProvider.getForNodeRole(NodeRole.BROKER);
+    Collection<DiscoveryDruidNode> nodes = nodeDiscovery.getAllNodes();
+    List<DiscoveryDruidNode> nodeList = ImmutableList.copyOf(nodes);
+    if (nodeList.isEmpty()) {
+      throw new RE("Could not discover any brokers when validating view definition[%s]", viewSql);
+    }
+    Random rng = ThreadLocalRandom.current();
+    int indexToChoose = rng.nextInt(nodeList.size());
+    DiscoveryDruidNode chosenBroker = nodeList.get(indexToChoose);
+
+    URL listenerURL = getQueryUrl(chosenBroker.getDruidNode());
+
+    Request req = new Request(
+        HttpMethod.POST,
+        listenerURL
+    );
+    SqlQuery query = new SqlQuery("EXPLAIN PLAN FOR " + viewSql, null, false, null, null);
+    byte[] serializedEntity;
+    try {
+      serializedEntity = objectMapper.writeValueAsBytes(query);
+      req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
+    }
+    catch (JsonProcessingException jpe) {
+      throw new RE(jpe, "encountered error while serializing view definition validation query[%s]", query);
+    }
+
+    // block on the response
+    ListenableFuture<StatusResponseHolder> future = httpClient.go(
+        req,
+        StatusResponseHandler.getInstance(),
+        null
+    );
+
+    try {
+      StatusResponseHolder responseHolder = future.get();
+      if (HttpResponseStatus.OK.equals(responseHolder.getStatus())) {
+        return true;
+      } else if (HttpResponseStatus.BAD_REQUEST.equals(responseHolder.getStatus())) {
+        return false;
+      } else {
+        throw new RE(
+            "Received non-OK response while validating view definition[%s], status[%s]",
+            viewSql,
+            responseHolder.getStatus()
+        );
+      }
+    }
+    catch (InterruptedException | ExecutionException e) {
+      throw new RE(e, "encountered error while validating view definition[%s]", viewSql);
+    }
+  }
+
+  private URL getQueryUrl(DruidNode druidNode)
+  {
+    try {
+      return new URL(
+          druidNode.getServiceScheme(),
+          druidNode.getHost(),
+          druidNode.getPortToUse(),
+          "/druid/v2/sql/"
+      );
+    }
+    catch (MalformedURLException mue) {
+      LOG.error("ViewStateManagerResource : Malformed SQL query URL for DruidNode[%s]", druidNode);
+      throw new RuntimeException(mue);
     }
   }
 }
