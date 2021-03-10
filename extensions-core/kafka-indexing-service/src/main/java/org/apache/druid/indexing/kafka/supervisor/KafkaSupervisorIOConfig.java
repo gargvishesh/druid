@@ -24,12 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorIOConfig;
-import org.apache.druid.indexing.seekablestream.supervisor.autoscaler.AutoScalerConfig;
 import org.apache.druid.java.util.common.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 
-import javax.annotation.Nullable;
 import java.util.Map;
 
 public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
@@ -53,7 +51,6 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
       @JsonProperty("taskCount") Integer taskCount,
       @JsonProperty("taskDuration") Period taskDuration,
       @JsonProperty("consumerProperties") Map<String, Object> consumerProperties,
-      @Nullable @JsonProperty("autoScalerConfig") AutoScalerConfig autoScalerConfig,
       @JsonProperty("pollTimeout") Long pollTimeout,
       @JsonProperty("startDelay") Period startDelay,
       @JsonProperty("period") Period period,
@@ -76,7 +73,6 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
         completionTimeout,
         lateMessageRejectionPeriod,
         earlyMessageRejectionPeriod,
-        autoScalerConfig,
         lateMessageRejectionStartDateTime
     );
 
@@ -121,7 +117,6 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
            ", taskCount=" + getTaskCount() +
            ", taskDuration=" + getTaskDuration() +
            ", consumerProperties=" + consumerProperties +
-           ", autoScalerConfig=" + getAutoscalerConfig() +
            ", pollTimeout=" + pollTimeout +
            ", startDelay=" + getStartDelay() +
            ", period=" + getPeriod() +

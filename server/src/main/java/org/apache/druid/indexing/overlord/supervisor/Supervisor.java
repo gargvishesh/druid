@@ -21,7 +21,6 @@ package org.apache.druid.indexing.overlord.supervisor;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.druid.indexing.overlord.DataSourceMetadata;
-import org.apache.druid.indexing.overlord.supervisor.autoscaler.LagStats;
 
 import javax.annotation.Nullable;
 import java.util.Map;
@@ -65,12 +64,4 @@ public interface Supervisor
    * @param checkpointMetadata metadata for the sequence to currently checkpoint
    */
   void checkpoint(int taskGroupId, DataSourceMetadata checkpointMetadata);
-
-  /**
-   * Computes maxLag, totalLag and avgLag
-   * Only supports Kafka ingestion so far.
-   */
-  LagStats computeLagStats();
-
-  int getActiveTaskGroupsCount();
 }

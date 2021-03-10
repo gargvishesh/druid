@@ -39,7 +39,6 @@ import org.apache.druid.indexing.overlord.DataSourceMetadata;
 import org.apache.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import org.apache.druid.indexing.overlord.TaskMaster;
 import org.apache.druid.indexing.overlord.TaskStorage;
-import org.apache.druid.indexing.overlord.supervisor.autoscaler.LagStats;
 import org.apache.druid.indexing.seekablestream.SeekableStreamDataSourceMetadata;
 import org.apache.druid.indexing.seekablestream.SeekableStreamEndSequenceNumbers;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTask;
@@ -377,13 +376,6 @@ public class KinesisSupervisor extends SeekableStreamSupervisor<String, String, 
   protected boolean useExclusiveStartSequenceNumberForNonFirstSequence()
   {
     return true;
-  }
-
-  // not yet supported, will be implemented in the future maybe? need to find a proper way to measure kinesis lag.
-  @Override
-  public LagStats computeLagStats()
-  {
-    throw new UnsupportedOperationException("Compute Lag Stats is not supported in KinesisSupervisor yet.");
   }
 
   @Override
