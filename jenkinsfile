@@ -403,8 +403,7 @@ pipeline {
     stages {
         stage('Checks') {
             when {
-                // expression { !params.SKIP_ALL_JENKINS_TESTS }
-                expression { return false }
+                expression { !params.SKIP_ALL_JENKINS_TESTS }
                 beforeAgent true
             }
             parallel {
@@ -581,12 +580,11 @@ pipeline {
 
         stage("Build and publish") {
             when {
-                // anyOf {
-                //     expression { headBranchName() ==~ activeDevBranchRegex() }
-                //     expression { headBranchName() ==~ releaseBranchRegex() }
-                //     expression { params.PUBLISH_ON_ANY_BRANCH }
-                // }
-                expression { return true }
+                anyOf {
+                    expression { headBranchName() ==~ activeDevBranchRegex() }
+                    expression { headBranchName() ==~ releaseBranchRegex() }
+                    expression { params.PUBLISH_ON_ANY_BRANCH }
+                }
                 beforeAgent true
             }
 
