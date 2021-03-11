@@ -788,7 +788,6 @@ pipeline {
                                         tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
 
                                         echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
-                                        echo "${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/upstreamCommitSha
 
                                     '''.replaceAll(/\n\s+/, "\n"),
                                     label: 'build druid'
@@ -816,10 +815,6 @@ pipeline {
                                             script: 'cat build.version',
                                             returnStdout: true
                                         ).trim()
-                                        def upstream_commit_sha = sh(
-                                            script: 'cat upstreamCommitSha',
-                                            returnStdout: true
-                                        ).trim()
                                         def repo_url = sh(
                                             script: 'git config --get remote.origin.url',
                                             returnStdout: true
@@ -831,7 +826,7 @@ pipeline {
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.revision=${upstream_commit_sha};vcs.url=${repo_url};vcs.branch=${headBranchName()};build.version=${artifact_build_version}"
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranchName()};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
