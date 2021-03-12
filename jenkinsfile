@@ -391,6 +391,7 @@ pipeline {
         MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
+        APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
 
         IMAGE_JDK8 = "docker/druid-ci-jdk8:1613508913"
         IMAGE_JDK11 = "docker/druid-ci-jdk11:1613734090"
