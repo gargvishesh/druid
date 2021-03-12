@@ -244,8 +244,6 @@
                                         <argument>-c</argument>
                                         <argument>io.imply:indexed-table-loader</argument>
                                         <argument>-c</argument>
-                                        <argument>io.imply:imply-view-manager</argument>
-                                        <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
@@ -394,6 +392,49 @@
                                         <argument>io.imply.druid.extensions:ingest-service</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>imply-experimental</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>pull-deps-imply-experimental-exts</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>java</executable>
+                                    <arguments>
+                                        <argument>-classpath</argument>
+                                        <classpath />
+                                        <argument>-Ddruid.extensions.loadList=[]</argument>
+                                        <argument>-Ddruid.extensions.directory=${project.build.directory}/extensions
+                                        </argument>
+                                        <argument>
+                                            -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
+                                        </argument>
+                                        <argument>org.apache.druid.cli.Main</argument>
+                                        <argument>tools</argument>
+                                        <argument>pull-deps</argument>
+                                        <argument>--defaultVersion</argument>
+                                        <argument>${project.parent.version}</argument>
+                                        <argument>-l</argument>
+                                        <argument>${settings.localRepository}</argument>
+                                        <argument>--no-default-hadoop</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-view-manager</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
