@@ -18,6 +18,10 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <properties>
+    <keycloak.version>11.0.3</keycloak.version>
+  </properties>
+
   <groupId>io.imply</groupId>
   <artifactId>integration-tests-imply</artifactId>
 
@@ -33,6 +37,30 @@
       <groupId>io.imply.druid.extensions</groupId>
       <artifactId>ingest-service</artifactId>
       <version>${project.parent.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.imply</groupId>
+      <artifactId>imply-keycloak</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-core</artifactId>
+      <version>${keycloak.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.spec.javax.ws.rs</groupId>
+      <artifactId>jboss-jaxrs-api_2.1_spec</artifactId>
+      <version>1.0.3.Final</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-adapter-core</artifactId>
+      <version>${keycloak.version}</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>

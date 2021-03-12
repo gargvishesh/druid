@@ -373,7 +373,7 @@ public class ITBasicAuthLdapConfigurationTest extends AbstractAuthConfigurationT
   }
 
   @Override
-  void setupUsers() throws Exception
+  protected void setupUsers() throws Exception
   {
     // create a role that can only read 'auth_test'
     List<ResourceAction> readDatasourceOnlyPermissions = Collections.singletonList(
@@ -428,7 +428,7 @@ public class ITBasicAuthLdapConfigurationTest extends AbstractAuthConfigurationT
   }
 
   @Override
-  void setupTestSpecificHttpClients()
+  protected void setupTestSpecificHttpClients()
   {
     druidUserClient = new CredentialedHttpClient(
         new BasicCredentials("druid", "helloworld"),
@@ -522,19 +522,19 @@ public class ITBasicAuthLdapConfigurationTest extends AbstractAuthConfigurationT
   }
 
   @Override
-  String getAuthenticatorName()
+  protected String getAuthenticatorName()
   {
     return LDAP_AUTHENTICATOR;
   }
 
   @Override
-  String getAuthorizerName()
+  protected String getAuthorizerName()
   {
     return LDAP_AUTHORIZER;
   }
 
   @Override
-  String getExpectedAvaticaAuthError()
+  protected String getExpectedAvaticaAuthError()
   {
     return EXPECTED_AVATICA_AUTH_ERROR;
   }

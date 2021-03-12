@@ -12,4 +12,5 @@ package io.imply.druid.tests;
 public class ImplyTestNGGroup
 {
   public static final String INGEST_SERVICE = "ingest-service";
+  public static final String KEYCLOAK_SECURITY = "keycloak-security";
 }

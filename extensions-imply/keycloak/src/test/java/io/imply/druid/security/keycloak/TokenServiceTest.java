@@ -10,6 +10,7 @@
 package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.http.Header;
@@ -23,6 +24,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.authentication.ClientIdAndSecretCredentialsProvider;
 import org.keycloak.representations.AccessTokenResponse;
@@ -33,6 +35,7 @@ import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.HashMap;
 
 public class TokenServiceTest
 {
@@ -56,7 +59,7 @@ public class TokenServiceTest
     final ClientIdAndSecretCredentialsProvider credentialsProvider = new ClientIdAndSecretCredentialsProvider();
     credentialsProvider.init(deployment, CLIENT_SECRET);
     Mockito.when(deployment.getClientAuthenticator()).thenReturn(credentialsProvider);
-    tokenService = new TokenService(deployment);
+    tokenService = new TokenService(deployment, new HashMap<>(), new HashMap<>());
   }
 
   @Test
@@ -86,8 +89,43 @@ public class TokenServiceTest
     byte[] buf = new byte[(int) captured.getEntity().getContentLength()];
     Assert.assertEquals(captured.getEntity().getContentLength(), captured.getEntity().getContent().read(buf));
     Assert.assertEquals(
-        "grant_type=client_credentials",
+        StringUtils.format("%s=%s", OAuth2Constants.GRANT_TYPE, OAuth2Constants.CLIENT_CREDENTIALS),
         StringUtils.fromUtf8(buf)
+    );
+
+    assertEqualsTokens(expectedResponse, actualResponse);
+  }
+
+  @Test
+  public void testGrantTokenPasswordGrantTypeVerifyHttpPost() throws IOException
+  {
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
+    final AccessTokenResponse expectedResponse = new AccessTokenResponse();
+    expectedResponse.setToken("accessToken");
+    expectedResponse.setRefreshToken("refreshToken");
+    expectedResponse.setExpiresIn(1000);
+    expectedResponse.setRefreshExpiresIn(10000);
+    mockAccessTokenResponse(expectedResponse);
+    final AccessTokenResponse actualResponse = tokenService.grantToken();
+    ArgumentCaptor<HttpPost> postCaptor = ArgumentCaptor.forClass(HttpPost.class);
+    Mockito.verify(client).execute(postCaptor.capture());
+
+    final HttpPost captured = postCaptor.getValue();
+    // verify headers
+    final Header[] headers = captured.getAllHeaders();
+    Assert.assertEquals(1, headers.length);
+    Assert.assertEquals("Authorization", headers[0].getName());
+    Assert.assertEquals(BasicAuthHelper.createHeader(CLIENT_ID, CLIENT_SECRET), headers[0].getValue());
+    // verify entity
+    final HttpEntity capturedEntity = captured.getEntity();
+    Assert.assertEquals("Content-Type", capturedEntity.getContentType().getName());
+    Assert.assertEquals("application/x-www-form-urlencoded; charset=UTF-8", capturedEntity.getContentType().getValue());
+    // verify content
+    byte[] buf = new byte[(int) captured.getEntity().getContentLength()];
+    Assert.assertEquals(captured.getEntity().getContentLength(), captured.getEntity().getContent().read(buf));
+    Assert.assertEquals(
+        StringUtils.format("%s=%s", OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD),
+                      StringUtils.fromUtf8(buf)
     );
 
     assertEqualsTokens(expectedResponse, actualResponse);
@@ -120,7 +158,14 @@ public class TokenServiceTest
     byte[] buf = new byte[(int) captured.getEntity().getContentLength()];
     Assert.assertEquals(captured.getEntity().getContentLength(), captured.getEntity().getContent().read(buf));
     Assert.assertEquals(
-        "grant_type=client_credentials&grant_type=refresh_token&refresh_token=oldToken",
+        StringUtils.format(
+            "%s=%s&%s=%s&%s=oldToken",
+            OAuth2Constants.GRANT_TYPE,
+            OAuth2Constants.CLIENT_CREDENTIALS,
+            OAuth2Constants.GRANT_TYPE,
+            OAuth2Constants.REFRESH_TOKEN,
+            OAuth2Constants.REFRESH_TOKEN
+        ),
         StringUtils.fromUtf8(buf)
     );
 

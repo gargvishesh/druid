@@ -73,24 +73,24 @@ public abstract class AbstractAuthConfigurationTest
   static final String SYSTEM_SCHEMA_TASKS_RESULTS_RESOURCE =
       "/results/auth_test_sys_schema_tasks.json";
 
-  static final String SYS_SCHEMA_SEGMENTS_QUERY =
+  protected static final String SYS_SCHEMA_SEGMENTS_QUERY =
       "SELECT * FROM sys.segments WHERE datasource IN ('auth_test')";
 
-  static final String SYS_SCHEMA_SERVERS_QUERY =
+  protected static final String SYS_SCHEMA_SERVERS_QUERY =
       "SELECT * FROM sys.servers WHERE tier IS NOT NULL";
 
-  static final String SYS_SCHEMA_SERVER_SEGMENTS_QUERY =
+  protected static final String SYS_SCHEMA_SERVER_SEGMENTS_QUERY =
       "SELECT * FROM sys.server_segments WHERE segment_id LIKE 'auth_test%'";
 
-  static final String SYS_SCHEMA_TASKS_QUERY =
+  protected static final String SYS_SCHEMA_TASKS_QUERY =
       "SELECT * FROM sys.tasks WHERE datasource IN ('auth_test')";
 
   private static final String INVALID_NAME = "invalid%2Fname";
 
-  List<Map<String, Object>> adminSegments;
-  List<Map<String, Object>> adminTasks;
-  List<Map<String, Object>> adminServers;
-  List<Map<String, Object>> adminServerSegments;
+  protected List<Map<String, Object>> adminSegments;
+  protected List<Map<String, Object>> adminTasks;
+  protected List<Map<String, Object>> adminServers;
+  protected List<Map<String, Object>> adminServerSegments;
 
   @Inject
   IntegrationTestingConfig config;
@@ -100,19 +100,19 @@ public abstract class AbstractAuthConfigurationTest
 
   @Inject
   @Client
-  HttpClient httpClient;
+  protected HttpClient httpClient;
 
   @Inject
-  CoordinatorResourceTestClient coordinatorClient;
+  protected CoordinatorResourceTestClient coordinatorClient;
 
-  HttpClient adminClient;
+  protected HttpClient adminClient;
   HttpClient datasourceOnlyUserClient;
   HttpClient datasourceWithStateUserClient;
   HttpClient stateOnlyUserClient;
   HttpClient internalSystemClient;
 
 
-  void checkNodeAccess(HttpClient httpClient)
+  protected void checkNodeAccess(HttpClient httpClient)
   {
     HttpUtil.makeRequest(httpClient, HttpMethod.GET, config.getCoordinatorUrl() + "/status", null);
     HttpUtil.makeRequest(httpClient, HttpMethod.GET, config.getOverlordUrl() + "/status", null);
@@ -121,7 +121,7 @@ public abstract class AbstractAuthConfigurationTest
     HttpUtil.makeRequest(httpClient, HttpMethod.GET, config.getRouterUrl() + "/status", null);
   }
 
-  void checkLoadStatus(HttpClient httpClient) throws Exception
+  protected void checkLoadStatus(HttpClient httpClient) throws Exception
   {
     checkLoadStatusSingle(httpClient, config.getCoordinatorUrl());
     checkLoadStatusSingle(httpClient, config.getOverlordUrl());
@@ -139,7 +139,7 @@ public abstract class AbstractAuthConfigurationTest
     HttpUtil.makeRequest(httpClient, HttpMethod.OPTIONS, config.getRouterUrl() + "/status", null);
   }
 
-  void checkUnsecuredCoordinatorLoadQueuePath(HttpClient client)
+  protected void checkUnsecuredCoordinatorLoadQueuePath(HttpClient client)
   {
     HttpUtil.makeRequest(client, HttpMethod.GET, config.getCoordinatorUrl() + "/druid/coordinator/v1/loadqueue", null);
   }
@@ -202,7 +202,7 @@ public abstract class AbstractAuthConfigurationTest
     Map<String, Boolean> loadStatus = jsonMapper.readValue(content, JacksonUtils.TYPE_REFERENCE_MAP_STRING_BOOLEAN);
 
     String authenticatorName = getAuthenticatorName();
-    Assert.assertNotNull(loadStatus.get(getAuthenticatorName()));
+    Assert.assertNotNull(loadStatus.get(authenticatorName));
     Assert.assertTrue(loadStatus.get(authenticatorName));
 
     holder = HttpUtil.makeRequest(
@@ -253,7 +253,7 @@ public abstract class AbstractAuthConfigurationTest
     Assert.assertEquals(responseMap, expectedResults);
   }
 
-  void verifySystemSchemaQuery(
+  protected void verifySystemSchemaQuery(
       HttpClient client,
       String query,
       List<Map<String, Object>> expectedResults
@@ -262,7 +262,7 @@ public abstract class AbstractAuthConfigurationTest
     verifySystemSchemaQueryBase(client, query, expectedResults, false);
   }
 
-  void verifySystemSchemaServerQuery(
+  protected void verifySystemSchemaServerQuery(
       HttpClient client,
       String query,
       List<Map<String, Object>> expectedResults
@@ -293,12 +293,8 @@ public abstract class AbstractAuthConfigurationTest
     return "jdbc:avatica:remote:url=" + config.getRouterUrl() + DruidAvaticaHandler.AVATICA_PATH;
   }
 
-  void verifyAdminOptionsRequest()
+  protected void verifyAdminOptionsRequest()
   {
-    HttpClient adminClient = new CredentialedHttpClient(
-        new BasicCredentials("admin", "priest"),
-        httpClient
-    );
     testOptionsRequests(adminClient);
   }
 
@@ -364,13 +360,13 @@ public abstract class AbstractAuthConfigurationTest
     Assert.assertFalse(responseContent.contains(maliciousUsername));
   }
 
-  void setupHttpClients() throws Exception
+  protected void setupHttpClients() throws Exception
   {
     setupCommonHttpClients();
     setupTestSpecificHttpClients();
   }
 
-  abstract void setupUsers() throws Exception;
+  protected abstract void setupUsers() throws Exception;
 
   void setupCommonHttpClients()
   {
@@ -400,9 +396,9 @@ public abstract class AbstractAuthConfigurationTest
     );
   }
 
-  abstract void setupTestSpecificHttpClients() throws Exception;
+  protected abstract void setupTestSpecificHttpClients() throws Exception;
 
-  void setExpectedSystemSchemaObjects() throws IOException
+  protected void setExpectedSystemSchemaObjects() throws IOException
   {
     // initial setup is done now, run the system schema response content tests
     adminSegments = jsonMapper.readValue(
@@ -438,7 +434,7 @@ public abstract class AbstractAuthConfigurationTest
    * curr_size on historicals changes because cluster state is not isolated across different
    * integration tests, zero it out for consistent test results
    */
-  static List<Map<String, Object>> getServersWithoutCurrentSize(List<Map<String, Object>> servers)
+  protected static List<Map<String, Object>> getServersWithoutCurrentSize(List<Map<String, Object>> servers)
   {
     return Lists.transform(
         servers,
@@ -463,9 +459,9 @@ public abstract class AbstractAuthConfigurationTest
     return json;
   }
 
-  abstract String getAuthenticatorName();
+  protected abstract String getAuthenticatorName();
 
-  abstract String getAuthorizerName();
+  protected abstract String getAuthorizerName();
 
-  abstract String getExpectedAvaticaAuthError();
+  protected abstract String getExpectedAvaticaAuthError();
 }

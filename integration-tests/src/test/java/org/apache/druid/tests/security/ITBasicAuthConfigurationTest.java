@@ -323,7 +323,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   }
 
   @Override
-  void setupUsers() throws Exception
+  protected void setupUsers() throws Exception
   {
     // create a new user+role that can only read 'auth_test'
     List<ResourceAction> readDatasourceOnlyPermissions = Collections.singletonList(
@@ -376,7 +376,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   }
 
   @Override
-  void setupTestSpecificHttpClients() throws Exception
+  protected void setupTestSpecificHttpClients() throws Exception
   {
     // create a new user+role that can read /status
     List<ResourceAction> permissions = Collections.singletonList(
@@ -506,19 +506,19 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   }
 
   @Override
-  String getAuthenticatorName()
+  protected String getAuthenticatorName()
   {
     return BASIC_AUTHENTICATOR;
   }
 
   @Override
-  String getAuthorizerName()
+  protected String getAuthorizerName()
   {
     return BASIC_AUTHORIZER;
   }
 
   @Override
-  String getExpectedAvaticaAuthError()
+  protected String getExpectedAvaticaAuthError()
   {
     return EXPECTED_AVATICA_AUTH_ERROR;
   }

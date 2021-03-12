@@ -292,6 +292,8 @@ public class BrokerViewStateListener implements ViewStateListener
           viewCache.put(view.getKey(), view.getValue());
           viewManager.createView(plannerFactory, view.getKey(), view.getValue().getViewSql());
         }
+      } else {
+        LOG.error("Not updating view state cache because no implementation of ViewManager was found. Set config property druid.sql.viewmanager.type=imply.");
       }
     }
   }

@@ -52,6 +52,21 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.query.yml up -d
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]
+  then
+    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-setup.yml up -d
+
+    echo "Waiting for keycloak to come up"
+    counter=0
+    until [ $counter -eq 6 ] || curl localhost:8080; do
+        sleep 10
+        ((counter++))
+    done
+    [ $counter -lt 5 ]
+
+    docker exec imply-keycloak /bin/bash -c '/tmp/setup.sh'
+
+    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-cluster.yml up -d
   else
     bash ${DIR}/script/docker_run_cluster.sh
   fi

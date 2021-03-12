@@ -40,10 +40,17 @@ import java.util.Map;
 public class TokenService
 {
   private final KeycloakDeployment deployment;
+  private final Map<String, String> reqHeaders;
+  private final Map<String, String> reqParams;
 
-  public TokenService(KeycloakDeployment deployment)
+  public TokenService(
+      KeycloakDeployment deployment,
+      Map<String, String> reqHeaders,
+      Map<String, String> reqParams)
   {
     this.deployment = deployment;
+    this.reqHeaders = reqHeaders != null ? reqHeaders : new HashMap<>();
+    this.reqParams = reqParams != null ? reqParams : new HashMap<>();
   }
 
   public AccessTokenResponse grantToken()
@@ -63,22 +70,25 @@ public class TokenService
     try {
       HttpPost post = new HttpPost(deployment.getTokenUrl());
       List<NameValuePair> formparams = new ArrayList<>();
-      formparams.add(new BasicNameValuePair(OAuth2Constants.GRANT_TYPE, OAuth2Constants.CLIENT_CREDENTIALS));
+      String requestedGrantType = reqParams.get(OAuth2Constants.GRANT_TYPE);
+      if (requestedGrantType == null) {
+        formparams.add(new BasicNameValuePair(OAuth2Constants.GRANT_TYPE, OAuth2Constants.CLIENT_CREDENTIALS));
+      }
       if (refreshToken != null) {
         formparams.add(new BasicNameValuePair(OAuth2Constants.GRANT_TYPE, OAuth2Constants.REFRESH_TOKEN));
       }
 
       // Add client credentials according to the method configured in keycloak-client-secret.json or keycloak-client-signed-jwt.json file
-      Map<String, String> reqHeaders = new HashMap<>();
-      Map<String, String> reqParams = new HashMap<>();
-      ClientCredentialsProviderUtils.setClientCredentials(deployment, reqHeaders, reqParams);
+      Map<String, String> reqHeadersCopy = new HashMap<>(this.reqHeaders);
+      Map<String, String> reqParamsCopy = new HashMap<>(this.reqParams);
+      ClientCredentialsProviderUtils.setClientCredentials(deployment, reqHeadersCopy, reqParamsCopy);
       if (refreshToken != null) {
-        reqParams.put(OAuth2Constants.REFRESH_TOKEN, refreshToken);
+        reqParamsCopy.put(OAuth2Constants.REFRESH_TOKEN, refreshToken);
       }
-      for (Map.Entry<String, String> header : reqHeaders.entrySet()) {
+      for (Map.Entry<String, String> header : reqHeadersCopy.entrySet()) {
         post.setHeader(header.getKey(), header.getValue());
       }
-      for (Map.Entry<String, String> param : reqParams.entrySet()) {
+      for (Map.Entry<String, String> param : reqParamsCopy.entrySet()) {
         formparams.add(new BasicNameValuePair(param.getKey(), param.getValue()));
       }
 

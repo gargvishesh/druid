@@ -43,6 +43,17 @@ then
   docker rm imply-ingest-service
 fi
 
+# cleanup if keycloak-security group
+if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]
+then
+  docker-compose -f docker/docker-compose.keycloak-security-cluster.yml down
+  docker-compose -f docker/docker-compose.keycloak-security-setup.yml down
+  if [ ! -z "$(docker volume ls -q -f name=docker_keycloak_db_data)" ]
+  then
+    docker volume rm docker_keycloak_db_data
+  fi
+fi
+
 # bring down using the same compose args we started with
 if [ -z "$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH" ]
 then
