@@ -44,10 +44,6 @@
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-server</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-servlet</artifactId>
         </exclusion>
         <exclusion>
@@ -69,10 +65,6 @@
         <exclusion>
           <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-server</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
