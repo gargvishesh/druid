@@ -94,7 +94,7 @@ public class ImplyKeycloakModule implements DruidModule
       Injector injector,
       Class<? extends T> classRunByCoordinator,
       Class<? extends T> defaultClass
-  ) throws ClassNotFoundException
+  )
   {
     if (isCoordinator(injector)) {
       return injector.getInstance(classRunByCoordinator);
