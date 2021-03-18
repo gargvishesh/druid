@@ -217,6 +217,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
 
     // delete role and ensure that it is no longer there
     makeDeleteRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
+    content = responseHolder.getContent();
+    roles = jsonMapper.readValue(content, ROLES_RESULTS_TYPE_REFERENCE);
     Assert.assertFalse(roles.contains(roleName));
   }
 
@@ -375,9 +378,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   {
     return HttpUtil.makeRequestWithExpectedStatus(
         httpClient,
-        HttpMethod.GET,
+        HttpMethod.POST,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s",
+            "%s/druid-ext/keycloak-security/authorization/db/roles/%s/permissions",
             config.getCoordinatorUrl(),
             role
         ),

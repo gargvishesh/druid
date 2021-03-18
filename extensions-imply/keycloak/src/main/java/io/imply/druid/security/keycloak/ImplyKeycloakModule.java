@@ -22,7 +22,9 @@ import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthori
 import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
+import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResource;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
+import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
@@ -52,6 +54,8 @@ public class ImplyKeycloakModule implements DruidModule
   {
     JsonConfigProvider.bind(binder, "druid.keycloak", AdapterConfig.class);
     JsonConfigProvider.bind(binder, "druid.escalator.keycloak", AdapterConfig.class, EscalatedGlobal.class);
+
+    Jerseys.addResource(binder, KeycloakAuthorizerResource.class);
 
     LifecycleModule.register(binder, KeycloakAuthorizerMetadataStorageUpdater.class);
   }

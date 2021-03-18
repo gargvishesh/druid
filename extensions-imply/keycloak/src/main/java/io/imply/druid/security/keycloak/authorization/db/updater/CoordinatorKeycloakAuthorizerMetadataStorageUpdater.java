@@ -10,10 +10,12 @@ import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import org.apache.druid.concurrent.LifecycleLock;
+import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
+import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
@@ -32,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+@ManageLifecycle
 public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements KeycloakAuthorizerMetadataStorageUpdater
 {
   private static final EmittingLogger LOG =
@@ -99,6 +102,16 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     finally {
       lifecycleLock.exitStart();
     }
+  }
+
+  @LifecycleStop
+  public void stop()
+  {
+    if (!lifecycleLock.canStop()) {
+      throw new ISE("can't stop.");
+    }
+
+    LOG.info("CoordinatorKeycloakAuthorizerMetadataStorageUpdater is stopped.");
   }
 
   @Override
