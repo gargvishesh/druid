@@ -21,6 +21,7 @@ import org.keycloak.representations.AccessTokenResponse;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.BadRequestException;
+import java.util.Map;
 
 /**
  * A simple class that manages tokens. Many parts are adopted from org.keycloak.admin.client.token.TokenManager.
@@ -55,9 +56,12 @@ public class TokenManager
   @GuardedBy("tokenLock")
   private long refreshTokenExpirationTimeSec;
 
-  public TokenManager(KeycloakDeployment deployment)
+  public TokenManager(
+      KeycloakDeployment deployment,
+      Map<String, String> tokenReqHeaders,
+      Map<String, String> tokenReqParams)
   {
-    this(deployment, new TokenService(deployment), true);
+    this(deployment, new TokenService(deployment, tokenReqHeaders, tokenReqParams), true);
   }
 
   /**

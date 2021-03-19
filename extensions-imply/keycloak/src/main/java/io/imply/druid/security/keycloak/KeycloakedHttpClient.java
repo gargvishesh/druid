@@ -19,6 +19,9 @@ import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.joda.time.Duration;
 import org.keycloak.adapters.KeycloakDeployment;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class KeycloakedHttpClient extends AbstractHttpClient
 {
   static final String BEARER = "Bearer ";
@@ -28,10 +31,19 @@ public class KeycloakedHttpClient extends AbstractHttpClient
 
   public KeycloakedHttpClient(KeycloakDeployment deployment, HttpClient delegate)
   {
+    this(deployment, delegate, new HashMap<>(), new HashMap<>());
+  }
+
+  public KeycloakedHttpClient(
+      KeycloakDeployment deployment,
+      HttpClient delegate,
+      Map<String, String> tokenReqHeaders,
+      Map<String, String> tokenReqParams)
+  {
     final ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-      this.tokenManager = new TokenManager(deployment);
+      this.tokenManager = new TokenManager(deployment, tokenReqHeaders, tokenReqParams);
       this.tokenManager.updateTokensIfNeeded();
     }
     finally {

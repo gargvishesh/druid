@@ -107,11 +107,36 @@ public class DruidKeycloakOIDCFilter implements Filter
     nodesRegistrationManagement = new NodesRegistrationManagement();
   }
 
+  private boolean doesRequestHaveBearerAuth(HttpServletRequest httpReq)
+  {
+    String authHeader = httpReq.getHeader("Authorization");
+
+    if (authHeader == null) {
+      return false;
+    }
+
+    if (authHeader.length() < 7) {
+      return false;
+    }
+
+    if (!"Bearer ".equals(authHeader.substring(0, 7))) {
+      return false;
+    }
+
+    return true;
+  }
+
   @Override
   public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException
   {
     HttpServletRequest request = (HttpServletRequest) req;
     HttpServletResponse response = (HttpServletResponse) res;
+
+    if (!doesRequestHaveBearerAuth(request)) {
+      // Request didn't have HTTP Bearer token, move on to the next filter
+      chain.doFilter(request, response);
+      return;
+    }
 
     OIDCServletHttpFacade facade = new OIDCServletHttpFacade(request, response);
     KeycloakDeployment deployment = deploymentContext.resolveDeployment(facade);

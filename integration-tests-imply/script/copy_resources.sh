@@ -23,3 +23,8 @@ rm $SHARED_DIR/docker/lib/druid-kinesis-indexing-service-*
 # move ingest service to extension
 mkdir -p $SHARED_DIR/docker/extensions/ingest-service
 mv $SHARED_DIR/docker/lib/ingest-service-* $SHARED_DIR/docker/extensions/ingest-service
+
+# move imply keycloak to extension
+mkdir -p $SHARED_DIR/docker/extensions/imply-keycloak
+mv $SHARED_DIR/docker/lib/imply-keycloak-* $SHARED_DIR/docker/extensions/imply-keycloak
+mv $SHARED_DIR/docker/lib/jboss-jaxrs-* $SHARED_DIR/docker/extensions/imply-keycloak

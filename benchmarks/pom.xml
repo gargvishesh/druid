@@ -30,10 +30,6 @@
     <version>0.21.0-iap5-SNAPSHOT</version>
   </parent>
 
-  <prerequisites>
-    <maven>3.0</maven>
-  </prerequisites>
-
   <dependencies>
     <dependency>
       <groupId>org.openjdk.jmh</groupId>

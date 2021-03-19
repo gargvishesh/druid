@@ -1,0 +1,63 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+version: "2.2"
+
+networks:
+  druid-it-net:
+    name: druid-it-net
+    ipam:
+      config:
+        - subnet: 172.172.172.0/24
+
+volumes:
+  keycloak_db_data: {}
+
+services:
+  keycloak-mysql:
+    image: mysql:5.7
+    container_name: keycloak-mysql
+    networks:
+      druid-it-net:
+        ipv4_address: 172.172.172.121
+    volumes:
+      - keycloak_db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+
+  imply-keycloak:
+    image: quay.io/keycloak/keycloak:12.0.4
+    container_name: imply-keycloak
+    networks:
+      druid-it-net:
+        ipv4_address: 172.172.172.122
+    ports:
+      - 8080:8080
+    volumes:
+      - ./keycloak-configs/setup.sh:/tmp/setup.sh
+      - ./keycloak-configs/druid-realm-import.json:/tmp/druid-realm-import.json
+    privileged: true
+    environment:
+      DB_VENDOR: MYSQL
+      DB_ADDR: keycloak-mysql
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: password
+      KEYCLOAK_IMPORT: /tmp/druid-realm-import.json
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "connectTimeout=30000"
+    depends_on:
+      - keycloak-mysql
+
+  
