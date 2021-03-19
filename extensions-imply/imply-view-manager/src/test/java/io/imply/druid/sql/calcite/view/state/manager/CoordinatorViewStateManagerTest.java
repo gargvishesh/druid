@@ -65,6 +65,7 @@ public class CoordinatorViewStateManagerTest
             null,
             null,
             null,
+            null,
             null
         ),
         viewStateNotifier,

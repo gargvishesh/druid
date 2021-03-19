@@ -37,6 +37,9 @@ public class ViewStateManagementConfig
   @JsonProperty
   private final long cacheNotificationTimeout;
 
+  @JsonProperty
+  private final boolean allowUnrestrictedViews;
+
   @JsonCreator
   public ViewStateManagementConfig(
       @JsonProperty("pollingPeriod") Long pollingPeriod,
@@ -44,7 +47,8 @@ public class ViewStateManagementConfig
       @JsonProperty("cacheDirectory") String cacheDirectory,
       @JsonProperty("maxSyncRetries") Integer maxSyncRetries,
       @JsonProperty("enableCacheNotifications") Boolean enableCacheNotifications,
-      @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout
+      @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout,
+      @JsonProperty("allowUnrestrictedViews") Boolean allowUnrestrictedViews
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
@@ -55,6 +59,7 @@ public class ViewStateManagementConfig
     this.cacheNotificationTimeout = cacheNotificationTimeout == null
                                     ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS
                                     : cacheNotificationTimeout;
+    this.allowUnrestrictedViews = allowUnrestrictedViews == null ? false : allowUnrestrictedViews;
   }
 
   @JsonProperty
@@ -93,4 +98,9 @@ public class ViewStateManagementConfig
     return cacheNotificationTimeout;
   }
 
+  @JsonProperty
+  public boolean isAllowUnrestrictedViews()
+  {
+    return allowUnrestrictedViews;
+  }
 }
