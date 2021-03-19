@@ -32,6 +32,8 @@ branches:
   - nightly-test
   - latest
   - /^druid-.*-iap.*$/
+  # Branch for the monthly release
+  - /0.21.0-iap.*$/
   - /^release\//
 # -------- End Imply specific --------
 
