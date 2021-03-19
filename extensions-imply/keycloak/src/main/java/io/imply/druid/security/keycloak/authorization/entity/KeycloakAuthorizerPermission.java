@@ -104,7 +104,7 @@ public class KeycloakAuthorizerPermission
   public int hashCode()
   {
     int result = getResourceAction() != null ? getResourceAction().hashCode() : 0;
-    result = 31 * result + (getResourceNamePattern().pattern() != null
+    result = 31 * result + (getResourceNamePattern() != null && getResourceNamePattern().pattern() != null
                             ? getResourceNamePattern().pattern().hashCode()
                             : 0);
     return result;
