@@ -19,7 +19,6 @@ import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
-import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResource;
@@ -79,11 +78,14 @@ public class ImplyKeycloakModule implements DruidModule
       final Injector injector
   )
   {
+    return injector.getInstance(CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class);
+    /*
     return getInstance(
         injector,
         CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class,
         NoopKeycloakAuthorizerMetadataStorageUpdater.class
     );
+     */
   }
 
   /**

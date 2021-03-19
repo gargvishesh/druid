@@ -30,23 +30,26 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   private final DruidKeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
+  private final String rolesTokenClaim;
 
   @JsonCreator
   public ImplyKeycloakAuthenticator(
       @JsonProperty("authenticatorName") String authenticatorName,
       @JsonProperty("authorizerName") String authorizerName,
+      @JsonProperty("rolesTokenClaim") String rolesTokenClaim,
       @JacksonInject DruidKeycloakConfigResolver configResolver
   )
   {
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
+    this.rolesTokenClaim = Preconditions.checkNotNull(rolesTokenClaim, "roleTokenClaim");
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
   }
 
   @Override
   public Filter getFilter()
   {
-    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName);
+    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName, rolesTokenClaim);
   }
 
   @Override

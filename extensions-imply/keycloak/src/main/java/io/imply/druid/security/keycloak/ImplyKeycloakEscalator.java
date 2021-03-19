@@ -21,6 +21,8 @@ import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 
+import java.util.Map;
+
 @JsonTypeName("imply-keycloak")
 public class ImplyKeycloakEscalator implements Escalator
 {
@@ -46,6 +48,6 @@ public class ImplyKeycloakEscalator implements Escalator
   @Override
   public AuthenticationResult createEscalatedAuthenticationResult()
   {
-    return new AuthenticationResult(keycloakDeployment.getResourceName(), authorizerName, null, null);
+    return new AuthenticationResult(keycloakDeployment.getResourceName(), authorizerName, null, KeycloakAuthUtils.CONTEXT_WITH_ADMIN_ROLE);
   }
 }

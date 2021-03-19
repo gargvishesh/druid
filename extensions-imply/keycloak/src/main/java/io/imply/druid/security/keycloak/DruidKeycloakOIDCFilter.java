@@ -11,6 +11,8 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -33,6 +35,7 @@ import org.keycloak.adapters.spi.KeycloakAccount;
 import org.keycloak.adapters.spi.SessionIdMapper;
 import org.keycloak.adapters.spi.UserSessionManagement;
 
+import javax.annotation.Nullable;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -54,10 +57,13 @@ public class DruidKeycloakOIDCFilter implements Filter
 {
   private static final Logger LOG = new Logger(KeycloakOIDCFilter.class);
 
+  private static final String EMPTY_ROLES_JSON_STRING = "[]";
+
   private final SessionIdMapper idMapper = new InMemorySessionIdMapper();
   private final KeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
+  private final String rolesTokenClaim;
 
   private AdapterDeploymentContext deploymentContext;
   private NodesRegistrationManagement nodesRegistrationManagement;
@@ -69,12 +75,14 @@ public class DruidKeycloakOIDCFilter implements Filter
   public DruidKeycloakOIDCFilter(
       KeycloakConfigResolver configResolver,
       String authenticatorName,
-      String authorizerName
+      String authorizerName,
+      String rolesTokenClaim
   )
   {
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
+    this.rolesTokenClaim = Preconditions.checkNotNull(rolesTokenClaim, "rolesTokenClaim");
   }
 
   @VisibleForTesting
@@ -192,11 +200,12 @@ public class DruidKeycloakOIDCFilter implements Filter
         // so that the authorizer can do its job properly.
         // ------- new part start -------
         final KeycloakAccount account = getKeycloakAccount(request);
+        String implyRoles = getImplyRoles(account);
         final AuthenticationResult authenticationResult = new AuthenticationResult(
             getIdentity(account),
             authorizerName,
             authenticatorName,
-            null
+            ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, implyRoles)
         );
         wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
         // ------- new part end -------
@@ -243,6 +252,21 @@ public class DruidKeycloakOIDCFilter implements Filter
     } else {
       return account.getPrincipal().getName();
     }
+  }
+
+  private String getImplyRoles(KeycloakAccount account)
+  {
+    if (account instanceof OidcKeycloakAccount) {
+      final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
+      final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
+      if (securityContext.getToken() != null) {
+        return (securityContext.getToken().getOtherClaims() != null
+                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null) ?
+               (String) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
+               EMPTY_ROLES_JSON_STRING;
+      }
+    }
+    return EMPTY_ROLES_JSON_STRING;
   }
 
   @Override

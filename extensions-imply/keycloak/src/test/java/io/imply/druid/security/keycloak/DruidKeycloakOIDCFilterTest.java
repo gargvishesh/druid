@@ -30,6 +30,7 @@ public class DruidKeycloakOIDCFilterTest
 {
   private static final String AUTHENTICATOR_NAME = "keycloak-authenticator";
   private static final String AUTHORIZER_NAME = "keycloak-authorizer";
+  private static final String ROLES_TOKEN_CLAIM = "druid-roles";
   private KeycloakConfigResolver configResolver;
 
   private DruidKeycloakOIDCFilter filter;
@@ -38,7 +39,7 @@ public class DruidKeycloakOIDCFilterTest
   public void setup()
   {
     configResolver = Mockito.mock(KeycloakConfigResolver.class);
-    filter = new DruidKeycloakOIDCFilter(configResolver, AUTHENTICATOR_NAME, AUTHORIZER_NAME);
+    filter = new DruidKeycloakOIDCFilter(configResolver, AUTHENTICATOR_NAME, AUTHORIZER_NAME, ROLES_TOKEN_CLAIM);
   }
 
   @Test
@@ -51,7 +52,8 @@ public class DruidKeycloakOIDCFilterTest
     final DruidKeycloakOIDCFilter filter = new DruidKeycloakOIDCFilter(
         Mockito.mock(KeycloakConfigResolver.class),
         "authenticator",
-        "authorizer"
+        "authorizer",
+        ROLES_TOKEN_CLAIM
     );
     filter.init(filterConfig);
     ArgumentCaptor<AdapterDeploymentContext> captor = ArgumentCaptor.forClass(AdapterDeploymentContext.class);

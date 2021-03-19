@@ -12,13 +12,16 @@ package io.imply.druid.security.keycloak;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RetryUtils;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class KeycloakAuthUtils
@@ -27,6 +30,7 @@ public class KeycloakAuthUtils
 
   public static final String ADMIN_NAME = "admin";
   public static final String KEYCLOAK_AUTHORIZER_NAME = "keycloak-authorizer";
+  public static final String AUTHENTICATED_ROLES_CONTEXT_KEY = "imply-roles";
 
   public static final Predicate<Throwable> SHOULD_RETRY_INIT =
       (throwable) -> throwable instanceof KeycloakSecurityDBResourceException;
@@ -37,6 +41,15 @@ public class KeycloakAuthUtils
       new TypeReference<Map<String, KeycloakAuthorizerRole>>()
       {
       };
+
+  public static final TypeReference<List<String>> AUTHENTICATED_ROLES_TYPE_REFERENCE =
+      new TypeReference<List<String>>()
+      {
+      };
+
+  public static final Map<String, Object> CONTEXT_WITH_ADMIN_ROLE = ImmutableMap.of(
+      KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, StringUtils.format("[\"%s\"]", ADMIN_NAME)
+  );
 
   public static Map<String, KeycloakAuthorizerRole> deserializeAuthorizerRoleMap(
       ObjectMapper objectMapper,

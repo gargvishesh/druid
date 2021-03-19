@@ -34,6 +34,7 @@ public class ImplyKeycloakAuthenticatorTest
     this.authenticator = new ImplyKeycloakAuthenticator(
         "authenticator",
         "authorizer",
+        "druid-roles",
         new DruidKeycloakConfigResolver(internalConfig, userConfig)
     );
   }
