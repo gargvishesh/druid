@@ -64,7 +64,7 @@ public class ImplyKeycloakModule implements DruidModule
   @LazySingleton
   public static KeycloakAuthorizerResourceHandler createAuthorizerResourceHandler(
       final Injector injector
-  ) throws ClassNotFoundException
+  )
   {
     return getInstance(
         injector,
@@ -77,7 +77,7 @@ public class ImplyKeycloakModule implements DruidModule
   @LazySingleton
   public static KeycloakAuthorizerMetadataStorageUpdater createAuthorizerStorageUpdater(
       final Injector injector
-  ) throws ClassNotFoundException
+  )
   {
     return getInstance(
         injector,

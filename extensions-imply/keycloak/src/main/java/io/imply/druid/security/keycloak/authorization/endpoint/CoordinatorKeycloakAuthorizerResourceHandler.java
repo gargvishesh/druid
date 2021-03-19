@@ -159,11 +159,6 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
       return makeResponseForAuthorizerNotFound();
     }
 
-    return getPermissions(roleName);
-  }
-
-  private Response getPermissions(String roleName)
-  {
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
         objectMapper,
         storageUpdater.getCurrentRoleMapBytes()
