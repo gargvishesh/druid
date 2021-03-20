@@ -21,15 +21,23 @@ druid_extensions_directory=/shared/docker/extensions
 druid_auth_authenticator_ImplyKeycloakAuthenticator_authenticatorName=ImplyKeycloakAuthenticator
 druid_auth_authenticator_ImplyKeycloakAuthenticator_authorizerName=ImplyKeycloakAuthorizer
 druid_auth_authenticator_ImplyKeycloakAuthenticator_rolesTokenClaim=druid-roles
+druid_auth_authenticator_ImplyKeycloakAuthenticator_type=imply-keycloak
+
+druid_auth_authenticator_ImplyTokenAuthenticator_authenticatorName=ImplyTokenAuthenticator
+druid_auth_authenticator_ImplyTokenAuthenticator_authorizerName=ImplyTokenAuthorizer
+druid_auth_authenticator_ImplyTokenAuthenticator_secret=secret
+druid_auth_authenticator_ImplyTokenAuthenticator_type=imply
+
 druid_auth_authenticator_basic_authorizerName=basic
 druid_auth_authenticator_basic_initialAdminPassword=priest
 druid_auth_authenticator_basic_initialInternalClientPassword=warlock
 druid_auth_authenticator_basic_type=basic
-druid_auth_authenticatorChain=["ImplyKeycloakAuthenticator", "basic"]
-druid_auth_authenticator_ImplyKeycloakAuthenticator_type=imply-keycloak
+
+druid_auth_authenticatorChain=["ImplyKeycloakAuthenticator", "ImplyTokenAuthenticator", "basic"]
 druid_auth_authorizer_ImplyKeycloakAuthorizer_type=imply-keycloak
+druid_auth_authorizer_ImplyTokenAuthorizer_type=imply
 druid_auth_authorizer_basic_type=basic
-druid_auth_authorizers=["ImplyKeycloakAuthorizer", "basic"]
+druid_auth_authorizers=["ImplyKeycloakAuthorizer", "ImplyTokenAuthorizer", "basic"]
 
 
 druid_keycloak_realm=druid
@@ -40,14 +48,14 @@ druid_keycloak_bearer-only=true
 druid_keycloak_ssl-required=NONE
 
 # Internal communications
-druid_escalator_type=imply-keycloak
-druid_escalator_authorizerName=ImplyKeycloakAuthorizer
+druid_escalator_type=imply
+druid_escalator_authorizerName=ImplyTokenAuthorizer
+druid_escalator_secret=secret
+
+# See if we can remove these somehow
 druid_escalator_keycloak_realm=druid
 druid_escalator_keycloak_resource=druid-internal-client
 druid_escalator_keycloak_auth-server-url=http://imply-keycloak:8080/auth
-druid_escalator_keycloak_credentials={"secret" : "druid-internal-secret"}
-druid_escalator_keycloak_bearer-only=true
-druid_escalator_keycloak_ssl-required=NONE
 
 druid_client_https_certAlias=druid
 druid_client_https_keyManagerPassword=druid123
@@ -78,3 +86,9 @@ druid_indexer_logs_directory=/shared/tasklogs
 druid_sql_enable=true
 druid_extensions_hadoopDependenciesDir=/shared/hadoop-dependencies
 druid_request_logging_type=slf4j
+
+# TODO: Remove when cache layer implemented
+druid_metadata_storage_type=mysql
+druid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid
+druid_metadata_storage_connector_user=druid
+druid_metadata_storage_connector_password=diurd
