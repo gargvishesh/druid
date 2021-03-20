@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import com.google.inject.Injector;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
@@ -30,6 +31,7 @@ import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
 import org.apache.druid.metadata.MetadataStorageTablesConfig;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthenticatorMapper;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
@@ -53,7 +55,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
   private static final String ROLES = "roles";
 
-  private final AuthorizerMapper authorizerMapper;
+  private final Injector injector;
   private final MetadataStorageConnector connector;
   private final MetadataStorageTablesConfig connectorConfig;
   private final ObjectMapper objectMapper;
@@ -65,13 +67,13 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
   @Inject
   public CoordinatorKeycloakAuthorizerMetadataStorageUpdater(
-      AuthorizerMapper authorizerMapper,
+      Injector injector,
       MetadataStorageConnector connector,
       MetadataStorageTablesConfig connectorConfig,
       @Smile ObjectMapper objectMapper
   )
   {
-    this.authorizerMapper = authorizerMapper;
+    this.injector = injector;
     this.connector = connector;
     this.connectorConfig = connectorConfig;
     this.objectMapper = objectMapper;
@@ -84,6 +86,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
       throw new ISE("can't start.");
     }
 
+    AuthorizerMapper authorizerMapper = injector.getInstance(AuthorizerMapper.class);
     if (authorizerMapper == null || authorizerMapper.getAuthorizerMap() == null) {
       return;
     }
