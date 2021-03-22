@@ -31,16 +31,16 @@ public class ViewDefinitionValidationUtils
   private static final Logger LOG = new Logger(ViewDefinitionValidationUtils.class);
 
   private static final Pattern DRUID_QUERY_REL_PATTERN =
-      Pattern.compile("^\\s*DruidQueryRel\\(query=\\[(.*)\\], signature=\\[.*\\]\\)$");
+      Pattern.compile("^\\s*DruidQueryRel\\(query=\\[(.*)], signature=\\[.*]\\)$");
 
   private static final Pattern DRUID_OUTER_QUERY_REL_PATTERN =
-      Pattern.compile("^\\s*DruidOuterQueryRel\\(query=\\[(.*)\\], signature=\\[.*\\]\\)$");
+      Pattern.compile("^\\s*DruidOuterQueryRel\\(.*\\)$");
 
   private static final Pattern DRUID_JOIN_QUERY_REL_PATTERN =
-      Pattern.compile("^\\s*DruidJoinQueryRel\\(.*, signature=\\[.*\\]\\)$");
+      Pattern.compile("^\\s*DruidJoinQueryRel\\(.*\\)$");
 
   private static final Pattern DRUID_UNION_DATASOURCE_REL_PATTERN =
-      Pattern.compile("^\\s*DruidUnionDataSourceRel\\(.*, signature=\\[.*\\]\\)$");
+      Pattern.compile("^\\s*DruidUnionDataSourceRel\\(.*\\)$");
 
   private static final Pattern DRUID_UNION_REL_PATTERN =
       Pattern.compile("^\\s*DruidUnionRel\\(.*\\)$");
