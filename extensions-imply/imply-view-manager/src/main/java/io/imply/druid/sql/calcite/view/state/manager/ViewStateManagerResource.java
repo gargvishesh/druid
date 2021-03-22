@@ -107,6 +107,7 @@ public class ViewStateManagerResource
   @POST
   @Path("/{name}")
   @Consumes({MediaType.APPLICATION_JSON})
+  @Produces({MediaType.APPLICATION_JSON})
   public Response createView(
       ViewDefinitionRequest viewDefinitionRequest,
       @PathParam("name") String name,
@@ -150,6 +151,7 @@ public class ViewStateManagerResource
   @PUT
   @Path("/{name}")
   @Consumes({MediaType.APPLICATION_JSON})
+  @Produces({MediaType.APPLICATION_JSON})
   public Response alterView(
       ViewDefinitionRequest viewDefinitionRequest,
       @PathParam("name") String name,
@@ -191,6 +193,7 @@ public class ViewStateManagerResource
 
   @DELETE
   @Path("/{name}")
+  @Produces({MediaType.APPLICATION_JSON})
   public Response deleteView(
       @PathParam("name") String name,
       @Context HttpServletRequest req
@@ -232,7 +235,7 @@ public class ViewStateManagerResource
                    .build();
   }
 
-  static class ViewDefinitionRequest
+  public static class ViewDefinitionRequest
   {
     private final String viewSql;
 

@@ -67,7 +67,6 @@
       <groupId>io.imply</groupId>
       <artifactId>imply-view-manager</artifactId>
       <version>${project.parent.version}</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>

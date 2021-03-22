@@ -93,10 +93,10 @@ public abstract class AbstractAuthConfigurationTest
   protected List<Map<String, Object>> adminServerSegments;
 
   @Inject
-  IntegrationTestingConfig config;
+  protected IntegrationTestingConfig config;
 
   @Inject
-  ObjectMapper jsonMapper;
+  protected ObjectMapper jsonMapper;
 
   @Inject
   @Client
@@ -190,7 +190,8 @@ public abstract class AbstractAuthConfigurationTest
 
   private void checkLoadStatusSingle(
       HttpClient httpClient,
-      String baseUrl) throws Exception
+      String baseUrl
+  ) throws Exception
   {
     StatusResponseHolder holder = HttpUtil.makeRequest(
         httpClient,
@@ -368,7 +369,7 @@ public abstract class AbstractAuthConfigurationTest
 
   protected abstract void setupUsers() throws Exception;
 
-  void setupCommonHttpClients()
+  protected void setupCommonHttpClients()
   {
     adminClient = new CredentialedHttpClient(
         new BasicCredentials("admin", "priest"),

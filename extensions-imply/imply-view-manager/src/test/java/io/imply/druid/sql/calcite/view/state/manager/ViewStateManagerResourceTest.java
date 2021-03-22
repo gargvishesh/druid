@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.calcite.view.state.manager;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
@@ -16,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource.ViewDefinitionRequest;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -334,6 +336,28 @@ public class ViewStateManagerResourceTest
     );
     Assert.assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode(), response.getStatus());
     Assert.assertEquals(errorEntity, response.getEntity());
+  }
+
+  @Test
+  public void testSerdeViewDefinitionRequest() throws IOException
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ViewDefinitionRequest request = new ViewDefinitionRequest("select * from test");
+    final String json = mapper.writeValueAsString(request);
+    System.err.println(json);
+    final ViewDefinitionRequest fromJson = mapper.readValue(json, ViewDefinitionRequest.class);
+    Assert.assertEquals(request, fromJson);
+  }
+
+  @Test
+  public void testTest() throws JsonProcessingException
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    String json = "{\n"
+                  + "  \"viewSql\": \"SELECT * FROM druid.auth_test WHERE channel = '#en'\"\n"
+                  + "}";
+    final ViewDefinitionRequest fromJson = mapper.readValue(json, ViewDefinitionRequest.class);
+    System.err.println(fromJson);
   }
 
   private void replayAll()
