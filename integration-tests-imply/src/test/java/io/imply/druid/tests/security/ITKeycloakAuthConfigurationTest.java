@@ -78,7 +78,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Inject
   ObjectMapper jsonMapper;
 
-  private HttpClient druidUserNotExistClient;
+  private HttpClient datasourceOnlyUserClient;
+  private HttpClient datasourceWithStateUserClient;
+  private HttpClient stateOnlyUserClient;
 
   @BeforeClass
   public void before() throws Exception
@@ -130,6 +132,136 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Test
+  public void test_systemSchemaAccess_datasourceOnlyUser() throws Exception
+  {
+    // check that we can access a datasource-permission restricted resource on the broker
+    HttpUtil.makeRequest(
+        datasourceOnlyUserClient,
+        HttpMethod.GET,
+        config.getBrokerUrl() + "/druid/v2/datasources/auth_test",
+        null
+    );
+
+    // as user that can only read auth_test
+    LOG.info("Checking sys.segments query as datasourceOnlyUser...");
+    verifySystemSchemaQuery(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        adminSegments.stream()
+                     .filter((segmentEntry) -> "auth_test".equals(segmentEntry.get("datasource")))
+                     .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.servers query as datasourceOnlyUser...");
+    verifySystemSchemaQueryFailure(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        HttpResponseStatus.FORBIDDEN,
+        "{\"Access-Check-Result\":\"Insufficient permission to view servers : Allowed:false, Message:\"}"
+    );
+
+    LOG.info("Checking sys.server_segments query as datasourceOnlyUser...");
+    verifySystemSchemaQueryFailure(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        HttpResponseStatus.FORBIDDEN,
+        "{\"Access-Check-Result\":\"Insufficient permission to view servers : Allowed:false, Message:\"}"
+    );
+
+    LOG.info("Checking sys.tasks query as datasourceOnlyUser...");
+    verifySystemSchemaQuery(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        adminTasks.stream()
+                  .filter((taskEntry) -> "auth_test".equals(taskEntry.get("datasource")))
+                  .collect(Collectors.toList())
+    );
+  }
+
+  @Test
+  public void test_systemSchemaAccess_datasourceWithStateUser() throws Exception
+  {
+    // check that we can access a state-permission restricted resource on the broker
+    HttpUtil.makeRequest(
+        datasourceWithStateUserClient,
+        HttpMethod.GET,
+        config.getBrokerUrl() + "/status",
+        null
+    );
+
+    // as user that can read auth_test and STATE
+    LOG.info("Checking sys.segments query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        adminSegments.stream()
+                     .filter((segmentEntry) -> "auth_test".equals(segmentEntry.get("datasource")))
+                     .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.servers query as datasourceWithStateUser...");
+    verifySystemSchemaServerQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        adminServers
+    );
+
+    LOG.info("Checking sys.server_segments query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        adminServerSegments.stream()
+                           .filter((serverSegmentEntry) -> ((String) serverSegmentEntry.get("segment_id")).contains(
+                               "auth_test"))
+                           .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.tasks query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        adminTasks.stream()
+                  .filter((taskEntry) -> "auth_test".equals(taskEntry.get("datasource")))
+                  .collect(Collectors.toList())
+    );
+  }
+
+  @Test
+  public void test_systemSchemaAccess_stateOnlyUser() throws Exception
+  {
+    HttpUtil.makeRequest(stateOnlyUserClient, HttpMethod.GET, config.getBrokerUrl() + "/status", null);
+
+    // as user that can only read STATE
+    LOG.info("Checking sys.segments query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        Collections.emptyList()
+    );
+
+    LOG.info("Checking sys.servers query as stateOnlyUser...");
+    verifySystemSchemaServerQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        adminServers
+    );
+
+    LOG.info("Checking sys.server_segments query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        Collections.emptyList()
+    );
+
+    LOG.info("Checking sys.tasks query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        Collections.emptyList()
+    );
+  }
+
+  @Test
   public void test_unsecuredPathWithoutCredentials_allowed()
   {
     // check that we are allowed to access unsecured path without credentials.
@@ -151,7 +283,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Test(expectedExceptions = { RuntimeException.class })
   public void test_nonExistent_fails()
   {
-    druidUserNotExistClient = buildHttpClientForUser("doesNotExist", "bogus");
+    buildHttpClientForUser("doesNotExist", "bogus");
   }
 
   @Test
@@ -166,7 +298,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         )
     );
 
-    createRoleWithPermissions(ImmutableMap.of(roleName, resourceActions));
+    createRolesWithPermissions(ImmutableMap.of(roleName, resourceActions));
 
     // get roles and ensure that the role is there
     StatusResponseHolder responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
@@ -227,15 +359,46 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Override
-  protected void setupUsers()
+  protected void setupUsers() throws Exception
   {
+    // create a new user+role that can only read 'auth_test'
+    Map<String, List<ResourceAction>> roleToPermissions = ImmutableMap.of(
+        "datasourceOnlyRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource("auth_test", ResourceType.DATASOURCE),
+                Action.READ
+            )
+        ),
+        "datasourceWithStateRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource("auth_test", ResourceType.DATASOURCE),
+                Action.READ
+            ),
+            new ResourceAction(
+                new Resource(".*", ResourceType.STATE),
+                Action.READ
+            )
+        ),
+        "stateOnlyRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource(".*", ResourceType.STATE),
+                Action.READ
+            )
+        )
+    );
 
+    createRolesWithPermissions(
+        roleToPermissions
+    );
   }
 
   @Override
   protected void setupTestSpecificHttpClients()
   {
     adminClient = buildHttpClientForUser("admin", "priest");
+    datasourceOnlyUserClient = buildHttpClientForUser("datasourceonlyuser", "helloworld");
+    datasourceWithStateUserClient = buildHttpClientForUser("datasourcewithstateuser", "helloworld");
+    stateOnlyUserClient = buildHttpClientForUser("stateonlyuser", "helloworld");
   }
 
   @Override
@@ -256,7 +419,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     return null;
   }
 
-  private void createRoleWithPermissions(
+  private void createRolesWithPermissions(
       Map<String, List<ResourceAction>> roleTopermissions
   ) throws Exception
   {

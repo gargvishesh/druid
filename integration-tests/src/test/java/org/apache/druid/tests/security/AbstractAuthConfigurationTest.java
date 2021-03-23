@@ -271,7 +271,7 @@ public abstract class AbstractAuthConfigurationTest
     verifySystemSchemaQueryBase(client, query, expectedResults, true);
   }
 
-  void verifySystemSchemaQueryFailure(
+  protected void verifySystemSchemaQueryFailure(
       HttpClient client,
       String query,
       HttpResponseStatus expectedErrorStatus,
