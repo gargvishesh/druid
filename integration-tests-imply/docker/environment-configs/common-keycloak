@@ -46,6 +46,7 @@ druid_keycloak_auth-server-url=http://imply-keycloak:8080/auth
 druid_keycloak_credentials={"secret" : "druid-user-secret"}
 druid_keycloak_bearer-only=true
 druid_keycloak_ssl-required=NONE
+druid_keycloak_verify-token-audience=true
 
 # Internal communications
 druid_escalator_type=imply
