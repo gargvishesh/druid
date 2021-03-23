@@ -17,26 +17,26 @@ version: "2.2"
 services:
   druid-openldap:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-openldap
     env_file:
-      - ./environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/common-ldap
 
   druid-zookeeper-kafka:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-zookeeper-kafka
     env_file:
-      - ./environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/common-ldap
     depends_on:
       - druid-openldap
 
   druid-metadata-storage:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-metadata-storage
     env_file:
-      - ./environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/common-ldap
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -45,11 +45,11 @@ services:
 
   druid-coordinator:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-coordinator
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/coordinator
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/coordinator
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -59,11 +59,11 @@ services:
 
   druid-overlord:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-overlord
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/overlord
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/overlord
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -74,11 +74,11 @@ services:
 
   druid-historical:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-historical
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/historical
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/historical
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -87,11 +87,11 @@ services:
 
   druid-middlemanager:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-middlemanager
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/middlemanager
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/middlemanager
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -101,11 +101,11 @@ services:
 
   druid-broker:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-broker
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/broker
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/broker
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
       - druid_sql_viewmanager_type=imply
@@ -118,11 +118,11 @@ services:
 
   druid-router:
     extends:
-      file: docker-compose.base.yml
+      file: ./../../integration-tests/docker/docker-compose.base.yml
       service: druid-router
     env_file:
-      - ./environment-configs/common-ldap
-      - ./environment-configs/router
+      - ./../../integration-tests/docker/environment-configs/common-ldap
+      - ./../../integration-tests/docker/environment-configs/router
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
     depends_on:
@@ -131,3 +131,10 @@ services:
       - druid-coordinator
       - druid-broker
       - druid-overlord
+
+networks:
+  druid-it-net:
+    name: druid-it-net
+    ipam:
+      config:
+        - subnet: 172.172.172.0/24

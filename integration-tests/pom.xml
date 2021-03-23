@@ -40,13 +40,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.imply</groupId>
-            <artifactId>imply-view-manager</artifactId>
-            <version>${project.parent.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-producer</artifactId>
             <version>0.13.1</version>

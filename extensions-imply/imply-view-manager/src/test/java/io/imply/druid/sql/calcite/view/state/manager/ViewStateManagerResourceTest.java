@@ -349,17 +349,6 @@ public class ViewStateManagerResourceTest
     Assert.assertEquals(request, fromJson);
   }
 
-  @Test
-  public void testTest() throws JsonProcessingException
-  {
-    final ObjectMapper mapper = new DefaultObjectMapper();
-    String json = "{\n"
-                  + "  \"viewSql\": \"SELECT * FROM druid.auth_test WHERE channel = '#en'\"\n"
-                  + "}";
-    final ViewDefinitionRequest fromJson = mapper.readValue(json, ViewDefinitionRequest.class);
-    System.err.println(fromJson);
-  }
-
   private void replayAll()
   {
     EasyMock.replay(req, viewStateManager);

@@ -28,7 +28,3 @@ mv $SHARED_DIR/docker/lib/ingest-service-* $SHARED_DIR/docker/extensions/ingest-
 mkdir -p $SHARED_DIR/docker/extensions/imply-keycloak
 mv $SHARED_DIR/docker/lib/imply-keycloak-* $SHARED_DIR/docker/extensions/imply-keycloak
 mv $SHARED_DIR/docker/lib/jboss-jaxrs-* $SHARED_DIR/docker/extensions/imply-keycloak
-
-# move imply view manager to extension
-#mkdir -p $SHARED_DIR/docker/extensions/imply-view-manager
-#mv $SHARED_DIR/docker/lib/imply-view-manager-* $SHARED_DIR/docker/extensions/imply-view-manager

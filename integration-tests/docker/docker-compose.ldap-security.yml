@@ -108,7 +108,6 @@ services:
       - ./environment-configs/broker
     environment:
       - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
-      - druid_sql_viewmanager_type=imply
     depends_on:
       - druid-openldap
       - druid-coordinator

@@ -413,8 +413,6 @@ public class CoordinatorResourceTestClient
     return config;
   }
 
-  private static final Logger LOG = new Logger(CoordinatorResourceTestClient.class);
-
   private StatusResponseHolder makeRequest(HttpMethod method, String url)
   {
     try {

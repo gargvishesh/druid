@@ -573,7 +573,6 @@ public class ITViewTestWithJdbcAndLdap
     );
   }
 
-  // TODO: this method is a duplicate
   private void createRoleWithPermissionsAndGroupMapping(
       String group,
       Map<String, List<ResourceAction>> roleTopermissions

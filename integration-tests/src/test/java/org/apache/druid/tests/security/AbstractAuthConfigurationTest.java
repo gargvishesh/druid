@@ -93,10 +93,10 @@ public abstract class AbstractAuthConfigurationTest
   protected List<Map<String, Object>> adminServerSegments;
 
   @Inject
-  protected IntegrationTestingConfig config;
+  IntegrationTestingConfig config;
 
   @Inject
-  protected ObjectMapper jsonMapper;
+  ObjectMapper jsonMapper;
 
   @Inject
   @Client
@@ -369,7 +369,7 @@ public abstract class AbstractAuthConfigurationTest
 
   protected abstract void setupUsers() throws Exception;
 
-  protected void setupCommonHttpClients()
+  void setupCommonHttpClients()
   {
     adminClient = new CredentialedHttpClient(
         new BasicCredentials("admin", "priest"),
