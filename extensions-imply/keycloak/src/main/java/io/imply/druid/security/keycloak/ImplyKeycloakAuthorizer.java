@@ -12,7 +12,6 @@ package io.imply.druid.security.keycloak;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -86,17 +85,14 @@ public class ImplyKeycloakAuthorizer implements Authorizer
   private List<String> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
   {
     Map<String, Object> context = authenticationResult.getContext();
-    if (context == null || context.isEmpty())
-    {
+    if (context == null || context.isEmpty()) {
       LOG.warn("User [%s] has no roles", authenticationResult.getIdentity());
       return EMPTY_ROLES;
     }
 
     if (context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY) instanceof List) {
       return (List<String>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
-    }
-
-    else {
+    } else {
       LOG.warn("User [%s] roles had unexpected type", authenticationResult.getIdentity());
       return EMPTY_ROLES;
     }

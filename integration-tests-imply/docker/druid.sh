@@ -112,10 +112,6 @@ setupData()
   else
     if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
       setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"imply-keycloak\",\"imply-druid-security\"]
-      # See if we can remove escalator config
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.bearer-only" "true"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.ssl-required" "NONE"
       ########################################
       setKey $DRUID_SERVICE "druid.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
       setKey $DRUID_SERVICE "druid.keycloak.bearer-only" "true"

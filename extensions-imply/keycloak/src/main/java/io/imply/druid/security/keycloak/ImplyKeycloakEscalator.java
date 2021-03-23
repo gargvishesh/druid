@@ -21,8 +21,6 @@ import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 
-import java.util.Map;
-
 @JsonTypeName("imply-keycloak")
 public class ImplyKeycloakEscalator implements Escalator
 {

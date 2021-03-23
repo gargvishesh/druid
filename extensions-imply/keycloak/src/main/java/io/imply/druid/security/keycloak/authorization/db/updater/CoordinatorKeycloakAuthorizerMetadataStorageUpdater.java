@@ -31,7 +31,6 @@ import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
 import org.apache.druid.metadata.MetadataStorageTablesConfig;
 import org.apache.druid.server.security.Action;
-import org.apache.druid.server.security.AuthenticatorMapper;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
