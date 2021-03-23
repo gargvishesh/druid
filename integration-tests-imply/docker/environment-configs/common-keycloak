@@ -56,6 +56,9 @@ druid_escalator_secret=secret
 druid_escalator_keycloak_realm=druid
 druid_escalator_keycloak_resource=druid-internal-client
 druid_escalator_keycloak_auth-server-url=http://imply-keycloak:8080/auth
+druid_escalator_keycloak_credentials={"secret" : "druid-internal-secret"}
+druid_escalator_keycloak_bearer-only=true
+druid_escalator_keycloak_ssl-required=NONE
 
 druid_client_https_certAlias=druid
 druid_client_https_keyManagerPassword=druid123

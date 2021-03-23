@@ -35,7 +35,6 @@ import org.keycloak.adapters.spi.KeycloakAccount;
 import org.keycloak.adapters.spi.SessionIdMapper;
 import org.keycloak.adapters.spi.UserSessionManagement;
 
-import javax.annotation.Nullable;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -47,6 +46,7 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -57,7 +57,7 @@ public class DruidKeycloakOIDCFilter implements Filter
 {
   private static final Logger LOG = new Logger(KeycloakOIDCFilter.class);
 
-  private static final String EMPTY_ROLES_JSON_STRING = "[]";
+  private static final List<String> EMPTY_ROLES = ImmutableList.of();
 
   private final SessionIdMapper idMapper = new InMemorySessionIdMapper();
   private final KeycloakConfigResolver configResolver;
@@ -200,7 +200,7 @@ public class DruidKeycloakOIDCFilter implements Filter
         // so that the authorizer can do its job properly.
         // ------- new part start -------
         final KeycloakAccount account = getKeycloakAccount(request);
-        String implyRoles = getImplyRoles(account);
+        List<String> implyRoles = getImplyRoles(account);
         final AuthenticationResult authenticationResult = new AuthenticationResult(
             getIdentity(account),
             authorizerName,
@@ -254,19 +254,21 @@ public class DruidKeycloakOIDCFilter implements Filter
     }
   }
 
-  private String getImplyRoles(KeycloakAccount account)
+  @SuppressWarnings("unchecked")
+  private List<String> getImplyRoles(KeycloakAccount account)
   {
     if (account instanceof OidcKeycloakAccount) {
       final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
       final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
       if (securityContext.getToken() != null) {
         return (securityContext.getToken().getOtherClaims() != null
-                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null) ?
-               (String) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
-               EMPTY_ROLES_JSON_STRING;
+                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null
+               && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) instanceof List) ?
+               (List<String>) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
+               EMPTY_ROLES;
       }
     }
-    return EMPTY_ROLES_JSON_STRING;
+    return EMPTY_ROLES;
   }
 
   @Override

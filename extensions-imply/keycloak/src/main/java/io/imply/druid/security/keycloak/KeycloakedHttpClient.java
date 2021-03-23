@@ -28,18 +28,21 @@ public class KeycloakedHttpClient extends AbstractHttpClient
 
   private final HttpClient delegate;
   private final TokenManager tokenManager;
+  private final boolean isInternal;
 
   public KeycloakedHttpClient(KeycloakDeployment deployment, HttpClient delegate)
   {
-    this(deployment, delegate, new HashMap<>(), new HashMap<>());
+    this(deployment, delegate, true, new HashMap<>(), new HashMap<>());
   }
 
   public KeycloakedHttpClient(
       KeycloakDeployment deployment,
       HttpClient delegate,
+      boolean isInternal,
       Map<String, String> tokenReqHeaders,
       Map<String, String> tokenReqParams)
   {
+    this.isInternal = isInternal;
     final ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -58,6 +61,7 @@ public class KeycloakedHttpClient extends AbstractHttpClient
   @VisibleForTesting
   KeycloakedHttpClient(TokenManager tokenManager, HttpClient delegate)
   {
+    this.isInternal = true;
     this.tokenManager = tokenManager;
     this.delegate = delegate;
   }
@@ -73,10 +77,12 @@ public class KeycloakedHttpClient extends AbstractHttpClient
     try {
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
       request.setHeader(HttpHeaders.Names.AUTHORIZATION, BEARER + tokenManager.getAccessTokenString());
-      request.setHeader(
-          DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER,
-          DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER_VALUE
-      );
+      if (isInternal) {
+        request.setHeader(
+            DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER,
+            DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER_VALUE
+        );
+      }
     }
     finally {
       Thread.currentThread().setContextClassLoader(currentClassLoader);

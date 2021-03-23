@@ -92,17 +92,14 @@ public class ImplyKeycloakAuthorizer implements Authorizer
       return EMPTY_ROLES;
     }
 
-    List<String> implyRoles;
-    String implyRolesStr = (String) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
-    try {
-      implyRoles = objectMapper.readValue(implyRolesStr, KeycloakAuthUtils.AUTHENTICATED_ROLES_TYPE_REFERENCE);
-    }
-    catch (JsonProcessingException e) {
-      LOG.warn("Could not retreive roles for user [%s]", authenticationResult.getIdentity());
-      implyRoles = EMPTY_ROLES;
+    if (context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY) instanceof List) {
+      return (List<String>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
     }
 
-    return implyRoles;
+    else {
+      LOG.warn("User [%s] roles had unexpected type", authenticationResult.getIdentity());
+      return EMPTY_ROLES;
+    }
   }
 
   private boolean permissionCheck(Resource resource, Action action, KeycloakAuthorizerPermission permission)

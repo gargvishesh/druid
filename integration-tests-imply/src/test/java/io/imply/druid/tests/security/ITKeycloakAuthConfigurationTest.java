@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.tests.ImplyTestNGGroup;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -52,7 +53,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 // TODO: renable with IMPLY-6305
-@Test(enabled = false)//, groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
+@Test(groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTest
 {
@@ -76,6 +77,8 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
 
   @Inject
   ObjectMapper jsonMapper;
+
+  private HttpClient druidUserNotExistClient;
 
   @BeforeClass
   public void before() throws Exception
@@ -148,7 +151,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Test(expectedExceptions = { RuntimeException.class })
   public void test_nonExistent_fails()
   {
-    adminClient = buildHttpClientForUser("doesNotExist", "bogus");
+    druidUserNotExistClient = buildHttpClientForUser("doesNotExist", "bogus");
   }
 
   @Test
@@ -309,7 +312,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       reqParams.put(OAuth2Constants.USERNAME, username);
       reqParams.put(OAuth2Constants.PASSWORD, password);
       ClientCredentialsProviderUtils.setClientCredentials(userDeployment, reqHeaders, reqParams);
-      return new KeycloakedHttpClient(userDeployment, httpClient, reqHeaders, reqParams);
+      return new KeycloakedHttpClient(userDeployment, httpClient, false, reqHeaders, reqParams);
     }
     catch (Exception e) {
       LOG.error("exception occured");
