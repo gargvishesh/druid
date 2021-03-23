@@ -133,6 +133,24 @@
       <artifactId>jsr311-api</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.druid.extensions</groupId>
+      <artifactId>simple-client-sslcontext</artifactId>
+      <version>0.22.0-iap1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.druid.extensions</groupId>
+      <artifactId>druid-basic-security</artifactId>
+      <version>0.22.0-iap1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite.avatica</groupId>
+      <artifactId>avatica-core</artifactId>
+      <version>1.17.0</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
