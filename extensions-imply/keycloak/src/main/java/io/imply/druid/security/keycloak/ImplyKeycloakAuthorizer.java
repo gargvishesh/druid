@@ -82,6 +82,7 @@ public class ImplyKeycloakAuthorizer implements Authorizer
     return new Access(false);
   }
 
+  @SuppressWarnings("unchecked")
   private List<String> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
   {
     Map<String, Object> context = authenticationResult.getContext();
@@ -100,12 +101,12 @@ public class ImplyKeycloakAuthorizer implements Authorizer
 
   private boolean permissionCheck(Resource resource, Action action, KeycloakAuthorizerPermission permission)
   {
-    if (action != permission.getResourceAction().getAction()) {
+    if (!action.equals(permission.getResourceAction().getAction())) {
       return false;
     }
 
     Resource permissionResource = permission.getResourceAction().getResource();
-    if (permissionResource.getType() != resource.getType()) {
+    if (!permissionResource.getType().equals(resource.getType())) {
       return false;
     }
 

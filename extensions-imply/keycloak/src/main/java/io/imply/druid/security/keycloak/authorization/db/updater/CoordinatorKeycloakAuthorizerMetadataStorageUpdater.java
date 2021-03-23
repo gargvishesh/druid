@@ -10,6 +10,7 @@
 package io.imply.druid.security.keycloak.authorization.db.updater;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
@@ -76,6 +77,15 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     this.connector = connector;
     this.connectorConfig = connectorConfig;
     this.objectMapper = objectMapper;
+  }
+
+  @VisibleForTesting
+  public CoordinatorKeycloakAuthorizerMetadataStorageUpdater()
+  {
+    this.injector = null;
+    this.connector = null;
+    this.connectorConfig = null;
+    this.objectMapper = null;
   }
 
   @LifecycleStart
