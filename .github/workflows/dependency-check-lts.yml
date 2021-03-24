@@ -1,6 +1,7 @@
-# This is a basic workflow to help you get started with Actions
+name: Vulnerability check for Imply Druid LTS release branch
 
-name: Vulnerability check for Imply Druid release branches
+# NOTE: This workflow is identical to dependency-check-old-release except that
+# it excludes other projects that are not in the older branches
 
 on:
   # Run every week on Sunday
@@ -19,17 +20,9 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-          # There is an existing automated check on master
+          # The LTS branch
           - release/2021.01
-          - release/4.0.x
-          # 3.4.x
-          - 0.19.0-iap
-          # 3.3.x
-          - 0.18.0-iap
-          # 3.2.x
-          - 0.17.0-iap
-          # At the time of writing older 3.x versions do not support
-          # dependency vulnerability checks. 2.x versions are not supported.
+          # The monthly release branch sees active development so another job is not needed
     steps:
       - uses: actions/checkout@v2
         with:
