@@ -34,12 +34,12 @@ import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.tests.security.AbstractAuthConfigurationTest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.junit.Assert;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
 import org.keycloak.adapters.authentication.ClientCredentialsProviderUtils;
 import org.keycloak.representations.adapters.config.AdapterConfig;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
@@ -427,7 +427,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         adminClient,
         HttpMethod.POST,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s",
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
             config.getCoordinatorUrl(),
             role
         ),
@@ -442,7 +442,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
           adminClient,
           HttpMethod.POST,
           StringUtils.format(
-              "%s/druid-ext/keycloak-security/authorization/db/roles/%s/permissions",
+              "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
               config.getCoordinatorUrl(),
               role
           ),
@@ -491,7 +491,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     return HttpUtil.makeRequestWithExpectedStatus(
         httpClient,
         HttpMethod.GET,
-        StringUtils.format("%s/druid-ext/keycloak-security/authorization/db/roles", config.getCoordinatorUrl()),
+        StringUtils.format("%s/druid-ext/keycloak-security/authorization/roles", config.getCoordinatorUrl()),
         null,
         expectedStatus
     );
@@ -507,7 +507,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         httpClient,
         HttpMethod.GET,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s",
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
             config.getCoordinatorUrl(),
             role
         ),
@@ -526,7 +526,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         httpClient,
         HttpMethod.GET,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s/permissions",
+            "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
             config.getCoordinatorUrl(),
             role
         ),
@@ -546,7 +546,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         httpClient,
         HttpMethod.POST,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s/permissions",
+            "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
             config.getCoordinatorUrl(),
             role
         ),
@@ -565,7 +565,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         httpClient,
         HttpMethod.DELETE,
         StringUtils.format(
-            "%s/druid-ext/keycloak-security/authorization/db/roles/%s",
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
             config.getCoordinatorUrl(),
             role
         ),

@@ -50,7 +50,7 @@ public class KeycloakAuthorizerResource
    * @return List of all roles
    */
   @GET
-  @Path("/db/roles")
+  @Path("/roles")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
@@ -70,7 +70,7 @@ public class KeycloakAuthorizerResource
    * @return Role name, users with role, groupMappings with role, and permissions of role. 400 error if role doesn't exist.
    */
   @GET
-  @Path("/db/roles/{roleName}")
+  @Path("/roles/{roleName}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
@@ -91,7 +91,7 @@ public class KeycloakAuthorizerResource
    * @return OK response, 400 error if role already exists
    */
   @POST
-  @Path("/db/roles/{roleName}")
+  @Path("/roles/{roleName}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
@@ -112,7 +112,7 @@ public class KeycloakAuthorizerResource
    * @return OK response, 400 error if role doesn't exist.
    */
   @DELETE
-  @Path("/db/roles/{roleName}")
+  @Path("/roles/{roleName}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
@@ -134,7 +134,7 @@ public class KeycloakAuthorizerResource
    * @return OK response. 400 error if role doesn't exist.
    */
   @POST
-  @Path("/db/roles/{roleName}/permissions")
+  @Path("/roles/{roleName}/permissions")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
@@ -156,7 +156,7 @@ public class KeycloakAuthorizerResource
    * @return OK response. 400 error if role doesn't exist.
    */
   @GET
-  @Path("/db/roles/{roleName}/permissions")
+  @Path("/roles/{roleName}/permissions")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)

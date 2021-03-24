@@ -16,25 +16,33 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
-import com.google.inject.name.Names;
+import com.google.inject.TypeLiteral;
 import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResource;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
+import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
+import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 
+import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 
 public class ImplyKeycloakModule implements DruidModule
 {
+  private static final Logger LOG = new Logger(ImplyKeycloakModule.class);
+
   @Override
   public List<? extends Module> getJacksonModules()
   {
@@ -65,11 +73,8 @@ public class ImplyKeycloakModule implements DruidModule
       final Injector injector
   )
   {
-    return getInstance(
-        injector,
-        CoordinatorKeycloakAuthorizerResourceHandler.class,
-        DefaultKeycloakAuthorizerResourceHandler.class
-    );
+    Set<NodeRole> nodeRoles = getNodeRoles(injector);
+    return injector.getInstance(getResourceHandlerClassForService(nodeRoles));
   }
 
   @Provides
@@ -78,42 +83,53 @@ public class ImplyKeycloakModule implements DruidModule
       final Injector injector
   )
   {
+    // TODO: Coordinator storage updater is bound for all services now since there is no caching layer at the moment
+    //       This will be fixed with IMPLY-6252
     return injector.getInstance(CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class);
-    /*
-    return getInstance(
-        injector,
-        CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class,
-        NoopKeycloakAuthorizerMetadataStorageUpdater.class
-    );
-     */
   }
 
-  /**
-   * Returns the instance provided either by a config property or coordinator-run class or default class.
-   * The order of check corresponds to the order of method params.
-   */
-  private static <T> T getInstance(
-      Injector injector,
-      Class<? extends T> classRunByCoordinator,
-      Class<? extends T> defaultClass
-  )
+  private static Class<? extends KeycloakAuthorizerResourceHandler> getResourceHandlerClassForService(Set<NodeRole> nodeRoles)
   {
-    if (isCoordinator(injector)) {
-      return injector.getInstance(classRunByCoordinator);
+    if (isCoordinatorRole(nodeRoles)) {
+      return CoordinatorKeycloakAuthorizerResourceHandler.class;
+    } else {
+      return DefaultKeycloakAuthorizerResourceHandler.class;
     }
-    return injector.getInstance(defaultClass);
   }
 
-  private static boolean isCoordinator(Injector injector)
+  private static Class<? extends KeycloakAuthorizerMetadataStorageUpdater> getStorageUpdaterClassForService(Set<NodeRole> nodeRoles)
   {
-    final String serviceName;
+    if (isCoordinatorRole(nodeRoles)) {
+      return CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class;
+    } else {
+      return NoopKeycloakAuthorizerMetadataStorageUpdater.class;
+    }
+  }
+
+  @Nullable
+  public static Set<NodeRole> getNodeRoles(Injector injector)
+  {
     try {
-      serviceName = injector.getInstance(Key.get(String.class, Names.named("serviceName")));
+      return injector.getInstance(
+          Key.get(
+              new TypeLiteral<Set<NodeRole>>()
+              {
+              },
+              Self.class
+          )
+      );
     }
     catch (Exception e) {
+      LOG.error(e, "Got exception while getting node roles.");
+      return null;
+    }
+  }
+
+  public static boolean isCoordinatorRole(Set<NodeRole> nodeRoles)
+  {
+    if (nodeRoles == null) {
       return false;
     }
-
-    return "druid/coordinator".equals(serviceName);
+    return nodeRoles.contains(NodeRole.COORDINATOR);
   }
 }
