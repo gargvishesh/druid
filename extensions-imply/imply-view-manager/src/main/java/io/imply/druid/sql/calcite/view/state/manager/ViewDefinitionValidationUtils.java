@@ -13,7 +13,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.query.LookupDataSource;
 import org.apache.druid.query.Query;
@@ -46,8 +45,6 @@ import java.util.regex.Pattern;
  */
 public class ViewDefinitionValidationUtils
 {
-  private static final Logger LOG = new Logger(ViewDefinitionValidationUtils.class);
-
   private static final Pattern DRUID_QUERY_REL_PATTERN =
       Pattern.compile("^\\s*DruidQueryRel\\(query=\\[(.*)], signature=\\[.*]\\)$");
 
