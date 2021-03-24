@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource.ViewDefinitionRequest;
+import io.imply.druid.tests.query.ITViewManagerAndQueryTest;
 import org.apache.calcite.avatica.AvaticaSqlException;
 import org.apache.druid.guice.annotations.Client;
 import org.apache.druid.https.SSLClientConfig;
@@ -33,10 +34,13 @@ import org.apache.druid.server.security.ResourceAction;
 import org.apache.druid.server.security.ResourceType;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.clients.CoordinatorResourceTestClient;
+import org.apache.druid.testing.clients.SqlResourceTestClient;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.testing.utils.HttpUtil;
 import org.apache.druid.testing.utils.ITRetryUtil;
+import org.apache.druid.testing.utils.SqlTestQueryHelper;
 import org.apache.druid.tests.TestNGGroup;
+import org.apache.druid.tests.indexer.AbstractIndexerTest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.testng.Assert;
@@ -83,6 +87,8 @@ public class ITViewTestWithJdbcAndLdap
 
   private static final String DATASOURCE_QUERY_PARAM = StringUtils.format(QUERY_TEMPLATE, "druid", TEST_DATA_SOURCE, "?");
   private static final String VIEW_QUERY_PARAM = StringUtils.format(QUERY_TEMPLATE, "view", TEST_VIEW, "?");
+
+  private static final String VIEW_METADATA_QUERIES_RESOURCE = "/queries/view_metadata_queries.json";
 
   @Inject
   protected ObjectMapper jsonMapper;
@@ -141,6 +147,16 @@ public class ITViewTestWithJdbcAndLdap
 
     createView(TEST_VIEW, new ViewDefinitionRequest(VIEW_SPEC));
     createView(TEST_VIEW2, new ViewDefinitionRequest(VIEW_SPEC));
+    final HttpClient viewOnlyUserClient = new CredentialedHttpClient(
+        new BasicCredentials("viewOnlyUser", "helloworld"),
+        httpClient
+    );
+    final SqlTestQueryHelper queryHelper = new SqlTestQueryHelper(
+        jsonMapper,
+        new SqlResourceTestClient(jsonMapper, viewOnlyUserClient, config),
+        config
+    );
+    waitForViewsToLoad(queryHelper);
   }
 
   @Test
@@ -526,7 +542,7 @@ public class ITViewTestWithJdbcAndLdap
         ImmutableMap.of("datasourceOnlyRole", readDatasourceOnlyPermissions)
     );
 
-    // create a role that can only read the view
+    // create a role that can only read the views
     List<ResourceAction> readViewOnlyPermissions = ImmutableList.of(
         new ResourceAction(
             new Resource(TEST_VIEW, ResourceType.VIEW),
@@ -543,7 +559,7 @@ public class ITViewTestWithJdbcAndLdap
         ImmutableMap.of("viewOnlyRole", readViewOnlyPermissions)
     );
 
-    // create a role that can only read the view
+    // create a role that can read both the views and datasource
     List<ResourceAction> readViewAndDatasourcePermissions = ImmutableList.of(
         new ResourceAction(
             new Resource(TEST_DATA_SOURCE, ResourceType.DATASOURCE),
@@ -564,7 +580,7 @@ public class ITViewTestWithJdbcAndLdap
         ImmutableMap.of("viewAndDatasourceRole", readViewAndDatasourcePermissions)
     );
 
-    // create a role that can only read the view
+    // create a role that cannot read the views or datasource
     List<ResourceAction> noReadPermissions = ImmutableList.of();
 
     createRoleWithPermissionsAndGroupMapping(
@@ -648,6 +664,48 @@ public class ITViewTestWithJdbcAndLdap
           })
       );
     }
+  }
+
+  private void waitForViewsToLoad(SqlTestQueryHelper queryHelper)
+  {
+    // wait until views are available in metadata queries
+    ITRetryUtil.retryUntilTrue(
+        () -> {
+          try {
+            queryHelper.testQueriesFromString(
+                queryHelper.getQueryURL(config.getRouterUrl()),
+                ITViewManagerAndQueryTest.replaceViewTemplate(
+                    AbstractIndexerTest.getResourceAsString(VIEW_METADATA_QUERIES_RESOURCE),
+                    TEST_VIEW
+                )
+            );
+            return true;
+          }
+          catch (Exception ex) {
+            return false;
+          }
+        },
+        StringUtils.format("waiting for %s to be loaded", TEST_VIEW)
+    );
+
+    ITRetryUtil.retryUntilTrue(
+        () -> {
+          try {
+            queryHelper.testQueriesFromString(
+                queryHelper.getQueryURL(config.getRouterUrl()),
+                ITViewManagerAndQueryTest.replaceViewTemplate(
+                    AbstractIndexerTest.getResourceAsString(VIEW_METADATA_QUERIES_RESOURCE),
+                    TEST_VIEW2
+                )
+            );
+            return true;
+          }
+          catch (Exception ex) {
+            return false;
+          }
+        },
+        StringUtils.format("waiting for %s to be loaded", TEST_VIEW2)
+    );
   }
 
   private static Properties createProperties(String user)

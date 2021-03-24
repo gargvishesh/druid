@@ -136,13 +136,13 @@
     <dependency>
       <groupId>org.apache.druid.extensions</groupId>
       <artifactId>simple-client-sslcontext</artifactId>
-      <version>0.22.0-iap1-SNAPSHOT</version>
+      <version>${project.parent.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.druid.extensions</groupId>
       <artifactId>druid-basic-security</artifactId>
-      <version>0.22.0-iap1-SNAPSHOT</version>
+      <version>${project.parent.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

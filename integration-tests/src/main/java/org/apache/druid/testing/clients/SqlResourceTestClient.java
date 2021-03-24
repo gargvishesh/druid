@@ -31,7 +31,7 @@ public class SqlResourceTestClient extends AbstractQueryResourceTestClient<SqlQu
 {
 
   @Inject
-  SqlResourceTestClient(
+  public SqlResourceTestClient(
       ObjectMapper jsonMapper,
       @TestClient HttpClient httpClient,
       IntegrationTestingConfig config
