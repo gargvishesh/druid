@@ -101,6 +101,7 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
         tempDir.getAbsolutePath(),
         1,
         null,
+        null,
         null
     );
     this.viewStateListener = new BrokerViewStateListener(

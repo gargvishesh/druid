@@ -121,6 +121,7 @@ public class CoordinatorViewStateNotifierTest
             null,
             null,
             null,
+            null,
             null
         ),
         druidNodeDiscoveryProvider,

@@ -20,7 +20,6 @@ import org.keycloak.representations.AccessTokenResponse;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
-import javax.ws.rs.BadRequestException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -150,7 +149,8 @@ public class TokenManagerTest
     expected2.setExpiresIn(10000);
     expected2.setRefreshExpiresIn(100000);
     mockGrantToken(tokenService, expected, expected2);
-    Mockito.when(tokenService.refreshToken(ArgumentMatchers.anyString())).thenThrow(new BadRequestException("test"));
+    Mockito.when(tokenService.refreshToken(ArgumentMatchers.anyString()))
+           .thenThrow(new KeycloakSecurityBadRequestException("test"));
 
     Assert.assertEquals(expected.getToken(), tokenManager.getAccessTokenString());
     Assert.assertEquals(expected2.getToken(), tokenManager.getAccessTokenString());

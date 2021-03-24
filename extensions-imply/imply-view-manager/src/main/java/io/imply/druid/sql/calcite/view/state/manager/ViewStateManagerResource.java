@@ -20,6 +20,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
 import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
@@ -67,23 +68,26 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ViewStateManagerResource
 {
   private static final Logger LOG = new Logger(ViewStateManagerResource.class);
+  private final ViewStateManagementConfig viewStateManagementConfig;
   private final ViewStateManager viewStateManager;
   private final DruidNodeDiscoveryProvider discoveryProvider;
   private final HttpClient httpClient;
-  private final ObjectMapper objectMapper;
+  private final ObjectMapper jsonMapper;
 
   @Inject
   public ViewStateManagerResource(
+      final ViewStateManagementConfig viewStateManagementConfig,
       final ViewStateManager viewStateManager,
       final DruidNodeDiscoveryProvider discoveryProvider,
       @EscalatedClient HttpClient httpClient,
-      ObjectMapper objectMapper
+      ObjectMapper jsonMapper
   )
   {
+    this.viewStateManagementConfig = viewStateManagementConfig;
     this.viewStateManager = viewStateManager;
     this.discoveryProvider = discoveryProvider;
     this.httpClient = httpClient;
-    this.objectMapper = objectMapper;
+    this.jsonMapper = jsonMapper;
   }
 
   @GET
@@ -125,6 +129,9 @@ public class ViewStateManagerResource
       if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
         return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
       }
+    }
+    catch (ViewDefinitionValidationUtils.ClientValidationException ce) {
+      return clientError(ce.getMessage());
     }
     catch (Exception e) {
       LOG.error(e, "Encountered exception while validating view definition.");
@@ -169,6 +176,9 @@ public class ViewStateManagerResource
       if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
         return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
       }
+    }
+    catch (ViewDefinitionValidationUtils.ClientValidationException ce) {
+      return clientError(ce.getMessage());
     }
     catch (Exception e) {
       LOG.error(e, "Encountered exception while validating view definition.");
@@ -303,7 +313,7 @@ public class ViewStateManagerResource
     SqlQuery query = new SqlQuery("EXPLAIN PLAN FOR " + viewSql, null, false, null, null);
     byte[] serializedEntity;
     try {
-      serializedEntity = objectMapper.writeValueAsBytes(query);
+      serializedEntity = jsonMapper.writeValueAsBytes(query);
       req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
     }
     catch (JsonProcessingException jpe) {
@@ -320,6 +330,14 @@ public class ViewStateManagerResource
     try {
       StatusResponseHolder responseHolder = future.get();
       if (HttpResponseStatus.OK.equals(responseHolder.getStatus())) {
+        if (!viewStateManagementConfig.isAllowUnrestrictedViews()) {
+          ViewDefinitionValidationUtils.QueryPlanAndResources queryPlanAndResources =
+              ViewDefinitionValidationUtils.getQueryPlanAndResourcesFromExplainResponse(
+                  responseHolder.getContent(),
+                  jsonMapper
+              );
+          ViewDefinitionValidationUtils.validateQueryPlanAndResources(queryPlanAndResources, jsonMapper);
+        }
         return true;
       } else if (HttpResponseStatus.BAD_REQUEST.equals(responseHolder.getStatus())) {
         return false;
