@@ -18,7 +18,6 @@ import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
-import io.imply.druid.tests.ImplyTestNGGroup;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -53,7 +52,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 // TODO: renable with IMPLY-6305
-@Test(groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
+@Test(enabled = false)//, groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTest
 {

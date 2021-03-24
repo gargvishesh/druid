@@ -11,7 +11,6 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.AuthConfig;
@@ -55,8 +54,6 @@ import java.util.List;
 public class DruidKeycloakOIDCFilter implements Filter
 {
   private static final Logger LOG = new Logger(KeycloakOIDCFilter.class);
-
-  private static final List<String> EMPTY_ROLES = ImmutableList.of();
 
   private final SessionIdMapper idMapper = new InMemorySessionIdMapper();
   private final KeycloakConfigResolver configResolver;
@@ -264,10 +261,10 @@ public class DruidKeycloakOIDCFilter implements Filter
                 && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null
                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) instanceof List) ?
                (List<String>) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
-               EMPTY_ROLES;
+               KeycloakAuthUtils.EMPTY_ROLES;
       }
     }
-    return EMPTY_ROLES;
+    return KeycloakAuthUtils.EMPTY_ROLES;
   }
 
   @Override
