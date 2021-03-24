@@ -20,7 +20,6 @@ import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.AccessTokenResponse;
 
 import javax.annotation.Nullable;
-import javax.ws.rs.BadRequestException;
 import java.util.Map;
 
 /**
@@ -115,7 +114,7 @@ public class TokenManager
         updateTokens(tokenResponse, requestTime);
       }
     }
-    catch (BadRequestException e) {
+    catch (KeycloakSecurityBadRequestException e) {
       grantToken();
     }
   }
