@@ -529,7 +529,7 @@ public class ITViewTestWithJdbcAndLdap
 
   protected void setupUsers() throws Exception
   {
-    // create a role that can only read the datasource
+    // Create a role that can only read the datasource
     List<ResourceAction> readDatasourceOnlyPermissions = Collections.singletonList(
         new ResourceAction(
             new Resource(TEST_DATA_SOURCE, ResourceType.DATASOURCE),
@@ -542,24 +542,7 @@ public class ITViewTestWithJdbcAndLdap
         ImmutableMap.of("datasourceOnlyRole", readDatasourceOnlyPermissions)
     );
 
-    // create a role that can only read the views
-    List<ResourceAction> readViewOnlyPermissions = ImmutableList.of(
-        new ResourceAction(
-            new Resource(TEST_VIEW, ResourceType.VIEW),
-            Action.READ
-        ),
-        new ResourceAction(
-            new Resource(TEST_VIEW2, ResourceType.VIEW),
-            Action.READ
-        )
-    );
-
-    createRoleWithPermissionsAndGroupMapping(
-        "viewOnlyGroup",
-        ImmutableMap.of("viewOnlyRole", readViewOnlyPermissions)
-    );
-
-    // create a role that can read both the views and datasource
+    // Create a role that can read both the views and datasource
     List<ResourceAction> readViewAndDatasourcePermissions = ImmutableList.of(
         new ResourceAction(
             new Resource(TEST_DATA_SOURCE, ResourceType.DATASOURCE),
@@ -580,12 +563,32 @@ public class ITViewTestWithJdbcAndLdap
         ImmutableMap.of("viewAndDatasourceRole", readViewAndDatasourcePermissions)
     );
 
-    // create a role that cannot read the views or datasource
+    // Create a role that cannot read the views or datasource
     List<ResourceAction> noReadPermissions = ImmutableList.of();
 
     createRoleWithPermissionsAndGroupMapping(
         "noViewAndDatasourceGroup",
         ImmutableMap.of("noViewAndDatasourceRole", noReadPermissions)
+    );
+
+    // Create a role that can only read the views.
+    // viewOnly permission and role are created at last intentionally. This role will be used in waitForViewsToLoad()
+    // to wait until all permissions/roles/views created in beforeClass() are propagated from the coordinator
+    // to the broker.
+    List<ResourceAction> readViewOnlyPermissions = ImmutableList.of(
+        new ResourceAction(
+            new Resource(TEST_VIEW, ResourceType.VIEW),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(TEST_VIEW2, ResourceType.VIEW),
+            Action.READ
+        )
+    );
+
+    createRoleWithPermissionsAndGroupMapping(
+        "viewOnlyGroup",
+        ImmutableMap.of("viewOnlyRole", readViewOnlyPermissions)
     );
   }
 
