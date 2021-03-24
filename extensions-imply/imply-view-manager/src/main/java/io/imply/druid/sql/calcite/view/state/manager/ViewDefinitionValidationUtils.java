@@ -20,12 +20,30 @@ import org.apache.druid.query.Query;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.VirtualColumn;
+import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.ResourceType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * This class provides utility methods for checking that a view definition has a shape that is supported by Imply.
+ *
+ * We only support simple view definitions that only project and filter
+ * (e.g. SELECT colA, colB FROM tbl WHERE colC='value')
+ *
+ * The following query features are not supported in view definitions:
+ * - Subqueries of any kind
+ * - Joins of any kind
+ * - UNION ALL
+ * - Aggregations
+ * - LIMIT, OFFSET, ORDER BY
+ * - Queries on anything that is not a base datasource: lookups, INFORMATION_SCHEMA, sys.* tables, other views
+ */
 public class ViewDefinitionValidationUtils
 {
   private static final Logger LOG = new Logger(ViewDefinitionValidationUtils.class);
@@ -48,41 +66,86 @@ public class ViewDefinitionValidationUtils
   private static final Pattern BINDABLE_REL_PATTERN =
       Pattern.compile("^\\s*Bindable.*\\(.*\\)$");
 
-  public static String getQueryPlanFromExplainResponse(String explainResponseContent, ObjectMapper jsonMapper)
+  /**
+   * The response returned by Druid for EXPLAIN PLAN FOR queries has the following structure:
+   * [
+   *  {
+   *    "PLAN":"<plan-string>",
+   *    "RESOURCES:"<resource-set>"
+   *  }
+   * ]
+   *
+   * where the 'plan-string' has the form shown below:
+   *
+   * DruidQueryRel(query=[<query-json>],signature=[<type-signature-json>])
+   *
+   * There can be several QueryRel entries in the response, one per line, with indentation indicating
+   * query level (such as when there are subqueries).
+   *
+   * The 'resource-set' contains the datasources and/or views that would be accessed by a query.
+   *
+   * We do not do anything with the type signature currently.
+   *
+   * Given the explain response content as a String, this method extracts the 'plan-string' and 'resource-set',
+   * which would later be processed by {@link #validateQueryPlanAndResources}.
+   *
+   * @param explainResponseContent Response content from an EXPLAIN PLAN FOR query
+   * @param jsonMapper JSON object mapper
+   * @return The plan string and resources from the response
+   */
+  public static QueryPlanAndResources getQueryPlanAndResourcesFromExplainResponse(String explainResponseContent, ObjectMapper jsonMapper)
   {
     try {
-      List<Map<String, Object>> responseMap = jsonMapper.readValue(
+      List<Map<String, Object>> deserializedResponse = jsonMapper.readValue(
           explainResponseContent,
           new TypeReference<List<Map<String, Object>>>()
           {
           }
       );
 
-      if (responseMap.size() != 1) {
+      if (deserializedResponse.size() != 1) {
         throw new InternalValidationException(
             "Explain response should only have one entity, response[%s]",
             explainResponseContent
         );
       }
 
-      String queryPlan = (String) responseMap.get(0).get("PLAN");
+      String queryPlan = (String) deserializedResponse.get(0).get("PLAN");
       if (queryPlan == null) {
         throw new InternalValidationException(
             "Null PLAN when validating view definition, response[%s]",
             explainResponseContent
         );
       }
-      return queryPlan;
+
+      String resourceSetSerialized = (String) deserializedResponse.get(0).get("RESOURCES");
+      Set<Resource> resources = jsonMapper.readValue(
+          resourceSetSerialized,
+          new TypeReference<Set<Resource>>()
+          {
+          }
+      );
+      return new QueryPlanAndResources(queryPlan, resources);
     }
     catch (JsonProcessingException jpe) {
       throw new InternalValidationException(
           jpe,
-          "Could not deserialize query plan from EXPLAIN PLAN FOR response[%s]",
+          "Could not deserialize query plan or resource set from EXPLAIN PLAN FOR response[%s]",
           explainResponseContent
       );
     }
   }
 
+  /**
+   * This method checks a single Druid Query object to see if it meets the following criteria:
+   * - No aggregations (must be a ScanQuery, which is the only non-aggregating query type that
+   *                    can be generated from SQL queries)
+   * - Must query a table datasource (no lookups, inline).
+   * - No LIMIT, OFFSET, or ORDER BY
+   * - No transforms on the projected columns
+   *
+   * @param druidQuery
+   */
   private static void validateSingleLevelDruidQuery(Query druidQuery)
   {
     // Query must be non-aggregating, so it must be a ScanQuery
@@ -138,8 +201,33 @@ public class ViewDefinitionValidationUtils
     }
   }
 
-  public static void validateQueryPlan(String queryPlan, ObjectMapper jsonMapper)
+  /**
+   * This method validates a QueryPlanAndResources (which can be extracted from a response using
+   * {@link #getQueryPlanAndResourcesFromExplainResponse}), and checks that:
+   * - the view definition does not use any other views
+   * - there are no subqueries, joins, or UNION ALL queries.
+   *
+   * If those checks pass, then {@link #validateSingleLevelDruidQuery} is called for further validation.
+   *
+   * If validation fails, this method will throw either a {@link ClientValidationException} for errors that are
+   * most likely the result of user error, or {@link InternalValidationException} for errors that are likely a result
+   * of bugs or internal server errors.
+   *
+   * @param queryPlanAndResources A QueryPlanAndResources extracted from an EXPLAIN PLAN FOR response
+   * @param jsonMapper JSON object mapper
+   */
+  public static void validateQueryPlanAndResources(QueryPlanAndResources queryPlanAndResources, ObjectMapper jsonMapper)
   {
+    for (Resource resource : queryPlanAndResources.getResources()) {
+      if (ResourceType.VIEW.equals(resource.getType())) {
+        throw new ClientValidationException(
+            "View [%s] cannot be used within another view definition.",
+            resource.getName()
+        );
+      }
+    }
+
+    String queryPlan = queryPlanAndResources.getQueryPlan();
     String[] queryRels = queryPlan.split("\n");
 
     if (queryRels.length < 1) {
@@ -219,6 +307,54 @@ public class ViewDefinitionValidationUtils
     public InternalValidationException(Throwable t, String formatText, Object... arguments)
     {
       super(StringUtils.nonStrictFormat(formatText, arguments), t);
+    }
+  }
+
+  /**
+   * A holder class for the query plan string and set of resources extracted from an EXPLAIN PLAN FOR response.
+   */
+  public static class QueryPlanAndResources
+  {
+    private final String queryPlan;
+    private final Set<Resource> resources;
+
+    public QueryPlanAndResources(
+        String queryPlan,
+        Set<Resource> resources
+    )
+    {
+      this.queryPlan = queryPlan;
+      this.resources = resources;
+    }
+
+    public String getQueryPlan()
+    {
+      return queryPlan;
+    }
+
+    public Set<Resource> getResources()
+    {
+      return resources;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      QueryPlanAndResources that = (QueryPlanAndResources) o;
+      return Objects.equals(getQueryPlan(), that.getQueryPlan()) &&
+             Objects.equals(getResources(), that.getResources());
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(getQueryPlan(), getResources());
     }
   }
 }

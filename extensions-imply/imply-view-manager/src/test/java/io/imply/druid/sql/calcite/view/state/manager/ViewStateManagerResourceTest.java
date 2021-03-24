@@ -75,8 +75,12 @@ public class ViewStateManagerResourceTest
   public static String buildSomeSQLExplainResponse()
   {
     String plan = "DruidQueryRel(query=[{\"queryType\":\"scan\",\"dataSource\":{\"type\":\"table\",\"name\":\"some_table\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"virtualColumns\":[{\"type\":\"expression\",\"name\":\"v0\",\"expression\":\"'value'\",\"outputType\":\"STRING\"}],\"resultFormat\":\"compactedList\",\"batchSize\":20480,\"order\":\"none\",\"filter\":{\"type\":\"selector\",\"dimension\":\"some_column\",\"value\":\"value\",\"extractionFn\":null},\"columns\":[\"__time\",\"v0\"],\"legacy\":false,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\",\"sqlQueryId\":\"dummy\"},\"descending\":false,\"granularity\":{\"type\":\"all\"}}], signature=[{__time:LONG, v0:STRING}])";
+    String resources = "[{\"name\":\"some_table\",\"type\":\"DATASOURCE\"}]";
     List<Map<String, Object>> response = ImmutableList.of(
-        ImmutableMap.of("PLAN", plan)
+        ImmutableMap.of(
+            "PLAN", plan,
+            "RESOURCES", resources
+        )
     );
     try {
       return JSON_MAPPER.writeValueAsString(response);

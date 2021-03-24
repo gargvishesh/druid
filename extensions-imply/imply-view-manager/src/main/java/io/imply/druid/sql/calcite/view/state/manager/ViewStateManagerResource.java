@@ -331,11 +331,12 @@ public class ViewStateManagerResource
       StatusResponseHolder responseHolder = future.get();
       if (HttpResponseStatus.OK.equals(responseHolder.getStatus())) {
         if (!viewStateManagementConfig.isAllowUnrestrictedViews()) {
-          String queryPlan = ViewDefinitionValidationUtils.getQueryPlanFromExplainResponse(
-              responseHolder.getContent(),
-              jsonMapper
-          );
-          ViewDefinitionValidationUtils.validateQueryPlan(queryPlan, jsonMapper);
+          ViewDefinitionValidationUtils.QueryPlanAndResources queryPlanAndResources =
+              ViewDefinitionValidationUtils.getQueryPlanAndResourcesFromExplainResponse(
+                  responseHolder.getContent(),
+                  jsonMapper
+              );
+          ViewDefinitionValidationUtils.validateQueryPlanAndResources(queryPlanAndResources, jsonMapper);
         }
         return true;
       } else if (HttpResponseStatus.BAD_REQUEST.equals(responseHolder.getStatus())) {
