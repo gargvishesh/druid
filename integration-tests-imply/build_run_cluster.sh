@@ -56,7 +56,9 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-setup.yml up -d
 
-    echo "Waiting for keycloak to come up"
+    echo "sleeping for 2 minutes waiting for Keycloak container to be created"
+    sleep 120
+    echo "Waiting for keycloak apis to be ready"
     counter=0
     until [ $counter -eq 12 ] || curl localhost:8080; do
         sleep 10
