@@ -59,7 +59,7 @@ public class DruidKeycloakOIDCFilter implements Filter
   private final KeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
-  private final String rolesTokenClaim;
+  private final String rolesTokenClaimName;
 
   private AdapterDeploymentContext deploymentContext;
   private NodesRegistrationManagement nodesRegistrationManagement;
@@ -72,13 +72,13 @@ public class DruidKeycloakOIDCFilter implements Filter
       KeycloakConfigResolver configResolver,
       String authenticatorName,
       String authorizerName,
-      String rolesTokenClaim
+      String rolesTokenClaimName
   )
   {
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
-    this.rolesTokenClaim = Preconditions.checkNotNull(rolesTokenClaim, "rolesTokenClaim");
+    this.rolesTokenClaimName = Preconditions.checkNotNull(rolesTokenClaimName, "rolesTokenClaim");
   }
 
   @VisibleForTesting
@@ -296,9 +296,9 @@ public class DruidKeycloakOIDCFilter implements Filter
       final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
       if (securityContext.getToken() != null) {
         return (securityContext.getToken().getOtherClaims() != null
-                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null
-                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) instanceof List) ?
-               (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
+                && securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) != null
+                && securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) instanceof List) ?
+               (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) :
                KeycloakAuthUtils.EMPTY_ROLES;
       }
     }

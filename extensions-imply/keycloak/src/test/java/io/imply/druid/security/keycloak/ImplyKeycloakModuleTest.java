@@ -97,7 +97,7 @@ public class ImplyKeycloakModuleTest
     Assert.assertSame(
         ImplyKeycloakAuthenticator.class,
         mapper.readValue(
-            "{\"type\": \"imply-keycloak\", \"authenticatorName\" : \"myAuthenticator\", \"authorizerName\": \"myAuthorizer\", \"rolesTokenClaim\": \"druid-roles\"}",
+            "{\"type\": \"imply-keycloak\", \"authenticatorName\" : \"myAuthenticator\", \"authorizerName\": \"myAuthorizer\", \"rolesTokenClaimName\": \"druid-roles\"}",
             Authenticator.class
         ).getClass()
     );

@@ -29,15 +29,15 @@ public class AccessTokenValidator
   private static final Logger LOG = new Logger(DruidKeycloakConfigResolver.class);
 
   private final String authorizerName;
-  private final String rolesTokenClaim;
+  private final String rolesTokenClaimName;
 
   public AccessTokenValidator(
       String authorizerName,
-      String rolesTokenClaim
+      String rolesTokenClaimName
   )
   {
     this.authorizerName = authorizerName;
-    this.rolesTokenClaim = rolesTokenClaim;
+    this.rolesTokenClaimName = rolesTokenClaimName;
   }
 
   /**
@@ -86,9 +86,9 @@ public class AccessTokenValidator
   private List<Object> getImplyRoles(AccessToken token)
   {
     return (token.getOtherClaims() != null
-            && token.getOtherClaims().get(rolesTokenClaim) != null
-            && token.getOtherClaims().get(rolesTokenClaim) instanceof List) ?
-           (List<Object>) token.getOtherClaims().get(rolesTokenClaim) :
+            && token.getOtherClaims().get(rolesTokenClaimName) != null
+            && token.getOtherClaims().get(rolesTokenClaimName) instanceof List) ?
+           (List<Object>) token.getOtherClaims().get(rolesTokenClaimName) :
            KeycloakAuthUtils.EMPTY_ROLES;
   }
 }

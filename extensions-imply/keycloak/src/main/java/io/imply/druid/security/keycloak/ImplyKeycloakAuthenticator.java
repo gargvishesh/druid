@@ -31,36 +31,36 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   private final DruidKeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
-  private final String rolesTokenClaim;
+  private final String rolesTokenClaimName;
   private final AccessTokenValidator accessTokenValidator;
 
   @JsonCreator
   public ImplyKeycloakAuthenticator(
       @JsonProperty("authenticatorName") String authenticatorName,
       @JsonProperty("authorizerName") String authorizerName,
-      @JsonProperty("rolesTokenClaim") String rolesTokenClaim,
+      @JsonProperty("rolesTokenClaimName") String rolesTokenClaimName,
       @JacksonInject DruidKeycloakConfigResolver configResolver
   )
   {
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
-    this.rolesTokenClaim = Preconditions.checkNotNull(rolesTokenClaim, "roleTokenClaim");
+    this.rolesTokenClaimName = Preconditions.checkNotNull(rolesTokenClaimName, "roleTokenClaimName");
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
-    this.accessTokenValidator = new AccessTokenValidator(authorizerName, rolesTokenClaim);
+    this.accessTokenValidator = new AccessTokenValidator(authorizerName, rolesTokenClaimName);
   }
 
   @VisibleForTesting
   ImplyKeycloakAuthenticator(
       String authenticatorName,
       String authorizerName,
-      String rolesTokenClaim,
+      String rolesTokenClaimName,
       DruidKeycloakConfigResolver configResolver,
       AccessTokenValidator accessTokenValidator
   )
   {
     this.authenticatorName = authenticatorName;
     this.authorizerName = authorizerName;
-    this.rolesTokenClaim = rolesTokenClaim;
+    this.rolesTokenClaimName = rolesTokenClaimName;
     this.configResolver = configResolver;
     this.accessTokenValidator = accessTokenValidator;
   }
@@ -68,7 +68,7 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   @Override
   public Filter getFilter()
   {
-    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName, rolesTokenClaim);
+    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName, rolesTokenClaimName);
   }
 
   @Override
