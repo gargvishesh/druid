@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
+import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource.ViewDefinitionRequest;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
@@ -383,6 +384,17 @@ public class ViewStateManagerResourceTest
     );
     Assert.assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode(), response.getStatus());
     Assert.assertEquals(errorEntity, response.getEntity());
+  }
+
+  @Test
+  public void testSerdeViewDefinitionRequest() throws IOException
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ViewDefinitionRequest request = new ViewDefinitionRequest("select * from test");
+    final String json = mapper.writeValueAsString(request);
+    System.err.println(json);
+    final ViewDefinitionRequest fromJson = mapper.readValue(json, ViewDefinitionRequest.class);
+    Assert.assertEquals(request, fromJson);
   }
 
   private void replayAll()

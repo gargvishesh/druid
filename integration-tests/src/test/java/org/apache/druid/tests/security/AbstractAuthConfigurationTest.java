@@ -190,7 +190,8 @@ public abstract class AbstractAuthConfigurationTest
 
   private void checkLoadStatusSingle(
       HttpClient httpClient,
-      String baseUrl) throws Exception
+      String baseUrl
+  ) throws Exception
   {
     StatusResponseHolder holder = HttpUtil.makeRequest(
         httpClient,

@@ -290,7 +290,7 @@ public class ITViewManagerAndQueryTest
     return responseHolder;
   }
 
-  private static String replaceViewTemplate(String template, String view)
+  public static String replaceViewTemplate(String template, String view)
   {
     return StringUtils.replace(
         template,

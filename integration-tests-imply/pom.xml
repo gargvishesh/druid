@@ -67,7 +67,6 @@
       <groupId>io.imply</groupId>
       <artifactId>imply-view-manager</artifactId>
       <version>${project.parent.version}</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -132,6 +131,24 @@
     <dependency>
       <groupId>javax.ws.rs</groupId>
       <artifactId>jsr311-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.druid.extensions</groupId>
+      <artifactId>simple-client-sslcontext</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.druid.extensions</groupId>
+      <artifactId>druid-basic-security</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite.avatica</groupId>
+      <artifactId>avatica-core</artifactId>
+      <version>1.17.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
