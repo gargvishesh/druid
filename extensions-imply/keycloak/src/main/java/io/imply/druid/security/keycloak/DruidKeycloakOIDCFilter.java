@@ -150,42 +150,24 @@ public class DruidKeycloakOIDCFilter implements Filter
       return;
     }
 
-    PreAuthActionsHandler preActions = new PreAuthActionsHandler(new UserSessionManagement()
-    {
-      @Override
-      public void logoutAll()
-      {
-        idMapper.clear();
-      }
-
-      @Override
-      public void logoutHttpSessions(List<String> ids)
-      {
-        LOG.debug("**************** logoutHttpSessions");
-        for (String id : ids) {
-          LOG.debug("removed idMapper: " + id);
-          idMapper.removeSession(id);
-        }
-
-      }
-    }, deploymentContext, facade);
+    PreAuthActionsHandler preActions = getPreAuthActionsHandler(facade);
 
     if (preActions.handleRequest()) {
       return;
     }
 
     nodesRegistrationManagement.tryRegister(deployment);
-    OIDCFilterSessionStore tokenStore = new OIDCFilterSessionStore(request, facade, 100000, deployment, idMapper);
+    OIDCFilterSessionStore tokenStore = getOIDCFilterSessionStore(request, facade, 100000, deployment);
     tokenStore.checkCurrentToken();
 
-    FilterRequestAuthenticator authenticator = new FilterRequestAuthenticator(deployment, tokenStore, facade, request, 8443);
+    FilterRequestAuthenticator authenticator = getFilterRequestAuthenticator(deployment, tokenStore, facade, request, 8443);
     AuthOutcome outcome = authenticator.authenticate();
     if (outcome == AuthOutcome.AUTHENTICATED) {
       LOG.debug("AUTHENTICATED");
       if (facade.isEnded()) {
         return;
       }
-      AuthenticatedActionsHandler actions = new AuthenticatedActionsHandler(deployment, facade);
+      AuthenticatedActionsHandler actions = getAuthenticatedActionsHandler(deployment, facade);
       if (actions.handledRequest()) {
         return;
       } else {
@@ -217,6 +199,62 @@ public class DruidKeycloakOIDCFilter implements Filter
       return;
     }
     response.sendError(403);
+  }
+
+  @VisibleForTesting
+  PreAuthActionsHandler getPreAuthActionsHandler(OIDCServletHttpFacade facade)
+  {
+    return new PreAuthActionsHandler(new UserSessionManagement()
+    {
+      @Override
+      public void logoutAll()
+      {
+        idMapper.clear();
+      }
+
+      @Override
+      public void logoutHttpSessions(List<String> ids)
+      {
+        LOG.debug("**************** logoutHttpSessions");
+        for (String id : ids) {
+          LOG.debug("removed idMapper: " + id);
+          idMapper.removeSession(id);
+        }
+
+      }
+    }, deploymentContext, facade);
+  }
+
+  @VisibleForTesting
+  OIDCFilterSessionStore getOIDCFilterSessionStore(
+      HttpServletRequest request,
+      OIDCServletHttpFacade facade,
+      int maxBuffer,
+      KeycloakDeployment deployment)
+  {
+    return new OIDCFilterSessionStore(request, facade, maxBuffer, deployment, idMapper);
+  }
+
+  @VisibleForTesting
+  FilterRequestAuthenticator getFilterRequestAuthenticator(
+      KeycloakDeployment deployment,
+      OIDCFilterSessionStore tokenStore,
+      OIDCServletHttpFacade facade,
+      HttpServletRequest request,
+      int sslRedirectPort
+
+  )
+  {
+    return new FilterRequestAuthenticator(deployment, tokenStore, facade, request, sslRedirectPort);
+  }
+
+  @VisibleForTesting
+  AuthenticatedActionsHandler getAuthenticatedActionsHandler(
+      KeycloakDeployment deployment,
+      OIDCServletHttpFacade facade
+  )
+  {
+    return new AuthenticatedActionsHandler(deployment, facade);
   }
 
   private KeycloakAccount getKeycloakAccount(HttpServletRequest request)

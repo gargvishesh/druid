@@ -41,4 +41,40 @@ public class DruidKeycloakConfigResolverTest
            .thenReturn("Im not Druid");
     Assert.assertEquals("user", resolver.resolve(request).getRealm());
   }
+
+  @Test
+  public void test_resolve_escalatorConfigNotSetAndInternalRequest_returnsNullDeployment()
+  {
+    final AdapterConfig internalConfig = new AdapterConfig();
+    final AdapterConfig userConfig = new AdapterConfig();
+    userConfig.setRealm("user");
+    userConfig.setResource("user");
+    userConfig.setAuthServerUrl("http://user-auth");
+    final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
+        internalConfig,
+        userConfig
+    );
+    final Request request = Mockito.mock(Request.class);
+    Mockito.when(request.getHeader(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER))
+           .thenReturn(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER_VALUE);
+    Assert.assertNull(resolver.resolve(request));
+  }
+
+  @Test
+  public void test_resolve_escalatorConfigNotSetAndUserRequest_returnsUserDeployment()
+  {
+    final AdapterConfig internalConfig = new AdapterConfig();
+    final AdapterConfig userConfig = new AdapterConfig();
+    userConfig.setRealm("user");
+    userConfig.setResource("user");
+    userConfig.setAuthServerUrl("http://user-auth");
+    final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
+        internalConfig,
+        userConfig
+    );
+    final Request request = Mockito.mock(Request.class);
+    Mockito.when(request.getHeader(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER))
+           .thenReturn("Im not Druid");
+    Assert.assertEquals("user", resolver.resolve(request).getRealm());
+  }
 }

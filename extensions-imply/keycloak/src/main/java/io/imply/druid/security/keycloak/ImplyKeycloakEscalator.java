@@ -46,6 +46,11 @@ public class ImplyKeycloakEscalator implements Escalator
   @Override
   public AuthenticationResult createEscalatedAuthenticationResult()
   {
-    return new AuthenticationResult(keycloakDeployment.getResourceName(), authorizerName, null, KeycloakAuthUtils.CONTEXT_WITH_ADMIN_ROLE);
+    return new AuthenticationResult(
+        keycloakDeployment.getResourceName(),
+        authorizerName,
+        null,
+        KeycloakAuthUtils.CONTEXT_WITH_ADMIN_ROLE
+    );
   }
 }
