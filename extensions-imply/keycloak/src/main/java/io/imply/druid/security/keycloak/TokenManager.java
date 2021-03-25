@@ -67,7 +67,7 @@ public class TokenManager
    * Constructor only for testing
    */
   @VisibleForTesting
-  TokenManager(KeycloakDeployment deployment, TokenService service, boolean verifyToken)
+  public TokenManager(KeycloakDeployment deployment, TokenService service, boolean verifyToken)
   {
     this.deployment = deployment;
     this.tokenService = service;

@@ -16,8 +16,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
+import io.imply.druid.security.keycloak.TokenManager;
+import io.imply.druid.security.keycloak.TokenService;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.tests.ImplyTestNGGroup;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -53,7 +56,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 // TODO: renable with IMPLY-6305
-@Test(enabled = false)//, groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
+@Test(groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTest
 {
@@ -501,7 +504,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   {
     try {
       AdapterConfig userConfig = new AdapterConfig();
-      userConfig.setAuthServerUrl("http://imply-keycloak:8080/auth");
+      userConfig.setAuthServerUrl("http://localhost:8080/auth");
       userConfig.setRealm("druid");
       userConfig.setResource("druid-user-client");
       userConfig.setBearerOnly(true);
@@ -514,11 +517,20 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       KeycloakDeployment userDeployment = KeycloakDeploymentBuilder.build(userConfig);
       Map<String, String> reqHeaders = new HashMap<>();
       Map<String, String> reqParams = new HashMap<>();
+      /* Set Host header so that ISS references imply-keycloak, which is needed for verification on Druid side,
+         imply-keycloak is not routable from integration test code, and localhost:8080 wont work within docker
+         network where Druid Cluster is running. */
+      reqHeaders.put("Host", "imply-keycloak:8080");
       reqParams.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD);
       reqParams.put(OAuth2Constants.USERNAME, username);
       reqParams.put(OAuth2Constants.PASSWORD, password);
       ClientCredentialsProviderUtils.setClientCredentials(userDeployment, reqHeaders, reqParams);
-      return new KeycloakedHttpClient(userDeployment, httpClient, false, reqHeaders, reqParams);
+      TokenService tokenService = new TokenService(userDeployment, reqHeaders, reqParams);
+      /* Disable token verification only on client side (within integration test), as it will fail if there is a
+         discrepency between the Auth Server Url and the iss field found in the token. Token verification is only
+        disabled on the Client side, not within Druid. */
+      TokenManager tokenManager = new TokenManager(userDeployment, tokenService, false);
+      return new KeycloakedHttpClient(httpClient, false, tokenManager);
     }
     catch (Exception e) {
       LOG.error("exception occured");

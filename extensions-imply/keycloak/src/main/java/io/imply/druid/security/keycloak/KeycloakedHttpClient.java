@@ -35,6 +35,10 @@ public class KeycloakedHttpClient extends AbstractHttpClient
     this(deployment, delegate, true, new HashMap<>(), new HashMap<>());
   }
 
+  /**
+   * Constructor only for testing
+   */
+  @VisibleForTesting
   public KeycloakedHttpClient(
       KeycloakDeployment deployment,
       HttpClient delegate,
@@ -42,11 +46,33 @@ public class KeycloakedHttpClient extends AbstractHttpClient
       Map<String, String> tokenReqHeaders,
       Map<String, String> tokenReqParams)
   {
-    this.isInternal = isInternal;
     final ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
     try {
+      this.isInternal = isInternal;
       Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
       this.tokenManager = new TokenManager(deployment, tokenReqHeaders, tokenReqParams);
+      this.tokenManager.updateTokensIfNeeded();
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(currentClassLoader);
+    }
+    this.delegate = delegate;
+  }
+
+  /**
+   * Constructor only for testing
+   */
+  @VisibleForTesting
+  public KeycloakedHttpClient(
+      HttpClient delegate,
+      boolean isInternal,
+      TokenManager tokenManager)
+  {
+    final ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      this.isInternal = isInternal;
+      Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+      this.tokenManager = tokenManager;
       this.tokenManager.updateTokensIfNeeded();
     }
     finally {
