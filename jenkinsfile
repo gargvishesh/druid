@@ -50,6 +50,50 @@ def mavenInstall() {
         label: 'mvn install'
 }
 
+def dockerCleanup() {
+    sh  script: 'docker system prune -f -a --volumes || true',
+        label: 'cleanup docker data'
+}
+
+def mavenDockerBackup() {
+    rtDockerPull(
+        serverId: "${RT_SERVER_ID}",
+        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
+        sourceRepo: 'docker-local'
+    )
+    sh script: '''#!/bin/bash -e
+        TEMP_DIR=$(mktemp -d)
+        git status --ignored --porcelain | \
+            grep -E '^\\!\\!' | sed 's|/$||' | awk -F'\\!\\! ' '{print $2}' | grep -v -E '^web-console' | \
+        while read mvnresult; do mkdir -p ${TEMP_DIR}/$(dirname -- $mvnresult); cp -R $mvnresult ${TEMP_DIR}/$mvnresult; done
+        tar -czf /tmp/mvnresult.tar.gz -C ${TEMP_DIR} .
+        tar -czf /tmp/m2repository.tar.gz -C ~/.m2 repository
+        rm -rf ${TEMP_DIR}
+
+        cd /tmp
+        echo "FROM ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}" >> Dockerfile
+        echo "COPY m2repository.tar.gz /tmp/m2repository.tar.gz" >> Dockerfile
+        echo "COPY mvnresult.tar.gz /tmp/mvnresult.tar.gz" >> Dockerfile
+        docker build -t ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${BUILD_TAG} .
+    ''',
+    label: 'build temporary docker image for the build'
+    rtDockerPush(
+        serverId: "${RT_SERVER_ID}",
+        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${BUILD_TAG}",
+        targetRepo: 'docker-local'
+    )
+}
+
+def mavenCacheRestore() {
+    setupMavenSettings()
+    sh script: '''#!/bin/bash -e
+        tar -xzf /tmp/mvnresult.tar.gz --no-overwrite-dir -C ./
+        mkdir -p ~/.m2
+        tar -xzf /tmp/m2repository.tar.gz --no-overwrite-dir -C ~/.m2/
+    ''',
+    label: 'restore build cache'
+}
+
 def prepareIfconfig() {
     sh script: '''
         echo -e '#!/bin/bash\nPATH=/sbin:$PATH exec ifconfig eth0 $@' > /usr/bin/ifconfig
@@ -94,6 +138,8 @@ def buildArtifacts(stageName) {
             copy_files_by_pattern '**/jacoco/**/*.html' ${stageArtifactsDirPath}
             copy_files_by_pattern '**/jacoco/**/*.xml' ${stageArtifactsDirPath}
             copy_files_by_pattern '**/jacoco/**/*.csv' ${stageArtifactsDirPath}
+            # inspection results
+            copy_files_by_pattern 'inspection-results/*.xml' ${stageArtifactsDirPath}
         """
         // fixate artifacts
         archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
@@ -106,30 +152,9 @@ def resetWs() {
     sh script: "git clean -fdx", label: "Clean up everything but files from git"
 }
 
-def activeDevBranchRegex() {
-    return '^\\d+\\.\\d+\\.\\d+-iap$'
-}
-
-def releaseBranchPrefixRegex() {
-    return '^release\\/'
-}
-
-def releaseBranchSuffixRegex() {
-    return '[^/]+$'
-}
-
-def releaseBranchRegex() {
-    return releaseBranchPrefixRegex() + releaseBranchSuffixRegex()
-}
-
-def headBranchName() {
-    return env.CHANGE_BRANCH ?: env.BRANCH_NAME
-}
-
 def isEligibleToNotify() {
-    return  !(env.BRANCH_NAME == "master") \
-            && !env.CHANGE_ID \
-            && (env.BRANCH_NAME ==~ activeDevBranchRegex() || env.BRANCH_NAME ==~ releaseBranchRegex())
+    return  !env.CHANGE_ID \
+            && (env.BRANCH_NAME ==~ env.ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (env.RELEASE_BRANCH_PREFIX_REGEX+env.RELEASE_BRANCH_SUFFIX_REGEX))
 }
 
 def notify(fixed, failedStageNames) {
@@ -175,7 +200,7 @@ def notify(fixed, failedStageNames) {
 }
 
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
@@ -186,10 +211,11 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
         -ff \${MAVEN_SKIP} -Djacoco.skip=true
     """,
     label: "imply query integration tests with ${jvmRuntimeOpt}"
+    dockerCleanup()
 }
 
 def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
@@ -199,10 +225,11 @@ def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
         -ff \${MAVEN_SKIP} -Djacoco.skip=true
     """,
     label: "imply ingest service integration tests with ${jvmRuntimeOpt}"
+    dockerCleanup()
 }
 
 def s3DeepStorageTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     script {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -233,10 +260,11 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
             }
         }
     }
+    dockerCleanup()
 }
 
 def kinesisDeepStorageTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     script {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId:  'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -257,10 +285,11 @@ def kinesisDeepStorageTests(jvmRuntimeOpt) {
             }
         }
     }
+    dockerCleanup()
 }
 
 def azureDeepStorageTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     script {
         withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
@@ -300,10 +329,11 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
             }
         }
     }
+    dockerCleanup()
 }
 
 def gcsDeepStorageTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     script {
         withCredentials([file(credentialsId: 'gcs-bucket-qa', variable: 'GC_KEY')]) {
@@ -341,10 +371,11 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
             }
         }
     }
+    dockerCleanup()
 }
 
 def hdfsDeepStorageTests(jvmRuntimeOpt) {
-    mavenInstall()
+    mavenCacheRestore()
     prepareIfconfig()
     writeFile   file:   "jenkins/hdfs-config",
                 text:   "druid_storage_type=hdfs\n" +
@@ -364,6 +395,25 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
         -ff \${MAVEN_SKIP} -Djacoco.skip=true
     """,
     label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
+    dockerCleanup()
+}
+
+def processingModuleTest() {
+    mavenCacheRestore()
+    sh script: '''#!/bin/bash
+        unset _JAVA_OPTIONS
+        # Set MAVEN_OPTS for Surefire launcher. Skip remoteresources to avoid intermittent connection timeouts when
+        # resolving the SIGAR dependency.
+        export BUILD_STATUS=0
+        MAVEN_OPTS='-Xmx1100m' ${MVN} test -pl ${MAVEN_PROJECTS:-processing} \
+            ${MAVEN_SKIP} -Dremoteresources.skip=true -Ddruid.generic.useDefaultValueForNull=${DRUID_USE_DEFAULT_VALUE_FOR_NULL:-true} \
+            || export BUILD_STATUS=1
+
+        ${MVN} -pl ${MAVEN_PROJECTS} jacoco:report
+        exit $BUILD_STATUS
+    ''',
+    label: "processing module test"
+    dockerCleanup()
 }
 
 //////////
@@ -372,13 +422,14 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
 
 pipeline {
     options {
-        timeout(time: 2, unit: 'HOURS')
+        timeout(time: 150, unit: 'MINUTES')
         buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
     }
 
     parameters {
         booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile')
         booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
+        booleanParam(name: 'SKIP_JENKINS_UNIT_TESTS_AND_CHECKS', defaultValue: false, description: 'Skip unit test and checks defined in the jenkinsfile')
         booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name')
     }
 
@@ -393,31 +444,84 @@ pipeline {
         ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
 
-        IMAGE_JDK8 = "docker/druid-ci-jdk8:1613508913"
-        IMAGE_JDK11 = "docker/druid-ci-jdk11:1613734090"
+        ACTIVE_DEV_BRANCH_REGEX = '^\\d+\\.\\d+\\.\\d+-iap$'
+        RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
+        RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
+
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1616503008"
+        IMAGE_JDK11 = "docker/druid-ci-jdk11:1616503008"
         RT_REGISTRY_URL = "https://repo.qa.imply.io/artifactory"
         RT_REGISTRY_CREDS = "repo.qa.imply.io"
-        DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e DOCKER_REGISTRY_MIRROR=https://registry-mirror.qa.imply.io:443"
-        DOCKER_AGENT_LABEL = "jenkinsOnDemand"
+        RT_SERVER_ID = "repo-qa-imply-io"
+        RT_DOCKER_REPOSITORY_PREFIX = "repo.qa.imply.io"
+        DOCKER_REGISTRY_MIRROR = "https://registry-mirror.qa.imply.io:443"
     }
 
     stages {
-        stage('Checks') {
+        stage('Maven install') {
             when {
                 expression { !params.SKIP_ALL_JENKINS_TESTS }
                 beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+                DOCKER_AGENT_LABEL = "jenkinsOnDemand"
+            }
+            parallel {
+                stage('(openjdk8) maven install') {
+                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+                stage('(openjdk11) maven install') {
+                    agent {docker {image "${IMAGE_JDK11}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK11}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Unit tests and checks') {
+            when {
+                expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root"
+                DOCKER_AGENT_LABEL = "jenkinsOnDemandMultiExec"
             }
             parallel {
                 stage('security vulnerabilities') {
                     agent {
                         docker {
-                            image 'maven:3.6.3-jdk-8'
-                            args '--memory=8g --memory-reservation=4g -u root:root'
-                            label 'jenkinsOnDemandMultiExec'
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
                         }
                     }
                     steps {
-                        mavenInstall()
+                        mavenCacheRestore()
                         sh script: '''#!/bin/bash
                             set -o pipefail
 
@@ -460,17 +564,349 @@ pipeline {
                         ''',
                         label: 'dependency check'
                     }
+                    post { cleanup { resetWs() } }
                 }
 
-                // example of integration tests stage:
-                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                    when {
-                        expression { !params.SKIP_JENKINS_INTEGRATION_TESTS } // skip on demand (based on parameter)
-                        beforeAgent true
+                stage('animal sniffer checks') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('checkstyle') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} checkstyle:checkstyle --fail-at-end" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('enforcer checks') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} enforcer:enforce --fail-at-end" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('forbidden api checks') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} forbiddenapis:check forbiddenapis:testCheck --fail-at-end" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('pmd checks') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} pmd:check --fail-at-end" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('spotbugs checks') {
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { mavenCacheRestore(); sh "${MVN} spotbugs:check --fail-at-end -pl '!benchmarks'" }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('license checks') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "jenkinsOnDemand"
+                        }
                     }
+                    steps {
+                        mavenCacheRestore()
+                        sh """
+                            ${MVN} apache-rat:check -Prat --fail-at-end \
+                                -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn \
+                                -Drat.consoleOutput=true
+                            # Generate dependency reports and checks they are valid. When running on Travis CI, 2 cores are available
+                            # (https://docs.travis-ci.com/user/reference/overview/#virtualisation-environment-vs-operating-system).
+                            mkdir -p target
+                            distribution/bin/generate-license-dependency-reports.py . target --clean-maven-artifact-transfer --parallel 2
+                            distribution/bin/check-licenses.py licenses.yaml target/license-reports
+                        """
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('(openjdk8) strict compilation') {
                     agent {
                         docker {
                             image "${IMAGE_JDK8}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "jenkinsOnDemand"
+                        }
+                    }
+                    steps {
+                        setupMavenSettings()
+                        sh """
+                            ${MVN} clean -Pstrict compile test-compile --fail-at-end \
+                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+                        """
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('analyze dependencies') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "jenkinsOnDemand"
+                        }
+                    }
+                    steps {
+                        mavenCacheRestore()
+                        sh """
+                            MAVEN_OPTS='-Xmx3000m' ${MVN} ${MAVEN_SKIP} dependency:analyze -DoutputXML=true -DignoreNonCompile=true -DfailOnWarning=true || { echo "
+
+                            The dependency analysis has found a dependency that is either:
+
+                            1) Used and undeclared: These are available as a transitive dependency but should be explicitly
+                            added to the POM to ensure the dependency version. The XML to add the dependencies to the POM is
+                            shown above.
+
+                            2) Unused and declared: These are not needed and removing them from the POM will speed up the build
+                            and reduce the artifact size. The dependencies to remove are shown above.
+
+                            If there are false positive dependency analysis warnings, they can be suppressed:
+                            https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html#usedDependencies
+                            https://maven.apache.org/plugins/maven-dependency-plugin/examples/exclude-dependencies-from-dependency-analysis.html
+
+                            For more information, refer to:
+                            https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html
+
+                            " && false; }
+                        """
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('intellij inspections') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
+                            args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                        }
+                    }
+                    steps {
+                        mavenCacheRestore()
+                        sh script:'''
+                            mkdir -p inspection-results
+                            docker run --rm \
+                            -v ${WORKSPACE}:/project \
+                            -v /home/jenkins/.m2:/home/inspect/.m2 \
+                            -v ${WORKSPACE}/inspection-results:/home/inspect/inspection-results \
+                            ccaominh/intellij-inspect:1.0.0 \
+                            /project/pom.xml \
+                            /project/.idea/inspectionProfiles/Druid.xml \
+                            --levels ERROR \
+                            --scope JavaInspectionsScope
+                        '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('(openjdk11) packaging check') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK11}-${BUILD_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                        }
+                    }
+                    steps {
+                        setupMavenSettings()
+                        sh script:'''
+                            MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
+                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
+                        '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('web-console') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                        }
+                    }
+                    steps {
+                        setupMavenSettings()
+                        sh script:'''
+                            ${MVN} test -pl 'web-console'
+                        '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                        success {
+                            sh script:'''
+                                cd web-console
+                                { for i in 1 2 3; do npm run codecov && break || sleep 15; done }
+                            '''
+                        }
+                    }
+                }
+
+                stage('docs') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                        }
+                    }
+                    steps {
+                        sh script:'''
+                            (cd website && npm install)
+                            (cd website && npm run lint && npm run spellcheck) || { echo "
+
+                            If there are spell check errors:
+
+                            1) Suppressing False Positives: Edit website/.spelling to add suppressions. Instructions
+                            are at the top of the file and explain how to suppress false positives either globally or
+                            within a particular file.
+
+                            2) Running Spell Check Locally: cd website && npm install && npm run spellcheck
+
+                            For more information, refer to: https://www.npmjs.com/package/markdown-spellcheck
+
+                            " && false; }
+                        '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
+                stage('(openjdk11) processing module test') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="processing"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) processing module test (SQL Compatibility)') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="processing"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) indexing modules test') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) indexing modules test (SQL Compatibility)') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) server module test') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="server"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) server module test (SQL Compatibility)') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="server"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) other modules test') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(openjdk11) other modules test (SQL Compatibility)') {
+                    agent {docker { image "${IMAGE_JDK11}-${BUILD_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    environment {
+                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    }
+                    steps { processingModuleTest() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+            }
+        }
+        stage('Integration tests') {
+            when {
+                expression { !params.SKIP_JENKINS_INTEGRATION_TESTS && !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+                DOCKER_AGENT_LABEL = "jenkinsOnDemand"
+            }
+            parallel {
+                // example of integration tests stage:
+                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${BUILD_TAG}"
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
@@ -492,43 +928,37 @@ pipeline {
 
                 // here is short format of integration tests stage:
                 stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { s3DeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { azureDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) hdfs deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { hdfsDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { gcsDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
@@ -536,43 +966,37 @@ pipeline {
                 // -Djvm.runtime=11
 
                 stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { s3DeepStorageTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { azureDeepStorageTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk11) hdfs deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { hdfsDeepStorageTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test') {
-                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
-                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { gcsDeepStorageTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
@@ -582,8 +1006,8 @@ pipeline {
         stage("Build and publish") {
             when {
                 anyOf {
-                    expression { headBranchName() ==~ activeDevBranchRegex() }
-                    expression { headBranchName() ==~ releaseBranchRegex() }
+                    expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
+                    expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
                     expression { params.PUBLISH_ON_ANY_BRANCH }
                 }
                 beforeAgent true
@@ -799,9 +1223,10 @@ pipeline {
                                 steps {
                                     script {
                                         def release_version = "None"
-                                        if(headBranchName() ==~ releaseBranchRegex()) {
-                                            release_version = (headBranchName() =~ releaseBranchSuffixRegex()).getAt(0)
-                                        } else if(headBranchName() ==~ activeDevBranchRegex()){
+                                        def headBranch = env.CHANGE_BRANCH ?: env.BRANCH_NAME
+                                        if(headBranch ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX)) {
+                                            release_version = (headBranch =~ env.RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
+                                        } else if(headBranch ==~ env.ACTIVE_DEV_BRANCH_REGEX) {
                                             release_version = sh(
                                                 script: '''#!/bin/bash -e
                                                     curl -s --netrc-file ${GITHUB_NETRC} \
@@ -821,13 +1246,13 @@ pipeline {
                                             returnStdout: true
                                         ).trim()
                                         rtUpload (
-                                            serverId: 'repo-qa-imply-io',
+                                            serverId: "${RT_SERVER_ID}",
                                             spec: """{
                                                 "files": [
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranchName()};build.version=${artifact_build_version}"
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
@@ -852,7 +1277,7 @@ pipeline {
         failure {
             // notify about failed build
             script {
-                def failedStageNames = getFailedStages( currentBuild ).collect { it.displayName }.findAll { !(it =~ /^(Checks|Matrix)/) }
+                def failedStageNames = getFailedStages( currentBuild ).collect { it.displayName }.findAll { !(it =~ /^(Unit|Integration|Matrix)/) }
                 if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
                     if(isEligibleToNotify()) { notify(false, failedStageNames) }
                 } else {
