@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.calcite.view.state.manager;
 
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
@@ -16,6 +17,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
+import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource.ViewDefinitionRequest;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -26,6 +30,8 @@ import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
 import org.apache.druid.java.util.http.client.response.StatusResponseHolder;
+import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.server.DruidNode;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -50,20 +56,49 @@ import java.util.function.BooleanSupplier;
 
 public class ViewStateManagerResourceTest
 {
+  static {
+    NullHandling.initializeForTests();
+  }
+
   public static final String SOME_VIEW = "some_view";
   public static final String SOME_SQL = "SELECT * FROM druid.some_table WHERE druid.some_table.some_column = 'value'";
 
   private static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
   private static final ObjectMapper SMILE_MAPPER = new ObjectMapper(new SmileFactory());
 
+  public String someSQLExplainResponse;
+
   private HttpServletRequest req;
   private ViewStateManager viewStateManager;
   private ViewStateManagerResource viewStateManagerResource;
   private HttpClient httpClient;
 
+  public static String buildSomeSQLExplainResponse()
+  {
+    String plan = "DruidQueryRel(query=[{\"queryType\":\"scan\",\"dataSource\":{\"type\":\"table\",\"name\":\"some_table\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"virtualColumns\":[{\"type\":\"expression\",\"name\":\"v0\",\"expression\":\"'value'\",\"outputType\":\"STRING\"}],\"resultFormat\":\"compactedList\",\"batchSize\":20480,\"order\":\"none\",\"filter\":{\"type\":\"selector\",\"dimension\":\"some_column\",\"value\":\"value\",\"extractionFn\":null},\"columns\":[\"__time\",\"v0\"],\"legacy\":false,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\",\"sqlQueryId\":\"dummy\"},\"descending\":false,\"granularity\":{\"type\":\"all\"}}], signature=[{__time:LONG, v0:STRING}])";
+    String resources = "[{\"name\":\"some_table\",\"type\":\"DATASOURCE\"}]";
+    List<Map<String, Object>> response = ImmutableList.of(
+        ImmutableMap.of(
+            "PLAN", plan,
+            "RESOURCES", resources
+        )
+    );
+    try {
+      return JSON_MAPPER.writeValueAsString(response);
+    }
+    catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Before
   public void setup()
   {
+    JSON_MAPPER.setInjectableValues(
+        new InjectableValues.Std()
+            .addValue(ExprMacroTable.class.getName(), TestExprMacroTable.INSTANCE)
+            .addValue(ObjectMapper.class.getName(), JSON_MAPPER)
+    );
     req = EasyMock.createMock(HttpServletRequest.class);
     httpClient = EasyMock.createMock(HttpClient.class);
 
@@ -119,13 +154,28 @@ public class ViewStateManagerResourceTest
     };
 
     viewStateManager = EasyMock.createMock(ViewStateManager.class);
-    viewStateManagerResource = new ViewStateManagerResource(viewStateManager, discoveryProvider, httpClient, JSON_MAPPER);
+    viewStateManagerResource = new ViewStateManagerResource(
+        new ViewStateManagementConfig(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        ),
+        viewStateManager,
+        discoveryProvider,
+        httpClient,
+        JSON_MAPPER
+    );
+    someSQLExplainResponse = buildSomeSQLExplainResponse();
   }
 
   @Test
   public void testCreateView()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK);
+    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.createView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(1).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.createView(
@@ -142,7 +192,7 @@ public class ViewStateManagerResourceTest
   @Test
   public void testAlterView()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK);
+    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.alterView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(1).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.alterView(
@@ -158,7 +208,7 @@ public class ViewStateManagerResourceTest
   @Test
   public void testAlterViewNotExist()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK);
+    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.alterView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(0).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.alterView(
@@ -282,8 +332,8 @@ public class ViewStateManagerResourceTest
         "Invalid view definition: SELECT * FROM druid.some_table WHERE druid.some_table.some_column = 'value'"
     );
 
-    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST);
-    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST);
+    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST, null);
+    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST, null);
     EasyMock.replay(req, httpClient, viewStateManager);
 
     Response response = viewStateManagerResource.createView(
@@ -315,8 +365,8 @@ public class ViewStateManagerResourceTest
         )
     );
 
-    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR);
-    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
+    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
     EasyMock.replay(req, httpClient, viewStateManager);
 
     Response response = viewStateManagerResource.createView(
@@ -336,6 +386,17 @@ public class ViewStateManagerResourceTest
     Assert.assertEquals(errorEntity, response.getEntity());
   }
 
+  @Test
+  public void testSerdeViewDefinitionRequest() throws IOException
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ViewDefinitionRequest request = new ViewDefinitionRequest("select * from test");
+    final String json = mapper.writeValueAsString(request);
+    System.err.println(json);
+    final ViewDefinitionRequest fromJson = mapper.readValue(json, ViewDefinitionRequest.class);
+    Assert.assertEquals(request, fromJson);
+  }
+
   private void replayAll()
   {
     EasyMock.replay(req, viewStateManager);
@@ -346,7 +407,10 @@ public class ViewStateManagerResourceTest
     EasyMock.verify(req, viewStateManager);
   }
 
-  private void expectBrokerValidationCheck(HttpResponseStatus expectedResponseStatus)
+  private void expectBrokerValidationCheck(
+      HttpResponseStatus expectedResponseStatus,
+      String responseContent
+  )
   {
     ListenableFuture<StatusResponseHolder> future = new ListenableFuture<StatusResponseHolder>()
     {
@@ -377,13 +441,19 @@ public class ViewStateManagerResourceTest
       @Override
       public StatusResponseHolder get()
       {
-        return new StatusResponseHolder(expectedResponseStatus, new StringBuilder());
+        return new StatusResponseHolder(
+            expectedResponseStatus,
+            new StringBuilder(responseContent == null ? "" : responseContent)
+        );
       }
 
       @Override
       public StatusResponseHolder get(long timeout, TimeUnit unit)
       {
-        return new StatusResponseHolder(expectedResponseStatus, new StringBuilder());
+        return new StatusResponseHolder(
+            expectedResponseStatus,
+            new StringBuilder(responseContent == null ? "" : responseContent)
+        );
       }
     };
 
