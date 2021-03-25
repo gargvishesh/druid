@@ -512,7 +512,7 @@ pipeline {
                 }
 
                 // here is short format of integration tests stage:
-                stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
+                stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
                     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                     agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
@@ -570,7 +570,7 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                stage('(Compile=openjdk8, Run=openjdk11) imply keycloak security integration tests') {
                     when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
                     agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=11') }
