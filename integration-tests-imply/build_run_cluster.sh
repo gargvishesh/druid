@@ -58,11 +58,11 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
 
     echo "Waiting for keycloak to come up"
     counter=0
-    until [ $counter -eq 6 ] || curl localhost:8080; do
+    until [ $counter -eq 12 ] || curl localhost:8080; do
         sleep 10
         ((counter++))
     done
-    [ $counter -lt 5 ]
+    [ $counter -lt 11 ]
 
     docker exec imply-keycloak /bin/bash -c '/tmp/setup.sh'
 
