@@ -11,8 +11,8 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
-import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.server.security.Escalator;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
@@ -39,22 +39,16 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
 
   @Inject
   public DruidKeycloakConfigResolver(
-      @EscalatedGlobal AdapterConfig internalConfig,
+      Escalator escalator,
       AdapterConfig userConfig
   )
   {
     KeycloakDeployment internalDeployment = null;
-    /* A different escalator type may be in use. Allow for the system to continue if
-       no keycloak escalator is configured */
-    try {
-      internalDeployment = KeycloakDeploymentBuilder.build(internalConfig);
+    /* A different escalator type may be in use. Allow for the system to continue if no keycloak escalator is configured */
+    if (escalator instanceof ImplyKeycloakEscalator) {
+      internalDeployment = KeycloakDeploymentBuilder.build(((ImplyKeycloakEscalator) escalator).getConfig());
     }
-    catch (Exception e) {
-      LOG.warn(
-          e,
-          "Failed to build internal keycloak escalator config. Cluster internal communication cannot be authenticated or authorized using keycloak"
-      );
-    }
+    
     this.internalDeployment = internalDeployment;
     this.userDeployment = KeycloakDeploymentBuilder.build(userConfig);
   }

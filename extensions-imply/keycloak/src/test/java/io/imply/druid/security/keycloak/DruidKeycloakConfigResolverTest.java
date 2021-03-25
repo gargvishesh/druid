@@ -9,6 +9,9 @@
 
 package io.imply.druid.security.keycloak;
 
+import org.apache.druid.java.util.http.client.HttpClient;
+import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.Escalator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.keycloak.adapters.spi.HttpFacade.Request;
@@ -29,7 +32,7 @@ public class DruidKeycloakConfigResolverTest
     userConfig.setResource("user");
     userConfig.setAuthServerUrl("http://user-auth");
     final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
-        internalConfig,
+        new ImplyKeycloakEscalator("authorizer", internalConfig),
         userConfig
     );
     final Request request = Mockito.mock(Request.class);
@@ -43,7 +46,7 @@ public class DruidKeycloakConfigResolverTest
   }
 
   @Test
-  public void test_resolve_escalatorConfigNotSetAndInternalRequest_returnsNullDeployment()
+  public void test_resolve_escalatorNotKeycloakTypeAndInternalRequest_returnsNullDeployment()
   {
     final AdapterConfig internalConfig = new AdapterConfig();
     final AdapterConfig userConfig = new AdapterConfig();
@@ -51,7 +54,20 @@ public class DruidKeycloakConfigResolverTest
     userConfig.setResource("user");
     userConfig.setAuthServerUrl("http://user-auth");
     final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
-        internalConfig,
+        new Escalator()
+        {
+          @Override
+          public HttpClient createEscalatedClient(HttpClient baseClient)
+          {
+            return null;
+          }
+
+          @Override
+          public AuthenticationResult createEscalatedAuthenticationResult()
+          {
+            return null;
+          }
+        },
         userConfig
     );
     final Request request = Mockito.mock(Request.class);
@@ -69,7 +85,20 @@ public class DruidKeycloakConfigResolverTest
     userConfig.setResource("user");
     userConfig.setAuthServerUrl("http://user-auth");
     final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
-        internalConfig,
+        new Escalator()
+        {
+          @Override
+          public HttpClient createEscalatedClient(HttpClient baseClient)
+          {
+            return null;
+          }
+
+          @Override
+          public AuthenticationResult createEscalatedAuthenticationResult()
+          {
+            return null;
+          }
+        },
         userConfig
     );
     final Request request = Mockito.mock(Request.class);

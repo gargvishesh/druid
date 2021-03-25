@@ -88,9 +88,14 @@ public class ImplyKeycloakModuleTest
     config.setAuthServerUrl("http://url");
     final ObjectMapper mapper = new DefaultObjectMapper();
     mapper.setInjectableValues(
-        new Std().addValue(DruidKeycloakConfigResolver.class, new DruidKeycloakConfigResolver(config, config))
+        new Std().addValue(
+            DruidKeycloakConfigResolver.class,
+            new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", config), config))
                  .addValue(AdapterConfig.class, config)
-                 .addValue(KeycloakAuthorizerMetadataStorageUpdater.class, new CoordinatorKeycloakAuthorizerMetadataStorageUpdater())
+                 .addValue(
+                     KeycloakAuthorizerMetadataStorageUpdater.class,
+                     new CoordinatorKeycloakAuthorizerMetadataStorageUpdater()
+                 )
                  .addValue(ObjectMapper.class, new ObjectMapper(new SmileFactory()))
     );
     module.getJacksonModules().forEach(mapper::registerModule);
