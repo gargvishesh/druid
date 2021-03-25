@@ -60,6 +60,74 @@ public class ImplyKeycloakAuthorizerTest
   }
 
   @Test
+  public void test_authorize_emptyContext_accessDenied()
+  {
+    Mockito.when(storageUpdater.getCurrentRoleMapBytes()).thenReturn(null);
+    Assert.assertEquals(
+        ACCESS_DENIED.isAllowed(),
+        authorizer.authorize(
+            new AuthenticationResult("identity", "authorizer", null, ImmutableMap.of()),
+            Resource.STATE_RESOURCE,
+            Action.READ
+        ).isAllowed()
+    );
+  }
+
+  @Test
+  public void test_authorize_contextWithRolesNotTypeStringList_accessDenied() throws JsonProcessingException
+  {
+    byte[] roleMapBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+        "role", new KeycloakAuthorizerRole("role", ImmutableList.of(
+            new KeycloakAuthorizerPermission(new ResourceAction(
+                new Resource("blah", ResourceType.STATE),
+                Action.READ
+            ), Pattern.compile("blah"))
+        ))
+    ));
+    Mockito.when(storageUpdater.getCurrentRoleMapBytes()).thenReturn(roleMapBytes);
+    Assert.assertEquals(
+        ACCESS_DENIED.isAllowed(),
+        authorizer.authorize(
+            new AuthenticationResult(
+                "identity",
+                "authorizer",
+                null,
+                ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of(2))
+            ),
+            Resource.STATE_RESOURCE,
+            Action.READ
+        ).isAllowed()
+    );
+  }
+
+  @Test
+  public void test_authorize_roleInContextNotFoundInAuthorizer_accessDenied() throws JsonProcessingException
+  {
+    byte[] roleMapBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+        "role", new KeycloakAuthorizerRole("role", ImmutableList.of(
+            new KeycloakAuthorizerPermission(new ResourceAction(
+                new Resource("blah", ResourceType.STATE),
+                Action.READ
+            ), Pattern.compile("blah"))
+        ))
+    ));
+    Mockito.when(storageUpdater.getCurrentRoleMapBytes()).thenReturn(roleMapBytes);
+    Assert.assertEquals(
+        ACCESS_DENIED.isAllowed(),
+        authorizer.authorize(
+            new AuthenticationResult(
+                "identity",
+                "authorizer",
+                null,
+                ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of("superRole"))
+            ),
+            Resource.STATE_RESOURCE,
+            Action.READ
+        ).isAllowed()
+    );
+  }
+
+  @Test
   public void test_authorize_roleDoesNotIncludePermissionNeeded_accessDenied() throws JsonProcessingException
   {
     byte[] roleMapBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
@@ -74,7 +142,12 @@ public class ImplyKeycloakAuthorizerTest
     Assert.assertEquals(
         ACCESS_DENIED.isAllowed(),
         authorizer.authorize(
-            new AuthenticationResult("identity", "authorizer", null, null),
+            new AuthenticationResult(
+                "identity",
+                "authorizer",
+                null,
+                ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of("role"))
+            ),
             Resource.STATE_RESOURCE,
             Action.READ
         ).isAllowed()
@@ -128,6 +201,34 @@ public class ImplyKeycloakAuthorizerTest
                 "authorizer",
                 null,
                 ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of("role"))
+            ),
+            Resource.STATE_RESOURCE,
+            Action.READ
+        ).isAllowed()
+    );
+  }
+
+  @Test
+  public void test_authorize_roleDoesIncludePermissionNeededRegexMatchAndNonStringRoleInContext_accessAllowed()
+      throws JsonProcessingException
+  {
+    byte[] roleMapBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+        "role", new KeycloakAuthorizerRole("role", ImmutableList.of(
+            new KeycloakAuthorizerPermission(new ResourceAction(
+                Resource.STATE_RESOURCE,
+                Action.READ
+            ), Pattern.compile(".*"))
+        ))
+    ));
+    Mockito.when(storageUpdater.getCurrentRoleMapBytes()).thenReturn(roleMapBytes);
+    Assert.assertEquals(
+        Access.OK.isAllowed(),
+        authorizer.authorize(
+            new AuthenticationResult(
+                "identity",
+                "authorizer",
+                null,
+                ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of(2, "role"))
             ),
             Resource.STATE_RESOURCE,
             Action.READ

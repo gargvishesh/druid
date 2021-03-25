@@ -28,7 +28,7 @@ public class KeycloakAuthUtils
   public static final String ADMIN_NAME = "admin";
   public static final String KEYCLOAK_AUTHORIZER_NAME = "keycloak-authorizer";
   public static final String AUTHENTICATED_ROLES_CONTEXT_KEY = "imply-roles";
-  public static final List<String> EMPTY_ROLES = ImmutableList.of();
+  public static final List<Object> EMPTY_ROLES = ImmutableList.of();
 
   public static final Predicate<Throwable> SHOULD_RETRY_INIT =
       (throwable) -> throwable instanceof KeycloakSecurityDBResourceException;

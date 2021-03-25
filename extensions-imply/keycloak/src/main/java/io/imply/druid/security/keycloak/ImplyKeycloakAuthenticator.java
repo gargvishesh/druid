@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -31,6 +32,7 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   private final String authenticatorName;
   private final String authorizerName;
   private final String rolesTokenClaim;
+  private final AccessTokenValidator accessTokenValidator;
 
   @JsonCreator
   public ImplyKeycloakAuthenticator(
@@ -44,6 +46,23 @@ public class ImplyKeycloakAuthenticator implements Authenticator
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
     this.rolesTokenClaim = Preconditions.checkNotNull(rolesTokenClaim, "roleTokenClaim");
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
+    this.accessTokenValidator = new AccessTokenValidator(authorizerName, rolesTokenClaim);
+  }
+
+  @VisibleForTesting
+  ImplyKeycloakAuthenticator(
+      String authenticatorName,
+      String authorizerName,
+      String rolesTokenClaim,
+      DruidKeycloakConfigResolver configResolver,
+      AccessTokenValidator accessTokenValidator
+  )
+  {
+    this.authenticatorName = authenticatorName;
+    this.authorizerName = authorizerName;
+    this.rolesTokenClaim = rolesTokenClaim;
+    this.configResolver = configResolver;
+    this.accessTokenValidator = accessTokenValidator;
   }
 
   @Override
@@ -89,7 +108,11 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   @Override
   public AuthenticationResult authenticateJDBCContext(Map<String, Object> context)
   {
-    // no jdbc
-    return null;
+    String bearerTokenString = (String) context.get("Bearer");
+    if (bearerTokenString == null) {
+      return null;
+    }
+
+    return accessTokenValidator.authenticateToken(bearerTokenString, configResolver.getUserDeployment());
   }
 }

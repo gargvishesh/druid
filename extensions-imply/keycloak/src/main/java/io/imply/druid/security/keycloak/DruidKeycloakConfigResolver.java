@@ -74,7 +74,6 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
     return internalDeployment;
   }
 
-  @VisibleForTesting
   KeycloakDeployment getUserDeployment()
   {
     return userDeployment;

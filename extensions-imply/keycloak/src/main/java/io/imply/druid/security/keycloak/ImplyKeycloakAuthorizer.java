@@ -61,19 +61,26 @@ public class ImplyKeycloakAuthorizer implements Authorizer
   public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
   {
     Preconditions.checkNotNull(authenticationResult, "authenticationResult");
-    List<String> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
+    List<Object> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
         objectMapper,
         storageUpdater.getCurrentRoleMapBytes()
     );
-    for (String roleName : allowedRoles) {
-      KeycloakAuthorizerRole role = roleMap.get(roleName);
-      if (role != null) {
-        for (KeycloakAuthorizerPermission permission : role.getPermissions()) {
-          if (permissionCheck(resource, action, permission)) {
-            return Access.OK;
+    for (Object role : allowedRoles) {
+      String roleName;
+      try {
+        roleName = (String) role;
+        KeycloakAuthorizerRole authorizerRole = roleMap.get(roleName);
+        if (authorizerRole != null) {
+          for (KeycloakAuthorizerPermission permission : authorizerRole.getPermissions()) {
+            if (permissionCheck(resource, action, permission)) {
+              return Access.OK;
+            }
           }
         }
+      }
+      catch (ClassCastException e) {
+        LOG.warn("Could not cast role [%s] to string format", role);
       }
     }
 
@@ -81,7 +88,7 @@ public class ImplyKeycloakAuthorizer implements Authorizer
   }
 
   @SuppressWarnings("unchecked")
-  private List<String> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
+  private List<Object> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
   {
     Map<String, Object> context = authenticationResult.getContext();
     if (context == null || context.isEmpty()) {
@@ -90,7 +97,7 @@ public class ImplyKeycloakAuthorizer implements Authorizer
     }
 
     if (context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY) instanceof List) {
-      return (List<String>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
+      return (List<Object>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
     } else {
       LOG.warn("User [%s] roles had unexpected type", authenticationResult.getIdentity());
       return KeycloakAuthUtils.EMPTY_ROLES;

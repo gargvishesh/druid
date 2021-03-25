@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.tests.ImplyTestNGGroup;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -47,12 +48,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 // TODO: renable with IMPLY-6305
-@Test(enabled = false)//, groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
+@Test(groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTest
 {
@@ -70,6 +72,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
 
   private static final String KEYCLOAK_AUTHENTICATOR = "ImplyKeycloakAuthenticator";
   private static final String KEYCLOAK_AUTHORIZER = "ImplyKeycloakAuthorizer";
+
+  private static final String EXPECTED_AVATICA_AUTH_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: ForbiddenException: Authentication failed.";
+
 
   @Inject
   IntegrationTestingConfig config;
@@ -357,6 +362,46 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     Assert.assertFalse(roles.contains(roleName));
   }
 
+  @Test
+  public void test_avaticaQuery_broker()
+  {
+    testAvaticaQuery(getBrokerAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQuery_router()
+  {
+    testAvaticaQuery(getRouterAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQueryAuthFailure_broker() throws Exception
+  {
+    testAvaticaAuthFailure(getBrokerAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQueryAuthFailure_router() throws Exception
+  {
+    testAvaticaAuthFailure(getRouterAvacticaUrl());
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionProperties()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    return connectionProperties;
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionPropertiesFailure()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("NotBearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    return connectionProperties;
+  }
+
   @Override
   protected void setupUsers() throws Exception
   {
@@ -415,7 +460,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Override
   protected String getExpectedAvaticaAuthError()
   {
-    return null;
+    return EXPECTED_AVATICA_AUTH_ERROR;
   }
 
   private void createRolesWithPermissions(

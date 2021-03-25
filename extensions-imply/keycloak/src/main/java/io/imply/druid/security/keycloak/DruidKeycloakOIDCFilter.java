@@ -178,7 +178,7 @@ public class DruidKeycloakOIDCFilter implements Filter
         // so that the authorizer can do its job properly.
         // ------- new part start -------
         final KeycloakAccount account = getKeycloakAccount(request);
-        List<String> implyRoles = getImplyRoles(account);
+        List<Object> implyRoles = getImplyRoles(account);
         final AuthenticationResult authenticationResult = new AuthenticationResult(
             getIdentity(account),
             authorizerName,
@@ -289,7 +289,7 @@ public class DruidKeycloakOIDCFilter implements Filter
   }
 
   @SuppressWarnings("unchecked")
-  private List<String> getImplyRoles(KeycloakAccount account)
+  private List<Object> getImplyRoles(KeycloakAccount account)
   {
     if (account instanceof OidcKeycloakAccount) {
       final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
@@ -297,8 +297,8 @@ public class DruidKeycloakOIDCFilter implements Filter
       if (securityContext.getToken() != null) {
         return (securityContext.getToken().getOtherClaims() != null
                 && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) != null
-               && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) instanceof List) ?
-               (List<String>) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
+                && securityContext.getToken().getOtherClaims().get(rolesTokenClaim) instanceof List) ?
+               (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaim) :
                KeycloakAuthUtils.EMPTY_ROLES;
       }
     }

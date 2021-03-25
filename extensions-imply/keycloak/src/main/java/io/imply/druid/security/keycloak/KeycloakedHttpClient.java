@@ -90,4 +90,10 @@ public class KeycloakedHttpClient extends AbstractHttpClient
 
     return delegate.go(request, handler, readTimeout);
   }
+
+  @VisibleForTesting
+  public String getAccessTokenString()
+  {
+    return tokenManager.getAccessTokenString();
+  }
 }
