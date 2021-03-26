@@ -48,6 +48,7 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 @Test(groups = TestNGGroup.LDAP_SECURITY)
@@ -370,6 +371,24 @@ public class ITBasicAuthLdapConfigurationTest extends AbstractAuthConfigurationT
   public void testMaliciousUser()
   {
     verifyMaliciousUser();
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionProperties()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("user", "admin");
+    connectionProperties.setProperty("password", "priest");
+    return connectionProperties;
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionPropertiesFailure()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("user", "admin");
+    connectionProperties.setProperty("password", "wrongpassword");
+    return connectionProperties;
   }
 
   @Override

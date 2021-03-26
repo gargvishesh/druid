@@ -83,8 +83,9 @@ public class ImplyKeycloakModule implements DruidModule
       final Injector injector
   )
   {
-    Set<NodeRole> nodeRoles = getNodeRoles(injector);
-    return injector.getInstance(getStorageUpdaterClassForService(nodeRoles));
+    // TODO: Coordinator storage updater is bound for all services now since there is no caching layer at the moment
+    //       This will be fixed with IMPLY-6252
+    return injector.getInstance(CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class);
   }
 
   private static Class<? extends KeycloakAuthorizerResourceHandler> getResourceHandlerClassForService(Set<NodeRole> nodeRoles)

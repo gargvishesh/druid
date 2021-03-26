@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 @Test(groups = TestNGGroup.SECURITY)
@@ -320,6 +321,24 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   public void testMaliciousUser()
   {
     verifyMaliciousUser();
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionProperties()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("user", "admin");
+    connectionProperties.setProperty("password", "priest");
+    return connectionProperties;
+  }
+
+  @Override
+  protected Properties getAvaticaConnectionPropertiesFailure()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("user", "admin");
+    connectionProperties.setProperty("password", "wrongpassword");
+    return connectionProperties;
   }
 
   @Override

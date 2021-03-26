@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
@@ -72,6 +73,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
       )
   );
 
+  private Injector injector;
   private AuthorizerMapper authorizerMapper;
   private MetadataStorageConnector connector;
   private MetadataStorageTablesConfig connectorConfig;
@@ -82,13 +84,15 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
   @Before
   public void setup()
   {
+    injector = Mockito.mock(Injector.class);
     authorizerMapper = Mockito.mock(AuthorizerMapper.class);
     connector = Mockito.mock(MetadataStorageConnector.class);
     connectorConfig = Mockito.mock(MetadataStorageTablesConfig.class);
+    Mockito.when(injector.getInstance(AuthorizerMapper.class)).thenReturn(authorizerMapper);
     Mockito.when(connectorConfig.getConfigTable()).thenReturn("config");
 
     storageUpdater = new CoordinatorKeycloakAuthorizerMetadataStorageUpdater(
-        authorizerMapper,
+        injector,
         connector,
         connectorConfig,
         objectMapper

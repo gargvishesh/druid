@@ -228,6 +228,19 @@ def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
     dockerCleanup()
 }
 
+def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    sh script: """
+        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+        -Dgroups=keycloak-security \
+        -Dit.indexer=middleManager \
+        ${jvmRuntimeOpt} \
+        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+    """,
+    label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
+}
+
 def s3DeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
@@ -933,6 +946,14 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
+                // here is short format of integration tests stage:
+                stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
                 stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
                     agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { s3DeepStorageTests('-Djvm.runtime=8') }
@@ -974,6 +995,13 @@ pipeline {
                 stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
                     agent {docker {image "${IMAGE_JDK8}-${BUILD_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk11) imply keycloak security integration tests') {
+                    when { expression { !params.SKIP_JENKINS_INTEGRATION_TESTS }; beforeAgent true }
+                    agent {docker {image "${IMAGE_JDK8}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=11') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
