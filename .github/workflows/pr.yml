@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH_PREFIX: "master-for-merge-to-release"
           PULL_REQUEST_FROM_BRANCH: "master-for-merge-to-release" 
-          PULL_REQUEST_BRANCH: "0.21.0-iap"
+          PULL_REQUEST_BRANCH: "monthly"
       - name: Print outputs
         env:
           pull_request_number_output: ${{ steps.pull_request.outputs.pull_request_number }}

@@ -457,7 +457,7 @@ pipeline {
         ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
 
-        ACTIVE_DEV_BRANCH_REGEX = '^\\d+\\.\\d+\\.\\d+-iap$'
+        ACTIVE_DEV_BRANCH_REGEX = '^monthly$'
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
         RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
 
