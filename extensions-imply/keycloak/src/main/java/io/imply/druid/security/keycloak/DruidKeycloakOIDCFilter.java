@@ -46,6 +46,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class is adopted from org.keycloak.adapters.servlet.KeycloakOIDCFilter and modified to follow the contract
@@ -295,9 +296,9 @@ public class DruidKeycloakOIDCFilter implements Filter
       final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
       final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
       if (securityContext.getToken() != null) {
-        return (securityContext.getToken().getOtherClaims() != null
-                && securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) != null
-                && securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) instanceof List) ?
+        Map<String, Object> otherClaims = securityContext.getToken().getOtherClaims();
+        return (otherClaims != null
+                && otherClaims.get(rolesTokenClaimName) instanceof List) ?
                (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) :
                KeycloakAuthUtils.EMPTY_ROLES;
       }
