@@ -98,7 +98,7 @@ public class BatchAppendJobRunnerTest extends BaseJobRunnerTest
     Assert.assertEquals(
         new DimensionsSpec(
             DimensionsSpec.getDefaultSchemas(Arrays.asList("dim1", "dim2")),
-            ImmutableList.of(timestampSpec.getTimestampColumn()),
+            ImmutableList.of(timestampSpec.getTimestampColumn(), "__time"),
             null
         ),
         dataSchema.getDimensionsSpec()
@@ -141,7 +141,7 @@ public class BatchAppendJobRunnerTest extends BaseJobRunnerTest
     Assert.assertEquals(
         new DimensionsSpec(
             DimensionsSpec.getDefaultSchemas(Arrays.asList("dim1", "dim2")),
-            ImmutableList.of(timestampSpec.getTimestampColumn()),
+            ImmutableList.of(timestampSpec.getTimestampColumn(), "__time"),
             null
         ),
         dataSchema.getDimensionsSpec()
