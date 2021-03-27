@@ -33,7 +33,7 @@ branches:
   - latest
   - /^druid-.*-iap.*$/
   # Branch for the monthly release
-  - /0.21.0-iap.*$/
+  - monthly
   - /^release\//
 # -------- End Imply specific --------
 
