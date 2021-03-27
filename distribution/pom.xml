@@ -249,6 +249,8 @@
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter-kafka</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-keycloak</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>
@@ -392,6 +394,8 @@
                                         <argument>io.imply.druid.extensions:ingest-service</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

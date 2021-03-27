@@ -9,33 +9,84 @@
 
 package io.imply.druid.tests.security;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
+import io.imply.druid.security.keycloak.TokenManager;
+import io.imply.druid.security.keycloak.TokenService;
+import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
+import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.tests.ImplyTestNGGroup;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.java.util.http.client.HttpClient;
+import org.apache.druid.java.util.http.client.response.StatusResponseHolder;
+import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceType;
+import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
+import org.apache.druid.testing.utils.HttpUtil;
 import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.tests.security.AbstractAuthConfigurationTest;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
 import org.keycloak.adapters.authentication.ClientCredentialsProviderUtils;
 import org.keycloak.representations.adapters.config.AdapterConfig;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 // TODO: renable with IMPLY-6305
-@Test(enabled = false)//, groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
+@Test(groups = ImplyTestNGGroup.KEYCLOAK_SECURITY)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTest
 {
   private static final Logger LOG = new Logger(ITKeycloakAuthConfigurationTest.class);
 
+  static final TypeReference<Set<String>> ROLES_RESULTS_TYPE_REFERENCE =
+      new TypeReference<Set<String>>()
+      {
+      };
+
+  static final TypeReference<List<KeycloakAuthorizerPermission>> ROLE_PERMISSIONS_RESULT_TYPE_REFERENCE =
+      new TypeReference<List<KeycloakAuthorizerPermission>>()
+      {
+      };
+
   private static final String KEYCLOAK_AUTHENTICATOR = "ImplyKeycloakAuthenticator";
   private static final String KEYCLOAK_AUTHORIZER = "ImplyKeycloakAuthorizer";
+
+  private static final String EXPECTED_AVATICA_AUTH_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: ForbiddenException: Authentication failed.";
+
+
+  @Inject
+  IntegrationTestingConfig config;
+
+  @Inject
+  ObjectMapper jsonMapper;
+
+  private HttpClient datasourceOnlyUserClient;
+  private HttpClient datasourceWithStateUserClient;
+  private HttpClient stateOnlyUserClient;
 
   @BeforeClass
   public void before() throws Exception
@@ -87,6 +138,136 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Test
+  public void test_systemSchemaAccess_datasourceOnlyUser() throws Exception
+  {
+    // check that we can access a datasource-permission restricted resource on the broker
+    HttpUtil.makeRequest(
+        datasourceOnlyUserClient,
+        HttpMethod.GET,
+        config.getBrokerUrl() + "/druid/v2/datasources/auth_test",
+        null
+    );
+
+    // as user that can only read auth_test
+    LOG.info("Checking sys.segments query as datasourceOnlyUser...");
+    verifySystemSchemaQuery(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        adminSegments.stream()
+                     .filter((segmentEntry) -> "auth_test".equals(segmentEntry.get("datasource")))
+                     .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.servers query as datasourceOnlyUser...");
+    verifySystemSchemaQueryFailure(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        HttpResponseStatus.FORBIDDEN,
+        "{\"Access-Check-Result\":\"Insufficient permission to view servers : Allowed:false, Message:\"}"
+    );
+
+    LOG.info("Checking sys.server_segments query as datasourceOnlyUser...");
+    verifySystemSchemaQueryFailure(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        HttpResponseStatus.FORBIDDEN,
+        "{\"Access-Check-Result\":\"Insufficient permission to view servers : Allowed:false, Message:\"}"
+    );
+
+    LOG.info("Checking sys.tasks query as datasourceOnlyUser...");
+    verifySystemSchemaQuery(
+        datasourceOnlyUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        adminTasks.stream()
+                  .filter((taskEntry) -> "auth_test".equals(taskEntry.get("datasource")))
+                  .collect(Collectors.toList())
+    );
+  }
+
+  @Test
+  public void test_systemSchemaAccess_datasourceWithStateUser() throws Exception
+  {
+    // check that we can access a state-permission restricted resource on the broker
+    HttpUtil.makeRequest(
+        datasourceWithStateUserClient,
+        HttpMethod.GET,
+        config.getBrokerUrl() + "/status",
+        null
+    );
+
+    // as user that can read auth_test and STATE
+    LOG.info("Checking sys.segments query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        adminSegments.stream()
+                     .filter((segmentEntry) -> "auth_test".equals(segmentEntry.get("datasource")))
+                     .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.servers query as datasourceWithStateUser...");
+    verifySystemSchemaServerQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        adminServers
+    );
+
+    LOG.info("Checking sys.server_segments query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        adminServerSegments.stream()
+                           .filter((serverSegmentEntry) -> ((String) serverSegmentEntry.get("segment_id")).contains(
+                               "auth_test"))
+                           .collect(Collectors.toList())
+    );
+
+    LOG.info("Checking sys.tasks query as datasourceWithStateUser...");
+    verifySystemSchemaQuery(
+        datasourceWithStateUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        adminTasks.stream()
+                  .filter((taskEntry) -> "auth_test".equals(taskEntry.get("datasource")))
+                  .collect(Collectors.toList())
+    );
+  }
+
+  @Test
+  public void test_systemSchemaAccess_stateOnlyUser() throws Exception
+  {
+    HttpUtil.makeRequest(stateOnlyUserClient, HttpMethod.GET, config.getBrokerUrl() + "/status", null);
+
+    // as user that can only read STATE
+    LOG.info("Checking sys.segments query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SEGMENTS_QUERY,
+        Collections.emptyList()
+    );
+
+    LOG.info("Checking sys.servers query as stateOnlyUser...");
+    verifySystemSchemaServerQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SERVERS_QUERY,
+        adminServers
+    );
+
+    LOG.info("Checking sys.server_segments query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_SERVER_SEGMENTS_QUERY,
+        Collections.emptyList()
+    );
+
+    LOG.info("Checking sys.tasks query as stateOnlyUser...");
+    verifySystemSchemaQuery(
+        stateOnlyUserClient,
+        SYS_SCHEMA_TASKS_QUERY,
+        Collections.emptyList()
+    );
+  }
+
+  @Test
   public void test_unsecuredPathWithoutCredentials_allowed()
   {
     // check that we are allowed to access unsecured path without credentials.
@@ -108,51 +289,162 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Test(expectedExceptions = { RuntimeException.class })
   public void test_nonExistent_fails()
   {
-    adminClient = buildHttpClientForUser("doesNotExist", "bogus");
+    buildHttpClientForUser("doesNotExist", "bogus");
+  }
+
+  @Test
+  public void test_role_lifecycle() throws Exception
+  {
+    // create a role that can only read 'auth_test'
+    String roleName = "role_test_role_lifecycle";
+    List<ResourceAction> resourceActions = Collections.singletonList(
+        new ResourceAction(
+            new Resource("auth_test", ResourceType.DATASOURCE),
+            Action.READ
+        )
+    );
+
+    createRolesWithPermissions(ImmutableMap.of(roleName, resourceActions));
+
+    // get roles and ensure that the role is there
+    StatusResponseHolder responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
+    String content = responseHolder.getContent();
+    Set<String> roles = jsonMapper.readValue(content, ROLES_RESULTS_TYPE_REFERENCE);
+    Assert.assertTrue(roles.contains(roleName));
+
+    // get role permissions and ensure that they match what is expected
+    responseHolder = makeGetRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    content = responseHolder.getContent();
+    KeycloakAuthorizerRoleSimplifiedPermissions roleWithPermissions = jsonMapper.readValue(
+        content,
+        KeycloakAuthorizerRoleSimplifiedPermissions.class
+    );
+    Assert.assertEquals(roleName, roleWithPermissions.getName());
+    Assert.assertEquals(resourceActions, roleWithPermissions.getPermissions());
+
+    // update role permissions and ensure that they match what is expected
+    List<ResourceAction> updatedResourceActions = ImmutableList.of(
+        new ResourceAction(
+            new Resource("auth_test", ResourceType.DATASOURCE),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource("auth_test", ResourceType.DATASOURCE),
+            Action.WRITE
+        )
+    );
+    makeUpdateRoleRequest(adminClient, roleName, updatedResourceActions, HttpResponseStatus.OK);
+    responseHolder = makeGetRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    content = responseHolder.getContent();
+    roleWithPermissions = jsonMapper.readValue(
+        content,
+        KeycloakAuthorizerRoleSimplifiedPermissions.class
+    );
+    Assert.assertEquals(roleName, roleWithPermissions.getName());
+    Assert.assertEquals(updatedResourceActions, roleWithPermissions.getPermissions());
+
+    // get permissions for role separtely from role and ensure that they are what is expected
+    List<KeycloakAuthorizerPermission> expectedPermissions = updatedResourceActions
+        .stream()
+        .map(r -> new KeycloakAuthorizerPermission(r, Pattern.compile(r.getResource().getName())))
+        .collect(Collectors.toList());
+    responseHolder = makeGetRolePermissionsRequest(adminClient, roleName, HttpResponseStatus.OK);
+    content = responseHolder.getContent();
+    List<KeycloakAuthorizerPermission> actualPermissions = jsonMapper.readValue(
+        content,
+        ROLE_PERMISSIONS_RESULT_TYPE_REFERENCE
+    );
+    Assert.assertEquals(expectedPermissions, actualPermissions);
+
+    // delete role and ensure that it is no longer there
+    makeDeleteRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
+    content = responseHolder.getContent();
+    roles = jsonMapper.readValue(content, ROLES_RESULTS_TYPE_REFERENCE);
+    Assert.assertFalse(roles.contains(roleName));
+  }
+
+  @Test
+  public void test_avaticaQuery_broker()
+  {
+    testAvaticaQuery(getBrokerAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQuery_router()
+  {
+    testAvaticaQuery(getRouterAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQueryAuthFailure_broker() throws Exception
+  {
+    testAvaticaAuthFailure(getBrokerAvacticaUrl());
+  }
+
+  @Test
+  public void test_avaticaQueryAuthFailure_router() throws Exception
+  {
+    testAvaticaAuthFailure(getRouterAvacticaUrl());
   }
 
   @Override
-  protected void setupUsers()
+  protected Properties getAvaticaConnectionProperties()
   {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    return connectionProperties;
+  }
 
+  @Override
+  protected Properties getAvaticaConnectionPropertiesFailure()
+  {
+    Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("NotBearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    return connectionProperties;
+  }
+
+  @Override
+  protected void setupUsers() throws Exception
+  {
+    // create a new user+role that can only read 'auth_test'
+    Map<String, List<ResourceAction>> roleToPermissions = ImmutableMap.of(
+        "datasourceOnlyRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource("auth_test", ResourceType.DATASOURCE),
+                Action.READ
+            )
+        ),
+        "datasourceWithStateRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource("auth_test", ResourceType.DATASOURCE),
+                Action.READ
+            ),
+            new ResourceAction(
+                new Resource(".*", ResourceType.STATE),
+                Action.READ
+            )
+        ),
+        "stateOnlyRole", ImmutableList.of(
+            new ResourceAction(
+                new Resource(".*", ResourceType.STATE),
+                Action.READ
+            )
+        )
+    );
+
+    createRolesWithPermissions(
+        roleToPermissions
+    );
   }
 
   @Override
   protected void setupTestSpecificHttpClients()
   {
     adminClient = buildHttpClientForUser("admin", "priest");
-  }
-
-  private KeycloakedHttpClient buildHttpClientForUser(
-      String username,
-      String password
-  )
-  {
-    try {
-      AdapterConfig userConfig = new AdapterConfig();
-      userConfig.setAuthServerUrl("http://imply-keycloak:8080/auth");
-      userConfig.setRealm("druid");
-      userConfig.setResource("druid-user-client");
-      userConfig.setBearerOnly(true);
-      userConfig.setCredentials(ImmutableMap.of(
-          "provider", "secret",
-          "secret", "druid-user-secret"
-      ));
-      userConfig.setSslRequired("NONE");
-
-      KeycloakDeployment userDeployment = KeycloakDeploymentBuilder.build(userConfig);
-      Map<String, String> reqHeaders = new HashMap<>();
-      Map<String, String> reqParams = new HashMap<>();
-      reqParams.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD);
-      reqParams.put(OAuth2Constants.USERNAME, username);
-      reqParams.put(OAuth2Constants.PASSWORD, password);
-      ClientCredentialsProviderUtils.setClientCredentials(userDeployment, reqHeaders, reqParams);
-      return new KeycloakedHttpClient(userDeployment, httpClient, reqHeaders, reqParams);
-    }
-    catch (Exception e) {
-      LOG.error("exception occured");
-      throw e;
-    }
+    datasourceOnlyUserClient = buildHttpClientForUser("datasourceonlyuser", "helloworld");
+    datasourceWithStateUserClient = buildHttpClientForUser("datasourcewithstateuser", "helloworld");
+    stateOnlyUserClient = buildHttpClientForUser("stateonlyuser", "helloworld");
   }
 
   @Override
@@ -170,6 +462,170 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Override
   protected String getExpectedAvaticaAuthError()
   {
-    return null;
+    return EXPECTED_AVATICA_AUTH_ERROR;
+  }
+
+  private void createRolesWithPermissions(
+      Map<String, List<ResourceAction>> roleTopermissions
+  ) throws Exception
+  {
+    roleTopermissions.keySet().forEach(role -> HttpUtil.makeRequest(
+        adminClient,
+        HttpMethod.POST,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
+            config.getCoordinatorUrl(),
+            role
+        ),
+        null
+    ));
+
+    for (Map.Entry<String, List<ResourceAction>> entry : roleTopermissions.entrySet()) {
+      String role = entry.getKey();
+      List<ResourceAction> permissions = entry.getValue();
+      byte[] permissionsBytes = jsonMapper.writeValueAsBytes(permissions);
+      HttpUtil.makeRequest(
+          adminClient,
+          HttpMethod.POST,
+          StringUtils.format(
+              "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
+              config.getCoordinatorUrl(),
+              role
+          ),
+          permissionsBytes
+      );
+    }
+  }
+
+  private KeycloakedHttpClient buildHttpClientForUser(
+      String username,
+      String password
+  )
+  {
+    try {
+      AdapterConfig userConfig = new AdapterConfig();
+      userConfig.setAuthServerUrl("http://localhost:8080/auth");
+      userConfig.setRealm("druid");
+      userConfig.setResource("druid-user-client");
+      userConfig.setBearerOnly(true);
+      userConfig.setCredentials(ImmutableMap.of(
+          "provider", "secret",
+          "secret", "druid-user-secret"
+      ));
+      userConfig.setSslRequired("NONE");
+
+      KeycloakDeployment userDeployment = KeycloakDeploymentBuilder.build(userConfig);
+      Map<String, String> reqHeaders = new HashMap<>();
+      Map<String, String> reqParams = new HashMap<>();
+      /* Set Host header so that ISS references imply-keycloak, which is needed for verification on Druid side,
+         imply-keycloak is not routable from integration test code, and localhost:8080 wont work within docker
+         network where Druid Cluster is running. */
+      reqHeaders.put("Host", "imply-keycloak:8080");
+      reqParams.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD);
+      reqParams.put(OAuth2Constants.USERNAME, username);
+      reqParams.put(OAuth2Constants.PASSWORD, password);
+      ClientCredentialsProviderUtils.setClientCredentials(userDeployment, reqHeaders, reqParams);
+      TokenService tokenService = new TokenService(userDeployment, reqHeaders, reqParams);
+      /* Disable token verification only on client side (within integration test), as it will fail if there is a
+         discrepency between the Auth Server Url and the iss field found in the token. Token verification is only
+        disabled on the Client side, not within Druid. */
+      TokenManager tokenManager = new TokenManager(userDeployment, tokenService, false);
+      return new KeycloakedHttpClient(httpClient, false, tokenManager);
+    }
+    catch (Exception e) {
+      LOG.error("exception occured");
+      throw e;
+    }
+  }
+
+  StatusResponseHolder makeGetRolesRequest(
+      HttpClient httpClient,
+      HttpResponseStatus expectedStatus
+  )
+  {
+    return HttpUtil.makeRequestWithExpectedStatus(
+        httpClient,
+        HttpMethod.GET,
+        StringUtils.format("%s/druid-ext/keycloak-security/authorization/roles", config.getCoordinatorUrl()),
+        null,
+        expectedStatus
+    );
+  }
+
+  StatusResponseHolder makeGetRoleRequest(
+      HttpClient httpClient,
+      String role,
+      HttpResponseStatus expectedStatus
+  )
+  {
+    return HttpUtil.makeRequestWithExpectedStatus(
+        httpClient,
+        HttpMethod.GET,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
+            config.getCoordinatorUrl(),
+            role
+        ),
+        null,
+        expectedStatus
+    );
+  }
+
+  StatusResponseHolder makeGetRolePermissionsRequest(
+      HttpClient httpClient,
+      String role,
+      HttpResponseStatus expectedStatus
+  )
+  {
+    return HttpUtil.makeRequestWithExpectedStatus(
+        httpClient,
+        HttpMethod.GET,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
+            config.getCoordinatorUrl(),
+            role
+        ),
+        null,
+        expectedStatus
+    );
+  }
+
+  StatusResponseHolder makeUpdateRoleRequest(
+      HttpClient httpClient,
+      String role,
+      List<ResourceAction> resourceActions,
+      HttpResponseStatus expectedStatus
+  ) throws JsonProcessingException
+  {
+    return HttpUtil.makeRequestWithExpectedStatus(
+        httpClient,
+        HttpMethod.POST,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
+            config.getCoordinatorUrl(),
+            role
+        ),
+        jsonMapper.writeValueAsBytes(resourceActions),
+        expectedStatus
+    );
+  }
+
+  StatusResponseHolder makeDeleteRoleRequest(
+      HttpClient httpClient,
+      String role,
+      HttpResponseStatus expectedStatus
+  )
+  {
+    return HttpUtil.makeRequestWithExpectedStatus(
+        httpClient,
+        HttpMethod.DELETE,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles/%s",
+            config.getCoordinatorUrl(),
+            role
+        ),
+        null,
+        expectedStatus
+    );
   }
 }

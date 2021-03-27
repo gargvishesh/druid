@@ -144,13 +144,11 @@ public abstract class AbstractAuthConfigurationTest
     HttpUtil.makeRequest(client, HttpMethod.GET, config.getCoordinatorUrl() + "/druid/coordinator/v1/loadqueue", null);
   }
 
-  void testAvaticaQuery(String url)
+  protected void testAvaticaQuery(String url)
   {
     LOG.info("URL: " + url);
     try {
-      Properties connectionProperties = new Properties();
-      connectionProperties.setProperty("user", "admin");
-      connectionProperties.setProperty("password", "priest");
+      Properties connectionProperties = getAvaticaConnectionProperties();
       Connection connection = DriverManager.getConnection(url, connectionProperties);
       Statement statement = connection.createStatement();
       statement.setMaxRows(450);
@@ -165,13 +163,11 @@ public abstract class AbstractAuthConfigurationTest
     }
   }
 
-  void testAvaticaAuthFailure(String url) throws Exception
+  protected void testAvaticaAuthFailure(String url) throws Exception
   {
     LOG.info("URL: " + url);
     try {
-      Properties connectionProperties = new Properties();
-      connectionProperties.setProperty("user", "admin");
-      connectionProperties.setProperty("password", "wrongpassword");
+      Properties connectionProperties = getAvaticaConnectionPropertiesFailure();
       Connection connection = DriverManager.getConnection(url, connectionProperties);
       Statement statement = connection.createStatement();
       statement.setMaxRows(450);
@@ -190,7 +186,8 @@ public abstract class AbstractAuthConfigurationTest
 
   private void checkLoadStatusSingle(
       HttpClient httpClient,
-      String baseUrl) throws Exception
+      String baseUrl
+  ) throws Exception
   {
     StatusResponseHolder holder = HttpUtil.makeRequest(
         httpClient,
@@ -271,7 +268,7 @@ public abstract class AbstractAuthConfigurationTest
     verifySystemSchemaQueryBase(client, query, expectedResults, true);
   }
 
-  void verifySystemSchemaQueryFailure(
+  protected void verifySystemSchemaQueryFailure(
       HttpClient client,
       String query,
       HttpResponseStatus expectedErrorStatus,
@@ -283,12 +280,12 @@ public abstract class AbstractAuthConfigurationTest
     Assert.assertEquals(responseHolder.getContent(), expectedErrorMessage);
   }
 
-  String getBrokerAvacticaUrl()
+  protected String getBrokerAvacticaUrl()
   {
     return "jdbc:avatica:remote:url=" + config.getBrokerUrl() + DruidAvaticaHandler.AVATICA_PATH;
   }
 
-  String getRouterAvacticaUrl()
+  protected String getRouterAvacticaUrl()
   {
     return "jdbc:avatica:remote:url=" + config.getRouterUrl() + DruidAvaticaHandler.AVATICA_PATH;
   }
@@ -464,4 +461,8 @@ public abstract class AbstractAuthConfigurationTest
   protected abstract String getAuthorizerName();
 
   protected abstract String getExpectedAvaticaAuthError();
+
+  protected abstract Properties getAvaticaConnectionProperties();
+
+  protected abstract Properties getAvaticaConnectionPropertiesFailure();
 }

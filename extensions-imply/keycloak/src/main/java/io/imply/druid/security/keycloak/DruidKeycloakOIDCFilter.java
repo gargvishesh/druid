@@ -11,6 +11,7 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -45,6 +46,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class is adopted from org.keycloak.adapters.servlet.KeycloakOIDCFilter and modified to follow the contract
@@ -58,6 +60,7 @@ public class DruidKeycloakOIDCFilter implements Filter
   private final KeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
+  private final String rolesTokenClaimName;
 
   private AdapterDeploymentContext deploymentContext;
   private NodesRegistrationManagement nodesRegistrationManagement;
@@ -69,12 +72,14 @@ public class DruidKeycloakOIDCFilter implements Filter
   public DruidKeycloakOIDCFilter(
       KeycloakConfigResolver configResolver,
       String authenticatorName,
-      String authorizerName
+      String authorizerName,
+      String rolesTokenClaimName
   )
   {
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
+    this.rolesTokenClaimName = Preconditions.checkNotNull(rolesTokenClaimName, "rolesTokenClaim");
   }
 
   @VisibleForTesting
@@ -146,7 +151,61 @@ public class DruidKeycloakOIDCFilter implements Filter
       return;
     }
 
-    PreAuthActionsHandler preActions = new PreAuthActionsHandler(new UserSessionManagement()
+    PreAuthActionsHandler preActions = getPreAuthActionsHandler(facade);
+
+    if (preActions.handleRequest()) {
+      return;
+    }
+
+    nodesRegistrationManagement.tryRegister(deployment);
+    OIDCFilterSessionStore tokenStore = getOIDCFilterSessionStore(request, facade, 100000, deployment);
+    tokenStore.checkCurrentToken();
+
+    FilterRequestAuthenticator authenticator = getFilterRequestAuthenticator(deployment, tokenStore, facade, request, 8443);
+    AuthOutcome outcome = authenticator.authenticate();
+    if (outcome == AuthOutcome.AUTHENTICATED) {
+      LOG.debug("AUTHENTICATED");
+      if (facade.isEnded()) {
+        return;
+      }
+      AuthenticatedActionsHandler actions = getAuthenticatedActionsHandler(deployment, facade);
+      if (actions.handledRequest()) {
+        return;
+      } else {
+        HttpServletRequestWrapper wrapper = tokenStore.buildWrapper();
+
+        // This is the only different part from the original implementation in doFilter().
+        // Here, we set the authenticationResult in the request before calling the rest of chains,
+        // so that the authorizer can do its job properly.
+        // ------- new part start -------
+        final KeycloakAccount account = getKeycloakAccount(request);
+        List<Object> implyRoles = getImplyRoles(account);
+        final AuthenticationResult authenticationResult = new AuthenticationResult(
+            getIdentity(account),
+            authorizerName,
+            authenticatorName,
+            ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, implyRoles)
+        );
+        wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
+        // ------- new part end -------
+
+        chain.doFilter(wrapper, res);
+        return;
+      }
+    }
+    AuthChallenge challenge = authenticator.getChallenge();
+    if (challenge != null) {
+      LOG.debug("challenge");
+      challenge.challenge(facade);
+      return;
+    }
+    response.sendError(403);
+  }
+
+  @VisibleForTesting
+  PreAuthActionsHandler getPreAuthActionsHandler(OIDCServletHttpFacade facade)
+  {
+    return new PreAuthActionsHandler(new UserSessionManagement()
     {
       @Override
       public void logoutAll()
@@ -165,53 +224,38 @@ public class DruidKeycloakOIDCFilter implements Filter
 
       }
     }, deploymentContext, facade);
+  }
 
-    if (preActions.handleRequest()) {
-      return;
-    }
+  @VisibleForTesting
+  OIDCFilterSessionStore getOIDCFilterSessionStore(
+      HttpServletRequest request,
+      OIDCServletHttpFacade facade,
+      int maxBuffer,
+      KeycloakDeployment deployment)
+  {
+    return new OIDCFilterSessionStore(request, facade, maxBuffer, deployment, idMapper);
+  }
 
-    nodesRegistrationManagement.tryRegister(deployment);
-    OIDCFilterSessionStore tokenStore = new OIDCFilterSessionStore(request, facade, 100000, deployment, idMapper);
-    tokenStore.checkCurrentToken();
+  @VisibleForTesting
+  FilterRequestAuthenticator getFilterRequestAuthenticator(
+      KeycloakDeployment deployment,
+      OIDCFilterSessionStore tokenStore,
+      OIDCServletHttpFacade facade,
+      HttpServletRequest request,
+      int sslRedirectPort
 
-    FilterRequestAuthenticator authenticator = new FilterRequestAuthenticator(deployment, tokenStore, facade, request, 8443);
-    AuthOutcome outcome = authenticator.authenticate();
-    if (outcome == AuthOutcome.AUTHENTICATED) {
-      LOG.debug("AUTHENTICATED");
-      if (facade.isEnded()) {
-        return;
-      }
-      AuthenticatedActionsHandler actions = new AuthenticatedActionsHandler(deployment, facade);
-      if (actions.handledRequest()) {
-        return;
-      } else {
-        HttpServletRequestWrapper wrapper = tokenStore.buildWrapper();
+  )
+  {
+    return new FilterRequestAuthenticator(deployment, tokenStore, facade, request, sslRedirectPort);
+  }
 
-        // This is the only different part from the original implementation in doFilter().
-        // Here, we set the authenticationResult in the request before calling the rest of chains,
-        // so that the authorizer can do its job properly.
-        // ------- new part start -------
-        final KeycloakAccount account = getKeycloakAccount(request);
-        final AuthenticationResult authenticationResult = new AuthenticationResult(
-            getIdentity(account),
-            authorizerName,
-            authenticatorName,
-            null
-        );
-        wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
-        // ------- new part end -------
-
-        chain.doFilter(wrapper, res);
-        return;
-      }
-    }
-    AuthChallenge challenge = authenticator.getChallenge();
-    if (challenge != null) {
-      LOG.debug("challenge");
-      challenge.challenge(facade);
-      return;
-    }
-    response.sendError(403);
+  @VisibleForTesting
+  AuthenticatedActionsHandler getAuthenticatedActionsHandler(
+      KeycloakDeployment deployment,
+      OIDCServletHttpFacade facade
+  )
+  {
+    return new AuthenticatedActionsHandler(deployment, facade);
   }
 
   private KeycloakAccount getKeycloakAccount(HttpServletRequest request)
@@ -243,6 +287,23 @@ public class DruidKeycloakOIDCFilter implements Filter
     } else {
       return account.getPrincipal().getName();
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Object> getImplyRoles(KeycloakAccount account)
+  {
+    if (account instanceof OidcKeycloakAccount) {
+      final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
+      final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
+      if (securityContext.getToken() != null) {
+        Map<String, Object> otherClaims = securityContext.getToken().getOtherClaims();
+        return (otherClaims != null
+                && otherClaims.get(rolesTokenClaimName) instanceof List) ?
+               (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) :
+               KeycloakAuthUtils.EMPTY_ROLES;
+      }
+    }
+    return KeycloakAuthUtils.EMPTY_ROLES;
   }
 
   @Override

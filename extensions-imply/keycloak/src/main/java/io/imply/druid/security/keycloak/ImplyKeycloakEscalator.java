@@ -25,6 +25,7 @@ import org.keycloak.representations.adapters.config.AdapterConfig;
 public class ImplyKeycloakEscalator implements Escalator
 {
   private final String authorizerName;
+  private final AdapterConfig internalConfig;
   private final KeycloakDeployment keycloakDeployment;
 
   @JsonCreator
@@ -34,6 +35,7 @@ public class ImplyKeycloakEscalator implements Escalator
   )
   {
     this.authorizerName = authorizerName;
+    this.internalConfig = internalConfig;
     this.keycloakDeployment = KeycloakDeploymentBuilder.build(internalConfig);
   }
 
@@ -46,6 +48,16 @@ public class ImplyKeycloakEscalator implements Escalator
   @Override
   public AuthenticationResult createEscalatedAuthenticationResult()
   {
-    return new AuthenticationResult(keycloakDeployment.getResourceName(), authorizerName, null, null);
+    return new AuthenticationResult(
+        keycloakDeployment.getResourceName(),
+        authorizerName,
+        null,
+        KeycloakAuthUtils.CONTEXT_WITH_ADMIN_ROLE
+    );
+  }
+
+  AdapterConfig getConfig()
+  {
+    return internalConfig;
   }
 }

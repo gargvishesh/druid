@@ -11,7 +11,8 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
-import org.apache.druid.guice.annotations.EscalatedGlobal;
+import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.server.security.Escalator;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
@@ -28,6 +29,8 @@ import org.keycloak.representations.adapters.config.AdapterConfig;
  */
 public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
 {
+  private static final Logger LOG = new Logger(DruidKeycloakConfigResolver.class);
+
   static final String IMPLY_INTERNAL_REQUEST_HEADER = "X-IMPLY-INTERNAL-REQUEST";
   static final String IMPLY_INTERNAL_REQUEST_HEADER_VALUE = "IM-DRUID";
 
@@ -36,11 +39,17 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
 
   @Inject
   public DruidKeycloakConfigResolver(
-      @EscalatedGlobal AdapterConfig internalConfig,
+      Escalator escalator,
       AdapterConfig userConfig
   )
   {
-    this.internalDeployment = KeycloakDeploymentBuilder.build(internalConfig);
+    KeycloakDeployment internalDeployment = null;
+    /* A different escalator type may be in use. Allow for the system to continue if no keycloak escalator is configured */
+    if (escalator instanceof ImplyKeycloakEscalator) {
+      internalDeployment = KeycloakDeploymentBuilder.build(((ImplyKeycloakEscalator) escalator).getConfig());
+    }
+    
+    this.internalDeployment = internalDeployment;
     this.userDeployment = KeycloakDeploymentBuilder.build(userConfig);
   }
 
@@ -59,7 +68,6 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
     return internalDeployment;
   }
 
-  @VisibleForTesting
   KeycloakDeployment getUserDeployment()
   {
     return userDeployment;

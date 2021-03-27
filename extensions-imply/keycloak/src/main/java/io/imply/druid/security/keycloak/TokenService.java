@@ -101,6 +101,9 @@ public class TokenService
       if (status != 200) {
         String json = getContent(entity);
         String error = "Service token grant failed. Bad status: " + status + " response: " + json;
+        if (status == 400) {
+          throw new KeycloakSecurityBadRequestException(error);
+        }
         throw new RuntimeException(error);
       } else if (entity == null) {
         throw new RuntimeException("No entity");

@@ -12,9 +12,12 @@ package io.imply.druid.security.keycloak;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues.Std;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import org.apache.druid.guice.DruidGuiceExtensions;
 import org.apache.druid.guice.JsonConfigurator;
 import org.apache.druid.guice.LazySingleton;
@@ -85,14 +88,21 @@ public class ImplyKeycloakModuleTest
     config.setAuthServerUrl("http://url");
     final ObjectMapper mapper = new DefaultObjectMapper();
     mapper.setInjectableValues(
-        new Std().addValue(DruidKeycloakConfigResolver.class, new DruidKeycloakConfigResolver(config, config))
+        new Std().addValue(
+            DruidKeycloakConfigResolver.class,
+            new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", config), config))
                  .addValue(AdapterConfig.class, config)
+                 .addValue(
+                     KeycloakAuthorizerMetadataStorageUpdater.class,
+                     new CoordinatorKeycloakAuthorizerMetadataStorageUpdater()
+                 )
+                 .addValue(ObjectMapper.class, new ObjectMapper(new SmileFactory()))
     );
     module.getJacksonModules().forEach(mapper::registerModule);
     Assert.assertSame(
         ImplyKeycloakAuthenticator.class,
         mapper.readValue(
-            "{\"type\": \"imply-keycloak\", \"authenticatorName\" : \"myAuthenticator\", \"authorizerName\": \"myAuthorizer\"}",
+            "{\"type\": \"imply-keycloak\", \"authenticatorName\" : \"myAuthenticator\", \"authorizerName\": \"myAuthorizer\", \"rolesTokenClaimName\": \"druid-roles\"}",
             Authenticator.class
         ).getClass()
     );
