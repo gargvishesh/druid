@@ -722,7 +722,14 @@ pipeline {
                         mavenCacheRestore()
                         sh script:'''
                             mkdir -p inspection-results
-                            docker run --rm \
+                            chmod -R 777 inspection-results
+                        ''',
+                        label: 'prepare output directory'
+
+                        sh script:'rm -f /home/jenkins/.m2/settings.xml',
+                        label:'remove maven settings file'
+
+                        sh script:'''docker run --rm \
                             -v ${WORKSPACE}:/project \
                             -v /home/jenkins/.m2:/home/inspect/.m2 \
                             -v ${WORKSPACE}/inspection-results:/home/inspect/inspection-results \
@@ -731,7 +738,8 @@ pipeline {
                             /project/.idea/inspectionProfiles/Druid.xml \
                             --levels ERROR \
                             --scope JavaInspectionsScope
-                        '''
+                        '''.replaceAll(/\n\s+/, " "),
+                        label: 'intellij inspections'
                     }
                     post {
                         always { buildArtifacts(env.STAGE_NAME) }
