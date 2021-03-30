@@ -246,6 +246,8 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
+                                        <argument>io.imply:imply-view-manager</argument>
+                                        <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter-kafka</argument>
@@ -437,8 +439,6 @@
                                         <argument>-l</argument>
                                         <argument>${settings.localRepository}</argument>
                                         <argument>--no-default-hadoop</argument>
-                                        <argument>-c</argument>
-                                        <argument>io.imply:imply-view-manager</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
