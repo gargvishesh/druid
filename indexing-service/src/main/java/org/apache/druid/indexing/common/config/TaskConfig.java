@@ -68,7 +68,7 @@ public class TaskConfig
   private final List<StorageLocationConfig> shuffleDataLocations;
 
   @JsonProperty
-  private final boolean ignoreTimestampSpecForDruidInputSource;
+  private final Boolean ignoreTimestampSpecForDruidInputSource;
 
   @JsonCreator
   public TaskConfig(
@@ -81,7 +81,7 @@ public class TaskConfig
       @JsonProperty("gracefulShutdownTimeout") Period gracefulShutdownTimeout,
       @JsonProperty("directoryLockTimeout") Period directoryLockTimeout,
       @JsonProperty("shuffleDataLocations") List<StorageLocationConfig> shuffleDataLocations,
-      @JsonProperty("ignoreTimestampSpecForDruidInputSource") boolean ignoreTimestampSpecForDruidInputSource
+      @JsonProperty("ignoreTimestampSpecForDruidInputSource") Boolean ignoreTimestampSpecForDruidInputSource
   )
   {
     this.baseDir = baseDir == null ? System.getProperty("java.io.tmpdir") : baseDir;
@@ -106,7 +106,9 @@ public class TaskConfig
     } else {
       this.shuffleDataLocations = shuffleDataLocations;
     }
-    this.ignoreTimestampSpecForDruidInputSource = ignoreTimestampSpecForDruidInputSource;
+    this.ignoreTimestampSpecForDruidInputSource = ignoreTimestampSpecForDruidInputSource == null
+                                                  ? true
+                                                  : ignoreTimestampSpecForDruidInputSource;
   }
 
   @JsonProperty
