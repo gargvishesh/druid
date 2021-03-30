@@ -30,7 +30,7 @@
     <parent>
         <artifactId>druid</artifactId>
         <groupId>org.apache.druid</groupId>
-        <version>2021.04-SNAPSHOT</version>
+        <version>2021.04.0-iap-SNAPSHOT</version>
     </parent>
 
     <dependencies>
