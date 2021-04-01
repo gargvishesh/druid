@@ -726,19 +726,17 @@ pipeline {
                         ''',
                         label: 'prepare output directory'
 
-                        sh script:'rm -f /home/jenkins/.m2/settings.xml',
-                        label:'remove maven settings file'
-
-                        sh script:'''docker run --rm \
+                        sh script:'''
+                            docker run --rm \
                             -v ${WORKSPACE}:/project \
-                            -v /home/jenkins/.m2:/home/inspect/.m2 \
+                            -v ${HOME}/.m2/repository:/home/inspect/.m2/repository \
                             -v ${WORKSPACE}/inspection-results:/home/inspect/inspection-results \
                             ccaominh/intellij-inspect:1.0.0 \
                             /project/pom.xml \
                             /project/.idea/inspectionProfiles/Druid.xml \
                             --levels ERROR \
                             --scope JavaInspectionsScope
-                        '''.replaceAll(/\n\s+/, " "),
+                        ''',
                         label: 'intellij inspections'
                     }
                     post {
