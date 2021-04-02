@@ -144,7 +144,7 @@ public class BatchAppendJobRunner implements JobRunner
             new UniformGranularitySpec(job.getSchema().getPartitionScheme().getSegmentGranularity(), null, null),
             null
         ),
-        new ParallelIndexIOConfig(null, inputSource, job.getSchema().getInputFormat(), true),
+        new ParallelIndexIOConfig(null, inputSource, job.getSchema().getInputFormat(), true, false),
         // todo: probably want some external gizmo to compute this, maybe based on cluster state?
         ParallelIndexTuningConfig.defaultConfig()
     );

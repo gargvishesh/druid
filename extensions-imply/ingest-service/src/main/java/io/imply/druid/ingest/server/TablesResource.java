@@ -416,6 +416,7 @@ public class TablesResource
         null,
         inputSource,
         ingestSchema.getInputFormat(),
+        null,
         null
     );
     return new SerializableSamplerRequest(
