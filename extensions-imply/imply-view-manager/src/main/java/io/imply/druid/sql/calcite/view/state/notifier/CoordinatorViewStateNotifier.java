@@ -23,12 +23,13 @@ import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.http.client.HttpClient;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 @ManageLifecycle
 public class CoordinatorViewStateNotifier implements ViewStateNotifier
 {
   private final LifecycleLock lifecycleLock = new LifecycleLock();
-  private final CommonStateNotifier commonCacheNotifier;
+  private final CommonStateNotifier commonStateNotifier;
 
   @Inject
   public CoordinatorViewStateNotifier(
@@ -37,7 +38,7 @@ public class CoordinatorViewStateNotifier implements ViewStateNotifier
       @EscalatedClient HttpClient httpClient
   )
   {
-    commonCacheNotifier = new CommonStateNotifier(
+    commonStateNotifier = new CommonStateNotifier(
         cacheConfig,
         discoveryProvider,
         httpClient,
@@ -53,7 +54,7 @@ public class CoordinatorViewStateNotifier implements ViewStateNotifier
     }
 
     try {
-      commonCacheNotifier.start();
+      commonStateNotifier.start();
       lifecycleLock.started();
     }
     finally {
@@ -68,7 +69,7 @@ public class CoordinatorViewStateNotifier implements ViewStateNotifier
       return;
     }
     try {
-      commonCacheNotifier.stop();
+      commonStateNotifier.stop();
     }
     finally {
       lifecycleLock.exitStop();
@@ -76,17 +77,21 @@ public class CoordinatorViewStateNotifier implements ViewStateNotifier
   }
 
   @Override
-  public void propagateViews(byte[] updatedViewMap)
+  public void setUpdateSource(Supplier<byte[]> updateSource)
   {
-    if (updatedViewMap != null) {
-      Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
-      commonCacheNotifier.addUpdate(updatedViewMap);
-    }
+    commonStateNotifier.setUpdateSource(updateSource);
+  }
+
+  @Override
+  public void scheduleUpdate()
+  {
+    Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
+    commonStateNotifier.scheduleUpdate();
   }
 
   @VisibleForTesting
   public void sendUpdateForTests(byte[] mapp)
   {
-    commonCacheNotifier.sendUpdate(mapp);
+    commonStateNotifier.sendUpdate(mapp);
   }
 }

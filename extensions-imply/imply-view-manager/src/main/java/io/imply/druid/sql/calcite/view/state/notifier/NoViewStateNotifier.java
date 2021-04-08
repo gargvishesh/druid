@@ -9,11 +9,19 @@
 
 package io.imply.druid.sql.calcite.view.state.notifier;
 
+import java.util.function.Supplier;
+
 public class NoViewStateNotifier implements ViewStateNotifier
 {
   @Override
-  public void propagateViews(byte[] updatedViewMap)
+  public void setUpdateSource(Supplier<byte[]> updateSource)
   {
-    throw new UnsupportedOperationException("Non-broker does not support propagateViews");
+    throw new UnsupportedOperationException("Non-broker does not support setUpdateSource");
+  }
+
+  @Override
+  public void scheduleUpdate()
+  {
+    throw new UnsupportedOperationException("Non-broker does not support scheduleUpdate");
   }
 }

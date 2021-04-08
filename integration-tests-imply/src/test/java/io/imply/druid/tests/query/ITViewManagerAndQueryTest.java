@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource;
 import org.apache.druid.curator.discovery.ServerDiscoveryFactory;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -85,17 +86,13 @@ public class ITViewManagerAndQueryTest
   IntegrationTestingConfig config;
 
   @BeforeMethod
-  public void setup()
+  public void setup() throws Exception
   {
     // ensure that wikipedia segments are loaded completely
     ITRetryUtil.retryUntilTrue(
         () -> coordinatorClient.areSegmentsLoaded(WIKIPEDIA_DATA_SOURCE), "wikipedia segment load"
     );
-  }
 
-  @Test
-  public void testHappyPath() throws Exception
-  {
     // admin user needs view read permissions.. grant everything
     List<ResourceAction> permissions = ImmutableList.of(
         new ResourceAction(
@@ -143,7 +140,11 @@ public class ITViewManagerAndQueryTest
         ),
         permissionsBytes
     );
+  }
 
+  @Test
+  public void testHappyPath() throws Exception
+  {
     Map<String, ImplyViewDefinition> views = getViews();
 
     Assert.assertEquals(views.size(), 0);
@@ -204,12 +205,70 @@ public class ITViewManagerAndQueryTest
     Assert.assertEquals(views.size(), 0);
   }
 
+  @Test
+  public void testMultipleCreateAndLoadStatus() throws Exception
+  {
+    for (int i = 0; i < 10; i++) {
+      String viewName = StringUtils.format("loadStatusTest%s", i);
+      ImplyViewDefinition viewDefinition = new ImplyViewDefinition(
+          viewName,
+          StringUtils.format(
+              "SELECT * FROM \"%s\" WHERE \"language\" = 'en' AND \"namespace\" = 'article'",
+              WIKIPEDIA_DATA_SOURCE
+          )
+      );
+      createView(viewDefinition);
+    }
+
+    for (int i = 0; i < 10; i++) {
+      String viewName = StringUtils.format("loadStatusTest%s", i);
+      ITRetryUtil.retryUntilTrue(
+          () -> {
+            try {
+              ViewStateManagerResource.ViewLoadStatusResponse loadStatus = getViewLoadStatus(viewName);
+              int numBrokers = 1;
+              if (loadStatus.getFresh().size() == numBrokers) {
+                // there shouldn't be any other brokers
+                Assert.assertEquals(loadStatus.getStale().size(), 0);
+                Assert.assertEquals(loadStatus.getUnknown().size(), 0);
+                return true;
+              }
+              return false;
+            }
+            catch (Exception ex) {
+              return false;
+            }
+          },
+          "waiting for view " + viewName + " to be loaded"
+      );
+    }
+
+    for (int i = 0; i < 10; i++) {
+      String viewName = StringUtils.format("loadStatusTest%s", i);
+
+      // now do some queries
+      queryHelper.testQueriesFromString(
+          queryHelper.getQueryURL(config.getRouterUrl()),
+          replaceViewTemplate(AbstractIndexerTest.getResourceAsString(VIEW_QUERIES_RESOURCE), viewName)
+      );
+    }
+  }
+
   private Map<String, ImplyViewDefinition> getViews() throws IOException
   {
     return getRequest(
         config.getCoordinatorUrl(),
         BASE_VIEW_MANAGER_PATH,
         new TypeReference<Map<String, ImplyViewDefinition>>() { }
+    );
+  }
+
+  private ViewStateManagerResource.ViewLoadStatusResponse getViewLoadStatus(String viewName) throws IOException
+  {
+    return getRequest(
+        config.getCoordinatorUrl(),
+        StringUtils.format("%s/loadstatus/%s", BASE_VIEW_MANAGER_PATH, viewName),
+        ViewStateManagerResource.ViewLoadStatusResponse.class
     );
   }
 
@@ -247,6 +306,19 @@ public class ITViewManagerAndQueryTest
     return new URL(String.join("/", args));
   }
 
+  private <T> T getRequest(String host, String path, Class<T> clazz) throws IOException
+  {
+    URL url = new URL(
+        StringUtils.format(
+            "%s/%s",
+            host,
+            path
+        )
+    );
+
+    return doRequest(new Request(HttpMethod.GET, url), clazz);
+  }
+
   private <T> T getRequest(String host, String path, TypeReference<T> typeReference) throws IOException
   {
     URL url = new URL(
@@ -273,6 +345,21 @@ public class ITViewManagerAndQueryTest
     }
     return objectMapper.readValue(responseHolder.getContent(), typeReference);
   }
+
+  private <T> T doRequest(Request request, Class<T> clazz) throws IOException
+  {
+    InputStreamFullResponseHolder responseHolder = doRequest(request);
+    if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK) {
+      throw new RE(
+          "Failed to talk to node at [%s]. Error code[%d], description[%s].",
+          request.getUrl(),
+          responseHolder.getStatus().getCode(),
+          responseHolder.getStatus().getReasonPhrase()
+      );
+    }
+    return objectMapper.readValue(responseHolder.getContent(), clazz);
+  }
+
 
   private InputStreamFullResponseHolder doRequest(Request request)
   {

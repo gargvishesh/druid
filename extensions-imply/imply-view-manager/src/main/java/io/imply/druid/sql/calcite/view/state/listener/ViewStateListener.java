@@ -9,6 +9,10 @@
 
 package io.imply.druid.sql.calcite.view.state.listener;
 
+import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+
+import java.util.Map;
+
 /**
  * Listens for changes in SQL views configuration, to ultimately update
  * {@link org.apache.druid.sql.calcite.view.ViewManager} with any changes to the set of views available to query
@@ -16,4 +20,6 @@ package io.imply.druid.sql.calcite.view.state.listener;
 public interface ViewStateListener
 {
   void setViewState(byte[] serializedViewState);
+
+  Map<String, ImplyViewDefinition> getViewState();
 }

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
@@ -80,6 +81,14 @@ public class CoordinatorViewStateManager implements ViewStateManager
     this.cacheConfig = cacheConfig;
     this.cacheNotifier = cacheNotifier;
     this.smileMapper = smileMapper;
+
+    if (cacheConfig.isEnableCacheNotifications()) {
+      this.cacheNotifier.setUpdateSource(
+          () -> {
+            return viewCacheSerialized;
+          }
+      );
+    }
   }
 
   @LifecycleStart
@@ -220,11 +229,15 @@ public class CoordinatorViewStateManager implements ViewStateManager
     }
   }
 
+  /**
+   * Should only be called within a synchronized (viewCache) block
+   */
+  @GuardedBy("viewCache")
   private void serializeCache()
   {
     try {
       viewCacheSerialized = smileMapper.writeValueAsBytes(viewCache);
-      cacheNotifier.propagateViews(viewCacheSerialized);
+      cacheNotifier.scheduleUpdate();
     }
     catch (JsonProcessingException e) {
       throw new ISE(e, "Failed to JSON-Smile serialize cached view definitions");

@@ -143,6 +143,7 @@ public class BrokerViewStateListener implements ViewStateListener
     LOG.info("BrokerViewStateListener is stopped.");
   }
 
+  @Override
   public Map<String, ImplyViewDefinition> getViewState()
   {
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
