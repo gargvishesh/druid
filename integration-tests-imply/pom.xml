@@ -8,13 +8,11 @@
   ~ of the license agreement you entered into with Imply.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>druid</artifactId>
     <groupId>org.apache.druid</groupId>
-    <version>0.22.0-iap1-SNAPSHOT</version>
+    <version>2021.04.0-iap-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -216,8 +214,8 @@
         <docker.build.skip>false</docker.build.skip>
         <zk.version>3.5</zk.version>
         <it.indexer>middleManager</it.indexer>
-        <override.config.path/>
-        <resource.file.dir.path/>
+        <override.config.path />
+        <resource.file.dir.path />
 
         <!-- Would like to put emojis in here too, but they throw "Input buffer too short" errors due to https://issues.apache.org/jira/browse/SUREFIRE-1865 -->
         <extra.datasource.name.suffix>\ %Россия\ 한국\ 中国!?</extra.datasource.name.suffix>
