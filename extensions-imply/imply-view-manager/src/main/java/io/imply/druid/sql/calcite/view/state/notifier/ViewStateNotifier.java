@@ -9,12 +9,19 @@
 
 package io.imply.druid.sql.calcite.view.state.notifier;
 
+import java.util.function.Supplier;
+
 public interface ViewStateNotifier
 {
   /**
-   * Send the view map state contained in updatedViewMap to all brokers
-   *
-   * @param updatedViewMap View map state
+   * Set the source of updated data for the notifier. The Supplier should give the most recent view of the
+   * view state when get() is called.
    */
-  void propagateViews(byte[] updatedViewMap);
+  void setUpdateSource(Supplier<byte[]> updateSource);
+
+  /**
+   * Inform the notifier that an update has occurred. This will cause the notifier to read the current state
+   * from the updateSource and send out a notification.
+   */
+  void scheduleUpdate();
 }

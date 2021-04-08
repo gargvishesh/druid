@@ -102,6 +102,7 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
         1,
         null,
         null,
+        (long) 1000 * 60000, // extremely long polling period to avoid flakiness issues
         null
     );
     this.viewStateListener = new BrokerViewStateListener(

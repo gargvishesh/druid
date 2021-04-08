@@ -19,12 +19,14 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
 import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResource.ViewDefinitionRequest;
+import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -36,6 +38,7 @@ import org.apache.druid.server.DruidNode;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
@@ -162,6 +165,7 @@ public class ViewStateManagerResourceTest
             null,
             null,
             null,
+            null,
             null
         ),
         viewStateManager,
@@ -175,7 +179,7 @@ public class ViewStateManagerResourceTest
   @Test
   public void testCreateView()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
+    expectHttpClientRequest(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.createView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(1).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.createView(
@@ -192,7 +196,7 @@ public class ViewStateManagerResourceTest
   @Test
   public void testAlterView()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
+    expectHttpClientRequest(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.alterView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(1).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.alterView(
@@ -208,7 +212,9 @@ public class ViewStateManagerResourceTest
   @Test
   public void testAlterViewNotExist()
   {
-    expectBrokerValidationCheck(HttpResponseStatus.OK, someSQLExplainResponse);
+    Map<String, Object> errorEntity = ImmutableMap.of("error", "View[some_view] not found.");
+
+    expectHttpClientRequest(HttpResponseStatus.OK, someSQLExplainResponse);
     EasyMock.expect(viewStateManager.alterView(EasyMock.anyObject(ImplyViewDefinition.class))).andReturn(0).once();
     EasyMock.replay(req, httpClient, viewStateManager);
     Response response = viewStateManagerResource.alterView(
@@ -217,7 +223,7 @@ public class ViewStateManagerResourceTest
         req
     );
     Assert.assertEquals(HttpResponseStatus.NOT_FOUND.getCode(), response.getStatus());
-    Assert.assertNull(response.getEntity());
+    Assert.assertEquals(errorEntity, response.getEntity());
     verifyAll();
   }
 
@@ -238,6 +244,8 @@ public class ViewStateManagerResourceTest
   @Test
   public void testDeleteViewNotExist()
   {
+    Map<String, Object> errorEntity = ImmutableMap.of("error", "View[some_view] not found.");
+
     EasyMock.expect(viewStateManager.deleteView(SOME_VIEW, null)).andReturn(0).once();
     replayAll();
     Response response = viewStateManagerResource.deleteView(
@@ -245,7 +253,7 @@ public class ViewStateManagerResourceTest
         req
     );
     Assert.assertEquals(HttpResponseStatus.NOT_FOUND.getCode(), response.getStatus());
-    Assert.assertNull(response.getEntity());
+    Assert.assertEquals(errorEntity, response.getEntity());
     verifyAll();
   }
 
@@ -294,6 +302,27 @@ public class ViewStateManagerResourceTest
   }
 
   @Test
+  public void testGetSingleViewJson()
+  {
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, SOME_SQL);
+
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    EasyMock.expect(viewStateManager.getViewState()).andReturn(views).once();
+
+    replayAll();
+
+    Response response = viewStateManagerResource.getSingleView(SOME_VIEW, req);
+    Assert.assertEquals(HttpResponseStatus.OK.getCode(), response.getStatus());
+    Assert.assertEquals(someViewDefinition, response.getEntity());
+
+    verifyAll();
+  }
+
+
+  @Test
   public void testBadNames()
   {
     String badName = "bad/name";
@@ -321,6 +350,20 @@ public class ViewStateManagerResourceTest
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
     Assert.assertEquals(errorEntity, response.getEntity());
+
+    response = viewStateManagerResource.getSingleView(
+        badName,
+        req
+    );
+    Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
+    Assert.assertEquals(errorEntity, response.getEntity());
+
+    response = viewStateManagerResource.getViewLoadStatus(
+        badName,
+        req
+    );
+    Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
+    Assert.assertEquals(errorEntity, response.getEntity());
   }
 
   @Test
@@ -332,8 +375,8 @@ public class ViewStateManagerResourceTest
         "Invalid view definition: SELECT * FROM druid.some_table WHERE druid.some_table.some_column = 'value'"
     );
 
-    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST, null);
-    expectBrokerValidationCheck(HttpResponseStatus.BAD_REQUEST, null);
+    expectHttpClientRequest(HttpResponseStatus.BAD_REQUEST, null);
+    expectHttpClientRequest(HttpResponseStatus.BAD_REQUEST, null);
     EasyMock.replay(req, httpClient, viewStateManager);
 
     Response response = viewStateManagerResource.createView(
@@ -351,6 +394,161 @@ public class ViewStateManagerResourceTest
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
     Assert.assertEquals(errorEntity, response.getEntity());
+  }
+
+  @Test
+  public void testGetViewLoadStatus_fresh() throws Exception
+  {
+    DateTime coordinatorTime = DateTimes.utc(10);
+
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, null, SOME_SQL, coordinatorTime);
+
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    String brokerName = "testhostname:9000";
+
+    // broker view has same modified time as coordinator view
+    ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
+        new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(brokerName),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of()
+        );
+    testGetViewLoadStatusHelper(
+        views,
+        HttpResponseStatus.OK,
+        someViewDefinition,
+        HttpResponseStatus.OK,
+        expectedResponse
+    );
+  }
+
+  @Test
+  public void testGetViewLoadStatus_freshest() throws Exception
+  {
+    DateTime coordinatorTime = DateTimes.utc(10);
+    DateTime afterCoordinatorTime = DateTimes.utc(11);
+
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, null, SOME_SQL, coordinatorTime);
+    ImplyViewDefinition freshestViewDefinition = new ImplyViewDefinition(
+        SOME_VIEW,
+        null,
+        SOME_SQL,
+        afterCoordinatorTime
+    );
+
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    String brokerName = "testhostname:9000";
+
+    // broker view has newer modified time than coordinator view
+    ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
+        new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(brokerName),
+            ImmutableList.of()
+        );
+    testGetViewLoadStatusHelper(
+        views,
+        HttpResponseStatus.OK,
+        freshestViewDefinition,
+        HttpResponseStatus.OK,
+        expectedResponse
+    );
+  }
+
+  @Test
+  public void testGetViewLoadStatus_stale() throws Exception
+  {
+    DateTime coordinatorTime = DateTimes.utc(10);
+    DateTime beforeCoordinatorTime = DateTimes.utc(9);
+
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, null, SOME_SQL, coordinatorTime);
+    ImplyViewDefinition staleViewDefinition = new ImplyViewDefinition(
+        SOME_VIEW,
+        null,
+        SOME_SQL,
+        beforeCoordinatorTime
+    );
+
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    String brokerName = "testhostname:9000";
+
+    // broker view has older modified time than coordinator view
+    ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
+        new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(),
+            ImmutableList.of(brokerName),
+            ImmutableList.of(),
+            ImmutableList.of()
+        );
+    testGetViewLoadStatusHelper(
+        views,
+        HttpResponseStatus.OK,
+        staleViewDefinition,
+        HttpResponseStatus.OK,
+        expectedResponse
+    );
+  }
+
+  @Test
+  public void testGetViewLoadStatus_unknown() throws Exception
+  {
+    DateTime coordinatorTime = DateTimes.utc(10);
+
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, null, SOME_SQL, coordinatorTime);
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    String brokerName = "testhostname:9000";
+
+    // error fetching view definition from broker
+    ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
+        new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(brokerName)
+        );
+    testGetViewLoadStatusHelper(
+        views,
+        HttpResponseStatus.INTERNAL_SERVER_ERROR,
+        null,
+        HttpResponseStatus.OK,
+        expectedResponse
+    );
+  }
+
+  private void testGetViewLoadStatusHelper(
+      Map<String, ImplyViewDefinition> coordinatorViews,
+      HttpResponseStatus responseStatusFromBroker,
+      ImplyViewDefinition brokerViewDefinition,
+      HttpResponseStatus expectedResponseStatus,
+      ViewStateManagerResource.ViewLoadStatusResponse expectedResponse
+  ) throws Exception
+  {
+    expectHttpClientRequest(responseStatusFromBroker, JSON_MAPPER.writeValueAsString(brokerViewDefinition));
+
+    EasyMock.expect(viewStateManager.getViewState()).andReturn(coordinatorViews).once();
+    EasyMock.replay(req, httpClient, viewStateManager);
+
+    Response response = viewStateManagerResource.getViewLoadStatus(SOME_VIEW, req);
+    Assert.assertEquals(expectedResponseStatus.getCode(), response.getStatus());
+    Assert.assertEquals(expectedResponse, response.getEntity());
+
+    EasyMock.verify(req, httpClient, viewStateManager);
+
+    EasyMock.reset(req, httpClient, viewStateManager);
   }
 
   @Test
@@ -365,8 +563,8 @@ public class ViewStateManagerResourceTest
         )
     );
 
-    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
-    expectBrokerValidationCheck(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
+    expectHttpClientRequest(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
+    expectHttpClientRequest(HttpResponseStatus.INTERNAL_SERVER_ERROR, null);
     EasyMock.replay(req, httpClient, viewStateManager);
 
     Response response = viewStateManagerResource.createView(
@@ -384,6 +582,8 @@ public class ViewStateManagerResourceTest
     );
     Assert.assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode(), response.getStatus());
     Assert.assertEquals(errorEntity, response.getEntity());
+
+    EasyMock.verify(req, httpClient, viewStateManager);
   }
 
   @Test
@@ -397,6 +597,43 @@ public class ViewStateManagerResourceTest
     Assert.assertEquals(request, fromJson);
   }
 
+  @Test
+  public void testSerdeViewLoadStatusResponse() throws IOException
+  {
+    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ViewStateManagerResource.ViewLoadStatusResponse request = new ViewStateManagerResource.ViewLoadStatusResponse(
+        ImmutableList.of("hello:1234"),
+        ImmutableList.of("world:1234"),
+        ImmutableList.of("foo:1234"),
+        ImmutableList.of("bar:1234")
+    );
+    final String json = mapper.writeValueAsString(request);
+    System.err.println(json);
+    final ViewStateManagerResource.ViewLoadStatusResponse fromJson = mapper.readValue(
+        json,
+        ViewStateManagerResource.ViewLoadStatusResponse.class
+    );
+    Assert.assertEquals(request, fromJson);
+  }
+
+  @Test
+  public void test_ViewDefinitionRequest_equals()
+  {
+    EqualsVerifier.forClass(ViewStateManagerResource.ViewDefinitionRequest.class)
+                  .usingGetClass()
+                  .withNonnullFields("viewSql")
+                  .verify();
+  }
+
+  @Test
+  public void test_ViewLoadStatusResponse_equals()
+  {
+    EqualsVerifier.forClass(ViewStateManagerResource.ViewLoadStatusResponse.class)
+                  .usingGetClass()
+                  .withNonnullFields("fresh", "stale", "unknown")
+                  .verify();
+  }
+
   private void replayAll()
   {
     EasyMock.replay(req, viewStateManager);
@@ -407,7 +644,7 @@ public class ViewStateManagerResourceTest
     EasyMock.verify(req, viewStateManager);
   }
 
-  private void expectBrokerValidationCheck(
+  private void expectHttpClientRequest(
       HttpResponseStatus expectedResponseStatus,
       String responseContent
   )
@@ -417,7 +654,7 @@ public class ViewStateManagerResourceTest
       @Override
       public void addListener(Runnable listener, Executor executor)
       {
-
+        executor.execute(listener);
       }
 
       @Override

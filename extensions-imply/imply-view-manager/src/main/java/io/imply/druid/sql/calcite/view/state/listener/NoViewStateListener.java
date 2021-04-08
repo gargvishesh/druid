@@ -9,6 +9,10 @@
 
 package io.imply.druid.sql.calcite.view.state.listener;
 
+import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
+
+import java.util.Map;
+
 public class NoViewStateListener implements ViewStateListener
 {
   @Override
@@ -16,6 +20,14 @@ public class NoViewStateListener implements ViewStateListener
   {
     throw new UnsupportedOperationException(
         "setViewState not supported"
+    );
+  }
+
+  @Override
+  public Map<String, ImplyViewDefinition> getViewState()
+  {
+    throw new UnsupportedOperationException(
+        "getViewState not supported"
     );
   }
 }

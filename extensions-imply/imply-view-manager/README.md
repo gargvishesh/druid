@@ -139,6 +139,68 @@ Response:
 }
 ```
 
+#### Get single view definition
+
+Request:
+
+```
+GET http://coordinator:8081/druid-ext/view-manager/v1/views/wiki-en
+Accept: application/json
+Content-Type: application/json
+```
+
+Response:
+200 status code
+```json
+{
+  "viewName": "wiki-en",
+  "viewNamespace": null,
+  "viewSql": "SELECT * FROM druid.wikipedia WHERE channel = '#en.wikipedia'",
+  "lastModified": "2021-02-24T14:28:28.729Z"
+}
+```
+
+#### Get single view load status
+
+This API provides a summary of the freshness of a view definition across the cluster, for a single view.
+
+The response contains 4 lists, containing the hostnames and ports of brokers in the cluster, organized by how fresh their
+view definition is compared to the coordinator's definition at the time the request was received.
+
+The lists are described below:
+* fresh: brokers with a view definition that has the same modification time as the coordinator's view definition
+* stale: brokers with an older view than the coordinator
+* newer: brokers with a newer view than the coordinator (i.e. the view definition changed while the load status API was being processed)
+* unknown: brokers that we were unable to determine view definition version for, e.g. due to network errors when communicating with the broker
+
+Request:
+
+```
+GET http://coordinator:8081/druid-ext/view-manager/v1/views/loadstatus/wiki-en
+Accept: application/json
+Content-Type: application/json
+```
+
+Response:
+200 status code
+```json
+{
+  "fresh": [
+    "broker01:8082"
+  ],
+  "stale": [
+    "broker02:8082"
+  ],
+  "newer": [
+    "broker03:8082"
+  ],
+  "unknown": [
+    "broker04:8082"
+  ]
+}
+```
+
+
 #### API permissions
 
 Accessing these APIs requires `READ` and `WRITE` access to the `CONFIG` resource type with name `CONFIG`.

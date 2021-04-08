@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class ViewStateManagementConfig
 {
   private static final long DEFAULT_POLLING_PERIOD = 60000;
+  private static final long DEFAULT_NOTIFIER_UPDATE_PERIOD = DEFAULT_POLLING_PERIOD / 10;
   private static final long DEFAULT_MAX_RANDOM_DELAY = DEFAULT_POLLING_PERIOD / 10;
   private static final int DEFAULT_MAX_SYNC_RETRIES = 5;
   public static final long DEFAULT_CACHE_NOTIFY_TIMEOUT_MS = 5000;
@@ -38,6 +39,9 @@ public class ViewStateManagementConfig
   private final long cacheNotificationTimeout;
 
   @JsonProperty
+  private final long notifierUpdatePeriod;
+
+  @JsonProperty
   private final boolean allowUnrestrictedViews;
 
   @JsonCreator
@@ -48,6 +52,7 @@ public class ViewStateManagementConfig
       @JsonProperty("maxSyncRetries") Integer maxSyncRetries,
       @JsonProperty("enableCacheNotifications") Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout,
+      @JsonProperty("notifierUpdatePeriod") Long notifierUpdatePeriod,
       @JsonProperty("allowUnrestrictedViews") Boolean allowUnrestrictedViews
   )
   {
@@ -59,6 +64,7 @@ public class ViewStateManagementConfig
     this.cacheNotificationTimeout = cacheNotificationTimeout == null
                                     ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS
                                     : cacheNotificationTimeout;
+    this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
     this.allowUnrestrictedViews = allowUnrestrictedViews == null ? false : allowUnrestrictedViews;
   }
 
@@ -102,5 +108,11 @@ public class ViewStateManagementConfig
   public boolean isAllowUnrestrictedViews()
   {
     return allowUnrestrictedViews;
+  }
+
+  @JsonProperty
+  public long getNotifierUpdatePeriod()
+  {
+    return notifierUpdatePeriod;
   }
 }

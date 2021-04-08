@@ -16,11 +16,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
+import io.imply.druid.sql.calcite.view.state.notifier.CommonStateNotifier;
 import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
@@ -28,6 +30,7 @@ import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -39,6 +42,7 @@ import org.apache.druid.sql.http.SqlQuery;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.joda.time.Duration;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -56,12 +60,17 @@ import javax.ws.rs.core.StreamingOutput;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 @Path("/druid-ext/view-manager/v1/views")
 @ResourceFilters(ConfigResourceFilter.class)
@@ -108,6 +117,29 @@ public class ViewStateManagerResource
     }
   }
 
+  @GET
+  @Path("/{name}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getSingleView(
+      @PathParam("name") String name,
+      @Context final HttpServletRequest req
+  )
+  {
+    try {
+      IdUtils.validateId("view", name);
+    }
+    catch (IllegalArgumentException iae) {
+      return clientBadRequestError(iae.getMessage());
+    }
+
+    ImplyViewDefinition targetView = viewStateManager.getViewState().get(name);
+    if (targetView == null) {
+      return clientNotFoundError(StringUtils.format("View[%s] not found.", name));
+    }
+
+    return Response.ok().entity(targetView).build();
+  }
+
   @POST
   @Path("/{name}")
   @Consumes({MediaType.APPLICATION_JSON})
@@ -122,16 +154,16 @@ public class ViewStateManagerResource
       IdUtils.validateId("view", name);
     }
     catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
+      return clientBadRequestError(iae.getMessage());
     }
 
     try {
       if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
-        return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
+        return clientBadRequestError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
       }
     }
     catch (ViewDefinitionValidationUtils.ClientValidationException ce) {
-      return clientError(ce.getMessage());
+      return clientBadRequestError(ce.getMessage());
     }
     catch (Exception e) {
       LOG.error(e, "Encountered exception while validating view definition.");
@@ -147,7 +179,7 @@ public class ViewStateManagerResource
       return Response.created(URI.create("")).build();
     }
     catch (ViewAlreadyExistsException alreadyExistsException) {
-      return clientError(alreadyExistsException.getMessage());
+      return clientBadRequestError(alreadyExistsException.getMessage());
     }
     catch (Exception ex) {
       LOG.error(ex, "Failed to create view");
@@ -169,16 +201,16 @@ public class ViewStateManagerResource
       IdUtils.validateId("view", name);
     }
     catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
+      return clientBadRequestError(iae.getMessage());
     }
 
     try {
       if (!validateViewDefinition(viewDefinitionRequest.getViewSql())) {
-        return clientError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
+        return clientBadRequestError("Invalid view definition: " + viewDefinitionRequest.getViewSql());
       }
     }
     catch (ViewDefinitionValidationUtils.ClientValidationException ce) {
-      return clientError(ce.getMessage());
+      return clientBadRequestError(ce.getMessage());
     }
     catch (Exception e) {
       LOG.error(e, "Encountered exception while validating view definition.");
@@ -188,12 +220,12 @@ public class ViewStateManagerResource
     try {
       int updated = viewStateManager.alterView(new ImplyViewDefinition(name, viewDefinitionRequest.getViewSql()));
       if (updated != 1) {
-        return Response.status(Response.Status.NOT_FOUND).build();
+        return clientNotFoundError(StringUtils.format("View[%s] not found.", name));
       }
       return Response.ok().build();
     }
     catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
+      return clientBadRequestError(iae.getMessage());
     }
     catch (Exception ex) {
       LOG.error(ex, "Failed to alter view");
@@ -213,18 +245,18 @@ public class ViewStateManagerResource
       IdUtils.validateId("view", name);
     }
     catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
+      return clientBadRequestError(iae.getMessage());
     }
 
     try {
       int deleted = viewStateManager.deleteView(name, null);
       if (deleted != 1) {
-        return Response.status(Response.Status.NOT_FOUND).build();
+        return clientNotFoundError(StringUtils.format("View[%s] not found.", name));
       }
       return Response.ok().build();
     }
     catch (IllegalArgumentException iae) {
-      return clientError(iae.getMessage());
+      return clientBadRequestError(iae.getMessage());
     }
     catch (Exception ex) {
       LOG.error(ex, "Failed to delete view");
@@ -232,7 +264,42 @@ public class ViewStateManagerResource
     }
   }
 
-  private static Response clientError(String message)
+  @GET
+  @Path("/loadstatus/{name}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getViewLoadStatus(
+      @PathParam("name") String name,
+      @Context final HttpServletRequest req
+  )
+  {
+    try {
+      IdUtils.validateId("view", name);
+    }
+    catch (IllegalArgumentException iae) {
+      return clientBadRequestError(iae.getMessage());
+    }
+
+    ImplyViewDefinition targetView = viewStateManager.getViewState().get(name);
+    if (targetView == null) {
+      return clientNotFoundError(StringUtils.format("View[%s] not found.", name));
+    }
+
+    try {
+      ViewLoadStatusResponse loadStatusResponse = getViewLoadStatusForCluster(targetView);
+      return Response.ok().entity(loadStatusResponse).build();
+    }
+    catch (Exception e) {
+      return serverError(e.getMessage());
+    }
+  }
+
+  private static Response clientNotFoundError(String message)
+  {
+    return Response.status(Response.Status.NOT_FOUND)
+                   .entity(ImmutableMap.of("error", message == null ? "unknown error" : message))
+                   .build();
+  }
+  private static Response clientBadRequestError(String message)
   {
     return Response.status(Response.Status.BAD_REQUEST)
                    .entity(ImmutableMap.of("error", message == null ? "unknown error" : message))
@@ -289,6 +356,254 @@ public class ViewStateManagerResource
              "viewSql='" + viewSql + '\'' +
              '}';
     }
+  }
+
+  /**
+   * Response format for {@link #getViewLoadStatus(String, HttpServletRequest)}.
+   *
+   * The response consists of four lists of hostname:port strings, representing brokers in the cluster.
+   *
+   * Note that the lists are expected to be sorted by natural string order.
+   *
+   * fresh: brokers with a view definition that has the same modification time as the coordinator's view definition
+   * stale: brokers with an older view than the coordinator
+   * newer: brokers with a newer view than the coordinator
+   *        (i.e. the view definition changed while the load status API was being processed)
+   * unknown: brokers that we were unable to determine view definition version for, e.g. due to network errors
+   */
+  public static class ViewLoadStatusResponse
+  {
+    private final List<String> fresh;
+    private final List<String> stale;
+    private final List<String> newer;
+    private final List<String> unknown;
+
+    @JsonCreator
+    public ViewLoadStatusResponse(
+        @JsonProperty("fresh") List<String> fresh,
+        @JsonProperty("stale") List<String> stale,
+        @JsonProperty("newer") List<String> newer,
+        @JsonProperty("unknown") List<String> unknown
+    )
+    {
+      this.fresh = fresh;
+      this.stale = stale;
+      this.newer = newer;
+      this.unknown = unknown;
+    }
+
+    @JsonProperty
+    public List<String> getFresh()
+    {
+      return fresh;
+    }
+
+    @JsonProperty
+    public List<String> getStale()
+    {
+      return stale;
+    }
+
+    @JsonProperty
+    public List<String> getUnknown()
+    {
+      return unknown;
+    }
+
+    @JsonProperty
+    public List<String> getNewer()
+    {
+      return newer;
+    }
+
+    /**
+     * Note that ordering of the lists matters, the lists are expected to be sorted by natural order.
+     */
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ViewLoadStatusResponse that = (ViewLoadStatusResponse) o;
+      return Objects.equals(getFresh(), that.getFresh()) &&
+             Objects.equals(getStale(), that.getStale()) &&
+             Objects.equals(getNewer(), that.getNewer()) &&
+             Objects.equals(getUnknown(), that.getUnknown());
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(getFresh(), getStale(), getNewer(), getUnknown());
+    }
+  }
+
+  private ViewLoadStatusResponse getViewLoadStatusForCluster(ImplyViewDefinition targetView)
+  {
+    DruidNodeDiscovery nodeDiscovery = discoveryProvider.getForNodeRole(NodeRole.BROKER);
+    Collection<DiscoveryDruidNode> nodes = nodeDiscovery.getAllNodes();
+    List<DiscoveryDruidNode> nodeList = ImmutableList.copyOf(nodes);
+    if (nodeList.isEmpty()) {
+      throw new RE("Could not discover any brokers when fetching view load status.");
+    }
+
+    List<ListenableFuture<StatusResponseHolder>> responseFutures = sendViewStatusRequests(
+        targetView.getViewName(),
+        nodeList
+    );
+
+    try {
+      List<StatusResponseHolder> responses = Futures.successfulAsList(responseFutures)
+                                                    .get(
+                                                        viewStateManagementConfig.getCacheNotificationTimeout(),
+                                                        TimeUnit.MILLISECONDS
+                                                    );
+
+      List<String> fresh = new ArrayList<>();
+      List<String> stale = new ArrayList<>();
+      List<String> newer = new ArrayList<>();
+      List<String> unknown = new ArrayList<>();
+
+      for (int i = 0; i < responses.size(); i++) {
+        StatusResponseHolder response = responses.get(i);
+        DiscoveryDruidNode broker = nodeList.get(i);
+        String brokerHostAndPort = broker.getDruidNode().getHostAndPortToUse();
+
+        if (response == null) {
+          LOG.error("Got null future response from load status request.");
+          unknown.add(brokerHostAndPort);
+        } else if (!HttpResponseStatus.OK.equals(response.getStatus())) {
+          LOG.error("Got error status [%s], content [%s]", response.getStatus(), response.getContent());
+          unknown.add(brokerHostAndPort);
+        } else {
+          LOG.debug("Got status [%s]", response.getStatus());
+          try {
+            ImplyViewDefinition viewDefinitionFromBroker = jsonMapper.readValue(
+                response.getContent(),
+                ImplyViewDefinition.class
+            );
+            int modificationTimeCompareResult = targetView.getLastModified()
+                                                          .compareTo(viewDefinitionFromBroker.getLastModified());
+            if (modificationTimeCompareResult > 0) {
+              stale.add(brokerHostAndPort);
+            } else if (modificationTimeCompareResult == 0) {
+              fresh.add(brokerHostAndPort);
+            } else {
+              // view was updated while we were still processing this API
+              newer.add(brokerHostAndPort);
+            }
+          }
+          catch (JsonProcessingException e) {
+            LOG.error(
+                e,
+                "Could not deserialize view state from broker[%s], content[%s]",
+                brokerHostAndPort,
+                response.getContent()
+            );
+            unknown.add(brokerHostAndPort);
+          }
+        }
+      }
+
+      fresh.sort(Comparator.naturalOrder());
+      stale.sort(Comparator.naturalOrder());
+      newer.sort(Comparator.naturalOrder());
+      unknown.sort(Comparator.naturalOrder());
+
+      return new ViewLoadStatusResponse(
+          fresh,
+          stale,
+          newer,
+          unknown
+      );
+    }
+    catch (Exception e) {
+      LOG.error(e, "Failed to get responses for view load status.");
+      throw new RE(e);
+    }
+  }
+
+  private static class AlwaysFailListenableFuture<V> implements ListenableFuture<V>
+  {
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning)
+    {
+      return false;
+    }
+
+    @Override
+    public boolean isCancelled()
+    {
+      return false;
+    }
+
+    @Override
+    public boolean isDone()
+    {
+      return true;
+    }
+
+    @Override
+    public V get() throws ExecutionException
+    {
+      throw new ExecutionException(new RuntimeException("Could not create view load status future successfully"));
+    }
+
+    @Override
+    public V get(long timeout, TimeUnit unit) throws ExecutionException
+    {
+      throw new ExecutionException(new RuntimeException("Could not create view load status future successfully"));
+    }
+
+    @Override
+    public void addListener(Runnable listener, Executor executor)
+    {
+      throw new RejectedExecutionException(new RuntimeException("Could not create view load status future successfully"));
+    }
+  }
+
+  private List<ListenableFuture<StatusResponseHolder>> sendViewStatusRequests(
+      String viewName,
+      List<DiscoveryDruidNode> nodeList
+  )
+  {
+    List<ListenableFuture<StatusResponseHolder>> futures = new ArrayList<>();
+    for (DiscoveryDruidNode node : nodeList) {
+      URL listenerURL = CommonStateNotifier.getListenerURL(
+          node.getDruidNode(),
+          StringUtils.format("/druid/v1/views/listen/%s", viewName)
+      );
+      if (listenerURL == null) {
+        LOG.error("Got null listener URL when sending view status request, node[%s]", node.getDruidNode());
+        futures.add(new AlwaysFailListenableFuture<>());
+        continue;
+      }
+
+      try {
+        // best effort
+        Request req = new Request(
+            HttpMethod.GET,
+            listenerURL
+        );
+
+        ListenableFuture<StatusResponseHolder> future = httpClient.go(
+            req,
+            StatusResponseHandler.getInstance(),
+            Duration.millis(viewStateManagementConfig.getCacheNotificationTimeout())
+        );
+        futures.add(future);
+      }
+      catch (Exception e) {
+        LOG.error(e, "Got exception while sending view status request, node[%s]", node.getDruidNode());
+        futures.add(new AlwaysFailListenableFuture<>());
+      }
+    }
+
+    return futures;
   }
 
   private boolean validateViewDefinition(String viewSql)

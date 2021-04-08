@@ -184,6 +184,12 @@ public class MySQLFirehoseDatabaseConnectorTest
       {
         return ImmutableSet.of("user", "nonenone");
       }
+
+      @Override
+      public boolean isEnforceAllowedProperties()
+      {
+        return false;
+      }
     };
 
     new MySQLFirehoseDatabaseConnector(
@@ -205,12 +211,13 @@ public class MySQLFirehoseDatabaseConnectorTest
       }
     };
 
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(StringUtils.format("Invalid URL format for MySQL: [%s]", url));
     MySQLFirehoseDatabaseConnector connector = new MySQLFirehoseDatabaseConnector(
         connectorConfig,
         new JdbcAccessSecurityConfig()
     );
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(StringUtils.format("Invalid URL format for MySQL: [%s]", url));
+    // this needs to be called in Imply because we default to not checking the allowed properties
     connector.findPropertyKeysFromConnectURL(url);
   }
 

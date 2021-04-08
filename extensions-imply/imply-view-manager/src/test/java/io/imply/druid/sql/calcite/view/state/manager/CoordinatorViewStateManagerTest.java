@@ -66,6 +66,7 @@ public class CoordinatorViewStateManagerTest
             null,
             null,
             null,
+            (long) 1000 * 60000, // extremely long polling period to avoid flakiness issues
             null
         ),
         viewStateNotifier,
