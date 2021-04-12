@@ -116,7 +116,7 @@ public class TaskBasedJobStatusTest
     if (determinePartitionsMap != null) {
       final Map<String, Object> rowStats = ImmutableMap.of("determinePartitions", determinePartitionsMap);
       IngestionStatsAndErrorsTaskReportData payload =
-          new IngestionStatsAndErrorsTaskReportData(IngestionState.COMPLETED, null, rowStats, error);
+          new IngestionStatsAndErrorsTaskReportData(IngestionState.COMPLETED, null, rowStats, error, false);
 
       taskReport = new IngestionStatsAndErrorsTaskReport(taskId, payload);
     } else {
