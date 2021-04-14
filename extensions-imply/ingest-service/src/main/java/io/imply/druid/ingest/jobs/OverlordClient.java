@@ -78,10 +78,19 @@ public class OverlordClient implements IndexingServiceClient
       int compactionTaskPriority,
       @Nullable ClientCompactionTaskQueryTuningConfig tuningConfig,
       @Nullable ClientCompactionTaskGranularitySpec granularitySpec,
+      @Nullable Boolean dropExisting,
       @Nullable Map<String, Object> context
   )
   {
-    return delegate.compactSegments(idPrefix, segments, compactionTaskPriority, tuningConfig, granularitySpec, context);
+    return delegate.compactSegments(
+        idPrefix,
+        segments,
+        compactionTaskPriority,
+        tuningConfig,
+        granularitySpec,
+        dropExisting,
+        context
+    );
   }
 
   @Override
