@@ -98,8 +98,8 @@ setupData()
     find /var/lib/mysql -type f -exec touch {} \; && service mysql start \
       && cat /test-data/${DRUID_INTEGRATION_TEST_GROUP}-sample-data.sql | mysql -u root druid && /etc/init.d/mysql stop
     # below s3 credentials needed to access the pre-existing s3 bucket
-    setKey $DRUID_SERVICE druid.s3.accessKey AKIAJI7DG7CDECGBQ6NA
-    setKey $DRUID_SERVICE druid.s3.secretKey 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
+    setKey $DRUID_SERVICE druid.s3.accessKey AKIAT2GGLKKJQCMG64V4
+    setKey $DRUID_SERVICE druid.s3.secretKey HwcqHFaxC7bXMO7K6NdCwAdvq0tcPtHJP3snZ2tR
     # The region of the sample data s3 blobs needed for these test groups
     export AWS_REGION=us-east-1
   fi
