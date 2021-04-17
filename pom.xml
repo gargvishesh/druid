@@ -2028,6 +2028,7 @@
                                 <exclude>.asf.yaml</exclude>
                                 <exclude>jenkinsfile*</exclude>
                                 <exclude>**/dependency-reduced-pom.xml</exclude>
+                                <exclude>.editorconfig</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
