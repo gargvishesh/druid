@@ -75,10 +75,7 @@ describe('utils', () => {
             timeoutMs: 15000,
           },
         }),
-        [
-          { make: 'Honda', model: 'Accord' },
-          { make: 'Toyota', model: 'Prius' },
-        ],
+        [{ make: 'Honda', model: 'Accord' }, { make: 'Toyota', model: 'Prius' }],
       ),
     ).toMatchInlineSnapshot(`
       Object {

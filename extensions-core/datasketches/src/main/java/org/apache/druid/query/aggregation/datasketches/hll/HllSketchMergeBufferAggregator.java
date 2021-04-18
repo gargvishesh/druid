@@ -19,6 +19,7 @@
 
 package org.apache.druid.query.aggregation.datasketches.hll;
 
+import com.google.common.util.concurrent.Striped;
 import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.TgtHllType;
 import org.apache.datasketches.hll.Union;
@@ -29,6 +30,8 @@ import org.apache.druid.segment.ColumnValueSelector;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * This aggregator merges existing sketches.
@@ -36,8 +39,24 @@ import java.nio.ByteOrder;
  */
 public class HllSketchMergeBufferAggregator implements BufferAggregator
 {
+
+  /**
+   * for locking per buffer position (power of 2 to make index computation faster)
+   */
+  private static final int NUM_STRIPES = 64;
+
   private final ColumnValueSelector<HllSketch> selector;
-  private final HllSketchMergeBufferAggregatorHelper helper;
+  private final int lgK;
+  private final TgtHllType tgtHllType;
+  private final int size;
+  private final Striped<ReadWriteLock> stripedLock = Striped.readWriteLock(NUM_STRIPES);
+
+  /**
+   * Used by {@link #init(ByteBuffer, int)}. We initialize by copying a prebuilt empty Union image.
+   * {@link HllSketchBuildBufferAggregator} does something similar, but different enough that we don't share code. The
+   * "build" flavor uses {@link HllSketch} objects and the "merge" flavor uses {@link Union} objects.
+   */
+  private final byte[] emptyUnion;
 
   public HllSketchMergeBufferAggregator(
       final ColumnValueSelector<HllSketch> selector,
@@ -47,15 +66,39 @@ public class HllSketchMergeBufferAggregator implements BufferAggregator
   )
   {
     this.selector = selector;
-    this.helper = new HllSketchMergeBufferAggregatorHelper(lgK, tgtHllType, size);
+    this.lgK = lgK;
+    this.tgtHllType = tgtHllType;
+    this.size = size;
+    this.emptyUnion = new byte[size];
+
+    //noinspection ResultOfObjectAllocationIgnored (Union writes to "emptyUnion" as a side effect of construction)
+    new Union(lgK, WritableMemory.wrap(emptyUnion));
   }
 
   @Override
   public void init(final ByteBuffer buf, final int position)
   {
-    helper.init(buf, position);
+    // Copy prebuilt empty union object.
+    // Not necessary to cache a Union wrapper around the initialized memory, because:
+    //  - It is cheap to reconstruct by re-wrapping the memory in "aggregate" and "get".
+    //  - Unlike the HllSketch objects used by HllSketchBuildBufferAggregator, our Union objects never exceed the
+    //    max size and therefore do not need to be potentially moved in-heap.
+
+    final int oldPosition = buf.position();
+    try {
+      buf.position(position);
+      buf.put(emptyUnion);
+    }
+    finally {
+      buf.position(oldPosition);
+    }
   }
 
+  /**
+   * This method uses locks because it can be used during indexing,
+   * and Druid can call aggregate() and get() concurrently
+   * See https://github.com/druid-io/druid/pull/3956
+   */
   @Override
   public void aggregate(final ByteBuffer buf, final int position)
   {
@@ -63,18 +106,36 @@ public class HllSketchMergeBufferAggregator implements BufferAggregator
     if (sketch == null) {
       return;
     }
-
-    final WritableMemory mem = WritableMemory.wrap(buf, ByteOrder.LITTLE_ENDIAN)
-                                             .writableRegion(position, helper.getSize());
-
-    final Union union = Union.writableWrap(mem);
-    union.update(sketch);
+    final WritableMemory mem = WritableMemory.wrap(buf, ByteOrder.LITTLE_ENDIAN).writableRegion(position, size);
+    final Lock lock = stripedLock.getAt(HllSketchBuildBufferAggregator.lockIndex(position)).writeLock();
+    lock.lock();
+    try {
+      final Union union = Union.writableWrap(mem);
+      union.update(sketch);
+    }
+    finally {
+      lock.unlock();
+    }
   }
 
+  /**
+   * This method uses locks because it can be used during indexing,
+   * and Druid can call aggregate() and get() concurrently
+   * See https://github.com/druid-io/druid/pull/3956
+   */
   @Override
   public Object get(final ByteBuffer buf, final int position)
   {
-    return helper.get(buf, position);
+    final WritableMemory mem = WritableMemory.wrap(buf, ByteOrder.LITTLE_ENDIAN).writableRegion(position, size);
+    final Lock lock = stripedLock.getAt(HllSketchBuildBufferAggregator.lockIndex(position)).readLock();
+    lock.lock();
+    try {
+      final Union union = Union.writableWrap(mem);
+      return union.getResult(tgtHllType);
+    }
+    finally {
+      lock.unlock();
+    }
   }
 
   @Override
@@ -102,6 +163,6 @@ public class HllSketchMergeBufferAggregator implements BufferAggregator
     // lgK should be inspected because different execution paths exist in Union.update() that is called from
     // @CalledFromHotLoop-annotated aggregate() depending on the lgK.
     // See https://github.com/apache/druid/pull/6893#discussion_r250726028
-    inspector.visit("lgK", helper.getLgK());
+    inspector.visit("lgK", lgK);
   }
 }

@@ -26,7 +26,10 @@ export interface QueryRecord {
 
 export class QueryRecordUtil {
   static getHistoryVersion(): string {
-    return new Date().toISOString().split('.')[0].replace('T', ' ');
+    return new Date()
+      .toISOString()
+      .split('.')[0]
+      .replace('T', ' ');
   }
 
   static addQueryToHistory(
