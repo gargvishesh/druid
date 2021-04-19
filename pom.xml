@@ -260,7 +260,7 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-sts</artifactId>
                 <version>${aws.sdk.version}</version>
-            </dependency>            
+            </dependency>
             <dependency>
                 <groupId>com.ning</groupId>
                 <artifactId>compress-lzf</artifactId>
@@ -1349,7 +1349,7 @@
                         <!-- Exceptions -->
                         <exclude>org/apache/druid/query/TruncatedResponseContextException.class</exclude>
 
-                        <exclude>org/apache/druid/common/aws/AWSCredentials*</exclude>                      
+                        <exclude>org/apache/druid/common/aws/AWSCredentials*</exclude>
                   </excludes>
                 </configuration>
                 <executions>
@@ -2022,7 +2022,6 @@
                                 <exclude>JENKINS.md</exclude>
                                 <exclude>git.version</exclude>
                                 <exclude>node_modules/**</exclude>
-                                <exclude>coordinator-console/**</exclude>
                                 <exclude>src/**/*.snap</exclude>
                                 <exclude>examples/conf/**</exclude>
                                 <exclude>.asf.yaml</exclude>
