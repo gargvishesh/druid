@@ -164,13 +164,14 @@ Response:
 
 This API provides a summary of the freshness of a view definition across the cluster, for a single view.
 
-The response contains 4 lists, containing the hostnames and ports of brokers in the cluster, organized by how fresh their
+The response contains 5 lists, containing the hostnames and ports of brokers in the cluster, organized by how fresh their
 view definition is compared to the coordinator's definition at the time the request was received.
 
 The lists are described below:
 * fresh: brokers with a view definition that has the same modification time as the coordinator's view definition
 * stale: brokers with an older view than the coordinator
 * newer: brokers with a newer view than the coordinator (i.e. the view definition changed while the load status API was being processed)
+* absent: brokers that do not have the view definition loaded
 * unknown: brokers that we were unable to determine view definition version for, e.g. due to network errors when communicating with the broker
 
 Request:
@@ -194,8 +195,11 @@ Response:
   "newer": [
     "broker03:8082"
   ],
-  "unknown": [
+  "absent": [
     "broker04:8082"
+  ],
+  "unknown": [
+    "broker05:8082"
   ]
 }
 ```

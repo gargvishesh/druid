@@ -88,10 +88,17 @@ public class ViewStateListenerResource
 
     ImplyViewDefinition targetView = viewStateListener.getViewState().get(name);
     if (targetView == null) {
-      return serverError(StringUtils.format("View[%s] not found.", name));
+      return clientNotFoundError(StringUtils.format("View[%s] not found.", name));
     }
 
     return Response.ok().entity(targetView).build();
+  }
+
+  private static Response clientNotFoundError(String message)
+  {
+    return Response.status(Response.Status.NOT_FOUND)
+                   .entity(ImmutableMap.of("error", message == null ? "unknown error" : message))
+                   .build();
   }
 
   private static Response serverError(String message)

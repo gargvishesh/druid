@@ -415,6 +415,7 @@ public class ViewStateManagerResourceTest
             ImmutableList.of(brokerName),
             ImmutableList.of(),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of()
         );
     testGetViewLoadStatusHelper(
@@ -452,6 +453,7 @@ public class ViewStateManagerResourceTest
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(brokerName),
+            ImmutableList.of(),
             ImmutableList.of()
         );
     testGetViewLoadStatusHelper(
@@ -489,12 +491,43 @@ public class ViewStateManagerResourceTest
             ImmutableList.of(),
             ImmutableList.of(brokerName),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of()
         );
     testGetViewLoadStatusHelper(
         views,
         HttpResponseStatus.OK,
         staleViewDefinition,
+        HttpResponseStatus.OK,
+        expectedResponse
+    );
+  }
+
+  @Test
+  public void testGetViewLoadStatus_absent() throws Exception
+  {
+    DateTime coordinatorTime = DateTimes.utc(10);
+
+    ImplyViewDefinition someViewDefinition = new ImplyViewDefinition(SOME_VIEW, null, SOME_SQL, coordinatorTime);
+    final Map<String, ImplyViewDefinition> views = ImmutableMap.of(
+        SOME_VIEW, someViewDefinition
+    );
+
+    String brokerName = "testhostname:9000";
+
+    // error fetching view definition from broker
+    ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
+        new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(brokerName),
+            ImmutableList.of()
+        );
+    testGetViewLoadStatusHelper(
+        views,
+        HttpResponseStatus.NOT_FOUND,
+        null,
         HttpResponseStatus.OK,
         expectedResponse
     );
@@ -515,6 +548,7 @@ public class ViewStateManagerResourceTest
     // error fetching view definition from broker
     ViewStateManagerResource.ViewLoadStatusResponse expectedResponse =
         new ViewStateManagerResource.ViewLoadStatusResponse(
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -605,7 +639,8 @@ public class ViewStateManagerResourceTest
         ImmutableList.of("hello:1234"),
         ImmutableList.of("world:1234"),
         ImmutableList.of("foo:1234"),
-        ImmutableList.of("bar:1234")
+        ImmutableList.of("bar:1234"),
+        ImmutableList.of("baz:1234")
     );
     final String json = mapper.writeValueAsString(request);
     System.err.println(json);
