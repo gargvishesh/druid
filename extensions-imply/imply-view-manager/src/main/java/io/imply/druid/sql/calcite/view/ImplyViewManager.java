@@ -31,7 +31,7 @@ public class ImplyViewManager implements ViewManager
 {
   private final Escalator escalator;
   private final DruidViewMacroFactory druidViewMacroFactory;
-  private final ConcurrentMap<String, DruidViewMacro> views;
+  private volatile ConcurrentMap<String, DruidViewMacro> views;
 
   @Inject
   public ImplyViewManager(
@@ -107,10 +107,23 @@ public class ImplyViewManager implements ViewManager
     return views;
   }
 
-  public void reset()
+  public ConcurrentMap<String, DruidViewMacro> generateNewViewsMap(
+      PlannerFactory plannerFactory,
+      Map<String, ImplyViewDefinition> newViewMap
+  )
   {
-    brokerCheck();
-    views.clear();
+    ConcurrentMap<String, DruidViewMacro> newViews = new ConcurrentHashMap<>();
+    for (Map.Entry<String, ImplyViewDefinition> view : newViewMap.entrySet()) {
+      DruidViewMacro newMacro = druidViewMacroFactory.create(plannerFactory, escalator, view.getValue().getViewSql());
+      newViews.put(view.getKey(), newMacro);
+    }
+
+    return newViews;
+  }
+
+  public void swapViewsMap(ConcurrentMap<String, DruidViewMacro> newViewsMap)
+  {
+    views = newViewsMap;
   }
 
   private void brokerCheck()
