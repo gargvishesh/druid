@@ -45,7 +45,7 @@ module.exports = env => {
       extensions: ['.tsx', '.ts', '.js', '.scss', '.css'],
     },
     externals: {
-      react: 'react',
+      'react': 'react',
       'react-dom': 'react-dom',
     },
     module: {
