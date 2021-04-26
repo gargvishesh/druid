@@ -46,7 +46,7 @@ def setupMavenSettings() {
 
 def mavenInstall() {
     setupMavenSettings()
-    sh  script: '${MVN} clean install -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T 1C',
+    sh  script: '${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C && ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}',
         label: 'mvn install'
 }
 
@@ -106,41 +106,57 @@ def prepareIfconfig() {
 def buildArtifacts(stageName) {
     script {
         def stageArtifactsDirPath = "stage_${stageName.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
-        sh script: "mkdir -p ${stageArtifactsDirPath}"
-        // copy logs
-        sh script: """#!/bin/bash -x
-            [ -d ~/shared/logs ] && cp -R ~/shared/logs ${stageArtifactsDirPath}/ || true
-            [ -d ~/shared/tasklogs ] && cp -R ~/shared/tasklogs ${stageArtifactsDirPath}/ || true
+        withEnv(["stageArtifactsDirPath=${stageArtifactsDirPath}"]) {
+            // copy logs
+            sh script: '''#!/bin/bash -x
+                mkdir -p ${stageArtifactsDirPath}
 
-            shopt -s globstar
-            copy_files_by_pattern() {
-                if  ls \${1}; then
-                    for fname in \${1}; do
-                        fname_root=\$(echo \${fname} | cut -d "/" -f1)
-                        if ! [[ "\$fname_root" = "\${2}" ]]; then
-                            mkdir -p \$(dirname -- "\${2}/\${fname}")
-                            cp \$fname \${2}/\${fname}
-                        fi
-                    done
+                shopt -s globstar
+
+                urlencode_path() {
+                    python -c 'import urllib, sys; print urllib.quote(sys.argv[1], sys.argv[2])' "$1" "/"
+                }
+
+                copy_files_by_pattern() {
+                    if  ls ${1}; then
+                        for fname in ${1}; do
+                            fname_root=$(echo "${fname}" | cut -d "/" -f1)
+                            if ! [[ "$fname_root" = "${2}" ]]; then
+                                if [[ -f "$fname" ]]; then
+                                    dest=${2}/$(urlencode_path "${fname}")
+                                    mkdir -p $(dirname -- "$dest")
+                                    cp "$fname" "$dest"
+                                fi
+                            fi
+                        done
+                    fi
+                }
+
+                if [ -d ~/shared ]; then
+                    artifacts_path=$(pwd)/${stageArtifactsDirPath}
+                    pushd ~/shared
+                    copy_files_by_pattern 'logs/**' $artifacts_path
+                    copy_files_by_pattern 'tasklogs/**' $artifacts_path
+                    popd
                 fi
-            }
 
-            # copy test reports
-            copy_files_by_pattern '**/target/surefire-reports/*.xml' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/target/failsafe-reports/*.xml' ${stageArtifactsDirPath}
-            # copy top-level jacoco reports
-            copy_files_by_pattern '**/target/*.exec' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/*.html' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/*.xml' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/*.csv' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/jacoco-resources/*' ${stageArtifactsDirPath}
-            # copy detailed jacoco reports
-            copy_files_by_pattern '**/jacoco/**/*.html' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/**/*.xml' ${stageArtifactsDirPath}
-            copy_files_by_pattern '**/jacoco/**/*.csv' ${stageArtifactsDirPath}
-            # inspection results
-            copy_files_by_pattern 'inspection-results/*.xml' ${stageArtifactsDirPath}
-        """
+                # copy test reports
+                copy_files_by_pattern '**/target/surefire-reports/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/target/failsafe-reports/*.xml' ${stageArtifactsDirPath}
+                # copy top-level jacoco reports
+                copy_files_by_pattern '**/target/*.exec' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.html' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.csv' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/jacoco-resources/*' ${stageArtifactsDirPath}
+                # copy detailed jacoco reports
+                copy_files_by_pattern '**/jacoco/**/*.html' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/**/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/**/*.csv' ${stageArtifactsDirPath}
+                # inspection results
+                copy_files_by_pattern 'inspection-results/*.xml' ${stageArtifactsDirPath}
+            '''
+        }
         // fixate artifacts
         archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
         // cleanup tmp artifacts dir
@@ -462,9 +478,8 @@ pipeline {
 
     environment {
         MVN = "mvn -B"
-        MAVEN_SKIP = "-Danimal.sniffer.skip=true -Dcheckstyle.skip=true -Ddruid.console.skip=true -Denforcer.skip=true -Dforbiddenapis.skip=true -Dmaven.javadoc.skip=true -Dpmd.skip=true -Dspotbugs.skip=true"
-        MAVEN_SKIP_TESTS = "-DskipTests -Djacoco.skip=true"
-        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+        MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
+        MAVEN_SKIP_TESTS = "-Pskip-tests"
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
@@ -668,6 +683,9 @@ pipeline {
                             label "jenkinsOnDemand"
                         }
                     }
+                    environment {
+                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+                    }
                     steps {
                         setupMavenSettings()
                         sh """
@@ -690,6 +708,9 @@ pipeline {
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
                             label "jenkinsOnDemand"
                         }
+                    }
+                    environment {
+                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
                     }
                     steps {
                         mavenCacheRestore()
@@ -767,6 +788,9 @@ pipeline {
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
                             label "${DOCKER_AGENT_LABEL}"
                         }
+                    }
+                    environment {
+                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
                     }
                     steps {
                         setupMavenSettings()
@@ -1049,7 +1073,6 @@ pipeline {
                 // core integration tests
 
                 stage("(Compile=openjdk8, Run=openjdk8) batch index integration test") {
-                    when { expression { return false } }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
                     steps { coreIntegrationTests() }
@@ -1057,7 +1080,6 @@ pipeline {
                 }
 
                 stage("(Compile=openjdk8, Run=openjdk8) batch index integration test with Indexer") {
-                    when { expression { return false } }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
                     steps { coreIntegrationTests() }
@@ -1226,7 +1248,6 @@ pipeline {
                 }
 
                 stage("(Compile=openjdk8, Run=openjdk8) compaction integration test") {
-                    when { expression { return false } }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=compaction'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
                     steps { coreIntegrationTests() }
@@ -1234,7 +1255,6 @@ pipeline {
                 }
 
                 stage("(Compile=openjdk8, Run=openjdk8) compaction integration test with Indexer") {
-                    when { expression { return false } }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=compaction'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
                     steps { coreIntegrationTests() }
