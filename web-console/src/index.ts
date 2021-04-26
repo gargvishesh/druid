@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
+export * from './bootstrap/react-table-defaults';
 export * from './components';
 export * from './console-application';
 export * from './dialogs';
-export * from './views';
 export * from './druid-models';
+export * from './hooks';
 export * from './singletons';
 export * from './utils';
-export * from './hooks';
-export * from './bootstrap/react-table-defaults';
+export * from './views';
