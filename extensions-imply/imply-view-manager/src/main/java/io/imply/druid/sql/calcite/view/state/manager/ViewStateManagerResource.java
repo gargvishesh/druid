@@ -376,6 +376,7 @@ public class ViewStateManagerResource
     private final List<String> fresh;
     private final List<String> stale;
     private final List<String> newer;
+    private final List<String> absent;
     private final List<String> unknown;
 
     @JsonCreator
@@ -383,12 +384,14 @@ public class ViewStateManagerResource
         @JsonProperty("fresh") List<String> fresh,
         @JsonProperty("stale") List<String> stale,
         @JsonProperty("newer") List<String> newer,
+        @JsonProperty("absent") List<String> absent,
         @JsonProperty("unknown") List<String> unknown
     )
     {
       this.fresh = fresh;
       this.stale = stale;
       this.newer = newer;
+      this.absent = absent;
       this.unknown = unknown;
     }
 
@@ -405,15 +408,21 @@ public class ViewStateManagerResource
     }
 
     @JsonProperty
-    public List<String> getUnknown()
-    {
-      return unknown;
-    }
-
-    @JsonProperty
     public List<String> getNewer()
     {
       return newer;
+    }
+
+    @JsonProperty
+    public List<String> getAbsent()
+    {
+      return absent;
+    }
+
+    @JsonProperty
+    public List<String> getUnknown()
+    {
+      return unknown;
     }
 
     /**
@@ -432,13 +441,14 @@ public class ViewStateManagerResource
       return Objects.equals(getFresh(), that.getFresh()) &&
              Objects.equals(getStale(), that.getStale()) &&
              Objects.equals(getNewer(), that.getNewer()) &&
+             Objects.equals(getAbsent(), that.getAbsent()) &&
              Objects.equals(getUnknown(), that.getUnknown());
     }
 
     @Override
     public int hashCode()
     {
-      return Objects.hash(getFresh(), getStale(), getNewer(), getUnknown());
+      return Objects.hash(getFresh(), getStale(), getNewer(), getAbsent(), getUnknown());
     }
   }
 
@@ -466,6 +476,7 @@ public class ViewStateManagerResource
       List<String> fresh = new ArrayList<>();
       List<String> stale = new ArrayList<>();
       List<String> newer = new ArrayList<>();
+      List<String> absent = new ArrayList<>();
       List<String> unknown = new ArrayList<>();
 
       for (int i = 0; i < responses.size(); i++) {
@@ -476,6 +487,8 @@ public class ViewStateManagerResource
         if (response == null) {
           LOG.error("Got null future response from load status request.");
           unknown.add(brokerHostAndPort);
+        } else if (HttpResponseStatus.NOT_FOUND.equals(response.getStatus())) {
+          absent.add(brokerHostAndPort);
         } else if (!HttpResponseStatus.OK.equals(response.getStatus())) {
           LOG.error("Got error status [%s], content [%s]", response.getStatus(), response.getContent());
           unknown.add(brokerHostAndPort);
@@ -512,12 +525,14 @@ public class ViewStateManagerResource
       fresh.sort(Comparator.naturalOrder());
       stale.sort(Comparator.naturalOrder());
       newer.sort(Comparator.naturalOrder());
+      absent.sort(Comparator.naturalOrder());
       unknown.sort(Comparator.naturalOrder());
 
       return new ViewLoadStatusResponse(
           fresh,
           stale,
           newer,
+          absent,
           unknown
       );
     }

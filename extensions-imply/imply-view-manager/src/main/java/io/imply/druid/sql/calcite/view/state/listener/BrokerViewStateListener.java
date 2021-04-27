@@ -37,6 +37,7 @@ import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
+import org.apache.druid.sql.calcite.view.DruidViewMacro;
 import org.apache.druid.sql.calcite.view.ViewManager;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -49,6 +50,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -65,11 +67,9 @@ public class BrokerViewStateListener implements ViewStateListener
   private final ViewStateManagementConfig commonCacheConfig;
   private final ViewManager viewManager;
   private final ScheduledExecutorService exec;
-
-  private final Map<String, ImplyViewDefinition> viewCache = new HashMap<>();
-
   private final PlannerFactory plannerFactory;
 
+  private volatile Map<String, ImplyViewDefinition> viewCache = new HashMap<>();
   private volatile byte[] viewCacheSerialized;
 
   @Inject
@@ -281,21 +281,16 @@ public class BrokerViewStateListener implements ViewStateListener
 
   private void updateInternalViewState(Map<String, ImplyViewDefinition> viewMap, byte[] viewMapBytes)
   {
-    synchronized (viewCache) {
-      viewCache.clear();
-      if (viewManager instanceof ImplyViewManager) {
-        // this is sort of ugly, it might be better to either push reset to ViewManager interface, or try to
-        // merge the updated cache into the existing view set?
-        ((ImplyViewManager) viewManager).reset();
-
+    if (viewManager instanceof ImplyViewManager) {
+      ImplyViewManager implyViewManager = (ImplyViewManager) viewManager;
+      ConcurrentMap<String, DruidViewMacro> newViewsMap = implyViewManager.generateNewViewsMap(plannerFactory, viewMap);
+      synchronized (viewManager) {
         viewCacheSerialized = viewMapBytes;
-        for (Map.Entry<String, ImplyViewDefinition> view : viewMap.entrySet()) {
-          viewCache.put(view.getKey(), view.getValue());
-          viewManager.createView(plannerFactory, view.getKey(), view.getValue().getViewSql());
-        }
-      } else {
-        LOG.error("Not updating view state cache because no implementation of ViewManager was found. Set config property druid.sql.viewmanager.type=imply.");
+        viewCache = viewMap;
+        implyViewManager.swapViewsMap(newViewsMap);
       }
+    } else {
+      LOG.error("Not updating view state cache because no implementation of ViewManager was found. Set config property druid.sql.viewmanager.type=imply.");
     }
   }
 }

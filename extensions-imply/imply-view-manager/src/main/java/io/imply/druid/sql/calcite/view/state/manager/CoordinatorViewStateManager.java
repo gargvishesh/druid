@@ -60,7 +60,7 @@ public class CoordinatorViewStateManager implements ViewStateManager
   private final ScheduledExecutorService exec;
   private volatile boolean stopped = false;
 
-  private final Map<String, ImplyViewDefinition> viewCache = new HashMap<>();
+  private volatile Map<String, ImplyViewDefinition> viewCache = new HashMap<>();
   private volatile byte[] viewCacheSerialized;
 
   @Inject
@@ -166,7 +166,7 @@ public class CoordinatorViewStateManager implements ViewStateManager
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
     int updated = viewStateConnector.createView(viewDefinition);
     if (updated > 0) {
-      synchronized (viewCache) {
+      synchronized (this) {
         viewCache.put(viewDefinition.getViewKey(), viewDefinition);
         serializeCache();
       }
@@ -180,7 +180,7 @@ public class CoordinatorViewStateManager implements ViewStateManager
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
     int updated = viewStateConnector.alterView(viewDefinition);
     if (updated > 0) {
-      synchronized (viewCache) {
+      synchronized (this) {
         viewCache.put(viewDefinition.getViewKey(), viewDefinition);
         serializeCache();
       }
@@ -194,7 +194,7 @@ public class CoordinatorViewStateManager implements ViewStateManager
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
     int deleted = viewStateConnector.deleteView(viewName, null);
     if (deleted > 0) {
-      synchronized (viewCache) {
+      synchronized (this) {
         viewCache.remove(ImplyViewDefinition.getKey(viewName, viewNamespace));
         serializeCache();
       }
@@ -220,19 +220,20 @@ public class CoordinatorViewStateManager implements ViewStateManager
   protected void updateViewCacheFromMetadata()
   {
     List<ImplyViewDefinition> viewDefinitions = viewStateConnector.getViews();
-    synchronized (viewCache) {
-      viewCache.clear();
+    synchronized (this) {
+      Map<String, ImplyViewDefinition> newViewCache = new HashMap<>();
       for (ImplyViewDefinition definition : viewDefinitions) {
-        viewCache.put(definition.getViewKey(), definition);
+        newViewCache.put(definition.getViewKey(), definition);
       }
+      viewCache = newViewCache;
       serializeCache();
     }
   }
 
   /**
-   * Should only be called within a synchronized (viewCache) block
+   * Should only be called within a synchronized (this) block
    */
-  @GuardedBy("viewCache")
+  @GuardedBy("this")
   private void serializeCache()
   {
     try {
