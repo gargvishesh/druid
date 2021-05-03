@@ -251,7 +251,6 @@
                     <MYSQL_VERSION>${mysql.version}</MYSQL_VERSION>
                     <KAFKA_VERSION>${apache.kafka.version}</KAFKA_VERSION>
                     <ZK_VERSION>${zk.version}</ZK_VERSION>
-                    <KAFKA_VERSION>${apache.kafka.version}</KAFKA_VERSION>
                   </environmentVariables>
                   <executable>${project.basedir}/build_run_cluster.sh</executable>
                 </configuration>
