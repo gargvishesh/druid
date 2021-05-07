@@ -103,6 +103,13 @@ def prepareIfconfig() {
     label: "prepare ifconfig"
 }
 
+def getInstanceId() {
+    sh script: '''#!/bin/bash -x
+        curl -s http://169.254.169.254/latest/meta-data/instance-id
+    ''',
+    label: 'print instance id'
+}
+
 def buildArtifacts(stageName) {
     script {
         def stageArtifactsDirPath = "stage_${stageName.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
@@ -139,6 +146,12 @@ def buildArtifacts(stageName) {
                     copy_files_by_pattern 'tasklogs/**' $artifacts_path
                     popd
                 fi
+
+                # copy dockerd logs
+                artifacts_path=$(pwd)/${stageArtifactsDirPath}
+                pushd /var/tmp
+                copy_files_by_pattern 'dockerd.log' $artifacts_path
+                popd
 
                 # copy test reports
                 copy_files_by_pattern '**/target/surefire-reports/*.xml' ${stageArtifactsDirPath}
@@ -218,6 +231,7 @@ def notify(fixed, failedStageNames) {
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
         -Dgroups=query \
@@ -233,6 +247,7 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
 def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
         -Dgroups=ingest-service \
@@ -247,6 +262,7 @@ def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
 def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
     prepareIfconfig()
+    getInstanceId()
     sh script: """
         \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
         -Dgroups=keycloak-security \
@@ -260,6 +276,7 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
 def s3DeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     script {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             def cloudpath = UUID.randomUUID().toString()
@@ -295,6 +312,7 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
 def kinesisDeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     script {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId:  'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             lock('awsResource') {
@@ -320,6 +338,7 @@ def kinesisDeepStorageTests(jvmRuntimeOpt) {
 def azureDeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     script {
         withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
             def containerName = UUID.randomUUID().toString()
@@ -364,6 +383,7 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
 def gcsDeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     script {
         withCredentials([file(credentialsId: 'gcs-bucket-qa', variable: 'GC_KEY')]) {
             def cloudpath = "gcs-test-${UUID.randomUUID().toString()}/"
@@ -406,6 +426,7 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
 def hdfsDeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     writeFile   file:   "jenkins/hdfs-config",
                 text:   "druid_storage_type=hdfs\n" +
                         "druid_storage_storageDirectory=/druid/segments\n" +
@@ -430,6 +451,7 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
 def coreIntegrationTests() {
     mavenCacheRestore()
     prepareIfconfig()
+    getInstanceId()
     sh script: '''
         ${MVN} verify -pl integration-tests -P integration-tests \
         ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
@@ -441,6 +463,7 @@ def coreIntegrationTests() {
 
 def processingModuleTest() {
     mavenCacheRestore()
+    getInstanceId()
     sh script: '''#!/bin/bash
         unset _JAVA_OPTIONS
         # Set MAVEN_OPTS for Surefire launcher. Skip remoteresources to avoid intermittent connection timeouts when
