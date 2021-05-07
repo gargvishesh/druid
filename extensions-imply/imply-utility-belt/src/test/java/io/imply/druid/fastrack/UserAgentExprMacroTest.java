@@ -10,6 +10,7 @@ package io.imply.druid.fastrack;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
@@ -91,7 +92,7 @@ public class UserAgentExprMacroTest extends InitializedNullHandlingTest
   {
     final Map<String, Object> map = new HashMap<>();
     map.put("ua", addr);
-    return expr.eval(Parser.withMap(map)).asString();
+    return expr.eval(InputBindings.withMap(map)).asString();
   }
 
 }

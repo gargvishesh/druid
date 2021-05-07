@@ -11,6 +11,7 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.UtilityBeltConfig;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.After;
@@ -134,6 +135,6 @@ public class GeoIpExprMacroTest extends InitializedNullHandlingTest
   {
     final Map<String, Object> map = new HashMap<>();
     map.put("addr", addr);
-    return expr.eval(Parser.withMap(map)).asString();
+    return expr.eval(InputBindings.withMap(map)).asString();
   }
 }
