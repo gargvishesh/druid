@@ -101,7 +101,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
                                   .intervals(querySegmentSpec(Intervals.of("2000-01-02/2002")))
                                   .granularity(Granularities.ALL)
                                   .aggregators(aggregators(new CountAggregatorFactory("a0")))
-                                  .context(TIMESERIES_CONTEXT_DEFAULT)
+                                  .context(QUERY_CONTEXT_DEFAULT)
                                   .build();
 
     testQuery(
