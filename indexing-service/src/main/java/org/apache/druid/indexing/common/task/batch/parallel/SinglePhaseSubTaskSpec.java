@@ -57,7 +57,6 @@ class SinglePhaseSubTaskSpec extends SubTaskSpec<SinglePhaseSubTask>
         getGroupId(),
         null,
         getSupervisorTaskId(),
-        getId(),
         numAttempts,
         getIngestionSpec(),
         getContext()

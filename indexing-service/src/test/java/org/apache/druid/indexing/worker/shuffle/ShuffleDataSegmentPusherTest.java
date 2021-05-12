@@ -31,7 +31,7 @@ import org.apache.druid.java.util.common.FileUtils.FileCopyResult;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.partition.BucketNumberedShardSpec;
+import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.apache.druid.utils.CompressionUtils;
 import org.joda.time.Interval;
 import org.junit.After;
@@ -40,7 +40,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -126,9 +125,6 @@ public class ShuffleDataSegmentPusherTest
 
   private DataSegment newSegment(Interval interval)
   {
-    BucketNumberedShardSpec<?> shardSpec = Mockito.mock(BucketNumberedShardSpec.class);
-    Mockito.when(shardSpec.getBucketId()).thenReturn(0);
-
     return new DataSegment(
         "dataSource",
         interval,
@@ -136,7 +132,7 @@ public class ShuffleDataSegmentPusherTest
         null,
         null,
         null,
-        shardSpec,
+        new NumberedShardSpec(0, 0),
         9,
         0
     );

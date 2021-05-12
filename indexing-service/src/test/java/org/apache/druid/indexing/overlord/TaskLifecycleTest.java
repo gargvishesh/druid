@@ -80,7 +80,6 @@ import org.apache.druid.indexing.common.task.RealtimeIndexTask;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.common.task.TestAppenderatorsManager;
-import org.apache.druid.indexing.overlord.config.DefaultTaskConfig;
 import org.apache.druid.indexing.overlord.config.TaskLockConfig;
 import org.apache.druid.indexing.overlord.config.TaskQueueConfig;
 import org.apache.druid.indexing.overlord.supervisor.SupervisorManager;
@@ -713,7 +712,7 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
         TaskQueueConfig.class
     );
 
-    return new TaskQueue(lockConfig, tqc, new DefaultTaskConfig(), ts, tr, tac, taskLockbox, emitter);
+    return new TaskQueue(lockConfig, tqc, ts, tr, tac, taskLockbox, emitter);
   }
 
   @After

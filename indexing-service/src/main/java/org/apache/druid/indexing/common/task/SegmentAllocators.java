@@ -19,7 +19,6 @@
 
 package org.apache.druid.indexing.common.task;
 
-import com.google.common.base.Preconditions;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.task.batch.parallel.SupervisorTaskAccess;
@@ -39,19 +38,18 @@ public final class SegmentAllocators
    */
   public static SegmentAllocatorForBatch forLinearPartitioning(
       final TaskToolbox toolbox,
-      final String sequenceName,
+      final String taskId,
       final @Nullable SupervisorTaskAccess supervisorTaskAccess,
       final DataSchema dataSchema,
       final TaskLockHelper taskLockHelper,
       final boolean appendToExisting,
-      final PartitionsSpec partitionsSpec,
-      final @Nullable Boolean useLineageBasedSegmentAllocation
+      final PartitionsSpec partitionsSpec
   ) throws IOException
   {
     if (appendToExisting || taskLockHelper.isUseSegmentLock()) {
       return new OverlordCoordinatingSegmentAllocator(
           toolbox,
-          sequenceName,
+          taskId,
           supervisorTaskAccess,
           dataSchema,
           taskLockHelper,
@@ -62,18 +60,15 @@ public final class SegmentAllocators
       if (supervisorTaskAccess == null) {
         return new LocalSegmentAllocator(
             toolbox,
-            sequenceName,
+            taskId,
             dataSchema.getDataSource(),
             dataSchema.getGranularitySpec()
         );
       } else {
         return new SupervisorTaskCoordinatingSegmentAllocator(
-            sequenceName,
-            supervisorTaskAccess,
-            Preconditions.checkNotNull(
-                useLineageBasedSegmentAllocation,
-                "useLineageBasedSegmentAllocation"
-            )
+            supervisorTaskAccess.getSupervisorTaskId(),
+            taskId,
+            supervisorTaskAccess.getTaskClient()
         );
       }
     }
@@ -86,7 +81,7 @@ public final class SegmentAllocators
   public static SegmentAllocatorForBatch forNonLinearPartitioning(
       final TaskToolbox toolbox,
       final String dataSource,
-      final String baseSequenceName,
+      final String taskId,
       final GranularitySpec granularitySpec,
       final @Nullable SupervisorTaskAccess supervisorTaskAccess,
       final CompletePartitionAnalysis partitionAnalysis
@@ -95,7 +90,7 @@ public final class SegmentAllocators
     return new CachingLocalSegmentAllocator(
         toolbox,
         dataSource,
-        baseSequenceName,
+        taskId,
         granularitySpec,
         supervisorTaskAccess,
         partitionAnalysis

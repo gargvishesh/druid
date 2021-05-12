@@ -41,13 +41,12 @@ class PartialHashSegmentGenerateParallelIndexTaskRunner
       TaskToolbox toolbox,
       String taskId,
       String groupId,
-      String baseSubtaskSpecName,
       ParallelIndexIngestionSpec ingestionSchema,
       Map<String, Object> context,
       @Nullable Map<Interval, Integer> intervalToNumShardsOverride
   )
   {
-    super(toolbox, taskId, groupId, baseSubtaskSpecName, ingestionSchema, context);
+    super(toolbox, taskId, groupId, ingestionSchema, context);
     this.intervalToNumShardsOverride = intervalToNumShardsOverride;
   }
 
@@ -83,7 +82,6 @@ class PartialHashSegmentGenerateParallelIndexTaskRunner
             groupId,
             null,
             supervisorTaskId,
-            id,
             numAttempts,
             subTaskIngestionSpec,
             context,

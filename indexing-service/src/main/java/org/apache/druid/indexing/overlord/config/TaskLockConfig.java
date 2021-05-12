@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Global configurations for task lock. Used by the overlord.
- * This config takes precedence if it has a conflicting config with {@link DefaultTaskConfig}.
  */
 public class TaskLockConfig
 {
