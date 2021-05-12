@@ -56,12 +56,8 @@ def dockerCleanup() {
 }
 
 def mavenDockerBackup() {
-    rtDockerPull(
-        serverId: "${RT_SERVER_ID}",
-        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
-        sourceRepo: 'docker-local'
-    )
     sh script: '''#!/bin/bash -e
+        docker pull ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}
         TEMP_DIR=$(mktemp -d)
         git status --ignored --porcelain | \
             grep -E '^\\!\\!' | sed 's|/$||' | awk -F'\\!\\! ' '{print $2}' | grep -v -E '^web-console' | \
@@ -507,7 +503,6 @@ pipeline {
         ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
         COMPOSE_HTTP_TIMEOUT = "600"
-        COMPOSE_PARALLEL_LIMIT = "2"
 
         ACTIVE_DEV_BRANCH_REGEX = '^monthly$'
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
