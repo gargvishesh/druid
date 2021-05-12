@@ -76,6 +76,9 @@ public class TaskConfig
   @JsonProperty
   private final Boolean ignoreTimestampSpecForDruidInputSource;
 
+  @JsonProperty
+  private final boolean batchMemoryMappedIndex;
+
   @JsonCreator
   public TaskConfig(
       @JsonProperty("baseDir") String baseDir,
@@ -87,7 +90,8 @@ public class TaskConfig
       @JsonProperty("gracefulShutdownTimeout") Period gracefulShutdownTimeout,
       @JsonProperty("directoryLockTimeout") Period directoryLockTimeout,
       @JsonProperty("shuffleDataLocations") List<StorageLocationConfig> shuffleDataLocations,
-      @JsonProperty("ignoreTimestampSpecForDruidInputSource") Boolean ignoreTimestampSpecForDruidInputSource
+      @JsonProperty("ignoreTimestampSpecForDruidInputSource") Boolean ignoreTimestampSpecForDruidInputSource,
+      @JsonProperty("batchMemoryMappedIndex") boolean batchMemoryMapIndex // only set to true to fall back to older behavior
   )
   {
     this.baseDir = baseDir == null ? System.getProperty("java.io.tmpdir") : baseDir;
@@ -115,6 +119,7 @@ public class TaskConfig
     this.ignoreTimestampSpecForDruidInputSource = ignoreTimestampSpecForDruidInputSource == null
                                                   ? true
                                                   : ignoreTimestampSpecForDruidInputSource;
+    this.batchMemoryMappedIndex = batchMemoryMapIndex;
   }
 
   @JsonProperty
@@ -196,6 +201,13 @@ public class TaskConfig
   {
     return ignoreTimestampSpecForDruidInputSource;
   }
+
+  @JsonProperty
+  public boolean getBatchMemoryMappedIndex()
+  {
+    return batchMemoryMappedIndex;
+  }
+
 
   private String defaultDir(@Nullable String configParameter, final String defaultVal)
   {
