@@ -20,11 +20,6 @@
 package org.apache.druid.java.util.common;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.druid.java.util.RetryableException;
-import org.apache.druid.java.util.common.concurrent.Execs;
-import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 
