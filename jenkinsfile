@@ -506,7 +506,8 @@ pipeline {
         DOCKER_IP = "127.0.0.1"
         ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
-        COMPOSE_HTTP_TIMEOUT = "120"
+        COMPOSE_HTTP_TIMEOUT = "600"
+        COMPOSE_PARALLEL_LIMIT = "2"
 
         ACTIVE_DEV_BRANCH_REGEX = '^monthly$'
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
