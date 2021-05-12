@@ -172,11 +172,5 @@ public class PerfectRollupWorkerTaskTest
     {
       throw new UnsupportedOperationException();
     }
-
-    @Override
-    public String getSubtaskSpecId()
-    {
-      return "subtaskSpecId";
-    }
   }
 }

@@ -43,14 +43,13 @@ class PartialGenericSegmentMergeParallelIndexTaskRunner
       TaskToolbox toolbox,
       String taskId,
       String groupId,
-      String baseSubtaskSpecName,
       DataSchema dataSchema,
       List<PartialGenericSegmentMergeIOConfig> mergeIOConfigs,
       ParallelIndexTuningConfig tuningConfig,
       Map<String, Object> context
   )
   {
-    super(toolbox, taskId, groupId, baseSubtaskSpecName, tuningConfig, context);
+    super(toolbox, taskId, groupId, tuningConfig, context);
 
     this.dataSchema = dataSchema;
     this.mergeIOConfigs = mergeIOConfigs;
@@ -82,9 +81,8 @@ class PartialGenericSegmentMergeParallelIndexTaskRunner
         ioConfig,
         getTuningConfig()
     );
-    final String subtaskSpecId = getBaseSubtaskSpecName() + "_" + getAndIncrementNextSpecId();
     return new SubTaskSpec<PartialGenericSegmentMergeTask>(
-        subtaskSpecId,
+        getTaskId() + "_" + getAndIncrementNextSpecId(),
         getGroupId(),
         getTaskId(),
         getContext(),
@@ -99,7 +97,6 @@ class PartialGenericSegmentMergeParallelIndexTaskRunner
             getGroupId(),
             null,
             getSupervisorTaskId(),
-            subtaskSpecId,
             numAttempts,
             ingestionSpec,
             getContext()

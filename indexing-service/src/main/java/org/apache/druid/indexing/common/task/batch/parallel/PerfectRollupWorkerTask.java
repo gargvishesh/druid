@@ -22,6 +22,7 @@ package org.apache.druid.indexing.common.task.batch.parallel;
 import com.google.common.base.Preconditions;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
+import org.apache.druid.indexing.common.task.AbstractBatchIndexTask;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.segment.indexing.DataSchema;
@@ -37,7 +38,7 @@ import java.util.Map;
 /**
  * Base class for parallel indexing perfect rollup worker tasks.
  */
-abstract class PerfectRollupWorkerTask extends AbstractBatchSubtask
+abstract class PerfectRollupWorkerTask extends AbstractBatchIndexTask
 {
   private final GranularitySpec granularitySpec;
   private final DataSchema dataSchema;

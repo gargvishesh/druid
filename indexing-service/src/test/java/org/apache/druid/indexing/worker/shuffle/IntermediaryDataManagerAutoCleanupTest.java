@@ -30,10 +30,7 @@ import org.apache.druid.indexing.worker.config.WorkerConfig;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.partition.BucketNumberedShardSpec;
-import org.apache.druid.timeline.partition.BuildingShardSpec;
-import org.apache.druid.timeline.partition.ShardSpec;
-import org.apache.druid.timeline.partition.ShardSpecLookup;
+import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.junit.After;
@@ -47,7 +44,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -124,7 +120,7 @@ public class IntermediaryDataManagerAutoCleanupTest
     final String subTaskId = "subTaskId";
     final Interval interval = Intervals.of("2018/2019");
     final File segmentFile = generateSegmentDir("test");
-    final DataSegment segment = newSegment(interval);
+    final DataSegment segment = newSegment(interval, 0);
     intermediaryDataManager.addSegment(supervisorTaskId, subTaskId, segment, segmentFile);
 
     Thread.sleep(3000);
@@ -139,7 +135,7 @@ public class IntermediaryDataManagerAutoCleanupTest
     return segmentDir;
   }
 
-  private DataSegment newSegment(Interval interval)
+  private DataSegment newSegment(Interval interval, int partitionId)
   {
     return new DataSegment(
         "dataSource",
@@ -148,30 +144,9 @@ public class IntermediaryDataManagerAutoCleanupTest
         null,
         null,
         null,
-        new TestShardSpec(),
+        new NumberedShardSpec(partitionId, 0),
         9,
         10
     );
-  }
-
-  private static class TestShardSpec implements BucketNumberedShardSpec<BuildingShardSpec<ShardSpec>>
-  {
-    @Override
-    public int getBucketId()
-    {
-      return 0;
-    }
-
-    @Override
-    public BuildingShardSpec<ShardSpec> convert(int partitionId)
-    {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ShardSpecLookup getLookup(List<? extends ShardSpec> shardSpecs)
-    {
-      throw new UnsupportedOperationException();
-    }
   }
 }

@@ -21,7 +21,6 @@ package org.apache.druid.indexing.common.task;
 
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTaskClient;
-import org.apache.druid.indexing.common.task.batch.parallel.SupervisorTaskAccess;
 import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 
 import java.io.IOException;
@@ -34,18 +33,16 @@ public class SupervisorTaskCoordinatingSegmentAllocator implements SegmentAlloca
   private final String supervisorTaskId;
   private final ParallelIndexSupervisorTaskClient taskClient;
   private final SequenceNameFunction sequenceNameFunction;
-  private final boolean useLineageBasedSegmentAllocation;
 
   SupervisorTaskCoordinatingSegmentAllocator(
+      String supervisorTaskId,
       String taskId,
-      SupervisorTaskAccess supervisorTaskAccess,
-      boolean useLineageBasedSegmentAllocation
+      ParallelIndexSupervisorTaskClient taskClient
   )
   {
-    this.supervisorTaskId = supervisorTaskAccess.getSupervisorTaskId();
-    this.taskClient = supervisorTaskAccess.getTaskClient();
+    this.supervisorTaskId = supervisorTaskId;
+    this.taskClient = taskClient;
     this.sequenceNameFunction = new LinearlyPartitionedSequenceNameFunction(taskId);
-    this.useLineageBasedSegmentAllocation = useLineageBasedSegmentAllocation;
   }
 
   @Override
@@ -56,11 +53,7 @@ public class SupervisorTaskCoordinatingSegmentAllocator implements SegmentAlloca
       boolean skipSegmentLineageCheck
   ) throws IOException
   {
-    if (useLineageBasedSegmentAllocation) {
-      return taskClient.allocateSegment(supervisorTaskId, row.getTimestamp(), sequenceName, previousSegmentId);
-    } else {
-      return taskClient.allocateSegment(supervisorTaskId, row.getTimestamp());
-    }
+    return taskClient.allocateSegment(supervisorTaskId, row.getTimestamp());
   }
 
   @Override

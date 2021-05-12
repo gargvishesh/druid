@@ -44,7 +44,6 @@ public class LegacySinglePhaseSubTask extends SinglePhaseSubTask
         groupId,
         taskResource,
         supervisorTaskId,
-        null,
         numAttempts,
         ingestionSchema,
         context

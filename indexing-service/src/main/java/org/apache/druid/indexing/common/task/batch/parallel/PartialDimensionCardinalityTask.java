@@ -62,7 +62,6 @@ public class PartialDimensionCardinalityTask extends PerfectRollupWorkerTask
   private final int numAttempts;
   private final ParallelIndexIngestionSpec ingestionSchema;
   private final String supervisorTaskId;
-  private final String subtaskSpecId;
 
   private final ObjectMapper jsonMapper;
 
@@ -73,8 +72,6 @@ public class PartialDimensionCardinalityTask extends PerfectRollupWorkerTask
       @JsonProperty("groupId") final String groupId,
       @JsonProperty("resource") final TaskResource taskResource,
       @JsonProperty("supervisorTaskId") final String supervisorTaskId,
-      // subtaskSpecId can be null only for old task versions.
-      @JsonProperty("subtaskSpecId") @Nullable final String subtaskSpecId,
       @JsonProperty("numAttempts") final int numAttempts, // zero-based counting
       @JsonProperty("spec") final ParallelIndexIngestionSpec ingestionSchema,
       @JsonProperty("context") final Map<String, Object> context,
@@ -96,7 +93,6 @@ public class PartialDimensionCardinalityTask extends PerfectRollupWorkerTask
         HashedPartitionsSpec.NAME
     );
 
-    this.subtaskSpecId = subtaskSpecId;
     this.numAttempts = numAttempts;
     this.ingestionSchema = ingestionSchema;
     this.supervisorTaskId = supervisorTaskId;
@@ -119,13 +115,6 @@ public class PartialDimensionCardinalityTask extends PerfectRollupWorkerTask
   private String getSupervisorTaskId()
   {
     return supervisorTaskId;
-  }
-
-  @JsonProperty
-  @Override
-  public String getSubtaskSpecId()
-  {
-    return subtaskSpecId;
   }
 
   @Override
@@ -259,4 +248,5 @@ public class PartialDimensionCardinalityTask extends PerfectRollupWorkerTask
     );
     taskClient.report(supervisorTaskId, report);
   }
+
 }

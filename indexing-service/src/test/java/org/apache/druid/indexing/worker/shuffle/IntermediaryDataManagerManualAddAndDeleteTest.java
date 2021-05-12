@@ -29,10 +29,7 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.partition.BucketNumberedShardSpec;
-import org.apache.druid.timeline.partition.BuildingShardSpec;
-import org.apache.druid.timeline.partition.ShardSpec;
-import org.apache.druid.timeline.partition.ShardSpecLookup;
+import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.joda.time.Interval;
 import org.junit.After;
 import org.junit.Assert;
@@ -45,7 +42,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 public class IntermediaryDataManagerManualAddAndDeleteTest
 {
@@ -233,7 +229,7 @@ public class IntermediaryDataManagerManualAddAndDeleteTest
     return segmentDir;
   }
 
-  private DataSegment newSegment(Interval interval, int bucketId)
+  private DataSegment newSegment(Interval interval, int partitionId)
   {
     return new DataSegment(
         "dataSource",
@@ -242,37 +238,9 @@ public class IntermediaryDataManagerManualAddAndDeleteTest
         null,
         null,
         null,
-        new TestShardSpec(bucketId),
+        new NumberedShardSpec(partitionId, 0),
         9,
         10
     );
-  }
-
-  private static class TestShardSpec implements BucketNumberedShardSpec<BuildingShardSpec<ShardSpec>>
-  {
-    private final int bucketId;
-
-    private TestShardSpec(int bucketId)
-    {
-      this.bucketId = bucketId;
-    }
-
-    @Override
-    public int getBucketId()
-    {
-      return bucketId;
-    }
-
-    @Override
-    public BuildingShardSpec<ShardSpec> convert(int partitionId)
-    {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ShardSpecLookup getLookup(List<? extends ShardSpec> shardSpecs)
-    {
-      throw new UnsupportedOperationException();
-    }
   }
 }

@@ -223,11 +223,6 @@
             <groupId>net.thisptr</groupId>
             <artifactId>jackson-jq</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-core-asl</artifactId>
-            <scope>provided</scope>
-        </dependency>
 
         <!-- Tests -->
         <dependency>

@@ -419,7 +419,6 @@ public class PartialDimensionCardinalityTaskTest
           ParallelIndexTestingFactory.GROUP_ID,
           ParallelIndexTestingFactory.TASK_RESOURCE,
           ParallelIndexTestingFactory.SUPERVISOR_TASK_ID,
-          ParallelIndexTestingFactory.SUBTASK_SPEC_ID,
           ParallelIndexTestingFactory.NUM_ATTEMPTS,
           ingestionSpec,
           ParallelIndexTestingFactory.CONTEXT,

@@ -20,6 +20,7 @@
 package org.apache.druid.indexing.common.task.batch.parallel;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -58,7 +60,6 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
   private final TaskToolbox toolbox;
   private final String taskId;
   private final String groupId;
-  private final String baseSubtaskSpecName;
   private final ParallelIndexTuningConfig tuningConfig;
   private final Map<String, Object> context;
 
@@ -69,8 +70,11 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
 
   private final BlockingQueue<SubTaskCompleteEvent<SubTaskType>> taskCompleteEvents = new LinkedBlockingDeque<>();
 
+  // subTaskId -> report
+  private final ConcurrentHashMap<String, SubTaskReportType> reportsMap = new ConcurrentHashMap<>();
+
   private volatile boolean subTaskScheduleAndMonitorStopped;
-  private volatile TaskMonitor<SubTaskType, SubTaskReportType> taskMonitor;
+  private volatile TaskMonitor<SubTaskType> taskMonitor;
 
   private int nextSpecId = 0;
 
@@ -78,7 +82,6 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
       TaskToolbox toolbox,
       String taskId,
       String groupId,
-      String baseSubtaskSpecName,
       ParallelIndexTuningConfig tuningConfig,
       Map<String, Object> context
   )
@@ -86,7 +89,6 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
     this.toolbox = toolbox;
     this.taskId = taskId;
     this.groupId = groupId;
-    this.baseSubtaskSpecName = baseSubtaskSpecName;
     this.tuningConfig = tuningConfig;
     this.context = context;
     this.maxNumConcurrentSubTasks = tuningConfig.getMaxNumConcurrentSubTasks();
@@ -101,11 +103,6 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
    * Returns the total number of sub tasks required to execute this phase.
    */
   abstract int estimateTotalNumSubTasks() throws IOException;
-
-  public Runnable getSubtaskCompletionCallback(SubTaskCompleteEvent<?> event)
-  {
-    return () -> {};
-  }
 
   @Override
   public TaskState run() throws Exception
@@ -143,13 +140,17 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
 
         if (taskCompleteEvent != null) {
           final TaskState completeState = taskCompleteEvent.getLastState();
-          getSubtaskCompletionCallback(taskCompleteEvent).run();
           switch (completeState) {
             case SUCCESS:
               final TaskStatusPlus completeStatus = taskCompleteEvent.getLastStatus();
               if (completeStatus == null) {
                 throw new ISE("Last status of complete task is missing!");
               }
+              // Pushed segments of complete tasks are supposed to be already reported.
+              if (!reportsMap.containsKey(completeStatus.getId())) {
+                throw new ISE("Missing reports from task[%s]!", completeStatus.getId());
+              }
+
               if (!subTaskSpecIterator.hasNext()) {
                 // We have no more subTasks to run
                 if (taskMonitor.getNumRunningTasks() == 0 && taskCompleteEvents.isEmpty()) {
@@ -237,7 +238,7 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
   }
 
   private void submitNewTask(
-      TaskMonitor<SubTaskType, SubTaskReportType> taskMonitor,
+      TaskMonitor<SubTaskType> taskMonitor,
       SubTaskSpec<SubTaskType> spec
   )
   {
@@ -289,13 +290,26 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
   @Override
   public void collectReport(SubTaskReportType report)
   {
-    taskMonitor.collectReport(report);
+    // subTasks might send their reports multiple times because of the HTTP retry.
+    // Here, we simply make sure the current report is exactly same with the previous one.
+    reportsMap.compute(report.getTaskId(), (taskId, prevReport) -> {
+      if (prevReport != null) {
+        Preconditions.checkState(
+            prevReport.equals(report),
+            "task[%s] sent two or more reports and previous report[%s] is different from the current one[%s]",
+            taskId,
+            prevReport,
+            report
+        );
+      }
+      return report;
+    });
   }
 
   @Override
   public Map<String, SubTaskReportType> getReports()
   {
-    return taskMonitor.getReports();
+    return reportsMap;
   }
 
   @Override
@@ -426,11 +440,6 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
     return groupId;
   }
 
-  String getBaseSubtaskSpecName()
-  {
-    return baseSubtaskSpecName;
-  }
-
   Map<String, Object> getContext()
   {
     return context;
@@ -449,7 +458,7 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
 
   @VisibleForTesting
   @Nullable
-  TaskMonitor<SubTaskType, SubTaskReportType> getTaskMonitor()
+  TaskMonitor<SubTaskType> getTaskMonitor()
   {
     return taskMonitor;
   }

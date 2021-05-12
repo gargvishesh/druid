@@ -31,7 +31,6 @@ import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.worker.config.WorkerConfig;
 import org.apache.druid.java.util.common.DateTimes;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.concurrent.Execs;
@@ -41,7 +40,6 @@ import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.loading.StorageLocation;
 import org.apache.druid.timeline.DataSegment;
-import org.apache.druid.timeline.partition.BucketNumberedShardSpec;
 import org.apache.druid.utils.CompressionUtils;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.DateTime;
@@ -285,28 +283,18 @@ public class IntermediaryDataManager
 
     // Create a zipped segment in a temp directory.
     final File taskTempDir = taskConfig.getTaskTempDir(subTaskId);
-    final Closer closer = Closer.create();
-    closer.register(() -> {
-      try {
-        FileUtils.forceDelete(taskTempDir);
-      }
-      catch (IOException e) {
-        LOG.warn(e, "Failed to delete directory[%s]", taskTempDir.getAbsolutePath());
-      }
-    });
 
-    if (!(segment.getShardSpec() instanceof BucketNumberedShardSpec)) {
-      throw new IAE(
-          "Invalid shardSpec type. Expected [%s] but got [%s]",
-          BucketNumberedShardSpec.class.getName(),
-          segment.getShardSpec().getClass().getName()
-      );
-    }
-    final BucketNumberedShardSpec<?> bucketNumberedShardSpec = (BucketNumberedShardSpec<?>) segment.getShardSpec();
-
-    //noinspection unused
-    try (final Closer resourceCloser = closer) {
-      FileUtils.forceMkdir(taskTempDir);
+    try (final Closer resourceCloser = Closer.create()) {
+      if (taskTempDir.mkdirs()) {
+        resourceCloser.register(() -> {
+          try {
+            FileUtils.forceDelete(taskTempDir);
+          }
+          catch (IOException e) {
+            LOG.warn(e, "Failed to delete directory[%s]", taskTempDir.getAbsolutePath());
+          }
+        });
+      }
 
       // Tempary compressed file. Will be removed when taskTempDir is deleted.
       final File tempZippedFile = new File(taskTempDir, segment.getId().toString());
@@ -325,34 +313,22 @@ public class IntermediaryDataManager
             supervisorTaskId,
             subTaskId,
             segment.getInterval(),
-            bucketNumberedShardSpec.getBucketId() // we must use the bucket ID instead of partition ID
+            segment.getShardSpec().getPartitionNum()
         );
         final File destFile = location.reserve(partitionFilePath, segment.getId().toString(), tempZippedFile.length());
         if (destFile != null) {
-          try {
-            FileUtils.forceMkdirParent(destFile);
-            org.apache.druid.java.util.common.FileUtils.writeAtomically(
-                destFile,
-                out -> Files.asByteSource(tempZippedFile).copyTo(out)
-            );
-            LOG.info(
-                "Wrote intermediary segment[%s] for subtask[%s] at [%s]",
-                segment.getId(),
-                subTaskId,
-                destFile
-            );
-            return unzippedSizeBytes;
-          }
-          catch (Exception e) {
-            location.release(partitionFilePath, tempZippedFile.length());
-            FileUtils.deleteQuietly(destFile);
-            LOG.warn(
-                e,
-                "Failed to write segment[%s] at [%s]. Trying again with the next location",
-                segment.getId(),
-                destFile
-            );
-          }
+          FileUtils.forceMkdirParent(destFile);
+          org.apache.druid.java.util.common.FileUtils.writeAtomically(
+              destFile,
+              out -> Files.asByteSource(tempZippedFile).copyTo(out)
+          );
+          LOG.info(
+              "Wrote intermediary segment for segment[%s] of subtask[%s] at [%s]",
+              segment.getId(),
+              subTaskId,
+              destFile
+          );
+          return unzippedSizeBytes;
         }
       }
       throw new ISE("Can't find location to handle segment[%s]", segment);

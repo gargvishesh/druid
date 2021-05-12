@@ -30,7 +30,6 @@ import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.actions.TaskActionClientFactory;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.overlord.autoscaling.ScalingStats;
-import org.apache.druid.indexing.overlord.config.DefaultTaskConfig;
 import org.apache.druid.indexing.overlord.config.TaskLockConfig;
 import org.apache.druid.indexing.overlord.config.TaskQueueConfig;
 import org.apache.druid.indexing.overlord.helpers.OverlordHelperManager;
@@ -80,7 +79,6 @@ public class TaskMaster implements TaskCountStatsProvider, TaskSlotCountStatsPro
   public TaskMaster(
       final TaskLockConfig taskLockConfig,
       final TaskQueueConfig taskQueueConfig,
-      final DefaultTaskConfig defaultTaskConfig,
       final TaskLockbox taskLockbox,
       final TaskStorage taskStorage,
       final TaskActionClientFactory taskActionClientFactory,
@@ -118,7 +116,6 @@ public class TaskMaster implements TaskCountStatsProvider, TaskSlotCountStatsPro
           taskQueue = new TaskQueue(
               taskLockConfig,
               taskQueueConfig,
-              defaultTaskConfig,
               taskStorage,
               taskRunner,
               taskActionClientFactory,
