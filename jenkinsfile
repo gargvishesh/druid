@@ -192,7 +192,7 @@ def notify(fixed, failedStageNames) {
     def failedStageSlackTip = fixed ? "" : "\nFailed stages:\n" + failedStageNames.collect { "* ${it}" }.join("\n")
     def failedStageEmailTip = fixed ? "" : "<br/>Failed stages:<br/>" + failedStageNames.collect { "* ${it}" }.join("<br/>")
 
-    def slackTarget = "#javabeans"
+    def slackTarget = "#espresso-machine"
     def emailTarget = "eng.druid@imply.io"
 
     try {
