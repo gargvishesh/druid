@@ -306,15 +306,16 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
     script {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             def cloudpath = UUID.randomUUID().toString()
-            sh script: """
-                aws s3 sync \
-                ./integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
-                --exclude "*" --include "wikipedia_index_data*.json"
-            """
             writeFile   file: "jenkins/s3-config",
                         text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]"
             retry(2) {
                 try {
+                    sh script: """
+                        aws s3 sync \
+                        ./integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
+                        --exclude "*" --include "wikipedia_index_data*.json"
+                    """,
+                    label: "uploading data to bucket"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Dgroups=s3-deep-storage \
@@ -329,8 +330,8 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
                     label: "s3-deep-storage with ${jvmRuntimeOpt}"
                 }
                 finally {
-                    sh script: "aws s3 rm s3://druid-qa/${cloudpath}  --recursive"
                     dockerCleanup()
+                    sh script: "aws s3 rm s3://druid-qa/${cloudpath} --recursive"
                 }
             }
         }
@@ -375,21 +376,23 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
     script {
         withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
             def containerName = UUID.randomUUID().toString()
-            sh script: """
-                az storage container create -n ${containerName} \
-                --public-access blob \
-                --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
-            """
             writeFile   file: "jenkins/azure-config",
                         text: "druid_storage_type=azure\ndruid_azure_account=${AZURE_ACCOUNT}\ndruid_azure_key=${AZURE_KEY}\ndruid_azure_container=${containerName}\ndruid_extensions_loadList=[\"druid-azure-extensions\",\"druid-hdfs-storage\"]"
             retry(2) {
                 try {
                     sh script: """
+                        az storage container create -n ${containerName} \
+                        --public-access blob \
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+                    """,
+                    label: "creating storage container"
+                    sh script: """
                         az storage blob upload-batch \
                         --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
                         -d ${containerName} \
                         --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
-                    """
+                    """,
+                    label: "uploading data to storage container"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Dgroups=azure-deep-storage \
@@ -404,11 +407,11 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
                     label: "azure-deep-storage with ${jvmRuntimeOpt}"
                 }
                 finally {
+                    dockerCleanup()
                     sh script: """
                         az storage container delete -n ${containerName}\
                         --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
                     """
-                    dockerCleanup()
                 }
             }
         }
@@ -423,21 +426,20 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
         withCredentials([file(credentialsId: 'gcs-bucket-qa', variable: 'GC_KEY')]) {
             def cloudpath = "gcs-test-${UUID.randomUUID().toString()}/"
             def bucket = "imply-qa-testing"
-
             writeFile   file: "jenkins/gcs-config",
                         text: "druid_storage_type=google\ndruid_google_bucket=${bucket}\ndruid_google_prefix=${cloudpath}\ndruid_extensions_loadList=[\"druid-google-extensions\",\"druid-hdfs-storage\"]\nGOOGLE_APPLICATION_CREDENTIALS=/shared/docker/credentials/creds.json"
-            sh script: """
-                mkdir -p jenkins/gcs
-                cp \${GC_KEY} jenkins/gcs/creds.json
-                chmod 764 jenkins/gcs/creds.json
-                gsutil \
-                    -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json \
-                    cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
-                    gs://${bucket}/${cloudpath}
-            """,
-            label: "copy gcs creds"
             retry(2) {
                 try {
+                    sh script: """
+                        mkdir -p jenkins/gcs
+                        cp -f \${GC_KEY} jenkins/gcs/creds.json
+                        chmod 764 jenkins/gcs/creds.json
+                        gsutil \
+                            -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json \
+                            cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
+                            gs://${bucket}/${cloudpath}
+                    """,
+                    label: "copying gcs creds"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
@@ -452,8 +454,8 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
                     """,
                     label: "gcs-deep-storage with ${jvmRuntimeOpt}"
                 } finally {
-                    sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
                     dockerCleanup()
+                    sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
                 }
             }
         }
