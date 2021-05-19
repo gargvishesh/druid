@@ -46,8 +46,11 @@ def setupMavenSettings() {
 
 def mavenInstall() {
     setupMavenSettings()
-    sh  script: '${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C && ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}',
-        label: 'mvn install'
+    sh script: '''
+        ${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
+        ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+    ''',
+    label: 'mvn install'
 }
 
 def dockerCleanup() {
@@ -56,8 +59,12 @@ def dockerCleanup() {
 }
 
 def mavenDockerBackup() {
+    rtDockerPull(
+        serverId: "${RT_SERVER_ID}",
+        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
+        sourceRepo: 'docker-local'
+    )
     sh script: '''#!/bin/bash -e
-        docker pull ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}
         TEMP_DIR=$(mktemp -d)
         git status --ignored --porcelain | \
             grep -E '^\\!\\!' | sed 's|/$||' | awk -F'\\!\\! ' '{print $2}' | grep -v -E '^web-console' | \
@@ -83,9 +90,9 @@ def mavenDockerBackup() {
 def mavenCacheRestore() {
     setupMavenSettings()
     sh script: '''#!/bin/bash -e
-        tar -xzf /tmp/mvnresult.tar.gz --no-overwrite-dir -C ./
+        tar -xzf /tmp/mvnresult.tar.gz --no-same-owner --no-overwrite-dir -C ./
         mkdir -p ~/.m2
-        tar -xzf /tmp/m2repository.tar.gz --no-overwrite-dir -C ~/.m2/
+        tar -xzf /tmp/m2repository.tar.gz --no-same-owner --no-overwrite-dir -C ~/.m2/
     ''',
     label: 'restore build cache'
 }
@@ -152,6 +159,7 @@ def buildArtifacts(stageName) {
                 # copy test reports
                 copy_files_by_pattern '**/target/surefire-reports/*.xml' ${stageArtifactsDirPath}
                 copy_files_by_pattern '**/target/failsafe-reports/*.xml' ${stageArtifactsDirPath}
+
                 # copy top-level jacoco reports
                 copy_files_by_pattern '**/target/*.exec' ${stageArtifactsDirPath}
                 copy_files_by_pattern '**/jacoco/*.html' ${stageArtifactsDirPath}
@@ -228,45 +236,67 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
     getInstanceId()
-    sh script: """
-        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-        -Dgroups=query \
-        -Dit.indexer=middleManager \
-        ${jvmRuntimeOpt} \
-        -Ddruid.test.config.extraDatasourceNameSuffix="" \
-        -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """,
-    label: "imply query integration tests with ${jvmRuntimeOpt}"
-    dockerCleanup()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=query \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "imply query integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
 }
 
 def implyIngestServiceIntegrationTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
     getInstanceId()
-    sh script: """
-        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-        -Dgroups=ingest-service \
-        -Dit.indexer=middleManager \
-        ${jvmRuntimeOpt} \
-        -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """,
-    label: "imply ingest service integration tests with ${jvmRuntimeOpt}"
-    dockerCleanup()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=ingest-service \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "imply ingest service integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
 }
 
 def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
     mavenInstall()
     prepareIfconfig()
     getInstanceId()
-    sh script: """
-        \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
-        -Dgroups=keycloak-security \
-        -Dit.indexer=middleManager \
-        ${jvmRuntimeOpt} \
-        -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """,
-    label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=keycloak-security \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
 }
 
 def s3DeepStorageTests(jvmRuntimeOpt) {
@@ -283,26 +313,28 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
             """
             writeFile   file: "jenkins/s3-config",
                         text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]"
-            try {
-                sh script: """
-                    \${MVN} verify -P integration-tests -pl integration-tests \
-                    -Dgroups=s3-deep-storage \
-                    -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
-                    ${jvmRuntimeOpt} \
-                    -Ddruid.test.config.cloudBucket=druid-qa \
-                    -Ddruid.test.config.cloudPath=${cloudpath}/ \
-                    -Ddocker.build.hadoop=true \
-                    -Dstart.hadoop.docker=true \
-                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
-                """,
-                label: "s3-deep-storage with ${jvmRuntimeOpt}"
-            }
-            finally {
-                sh script: "aws s3 rm s3://druid-qa/${cloudpath}  --recursive"
+            retry(2) {
+                try {
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Dgroups=s3-deep-storage \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=druid-qa \
+                        -Ddruid.test.config.cloudPath=${cloudpath}/ \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                    label: "s3-deep-storage with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    sh script: "aws s3 rm s3://druid-qa/${cloudpath}  --recursive"
+                    dockerCleanup()
+                }
             }
         }
     }
-    dockerCleanup()
 }
 
 def kinesisDeepStorageTests(jvmRuntimeOpt) {
@@ -314,21 +346,26 @@ def kinesisDeepStorageTests(jvmRuntimeOpt) {
             lock('awsResource') {
                 writeFile   file: "jenkins/kinesis-config",
                             text: "druid_kinesis_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_kinesis_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-kinesis-indexing-service\"]"
-                sh script: """
-                    \${MVN} verify -P integration-tests -pl integration-tests \
-                    -Dgroups=kinesis-index \
-                    -Doverride.config.path=\${WORKSPACE}/jenkins/kinesis-config \
-                    ${jvmRuntimeOpt} \
-                    -Ddruid.test.config.streamEndpoint=kinesis.us-east-1.amazonaws.com \
-                    -Ddocker.build.hadoop=true \
-                    -Dstart.hadoop.docker=true \
-                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
-                """,
-                label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
+                retry(2) {
+                    try {
+                        sh script: """
+                            \${MVN} verify -P integration-tests -pl integration-tests \
+                            -Dgroups=kinesis-index \
+                            -Doverride.config.path=\${WORKSPACE}/jenkins/kinesis-config \
+                            ${jvmRuntimeOpt} \
+                            -Ddruid.test.config.streamEndpoint=kinesis.us-east-1.amazonaws.com \
+                            -Ddocker.build.hadoop=true \
+                            -Dstart.hadoop.docker=true \
+                            -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                        """,
+                        label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
+                    } finally {
+                        dockerCleanup()
+                    }
+                }
             }
         }
     }
-    dockerCleanup()
 }
 
 def azureDeepStorageTests(jvmRuntimeOpt) {
@@ -345,35 +382,37 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
             """
             writeFile   file: "jenkins/azure-config",
                         text: "druid_storage_type=azure\ndruid_azure_account=${AZURE_ACCOUNT}\ndruid_azure_key=${AZURE_KEY}\ndruid_azure_container=${containerName}\ndruid_extensions_loadList=[\"druid-azure-extensions\",\"druid-hdfs-storage\"]"
-            try {
-                sh script: """
-                    az storage blob upload-batch \
-                    --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
-                    -d ${containerName} \
-                    --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
-                """
-                sh script: """
-                    \${MVN} verify -P integration-tests -pl integration-tests \
-                    -Dgroups=azure-deep-storage \
-                    -Doverride.config.path=\${WORKSPACE}/jenkins/azure-config \
-                    ${jvmRuntimeOpt} \
-                    -Ddruid.test.config.cloudBucket=${containerName} \
-                    -Ddruid.test.config.cloudPath= \
-                    -Ddocker.build.hadoop=true \
-                    -Dstart.hadoop.docker=true \
-                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
-                """,
-                label: "azure-deep-storage with ${jvmRuntimeOpt}"
-            }
-            finally {
-                sh script: """
-                    az storage container delete -n ${containerName}\
-                    --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
-                """
+            retry(2) {
+                try {
+                    sh script: """
+                        az storage blob upload-batch \
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
+                        -d ${containerName} \
+                        --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
+                    """
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Dgroups=azure-deep-storage \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/azure-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=${containerName} \
+                        -Ddruid.test.config.cloudPath= \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                    label: "azure-deep-storage with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    sh script: """
+                        az storage container delete -n ${containerName}\
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+                    """
+                    dockerCleanup()
+                }
             }
         }
     }
-    dockerCleanup()
 }
 
 def gcsDeepStorageTests(jvmRuntimeOpt) {
@@ -395,28 +434,30 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
                     -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json \
                     cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
                     gs://${bucket}/${cloudpath}
-                """,
-                label: "copy gcs creds"
-            try {
-                sh script: """
-                    \${MVN} verify -P integration-tests -pl integration-tests \
-                    -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
-                    -Dresource.file.dir.path=\${WORKSPACE}/jenkins/gcs \
-                    -Dgroups=gcs-deep-storage \
-                    ${jvmRuntimeOpt} \
-                    -Ddruid.test.config.cloudBucket=${bucket} \
-                    -Ddruid.test.config.cloudPath=${cloudpath} \
-                    -Ddocker.build.hadoop=true \
-                    -Dstart.hadoop.docker=true \
-                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
-                """,
-                label: "gcs-deep-storage with ${jvmRuntimeOpt}"
-            } finally {
-                sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
+            """,
+            label: "copy gcs creds"
+            retry(2) {
+                try {
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
+                        -Dresource.file.dir.path=\${WORKSPACE}/jenkins/gcs \
+                        -Dgroups=gcs-deep-storage \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=${bucket} \
+                        -Ddruid.test.config.cloudPath=${cloudpath} \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                    label: "gcs-deep-storage with ${jvmRuntimeOpt}"
+                } finally {
+                    sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
+                    dockerCleanup()
+                }
             }
         }
     }
-    dockerCleanup()
 }
 
 def hdfsDeepStorageTests(jvmRuntimeOpt) {
@@ -429,32 +470,46 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
                         "druid_extensions_loadList=[\"druid-hdfs-storage\"]\n" +
                         "druid_indexer_logs_type=hdfs\n" +
                         "druid_indexer_logs_directory=/druid/indexing-logs"
-    sh script: """
-        \${MVN} verify -P integration-tests -pl integration-tests \
-        -Doverride.config.path=\${WORKSPACE}/jenkins/hdfs-config \
-        -Dgroups=hdfs-deep-storage \
-        -Ddocker.build.hadoop=true \
-        -Dstart.hadoop.docker=true \
-        ${jvmRuntimeOpt} \
-        -Ddruid.test.config.extraDatasourceNameSuffix="" \
-        -Dit.test=ITHdfsToHdfsParallelIndexTest \
-        -ff \${MAVEN_SKIP} -Djacoco.skip=true
-    """,
-    label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
-    dockerCleanup()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/hdfs-config \
+                    -Dgroups=hdfs-deep-storage \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                    -Dit.test=ITHdfsToHdfsParallelIndexTest \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
 }
 
 def coreIntegrationTests() {
     mavenCacheRestore()
     prepareIfconfig()
     getInstanceId()
-    sh script: '''
-        ${MVN} verify -pl integration-tests -P integration-tests \
-        ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
-        -Dzk.version=${ZK_VERSION} ${MAVEN_SKIP}
-    ''',
-    label: 'core integration tests'
-    dockerCleanup()
+    script {
+        retry(2) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    -Dzk.version=${ZK_VERSION} ${MAVEN_SKIP}
+                ''',
+                label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
 }
 
 def processingModuleTest() {
@@ -482,7 +537,7 @@ def processingModuleTest() {
 
 pipeline {
     options {
-        timeout(time: 150, unit: 'MINUTES')
+        timeout(time: 3, unit: 'HOURS')
         buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
     }
 
@@ -508,14 +563,15 @@ pipeline {
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
         RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
 
-        IMAGE_JDK8 = "docker/druid-ci-jdk8:1616503008"
-        IMAGE_JDK11 = "docker/druid-ci-jdk11:1616503008"
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1620827975"
+        IMAGE_JDK11 = "docker/druid-ci-jdk11:1620827975"
         DOCKER_TAG = "${BUILD_TAG}".replaceAll(~/[^A-Za-z0-9_-]/,'_')
         RT_REGISTRY_URL = "https://repo.qa.imply.io/artifactory"
         RT_REGISTRY_CREDS = "repo.qa.imply.io"
         RT_SERVER_ID = "repo-qa-imply-io"
         RT_DOCKER_REPOSITORY_PREFIX = "repo.qa.imply.io"
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.qa.imply.io:443"
+        DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
 
         EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
         EXPECTED_SHA1_VERIFY_JAVA = "76202d86a24006166010263c76121c726dd6cd09"
@@ -530,7 +586,6 @@ pipeline {
             }
             environment {
                 DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
-                DOCKER_AGENT_LABEL = "jenkinsOnDemand"
             }
             parallel {
                 stage('(openjdk8) maven install') {
@@ -572,7 +627,6 @@ pipeline {
             }
             environment {
                 DOCKER_AGENT_ARGS = "-u root:root"
-                DOCKER_AGENT_LABEL = "jenkinsOnDemandMultiExec"
             }
             parallel {
                 stage('security vulnerabilities') {
@@ -580,7 +634,7 @@ pipeline {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
                             args "${DOCKER_AGENT_ARGS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
                         }
@@ -633,37 +687,37 @@ pipeline {
                 }
 
                 stage('animal sniffer checks') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('checkstyle') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} checkstyle:checkstyle --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('enforcer checks') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} enforcer:enforce --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('forbidden api checks') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} forbiddenapis:check forbiddenapis:testCheck --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('pmd checks') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} pmd:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('spotbugs checks') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
+                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} spotbugs:check --fail-at-end -pl '!benchmarks'" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
@@ -675,7 +729,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "jenkinsOnDemand"
+                            label "${DOCKER_AGENT_LABEL}"
                         }
                     }
                     steps {
@@ -704,7 +758,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "jenkinsOnDemand"
+                            label "${DOCKER_AGENT_LABEL}"
                         }
                     }
                     environment {
@@ -730,7 +784,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "jenkinsOnDemand"
+                            label "${DOCKER_AGENT_LABEL}"
                         }
                     }
                     environment {
@@ -773,7 +827,7 @@ pipeline {
                             args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
                         }
                     }
                     steps {
@@ -810,7 +864,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
                         }
                     }
                     environment {
@@ -836,7 +890,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
                         }
                     }
                     steps {
@@ -864,7 +918,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
                         }
                     }
                     steps {
@@ -892,7 +946,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) processing module test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="processing"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
@@ -902,7 +956,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) processing module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="processing"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
@@ -912,7 +966,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) indexing modules test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
@@ -922,7 +976,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) indexing modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
@@ -932,7 +986,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) server module test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="server"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
@@ -942,7 +996,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) server module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="server"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
@@ -952,7 +1006,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) other modules test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
@@ -962,7 +1016,7 @@ pipeline {
                 }
 
                 stage('(openjdk11) other modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "jenkinsOnDemand" }}
+                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
@@ -979,7 +1033,6 @@ pipeline {
             }
             environment {
                 DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
-                DOCKER_AGENT_LABEL = "jenkinsOnDemand"
             }
             parallel {
                 // example of integration tests stage:
@@ -1381,7 +1434,7 @@ pipeline {
                             docker {
                                 image 'docker/buildabear:20200923'
                                 args '-u root:root'
-                                label 'jenkinsOnDemand'
+                                label "${DOCKER_AGENT_LABEL}"
                                 registryUrl "${RT_REGISTRY_URL}"
                                 registryCredentialsId "${RT_REGISTRY_CREDS}"
                             }
