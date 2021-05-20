@@ -1,37 +1,3 @@
-//////////
-////////// System part
-//////////
-
-import io.jenkins.blueocean.rest.impl.pipeline.PipelineNodeGraphVisitor
-import io.jenkins.blueocean.rest.impl.pipeline.FlowNodeWrapper
-import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
-
-// Get information about all stages, including the failure causes.
-// Returns a list of maps: [[id, displayName, result]]
-// The 'errors' member is a list of unique exceptions.
-
-@NonCPS
-List<Map> getStageResults( RunWrapper build ) {
-
-    // Get all pipeline nodes that represent stages
-    def visitor = new PipelineNodeGraphVisitor( build.rawBuild )
-    def stages = visitor.pipelineNodes.findAll{ it.type == FlowNodeWrapper.NodeType.STAGE || it.type == FlowNodeWrapper.NodeType.PARALLEL }
-
-    return stages.collect{ stage ->
-        return [
-            id: stage.id,
-            displayName: stage.displayName,
-            result: "${stage.status.result}",
-        ]
-    }
-}
-
-// Get information of all failed stages
-@NonCPS
-List<Map> getFailedStages( RunWrapper build ) {
-    return getStageResults( build ).findAll{ it.result == 'FAILURE' }
-}
-
 def setupMavenSettings() {
     script {
         withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
@@ -188,48 +154,6 @@ def resetWs() {
 def isEligibleToNotify() {
     return  !env.CHANGE_ID \
             && (env.BRANCH_NAME ==~ env.ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (env.RELEASE_BRANCH_PREFIX_REGEX+env.RELEASE_BRANCH_SUFFIX_REGEX))
-}
-
-def notify(fixed, failedStageNames) {
-    def slackMessageColor = fixed ? '#33CC33' : '#FF3333'
-    def titleBeginning = fixed ? 'Fixed' : 'Failed'
-
-    def artifactSlackTip = fixed ? "" : "\ncheck artifacts (docker logs): ${env.BUILD_URL}artifact"
-    def artifactEmailTip = fixed ? "" : "<br/>check artifacts (docker logs) :${env.BUILD_URL}artifact"
-
-    def failedStageSlackTip = fixed ? "" : "\nFailed stages:\n" + failedStageNames.collect { "* ${it}" }.join("\n")
-    def failedStageEmailTip = fixed ? "" : "<br/>Failed stages:<br/>" + failedStageNames.collect { "* ${it}" }.join("<br/>")
-
-    def slackTarget = "#espresso-machine"
-    def emailTarget = "eng.druid@imply.io"
-
-    try {
-        slackSend   color: slackMessageColor,
-                    channel: slackTarget,
-                    message: """
-                        *${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}*
-                        classic link: ${env.BUILD_URL}
-                        blueocean link: ${env.RUN_DISPLAY_URL} ${artifactSlackTip} ${failedStageSlackTip}
-                    """.replaceAll(/\n\s+/, "\n")
-    } catch (err) {
-        echo "Couldn't send slack notification"
-        echo "Exception: ${err}"
-    }
-
-    try {
-        mail    body: """
-                    classic link: ${env.BUILD_URL}
-                    <br/>blueocean link: ${env.RUN_DISPLAY_URL} ${artifactEmailTip} ${failedStageEmailTip}
-                """.replaceAll(/\n\s+/, "\n"),
-                cc: '', bcc: '', replyTo: '',
-                from: 'jenkins@qa.imply.io',
-                mimeType: 'text/html',
-                subject: "${titleBeginning} implydata/druid build: ${env.BRANCH_NAME}#${env.BUILD_NUMBER}",
-                to: emailTarget
-    } catch (err) {
-        echo "Couldn't send email notification"
-        echo "Exception: ${err}"
-    }
 }
 
 def implyQueryIntegrationTests(jvmRuntimeOpt) {
@@ -532,10 +456,6 @@ def processingModuleTest() {
     label: "processing module test"
     dockerCleanup()
 }
-
-//////////
-////////// Pipeline part
-//////////
 
 pipeline {
     options {
@@ -1682,27 +1602,18 @@ pipeline {
         failure {
             // notify about failed build
             script {
-                def failedStageNames = getFailedStages( currentBuild ).collect { it.displayName }.findAll { !(it =~ /^(Unit|Integration|Matrix)/) }
-                if(!currentBuild.previousCompletedBuild || currentBuild.previousCompletedBuild?.result == "SUCCESS") {
-                    if(isEligibleToNotify()) { notify(false, failedStageNames) }
-                } else {
-                    def failedBuildSilencePeriodInHours = 0
-                    def failedBuildSilencePeriodInMillis = 1000 * 60 * 60 * failedBuildSilencePeriodInHours
-                    def nowInMillis = new Date().getTime()
-                    def previousCompletedBuildStarted = currentBuild.previousCompletedBuild?.startTimeInMillis ?: nowInMillis
-                    def previousCompletedBuildDuration = currentBuild.previousCompletedBuild?.duration ?: 0
-                    def previousCompletedBuildFinished = previousCompletedBuildStarted + previousCompletedBuildDuration
-                    if(previousCompletedBuildFinished < nowInMillis-failedBuildSilencePeriodInMillis) {
-                        if(isEligibleToNotify()) { notify(false, failedStageNames) }
-                    }
+                if(isEligibleToNotify()) {
+                    library 'imply-shared-library'
+                    failedDruidBVTNotification(currentBuild)
                 }
             }
         }
         success {
             // notify about fixed build
             script {
-                if(!!currentBuild.previousCompletedBuild && currentBuild.previousCompletedBuild?.result != "SUCCESS") {
-                    if(isEligibleToNotify()) { notify(true, []) }
+                if(isEligibleToNotify()) {
+                    library 'imply-shared-library'
+                    fixedDruidBVTNotification(currentBuild)
                 }
             }
         }
