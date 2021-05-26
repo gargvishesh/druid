@@ -161,6 +161,11 @@ jobs:
         -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
 
     - <<: *package
+      name: "(openjdk11) packaging check"
+      stage: Tests - phase 2
+      jdk: openjdk11
+
+    - <<: *package
       name: "(openjdk15) packaging check"
       stage: Tests - phase 2
       jdk: openjdk15
