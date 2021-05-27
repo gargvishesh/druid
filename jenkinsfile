@@ -428,7 +428,7 @@ def coreIntegrationTests() {
                 sh script: '''
                     ${MVN} verify -pl integration-tests -P integration-tests \
                     ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
-                    -Dzk.version=${ZK_VERSION} ${MAVEN_SKIP}
+                    ${MAVEN_SKIP}
                 ''',
                 label: 'core integration tests'
             } finally {
@@ -477,7 +477,6 @@ pipeline {
         MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
         MAVEN_SKIP_TESTS = "-Pskip-tests"
         DOCKER_IP = "127.0.0.1"
-        ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
         COMPOSE_HTTP_TIMEOUT = "600"
 
@@ -1285,20 +1284,6 @@ pipeline {
                 stage("(Compile=openjdk8, Run=openjdk8) leadership and high availability integration tests") {
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=high-availability'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8, ZK=3.4) leadership and high availability integration tests") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=high-availability'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; ZK_VERSION='3.4'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8, ZK=3.4) Kafka index integration test with various formats") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-data-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; ZK_VERSION='3.4'; }
                     steps { coreIntegrationTests() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
