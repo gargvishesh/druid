@@ -214,7 +214,6 @@
         <start.hadoop.docker>false</start.hadoop.docker>
         <docker.run.skip>false</docker.run.skip>
         <docker.build.skip>false</docker.build.skip>
-        <zk.version>3.5</zk.version>
         <it.indexer>middleManager</it.indexer>
         <override.config.path/>
         <resource.file.dir.path/>
@@ -251,7 +250,7 @@
                     <MYSQL_VERSION>${mysql.version}</MYSQL_VERSION>
                     <CONFLUENT_VERSION>5.5.1</CONFLUENT_VERSION>
                     <KAFKA_VERSION>${apache.kafka.version}</KAFKA_VERSION>
-                    <ZK_VERSION>${zk.version}</ZK_VERSION>
+                    <ZK_VERSION>${zookeper.version}</ZK_VERSION>
                   </environmentVariables>
                   <executable>${project.basedir}/build_run_cluster.sh</executable>
                 </configuration>
