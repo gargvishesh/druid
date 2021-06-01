@@ -171,11 +171,6 @@ jobs:
       stage: Tests - phase 2
       jdk: openjdk11
 
-    - <<: *package
-      name: "(openjdk15) packaging check"
-      stage: Tests - phase 2
-      jdk: openjdk15
-
     - &test_processing_module
       name: "(openjdk8) processing module test"
       stage: Tests - phase 1
@@ -297,11 +292,6 @@ jobs:
       stage: Tests - phase 2
       jdk: openjdk11
 
-    - <<: *test_server_module_sqlcompat
-      name: "(openjdk15) server module test (SQL Compatibility)"
-      stage: Tests - phase 2
-      jdk: openjdk15
-
     - &test_other_modules
       <<: *test_processing_module
       name: "(openjdk8) other modules test"
@@ -313,11 +303,6 @@ jobs:
       stage: Tests - phase 2
       jdk: openjdk11
 
-    - <<: *test_other_modules
-      name: "(openjdk15) other modules test"
-      stage: Tests - phase 2
-      jdk: openjdk15
-
     - &test_other_modules_sqlcompat
       <<: *test_other_modules
       name: "(openjdk8) other modules test (SQL Compatibility)"
@@ -327,11 +312,6 @@ jobs:
       name: "(openjdk11) other modules test (SQL Compatibility)"
       stage: Tests - phase 2
       jdk: openjdk11
-
-    - <<: *test_other_modules_sqlcompat
-      name: "(openjdk15) other modules test (SQL Compatibility)"
-      stage: Tests - phase 2
-      jdk: openjdk15
 
     - name: "web console"
       install: skip
