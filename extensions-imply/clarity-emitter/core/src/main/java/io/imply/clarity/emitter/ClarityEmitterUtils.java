@@ -11,7 +11,10 @@ package io.imply.clarity.emitter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.core.Event;
@@ -25,6 +28,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,6 +43,12 @@ public class ClarityEmitterUtils
   private static final String IMPLY_DRUID_VERSION_KEY = "implyDruidVersion";
   private static final String IMPLY_VERSION_FILE = "imply.version";
   private static final String UNKNOWN_VERSION = "unknown";
+
+  // metric fields that should be masked if anonymization is enabled
+  private static final List<String> SENSITIVE_KEYS = ImmutableList.of(
+      "identity",
+      "remoteAddress"
+  );
 
   public static String getImplyVersion()
   {
@@ -90,7 +100,7 @@ public class ClarityEmitterUtils
     final Map<String, Object> eventMap = ClarityEmitterUtils.getModifiedEventMap(
         event,
         nodeDetails,
-        config.isAnonymous(),
+        config,
         jsonMapper
     );
 
@@ -127,10 +137,11 @@ public class ClarityEmitterUtils
     return eventBytes;
   }
 
-  private static Map<String, Object> getModifiedEventMap(
+  @VisibleForTesting
+  public static Map<String, Object> getModifiedEventMap(
       final Event event,
       final ClarityNodeDetails nodeDetails,
-      final boolean anonymous,
+      final BaseClarityEmitterConfig config,
       final ObjectMapper jsonMapper
   )
   {
@@ -149,8 +160,16 @@ public class ClarityEmitterUtils
     newMap.put(IMPLY_DRUID_VERSION_KEY, nodeDetails.getDruidVersion());
     newMap.put(IMPLY_VERSION_KEY, nodeDetails.getImplyVersion());
 
-    if (anonymous) {
+    if (config.isAnonymous()) {
       newMap.remove("host");
+
+      for (String sensitiveKey : SENSITIVE_KEYS) {
+        Object sensitiveValue = newMap.get(sensitiveKey);
+        if (sensitiveValue != null) {
+          String anonymizedValue = DigestUtils.sha256Hex(sensitiveValue + "-" + config.getClusterName());
+          newMap.put(sensitiveKey, anonymizedValue);
+        }
+      }
     }
 
     return newMap;

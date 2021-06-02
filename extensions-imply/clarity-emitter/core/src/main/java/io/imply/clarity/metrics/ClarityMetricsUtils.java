@@ -11,6 +11,7 @@ package io.imply.clarity.metrics;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.clarity.emitter.BaseClarityEmitterConfig;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.druid.query.QueryContexts;
 
 import javax.annotation.Nullable;
@@ -28,6 +29,12 @@ public class ClarityMetricsUtils
       "implyViewTitle",
       "implyFeature",
       "implyDataCube",
+      "implyUser",
+      "implyUserEmail"
+  );
+
+  // dimensions that should be masked if anonymization is enabled
+  private static final List<String> IMPLY_SENSITIVE_QUERY_DIMENSIONS = ImmutableList.of(
       "implyUser",
       "implyUserEmail"
   );
@@ -71,6 +78,16 @@ public class ClarityMetricsUtils
 
     if (lane != null) {
       dimensionSetter.accept("lane", String.valueOf(lane));
+    }
+
+    if (config.isAnonymous()) {
+      for (final String sensitiveDim : IMPLY_SENSITIVE_QUERY_DIMENSIONS) {
+        final Object value = dimensionGetter.apply(sensitiveDim);
+        if (value != null) {
+          String anonymizedValue = DigestUtils.sha256Hex(value + "-" + config.getClusterName());
+          dimensionSetter.accept(sensitiveDim, anonymizedValue);
+        }
+      }
     }
   }
 }

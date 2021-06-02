@@ -21,7 +21,7 @@ All the keys below should be prefixed by `druid.emitter.clarity.`, i.e. `druid.e
 |`recipientBaseUrl`|String|HTTP endpoint events will be posted to, e.g. `http://<clarity collector host>:<port>/d/<username>`|[required]|yes|
 |`basicAuthentication`|String|Basic auth credentials, typically `<username>:<password>`|null|no|
 |`clusterName`|String|Cluster name used to tag events|null|no|
-|`anonymous`|Boolean|Should hostnames be scrubbed from events?|false|no|
+|`anonymous`|Boolean|If true, hostnames are removed from events. Additionally, the `identity` and `remoteAddress` event fields, and the `implyUser` and `implyUserEmail` metric dimensions are anonymized by a salted SHA-256 hash. This is so that clarity data can distinguish multiple high-cost queries from a single user or many different users sending high-cost queries to help troubleshoot performance issues. |false|no|
 |`maxBufferSize`|Integer|Maximum size of event buffer|min(250MB, 10% of heap)|no|
 |`maxBatchSize`|Integer|Maximum size of HTTP event payload |5MB|no|
 |`flushCount`|Integer|Number of events before a flush is triggered|500|no|
