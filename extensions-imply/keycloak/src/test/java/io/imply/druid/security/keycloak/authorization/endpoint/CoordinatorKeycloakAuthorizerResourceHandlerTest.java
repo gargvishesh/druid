@@ -50,6 +50,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   {
     storageUpdater = Mockito.mock(KeycloakAuthorizerMetadataStorageUpdater.class);
     authorizerMapper = Mockito.mock(AuthorizerMapper.class);
+
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of(
         "authorizer", new ImplyKeycloakAuthorizer()
     ));
@@ -83,7 +84,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   public void test_getAllRoles_noKeycloakAuthorizer_fails()
   {
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.getAllRoles();
 
@@ -139,7 +144,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   {
     String roleName = "test_getRole_roleDoesNotExist_fails";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.getRole(roleName);
 
@@ -184,7 +193,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   {
     String roleName = "test_createRole_noKeycloakAuthorizer_fails";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.createRole(roleName);
 
@@ -229,7 +242,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   {
     String roleName = "test_deleteRole_noKeycloakAuthorizer_fails";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.deleteRole(roleName);
 
@@ -284,7 +301,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
         new ResourceAction(new Resource("resource1", ResourceType.DATASOURCE), Action.READ)
     );
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.setRolePermissions(roleName, permissions);
 
@@ -351,7 +372,11 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   {
     String roleName = "test_getRolePermissions_noKeycloakAuthorizer_fails";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(storageUpdater, authorizerMapper, objectMapper);
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
 
     Response response = resourceHandler.getRolePermissions(roleName);
 
@@ -362,5 +387,57 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
         "error",
         "Keycloak authorizer does not exist."
     ), response.getEntity());
+  }
+
+  @Test
+  public void test_authorizerRoleUpdateListener_notFound()
+  {
+    Response response = resourceHandler.authorizerRoleUpdateListener(null);
+    Assert.assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  public void test_refreshAll_ok()
+  {
+    Response response = resourceHandler.refreshAll();
+    Assert.assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Mockito.verify(storageUpdater).refreshAllNotification();
+  }
+
+  @Test
+  public void test_getCachedRoleMaps_keycloakAuthorizerConfigured_ok()
+  {
+    Map<String, KeycloakAuthorizerRole> expectedRoleMap = ImmutableMap.of(
+        "role1", new KeycloakAuthorizerRole("role1", null),
+        "role2", new KeycloakAuthorizerRole("role2", null)
+    );
+    Mockito.when(storageUpdater.getCachedRoleMap()).thenReturn(expectedRoleMap);
+    Response response = resourceHandler.getCachedRoleMaps();
+
+    Assert.assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Assert.assertEquals(expectedRoleMap, response.getEntity());
+
+    Mockito.verify(storageUpdater).getCachedRoleMap();
+  }
+
+  @Test
+  public void test_getCachedRoleMaps_noKeycloakAuthorizer_fails()
+  {
+    Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
+    resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
+        storageUpdater,
+        authorizerMapper,
+        objectMapper
+    );
+
+    Response response = resourceHandler.getCachedRoleMaps();
+
+    Assert.assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    Assert.assertEquals(ImmutableMap.of(
+        "error",
+        "Keycloak authorizer does not exist."
+    ), response.getEntity());
+
+    Mockito.verify(storageUpdater, Mockito.never()).getCachedRoleMap();
   }
 }

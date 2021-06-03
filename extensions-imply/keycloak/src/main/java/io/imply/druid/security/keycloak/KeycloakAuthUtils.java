@@ -44,6 +44,8 @@ public class KeycloakAuthUtils
       KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableList.of(ADMIN_NAME)
   );
 
+  public static final String ROLE_MAP_CACHE_KEY = "keycloak-role-map-cache-key";
+
   public static Map<String, KeycloakAuthorizerRole> deserializeAuthorizerRoleMap(
       ObjectMapper objectMapper,
       byte[] roleMapBytes

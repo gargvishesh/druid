@@ -9,22 +9,29 @@
 
 package io.imply.druid.security.keycloak.authorization.db.updater;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
+import io.imply.druid.security.keycloak.KeycloakAuthCommonCacheConfig;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
+import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
+import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleMapBundle;
 import org.apache.druid.concurrent.LifecycleLock;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.concurrent.ScheduledExecutors;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.emitter.EmittingLogger;
@@ -37,11 +44,14 @@ import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
 import org.apache.druid.server.security.ResourceType;
+import org.joda.time.Duration;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -55,37 +65,59 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
   private static final String ROLES = "roles";
 
+  public static final List<ResourceAction> SUPERUSER_PERMISSIONS = makeSuperUserPermissions();
+
   private final Injector injector;
   private final MetadataStorageConnector connector;
   private final MetadataStorageTablesConfig connectorConfig;
+  private final KeycloakAuthorizerCacheNotifier cacheNotifier;
   private final ObjectMapper objectMapper;
+  private volatile KeycloakAuthorizerRoleMapBundle roleMapBundle;
+  private final KeycloakAuthCommonCacheConfig commonCacheConfig;
 
   private final LifecycleLock lifecycleLock = new LifecycleLock();
   private final int numRetries = 5;
 
-  public static final List<ResourceAction> SUPERUSER_PERMISSIONS = makeSuperUserPermissions();
+  private final ScheduledExecutorService exec;
+  private volatile boolean stopped = false;
+  private volatile byte[] roleMapSerialized;
 
   @Inject
   public CoordinatorKeycloakAuthorizerMetadataStorageUpdater(
       Injector injector,
       MetadataStorageConnector connector,
       MetadataStorageTablesConfig connectorConfig,
-      @Smile ObjectMapper objectMapper
+      @Smile ObjectMapper objectMapper,
+      KeycloakAuthorizerCacheNotifier cacheNotifier,
+      KeycloakAuthCommonCacheConfig commonCacheConfig
   )
   {
+    this.exec = Execs.scheduledSingleThreaded("CoordinatorKeycloakAuthorizerMetadataStorageUpdater-Exec--%d");
     this.injector = injector;
     this.connector = connector;
     this.connectorConfig = connectorConfig;
     this.objectMapper = objectMapper;
+    this.cacheNotifier = cacheNotifier;
+    this.commonCacheConfig = commonCacheConfig;
+    this.roleMapBundle = null;
+    if (commonCacheConfig.isEnableCacheNotifications()) {
+      this.cacheNotifier.setUpdateSource(
+          () -> roleMapSerialized
+      );
+    }
   }
 
   @VisibleForTesting
   public CoordinatorKeycloakAuthorizerMetadataStorageUpdater()
   {
+    this.exec = null;
     this.injector = null;
     this.connector = null;
     this.connectorConfig = null;
     this.objectMapper = null;
+    this.cacheNotifier = null;
+    this.commonCacheConfig = null;
+    this.roleMapBundle = null;
   }
 
   @LifecycleStart
@@ -112,12 +144,45 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
                     objectMapper,
                     roleMapBytes
                 );
+                synchronized (this) {
+                  roleMapBundle = new KeycloakAuthorizerRoleMapBundle(roleMap, roleMapBytes);
+                }
                 initAdminRoleAndPermissions(roleMap);
               }
             }
             return true;
           });
 
+      Duration initalDelay = new Duration(commonCacheConfig.getPollingPeriod());
+      Duration delay = new Duration(commonCacheConfig.getPollingPeriod());
+      ScheduledExecutors.scheduleWithFixedDelay(
+          exec,
+          initalDelay,
+          delay,
+          () -> {
+            if (stopped) {
+              return ScheduledExecutors.Signal.STOP;
+            }
+            try {
+              LOG.debug("Scheduled db poll is running");
+              byte[] roleMapBytes = getCurrentRoleMapBytes();
+              Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
+                  objectMapper,
+                  roleMapBytes
+              );
+              if (roleMapBytes != null) {
+                synchronized (this) {
+                  roleMapBundle = new KeycloakAuthorizerRoleMapBundle(roleMap, roleMapBytes);
+                }
+              }
+              LOG.debug("Scheduled db poll is done");
+            }
+            catch (Throwable t) {
+              LOG.makeAlert(t, "Error occured while polling for cachedRoleMap.").emit();
+            }
+            return ScheduledExecutors.Signal.REPEAT;
+          }
+      );
       lifecycleLock.started();
     }
     finally {
@@ -132,6 +197,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
       throw new ISE("can't stop.");
     }
 
+    LOG.info("CoordinatorKeycloakAuthorizerMetadataStorageUpdater is stopping.");
+    stopped = true;
     LOG.info("CoordinatorKeycloakAuthorizerMetadataStorageUpdater is stopped.");
   }
 
@@ -144,6 +211,13 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
         MetadataStorageConnector.CONFIG_TABLE_VALUE_COLUMN,
         getPrefixedKeyColumn(ROLES)
     );
+  }
+
+  @Override
+  @Nullable
+  public Map<String, KeycloakAuthorizerRole> getCachedRoleMap()
+  {
+    return roleMapBundle == null ? null : roleMapBundle.getRoleMap();
   }
 
   @Override
@@ -165,6 +239,14 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   {
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
     setPermissionsInternal(roleName, permissions);
+  }
+
+  @Override
+  public void refreshAllNotification()
+  {
+    synchronized (this) {
+      serializeCache();
+    }
   }
 
   private void createRoleInternal(String roleName)
@@ -255,7 +337,11 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
         boolean succeeded = connector.compareAndSwap(updates);
         if (succeeded) {
-          // TODO: update caches when they are implemeted.
+          synchronized (this) {
+            roleMapBundle = new KeycloakAuthorizerRoleMapBundle(roleMap, newRoleMapValue);
+            serializeCache();
+          }
+
           return true;
         } else {
           return false;
@@ -330,6 +416,21 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     if (!roleMap.containsKey(KeycloakAuthUtils.ADMIN_NAME)) {
       createRoleInternal(KeycloakAuthUtils.ADMIN_NAME);
       setPermissionsInternal(KeycloakAuthUtils.ADMIN_NAME, SUPERUSER_PERMISSIONS);
+    }
+  }
+
+  /**
+   * Should only be called within a synchronized (this) block
+   */
+  @GuardedBy("this")
+  private void serializeCache()
+  {
+    try {
+      roleMapSerialized = objectMapper.writeValueAsBytes(getCachedRoleMap());
+      cacheNotifier.scheduleUpdate();
+    }
+    catch (JsonProcessingException e) {
+      throw new ISE(e, "Failed to JSON-Smile serialize cached view definitions");
     }
   }
 

@@ -9,6 +9,7 @@
 
 package io.imply.druid.security.keycloak.authorization.endpoint;
 
+import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.imply.druid.security.keycloak.KeycloakSecurityResourceFilter;
@@ -67,7 +68,7 @@ public class KeycloakAuthorizerResource
    * @param req      HTTP request
    * @param roleName Name of role
    *
-   * @return Role name, users with role, groupMappings with role, and permissions of role. 400 error if role doesn't exist.
+   * @return Role name, and permissions of role. 400 error if role doesn't exist.
    */
   @GET
   @Path("/roles/{roleName}")
@@ -166,5 +167,56 @@ public class KeycloakAuthorizerResource
   )
   {
     return resourceHandler.getRolePermissions(roleName);
+  }
+
+  /**
+   * Listen for update notifications for the role auth storage
+   */
+  @POST
+  @Path("/listen/roles")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(KeycloakSecurityResourceFilter.class)
+  public Response authorizerRoleUpdateListener(
+      @Context HttpServletRequest req,
+      byte[] serializedRoleMap
+  )
+  {
+    return resourceHandler.authorizerRoleUpdateListener(serializedRoleMap);
+  }
+
+  /**
+   * @param req HTTP request
+   *
+   * Sends an "update" notification to all services with the current role database state,
+   * causing them to refresh their DB cache state.
+   */
+  @GET
+  @Path("/refreshAll")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(KeycloakSecurityResourceFilter.class)
+  public Response refreshAll(
+      @Context HttpServletRequest req
+  )
+  {
+    return resourceHandler.refreshAll();
+  }
+
+  /**
+   * @param req HTTP request
+   *
+   * @return serialized role map
+   */
+  @GET
+  @Path("/cachedSerializedRoleMap")
+  @Produces(SmileMediaTypes.APPLICATION_JACKSON_SMILE)
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(KeycloakSecurityResourceFilter.class)
+  public Response getCachedSerializedRoleMap(
+      @Context HttpServletRequest req
+  )
+  {
+    return resourceHandler.getCachedRoleMaps();
   }
 }

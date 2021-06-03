@@ -11,14 +11,13 @@ package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
-import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
@@ -36,25 +35,23 @@ public class ImplyKeycloakAuthorizer implements Authorizer
 {
   private static final Logger LOG = new Logger(ImplyKeycloakAuthorizer.class);
 
-  private final KeycloakAuthorizerMetadataStorageUpdater storageUpdater;
-  private final ObjectMapper objectMapper;
+  private final KeycloakAuthorizerCacheManager cacheManager;
 
   @JsonCreator
   public ImplyKeycloakAuthorizer(
-      @JacksonInject KeycloakAuthorizerMetadataStorageUpdater storageUpdater,
-      @JacksonInject @Smile ObjectMapper objectMapper
-
+      @JsonProperty("enableCacheNotifications") Boolean enableCacheNotifications,
+      @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout,
+      @JsonProperty("test_setUpdateSource_cacheNotifictionsEnabled_sendUpdate") Long notifierUpdatePeriod,
+      @JacksonInject KeycloakAuthorizerCacheManager cacheManager
   )
   {
-    this.storageUpdater = Preconditions.checkNotNull(storageUpdater, "storageUpdater");
-    this.objectMapper = Preconditions.checkNotNull(objectMapper, "objectMapper");
+    this.cacheManager = Preconditions.checkNotNull(cacheManager, "cacheManager");
   }
 
   @VisibleForTesting
   public ImplyKeycloakAuthorizer()
   {
-    this.storageUpdater = null;
-    this.objectMapper = null;
+    this.cacheManager = null;
   }
 
   @Override
@@ -62,21 +59,20 @@ public class ImplyKeycloakAuthorizer implements Authorizer
   {
     Preconditions.checkNotNull(authenticationResult, "authenticationResult");
     List<Object> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
-    Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
-        objectMapper,
-        storageUpdater.getCurrentRoleMapBytes()
-    );
+    Map<String, KeycloakAuthorizerRole> roleMap = cacheManager.getRoleMap();
     for (Object role : allowedRoles) {
       String roleName;
       try {
         roleName = (String) role;
-        KeycloakAuthorizerRole authorizerRole = roleMap.get(roleName);
+        KeycloakAuthorizerRole authorizerRole = roleMap == null ? null : roleMap.get(roleName);
         if (authorizerRole != null) {
           for (KeycloakAuthorizerPermission permission : authorizerRole.getPermissions()) {
             if (permissionCheck(resource, action, permission)) {
               return Access.OK;
             }
           }
+        } else {
+          LOG.warn("Did not found role name [%s] in roleMap", roleName);
         }
       }
       catch (ClassCastException e) {

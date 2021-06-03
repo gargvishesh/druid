@@ -19,7 +19,6 @@ import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthori
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
 import org.apache.druid.guice.annotations.Smile;
-import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.ResourceAction;
@@ -31,8 +30,6 @@ import java.util.Map;
 
 public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAuthorizerResourceHandler
 {
-  private static final Logger log = new Logger(CoordinatorKeycloakAuthorizerResourceHandler.class);
-
   private final KeycloakAuthorizerMetadataStorageUpdater storageUpdater;
   private final Map<String, ImplyKeycloakAuthorizer> authorizerMap;
   private final ObjectMapper objectMapper;
@@ -64,7 +61,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
@@ -80,7 +77,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
@@ -105,7 +102,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     try {
@@ -122,7 +119,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     try {
@@ -139,7 +136,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     try {
@@ -156,7 +153,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      return makeResponseForAuthorizerNotFound();
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
@@ -176,14 +173,30 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
     }
   }
 
-  private static Response makeResponseForAuthorizerNotFound()
+  @Override
+  public Response authorizerRoleUpdateListener(byte[] serializedRoleMap)
   {
-    return Response.status(Response.Status.BAD_REQUEST)
-                   .entity(ImmutableMap.<String, Object>of(
-                       "error",
-                       "Keycloak authorizer does not exist."
-                   ))
-                   .build();
+    return Response.status(Response.Status.NOT_FOUND).build();
+  }
+
+  @Override
+  public Response refreshAll()
+  {
+    storageUpdater.refreshAllNotification();
+    return Response.ok().build();
+  }
+
+  @Override
+  public Response getCachedRoleMaps()
+  {
+    final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
+    if (authorizer == null) {
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
+    }
+
+    Map<String, KeycloakAuthorizerRole> roleMap = storageUpdater.getCachedRoleMap();
+
+    return Response.ok(roleMap).build();
   }
 
   private static Response makeResponseForKeycloakSecurityDBResourceException(KeycloakSecurityDBResourceException e)
