@@ -428,7 +428,7 @@ def coreIntegrationTests() {
                 sh script: '''
                     ${MVN} verify -pl integration-tests -P integration-tests \
                     ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
-                    -Dzk.version=${ZK_VERSION} ${MAVEN_SKIP}
+                    ${MAVEN_SKIP}
                 ''',
                 label: 'core integration tests'
             } finally {
@@ -477,7 +477,6 @@ pipeline {
         MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
         MAVEN_SKIP_TESTS = "-Pskip-tests"
         DOCKER_IP = "127.0.0.1"
-        ZK_VERSION = "3.5"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
         COMPOSE_HTTP_TIMEOUT = "600"
 
@@ -1263,7 +1262,7 @@ pipeline {
                 stage("(Compile=openjdk8, Run=openjdk8) other integration tests") {
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment {
-                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,query-error'
+                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
                         JVM_RUNTIME='-Djvm.runtime=8'
                         USE_INDEXER='middleManager'
                     }
@@ -1274,7 +1273,7 @@ pipeline {
                 stage("(Compile=openjdk8, Run=openjdk8) other integration tests with Indexer") {
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment {
-                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,query-error'
+                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
                         JVM_RUNTIME='-Djvm.runtime=8'
                         USE_INDEXER='indexer'
                     }
@@ -1285,20 +1284,6 @@ pipeline {
                 stage("(Compile=openjdk8, Run=openjdk8) leadership and high availability integration tests") {
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
                     environment { TESTNG_GROUPS='-Dgroups=high-availability'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8, ZK=3.4) leadership and high availability integration tests") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=high-availability'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; ZK_VERSION='3.4'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8, ZK=3.4) Kafka index integration test with various formats") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-data-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; ZK_VERSION='3.4'; }
                     steps { coreIntegrationTests() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
