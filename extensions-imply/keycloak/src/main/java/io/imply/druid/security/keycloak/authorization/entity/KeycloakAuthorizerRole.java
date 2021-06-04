@@ -111,4 +111,13 @@ public class KeycloakAuthorizerRole
       return permissions;
     }
   }
+
+  @Override
+  public String toString()
+  {
+    return "KeycloakAuthorizerRole{" +
+           "name=" + name +
+           ", permissions=" + permissions +
+           '}';
+  }
 }

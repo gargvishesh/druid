@@ -17,6 +17,12 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
+import io.imply.druid.security.keycloak.authorization.db.cache.CoordinatorKeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.db.cache.CoordinatorPollingKeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.db.cache.MetadataStoragePollingKeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.db.cache.NoopKeycloakAuthorizerCacheNotifier;
 import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
@@ -59,12 +65,15 @@ public class ImplyKeycloakModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
+    JsonConfigProvider.bind(binder, "druid.auth.keycloak.common", KeycloakAuthCommonCacheConfig.class);
     JsonConfigProvider.bind(binder, "druid.keycloak", AdapterConfig.class);
     JsonConfigProvider.bind(binder, "druid.escalator.keycloak", AdapterConfig.class, EscalatedGlobal.class);
 
     Jerseys.addResource(binder, KeycloakAuthorizerResource.class);
 
     LifecycleModule.register(binder, KeycloakAuthorizerMetadataStorageUpdater.class);
+    LifecycleModule.register(binder, KeycloakAuthorizerCacheManager.class);
+    LifecycleModule.register(binder, KeycloakAuthorizerCacheNotifier.class);
   }
 
   @Provides
@@ -83,9 +92,28 @@ public class ImplyKeycloakModule implements DruidModule
       final Injector injector
   )
   {
-    // TODO: Coordinator storage updater is bound for all services now since there is no caching layer at the moment
-    //       This will be fixed with IMPLY-6252
-    return injector.getInstance(CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class);
+    Set<NodeRole> nodeRoles = getNodeRoles(injector);
+    return injector.getInstance(getStorageUpdaterClassForService(nodeRoles));
+  }
+
+  @Provides
+  @LazySingleton
+  public static KeycloakAuthorizerCacheManager createAuthorizerCacheManager(
+      final Injector injector
+  )
+  {
+    Set<NodeRole> nodeRoles = getNodeRoles(injector);
+    return injector.getInstance(getCacheManagerClassForService(nodeRoles));
+  }
+
+  @Provides
+  @LazySingleton
+  public static KeycloakAuthorizerCacheNotifier createAuthorizerCacheNotifier(
+      final Injector injector
+  )
+  {
+    Set<NodeRole> nodeRoles = getNodeRoles(injector);
+    return injector.getInstance(getCacheNotifierClassForService(nodeRoles));
   }
 
   private static Class<? extends KeycloakAuthorizerResourceHandler> getResourceHandlerClassForService(Set<NodeRole> nodeRoles)
@@ -103,6 +131,24 @@ public class ImplyKeycloakModule implements DruidModule
       return CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class;
     } else {
       return NoopKeycloakAuthorizerMetadataStorageUpdater.class;
+    }
+  }
+
+  private static Class<? extends KeycloakAuthorizerCacheManager> getCacheManagerClassForService(Set<NodeRole> nodeRoles)
+  {
+    if (isCoordinatorRole(nodeRoles)) {
+      return MetadataStoragePollingKeycloakAuthorizerCacheManager.class;
+    } else {
+      return CoordinatorPollingKeycloakAuthorizerCacheManager.class;
+    }
+  }
+
+  private static Class<? extends KeycloakAuthorizerCacheNotifier> getCacheNotifierClassForService(Set<NodeRole> nodeRoles)
+  {
+    if (isCoordinatorRole(nodeRoles)) {
+      return CoordinatorKeycloakAuthorizerCacheNotifier.class;
+    } else {
+      return NoopKeycloakAuthorizerCacheNotifier.class;
     }
   }
 

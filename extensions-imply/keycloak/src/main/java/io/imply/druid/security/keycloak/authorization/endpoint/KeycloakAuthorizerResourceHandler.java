@@ -32,4 +32,11 @@ public interface KeycloakAuthorizerResourceHandler
   Response setRolePermissions(String roleName, List<ResourceAction> permissions);
 
   Response getRolePermissions(String roleName);
+
+  // non-coordinator methods
+  Response authorizerRoleUpdateListener(byte[] serializedRoleMap);
+
+  Response refreshAll();
+
+  Response getCachedRoleMaps();
 }

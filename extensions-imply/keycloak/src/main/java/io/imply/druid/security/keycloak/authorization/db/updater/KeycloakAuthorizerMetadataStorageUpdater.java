@@ -9,9 +9,11 @@
 
 package io.imply.druid.security.keycloak.authorization.db.updater;
 
+import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import org.apache.druid.server.security.ResourceAction;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Implementations of this interface are responsible for connecting directly to the metadata storage,
@@ -22,9 +24,13 @@ public interface KeycloakAuthorizerMetadataStorageUpdater
 {
   byte[] getCurrentRoleMapBytes();
 
+  Map<String, KeycloakAuthorizerRole> getCachedRoleMap();
+
   void createRole(String roleName);
 
   void deleteRole(String roleName);
 
   void setPermissions(String roleName, List<ResourceAction> permissions);
+
+  void refreshAllNotification();
 }
