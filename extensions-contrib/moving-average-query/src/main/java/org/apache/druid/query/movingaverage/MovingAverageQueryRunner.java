@@ -55,6 +55,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -122,11 +123,11 @@ public class MovingAverageQueryRunner implements QueryRunner<Row>
       GroupByQuery gbq = builder.build();
 
       ResponseContext gbqResponseContext = ResponseContext.createEmpty();
-      gbqResponseContext.merge(responseContext);
       gbqResponseContext.put(
           ResponseContext.Key.QUERY_FAIL_DEADLINE_MILLIS,
           System.currentTimeMillis() + QueryContexts.getTimeout(gbq)
       );
+      gbqResponseContext.put(ResponseContext.Key.QUERY_TOTAL_BYTES_GATHERED, new AtomicLong());
 
       Sequence<ResultRow> results = gbq.getRunner(walker).run(QueryPlus.wrap(gbq), gbqResponseContext);
       try {
@@ -163,11 +164,11 @@ public class MovingAverageQueryRunner implements QueryRunner<Row>
           maq.getContext()
       );
       ResponseContext tsqResponseContext = ResponseContext.createEmpty();
-      tsqResponseContext.merge(responseContext);
       tsqResponseContext.put(
           ResponseContext.Key.QUERY_FAIL_DEADLINE_MILLIS,
           System.currentTimeMillis() + QueryContexts.getTimeout(tsq)
       );
+      tsqResponseContext.put(ResponseContext.Key.QUERY_TOTAL_BYTES_GATHERED, new AtomicLong());
 
       Sequence<Result<TimeseriesResultValue>> results = tsq.getRunner(walker).run(QueryPlus.wrap(tsq), tsqResponseContext);
       try {
