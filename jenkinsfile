@@ -688,8 +688,8 @@ pipeline {
                     steps {
                         setupMavenSettings()
                         sh """
-                            ${MVN} clean -Pstrict compile test-compile --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+                            ${MVN} clean -DstrictCompile compile test-compile --fail-at-end \
+                                ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
                         """
                     }
                     post {
