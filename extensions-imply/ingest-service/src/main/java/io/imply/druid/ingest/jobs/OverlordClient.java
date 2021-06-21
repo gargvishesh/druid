@@ -32,6 +32,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -147,6 +148,12 @@ public class OverlordClient implements IndexingServiceClient
   public SamplerResponse sample(SamplerSpec samplerSpec)
   {
     return delegate.sample(samplerSpec);
+  }
+
+  @Override
+  public Map<String, List<Interval>> getLockedIntervals(Map<String, Integer> minTaskPriority)
+  {
+    return Collections.emptyMap();
   }
 
   @Nullable
