@@ -11,6 +11,7 @@ package io.imply.druid.autoscaling.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.autoscaling.ImplyEnvironmentConfig;
+import io.imply.druid.autoscaling.server.ImplyManagerServiceException;
 import io.imply.druid.autoscaling.server.ListInstancesResponse;
 import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
 import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
@@ -49,7 +50,7 @@ public class ImplyManagerServiceClient
   public ProvisionInstancesResponse provisionInstances(
       ImplyEnvironmentConfig implyConfig,
       ProvisionInstancesRequest requestBody
-  ) throws IOException
+  ) throws IOException, ImplyManagerServiceException
   {
     URL requestUrl = new URL(
         StringUtils.format(
@@ -67,7 +68,7 @@ public class ImplyManagerServiceClient
   public void terminateInstances(
       ImplyEnvironmentConfig implyConfig,
       String instanceIdToTerminate
-  ) throws IOException
+  ) throws IOException, ImplyManagerServiceException
   {
     URL requestUrl = new URL(
         StringUtils.format(
@@ -85,7 +86,7 @@ public class ImplyManagerServiceClient
   public ListInstancesResponse listInstances(
       ImplyEnvironmentConfig implyConfig,
       List<Pair<String, String>> queryParams
-  ) throws IOException
+  ) throws IOException, ImplyManagerServiceException
   {
     final String basePath = StringUtils.format(
         INSTANCES_API_PATH,
@@ -116,13 +117,13 @@ public class ImplyManagerServiceClient
     return doRequest(request, ListInstancesResponse.class);
   }
 
-  private <T> T doRequest(Request request, Class<T> clazz) throws IOException
+  private <T> T doRequest(Request request, Class<T> clazz) throws IOException, ImplyManagerServiceException
   {
     InputStreamFullResponseHolder responseHolder = doRequest(request);
     return jsonMapper.readValue(responseHolder.getContent(), clazz);
   }
 
-  private InputStreamFullResponseHolder doRequest(Request request)
+  private InputStreamFullResponseHolder doRequest(Request request) throws ImplyManagerServiceException
   {
     InputStreamFullResponseHolder responseHolder;
     try {
@@ -135,7 +136,7 @@ public class ImplyManagerServiceClient
       throw new RuntimeException(e);
     }
     if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK) {
-      throw new RE(
+      throw new ImplyManagerServiceException(
           "Failed to talk to node at [%s]. Error code[%d], description[%s].",
           request.getUrl(),
           responseHolder.getStatus().getCode(),

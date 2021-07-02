@@ -9,6 +9,8 @@
 
 package io.imply.druid.autoscaling.server;
 
+import org.apache.druid.java.util.common.StringUtils;
+
 /**
  * Provides a specialized Exception type for the GCE module
  */
@@ -17,6 +19,11 @@ public class ImplyManagerServiceException extends Exception
   public ImplyManagerServiceException(String message)
   {
     super(message);
+  }
+
+  public ImplyManagerServiceException(String formatText, Object... arguments)
+  {
+    super(StringUtils.nonStrictFormat(formatText, arguments));
   }
 
 }
