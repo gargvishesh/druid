@@ -16,7 +16,6 @@ import io.imply.druid.autoscaling.server.ListInstancesResponse;
 import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
 import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
 import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
