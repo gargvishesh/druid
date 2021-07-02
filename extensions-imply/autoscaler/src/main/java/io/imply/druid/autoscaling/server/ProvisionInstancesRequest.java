@@ -7,7 +7,11 @@
  * of the license agreement you entered into with Imply.
  */
 
-import com.sun.istack.internal.Nullable;
+package io.imply.druid.autoscaling.server;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 
 import java.util.List;
 import java.util.Objects;
@@ -52,16 +56,16 @@ public class ProvisionInstancesRequest
   public static class Instance
   {
     private final String version;
-    private final Integer numInstances;
+    private final int numToCreate;
 
     @JsonCreator
     public Instance(
         @JsonProperty("version") String version,
-        @JsonProperty("numInstances") @Nullable Integer numInstances
+        @JsonProperty("numToCreate") int numToCreate
     )
     {
       this.version = Preconditions.checkNotNull(version, "version must be not null");
-      this.numInstances = numInstances == null ? 1 : numInstances;
+      this.numToCreate = numToCreate;
     }
 
     @JsonProperty("version")
@@ -70,10 +74,10 @@ public class ProvisionInstancesRequest
       return version;
     }
 
-    @JsonProperty("numInstances")
-    public Integer getNumInstances()
+    @JsonProperty("numToCreate")
+    public int getNumToCreate()
     {
-      return numInstances;
+      return numToCreate;
     }
 
     @Override
@@ -85,15 +89,15 @@ public class ProvisionInstancesRequest
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      ProvisionInstancesRequest that = (ProvisionInstancesRequest) o;
-      return Objects.equals(version, that.version) &&
-             Objects.equals(numInstances, that.numInstances);
+      Instance instance = (Instance) o;
+      return numToCreate == instance.numToCreate &&
+             Objects.equals(version, instance.version);
     }
 
     @Override
     public int hashCode()
     {
-      return Objects.hash(version, numInstances);
+      return Objects.hash(version, numToCreate);
     }
   }
 }

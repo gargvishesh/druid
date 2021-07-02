@@ -9,6 +9,10 @@
 
 package io.imply.druid.autoscaling;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
+
 import java.util.Objects;
 
 /**

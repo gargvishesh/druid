@@ -9,25 +9,28 @@
 
 package io.imply.druid.autoscaling.server;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 import java.util.Objects;
 
 public class ProvisionInstancesResponse
 {
-  private final List<Instance> instancesCreated;
+  private final List<String> instanceIds;
 
   @JsonCreator
   public ProvisionInstancesResponse(
-      @JsonProperty("instancesCreated") List<Instance> instancesCreated
+      @JsonProperty("instanceIds") List<String> instanceIds
   )
   {
-    this.instancesCreated = instancesCreated;
+    this.instanceIds = instanceIds;
   }
 
   @JsonProperty
-  public List<Instance> getInstancesCreated()
+  public List<String> getInstanceIds()
   {
-    return instancesCreated;
+    return instanceIds;
   }
 
   @Override
@@ -40,50 +43,12 @@ public class ProvisionInstancesResponse
       return false;
     }
     ProvisionInstancesResponse that = (ProvisionInstancesResponse) o;
-    return Objects.equals(instancesCreated, that.instancesCreated);
+    return Objects.equals(instanceIds, that.instanceIds);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(instancesCreated);
-  }
-
-  public static class Instance
-  {
-    private final List<String> instanceIds;
-
-    @JsonCreator
-    public Instance(
-        @JsonProperty("instanceIds") List<String> instanceIds
-    )
-    {
-      this.instanceIds = instanceIds;
-    }
-
-    @JsonProperty("instanceIds")
-    public List<String> getInstanceIds()
-    {
-      return instanceIds;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      Instance that = (Instance) o;
-      return Objects.equals(instanceIds, that.instanceIds);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(instanceIds);
-    }
+    return Objects.hash(instanceIds);
   }
 }

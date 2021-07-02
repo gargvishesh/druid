@@ -9,11 +9,19 @@
 
 package io.imply.druid.autoscaling;
 
-import io.imply.druid.autoscaling.server.ImplyManagerServiceClient;
-import sun.net.www.http.HttpClient;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.inject.Binder;
+import com.google.inject.Provides;
+import io.imply.druid.autoscaling.client.ImplyManagerServiceClient;
+import org.apache.druid.guice.annotations.EscalatedGlobal;
+import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.http.client.HttpClient;
 
-import javax.xml.bind.Binder;
 import java.util.Collections;
+import java.util.List;
 
 public class ImplyAutoScaleModule implements DruidModule
 {

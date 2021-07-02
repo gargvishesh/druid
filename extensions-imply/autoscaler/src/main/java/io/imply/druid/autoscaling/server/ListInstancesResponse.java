@@ -1,6 +1,7 @@
 package io.imply.druid.autoscaling.server;
 
-import com.sun.istack.internal.Nullable;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Objects;
@@ -10,7 +11,7 @@ public class ListInstancesResponse
   private final List<Instance> instances;
 
   @JsonCreator
-  public ProvisionInstancesRequest(
+  public ListInstancesResponse(
       @JsonProperty("instances") List<Instance> instances
   )
   {

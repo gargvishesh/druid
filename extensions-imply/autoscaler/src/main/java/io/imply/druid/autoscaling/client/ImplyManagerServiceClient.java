@@ -7,14 +7,27 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.autoscaling.server;
+package io.imply.druid.autoscaling.client;
 
-import com.sun.org.apache.regexp.internal.RE;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.autoscaling.ImplyEnvironmentConfig;
-import sun.net.www.http.HttpClient;
+import io.imply.druid.autoscaling.server.ListInstancesResponse;
+import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
+import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
+import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.http.client.HttpClient;
+import org.apache.druid.java.util.http.client.Request;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHolder;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -22,9 +35,7 @@ import java.util.concurrent.ExecutionException;
  */
 public class ImplyManagerServiceClient
 {
-  private static final String PROVISION_PATH = "instances/createInstances";
-  private static final String TERMINATE_PATH = "instances/deleteInstances";
-  private static final String LIST_PATH = "instances/listInstances";
+  private static final String INSTANCES_API_PATH = "https://%s/manager/v1/autoscaler/%s/instances";
 
   private final HttpClient client;
   private final ObjectMapper jsonMapper;
@@ -42,70 +53,66 @@ public class ImplyManagerServiceClient
   {
     URL requestUrl = new URL(
         StringUtils.format(
-            "https://%s/v1/druid/%s/%s",
+            INSTANCES_API_PATH,
             implyConfig.getImplyAddress(),
-            implyConfig.getClusterId(),
-            PROVISION_PATH
+            implyConfig.getClusterId()
         )
     );
 
-    final Request request = Request(HttpMethod.POST, requestUrl);
+    final Request request = new Request(HttpMethod.POST, requestUrl);
     request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
     return doRequest(request, ProvisionInstancesResponse.class);
   }
 
   public void terminateInstances(
       ImplyEnvironmentConfig implyConfig,
-      TerminateInstancesRequest requestBody
+      String instanceIdToTerminate
   ) throws IOException
   {
     URL requestUrl = new URL(
         StringUtils.format(
-            "https://%s/v1/druid/%s/%s",
+            INSTANCES_API_PATH + "/%s",
             implyConfig.getImplyAddress(),
             implyConfig.getClusterId(),
-            TERMINATE_PATH
+            instanceIdToTerminate
         )
     );
 
-    final Request request = Request(HttpMethod.POST, requestUrl);
-    request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
+    final Request request = new Request(HttpMethod.DELETE, requestUrl);
     doRequest(request);
   }
 
   public ListInstancesResponse listInstances(
       ImplyEnvironmentConfig implyConfig,
-      List<Pair> queryParams
+      List<Pair<String, String>> queryParams
   ) throws IOException
   {
     final String basePath = StringUtils.format(
-        "https://%s/v1/druid/%s/%s",
+        INSTANCES_API_PATH,
         implyConfig.getImplyAddress(),
-        implyConfig.getClusterId(),
-        LIST_PATH
-    )
+        implyConfig.getClusterId()
+    );
     final StringBuilder url = new StringBuilder();
     url.append(basePath);
 
     if (queryParams != null && !queryParams.isEmpty()) {
-      // support (constant) query string in `path`, e.g. "/posts?draft=1"
       String prefix = "?";
-      for (Pair param : queryParams) {
-        if (param.getValue() != null) {
+      for (Pair<String, String> param : queryParams) {
+        if (param.rhs != null) {
           if (prefix != null) {
             url.append(prefix);
             prefix = null;
           } else {
             url.append("&");
           }
-          url.append(StringUtils.urlEncode(param.getName())).append("=").append(StringUtils.urlEncode(param.getValue()));
+          url.append(StringUtils.urlEncode(param.lhs)).append("=").append(StringUtils.urlEncode(param.rhs));
         }
       }
     }
 
     URL requestUrl = new URL(url.toString());
 
-    final Request request = Request(HttpMethod.GET, requestUrl);
+    final Request request = new Request(HttpMethod.GET, requestUrl);
     return doRequest(request, ListInstancesResponse.class);
   }
 

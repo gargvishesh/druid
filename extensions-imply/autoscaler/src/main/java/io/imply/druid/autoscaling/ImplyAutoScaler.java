@@ -9,14 +9,24 @@
 
 package io.imply.druid.autoscaling;
 
-import com.sun.istack.internal.Nullable;
-import io.imply.druid.autoscaling.server.ImplyManagerServiceClient;
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import io.imply.druid.autoscaling.client.ImplyManagerServiceClient;
+import io.imply.druid.autoscaling.server.ListInstancesResponse;
+import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
+import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
+import org.apache.druid.indexing.overlord.autoscaling.AutoScaler;
+import org.apache.druid.indexing.overlord.autoscaling.AutoScalingData;
+import org.apache.druid.indexing.overlord.autoscaling.SimpleWorkerProvisioningConfig;
+import org.apache.druid.java.util.emitter.EmittingLogger;
 
-import java.io.IOException;
-import java.net.NetworkInterface;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This module permits the autoscaling of the workers in Imply Manager
@@ -33,20 +43,16 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
   private final ImplyEnvironmentConfig envConfig;
   private final int minNumWorkers;
   private final int maxNumWorkers;
-  private final int numInstances;
   private final ImplyManagerServiceClient implyManagerServiceClient;
-
-  private static final long POLL_INTERVAL_MS = 5 * 1000;  // 5 sec
-  private static final int RUNNING_INSTANCES_MAX_RETRIES = 10;
-  private static final int OPERATION_END_MAX_RETRIES = 10;
+  private final SimpleWorkerProvisioningConfig config;
 
   @JsonCreator
   public ImplyAutoScaler(
       @JsonProperty("minNumWorkers") int minNumWorkers,
       @JsonProperty("maxNumWorkers") int maxNumWorkers,
-      @JsonProperty("numInstances") int numInstances,
-      @JsonProperty("envConfig") ImplyEnvironmentConfig envConfig
-      @JacksonInject ImplyManagerServiceClient implyManagerServiceClient;
+      @JsonProperty("envConfig") ImplyEnvironmentConfig envConfig,
+      @JacksonInject ImplyManagerServiceClient implyManagerServiceClient,
+      @JacksonInject SimpleWorkerProvisioningConfig config
   )
   {
     Preconditions.checkArgument(minNumWorkers > 0,
@@ -57,11 +63,9 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
     Preconditions.checkArgument(maxNumWorkers > minNumWorkers,
                                 "maxNumWorkers must be greater than minNumWorkers");
     this.maxNumWorkers = maxNumWorkers;
-    Preconditions.checkArgument(numInstances > 0,
-                                "numInstances must be greater than 0");
-    this.numInstances = numInstances;
     this.envConfig = envConfig;
     this.implyManagerServiceClient = implyManagerServiceClient;
+    this.config = config;
   }
 
   @Override
@@ -85,91 +89,32 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
     return envConfig;
   }
 
-
-  // Used to wait for an operation to finish
-  @Nullable
-  private Operation.Error waitForOperationEnd(
-      Compute compute,
-      Operation operation) throws Exception
-  {
-    String status = operation.getStatus();
-    String opId = operation.getName();
-    for (int i = 0; i < OPERATION_END_MAX_RETRIES; i++) {
-      if (operation == null || "DONE".equals(status)) {
-        return operation == null ? null : operation.getError();
-      }
-      log.info("Waiting for operation %s to end", opId);
-      Thread.sleep(POLL_INTERVAL_MS);
-      Compute.ZoneOperations.Get get = compute.zoneOperations().get(
-          envConfig.getProjectId(),
-          envConfig.getZoneName(),
-          opId
-      );
-      operation = get.execute();
-      if (operation != null) {
-        status = operation.getStatus();
-      }
-    }
-    throw new InterruptedException(
-        StringUtils.format("Timed out waiting for operation %s to complete", opId)
-    );
-  }
-
-  /**
-   * When called resizes envConfig.getManagedInstanceGroupName() increasing it by creating
-   * envConfig.getNumInstances() new workers (unless the maximum is reached). Return the
-   * IDs of the workers created
-   */
   @Override
   public AutoScalingData provision()
   {
-    final String project = envConfig.getProjectId();
-    final String zone = envConfig.getZoneName();
-    final int numInstances = envConfig.getNumInstances();
-    final String managedInstanceGroupName = envConfig.getManagedInstanceGroupName();
-
     try {
       List<String> before = getRunningInstances();
       log.debug("Existing instances [%s]", String.join(",", before));
 
-      int toSize = Math.min(before.size() + numInstances, getMaxNumWorkers());
+      int toSize = Math.min(before.size() + 1, getMaxNumWorkers());
       if (before.size() >= toSize) {
         // nothing to scale
         return new AutoScalingData(new ArrayList<>());
       }
       log.info("Asked to provision instances, will resize to %d", toSize);
 
-      Compute computeService = createComputeService();
-      Compute.InstanceGroupManagers.Resize request =
-          computeService.instanceGroupManagers().resize(project, zone,
-                                                        managedInstanceGroupName, toSize);
-
-      Operation response = request.execute();
-      Operation.Error err = waitForOperationEnd(computeService, response);
-      if (err == null || err.isEmpty()) {
-        List<String> after = null;
-        // as the waitForOperationEnd only waits for the operation to be scheduled
-        // this loop waits until the requested machines actually go up (or up to a
-        // certain amount of retries in checking)
-        for (int i = 0; i < RUNNING_INSTANCES_MAX_RETRIES; i++) {
-          after = getRunningInstances();
-          if (after.size() == toSize) {
-            break;
-          }
-          log.info("Machines not up yet, waiting");
-          Thread.sleep(POLL_INTERVAL_MS);
-        }
-        after.removeAll(before); // these should be the new ones
-        log.info("Added instances [%s]", String.join(",", after));
-        return new AutoScalingData(after);
-      } else {
-        log.error("Unable to provision instances: %s", err.toPrettyString());
+      if (config.getWorkerVersion() == null) {
+        log.error("Unable to provision new instance as worker version is not configured");
+        return new AutoScalingData(new ArrayList<>());
       }
+      // TODO: total size or delta?
+      ProvisionInstancesRequest request = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.Instance(config.getWorkerVersion(), 1)));
+      ProvisionInstancesResponse response = implyManagerServiceClient.provisionInstances(envConfig, request);
+      return new AutoScalingData(response.getInstanceIds());
     }
     catch (Exception e) {
       log.error(e, "Unable to provision any gce instances.");
     }
-
     return new AutoScalingData(new ArrayList<>());
   }
 
@@ -185,27 +130,15 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
       return new AutoScalingData(new ArrayList<>());
     }
 
-    List<String> nodeIds = ipToIdLookup(ips); // if they are not IPs, they will be unchanged
+    List<String> nodeIds = ipToIdLookup(ips);
     try {
       return terminateWithIds(nodeIds != null ? nodeIds : new ArrayList<>());
     }
     catch (Exception e) {
-      log.error(e, "Unable to terminate any instances.");
+      log.error(e, "Unable to terminate instances.");
     }
 
     return new AutoScalingData(new ArrayList<>());
-  }
-
-  private List<String> namesToInstances(List<String> names)
-  {
-    List<String> instances = new ArrayList<>();
-    for (String name : names) {
-      instances.add(
-          // convert the name into a URL's path to be used in calls to the API
-          StringUtils.format("zones/%s/instances/%s", envConfig.getZoneName(), name)
-      );
-    }
-    return instances;
   }
 
   /**
@@ -219,75 +152,25 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
     if (ids.isEmpty()) {
       return new AutoScalingData(new ArrayList<>());
     }
-
-    try {
-      final String project = envConfig.getProjectId();
-      final String zone = envConfig.getZoneName();
-      final String managedInstanceGroupName = envConfig.getManagedInstanceGroupName();
-
-      List<String> before = getRunningInstances();
-
-      InstanceGroupManagersDeleteInstancesRequest requestBody =
-          new InstanceGroupManagersDeleteInstancesRequest();
-      requestBody.setInstances(namesToInstances(ids));
-
-      Compute computeService = createComputeService();
-      Compute.InstanceGroupManagers.DeleteInstances request =
-          computeService
-              .instanceGroupManagers()
-              .deleteInstances(project, zone, managedInstanceGroupName, requestBody);
-
-      Operation response = request.execute();
-      Operation.Error err = waitForOperationEnd(computeService, response);
-      if (err == null || err.isEmpty()) {
-        List<String> after = null;
-        // as the waitForOperationEnd only waits for the operation to be scheduled
-        // this loop waits until the requested machines actually go down (or up to a
-        // certain amount of retries in checking)
-        for (int i = 0; i < RUNNING_INSTANCES_MAX_RETRIES; i++) {
-          after = getRunningInstances();
-          if (after.size() == (before.size() - ids.size())) {
-            break;
-          }
-          log.info("Machines not down yet, waiting");
-          Thread.sleep(POLL_INTERVAL_MS);
-        }
-        before.removeAll(after); // keep only the ones no more present
-        return new AutoScalingData(before);
-      } else {
-        log.error("Unable to terminate instances: %s", err.toPrettyString());
+    for (String id : ids) {
+      try {
+        implyManagerServiceClient.terminateInstances(envConfig, id);
+      }
+      catch (Exception e) {
+        log.error(e, "Unable to terminate instances: [%s]", id);
       }
     }
-    catch (Exception e) {
-      log.error(e, "Unable to terminate any instances.");
-    }
-
-    return new AutoScalingData(new ArrayList<>());
+    return new AutoScalingData(ids);
   }
 
   // Returns the list of the IDs of the machines running in the MIG
   private List<String> getRunningInstances()
   {
-    final long maxResults = 500L; // 500 is sadly the max, see below
-
     ArrayList<String> ids = new ArrayList<>();
     try {
-      final String project = envConfig.getProjectId();
-      final String zone = envConfig.getZoneName();
-      final String managedInstanceGroupName = envConfig.getManagedInstanceGroupName();
-
-      Compute computeService = createComputeService();
-      Compute.InstanceGroupManagers.ListManagedInstances request =
-          computeService
-              .instanceGroupManagers()
-              .listManagedInstances(project, zone, managedInstanceGroupName);
-      // Notice that while the doc says otherwise, there is not nextPageToken to page
-      // through results and so everything needs to be in the same page
-      request.setMaxResults(maxResults);
-      InstanceGroupManagersListManagedInstancesResponse response = request.execute();
-      for (ManagedInstance mi : response.getManagedInstances()) {
-        ids.add(GceUtils.extractNameFromInstance(mi.getInstance()));
-      }
+      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
+      // todo filter on status?
+      ids.addAll(response.getInstances().stream().map(instance -> instance.getId()).collect(Collectors.toList()));
       log.debug("Found running instances [%s]", String.join(",", ids));
     }
     catch (Exception e) {
@@ -308,54 +191,20 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
       return new ArrayList<>();
     }
 
-    // If the first one is not an IP, just assume all the other ones are not as well and just
-    // return them as they are. This check is here because Druid does not check if IPs are
-    // actually IPs and can send IDs to this function instead
-    if (!InetAddresses.isInetAddress(ips.get(0))) {
-      log.debug("Not IPs, doing nothing");
-      return ips;
-    }
-
-    final String project = envConfig.getProjectId();
-    final String zone = envConfig.getZoneName();
+    ArrayList<String> ids = new ArrayList<>();
     try {
-      Compute computeService = createComputeService();
-      Compute.Instances.List request = computeService.instances().list(project, zone);
-      // Cannot filter by IP atm, see below
-      // request.setFilter(GceUtils.buildFilter(ips, "networkInterfaces[0].networkIP"));
-
-      List<String> instanceIds = new ArrayList<>();
-      InstanceList response;
-      do {
-        response = request.execute();
-        if (response.getItems() == null) {
-          continue;
-        }
-        for (Instance instance : response.getItems()) {
-          // This stupid look up is needed because atm it is not possible to filter
-          // by IP, see https://issuetracker.google.com/issues/73455339
-          for (NetworkInterface ni : instance.getNetworkInterfaces()) {
-            if (ips.contains(ni.getNetworkIP())) {
-              instanceIds.add(instance.getName());
-            }
-          }
-        }
-        request.setPageToken(response.getNextPageToken());
-      } while (response.getNextPageToken() != null);
-
-      log.debug("Converted to [%s]", String.join(",", instanceIds));
-      return instanceIds;
+      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
+      // todo filter on status?
+      ids.addAll(response.getInstances().stream().filter(instance -> ips.contains(instance.getIp())).map(instance -> instance.getId()).collect(Collectors.toList()));
     }
     catch (Exception e) {
-      log.error(e, "Unable to convert IPs to IDs.");
+      log.error(e, "Unable to get instances.");
     }
-
-    return new ArrayList<>();
+    return ids;
   }
 
   /**
-   * Converts the IDs to IPs - this is actually never called from the outside but it is called once
-   * from inside the class if terminate is used instead of terminateWithIds
+   * Converts the IDs to IPs
    */
   @Override
   public List<String> idToIpLookup(List<String> nodeIds)
@@ -366,45 +215,16 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
       return new ArrayList<>();
     }
 
-    final String project = envConfig.getProjectId();
-    final String zone = envConfig.getZoneName();
-
+    ArrayList<String> ips = new ArrayList<>();
     try {
-      Compute computeService = createComputeService();
-      Compute.Instances.List request = computeService.instances().list(project, zone);
-      request.setFilter(GceUtils.buildFilter(nodeIds, "name"));
-
-      List<String> instanceIps = new ArrayList<>();
-      InstanceList response;
-      do {
-        response = request.execute();
-        if (response.getItems() == null) {
-          continue;
-        }
-        for (Instance instance : response.getItems()) {
-          // Assuming that every server has at least one network interface...
-          String ip = instance.getNetworkInterfaces().get(0).getNetworkIP();
-          // ...even though some IPs are reported as null on the spot but later they are ok,
-          // so we skip the ones that are null. fear not, they are picked up later this just
-          // prevents to have a machine called 'null' around which makes the caller wait for
-          // it for maxScalingDuration time before doing anything else
-          if (ip != null && !"null".equals(ip)) {
-            instanceIps.add(ip);
-          } else {
-            // log and skip it
-            log.warn("Call returned null IP for %s, skipping", instance.getName());
-          }
-        }
-        request.setPageToken(response.getNextPageToken());
-      } while (response.getNextPageToken() != null);
-
-      return instanceIps;
+      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
+      // todo filter on status?
+      ips.addAll(response.getInstances().stream().filter(instance -> nodeIds.contains(instance.getId())).map(instance -> instance.getIp()).collect(Collectors.toList()));
     }
     catch (Exception e) {
-      log.error(e, "Unable to convert IDs to IPs.");
+      log.error(e, "Unable to get instances.");
     }
-
-    return new ArrayList<>();
+    return ips;
   }
 
 
