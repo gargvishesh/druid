@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.autoscaling.client.ImplyManagerServiceClient;
@@ -26,14 +27,11 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * This module permits the autoscaling of the workers in Imply Manager
- *
- * General notes:
- * - The IPs are IPs as in Internet Protocol, and they look like 1.2.3.4
- * - The IDs are the names of the instances of instances created, they look like
  */
 @JsonTypeName("imply")
 public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
@@ -93,12 +91,16 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
   public AutoScalingData provision()
   {
     try {
-      List<String> before = getRunningInstances();
+      List<String> before = getStartingOrRunningInstances();
       log.debug("Existing instances [%s]", String.join(",", before));
 
       int toSize = Math.min(before.size() + 1, getMaxNumWorkers());
       if (before.size() >= toSize) {
         // nothing to scale
+        log.info(
+            "Skip scalling up as max number of instances reached. currentSize: %d and maxNumWorkers: %d",
+            before.size(), getMaxNumWorkers()
+        );
         return new AutoScalingData(new ArrayList<>());
       }
       log.info("Asked to provision instances, will resize to %d", toSize);
@@ -107,10 +109,8 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
         log.error("Unable to provision new instance as worker version is not configured");
         return new AutoScalingData(new ArrayList<>());
       }
-      // TODO: total size or delta?
-      ProvisionInstancesRequest request = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.Instance(config.getWorkerVersion(), 1)));
-      ProvisionInstancesResponse response = implyManagerServiceClient.provisionInstances(envConfig, request);
-      return new AutoScalingData(response.getInstanceIds());
+      List<String> instanceCreated = implyManagerServiceClient.provisionInstances(envConfig, config.getWorkerVersion(), 1);
+      return new AutoScalingData(instanceCreated);
     }
     catch (Exception e) {
       log.error(e, "Unable to provision any gce instances.");
@@ -163,14 +163,18 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
     return new AutoScalingData(ids);
   }
 
-  // Returns the list of the IDs of the machines running in the MIG
-  private List<String> getRunningInstances()
+  @VisibleForTesting
+  List<String> getStartingOrRunningInstances()
   {
     ArrayList<String> ids = new ArrayList<>();
     try {
-      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
-      // todo filter on status?
-      ids.addAll(response.getInstances().stream().map(instance -> instance.getId()).collect(Collectors.toList()));
+      List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
+      for (Instance instance : response) {
+        if (Instance.Status.STARTING.equals(instance.getStatus()) ||
+            Instance.Status.RUNNING.equals(instance.getStatus())) {
+          ids.add(instance.getId());
+        }
+      }
       log.debug("Found running instances [%s]", String.join(",", ids));
     }
     catch (Exception e) {
@@ -193,9 +197,8 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
 
     ArrayList<String> ids = new ArrayList<>();
     try {
-      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
-      // todo filter on status?
-      ids.addAll(response.getInstances().stream().filter(instance -> ips.contains(instance.getIp())).map(instance -> instance.getId()).collect(Collectors.toList()));
+      List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
+      ids.addAll(response.stream().filter(instance -> ips.contains(instance.getIp())).map(instance -> instance.getId()).collect(Collectors.toList()));
     }
     catch (Exception e) {
       log.error(e, "Unable to get instances.");
@@ -217,9 +220,8 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
 
     ArrayList<String> ips = new ArrayList<>();
     try {
-      ListInstancesResponse response = implyManagerServiceClient.listInstances(envConfig, ImmutableList.of());
-      // todo filter on status?
-      ips.addAll(response.getInstances().stream().filter(instance -> nodeIds.contains(instance.getId())).map(instance -> instance.getIp()).collect(Collectors.toList()));
+      List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
+      ips.addAll(response.stream().filter(instance -> nodeIds.contains(instance.getId())).map(instance -> instance.getIp()).collect(Collectors.toList()));
     }
     catch (Exception e) {
       log.error(e, "Unable to get instances.");
@@ -227,5 +229,26 @@ public class ImplyAutoScaler implements AutoScaler<ImplyEnvironmentConfig>
     return ips;
   }
 
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ImplyAutoScaler that = (ImplyAutoScaler) o;
+    return minNumWorkers == that.minNumWorkers &&
+           maxNumWorkers == that.maxNumWorkers &&
+           Objects.equals(envConfig, that.envConfig) &&
+           Objects.equals(implyManagerServiceClient, that.implyManagerServiceClient) &&
+           Objects.equals(config, that.config);
+  }
 
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(envConfig, minNumWorkers, maxNumWorkers, implyManagerServiceClient, config);
+  }
 }

@@ -10,7 +10,9 @@
 package io.imply.druid.autoscaling.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.autoscaling.ImplyEnvironmentConfig;
+import io.imply.druid.autoscaling.Instance;
 import io.imply.druid.autoscaling.server.ImplyManagerServiceException;
 import io.imply.druid.autoscaling.server.ListInstancesResponse;
 import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
@@ -27,6 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -46,11 +49,13 @@ public class ImplyManagerServiceClient
     this.jsonMapper = jsonMapper;
   }
 
-  public ProvisionInstancesResponse provisionInstances(
+  public List<String> provisionInstances(
       ImplyEnvironmentConfig implyConfig,
-      ProvisionInstancesRequest requestBody
+      String workerVersion,
+      int numToCreate
   ) throws IOException, ImplyManagerServiceException
   {
+    ProvisionInstancesRequest requestBody = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.Instance(workerVersion, numToCreate)));
     URL requestUrl = new URL(
         StringUtils.format(
             INSTANCES_API_PATH,
@@ -58,10 +63,10 @@ public class ImplyManagerServiceClient
             implyConfig.getClusterId()
         )
     );
-
     final Request request = new Request(HttpMethod.POST, requestUrl);
     request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
-    return doRequest(request, ProvisionInstancesResponse.class);
+    ProvisionInstancesResponse response = doRequest(request, ProvisionInstancesResponse.class);
+    return response.getInstanceIds();
   }
 
   public void terminateInstances(
@@ -82,38 +87,25 @@ public class ImplyManagerServiceClient
     doRequest(request);
   }
 
-  public ListInstancesResponse listInstances(
-      ImplyEnvironmentConfig implyConfig,
-      List<Pair<String, String>> queryParams
+  public List<Instance> listInstances(
+      ImplyEnvironmentConfig implyConfig
   ) throws IOException, ImplyManagerServiceException
   {
-    final String basePath = StringUtils.format(
-        INSTANCES_API_PATH,
-        implyConfig.getImplyAddress(),
-        implyConfig.getClusterId()
+    URL requestUrl = new URL(
+        StringUtils.format(
+          INSTANCES_API_PATH,
+          implyConfig.getImplyAddress(),
+          implyConfig.getClusterId()
+        )
     );
-    final StringBuilder url = new StringBuilder();
-    url.append(basePath);
-
-    if (queryParams != null && !queryParams.isEmpty()) {
-      String prefix = "?";
-      for (Pair<String, String> param : queryParams) {
-        if (param.rhs != null) {
-          if (prefix != null) {
-            url.append(prefix);
-            prefix = null;
-          } else {
-            url.append("&");
-          }
-          url.append(StringUtils.urlEncode(param.lhs)).append("=").append(StringUtils.urlEncode(param.rhs));
-        }
-      }
-    }
-
-    URL requestUrl = new URL(url.toString());
 
     final Request request = new Request(HttpMethod.GET, requestUrl);
-    return doRequest(request, ListInstancesResponse.class);
+    ListInstancesResponse response = doRequest(request, ListInstancesResponse.class);
+    List<Instance> instances = new ArrayList<>();
+    for (ListInstancesResponse.Instance instanceResponse : response.getInstances()) {
+      instances.add(new Instance(instanceResponse.getStatus(), instanceResponse.getIp(), instanceResponse.getId()));
+    }
+    return instances;
   }
 
   private <T> T doRequest(Request request, Class<T> clazz) throws IOException, ImplyManagerServiceException
