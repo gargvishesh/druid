@@ -10,6 +10,7 @@
 package io.imply.druid.autoscaling.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.autoscaling.ImplyEnvironmentConfig;
 import io.imply.druid.autoscaling.Instance;
@@ -114,7 +115,8 @@ public class ImplyManagerServiceClient
     return jsonMapper.readValue(responseHolder.getContent(), clazz);
   }
 
-  private InputStreamFullResponseHolder doRequest(Request request) throws ImplyManagerServiceException
+  @VisibleForTesting
+  InputStreamFullResponseHolder doRequest(Request request) throws ImplyManagerServiceException
   {
     InputStreamFullResponseHolder responseHolder;
     try {
