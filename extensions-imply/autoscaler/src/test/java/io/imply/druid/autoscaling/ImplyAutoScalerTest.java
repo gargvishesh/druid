@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.autoscaling;
 
 import com.fasterxml.jackson.databind.BeanProperty;
@@ -225,7 +234,7 @@ public class ImplyAutoScalerTest
   }
 
   @Test
-  public void testProvisionExceedMaximum()  throws Exception
+  public void testProvisionExceedMaximum() throws Exception
   {
     List<Instance> mockResponse = new ArrayList<>();
     for (int i = 0; i < MAX_NUM_WORKER; i++) {
@@ -242,7 +251,7 @@ public class ImplyAutoScalerTest
   }
 
   @Test
-  public void testProvisionUnderMaximum()  throws Exception
+  public void testProvisionUnderMaximum() throws Exception
   {
     List<Instance> mockResponse = new ArrayList<>();
     for (int i = 0; i < MAX_NUM_WORKER - 1; i++) {
@@ -262,7 +271,7 @@ public class ImplyAutoScalerTest
   }
 
   @Test
-  public void testProvisionUnderMaximumExcludingTerminatingInstance()  throws Exception
+  public void testProvisionUnderMaximumExcludingTerminatingInstance() throws Exception
   {
     List<Instance> mockResponse = new ArrayList<>();
     for (int i = 0; i < MAX_NUM_WORKER - 1; i++) {
@@ -285,7 +294,7 @@ public class ImplyAutoScalerTest
   }
 
   @Test
-  public void testProvisionMissingWorkerVersion()  throws Exception
+  public void testProvisionMissingWorkerVersion() throws Exception
   {
     List<Instance> mockResponse = new ArrayList<>();
     for (int i = 0; i < MAX_NUM_WORKER - 1; i++) {
@@ -303,7 +312,7 @@ public class ImplyAutoScalerTest
   }
 
   @Test
-  public void testGetStartingOrRunningInstances()  throws Exception
+  public void testGetStartingOrRunningInstances() throws Exception
   {
     List<Instance> mockResponse = ImmutableList.of(
         new Instance("STARTING", IP_1, ID_1),
