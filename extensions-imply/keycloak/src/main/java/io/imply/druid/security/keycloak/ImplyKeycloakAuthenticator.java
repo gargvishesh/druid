@@ -31,36 +31,31 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   private final DruidKeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
-  private final String rolesTokenClaimName;
   private final AccessTokenValidator accessTokenValidator;
 
   @JsonCreator
   public ImplyKeycloakAuthenticator(
       @JsonProperty("authenticatorName") String authenticatorName,
       @JsonProperty("authorizerName") String authorizerName,
-      @JsonProperty("rolesTokenClaimName") String rolesTokenClaimName,
       @JacksonInject DruidKeycloakConfigResolver configResolver
   )
   {
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
-    this.rolesTokenClaimName = Preconditions.checkNotNull(rolesTokenClaimName, "roleTokenClaimName");
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
-    this.accessTokenValidator = new AccessTokenValidator(authorizerName, rolesTokenClaimName);
+    this.accessTokenValidator = new AccessTokenValidator(authenticatorName, authorizerName, configResolver);
   }
 
   @VisibleForTesting
   ImplyKeycloakAuthenticator(
       String authenticatorName,
       String authorizerName,
-      String rolesTokenClaimName,
       DruidKeycloakConfigResolver configResolver,
       AccessTokenValidator accessTokenValidator
   )
   {
     this.authenticatorName = authenticatorName;
     this.authorizerName = authorizerName;
-    this.rolesTokenClaimName = rolesTokenClaimName;
     this.configResolver = configResolver;
     this.accessTokenValidator = accessTokenValidator;
   }
@@ -68,7 +63,7 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   @Override
   public Filter getFilter()
   {
-    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName, rolesTokenClaimName);
+    return new DruidKeycloakOIDCFilter(configResolver, authenticatorName, authorizerName);
   }
 
   @Override

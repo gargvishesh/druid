@@ -409,9 +409,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     );
   }
 
-  private void initAdminRoleAndPermissions(
-      Map<String, KeycloakAuthorizerRole> roleMap
-  )
+  private void initAdminRoleAndPermissions(Map<String, KeycloakAuthorizerRole> roleMap)
   {
     if (!roleMap.containsKey(KeycloakAuthUtils.ADMIN_NAME)) {
       createRoleInternal(KeycloakAuthUtils.ADMIN_NAME);

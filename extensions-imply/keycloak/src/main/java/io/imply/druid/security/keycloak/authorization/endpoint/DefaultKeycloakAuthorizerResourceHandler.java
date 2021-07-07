@@ -25,7 +25,7 @@ import java.util.Map;
 
 public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthorizerResourceHandler
 {
-  private static final Logger log = new Logger(DefaultKeycloakAuthorizerResourceHandler.class);
+  private static final Logger LOG = new Logger(DefaultKeycloakAuthorizerResourceHandler.class);
 
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
 
@@ -93,7 +93,7 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
   {
     final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
     if (authorizer == null) {
-      log.error("Received update for roles when no keycloak authorizer was found to be configured");
+      LOG.error("Received update for roles when no keycloak authorizer was found to be configured");
       return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 

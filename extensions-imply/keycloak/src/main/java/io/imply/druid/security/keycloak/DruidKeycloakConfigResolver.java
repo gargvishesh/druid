@@ -46,7 +46,7 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
     KeycloakDeployment internalDeployment = null;
     /* A different escalator type may be in use. Allow for the system to continue if no keycloak escalator is configured */
     if (escalator instanceof ImplyKeycloakEscalator) {
-      internalDeployment = KeycloakDeploymentBuilder.build(((ImplyKeycloakEscalator) escalator).getConfig());
+      internalDeployment = ((ImplyKeycloakEscalator) escalator).getKeycloakDeployment();
     }
     
     this.internalDeployment = internalDeployment;

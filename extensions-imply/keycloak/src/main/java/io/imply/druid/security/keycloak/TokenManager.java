@@ -58,7 +58,8 @@ public class TokenManager
   public TokenManager(
       KeycloakDeployment deployment,
       Map<String, String> tokenReqHeaders,
-      Map<String, String> tokenReqParams)
+      Map<String, String> tokenReqParams
+  )
   {
     this(deployment, new TokenService(deployment, tokenReqHeaders, tokenReqParams), true);
   }

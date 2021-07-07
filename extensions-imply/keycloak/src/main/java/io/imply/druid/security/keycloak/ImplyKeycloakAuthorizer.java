@@ -11,7 +11,6 @@ package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -25,10 +24,8 @@ import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.Resource;
 
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 @JsonTypeName("imply-keycloak")
 public class ImplyKeycloakAuthorizer implements Authorizer
@@ -39,9 +36,6 @@ public class ImplyKeycloakAuthorizer implements Authorizer
 
   @JsonCreator
   public ImplyKeycloakAuthorizer(
-      @JsonProperty("enableCacheNotifications") Boolean enableCacheNotifications,
-      @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout,
-      @JsonProperty("test_setUpdateSource_cacheNotifictionsEnabled_sendUpdate") Long notifierUpdatePeriod,
       @JacksonInject KeycloakAuthorizerCacheManager cacheManager
   )
   {
@@ -58,33 +52,34 @@ public class ImplyKeycloakAuthorizer implements Authorizer
   public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
   {
     Preconditions.checkNotNull(authenticationResult, "authenticationResult");
-    List<Object> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
+    if (isSuperuser(authenticationResult)) {
+      return Access.OK;
+    }
+
+    Set<String> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
     Map<String, KeycloakAuthorizerRole> roleMap = cacheManager.getRoleMap();
-    for (Object role : allowedRoles) {
-      String roleName;
-      try {
-        roleName = (String) role;
-        KeycloakAuthorizerRole authorizerRole = roleMap == null ? null : roleMap.get(roleName);
+    if (roleMap != null) {
+      for (String role : allowedRoles) {
+        KeycloakAuthorizerRole authorizerRole = roleMap.get(role);
         if (authorizerRole != null) {
           for (KeycloakAuthorizerPermission permission : authorizerRole.getPermissions()) {
-            if (permissionCheck(resource, action, permission)) {
+            if (permission.matches(resource, action)) {
               return Access.OK;
             }
           }
         } else {
-          LOG.warn("Did not found role name [%s] in roleMap", roleName);
+          LOG.warn("Did not find role name [%s] in roleMap", role);
         }
       }
-      catch (ClassCastException e) {
-        LOG.warn("Could not cast role [%s] to string format", role);
-      }
+    } else {
+      LOG.warn("Rolemap is unavailable, is cache operating?");
     }
 
     return new Access(false);
   }
 
   @SuppressWarnings("unchecked")
-  private List<Object> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
+  private Set<String> getRolesfromAuthenticationResultContext(AuthenticationResult authenticationResult)
   {
     Map<String, Object> context = authenticationResult.getContext();
     if (context == null || context.isEmpty()) {
@@ -92,27 +87,20 @@ public class ImplyKeycloakAuthorizer implements Authorizer
       return KeycloakAuthUtils.EMPTY_ROLES;
     }
 
-    if (context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY) instanceof List) {
-      return (List<Object>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
+    if (context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY) instanceof Set) {
+      return (Set<String>) context.get(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY);
     } else {
       LOG.warn("User [%s] roles had unexpected type", authenticationResult.getIdentity());
       return KeycloakAuthUtils.EMPTY_ROLES;
     }
   }
 
-  private boolean permissionCheck(Resource resource, Action action, KeycloakAuthorizerPermission permission)
+  private boolean isSuperuser(AuthenticationResult authenticationResult)
   {
-    if (!action.equals(permission.getResourceAction().getAction())) {
+    Map<String, Object> context = authenticationResult.getContext();
+    if (context == null || context.isEmpty()) {
       return false;
     }
-
-    Resource permissionResource = permission.getResourceAction().getResource();
-    if (!permissionResource.getType().equals(resource.getType())) {
-      return false;
-    }
-
-    Pattern resourceNamePattern = permission.getResourceNamePattern();
-    Matcher resourceNameMatcher = resourceNamePattern.matcher(resource.getName());
-    return resourceNameMatcher.matches();
+    return (boolean) context.getOrDefault(KeycloakAuthUtils.SUPERUSER_CONTEXT_KEY, false);
   }
 }

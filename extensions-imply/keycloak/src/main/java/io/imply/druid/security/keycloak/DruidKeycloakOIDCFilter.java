@@ -11,7 +11,6 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -33,6 +32,7 @@ import org.keycloak.adapters.spi.InMemorySessionIdMapper;
 import org.keycloak.adapters.spi.KeycloakAccount;
 import org.keycloak.adapters.spi.SessionIdMapper;
 import org.keycloak.adapters.spi.UserSessionManagement;
+import org.keycloak.representations.AccessToken;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -46,7 +46,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 /**
  * This class is adopted from org.keycloak.adapters.servlet.KeycloakOIDCFilter and modified to follow the contract
@@ -57,10 +56,10 @@ public class DruidKeycloakOIDCFilter implements Filter
   private static final Logger LOG = new Logger(KeycloakOIDCFilter.class);
 
   private final SessionIdMapper idMapper = new InMemorySessionIdMapper();
-  private final KeycloakConfigResolver configResolver;
+  private final DruidKeycloakConfigResolver configResolver;
   private final String authenticatorName;
   private final String authorizerName;
-  private final String rolesTokenClaimName;
+  private final AccessTokenValidator tokenValidator;
 
   private AdapterDeploymentContext deploymentContext;
   private NodesRegistrationManagement nodesRegistrationManagement;
@@ -70,16 +69,15 @@ public class DruidKeycloakOIDCFilter implements Filter
    * provide the {@code KeycloakDeployment}.
    */
   public DruidKeycloakOIDCFilter(
-      KeycloakConfigResolver configResolver,
+      DruidKeycloakConfigResolver configResolver,
       String authenticatorName,
-      String authorizerName,
-      String rolesTokenClaimName
+      String authorizerName
   )
   {
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
     this.authenticatorName = Preconditions.checkNotNull(authenticatorName, "authenticatorName");
     this.authorizerName = Preconditions.checkNotNull(authorizerName, "authorizerName");
-    this.rolesTokenClaimName = Preconditions.checkNotNull(rolesTokenClaimName, "rolesTokenClaim");
+    this.tokenValidator = new AccessTokenValidator(authenticatorName, authorizerName, configResolver);
   }
 
   @VisibleForTesting
@@ -178,17 +176,12 @@ public class DruidKeycloakOIDCFilter implements Filter
         // Here, we set the authenticationResult in the request before calling the rest of chains,
         // so that the authorizer can do its job properly.
         // ------- new part start -------
-        final KeycloakAccount account = getKeycloakAccount(request);
-        List<Object> implyRoles = getImplyRoles(account);
-        final AuthenticationResult authenticationResult = new AuthenticationResult(
-            getIdentity(account),
-            authorizerName,
-            authenticatorName,
-            ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, implyRoles)
-        );
-        wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
+        final AccessToken token = getAccessToken(request);
+        if (token != null) {
+          final AuthenticationResult authenticationResult = tokenValidator.authenticateToken(token, deployment);
+          wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
+        }
         // ------- new part end -------
-
         chain.doFilter(wrapper, res);
         return;
       }
@@ -258,7 +251,7 @@ public class DruidKeycloakOIDCFilter implements Filter
     return new AuthenticatedActionsHandler(deployment, facade);
   }
 
-  private KeycloakAccount getKeycloakAccount(HttpServletRequest request)
+  private AccessToken getAccessToken(HttpServletRequest request)
   {
     HttpSession session = request.getSession(false);
     KeycloakAccount account = null;
@@ -271,39 +264,12 @@ public class DruidKeycloakOIDCFilter implements Filter
     if (account == null) {
       account = (KeycloakAccount) request.getAttribute(KeycloakAccount.class.getName());
     }
-    return account;
-  }
-
-  private String getIdentity(KeycloakAccount account)
-  {
     if (account instanceof OidcKeycloakAccount) {
       final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
       final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
-      if (securityContext.getIdToken() != null) {
-        return securityContext.getIdToken().getPreferredUsername();
-      } else {
-        return securityContext.getToken().getPreferredUsername();
-      }
-    } else {
-      return account.getPrincipal().getName();
+      return securityContext.getToken();
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private List<Object> getImplyRoles(KeycloakAccount account)
-  {
-    if (account instanceof OidcKeycloakAccount) {
-      final OidcKeycloakAccount oidcKeycloakAccount = (OidcKeycloakAccount) account;
-      final KeycloakSecurityContext securityContext = oidcKeycloakAccount.getKeycloakSecurityContext();
-      if (securityContext.getToken() != null) {
-        Map<String, Object> otherClaims = securityContext.getToken().getOtherClaims();
-        return (otherClaims != null
-                && otherClaims.get(rolesTokenClaimName) instanceof List) ?
-               (List<Object>) securityContext.getToken().getOtherClaims().get(rolesTokenClaimName) :
-               KeycloakAuthUtils.EMPTY_ROLES;
-      }
-    }
-    return KeycloakAuthUtils.EMPTY_ROLES;
+    return null;
   }
 
   @Override

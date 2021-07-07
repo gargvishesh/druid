@@ -19,25 +19,30 @@ import org.keycloak.adapters.rotation.AdapterTokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.representations.AccessToken;
 
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * A class that validates and authenticates Access Tokens retrieved from Keycloak
+ * A class that validates and authenticates {@link AccessToken} retrieved from Keycloak, translating into Druid
+ * {@link AuthenticationResult}. Keycloak resource access roles are mapped to the {@link AuthenticationResult#context}
+ * keyed as {@link KeycloakAuthUtils#AUTHENTICATED_ROLES_CONTEXT_KEY}. If validating a token for the escalated
+ * deployment, an additional key {@link KeycloakAuthUtils#SUPERUSER_CONTEXT_KEY} will be added with the value true,
+ * to indicate that this is a superuser token for internal Druid to Druid communication.
  */
 public class AccessTokenValidator
 {
-  private static final Logger LOG = new Logger(DruidKeycloakConfigResolver.class);
+  private static final Logger LOG = new Logger(AccessTokenValidator.class);
 
+  private final String authenticatorName;
   private final String authorizerName;
-  private final String rolesTokenClaimName;
+  private final DruidKeycloakConfigResolver configResolver;
 
-  public AccessTokenValidator(
-      String authorizerName,
-      String rolesTokenClaimName
-  )
+  public AccessTokenValidator(String authenticatorName, String authorizerName, DruidKeycloakConfigResolver configResolver)
   {
+    this.authenticatorName = authenticatorName;
     this.authorizerName = authorizerName;
-    this.rolesTokenClaimName = rolesTokenClaimName;
+    this.configResolver = configResolver;
   }
 
   /**
@@ -47,9 +52,7 @@ public class AccessTokenValidator
    * @param deployment The keycloak deployment to use when validating the token.
    * @return If the token is authentic, a {@link AuthenticationResult} is returned. If the token is not authentic,  null is returned.
    */
-  protected AuthenticationResult authenticateToken(
-      String tokenString,
-      KeycloakDeployment deployment)
+  protected AuthenticationResult authenticateToken(String tokenString, KeycloakDeployment deployment)
   {
     AccessToken token;
     try {
@@ -59,17 +62,47 @@ public class AccessTokenValidator
       LOG.debug("Failed to verify token");
       return null;
     }
+    return authenticateToken(token, deployment);
+  }
+
+  /**
+   * Authenticates the token. This was adapted from {@link BearerTokenRequestAuthenticator#authenticate(org.keycloak.adapters.spi.HttpFacade)}
+   *
+   * @param token AccessToken
+   * @param deployment The keycloak deployment to use when validating the token.
+   * @return If the token is authentic, a {@link AuthenticationResult} is returned. If the token is not authentic,  null is returned.
+   */
+  protected AuthenticationResult authenticateToken(
+      AccessToken token,
+      KeycloakDeployment deployment
+  )
+  {
     if (token.getIat() < deployment.getNotBefore()) {
       LOG.debug("Stale token");
       return null;
     }
     LOG.debug("successful authorized");
-    List<Object> implyRoles = getImplyRoles(token);
+
+    Map<String, Object> authContext;
+    // always use the base client roles, because the escalated service account assumes roles under the client id
+    final String resource = configResolver.getUserDeployment().getResourceName();
+    Set<String> roles = Optional.ofNullable(token.getResourceAccess(resource))
+                                .map(AccessToken.Access::getRoles)
+                                .orElse(KeycloakAuthUtils.EMPTY_ROLES);
+    // if deployment is the escalated deployment, also set superuser flag
+    if (deployment == configResolver.getInternalDeployment()) {
+      authContext = ImmutableMap.of(
+          KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, roles,
+          KeycloakAuthUtils.SUPERUSER_CONTEXT_KEY, true
+      );
+    } else {
+      authContext = ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, roles);
+    }
     return new AuthenticationResult(
         token.getPreferredUsername(),
         authorizerName,
-        null,
-        ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, implyRoles)
+        authenticatorName,
+        authContext
     );
   }
 
@@ -80,15 +113,5 @@ public class AccessTokenValidator
   ) throws VerificationException
   {
     return AdapterTokenVerifier.verifyToken(tokenString, deployment);
-  }
-
-  @SuppressWarnings("unchecked")
-  private List<Object> getImplyRoles(AccessToken token)
-  {
-    return (token.getOtherClaims() != null
-            && token.getOtherClaims().get(rolesTokenClaimName) != null
-            && token.getOtherClaims().get(rolesTokenClaimName) instanceof List) ?
-           (List<Object>) token.getOtherClaims().get(rolesTokenClaimName) :
-           KeycloakAuthUtils.EMPTY_ROLES;
   }
 }

@@ -18,10 +18,12 @@ public class KeycloakCommonErrorResponses
   public static Response makeResponseForAuthorizerNotFound()
   {
     return Response.status(Response.Status.BAD_REQUEST)
-                   .entity(ImmutableMap.<String, Object>of(
-                       "error",
-                       "Keycloak authorizer does not exist."
-                   ))
+                   .entity(
+                       ImmutableMap.<String, Object>of(
+                           "error",
+                           "Keycloak authorizer does not exist."
+                       )
+                   )
                    .build();
   }
 }

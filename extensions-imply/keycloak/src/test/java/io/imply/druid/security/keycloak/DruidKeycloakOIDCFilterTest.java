@@ -9,8 +9,8 @@
 
 package io.imply.druid.security.keycloak;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.junit.Assert;
@@ -19,7 +19,6 @@ import org.junit.Test;
 import org.keycloak.KeycloakSecurityContext;
 import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.AuthenticatedActionsHandler;
-import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.OidcKeycloakAccount;
 import org.keycloak.adapters.PreAuthActionsHandler;
@@ -41,9 +40,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
-import java.util.Map;
+import java.util.Set;
 
 public class DruidKeycloakOIDCFilterTest
 {
@@ -53,19 +51,20 @@ public class DruidKeycloakOIDCFilterTest
 
   private static final String USER_IDENTIY = "user1";
 
-  private KeycloakConfigResolver configResolver;
+  private static final String CLUSTER_CLIENT_ID = "clusterId";
+
+  private DruidKeycloakConfigResolver configResolver;
 
   private DruidKeycloakOIDCFilter filter;
 
   @Before
   public void setup()
   {
-    configResolver = Mockito.mock(KeycloakConfigResolver.class);
+    configResolver = Mockito.mock(DruidKeycloakConfigResolver.class);
     filter = Mockito.spy(new DruidKeycloakOIDCFilter(
         configResolver,
         AUTHENTICATOR_NAME,
-        AUTHORIZER_NAME,
-        ROLES_TOKEN_CLAIM
+        AUTHORIZER_NAME
     ));
   }
 
@@ -77,10 +76,9 @@ public class DruidKeycloakOIDCFilterTest
     Mockito.when(filterConfig.getServletContext()).thenReturn(servletContext);
 
     final DruidKeycloakOIDCFilter filter = new DruidKeycloakOIDCFilter(
-        Mockito.mock(KeycloakConfigResolver.class),
+        Mockito.mock(DruidKeycloakConfigResolver.class),
         "authenticator",
-        "authorizer",
-        ROLES_TOKEN_CLAIM
+        "authorizer"
     );
     filter.init(filterConfig);
     ArgumentCaptor<AdapterDeploymentContext> captor = ArgumentCaptor.forClass(AdapterDeploymentContext.class);
@@ -174,14 +172,15 @@ public class DruidKeycloakOIDCFilterTest
     FilterChain filterChain = Mockito.mock(FilterChain.class);
     final FilterConfig filterConfig = Mockito.mock(FilterConfig.class);
     HttpServletRequestWrapper wrapper = Mockito.mock(HttpServletRequestWrapper.class);
-    ImmutableList<String> roles = ImmutableList.of("role1", "role2");
+    Set<String> roles = ImmutableSet.of("role1", "role2");
     setupBearerAuthenticatedTestMocks(
         req,
         res,
         filterChain,
         filterConfig,
         wrapper,
-        ImmutableMap.of(ROLES_TOKEN_CLAIM, roles)
+        roles,
+        true
     );
     filter.init(filterConfig);
     filter.doFilter(req, res, filterChain);
@@ -197,7 +196,7 @@ public class DruidKeycloakOIDCFilterTest
   }
 
   @Test
-  public void test_doFilter_rolesNotInToken_createsAuthenticatedResultWithEmptyRoles() throws IOException, ServletException
+  public void test_doFilter_resourceNotInToken_createsAuthenticatedResultWithEmptyRoles() throws IOException, ServletException
   {
 
     HttpServletRequest req = Mockito.mock(HttpServletRequest.class);
@@ -205,7 +204,7 @@ public class DruidKeycloakOIDCFilterTest
     FilterChain filterChain = Mockito.mock(FilterChain.class);
     final FilterConfig filterConfig = Mockito.mock(FilterConfig.class);
     HttpServletRequestWrapper wrapper = Mockito.mock(HttpServletRequestWrapper.class);
-    setupBearerAuthenticatedTestMocks(req, res, filterChain, filterConfig, wrapper, null);
+    setupBearerAuthenticatedTestMocks(req, res, filterChain, filterConfig, wrapper, null, false);
     filter.init(filterConfig);
     filter.doFilter(req, res, filterChain);
     AuthenticationResult expectedAuthenticationResult = new AuthenticationResult(
@@ -220,22 +219,21 @@ public class DruidKeycloakOIDCFilterTest
   }
 
   @Test
-  public void test_doFilter_rolesInTokenButNotList_createsAuthenticatedResultWithEmptyRoles() throws IOException, ServletException
+  public void test_doFilter_resourceInTokenButNoRoles_createsAuthenticatedResultWithEmptyRoles() throws IOException, ServletException
   {
-
     HttpServletRequest req = Mockito.mock(HttpServletRequest.class);
     HttpServletResponse res = Mockito.mock(HttpServletResponse.class);
     FilterChain filterChain = Mockito.mock(FilterChain.class);
     final FilterConfig filterConfig = Mockito.mock(FilterConfig.class);
     HttpServletRequestWrapper wrapper = Mockito.mock(HttpServletRequestWrapper.class);
-    String stringRoles = "notList";
     setupBearerAuthenticatedTestMocks(
         req,
         res,
         filterChain,
         filterConfig,
         wrapper,
-        ImmutableMap.of(ROLES_TOKEN_CLAIM, stringRoles)
+        null,
+        true
     );
     filter.init(filterConfig);
     filter.doFilter(req, res, filterChain);
@@ -256,7 +254,8 @@ public class DruidKeycloakOIDCFilterTest
       FilterChain filterChain,
       FilterConfig filterConfig,
       HttpServletRequestWrapper wrapper,
-      Map<String, Object> otherClaims
+      Set<String> roles,
+      boolean hasResourceAccess
   ) throws IOException, ServletException
   {
     String header = "Bearer ";
@@ -264,7 +263,11 @@ public class DruidKeycloakOIDCFilterTest
     Mockito.when(req.getHeader("Authorization")).thenReturn(header);
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER_IDENTIY);
-    Mockito.when(accessToken.getOtherClaims()).thenReturn(otherClaims);
+    if (hasResourceAccess) {
+      Mockito.when(accessToken.getResourceAccess(CLUSTER_CLIENT_ID)).thenReturn(new AccessToken.Access().roles(roles));
+    } else {
+      Mockito.when(accessToken.getResourceAccess(CLUSTER_CLIENT_ID)).thenReturn(null);
+    }
     KeycloakSecurityContext securityContext = Mockito.mock(KeycloakSecurityContext.class);
     Mockito.when(securityContext.getToken()).thenReturn(accessToken);
     OidcKeycloakAccount account = Mockito.mock(OidcKeycloakAccount.class);
@@ -273,7 +276,9 @@ public class DruidKeycloakOIDCFilterTest
     Mockito.when(req.getAttribute(KeycloakAccount.class.getName())).thenReturn(account);
     KeycloakDeployment deployment = Mockito.mock(KeycloakDeployment.class);
     Mockito.when(deployment.isConfigured()).thenReturn(true);
+    Mockito.when(deployment.getResourceName()).thenReturn(CLUSTER_CLIENT_ID);
     Mockito.when(configResolver.resolve(ArgumentMatchers.any(HttpFacade.Request.class))).thenReturn(deployment);
+    Mockito.when(configResolver.getUserDeployment()).thenReturn(deployment);
     final ServletContext servletContext = Mockito.mock(ServletContext.class);
     Mockito.when(filterConfig.getServletContext()).thenReturn(servletContext);
     PreAuthActionsHandler preAuthActionsHandler = Mockito.mock(PreAuthActionsHandler.class);
