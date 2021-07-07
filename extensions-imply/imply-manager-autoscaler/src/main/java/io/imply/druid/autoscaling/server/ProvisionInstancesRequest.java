@@ -18,18 +18,18 @@ import java.util.Objects;
 
 public class ProvisionInstancesRequest
 {
-  private final List<Instance> instances;
+  private final List<ProvisionInstanceRequest> instances;
 
   @JsonCreator
   public ProvisionInstancesRequest(
-      @JsonProperty("instances") List<Instance> instances
+      @JsonProperty("instances") List<ProvisionInstanceRequest> instances
   )
   {
     this.instances = instances;
   }
 
   @JsonProperty
-  public List<Instance> getInstances()
+  public List<ProvisionInstanceRequest> getInstances()
   {
     return instances;
   }
@@ -53,13 +53,13 @@ public class ProvisionInstancesRequest
     return Objects.hash(instances);
   }
 
-  public static class Instance
+  public static class ProvisionInstanceRequest
   {
     private final String version;
     private final int numToCreate;
 
     @JsonCreator
-    public Instance(
+    public ProvisionInstanceRequest(
         @JsonProperty("version") String version,
         @JsonProperty("numToCreate") int numToCreate
     )
@@ -89,7 +89,7 @@ public class ProvisionInstancesRequest
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      Instance instance = (Instance) o;
+      ProvisionInstanceRequest instance = (ProvisionInstanceRequest) o;
       return numToCreate == instance.numToCreate &&
              Objects.equals(version, instance.version);
     }

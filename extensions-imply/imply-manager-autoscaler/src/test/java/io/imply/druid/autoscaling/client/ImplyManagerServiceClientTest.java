@@ -70,7 +70,11 @@ public class ImplyManagerServiceClientTest
     int numberToCreate = 1;
 
     String createdNodeId = "new-node-id";
-    ProvisionInstancesResponse response = new ProvisionInstancesResponse(ImmutableList.of(createdNodeId));
+    ProvisionInstancesResponse response = new ProvisionInstancesResponse(
+        ImmutableList.of(
+            new ProvisionInstancesResponse.ProvisionInstanceResponse(workerVersion, ImmutableList.of(createdNodeId))
+        )
+    );
     InputStream inputStream = new ByteArrayInputStream(objectMapper.writeValueAsBytes(response));
     InputStreamFullResponseHolder responseHolder = Mockito.mock(InputStreamFullResponseHolder.class);
     Mockito.when(responseHolder.getContent()).thenReturn(inputStream);

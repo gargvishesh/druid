@@ -19,6 +19,7 @@ import io.imply.druid.autoscaling.server.ListInstancesResponse;
 import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
 import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
@@ -26,6 +27,7 @@ import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHo
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.net.URL;
@@ -38,6 +40,7 @@ import java.util.concurrent.ExecutionException;
  */
 public class ImplyManagerServiceClient
 {
+  private static final Logger LOGGER = new Logger(ImplyManagerServiceClient.class);
   private static final String INSTANCES_API_PATH = "https://%s/manager/v1/autoscaler/%s/instances";
 
   private final HttpClient client;
@@ -51,11 +54,11 @@ public class ImplyManagerServiceClient
 
   public List<String> provisionInstances(
       ImplyManagerEnvironmentConfig implyConfig,
-      String workerVersion,
+      @NotNull String workerVersion,
       int numToCreate
   ) throws IOException, ImplyManagerServiceException
   {
-    ProvisionInstancesRequest requestBody = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.Instance(workerVersion, numToCreate)));
+    ProvisionInstancesRequest requestBody = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.ProvisionInstanceRequest(workerVersion, numToCreate)));
     URL requestUrl = new URL(
         StringUtils.format(
             INSTANCES_API_PATH,
@@ -66,7 +69,13 @@ public class ImplyManagerServiceClient
     final Request request = new Request(HttpMethod.POST, requestUrl);
     request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
     ProvisionInstancesResponse response = doRequest(request, ProvisionInstancesResponse.class);
-    return response.getInstanceIds();
+    for (ProvisionInstancesResponse.ProvisionInstanceResponse provisionInstanceResponse : response.getInstances()) {
+      if (workerVersion.equals(provisionInstanceResponse.getVersion())) {
+        return provisionInstanceResponse.getInstanceIds();
+      }
+    }
+    LOGGER.error("Response does not contain provision instances for requested version %s", workerVersion);
+    return ImmutableList.of();
   }
 
   public void terminateInstance(
