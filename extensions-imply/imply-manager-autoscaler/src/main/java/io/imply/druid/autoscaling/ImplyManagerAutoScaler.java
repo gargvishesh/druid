@@ -22,7 +22,9 @@ import org.apache.druid.indexing.overlord.autoscaling.SimpleWorkerProvisioningCo
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -99,7 +101,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
         );
         return new AutoScalingData(new ArrayList<>());
       }
-      log.info("Asked to provision instances, will resize to %d", toSize);
+      log.info("Asked to provision instances, from %d resize to %d", before.size(), toSize);
 
       if (config.getWorkerVersion() == null) {
         log.error("Unable to provision new instance as worker version is not configured");
@@ -126,8 +128,8 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
       return new AutoScalingData(new ArrayList<>());
     }
 
-    List<String> nodeIds = ipToIdLookup(ips);
     try {
+      List<String> nodeIds = ipToIdLookup(ips);
       return terminateWithIds(nodeIds != null ? nodeIds : new ArrayList<>());
     }
     catch (Exception e) {
@@ -150,7 +152,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     }
     for (String id : ids) {
       try {
-        implyManagerServiceClient.terminateInstances(envConfig, id);
+        implyManagerServiceClient.terminateInstance(envConfig, id);
       }
       catch (Exception e) {
         log.error(e, "Unable to terminate instances: [%s]", id);
@@ -194,12 +196,21 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     ArrayList<String> ids = new ArrayList<>();
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
-      ids.addAll(response.stream().filter(instance -> ips.contains(instance.getIp())).map(instance -> instance.getId()).collect(Collectors.toList()));
+      Map<String, String> ipToIdMap = new HashMap<>();
+      response.forEach(instance -> ipToIdMap.put(instance.getId(), instance.getIp()));
+      for (String ip : ips) {
+        if (ipToIdMap.containsKey(ip)) {
+          ids.add(ipToIdMap.get(ip));
+        } else {
+          log.warn("Cannot find instance for ip: %s", ip);
+        }
+      }
+      return ids;
     }
     catch (Exception e) {
       log.error(e, "Unable to get instances.");
+      throw new RuntimeException(e);
     }
-    return ids;
   }
 
   /**

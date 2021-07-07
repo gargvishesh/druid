@@ -25,8 +25,11 @@ public class Instance
     UNKNOWN
   }
 
+  // status of the Druid instance on Imply Manager
   private final Status status;
+  // ip of the Druid instance
   private final String ip;
+  // id of the Druid instance assigned by Imply Manager
   private final String id;
 
   public Instance(

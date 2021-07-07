@@ -188,7 +188,7 @@ public class ImplyManagerAutoScalerTest
 
     // verify
     ArgumentCaptor<String> idsCaptor = ArgumentCaptor.forClass(String.class);
-    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
+    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstance(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
 
     final List<String> captured = idsCaptor.getAllValues();
@@ -224,7 +224,7 @@ public class ImplyManagerAutoScalerTest
 
     // verify the terminate part
     ArgumentCaptor<String> idsCaptor = ArgumentCaptor.forClass(String.class);
-    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
+    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstance(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
 
     final List<String> captured = idsCaptor.getAllValues();

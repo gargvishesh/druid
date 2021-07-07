@@ -115,7 +115,7 @@ public class ImplyManagerServiceClientTest
     Mockito.when(listenableFuture.get()).thenReturn(responseHolder);
     Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class), ArgumentMatchers.any(InputStreamFullResponseHandler.class))).thenReturn(listenableFuture);
 
-    implyManagerServiceClient.terminateInstances(implyManagerEnvironmentConfig, instanceIdToTerminate);
+    implyManagerServiceClient.terminateInstance(implyManagerEnvironmentConfig, instanceIdToTerminate);
 
     ArgumentCaptor<Request> requestArgumentCaptor = ArgumentCaptor.forClass(Request.class);
     Mockito.verify(mockHttpClient).go(requestArgumentCaptor.capture(), ArgumentMatchers.any(HttpResponseHandler.class));

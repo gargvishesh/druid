@@ -69,7 +69,7 @@ public class ImplyManagerServiceClient
     return response.getInstanceIds();
   }
 
-  public void terminateInstances(
+  public void terminateInstance(
       ImplyManagerEnvironmentConfig implyConfig,
       String instanceIdToTerminate
   ) throws IOException, ImplyManagerServiceException
