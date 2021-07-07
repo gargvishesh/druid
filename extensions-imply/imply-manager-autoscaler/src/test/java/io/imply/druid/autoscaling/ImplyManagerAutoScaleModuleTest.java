@@ -26,12 +26,12 @@ public class ImplyManagerAutoScaleModuleTest
   {
     final String json = "{\n"
                         + "   \"envConfig\" : {\n"
-                        + "      \"implyAddress\" : \"implymanager.io\",\n"
+                        + "      \"implyManagerAddress\" : \"implymanager.io\",\n"
                         + "      \"clusterId\" : \"cluster-id-123\"\n"
                         + "   },\n"
                         + "   \"maxNumWorkers\" : 5,\n"
                         + "   \"minNumWorkers\" : 2,\n"
-                        + "   \"type\" : \"imply\"\n"
+                        + "   \"type\" : \"implyManager\"\n"
                         + "}";
 
     final ObjectMapper objectMapper = new DefaultObjectMapper()

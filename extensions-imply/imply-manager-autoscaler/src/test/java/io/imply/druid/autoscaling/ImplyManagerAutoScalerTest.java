@@ -188,8 +188,7 @@ public class ImplyManagerAutoScalerTest
 
     // verify
     ArgumentCaptor<String> idsCaptor = ArgumentCaptor.forClass(String.class);
-    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(
-        mockImplyManagerEnvironmentConfig), idsCaptor.capture());
+    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
 
     final List<String> captured = idsCaptor.getAllValues();
@@ -225,8 +224,7 @@ public class ImplyManagerAutoScalerTest
 
     // verify the terminate part
     ArgumentCaptor<String> idsCaptor = ArgumentCaptor.forClass(String.class);
-    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(
-        mockImplyManagerEnvironmentConfig), idsCaptor.capture());
+    Mockito.verify(mockImplyManagerServiceClient, Mockito.times(2)).terminateInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), idsCaptor.capture());
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
 
     final List<String> captured = idsCaptor.getAllValues();
@@ -268,8 +266,7 @@ public class ImplyManagerAutoScalerTest
     Assert.assertEquals(ID_3, actual.getNodeIds().get(0));
 
     Mockito.verify(mockImplyManagerServiceClient).listInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig));
-    Mockito.verify(mockImplyManagerServiceClient).provisionInstances(ArgumentMatchers.eq(
-        mockImplyManagerEnvironmentConfig), ArgumentMatchers.eq(WORKER_VERSION), ArgumentMatchers.eq(1));
+    Mockito.verify(mockImplyManagerServiceClient).provisionInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), ArgumentMatchers.eq(WORKER_VERSION), ArgumentMatchers.eq(1));
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
   }
 
@@ -292,8 +289,7 @@ public class ImplyManagerAutoScalerTest
     Assert.assertEquals(ID_3, actual.getNodeIds().get(0));
 
     Mockito.verify(mockImplyManagerServiceClient).listInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig));
-    Mockito.verify(mockImplyManagerServiceClient).provisionInstances(ArgumentMatchers.eq(
-        mockImplyManagerEnvironmentConfig), ArgumentMatchers.eq(WORKER_VERSION), ArgumentMatchers.eq(1));
+    Mockito.verify(mockImplyManagerServiceClient).provisionInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig), ArgumentMatchers.eq(WORKER_VERSION), ArgumentMatchers.eq(1));
     Mockito.verifyNoMoreInteractions(mockImplyManagerServiceClient);
   }
 
