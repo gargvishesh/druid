@@ -12,10 +12,13 @@ package io.imply.druid.security.keycloak.authorization.entity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
+import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -34,9 +37,7 @@ public class KeycloakAuthorizerPermission
     this.resourceNamePattern = resourceNamePattern;
   }
 
-  private KeycloakAuthorizerPermission(
-      ResourceAction resourceAction
-  )
+  private KeycloakAuthorizerPermission(ResourceAction resourceAction)
   {
     this.resourceAction = resourceAction;
     try {
@@ -51,6 +52,22 @@ public class KeycloakAuthorizerPermission
     }
   }
 
+  public boolean matches(Resource resource, Action action)
+  {
+    if (!action.equals(resourceAction.getAction())) {
+      return false;
+    }
+
+    Resource permissionResource = resourceAction.getResource();
+    if (!permissionResource.getType().equals(resource.getType())) {
+      return false;
+    }
+
+    Matcher resourceNameMatcher = resourceNamePattern.matcher(resource.getName());
+    return resourceNameMatcher.matches();
+  }
+
+
   @JsonProperty
   public ResourceAction getResourceAction()
   {
@@ -61,20 +78,6 @@ public class KeycloakAuthorizerPermission
   public Pattern getResourceNamePattern()
   {
     return resourceNamePattern;
-  }
-
-  public static List<KeycloakAuthorizerPermission> makePermissionList(List<ResourceAction> resourceActions)
-  {
-    List<KeycloakAuthorizerPermission> permissions = new ArrayList<>();
-
-    if (resourceActions == null) {
-      return permissions;
-    }
-
-    for (ResourceAction resourceAction : resourceActions) {
-      permissions.add(new KeycloakAuthorizerPermission(resourceAction));
-    }
-    return permissions;
   }
 
   @Override
@@ -117,5 +120,19 @@ public class KeycloakAuthorizerPermission
            "resourceAction=" + resourceAction +
            ", resourceNamePattern=" + resourceNamePattern +
            '}';
+  }
+
+  public static List<KeycloakAuthorizerPermission> makePermissionList(List<ResourceAction> resourceActions)
+  {
+    List<KeycloakAuthorizerPermission> permissions = new ArrayList<>();
+
+    if (resourceActions == null) {
+      return permissions;
+    }
+
+    for (ResourceAction resourceAction : resourceActions) {
+      permissions.add(new KeycloakAuthorizerPermission(resourceAction));
+    }
+    return permissions;
   }
 }

@@ -38,7 +38,6 @@ public class ImplyKeycloakAuthenticatorTest
     this.authenticator = new ImplyKeycloakAuthenticator(
         "authenticator",
         "authorizer",
-        "druid-roles",
         new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", internalConfig), userConfig)
     );
   }
@@ -107,7 +106,6 @@ public class ImplyKeycloakAuthenticatorTest
     authenticator = new ImplyKeycloakAuthenticator(
         "authenticator",
         "authorizer",
-        "druid-roles",
         configResolver,
         accessTokenValidator
     );

@@ -506,13 +506,14 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       AdapterConfig userConfig = new AdapterConfig();
       userConfig.setAuthServerUrl("http://localhost:8080/auth");
       userConfig.setRealm("druid");
-      userConfig.setResource("druid-user-client");
+      userConfig.setResource("some-druid-cluster");
       userConfig.setBearerOnly(true);
       userConfig.setCredentials(ImmutableMap.of(
           "provider", "secret",
           "secret", "druid-user-secret"
       ));
       userConfig.setSslRequired("NONE");
+      userConfig.setVerifyTokenAudience(false);
 
       KeycloakDeployment userDeployment = KeycloakDeploymentBuilder.build(userConfig);
       Map<String, String> reqHeaders = new HashMap<>();

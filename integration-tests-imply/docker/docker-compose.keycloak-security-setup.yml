@@ -42,6 +42,7 @@ services:
         ipv4_address: 172.172.172.122
     ports:
       - 8080:8080
+      - 8443:8443
     volumes:
       - ./keycloak-configs/setup.sh:/tmp/setup.sh
       - ./keycloak-configs/druid-realm-import.json:/tmp/druid-realm-import.json

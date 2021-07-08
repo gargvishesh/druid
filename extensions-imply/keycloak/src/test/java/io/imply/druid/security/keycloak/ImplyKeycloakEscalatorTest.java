@@ -10,6 +10,7 @@
 package io.imply.druid.security.keycloak;
 
 import org.apache.druid.server.security.AuthenticationResult;
+import org.junit.Assert;
 import org.junit.Test;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 
@@ -18,7 +19,7 @@ public class ImplyKeycloakEscalatorTest
   private static final String AUTHORIZER_NAME = "keycloak-authorizer";
 
   @Test
-  public void test_reateEscalatedAuthenticationResult_resultWithAdminRoleInContext()
+  public void test_createEscalatedAuthenticationResult_resultWithAdminRoleInContext()
   {
     final AdapterConfig internalConfig = new AdapterConfig();
     internalConfig.setRealm("internal");
@@ -32,5 +33,6 @@ public class ImplyKeycloakEscalatorTest
         KeycloakAuthUtils.CONTEXT_WITH_ADMIN_ROLE
     );
     AuthenticationResult actualResult = escalator.createEscalatedAuthenticationResult();
+    Assert.assertEquals(expectedResult, actualResult);
   }
 }

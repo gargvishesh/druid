@@ -81,6 +81,14 @@ public class KeycloakAuthorizerRole
     return result;
   }
 
+  @Override
+  public String toString()
+  {
+    return "KeycloakAuthorizerRole{" +
+           "name=" + name +
+           ", permissions=" + permissions +
+           '}';
+  }
 
   static class PermissionsDeserializer extends JsonDeserializer<List<KeycloakAuthorizerPermission>>
   {
@@ -110,14 +118,5 @@ public class KeycloakAuthorizerRole
 
       return permissions;
     }
-  }
-
-  @Override
-  public String toString()
-  {
-    return "KeycloakAuthorizerRole{" +
-           "name=" + name +
-           ", permissions=" + permissions +
-           '}';
   }
 }

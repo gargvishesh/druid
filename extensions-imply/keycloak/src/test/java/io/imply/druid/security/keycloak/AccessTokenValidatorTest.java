@@ -9,8 +9,8 @@
 
 package io.imply.druid.security.keycloak;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.junit.Assert;
 import org.junit.Before;
@@ -20,22 +20,34 @@ import org.keycloak.common.VerificationException;
 import org.keycloak.representations.AccessToken;
 import org.mockito.Mockito;
 
-import java.util.List;
+import java.util.Set;
 
 public class AccessTokenValidatorTest
 {
   private static final String AUTHORIZER_NAME = "keycloak-authorizer";
-  private static final String ROLE_TOKEN_CLAIM = "imply-roles";
+  private static final String AUTHENTICATOR_NAME = "keycloak-authenticator";
+  private static final String USER1 = "user1";
+  private static final String CLIENT_ID = "clusterId";
+  private static final String ESCALATED_CLIENT_ID = "clusterId-internal";
 
   private KeycloakDeployment deployment;
-
+  private KeycloakDeployment escalatedDeployment;
+  private DruidKeycloakConfigResolver configResolver;
   private AccessTokenValidator validator;
 
   @Before
   public void setup()
   {
+    configResolver = Mockito.mock(DruidKeycloakConfigResolver.class);
     deployment = Mockito.mock(KeycloakDeployment.class);
-    validator = Mockito.spy(new AccessTokenValidator(AUTHORIZER_NAME, ROLE_TOKEN_CLAIM));
+    escalatedDeployment = Mockito.mock(KeycloakDeployment.class);
+    Mockito.when(configResolver.getUserDeployment()).thenReturn(deployment);
+    Mockito.when(configResolver.getInternalDeployment()).thenReturn(escalatedDeployment);
+    Mockito.when(deployment.getResourceName()).thenReturn(CLIENT_ID);
+    Mockito.when(deployment.getNotBefore()).thenReturn(1);
+    Mockito.when(escalatedDeployment.getResourceName()).thenReturn(ESCALATED_CLIENT_ID);
+    Mockito.when(escalatedDeployment.getNotBefore()).thenReturn(1);
+    validator = Mockito.spy(new AccessTokenValidator(AUTHENTICATOR_NAME, AUTHORIZER_NAME, configResolver));
   }
 
   @Test
@@ -62,14 +74,13 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
-    Mockito.when(accessToken.getPreferredUsername()).thenReturn("user1");
-    Mockito.when(accessToken.getOtherClaims()).thenReturn(null);
-    Mockito.when(deployment.getNotBefore()).thenReturn(1);
+    Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
+    Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(null);
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
     AuthenticationResult expectedResult = new AuthenticationResult(
-        "user1",
+        USER1,
         AUTHORIZER_NAME,
-        null,
+        AUTHENTICATOR_NAME,
         ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, KeycloakAuthUtils.EMPTY_ROLES)
     );
     AuthenticationResult actualResult = validator.authenticateToken("token", deployment);
@@ -77,18 +88,17 @@ public class AccessTokenValidatorTest
   }
 
   @Test
-  public void test_authenticateToken_tokenHasNonListCustomRolClaim_returnsResultWithEmptyRoles() throws VerificationException
+  public void test_authenticateToken_tokenHasNoResourceAccess_returnsResultWithEmptyRoles() throws VerificationException
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
-    Mockito.when(accessToken.getPreferredUsername()).thenReturn("user1");
-    Mockito.when(accessToken.getOtherClaims()).thenReturn(ImmutableMap.of(ROLE_TOKEN_CLAIM, "notList"));
-    Mockito.when(deployment.getNotBefore()).thenReturn(1);
+    Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
+    Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(null);
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
     AuthenticationResult expectedResult = new AuthenticationResult(
-        "user1",
+        USER1,
         AUTHORIZER_NAME,
-        null,
+        AUTHENTICATOR_NAME,
         ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, KeycloakAuthUtils.EMPTY_ROLES)
     );
     AuthenticationResult actualResult = validator.authenticateToken("token", deployment);
@@ -96,22 +106,61 @@ public class AccessTokenValidatorTest
   }
 
   @Test
-  public void test_authenticateToken_tokenHasListCustomRolClaim_returnsResultWithRoles() throws VerificationException
+  public void test_authenticateToken_tokenHasResourceAccessButNoRoles_returnsResultWithEmptyRoles() throws VerificationException
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
-    Mockito.when(accessToken.getPreferredUsername()).thenReturn("user1");
-    List<String> roles = ImmutableList.of("role1", "role2");
-    Mockito.when(accessToken.getOtherClaims()).thenReturn(ImmutableMap.of(ROLE_TOKEN_CLAIM, roles));
-    Mockito.when(deployment.getNotBefore()).thenReturn(1);
+    Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
+    Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access());
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
     AuthenticationResult expectedResult = new AuthenticationResult(
-        "user1",
+        USER1,
         AUTHORIZER_NAME,
-        null,
+        AUTHENTICATOR_NAME,
+        ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, KeycloakAuthUtils.EMPTY_ROLES)
+    );
+    AuthenticationResult actualResult = validator.authenticateToken("token", deployment);
+    Assert.assertEquals(expectedResult, actualResult);
+  }
+
+  @Test
+  public void test_authenticateToken_tokenHasResourceAccessAndRoles_returnsResultWithRoles() throws VerificationException
+  {
+    AccessToken accessToken = Mockito.mock(AccessToken.class);
+    Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
+    Set<String> roles = ImmutableSet.of("role1", "role2");
+    Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access().roles(roles));
+    Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
+    AuthenticationResult expectedResult = new AuthenticationResult(
+        USER1,
+        AUTHORIZER_NAME,
+        AUTHENTICATOR_NAME,
         ImmutableMap.of(KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, roles)
     );
     AuthenticationResult actualResult = validator.authenticateToken("token", deployment);
+    Assert.assertEquals(expectedResult, actualResult);
+  }
+
+  @Test
+  public void test_authenticateToken_tokenHasResourceAccessAndRoles_returnsResultWithRolesSuperuser() throws VerificationException
+  {
+    AccessToken accessToken = Mockito.mock(AccessToken.class);
+    Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
+    Set<String> roles = ImmutableSet.of("role1", "role2");
+    Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access().roles(roles));
+    Mockito.doReturn(accessToken).when(validator).verifyToken("token", escalatedDeployment);
+    AuthenticationResult expectedResult = new AuthenticationResult(
+        USER1,
+        AUTHORIZER_NAME,
+        AUTHENTICATOR_NAME,
+        ImmutableMap.of(
+            KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, roles,
+            KeycloakAuthUtils.SUPERUSER_CONTEXT_KEY, true
+        )
+    );
+    AuthenticationResult actualResult = validator.authenticateToken("token", escalatedDeployment);
     Assert.assertEquals(expectedResult, actualResult);
   }
 }

@@ -44,7 +44,8 @@ public class KeycloakedHttpClient extends AbstractHttpClient
       HttpClient delegate,
       boolean isInternal,
       Map<String, String> tokenReqHeaders,
-      Map<String, String> tokenReqParams)
+      Map<String, String> tokenReqParams
+  )
   {
     final ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
     try {

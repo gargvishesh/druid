@@ -15,9 +15,7 @@ import com.google.common.collect.Lists;
 import org.apache.druid.server.security.ResourceAction;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * The POST API for setting permissions on a role represents permissions as ResourceAction options.
@@ -52,14 +50,9 @@ public class KeycloakAuthorizerRoleSimplifiedPermissions
     this.permissions = permissions == null ? new ArrayList<>() : permissions;
   }
 
-  public KeycloakAuthorizerRoleSimplifiedPermissions(
-      KeycloakAuthorizerRole role
-  )
+  public KeycloakAuthorizerRoleSimplifiedPermissions(KeycloakAuthorizerRole role)
   {
-    this(
-        role.getName(),
-        convertPermissions(role.getPermissions())
-    );
+    this(role.getName(), convertPermissions(role.getPermissions()));
   }
 
   @JsonProperty
@@ -105,24 +98,6 @@ public class KeycloakAuthorizerRoleSimplifiedPermissions
       List<KeycloakAuthorizerPermission> permissions
   )
   {
-    return Lists.transform(
-        permissions,
-        (permission) -> {
-          return permission.getResourceAction();
-        }
-    );
-  }
-
-  public static Set<KeycloakAuthorizerRoleSimplifiedPermissions> convertRoles(
-      Set<KeycloakAuthorizerRole> roles
-  )
-  {
-    final HashSet<KeycloakAuthorizerRoleSimplifiedPermissions> newRoles = new HashSet<>();
-    for (KeycloakAuthorizerRole role : roles) {
-      newRoles.add(
-          new KeycloakAuthorizerRoleSimplifiedPermissions(role)
-      );
-    }
-    return newRoles;
+    return Lists.transform(permissions, KeycloakAuthorizerPermission::getResourceAction);
   }
 }
