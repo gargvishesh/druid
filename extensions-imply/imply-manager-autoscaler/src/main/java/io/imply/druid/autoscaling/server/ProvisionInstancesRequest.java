@@ -18,20 +18,29 @@ import java.util.Objects;
 
 public class ProvisionInstancesRequest
 {
-  private final List<ProvisionInstanceRequest> instances;
+  private final String version;
+  private final int numToCreate;
 
   @JsonCreator
   public ProvisionInstancesRequest(
-      @JsonProperty("instances") List<ProvisionInstanceRequest> instances
+      @JsonProperty("version") String version,
+      @JsonProperty("numToCreate") int numToCreate
   )
   {
-    this.instances = instances;
+    this.version = Preconditions.checkNotNull(version, "version must be not null");
+    this.numToCreate = numToCreate;
   }
 
-  @JsonProperty
-  public List<ProvisionInstanceRequest> getInstances()
+  @JsonProperty("version")
+  public String getVersion()
   {
-    return instances;
+    return version;
+  }
+
+  @JsonProperty("numToCreate")
+  public int getNumToCreate()
+  {
+    return numToCreate;
   }
 
   @Override
@@ -43,61 +52,14 @@ public class ProvisionInstancesRequest
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ProvisionInstancesRequest that = (ProvisionInstancesRequest) o;
-    return Objects.equals(instances, that.instances);
+    ProvisionInstancesRequest request = (ProvisionInstancesRequest) o;
+    return numToCreate == request.numToCreate &&
+           Objects.equals(version, request.version);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(instances);
-  }
-
-  public static class ProvisionInstanceRequest
-  {
-    private final String version;
-    private final int numToCreate;
-
-    @JsonCreator
-    public ProvisionInstanceRequest(
-        @JsonProperty("version") String version,
-        @JsonProperty("numToCreate") int numToCreate
-    )
-    {
-      this.version = Preconditions.checkNotNull(version, "version must be not null");
-      this.numToCreate = numToCreate;
-    }
-
-    @JsonProperty("version")
-    public String getVersion()
-    {
-      return version;
-    }
-
-    @JsonProperty("numToCreate")
-    public int getNumToCreate()
-    {
-      return numToCreate;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ProvisionInstanceRequest instance = (ProvisionInstanceRequest) o;
-      return numToCreate == instance.numToCreate &&
-             Objects.equals(version, instance.version);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(version, numToCreate);
-    }
+    return Objects.hash(version, numToCreate);
   }
 }

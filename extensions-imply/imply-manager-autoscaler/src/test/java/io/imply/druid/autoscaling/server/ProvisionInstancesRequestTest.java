@@ -9,7 +9,6 @@
 
 package io.imply.druid.autoscaling.server;
 
-import com.google.common.collect.ImmutableList;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.junit.Assert;
@@ -24,7 +23,7 @@ public class ProvisionInstancesRequestTest
   {
     String workerVersion = "123";
     int numToCreate = 2;
-    ProvisionInstancesRequest request = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.ProvisionInstanceRequest(workerVersion, numToCreate)));
+    ProvisionInstancesRequest request = new ProvisionInstancesRequest(workerVersion, numToCreate);
 
     String json = OBJECT_MAPPER.writeValueAsString(request);
     ProvisionInstancesRequest request2 = OBJECT_MAPPER.readValue(json, ProvisionInstancesRequest.class);
@@ -35,7 +34,7 @@ public class ProvisionInstancesRequestTest
   public void testEquals()
   {
     EqualsVerifier.forClass(ProvisionInstancesRequest.class)
-                  .withNonnullFields("instances")
+                  .withNonnullFields("numToCreate", "version")
                   .usingGetClass()
                   .verify();
   }

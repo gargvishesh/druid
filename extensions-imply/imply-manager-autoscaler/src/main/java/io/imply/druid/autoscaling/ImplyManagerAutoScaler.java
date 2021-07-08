@@ -197,7 +197,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
       Map<String, String> ipToIdMap = new HashMap<>();
-      response.forEach(instance -> ipToIdMap.put(instance.getId(), instance.getIp()));
+      response.forEach(instance -> ipToIdMap.put(instance.getIp(), instance.getId()));
       for (String ip : ips) {
         if (ipToIdMap.containsKey(ip)) {
           ids.add(ipToIdMap.get(ip));

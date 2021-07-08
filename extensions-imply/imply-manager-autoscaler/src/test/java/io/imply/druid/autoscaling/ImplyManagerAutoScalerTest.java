@@ -121,7 +121,7 @@ public class ImplyManagerAutoScalerTest
   public void testConfigEquals()
   {
     EqualsVerifier.forClass(ImplyManagerEnvironmentConfig.class).withNonnullFields(
-        "implyAddress", "clusterId"
+        "implyManagerAddress", "clusterId"
     ).usingGetClass().verify();
   }
 

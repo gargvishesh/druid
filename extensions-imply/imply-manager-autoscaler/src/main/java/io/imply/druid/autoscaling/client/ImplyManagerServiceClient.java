@@ -58,7 +58,7 @@ public class ImplyManagerServiceClient
       int numToCreate
   ) throws IOException, ImplyManagerServiceException
   {
-    ProvisionInstancesRequest requestBody = new ProvisionInstancesRequest(ImmutableList.of(new ProvisionInstancesRequest.ProvisionInstanceRequest(workerVersion, numToCreate)));
+    ProvisionInstancesRequest requestBody = new ProvisionInstancesRequest(workerVersion, numToCreate);
     URL requestUrl = new URL(
         StringUtils.format(
             INSTANCES_API_PATH,

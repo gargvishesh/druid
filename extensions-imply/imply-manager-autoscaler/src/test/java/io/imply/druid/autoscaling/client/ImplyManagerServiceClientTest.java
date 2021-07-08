@@ -97,9 +97,8 @@ public class ImplyManagerServiceClientTest
     Assert.assertEquals(StringUtils.format("/manager/v1/autoscaler/%s/instances", CLUSTER_ID), request.getUrl().getPath());
     ProvisionInstancesRequest actualRequestBody = objectMapper.readValue(request.getContent().array(), ProvisionInstancesRequest.class);
     Assert.assertNotNull(actualRequestBody);
-    Assert.assertEquals(1, actualRequestBody.getInstances().size());
-    Assert.assertEquals(numberToCreate, actualRequestBody.getInstances().get(0).getNumToCreate());
-    Assert.assertEquals(workerVersion, actualRequestBody.getInstances().get(0).getVersion());
+    Assert.assertEquals(numberToCreate, actualRequestBody.getNumToCreate());
+    Assert.assertEquals(workerVersion, actualRequestBody.getVersion());
 
     // Verify response
     Assert.assertNotNull(actual);
