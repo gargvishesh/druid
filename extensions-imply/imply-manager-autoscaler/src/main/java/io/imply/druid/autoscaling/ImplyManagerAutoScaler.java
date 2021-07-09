@@ -89,7 +89,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
   public AutoScalingData provision()
   {
     try {
-      List<String> before = getStartingOrRunningInstances();
+      List<String> before = getNonTerminatingInstances();
       log.debug("Existing instances [%s]", String.join(",", before));
 
       int toSize = Math.min(before.size() + 1, getMaxNumWorkers());
@@ -162,14 +162,13 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
   }
 
   @VisibleForTesting
-  List<String> getStartingOrRunningInstances()
+  List<String> getNonTerminatingInstances()
   {
     ArrayList<String> ids = new ArrayList<>();
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
       for (Instance instance : response) {
-        if (Instance.Status.STARTING.equals(instance.getStatus()) ||
-            Instance.Status.RUNNING.equals(instance.getStatus())) {
+        if (!Instance.Status.TERMINATING.equals(instance.getStatus())) {
           ids.add(instance.getId());
         }
       }

@@ -321,7 +321,7 @@ public class ImplyManagerAutoScalerTest
     );
     Mockito.when(mockImplyManagerServiceClient.listInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig))).thenReturn(mockResponse);
 
-    List<String> actual = implyManagerAutoScaler.getStartingOrRunningInstances();
+    List<String> actual = implyManagerAutoScaler.getNonTerminatingInstances();
     Assert.assertNotNull(actual);
     Assert.assertEquals(2, actual.size());
     Assert.assertTrue(actual.contains(ID_1));
