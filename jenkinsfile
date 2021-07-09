@@ -926,8 +926,8 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(openjdk11) other modules test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
+                stage('(openjdk8) other modules test') {
+                    agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
@@ -936,8 +936,8 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(openjdk11) other modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
+                stage('(openjdk8) other modules test (SQL Compatibility)') {
+                    agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
