@@ -122,6 +122,7 @@ public class SqlAsyncQueryDetails
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getIdentity()
   {
+    // TODO(gianm): Include in ZK metadata, but not in API response. Two different objects?
     return identity;
   }
 
