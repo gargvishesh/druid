@@ -19,16 +19,15 @@
 
 package org.apache.druid.sql.async;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Optional;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public interface SqlAsyncResultManager
+public class LocalSqlAsyncResultManagerConfig
 {
-  OutputStream writeResults(String sqlQueryId) throws IOException;
+  @JsonProperty
+  public String directory;
 
-  Optional<SqlAsyncResults> readResults(String sqlQueryId) throws IOException;
-
-  // TODO(gianm): Actually call this and clean stuff up
-  void deleteResults(String SqlQueryId) throws IOException;
+  public String getDirectory()
+  {
+    return directory;
+  }
 }

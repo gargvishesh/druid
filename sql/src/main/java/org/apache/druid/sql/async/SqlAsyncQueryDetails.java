@@ -25,98 +25,90 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.query.QueryException;
+import org.apache.druid.query.QueryInterruptedException;
+import org.apache.druid.sql.http.ResultFormat;
 
 import javax.annotation.Nullable;
-import java.util.Objects;
 
 public class SqlAsyncQueryDetails
 {
-  @Nullable // Can only be null if state == ERROR
+  private static final int MAX_ERROR_MESSAGE_LENGTH = 50_000;
+
   private final String sqlQueryId;
+  private final ResultFormat resultFormat;
+  private final State state;
 
   @Nullable // Can only be null if state == ERROR
   private final String identity;
-  private final State state;
 
   @Nullable
-  private final String errorMessage;
+  private final QueryException error;
 
   @JsonCreator
   private SqlAsyncQueryDetails(
-      @JsonProperty("sqlQueryId") @Nullable final String sqlQueryId,
-      @JsonProperty("identity") @Nullable final String identity,
+      @JsonProperty("sqlQueryId") final String sqlQueryId,
+      @JsonProperty("resultFormat") final ResultFormat resultFormat,
       @JsonProperty("state") final State state,
-      @JsonProperty("error") @Nullable final String errorMessage
+      @JsonProperty("identity") @Nullable final String identity,
+      @JsonProperty("error") @Nullable final QueryException error
   )
   {
     this.sqlQueryId = Preconditions.checkNotNull(sqlQueryId, "sqlQueryId");
+    this.resultFormat = Preconditions.checkNotNull(resultFormat, "resultFormat");
+    this.state = Preconditions.checkNotNull(state, "state");
+    this.identity = identity;
+    this.error = error;
 
     if (sqlQueryId.isEmpty()) {
       throw new IAE("sqlQueryId must be nonempty");
-    }
-
-    this.identity = identity;
-    this.state = Preconditions.checkNotNull(state, "state");
-    this.errorMessage = errorMessage;
-
-    if (state != State.ERROR && sqlQueryId == null) {
-      throw new ISE("Cannot have nil sqlQueryId in non-error state");
     }
 
     if (state != State.ERROR && identity == null) {
       throw new ISE("Cannot have nil identity in non-error state");
     }
 
-    if (state != State.ERROR && errorMessage != null) {
-      throw new ISE("Cannot have error message in state [%s]", state);
+    if (state != State.ERROR && error != null) {
+      throw new ISE("Cannot have error details in state [%s]", state);
     }
   }
 
-  public static SqlAsyncQueryDetails createNew(final String sqlQueryId, final String identity)
+  public static SqlAsyncQueryDetails createNew(
+      final String sqlQueryId,
+      final ResultFormat resultFormat,
+      final String identity
+  )
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, identity, State.INITIALIZED, null);
+    return new SqlAsyncQueryDetails(sqlQueryId, resultFormat, State.INITIALIZED, identity, null);
   }
 
   public static SqlAsyncQueryDetails createError(
-      @Nullable final String sqlQueryId,
+      final String sqlQueryId,
+      final ResultFormat resultFormat,
       @Nullable final String identity,
-      @Nullable final Throwable e
+      @Nullable final Exception e
   )
   {
-    final StringBuilder errorMessage = new StringBuilder();
-    Throwable current = e;
-
-    while (current != null) {
-      errorMessage.append(current);
-      current = e.getCause();
-      if (current != null) {
-        errorMessage.append("; ");
-      }
-    }
-
     return new SqlAsyncQueryDetails(
         sqlQueryId,
-        identity,
+        resultFormat,
         State.ERROR,
-        StringUtils.emptyToNullNonDruidDataString(errorMessage.toString())
+        identity,
+        // Don't use QueryInterruptedException.wrapIfNeeded, because we want to leave regular QueryException unwrapped
+        e instanceof QueryException ? (QueryException) e : new QueryInterruptedException(e)
     );
   }
 
-  @Nullable
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getSqlQueryId()
   {
     return sqlQueryId;
   }
 
-  @Nullable
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getIdentity()
+  public ResultFormat getResultFormat()
   {
-    return identity;
+    return resultFormat;
   }
 
   @JsonProperty
@@ -128,41 +120,27 @@ public class SqlAsyncQueryDetails
   @Nullable
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getErrorMessage()
+  public String getIdentity()
   {
-    return errorMessage;
+    return identity;
+  }
+
+  @Nullable
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public QueryException getError()
+  {
+    return error;
   }
 
   public SqlAsyncQueryDetails withState(final State newState)
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, identity, newState, errorMessage);
+    return new SqlAsyncQueryDetails(sqlQueryId, resultFormat, newState, identity, error);
   }
 
   public SqlAsyncQueryDetails withException(@Nullable final Exception e)
   {
-    return createError(getSqlQueryId(), getIdentity(), e);
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    SqlAsyncQueryDetails that = (SqlAsyncQueryDetails) o;
-    return Objects.equals(sqlQueryId, that.sqlQueryId)
-           && Objects.equals(identity, that.identity)
-           && state == that.state
-           && Objects.equals(errorMessage, that.errorMessage);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(sqlQueryId, identity, state, errorMessage);
+    return createError(sqlQueryId, resultFormat, identity, e);
   }
 
   public enum State
@@ -171,5 +149,14 @@ public class SqlAsyncQueryDetails
     RUNNING,
     COMPLETE,
     ERROR
+  }
+
+  private static String clipErrorMessage(@Nullable final String errorMessage)
+  {
+    if (errorMessage != null && errorMessage.length() > MAX_ERROR_MESSAGE_LENGTH) {
+      return errorMessage.substring(0, MAX_ERROR_MESSAGE_LENGTH - 3) + "...";
+    } else {
+      return errorMessage;
+    }
   }
 }

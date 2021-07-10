@@ -19,16 +19,27 @@
 
 package org.apache.druid.sql.async;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Optional;
+import com.google.common.hash.Hashing;
 
-public interface SqlAsyncResultManager
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
+
+public class SqlAsyncUtil
 {
-  OutputStream writeResults(String sqlQueryId) throws IOException;
+  // Nothing bad will happen if IDs matching this pattern are used as-is in znodes, filenames, etc.
+  private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9._\\-]{1,128}$");
 
-  Optional<SqlAsyncResults> readResults(String sqlQueryId) throws IOException;
+  private SqlAsyncUtil()
+  {
+    // No instantiation.
+  }
 
-  // TODO(gianm): Actually call this and clean stuff up
-  void deleteResults(String SqlQueryId) throws IOException;
+  public static String safeId(final String id)
+  {
+    if (SAFE_ID_PATTERN.matcher(id).matches()) {
+      return id;
+    } else {
+      return Hashing.sha256().hashString(id, StandardCharsets.UTF_8).toString();
+    }
+  }
 }

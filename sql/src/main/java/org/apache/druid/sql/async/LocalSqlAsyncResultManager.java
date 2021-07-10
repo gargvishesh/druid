@@ -19,49 +19,79 @@
 
 package org.apache.druid.sql.async;
 
-import org.apache.druid.java.util.common.IOE;
+import com.google.common.base.Strings;
+import com.google.inject.Inject;
+import org.apache.druid.guice.ManageLifecycle;
+import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
+import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
+import org.apache.druid.java.util.common.logger.Logger;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * TODO(gianm): Make not in-memory...
  */
+@ManageLifecycle
 public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
 {
-  private final ConcurrentMap<String, ByteArrayOutputStream> resultMap;
+  private static final Logger log = new Logger(LocalSqlAsyncResultManager.class);
 
-  public LocalSqlAsyncResultManager()
+  private final File directory;
+
+  @Inject
+  public LocalSqlAsyncResultManager(final LocalSqlAsyncResultManagerConfig config)
   {
-    this.resultMap = new ConcurrentHashMap<>();
+    if (Strings.isNullOrEmpty(config.getDirectory())) {
+      throw new ISE("Property 'druid.sql.asyncstorage.directory' is required");
+    }
+
+    this.directory = new File(config.getDirectory());
+  }
+
+  @LifecycleStart
+  public void start()
+  {
+    createDirectory();
+    deleteAll();
+  }
+
+  @LifecycleStop
+  public void stop()
+  {
+    deleteAll();
   }
 
   @Override
   public OutputStream writeResults(final String sqlQueryId) throws IOException
   {
-    final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    // TODO(gianm): Tests for what error happens if the file already exists
+    final FileChannel fileChannel = FileChannel.open(
+        makeFile(sqlQueryId).toPath(),
+        StandardOpenOption.CREATE_NEW,
+        StandardOpenOption.WRITE
+    );
 
-    if (resultMap.putIfAbsent(sqlQueryId, stream) != null) {
-      throw new IOE("Query [%s] result stream already exists", sqlQueryId);
-    }
-
-    return stream;
+    return Channels.newOutputStream(fileChannel);
   }
 
   @Override
-  public Optional<SqlAsyncResults> readResults(final String sqlQueryId)
+  public Optional<SqlAsyncResults> readResults(final String sqlQueryId) throws IOException
   {
-    return Optional.ofNullable(resultMap.get(sqlQueryId)).map(
-        stream -> {
-          final byte[] bytes = stream.toByteArray();
-          return new SqlAsyncResults(new ByteArrayInputStream(bytes), bytes.length);
-        }
-    );
+    final File file = makeFile(sqlQueryId);
+
+    if (file.exists()) {
+      final FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+      return Optional.of(new SqlAsyncResults(Channels.newInputStream(fileChannel), fileChannel.size()));
+    } else {
+      return Optional.empty();
+    }
   }
 
   @Override
@@ -69,6 +99,38 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   {
     // TODO(gianm): Call this in a way that doesn't cause problems when two users happen to issue queries with
     //  the same manually-specified ID
-    resultMap.remove(sqlQueryId);
+    makeFile(sqlQueryId).delete();
+  }
+
+  private void createDirectory()
+  {
+    if (!directory.isDirectory()) {
+      directory.mkdirs();
+
+      if (!directory.isDirectory()) {
+        throw new ISE(
+            "Location of 'druid.sql.asyncstorage.directory' (%s) does not exist and cannot be created",
+            directory
+        );
+      }
+    }
+  }
+
+  private void deleteAll()
+  {
+    final File[] files = directory.listFiles();
+
+    if (files != null) {
+      for (File file : files) {
+        if (!file.delete()) {
+          log.warn("Could not delete async query result file: %s", file);
+        }
+      }
+    }
+  }
+
+  private File makeFile(final String sqlQueryId)
+  {
+    return new File(directory, SqlAsyncUtil.safeId(sqlQueryId));
   }
 }

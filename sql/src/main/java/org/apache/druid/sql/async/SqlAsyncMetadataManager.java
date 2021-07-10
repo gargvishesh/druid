@@ -28,7 +28,8 @@ public interface SqlAsyncMetadataManager
 
   void updateQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryDoesNotExistException;
 
-  boolean removeQuery(SqlAsyncQueryDetails queryDetails) throws IOException;
+  // TODO(gianm): Actually call this and clean stuff up
+  boolean removeQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException;
 
   Optional<SqlAsyncQueryDetails> getQueryDetails(String sqlQueryId) throws IOException;
 }

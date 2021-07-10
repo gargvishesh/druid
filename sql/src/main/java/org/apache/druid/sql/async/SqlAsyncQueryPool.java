@@ -38,10 +38,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 public class SqlAsyncQueryPool
@@ -77,6 +74,7 @@ public class SqlAsyncQueryPool
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
         sqlQueryId,
+        sqlQuery.getResultFormat(),
         lifecycle.getPlannerContext().getAuthenticationResult().getIdentity()
     );
 
@@ -164,7 +162,7 @@ public class SqlAsyncQueryPool
               metadataManager.updateQueryDetails(queryDetails.withException(e));
             }
             catch (Exception e2) {
-              log.warn(e2, "Failed to set error async query [%s]", sqlQueryId);
+              log.warn(e2, "Failed to set error for async query [%s]", sqlQueryId);
             }
           }
           finally {
@@ -174,24 +172,5 @@ public class SqlAsyncQueryPool
     );
 
     return queryDetails;
-  }
-
-  private static SqlQuery withExplicitSqlQueryId(final SqlQuery sqlQuery)
-  {
-    final Object providedId = sqlQuery.getContext().get(PlannerContext.CTX_SQL_QUERY_ID);
-
-    if (providedId == null || (providedId instanceof String && ((String) providedId).isEmpty())) {
-      final Map<String, Object> newContext = new HashMap<>(sqlQuery.getContext());
-      newContext.put(PlannerContext.CTX_SQL_QUERY_ID, UUID.randomUUID().toString());
-      return new SqlQuery(
-          sqlQuery.getQuery(),
-          sqlQuery.getResultFormat(),
-          sqlQuery.includeHeader(),
-          newContext,
-          sqlQuery.getParameters()
-      );
-    } else {
-      return sqlQuery;
-    }
   }
 }

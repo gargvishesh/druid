@@ -33,6 +33,8 @@ import java.util.Optional;
 
 public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
 {
+  private static final String PATH = "sql-async-query";
+
   private final CuratorFramework curator;
   private final ZkPathsConfig config;
   private final ObjectMapper jsonMapper;
@@ -85,7 +87,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   }
 
   @Override
-  public boolean removeQuery(final SqlAsyncQueryDetails queryDetails) throws IOException
+  public boolean removeQueryDetails(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
     final String path = makePath(queryDetails.getSqlQueryId());
 
@@ -122,7 +124,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
 
   private String makePath(final String sqlQueryId)
   {
-    // TODO(gianm): Configurable? But why...
-    return ZKPaths.makePath(config.getBase(), sqlQueryId);
+    // TODO(gianm): Configurable PATH? But why...
+    return ZKPaths.makePath(config.getBase(), PATH, SqlAsyncUtil.safeId(sqlQueryId));
   }
 }

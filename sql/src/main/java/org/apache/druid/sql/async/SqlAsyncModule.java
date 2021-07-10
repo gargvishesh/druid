@@ -21,10 +21,14 @@ package org.apache.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import org.apache.druid.guice.Jerseys;
+import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
+import org.apache.druid.guice.LifecycleModule;
+import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.concurrent.Execs;
 
@@ -32,16 +36,33 @@ import java.util.concurrent.ExecutorService;
 
 public class SqlAsyncModule implements Module
 {
+  private static final String LOCAL_RESULT_MANAGER_TYPE = "local";
+
   @Override
   public void configure(Binder binder)
   {
-    binder.bind(SqlAsyncResultManager.class).to(LocalSqlAsyncResultManager.class);
     binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
 
-    binder.bind(LocalSqlAsyncResultManager.class).in(LazySingleton.class);
+    PolyBind.createChoice(
+        binder,
+        "druid.sql.asyncstorage.type",
+        Key.get(SqlAsyncResultManager.class),
+        Key.get(LocalSqlAsyncResultManager.class)
+    );
+
+    PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
+            .addBinding(LOCAL_RESULT_MANAGER_TYPE)
+            .to(LocalSqlAsyncResultManager.class)
+            .in(LazySingleton.class);
+
+    JsonConfigProvider.bind(binder, "druid.sql.asyncstorage", LocalSqlAsyncResultManagerConfig.class);
+
     binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
 
     Jerseys.addResource(binder, SqlAsyncResource.class);
+
+    // Force eager initialization.
+    LifecycleModule.register(binder, SqlAsyncResource.class);
   }
 
   @Provides
