@@ -106,7 +106,7 @@ public enum ResultFormat
 
   public abstract Writer createFormatter(OutputStream outputStream, ObjectMapper jsonMapper) throws IOException;
 
-  interface Writer extends Closeable
+  public interface Writer extends Closeable
   {
     /**
      * Start of the response, called once per writer.

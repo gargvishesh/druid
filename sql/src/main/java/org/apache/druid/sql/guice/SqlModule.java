@@ -27,6 +27,7 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
+import org.apache.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.sql.avatica.AvaticaModule;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregationModule;
 import org.apache.druid.sql.calcite.expression.builtin.QueryLookupOperatorConversion;
@@ -85,6 +86,7 @@ public class SqlModule implements Module
       binder.install(new CalcitePlannerModule());
       binder.install(new SqlAggregationModule());
       binder.install(new DruidViewModule());
+      binder.install(new SqlAsyncModule());
 
       // QueryLookupOperatorConversion isn't in DruidOperatorTable since it needs a LookupExtractorFactoryContainerProvider injected.
       SqlBindings.addOperatorConversion(binder, QueryLookupOperatorConversion.class);
