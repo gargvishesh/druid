@@ -398,6 +398,8 @@
                                         <argument>io.imply:imply-keycloak</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-manager-autoscaler</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

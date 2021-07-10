@@ -180,6 +180,7 @@
         <module>extensions-imply/imply-view-manager</module>
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
+        <module>extensions-imply/imply-manager-autoscaler</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>
