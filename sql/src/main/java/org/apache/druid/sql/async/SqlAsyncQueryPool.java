@@ -74,8 +74,8 @@ public class SqlAsyncQueryPool
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
         sqlQueryId,
-        sqlQuery.getResultFormat(),
-        lifecycle.getPlannerContext().getAuthenticationResult().getIdentity()
+        lifecycle.getPlannerContext().getAuthenticationResult().getIdentity(),
+        sqlQuery.getResultFormat()
     );
 
     metadataManager.addNewQuery(queryDetails);
@@ -87,7 +87,7 @@ public class SqlAsyncQueryPool
           try {
             Thread.currentThread().setName(StringUtils.format("sql-async[%s]", sqlQueryId));
 
-            metadataManager.updateQueryDetails(queryDetails.withState(SqlAsyncQueryDetails.State.RUNNING));
+            metadataManager.updateQueryDetails(queryDetails.toRunning());
 
             // TODO(gianm): Most of this code is copy-pasted from SqlResource
             final PlannerContext plannerContext = lifecycle.plan();
@@ -109,10 +109,13 @@ public class SqlAsyncQueryPool
 
             Yielder<Object[]> yielder = Yielders.each(lifecycle.execute());
 
+            CountingOutputStream outputStream;
+
             try (
-                final OutputStream baseOutputStream = resultManager.writeResults(sqlQueryId);
-                final CountingOutputStream outputStream = new CountingOutputStream(baseOutputStream);
-                final ResultFormat.Writer writer = sqlQuery.getResultFormat().createFormatter(outputStream, jsonMapper)
+                final OutputStream baseOutputStream = resultManager.writeResults(queryDetails);
+                final ResultFormat.Writer writer =
+                    sqlQuery.getResultFormat()
+                            .createFormatter((outputStream = new CountingOutputStream(baseOutputStream)), jsonMapper)
             ) {
               writer.writeResponseStart();
 
@@ -152,14 +155,15 @@ public class SqlAsyncQueryPool
               yielder.close();
             }
 
-            metadataManager.updateQueryDetails(queryDetails.withState(SqlAsyncQueryDetails.State.COMPLETE));
+            metadataManager.updateQueryDetails(queryDetails.toComplete(outputStream.getCount()));
+            lifecycle.emitLogsAndMetrics(null, remoteAddr, outputStream.getCount());
           }
           catch (Exception e) {
             log.warn(e, "Failed to execute async query [%s]", sqlQueryId);
             lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
 
             try {
-              metadataManager.updateQueryDetails(queryDetails.withException(e));
+              metadataManager.updateQueryDetails(queryDetails.toError(e));
             }
             catch (Exception e2) {
               log.warn(e2, "Failed to set error for async query [%s]", sqlQueryId);

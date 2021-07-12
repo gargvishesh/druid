@@ -34,10 +34,12 @@ import javax.annotation.Nullable;
 public class SqlAsyncQueryDetails
 {
   private static final int MAX_ERROR_MESSAGE_LENGTH = 50_000;
+  private static final long UNKNOWN_RESULT_LENGTH = 0;
 
   private final String sqlQueryId;
-  private final ResultFormat resultFormat;
   private final State state;
+  private final ResultFormat resultFormat;
+  private final long resultLength;
 
   @Nullable // Can only be null if state == ERROR
   private final String identity;
@@ -48,16 +50,18 @@ public class SqlAsyncQueryDetails
   @JsonCreator
   private SqlAsyncQueryDetails(
       @JsonProperty("sqlQueryId") final String sqlQueryId,
-      @JsonProperty("resultFormat") final ResultFormat resultFormat,
       @JsonProperty("state") final State state,
       @JsonProperty("identity") @Nullable final String identity,
+      @JsonProperty("resultFormat") final ResultFormat resultFormat,
+      @JsonProperty("resultLength") final long resultLength,
       @JsonProperty("error") @Nullable final QueryException error
   )
   {
     this.sqlQueryId = Preconditions.checkNotNull(sqlQueryId, "sqlQueryId");
-    this.resultFormat = Preconditions.checkNotNull(resultFormat, "resultFormat");
     this.state = Preconditions.checkNotNull(state, "state");
     this.identity = identity;
+    this.resultFormat = Preconditions.checkNotNull(resultFormat, "resultFormat");
+    this.resultLength = resultLength;
     this.error = error;
 
     if (sqlQueryId.isEmpty()) {
@@ -65,35 +69,40 @@ public class SqlAsyncQueryDetails
     }
 
     if (state != State.ERROR && identity == null) {
-      throw new ISE("Cannot have nil identity in non-error state");
+      throw new ISE("Cannot have nil identity in state [%s]", state);
     }
 
     if (state != State.ERROR && error != null) {
       throw new ISE("Cannot have error details in state [%s]", state);
     }
+
+    if (state != State.COMPLETE && resultLength != UNKNOWN_RESULT_LENGTH) {
+      throw new ISE("Cannot have result length in state [%s]", state);
+    }
   }
 
   public static SqlAsyncQueryDetails createNew(
       final String sqlQueryId,
-      final ResultFormat resultFormat,
-      final String identity
+      final String identity,
+      final ResultFormat resultFormat
   )
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, resultFormat, State.INITIALIZED, identity, null);
+    return new SqlAsyncQueryDetails(sqlQueryId, State.INITIALIZED, identity, resultFormat, UNKNOWN_RESULT_LENGTH, null);
   }
 
   public static SqlAsyncQueryDetails createError(
       final String sqlQueryId,
-      final ResultFormat resultFormat,
       @Nullable final String identity,
-      @Nullable final Exception e
+      final ResultFormat resultFormat,
+      @Nullable final Throwable e
   )
   {
     return new SqlAsyncQueryDetails(
         sqlQueryId,
-        resultFormat,
         State.ERROR,
         identity,
+        resultFormat,
+        UNKNOWN_RESULT_LENGTH,
         // Don't use QueryInterruptedException.wrapIfNeeded, because we want to leave regular QueryException unwrapped
         e instanceof QueryException ? (QueryException) e : new QueryInterruptedException(e)
     );
@@ -109,6 +118,12 @@ public class SqlAsyncQueryDetails
   public ResultFormat getResultFormat()
   {
     return resultFormat;
+  }
+
+  @JsonProperty
+  public long getResultLength()
+  {
+    return resultLength;
   }
 
   @JsonProperty
@@ -134,14 +149,30 @@ public class SqlAsyncQueryDetails
     return error;
   }
 
-  public SqlAsyncQueryDetails withState(final State newState)
+  public SqlAsyncQueryDetails toRunning()
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, resultFormat, newState, identity, error);
+    return new SqlAsyncQueryDetails(sqlQueryId, State.RUNNING, identity, resultFormat, resultLength, error);
   }
 
-  public SqlAsyncQueryDetails withException(@Nullable final Exception e)
+  public SqlAsyncQueryDetails toComplete(final long newResultLength)
   {
-    return createError(sqlQueryId, resultFormat, identity, e);
+    return new SqlAsyncQueryDetails(sqlQueryId, State.COMPLETE, identity, resultFormat, newResultLength, error);
+  }
+
+  public SqlAsyncQueryDetails toError(@Nullable final Throwable e)
+  {
+    return createError(sqlQueryId, identity, resultFormat, e);
+  }
+
+  public SqlAsyncQueryDetailsApiResponse toApiResponse()
+  {
+    return new SqlAsyncQueryDetailsApiResponse(
+        sqlQueryId,
+        state,
+        state == State.COMPLETE ? resultFormat : null,
+        resultLength,
+        error
+    );
   }
 
   public enum State

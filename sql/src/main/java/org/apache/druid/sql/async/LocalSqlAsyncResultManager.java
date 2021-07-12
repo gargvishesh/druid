@@ -21,6 +21,8 @@ package org.apache.druid.sql.async;
 
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
@@ -69,26 +71,32 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   }
 
   @Override
-  public OutputStream writeResults(final String sqlQueryId) throws IOException
+  public OutputStream writeResults(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
+    // TODO(gianm): Limit on max result size, to avoid running out of disk
     // TODO(gianm): Tests for what error happens if the file already exists
     final FileChannel fileChannel = FileChannel.open(
-        makeFile(sqlQueryId).toPath(),
+        makeFile(queryDetails.getSqlQueryId()).toPath(),
         StandardOpenOption.CREATE_NEW,
         StandardOpenOption.WRITE
     );
 
-    return Channels.newOutputStream(fileChannel);
+    return new LZ4BlockOutputStream(Channels.newOutputStream(fileChannel));
   }
 
   @Override
-  public Optional<SqlAsyncResults> readResults(final String sqlQueryId) throws IOException
+  public Optional<SqlAsyncResults> readResults(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    final File file = makeFile(sqlQueryId);
+    final File file = makeFile(queryDetails.getSqlQueryId());
 
     if (file.exists()) {
       final FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-      return Optional.of(new SqlAsyncResults(Channels.newInputStream(fileChannel), fileChannel.size()));
+      return Optional.of(
+          new SqlAsyncResults(
+              new LZ4BlockInputStream(Channels.newInputStream(fileChannel)),
+              queryDetails.getResultLength()
+          )
+      );
     } else {
       return Optional.empty();
     }

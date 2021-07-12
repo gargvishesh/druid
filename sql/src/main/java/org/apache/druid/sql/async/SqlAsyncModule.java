@@ -60,6 +60,7 @@ public class SqlAsyncModule implements Module
     binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
 
     Jerseys.addResource(binder, SqlAsyncResource.class);
+    Jerseys.addResource(binder, SqlAsyncResultsMessageBodyWriter.class);
 
     // Force eager initialization.
     LifecycleModule.register(binder, SqlAsyncResource.class);

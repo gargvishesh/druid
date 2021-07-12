@@ -22,12 +22,10 @@ package org.apache.druid.sql.async;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.QueryCapacityExceededException;
@@ -50,13 +48,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -109,19 +104,19 @@ public class SqlAsyncResource
 
       // TODO(gianm): Reject immediately if pool full -- max async!!
       final SqlAsyncQueryDetails queryDetails = queryPool.execute(sqlQuery, lifecycle, remoteAddr);
-      return Response.ok(queryDetails).build();
+      return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }
     catch (QueryCapacityExceededException cap) {
       lifecycle.emitLogsAndMetrics(cap, remoteAddr, -1);
-      return buildNonOkResponse(sqlQueryId, resultFormat, QueryCapacityExceededException.STATUS_CODE, cap);
+      return buildImmediateErrorResponse(sqlQueryId, resultFormat, QueryCapacityExceededException.STATUS_CODE, cap);
     }
     catch (QueryUnsupportedException unsupported) {
       lifecycle.emitLogsAndMetrics(unsupported, remoteAddr, -1);
-      return buildNonOkResponse(sqlQueryId, resultFormat, QueryUnsupportedException.STATUS_CODE, unsupported);
+      return buildImmediateErrorResponse(sqlQueryId, resultFormat, QueryUnsupportedException.STATUS_CODE, unsupported);
     }
     catch (SqlPlanningException | ResourceLimitExceededException e) {
       lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
-      return buildNonOkResponse(sqlQueryId, resultFormat, BadQueryException.STATUS_CODE, e);
+      return buildImmediateErrorResponse(sqlQueryId, resultFormat, BadQueryException.STATUS_CODE, e);
     }
     catch (ForbiddenException e) {
       // Let ForbiddenExceptionMapper handle it.
@@ -139,7 +134,7 @@ public class SqlAsyncResource
         exceptionToReport = e;
       }
 
-      return buildNonOkResponse(
+      return buildImmediateErrorResponse(
           sqlQueryId,
           resultFormat,
           Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
@@ -159,7 +154,7 @@ public class SqlAsyncResource
     final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(sqlQueryId, req);
 
     if (queryDetails.isPresent()) {
-      return Response.ok(queryDetails.get()).build();
+      return Response.ok(queryDetails.get().toApiResponse()).build();
     } else {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
@@ -175,47 +170,12 @@ public class SqlAsyncResource
     final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(sqlQueryId, req);
 
     if (queryDetails.isPresent() && queryDetails.get().getState() == SqlAsyncQueryDetails.State.COMPLETE) {
-      final Optional<SqlAsyncResults> results = resultManager.readResults(queryDetails.get().getSqlQueryId());
+      final Optional<SqlAsyncResults> results = resultManager.readResults(queryDetails.get());
 
       if (results.isPresent()) {
-        final String contentType = queryDetails.get().getResultFormat().contentType();
-        final String extension;
-
-        switch (contentType) {
-          case MediaType.APPLICATION_JSON:
-            extension = ".json";
-            break;
-
-          case "text/csv":
-            extension = ".csv";
-            break;
-
-          default:
-            extension = "";
-        }
-
-        final Response.ResponseBuilder responseBuilder = Response
-            .ok(
-                new StreamingOutput()
-                {
-                  @Override
-                  public void write(OutputStream output) throws IOException, WebApplicationException
-                  {
-                    ByteStreams.copy(results.get().getInputStream(), output);
-                  }
-                }
-            )
-            .type(contentType)
-            .header(
-                "Content-Disposition",
-                StringUtils.format("attachment; filename=\"%s%s\"", SqlAsyncUtil.safeId(sqlQueryId), extension)
-            );
-
-        if (results.get().getSize() > 0) {
-          responseBuilder.header("Content-Length", results.get().getSize());
-        }
-
-        return responseBuilder.build();
+        return Response.ok(results.get())
+                       .type(queryDetails.get().getResultFormat().contentType())
+                       .build();
       }
     }
 
@@ -237,14 +197,15 @@ public class SqlAsyncResource
                           );
   }
 
-  private Response buildNonOkResponse(
+  private Response buildImmediateErrorResponse(
       final String sqlQueryId,
       final ResultFormat resultFormat,
       final int status,
       final Exception e
   ) throws JsonProcessingException
   {
-    final SqlAsyncQueryDetails errorDetails = SqlAsyncQueryDetails.createError(sqlQueryId, resultFormat, null, e);
+    final SqlAsyncQueryDetailsApiResponse errorDetails =
+        SqlAsyncQueryDetails.createError(sqlQueryId, null, resultFormat, e).toApiResponse();
 
     return Response.status(status)
                    .type(MediaType.APPLICATION_JSON_TYPE)
