@@ -27,8 +27,6 @@ import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 import java.util.Set;
 
@@ -134,57 +132,6 @@ public class ConnectionUriUtilsTest
     {
       expectedException.expect(IAE.class);
       ConnectionUriUtils.tryParseJdbcUriParameters("jdbc:mysql:/bad", true);
-    }
-
-    @Test
-    public void testMySqlFallbackMySqlMaria2x()
-    {
-      MockedStatic<ConnectionUriUtils> utils = Mockito.mockStatic(ConnectionUriUtils.class);
-      utils.when(() -> ConnectionUriUtils.tryParseJdbcUriParameters(MYSQL_URI, false)).thenCallRealMethod();
-      utils.when(() -> ConnectionUriUtils.tryParseMySqlConnectionUri(MYSQL_URI)).thenThrow(ClassNotFoundException.class);
-      utils.when(() -> ConnectionUriUtils.tryParseMariaDb2xConnectionUri(MYSQL_URI)).thenCallRealMethod();
-
-      Set<String> props = ConnectionUriUtils.tryParseJdbcUriParameters(MYSQL_URI, false);
-      // this would be 9 if didn't fall back to mariadb
-      Assert.assertEquals(4, props.size());
-      utils.close();
-    }
-
-    @Test
-    public void testMariaFallbackMaria3x()
-    {
-      MockedStatic<ConnectionUriUtils> utils = Mockito.mockStatic(ConnectionUriUtils.class);
-      utils.when(() -> ConnectionUriUtils.tryParseJdbcUriParameters(MARIA_URI, false)).thenCallRealMethod();
-      utils.when(() -> ConnectionUriUtils.tryParseMariaDb2xConnectionUri(MARIA_URI)).thenThrow(ClassNotFoundException.class);
-      utils.when(() -> ConnectionUriUtils.tryParseMariaDb3xConnectionUri(MARIA_URI)).thenCallRealMethod();
-
-      try {
-        Set<String> props = ConnectionUriUtils.tryParseJdbcUriParameters(MARIA_URI, false);
-        // this would be 4 if didn't fall back to mariadb 3x
-        Assert.assertEquals(8, props.size());
-      }
-      catch (RuntimeException e) {
-
-        Assert.assertTrue(e.getMessage().contains("Failed to find MariaDB driver class"));
-      }
-      utils.close();
-    }
-
-    @Test
-    public void testMySqlFallbackMySqlNoDrivers()
-    {
-      MockedStatic<ConnectionUriUtils> utils = Mockito.mockStatic(ConnectionUriUtils.class);
-      utils.when(() -> ConnectionUriUtils.tryParseJdbcUriParameters(MYSQL_URI, false)).thenCallRealMethod();
-      utils.when(() -> ConnectionUriUtils.tryParseMySqlConnectionUri(MYSQL_URI)).thenThrow(ClassNotFoundException.class);
-      utils.when(() -> ConnectionUriUtils.tryParseMariaDb2xConnectionUri(MYSQL_URI)).thenThrow(ClassNotFoundException.class);
-
-      try {
-        ConnectionUriUtils.tryParseJdbcUriParameters(MYSQL_URI, false);
-      }
-      catch (RuntimeException e) {
-        Assert.assertTrue(e.getMessage().contains("Failed to find MySQL driver class"));
-      }
-      utils.close();
     }
 
     @Test
