@@ -175,6 +175,7 @@ public class SqlAsyncResource
       if (results.isPresent()) {
         return Response.ok(results.get())
                        .type(queryDetails.get().getResultFormat().contentType())
+                       .header("Content-Disposition", "attachment")
                        .build();
       }
     }
