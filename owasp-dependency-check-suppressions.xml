@@ -29,6 +29,7 @@
     <cve>CVE-2021-20195</cve>
     <cve>CVE-2021-20202</cve>
     <cve>CVE-2021-20222</cve>
+    <cve>CVE-2021-3637</cve>
   </suppress>
   <!-- End of Imply-specific exclusions -->
 
