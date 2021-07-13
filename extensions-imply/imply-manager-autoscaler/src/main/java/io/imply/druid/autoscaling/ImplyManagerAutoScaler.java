@@ -50,13 +50,13 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
       @JacksonInject SimpleWorkerProvisioningConfig config
   )
   {
-    Preconditions.checkArgument(minNumWorkers > 0,
-                                "minNumWorkers must be greater than 0");
+    Preconditions.checkArgument(minNumWorkers >= 0,
+                                "minNumWorkers must be greater than or equal to 0");
     this.minNumWorkers = minNumWorkers;
     Preconditions.checkArgument(maxNumWorkers > 0,
                                 "maxNumWorkers must be greater than 0");
-    Preconditions.checkArgument(maxNumWorkers > minNumWorkers,
-                                "maxNumWorkers must be greater than minNumWorkers");
+    Preconditions.checkArgument(maxNumWorkers >= minNumWorkers,
+                                "maxNumWorkers must be greater than or equal to minNumWorkers");
     this.maxNumWorkers = maxNumWorkers;
     this.envConfig = envConfig;
     this.implyManagerServiceClient = implyManagerServiceClient;
