@@ -11,6 +11,7 @@ package io.imply.druid.autoscaling;
 
 import org.apache.druid.java.util.common.logger.Logger;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 public class Instance
@@ -28,6 +29,8 @@ public class Instance
   // status of the Druid instance on Imply Manager
   private final Status status;
   // ip of the Druid instance
+  // ip may be null when the instance is starting up and does not have an ip assigned yet
+  @Nullable
   private final String ip;
   // id of the Druid instance assigned by Imply Manager
   private final String id;
@@ -66,6 +69,7 @@ public class Instance
     return status;
   }
 
+  @Nullable
   public String getIp()
   {
     return ip;

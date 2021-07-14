@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * This module permits the autoscaling of the workers in Imply Manager
@@ -51,13 +50,13 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
       @JacksonInject SimpleWorkerProvisioningConfig config
   )
   {
-    Preconditions.checkArgument(minNumWorkers > 0,
-                                "minNumWorkers must be greater than 0");
+    Preconditions.checkArgument(minNumWorkers >= 0,
+                                "minNumWorkers must be greater than or equal to 0");
     this.minNumWorkers = minNumWorkers;
     Preconditions.checkArgument(maxNumWorkers > 0,
                                 "maxNumWorkers must be greater than 0");
-    Preconditions.checkArgument(maxNumWorkers > minNumWorkers,
-                                "maxNumWorkers must be greater than minNumWorkers");
+    Preconditions.checkArgument(maxNumWorkers >= minNumWorkers,
+                                "maxNumWorkers must be greater than or equal to minNumWorkers");
     this.maxNumWorkers = maxNumWorkers;
     this.envConfig = envConfig;
     this.implyManagerServiceClient = implyManagerServiceClient;
@@ -196,7 +195,11 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
       Map<String, String> ipToIdMap = new HashMap<>();
-      response.forEach(instance -> ipToIdMap.put(instance.getIp(), instance.getId()));
+      for (Instance instance : response) {
+        if (instance.getIp() != null) {
+          ipToIdMap.put(instance.getIp(), instance.getId());
+        }
+      }
       for (String ip : ips) {
         if (ipToIdMap.containsKey(ip)) {
           ids.add(ipToIdMap.get(ip));
@@ -227,12 +230,25 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     ArrayList<String> ips = new ArrayList<>();
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
-      ips.addAll(response.stream().filter(instance -> nodeIds.contains(instance.getId())).map(instance -> instance.getIp()).collect(Collectors.toList()));
+      Map<String, String> idToIp = new HashMap<>();
+      for (Instance instance : response) {
+        if (instance.getIp() != null) {
+          idToIp.put(instance.getId(), instance.getIp());
+        }
+      }
+      for (String id : nodeIds) {
+        if (idToIp.containsKey(id)) {
+          ips.add(idToIp.get(id));
+        } else {
+          log.warn("Cannot find instance for id: %s", id);
+        }
+      }
+      return ips;
     }
     catch (Exception e) {
       log.error(e, "Unable to get instances.");
+      throw new RuntimeException(e);
     }
-    return ips;
   }
 
   @Override
