@@ -136,7 +136,9 @@ public class ImplyManagerAutoScalerTest
     // actually IPs
     List<Instance> mockResponse = ImmutableList.of(
         new Instance("RUNNING", IP_1, ID_1),
-        new Instance("RUNNING", IP_2, ID_2)
+        new Instance("RUNNING", IP_2, ID_2),
+        // Should ignore null ip instances
+        new Instance("RUNNING", null, ID_3)
     );
     Mockito.when(mockImplyManagerServiceClient.listInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig))).thenReturn(mockResponse);
 
@@ -159,11 +161,13 @@ public class ImplyManagerAutoScalerTest
     // actually IDs
     List<Instance> mockResponse = ImmutableList.of(
         new Instance("RUNNING", IP_1, ID_1),
-        new Instance("RUNNING", IP_2, ID_2)
+        new Instance("RUNNING", IP_2, ID_2),
+        // Should ignore null ip instances
+        new Instance("RUNNING", null, ID_3)
     );
     Mockito.when(mockImplyManagerServiceClient.listInstances(ArgumentMatchers.eq(mockImplyManagerEnvironmentConfig))).thenReturn(mockResponse);
 
-    List<String> ids3 = implyManagerAutoScaler.idToIpLookup(ImmutableList.of(ID_1));
+    List<String> ids3 = implyManagerAutoScaler.idToIpLookup(ImmutableList.of(ID_1, ID_3));
     Assert.assertEquals(1, ids3.size());
     Assert.assertEquals(IP_1, ids3.get(0));
 
