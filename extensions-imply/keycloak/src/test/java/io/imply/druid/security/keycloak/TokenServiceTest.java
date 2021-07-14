@@ -11,13 +11,16 @@ package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,6 +39,7 @@ import org.mockito.Mockito;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
 public class TokenServiceTest
 {
@@ -94,6 +98,36 @@ public class TokenServiceTest
     );
 
     assertEqualsTokens(expectedResponse, actualResponse);
+  }
+
+  @Test
+  public void testGetNotBefore() throws IOException
+  {
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
+    final Map<String, Integer> notBefore = ImmutableMap.of(
+        "client1", 0,
+        "client2", Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000)
+    );
+    TokenService.ClientTokenNotBeforeResponse expectedResponse = new TokenService.ClientTokenNotBeforeResponse(notBefore);
+    mockGetNotBeforeResponse(expectedResponse);
+    final AccessTokenResponse someToken = new AccessTokenResponse();
+    someToken.setToken("accessToken");
+    someToken.setRefreshToken("refreshToken");
+    someToken.setExpiresIn(1000);
+    someToken.setRefreshExpiresIn(10000);
+    mockAccessTokenResponse(someToken);
+    TokenService.ClientTokenNotBeforeResponse actualResponse = tokenService.getClientNotBefore();
+
+    ArgumentCaptor<HttpGet> getCaptor = ArgumentCaptor.forClass(HttpGet.class);
+    Mockito.verify(client, Mockito.times(2)).execute(getCaptor.capture());
+
+    HttpGet captured = getCaptor.getValue();
+    final Header[] headers = captured.getAllHeaders();
+    Assert.assertEquals("http://localhost:8080/auth/realms/druid/not-before-policies", captured.getURI().toString());
+    Assert.assertEquals(1, headers.length);
+    Assert.assertEquals("Authorization", headers[0].getName());
+    Assert.assertEquals("Bearer accessToken", headers[0].getValue());
+    Assert.assertEquals(expectedResponse, actualResponse);
   }
 
   @Test
@@ -228,8 +262,26 @@ public class TokenServiceTest
     final HttpResponse response = Mockito.mock(HttpResponse.class);
     Mockito.when(response.getStatusLine()).thenReturn(statusLine);
     Mockito.when(response.getEntity()).thenReturn(entity);
-    Mockito.when(client.execute(ArgumentMatchers.any())).thenReturn(response);
+    Mockito.when(client.execute(ArgumentMatchers.argThat(req -> req != null && HttpPost.METHOD_NAME.equals(req.getMethod())))).thenReturn(response);
     Mockito.when(deployment.getClient()).thenReturn(client);
+  }
+
+  private void mockGetNotBeforeResponse(TokenService.ClientTokenNotBeforeResponse notBeforeResponse)
+      throws IOException
+  {
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(200);
+    Mockito.when(entity.getContent()).thenReturn(
+        new ByteArrayInputStream(jsonMapper.writeValueAsString(notBeforeResponse).getBytes(StringUtils.UTF8_STRING))
+    );
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+    Mockito.when(client.execute(ArgumentMatchers.argThat(req -> req != null && HttpGet.METHOD_NAME.equals(req.getMethod())))).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+    Mockito.when(deployment.getRealm()).thenReturn("druid");
+    Mockito.when(deployment.getAuthServerBaseUrl()).thenReturn("http://localhost:8080/auth");
   }
 
   private static void assertEqualsTokens(AccessTokenResponse expected, AccessTokenResponse actual)

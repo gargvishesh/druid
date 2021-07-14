@@ -17,10 +17,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
-import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -40,6 +41,7 @@ import java.util.regex.Pattern;
 public class CoordinatorKeycloakAuthorizerResourceHandlerTest
 {
   private KeycloakAuthorizerMetadataStorageUpdater storageUpdater;
+  private KeycloakAuthorizerCacheManager cacheManager;
   private AuthorizerMapper authorizerMapper;
   private final ObjectMapper objectMapper = new ObjectMapper(new SmileFactory());
 
@@ -49,6 +51,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
   public void setup()
   {
     storageUpdater = Mockito.mock(KeycloakAuthorizerMetadataStorageUpdater.class);
+    cacheManager = Mockito.mock(KeycloakAuthorizerCacheManager.class);
     authorizerMapper = Mockito.mock(AuthorizerMapper.class);
 
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of(
@@ -57,6 +60,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
 
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -86,6 +90,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -146,6 +151,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -195,6 +201,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -244,6 +251,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -303,6 +311,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -374,6 +383,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );
@@ -426,6 +436,7 @@ public class CoordinatorKeycloakAuthorizerResourceHandlerTest
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
     resourceHandler = new CoordinatorKeycloakAuthorizerResourceHandler(
         storageUpdater,
+        cacheManager,
         authorizerMapper,
         objectMapper
     );

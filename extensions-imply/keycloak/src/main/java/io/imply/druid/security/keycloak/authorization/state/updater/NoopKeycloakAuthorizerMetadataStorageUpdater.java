@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.security.keycloak.authorization.db.updater;
+package io.imply.druid.security.keycloak.authorization.state.updater;
 
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import org.apache.druid.server.security.ResourceAction;

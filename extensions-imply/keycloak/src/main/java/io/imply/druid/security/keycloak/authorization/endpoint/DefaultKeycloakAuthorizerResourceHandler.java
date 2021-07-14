@@ -12,7 +12,7 @@ package io.imply.druid.security.keycloak.authorization.endpoint;
 import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -29,7 +29,7 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
 
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
 
-  private final KeycloakAuthorizerCacheManager cacheManager;
+  private final KeycloakAuthorizerCacheManager cache;
   private final Map<String, ImplyKeycloakAuthorizer> authorizerMap;
 
   @Inject
@@ -38,7 +38,7 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
       AuthorizerMapper authorizerMapper
   )
   {
-    this.cacheManager = cacheManager;
+    this.cache = cacheManager;
 
     this.authorizerMap = new HashMap<>();
     for (Map.Entry<String, Authorizer> authorizerEntry : authorizerMapper.getAuthorizerMap().entrySet()) {
@@ -97,7 +97,20 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
       return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
     }
 
-    cacheManager.handleAuthorizerRoleUpdate(serializedRoleMap);
+    cache.updateRoles(serializedRoleMap);
+    return Response.ok().build();
+  }
+
+  @Override
+  public Response authorizerNotBeforeUpdateListener(byte[] serializedNotBeforeMap)
+  {
+    final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
+    if (authorizer == null) {
+      LOG.error("Received update for roles when no keycloak authorizer was found to be configured");
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
+    }
+
+    cache.updateNotBefore(serializedNotBeforeMap);
     return Response.ok().build();
   }
 
@@ -109,6 +122,12 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
 
   @Override
   public Response getCachedRoleMaps()
+  {
+    return NOT_FOUND_RESPONSE;
+  }
+
+  @Override
+  public Response getCachedNotBeforeMaps()
   {
     return NOT_FOUND_RESPONSE;
   }

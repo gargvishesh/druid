@@ -12,7 +12,7 @@ package io.imply.druid.security.keycloak.authorization.endpoint;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.junit.Assert;
@@ -92,7 +92,7 @@ public class DefaultKeycloakAuthorizerResourceHandlerTest
     Response response = target.authorizerRoleUpdateListener(roleMapSerialized);
     Assert.assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
 
-    Mockito.verify(cacheManager).handleAuthorizerRoleUpdate(roleMapSerialized);
+    Mockito.verify(cacheManager).updateRoles(roleMapSerialized);
   }
 
   @Test
@@ -110,7 +110,7 @@ public class DefaultKeycloakAuthorizerResourceHandlerTest
         "Keycloak authorizer does not exist."
     ), response.getEntity());
 
-    Mockito.verify(cacheManager, Mockito.never()).handleAuthorizerRoleUpdate(ArgumentMatchers.any());
+    Mockito.verify(cacheManager, Mockito.never()).updateRoles(ArgumentMatchers.any());
   }
 
   @Test

@@ -7,11 +7,13 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.security.keycloak;
+package io.imply.druid.security.keycloak.cache;
 
+import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.security.keycloak.KeycloakAuthCommonCacheConfig;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -28,7 +30,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Duration;
 
-import javax.ws.rs.core.MediaType;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -41,6 +42,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
+/**
+ * Push style notifications that allow propagation of data from whatever server is running this notifier to whoever
+ * might be listening.
+ */
 public class CommonCacheNotifier
 {
   private static final EmittingLogger LOG = new EmittingLogger(CommonCacheNotifier.class);
@@ -212,13 +217,13 @@ public class CommonCacheNotifier
   }
 
   @VisibleForTesting
-  Request createRequest(
+  public Request createRequest(
       URL listenerURL,
       byte[] serializedEntity
   )
   {
     Request req = new Request(HttpMethod.POST, listenerURL);
-    req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
+    req.setContent(SmileMediaTypes.APPLICATION_JACKSON_SMILE, serializedEntity);
     return req;
   }
 
@@ -235,7 +240,7 @@ public class CommonCacheNotifier
   }
 
   @VisibleForTesting
-  boolean isShutdown()
+  public boolean isShutdown()
   {
     return exec.isShutdown();
   }

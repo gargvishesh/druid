@@ -7,13 +7,13 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.security.keycloak.authorization.db.cache;
+package io.imply.druid.security.keycloak.authorization.state.notifier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
-import io.imply.druid.security.keycloak.CommonCacheNotifier;
 import io.imply.druid.security.keycloak.KeycloakAuthCommonCacheConfig;
+import io.imply.druid.security.keycloak.cache.CommonCacheNotifier;
 import org.apache.druid.concurrent.LifecycleLock;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.guice.ManageLifecycle;
@@ -31,6 +31,7 @@ public class CoordinatorKeycloakAuthorizerCacheNotifier implements KeycloakAutho
 {
   private final LifecycleLock lifecycleLock = new LifecycleLock();
   private final CommonCacheNotifier cacheRoleNotifier;
+  private final CommonCacheNotifier cacheNotBeforeNotifier;
 
   @Inject
   public CoordinatorKeycloakAuthorizerCacheNotifier(
@@ -46,12 +47,20 @@ public class CoordinatorKeycloakAuthorizerCacheNotifier implements KeycloakAutho
         "/druid-ext/keycloak-security/authorization/listen/roles",
         "CoordinatorKeycloakAuthorizerCacheNotifier"
     );
+    cacheNotBeforeNotifier = new CommonCacheNotifier(
+        cacheConfig,
+        discoveryProvider,
+        httpClient,
+        "/druid-ext/keycloak-security/authorization/listen/not-before",
+        "CoordinatorKeycloakAuthorizerCacheNotifier"
+    );
   }
 
   @VisibleForTesting
   public CoordinatorKeycloakAuthorizerCacheNotifier()
   {
     cacheRoleNotifier = new CommonCacheNotifier();
+    cacheNotBeforeNotifier = new CommonCacheNotifier();
   }
 
   @LifecycleStart
@@ -63,6 +72,7 @@ public class CoordinatorKeycloakAuthorizerCacheNotifier implements KeycloakAutho
 
     try {
       cacheRoleNotifier.start();
+      cacheNotBeforeNotifier.start();
       lifecycleLock.started();
     }
     finally {
@@ -78,6 +88,7 @@ public class CoordinatorKeycloakAuthorizerCacheNotifier implements KeycloakAutho
     }
     try {
       cacheRoleNotifier.stop();
+      cacheNotBeforeNotifier.stop();
     }
     finally {
       lifecycleLock.exitStop();
@@ -85,15 +96,28 @@ public class CoordinatorKeycloakAuthorizerCacheNotifier implements KeycloakAutho
   }
 
   @Override
-  public void setUpdateSource(Supplier<byte[]> roleMap)
+  public void setRoleUpdateSource(Supplier<byte[]> roleMap)
   {
     cacheRoleNotifier.setUpdateSource(roleMap);
   }
 
   @Override
-  public void scheduleUpdate()
+  public void scheduleRoleUpdate()
   {
     Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
     cacheRoleNotifier.scheduleUpdate();
+  }
+
+  @Override
+  public void setNotBeforeUpdateSource(Supplier<byte[]> updateSource)
+  {
+    cacheNotBeforeNotifier.setUpdateSource(updateSource);
+  }
+
+  @Override
+  public void scheduleNotBeforeUpdate()
+  {
+    Preconditions.checkState(lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS));
+    cacheNotBeforeNotifier.scheduleUpdate();
   }
 }

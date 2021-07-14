@@ -41,6 +41,11 @@ public class KeycloakAuthUtils
       {
       };
 
+  public static final TypeReference<Map<String, Integer>> AUTHORIZER_NOT_BEFORE_TYPE_REFERENCE =
+      new TypeReference<Map<String, Integer>>()
+      {
+      };
+
   public static final Map<String, Object> CONTEXT_WITH_ADMIN_ROLE = ImmutableMap.of(
       KeycloakAuthUtils.AUTHENTICATED_ROLES_CONTEXT_KEY, ImmutableSet.of(ADMIN_NAME),
       KeycloakAuthUtils.SUPERUSER_CONTEXT_KEY, true

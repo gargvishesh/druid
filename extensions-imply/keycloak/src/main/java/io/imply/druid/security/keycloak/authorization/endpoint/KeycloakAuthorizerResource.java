@@ -175,7 +175,7 @@ public class KeycloakAuthorizerResource
   @POST
   @Path("/listen/roles")
   @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
+  @Consumes(SmileMediaTypes.APPLICATION_JACKSON_SMILE)
   @ResourceFilters(KeycloakSecurityResourceFilter.class)
   public Response authorizerRoleUpdateListener(
       @Context HttpServletRequest req,
@@ -183,6 +183,22 @@ public class KeycloakAuthorizerResource
   )
   {
     return resourceHandler.authorizerRoleUpdateListener(serializedRoleMap);
+  }
+
+  /**
+   * Listen for update notifications for the role auth storage
+   */
+  @POST
+  @Path("/listen/not-before")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(SmileMediaTypes.APPLICATION_JACKSON_SMILE)
+  @ResourceFilters(KeycloakSecurityResourceFilter.class)
+  public Response authorizerNotBeforeUpdateListener(
+      @Context HttpServletRequest req,
+      byte[] serializedNotBeforeMap
+  )
+  {
+    return resourceHandler.authorizerNotBeforeUpdateListener(serializedNotBeforeMap);
   }
 
   /**
@@ -218,5 +234,22 @@ public class KeycloakAuthorizerResource
   )
   {
     return resourceHandler.getCachedRoleMaps();
+  }
+
+  /**
+   * @param req HTTP request
+   *
+   * @return serialized not before token revocation map
+   */
+  @GET
+  @Path("/cachedSerializedNotBeforeMap")
+  @Produces(SmileMediaTypes.APPLICATION_JACKSON_SMILE)
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(KeycloakSecurityResourceFilter.class)
+  public Response getCachedSerializedNotBeforeMap(
+      @Context HttpServletRequest req
+  )
+  {
+    return resourceHandler.getCachedNotBeforeMaps();
   }
 }

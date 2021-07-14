@@ -7,22 +7,24 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.security.keycloak.authorization.db.updater;
+package io.imply.druid.security.keycloak.authorization.state.updater;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.inject.Injector;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthCommonCacheConfig;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleMapBundle;
+import io.imply.druid.security.keycloak.authorization.state.notifier.KeycloakAuthorizerCacheNotifier;
+import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
@@ -35,11 +37,14 @@ import org.apache.druid.server.security.ResourceAction;
 import org.apache.druid.server.security.ResourceType;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -78,14 +83,24 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
       )
   );
 
+  private static final String INITIAL_ROLE_NAME = "role";
+  private static final Map<String, List<ResourceAction>> INITIAL_ROLE_MAP = ImmutableMap.of(
+      INITIAL_ROLE_NAME,
+      Lists.transform(SUPER_PERMISSIONS, KeycloakAuthorizerPermission::getResourceAction)
+  );
+
   private AuthorizerMapper authorizerMapper;
   private MetadataStorageConnector connector;
   private MetadataStorageTablesConfig connectorConfig;
-  private final ObjectMapper objectMapper = new ObjectMapper(new SmileFactory());
+  private final ObjectMapper smileMapper = new ObjectMapper(new SmileFactory());
+  private final ObjectMapper jsonMapper = new DefaultObjectMapper();
   private KeycloakAuthorizerCacheNotifier cacheNotifier;
   private KeycloakAuthCommonCacheConfig commonCacheConfig;
 
   private CoordinatorKeycloakAuthorizerMetadataStorageUpdater storageUpdater;
+
+  @Rule
+  public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @SuppressWarnings("unchecked")
   ArgumentCaptor<Supplier<byte[]>> roleMapByteSupplierCaptor = ArgumentCaptor.forClass((Class) Supplier.class);
@@ -107,7 +122,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
         injector,
         connector,
         connectorConfig,
-        objectMapper,
+        smileMapper,
+        jsonMapper,
         cacheNotifier,
         commonCacheConfig
     );
@@ -149,7 +165,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
            .thenReturn(null)
            .thenReturn(null)
            .thenReturn(null)
-           .thenReturn(objectMapper.writeValueAsBytes(ImmutableMap.of(
+           .thenReturn(smileMapper.writeValueAsBytes(ImmutableMap.of(
                "admin", new KeycloakAuthorizerRole("admin", null))));
 
     Mockito.when(connector.compareAndSwap(ArgumentMatchers.argThat((arg) -> roleUpdatedWithPermissions(
@@ -169,6 +185,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
 
     Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L);
 
+    Mockito.when(commonCacheConfig.isAutoPopulateAdmin()).thenReturn(true);
+
     storageUpdater.start();
     storageUpdater.stop();
 
@@ -187,12 +205,70 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
   }
 
   @Test
+  public void test_start_keycloakAuthorizerAndAdminRoleNotInitialized_initializesRolesFromFile()
+      throws IOException
+  {
+    File initialRoleFile = temporaryFolder.newFile("foo.json");
+    jsonMapper.writeValue(initialRoleFile, INITIAL_ROLE_MAP);
+
+    Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(AUTHORIZER_MAP_WITH_KEYCLOAK);
+    Mockito.when(connector.lookup(
+        "config",
+        MetadataStorageConnector.CONFIG_TABLE_KEY_COLUMN,
+        MetadataStorageConnector.CONFIG_TABLE_VALUE_COLUMN,
+        "keycloak_authorization_roles"
+    ))
+           .thenReturn(null)
+           .thenReturn(null)
+           .thenReturn(null)
+           .thenReturn(smileMapper.writeValueAsBytes(ImmutableMap.of(
+               INITIAL_ROLE_NAME, new KeycloakAuthorizerRole(INITIAL_ROLE_NAME, null))));
+
+    Mockito.when(connector.compareAndSwap(ArgumentMatchers.argThat((arg) -> roleUpdatedWithPermissions(
+        arg,
+        INITIAL_ROLE_NAME,
+        ImmutableList.of()
+    ))))
+           .thenReturn(false)
+           .thenReturn(true);
+
+    Mockito.when(connector.compareAndSwap(ArgumentMatchers.argThat((arg) -> roleUpdatedWithPermissions(
+        arg,
+        INITIAL_ROLE_NAME,
+        SUPER_PERMISSIONS
+    ))))
+           .thenReturn(true);
+
+    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L);
+
+    Mockito.when(commonCacheConfig.isAutoPopulateAdmin()).thenReturn(true);
+    Mockito.when(commonCacheConfig.getInitialRoleMappingFile()).thenReturn(initialRoleFile.getAbsolutePath());
+
+    storageUpdater.start();
+    storageUpdater.stop();
+
+    Mockito.verify(connector, Mockito.times(2))
+           .compareAndSwap(ArgumentMatchers.argThat((arg) -> roleUpdatedWithPermissions(
+               arg,
+               INITIAL_ROLE_NAME,
+               ImmutableList.of()
+           )));
+    Mockito.verify(connector)
+           .compareAndSwap(ArgumentMatchers.argThat((arg) -> roleUpdatedWithPermissions(
+               arg,
+               INITIAL_ROLE_NAME,
+               SUPER_PERMISSIONS
+           )));
+  }
+
+  @Test
   public void test_start_keycloakAuthorizerAndAdminRoleInitialized_doesNotinitializeAdminRole()
       throws JsonProcessingException
   {
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(null);
     Mockito.when(connectorConfig.getConfigTable()).thenReturn("config");
-    byte[] adminRoleBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+    Mockito.when(commonCacheConfig.isAutoPopulateAdmin()).thenReturn(true);
+    byte[] adminRoleBytes = smileMapper.writeValueAsBytes(ImmutableMap.of(
         "admin", new KeycloakAuthorizerRole("admin", null)));
     Mockito.when(connector.lookup(
         "config",
@@ -202,7 +278,31 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
     )).thenReturn(adminRoleBytes);
     storageUpdater.start();
     Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).setUpdateSource(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
+  }
+
+  @Test
+  public void test_start_keycloakAuthorizerAndFileRoleInitialized_doesNotinitializeRoleFromFile()
+      throws IOException
+  {
+    File initialRoleFile = temporaryFolder.newFile("foo.json");
+    jsonMapper.writeValue(initialRoleFile, INITIAL_ROLE_MAP);
+    Mockito.when(commonCacheConfig.isAutoPopulateAdmin()).thenReturn(true);
+    Mockito.when(commonCacheConfig.getInitialRoleMappingFile()).thenReturn(initialRoleFile.getAbsolutePath());
+
+    Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(null);
+    Mockito.when(connectorConfig.getConfigTable()).thenReturn("config");
+    byte[] adminRoleBytes = smileMapper.writeValueAsBytes(ImmutableMap.of(
+        "admin", new KeycloakAuthorizerRole("admin", null)));
+    Mockito.when(connector.lookup(
+        "config",
+        MetadataStorageConnector.CONFIG_TABLE_KEY_COLUMN,
+        MetadataStorageConnector.CONFIG_TABLE_VALUE_COLUMN,
+        "keycloak_authorization_roles"
+    )).thenReturn(adminRoleBytes);
+    storageUpdater.start();
+    Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
   }
 
   @Test(expected = IllegalMonitorStateException.class)
@@ -217,8 +317,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
   {
     storageUpdater.createRole("role1");
     Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).setUpdateSource(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).scheduleUpdate();
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).scheduleRoleUpdate();
   }
 
   @Test
@@ -242,7 +342,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
 
     Map<String, KeycloakAuthorizerRole> expectedRoleMap = ImmutableMap.of(
         roleName, new KeycloakAuthorizerRole(roleName, null));
-    byte[] expectedRoleMapBytes = objectMapper.writeValueAsBytes(expectedRoleMap);
+    byte[] expectedRoleMapBytes = smileMapper.writeValueAsBytes(expectedRoleMap);
     KeycloakAuthorizerRoleMapBundle expectedRoleMapBundle = new KeycloakAuthorizerRoleMapBundle(
         expectedRoleMap,
         expectedRoleMapBytes
@@ -258,7 +358,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
                roleName,
                ImmutableList.of()
            )));
-    Mockito.verify(cacheNotifier).scheduleUpdate();
+    Mockito.verify(cacheNotifier).scheduleRoleUpdate();
   }
 
   @Test(expected = KeycloakSecurityDBResourceException.class)
@@ -266,7 +366,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
   {
     String roleName = "test_createRole_roleExists_fails";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    byte[] roleBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+    byte[] roleBytes = smileMapper.writeValueAsBytes(ImmutableMap.of(
         roleName, new KeycloakAuthorizerRole(roleName, null)));
     Mockito.when(connector.lookup(
         "config",
@@ -279,8 +379,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
     storageUpdater.createRole(roleName);
 
     Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).setUpdateSource(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).scheduleUpdate();
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).scheduleRoleUpdate();
   }
 
   @Test
@@ -288,7 +388,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
   {
     String roleName = "test_deleteRole_roleExists_succeeds";
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    byte[] roleBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+    byte[] roleBytes = smileMapper.writeValueAsBytes(ImmutableMap.of(
         roleName, new KeycloakAuthorizerRole(roleName, null)));
     Mockito.when(connector.lookup(
         "config",
@@ -314,7 +414,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
                arg,
                roleName
            )));
-    Mockito.verify(cacheNotifier).scheduleUpdate();
+    Mockito.verify(cacheNotifier).scheduleRoleUpdate();
   }
 
   @Test(expected = KeycloakSecurityDBResourceException.class)
@@ -333,8 +433,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
     storageUpdater.deleteRole(roleName);
 
     Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).setUpdateSource(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).scheduleUpdate();
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).scheduleRoleUpdate();
   }
 
   @Test
@@ -351,7 +451,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
     List<KeycloakAuthorizerPermission> updatedAuthorizerPermissions =
         KeycloakAuthorizerPermission.makePermissionList(updatedPermissions);
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    byte[] roleBytes = objectMapper.writeValueAsBytes(ImmutableMap.of(
+    byte[] roleBytes = smileMapper.writeValueAsBytes(ImmutableMap.of(
         roleName, new KeycloakAuthorizerRole(roleName, null)));
     Mockito.when(connector.lookup(
         "config",
@@ -369,7 +469,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
 
     Map<String, KeycloakAuthorizerRole> expectedRoleMap = ImmutableMap.of(
         roleName, new KeycloakAuthorizerRole(roleName, updatedAuthorizerPermissions));
-    byte[] expectedRoleMapBytes = objectMapper.writeValueAsBytes(expectedRoleMap);
+    byte[] expectedRoleMapBytes = smileMapper.writeValueAsBytes(expectedRoleMap);
     KeycloakAuthorizerRoleMapBundle expectedRoleMapBundle = new KeycloakAuthorizerRoleMapBundle(
         expectedRoleMap,
         expectedRoleMapBytes
@@ -385,7 +485,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
                roleName,
                updatedAuthorizerPermissions
            )));
-    Mockito.verify(cacheNotifier).scheduleUpdate();
+    Mockito.verify(cacheNotifier).scheduleRoleUpdate();
   }
 
   @Test(expected = KeycloakSecurityDBResourceException.class)
@@ -411,8 +511,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
     storageUpdater.setPermissions(roleName, updatedPermissions);
 
     Mockito.verify(connector, Mockito.never()).compareAndSwap(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).setUpdateSource(ArgumentMatchers.any());
-    Mockito.verify(cacheNotifier, Mockito.never()).scheduleUpdate();
+    Mockito.verify(cacheNotifier, Mockito.never()).setRoleUpdateSource(ArgumentMatchers.any());
+    Mockito.verify(cacheNotifier, Mockito.never()).scheduleRoleUpdate();
   }
 
   private boolean roleUpdatedWithPermissions(
@@ -425,7 +525,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
       if (updates == null) {
         return false;
       }
-      Map<String, KeycloakAuthorizerRole> roleMap = objectMapper.readValue(
+      Map<String, KeycloakAuthorizerRole> roleMap = smileMapper.readValue(
           (updates.get(0)).getNewValue(),
           KeycloakAuthUtils.AUTHORIZER_ROLE_MAP_TYPE_REFERENCE
       );
@@ -446,11 +546,11 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
       if (updates == null) {
         return false;
       }
-      Map<String, KeycloakAuthorizerRole> oldRoleMap = objectMapper.readValue(
+      Map<String, KeycloakAuthorizerRole> oldRoleMap = smileMapper.readValue(
           (updates.get(0)).getOldValue(),
           KeycloakAuthUtils.AUTHORIZER_ROLE_MAP_TYPE_REFERENCE
       );
-      Map<String, KeycloakAuthorizerRole> updatedRoleMap = objectMapper.readValue(
+      Map<String, KeycloakAuthorizerRole> updatedRoleMap = smileMapper.readValue(
           (updates.get(0)).getNewValue(),
           KeycloakAuthUtils.AUTHORIZER_ROLE_MAP_TYPE_REFERENCE
       );

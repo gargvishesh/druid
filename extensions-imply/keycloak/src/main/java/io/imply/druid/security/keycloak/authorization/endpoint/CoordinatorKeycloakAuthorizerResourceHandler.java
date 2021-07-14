@@ -15,9 +15,10 @@ import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
-import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.updater.KeycloakAuthorizerMetadataStorageUpdater;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -31,17 +32,20 @@ import java.util.Map;
 public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAuthorizerResourceHandler
 {
   private final KeycloakAuthorizerMetadataStorageUpdater storageUpdater;
+  private final KeycloakAuthorizerCacheManager cacheManager;
   private final Map<String, ImplyKeycloakAuthorizer> authorizerMap;
   private final ObjectMapper objectMapper;
 
   @Inject
   public CoordinatorKeycloakAuthorizerResourceHandler(
       KeycloakAuthorizerMetadataStorageUpdater storageUpdater,
+      KeycloakAuthorizerCacheManager cacheManager,
       AuthorizerMapper authorizerMapper,
       @Smile ObjectMapper objectMapper
   )
   {
     this.storageUpdater = storageUpdater;
+    this.cacheManager = cacheManager;
     this.objectMapper = objectMapper;
 
     this.authorizerMap = new HashMap<>();
@@ -180,6 +184,12 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
   }
 
   @Override
+  public Response authorizerNotBeforeUpdateListener(byte[] serializedRoleMap)
+  {
+    return Response.status(Response.Status.NOT_FOUND).build();
+  }
+
+  @Override
   public Response refreshAll()
   {
     storageUpdater.refreshAllNotification();
@@ -197,6 +207,17 @@ public class CoordinatorKeycloakAuthorizerResourceHandler implements KeycloakAut
     Map<String, KeycloakAuthorizerRole> roleMap = storageUpdater.getCachedRoleMap();
 
     return Response.ok(roleMap).build();
+  }
+
+  @Override
+  public Response getCachedNotBeforeMaps()
+  {
+    final ImplyKeycloakAuthorizer authorizer = authorizerMap.get(KeycloakAuthUtils.KEYCLOAK_AUTHORIZER_NAME);
+    if (authorizer == null) {
+      return KeycloakCommonErrorResponses.makeResponseForAuthorizerNotFound();
+    }
+    Map<String, Integer> notBefore = cacheManager.getNotBefore();
+    return Response.ok(notBefore).build();
   }
 
   private static Response makeResponseForKeycloakSecurityDBResourceException(KeycloakSecurityDBResourceException e)

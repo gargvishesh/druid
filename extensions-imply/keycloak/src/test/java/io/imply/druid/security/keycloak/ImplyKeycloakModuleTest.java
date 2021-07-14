@@ -19,17 +19,16 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Modules;
-import io.imply.druid.security.keycloak.authorization.db.cache.CoordinatorKeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.cache.MetadataStoragePollingKeycloakAuthorizerCacheManager;
-import io.imply.druid.security.keycloak.authorization.db.cache.NoopKeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
-import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
-import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.notifier.CoordinatorKeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.notifier.KeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.notifier.NoopKeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.state.updater.KeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.state.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.DruidGuiceExtensions;
 import org.apache.druid.guice.JsonConfigurator;
@@ -115,13 +114,13 @@ public class ImplyKeycloakModuleTest
     mapper.setInjectableValues(
         new Std().addValue(
             DruidKeycloakConfigResolver.class,
-            new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", config), config))
+            new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", config), config, Mockito.mock(KeycloakAuthorizerCacheManager.class)))
                  .addValue(AdapterConfig.class, config)
                  .addValue(
                      KeycloakAuthorizerMetadataStorageUpdater.class,
                      new CoordinatorKeycloakAuthorizerMetadataStorageUpdater()
                  )
-                 .addValue(KeycloakAuthorizerCacheManager.class, new MetadataStoragePollingKeycloakAuthorizerCacheManager())
+                 .addValue(KeycloakAuthorizerCacheManager.class, Mockito.mock(KeycloakAuthorizerCacheManager.class))
                  .addValue(ObjectMapper.class, new ObjectMapper(new SmileFactory()))
     );
     module.getJacksonModules().forEach(mapper::registerModule);
@@ -155,7 +154,7 @@ public class ImplyKeycloakModuleTest
         getDependentModules(NodeRole.BROKER).with(
             binder -> {
               binder.bind(KeycloakAuthorizerCacheManager.class)
-                    .toInstance(new MetadataStoragePollingKeycloakAuthorizerCacheManager());
+                    .toInstance(Mockito.mock(KeycloakAuthorizerCacheManager.class));
             })
     );
     KeycloakAuthorizerResourceHandler authorizerResourceHandler = injector.getInstance(KeycloakAuthorizerResourceHandler.class);
@@ -169,7 +168,7 @@ public class ImplyKeycloakModuleTest
         getDependentModules(NodeRole.COORDINATOR).with(
             binder -> {
               binder.bind(KeycloakAuthorizerCacheManager.class)
-                    .toInstance(new MetadataStoragePollingKeycloakAuthorizerCacheManager());
+                    .toInstance(Mockito.mock(KeycloakAuthorizerCacheManager.class));
               binder.bind(KeycloakAuthorizerMetadataStorageUpdater.class)
                     .toInstance(new NoopKeycloakAuthorizerMetadataStorageUpdater());
               binder.bind(KeycloakAuthCommonCacheConfig.class)

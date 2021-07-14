@@ -12,9 +12,9 @@ package io.imply.druid.security.keycloak;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -60,7 +60,7 @@ public class ImplyKeycloakAuthorizerTest
   @Test
   public void test_authorize_emptyContext_accessDenied()
   {
-    Mockito.when(cacheManager.getRoleMap()).thenReturn(null);
+    Mockito.when(cacheManager.getRoles()).thenReturn(null);
     Assert.assertEquals(
         ACCESS_DENIED.isAllowed(),
         authorizer.authorize(
@@ -83,7 +83,7 @@ public class ImplyKeycloakAuthorizerTest
             ), Pattern.compile("blah"))
         ))
     );
-    Mockito.when(cacheManager.getRoleMap()).thenReturn(roleMap);
+    Mockito.when(cacheManager.getRoles()).thenReturn(roleMap);
 
     Assert.assertEquals(
         ACCESS_DENIED.isAllowed(),
@@ -111,7 +111,7 @@ public class ImplyKeycloakAuthorizerTest
             ), Pattern.compile("blah"))
         ))
     );
-    Mockito.when(cacheManager.getRoleMap()).thenReturn(roleMap);
+    Mockito.when(cacheManager.getRoles()).thenReturn(roleMap);
     Assert.assertEquals(
         ACCESS_DENIED.isAllowed(),
         authorizer.authorize(
@@ -138,7 +138,7 @@ public class ImplyKeycloakAuthorizerTest
             ), Pattern.compile(Resource.STATE_RESOURCE.getName()))
         ))
     );
-    Mockito.when(cacheManager.getRoleMap()).thenReturn(roleMap);
+    Mockito.when(cacheManager.getRoles()).thenReturn(roleMap);
     Assert.assertEquals(
         Access.OK.isAllowed(),
         authorizer.authorize(
@@ -165,7 +165,7 @@ public class ImplyKeycloakAuthorizerTest
             ), Pattern.compile(".*"))
         ))
     );
-    Mockito.when(cacheManager.getRoleMap()).thenReturn(roleMap);
+    Mockito.when(cacheManager.getRoles()).thenReturn(roleMap);
     Assert.assertEquals(
         Access.OK.isAllowed(),
         authorizer.authorize(

@@ -13,6 +13,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 
+import javax.annotation.Nullable;
+import java.util.Objects;
+
 public class KeycloakAuthCommonCacheConfig
 {
   private static final long DEFAULT_POLLING_PERIOD = 60000;
@@ -28,6 +31,7 @@ public class KeycloakAuthCommonCacheConfig
   private final long maxRandomDelay;
 
   @JsonProperty
+  @Nullable
   private final String cacheDirectory;
 
   @JsonProperty
@@ -42,24 +46,40 @@ public class KeycloakAuthCommonCacheConfig
   @JsonProperty
   private final long notifierUpdatePeriod;
 
+  @JsonProperty
+  private final boolean enforceNotBeforePolicies;
+
+  @JsonProperty
+  private final boolean autoPopulateAdmin;
+
+  @JsonProperty
+  @Nullable
+  private final String initialRoleMappingFile;
+
   @JsonCreator
   public KeycloakAuthCommonCacheConfig(
-      @JsonProperty("pollingPeriod") Long pollingPeriod,
-      @JsonProperty("maxRandomDelay") Long maxRandomDelay,
-      @JsonProperty("cacheDirectory") String cacheDirectory,
-      @JsonProperty("maxSyncRetries") Integer maxSyncRetries,
-      @JsonProperty("enableCacheNotifications") Boolean enableCacheNotifications,
-      @JsonProperty("cacheNotificationTimeout") Long cacheNotificationTimeout,
-      @JsonProperty("notifierUpdatePeriod") Long notifierUpdatePeriod
+      @JsonProperty("pollingPeriod") @Nullable Long pollingPeriod,
+      @JsonProperty("maxRandomDelay") @Nullable Long maxRandomDelay,
+      @JsonProperty("cacheDirectory") @Nullable String cacheDirectory,
+      @JsonProperty("maxSyncRetries") @Nullable Integer maxSyncRetries,
+      @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
+      @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
+      @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
+      @JsonProperty("enforceNotBeforePolicies") @Nullable Boolean enforceNotBeforePolicies,
+      @JsonProperty("autoPopulateAdmin") @Nullable Boolean autoPopulateAdmin,
+      @JsonProperty("initialRoleMappingFile") @Nullable String initialRoleMappingFile
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
     this.maxRandomDelay = maxRandomDelay == null ? DEFAULT_MAX_RANDOM_DELAY : maxRandomDelay;
     this.cacheDirectory = cacheDirectory;
     this.maxSyncRetries = maxSyncRetries == null ? DEFAULT_MAX_SYNC_RETRIES : maxSyncRetries;
-    this.enableCacheNotifications = enableCacheNotifications == null ? true : enableCacheNotifications;
+    this.enableCacheNotifications = enableCacheNotifications == null || enableCacheNotifications;
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
+    this.enforceNotBeforePolicies = enforceNotBeforePolicies == null || enforceNotBeforePolicies;
+    this.autoPopulateAdmin = autoPopulateAdmin == null || autoPopulateAdmin;
+    this.initialRoleMappingFile = initialRoleMappingFile;
   }
 
   @VisibleForTesting
@@ -72,7 +92,9 @@ public class KeycloakAuthCommonCacheConfig
     this.enableCacheNotifications = true;
     this.cacheNotificationTimeout = DEFAULT_CACHE_NOTIFY_TIMEOUT_MS;
     this.notifierUpdatePeriod = DEFAULT_NOTIFIER_UPDATE_PERIOD;
-
+    this.enforceNotBeforePolicies = true;
+    this.autoPopulateAdmin = true;
+    this.initialRoleMappingFile = null;
   }
 
   @JsonProperty
@@ -88,6 +110,7 @@ public class KeycloakAuthCommonCacheConfig
   }
 
   @JsonProperty
+  @Nullable
   public String getCacheDirectory()
   {
     return cacheDirectory;
@@ -111,9 +134,68 @@ public class KeycloakAuthCommonCacheConfig
     return enableCacheNotifications;
   }
 
+
   @JsonProperty
   public long getNotifierUpdatePeriod()
   {
     return notifierUpdatePeriod;
+  }
+
+  @JsonProperty
+  public boolean isEnforceNotBeforePolicies()
+  {
+    return enforceNotBeforePolicies;
+  }
+
+  @JsonProperty
+  public boolean isAutoPopulateAdmin()
+  {
+    return autoPopulateAdmin;
+  }
+
+  @JsonProperty
+  @Nullable
+  public String getInitialRoleMappingFile()
+  {
+    return initialRoleMappingFile;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    KeycloakAuthCommonCacheConfig that = (KeycloakAuthCommonCacheConfig) o;
+    return pollingPeriod == that.pollingPeriod
+           && maxRandomDelay == that.maxRandomDelay
+           && maxSyncRetries == that.maxSyncRetries
+           && enableCacheNotifications == that.enableCacheNotifications
+           && cacheNotificationTimeout == that.cacheNotificationTimeout
+           && notifierUpdatePeriod == that.notifierUpdatePeriod
+           && enforceNotBeforePolicies == that.enforceNotBeforePolicies
+           && autoPopulateAdmin == that.autoPopulateAdmin
+           && Objects.equals(initialRoleMappingFile, that.initialRoleMappingFile)
+           && Objects.equals(cacheDirectory, that.cacheDirectory);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(
+        pollingPeriod,
+        maxRandomDelay,
+        cacheDirectory,
+        maxSyncRetries,
+        enableCacheNotifications,
+        cacheNotificationTimeout,
+        notifierUpdatePeriod,
+        enforceNotBeforePolicies,
+        autoPopulateAdmin,
+        initialRoleMappingFile
+    );
   }
 }

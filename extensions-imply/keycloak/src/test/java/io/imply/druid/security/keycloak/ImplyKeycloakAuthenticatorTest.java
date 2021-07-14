@@ -11,6 +11,7 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.junit.Assert;
 import org.junit.Before;
@@ -38,7 +39,7 @@ public class ImplyKeycloakAuthenticatorTest
     this.authenticator = new ImplyKeycloakAuthenticator(
         "authenticator",
         "authorizer",
-        new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", internalConfig), userConfig)
+        new DruidKeycloakConfigResolver(new ImplyKeycloakEscalator("authorizer", internalConfig), userConfig, Mockito.mock(KeycloakAuthorizerCacheManager.class))
     );
   }
 

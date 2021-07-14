@@ -14,9 +14,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
@@ -57,7 +57,7 @@ public class ImplyKeycloakAuthorizer implements Authorizer
     }
 
     Set<String> allowedRoles = getRolesfromAuthenticationResultContext(authenticationResult);
-    Map<String, KeycloakAuthorizerRole> roleMap = cacheManager.getRoleMap();
+    Map<String, KeycloakAuthorizerRole> roleMap = cacheManager.getRoles();
     if (roleMap != null) {
       for (String role : allowedRoles) {
         KeycloakAuthorizerRole authorizerRole = roleMap.get(role);
