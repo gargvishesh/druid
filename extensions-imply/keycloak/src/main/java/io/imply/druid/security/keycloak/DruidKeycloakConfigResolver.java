@@ -9,9 +9,8 @@
 
 package io.imply.druid.security.keycloak;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
-import org.apache.druid.java.util.common.logger.Logger;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.server.security.Escalator;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.KeycloakDeployment;
@@ -20,7 +19,12 @@ import org.keycloak.adapters.spi.HttpFacade.Request;
 import org.keycloak.representations.adapters.config.AdapterConfig;
 
 /**
- * This class provides a proper configuration per-request basis.
+ * This class is a sort of state-holder that is used to fetch {@link KeycloakDeployment} information for both the
+ * external and internal (escalated) deployments. It also provides access to the {@link KeycloakAuthorizerCacheManager}
+ * which provides both 'not-before' policy information used during authentication, and Keycloak role to permission
+ * mapping which is used during authorization.
+ *
+ * This class also provides a proper configuration per-request basis, implementing {@link KeycloakConfigResolver}.
  *
  * {@link DruidKeycloakOIDCFilter} performs authentication based on the {@link KeycloakDeployment}
  * resolved by this class. As a result, this class should be able to tell whether the given request
@@ -29,18 +33,18 @@ import org.keycloak.representations.adapters.config.AdapterConfig;
  */
 public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
 {
-  private static final Logger LOG = new Logger(DruidKeycloakConfigResolver.class);
-
   static final String IMPLY_INTERNAL_REQUEST_HEADER = "X-IMPLY-INTERNAL-REQUEST";
   static final String IMPLY_INTERNAL_REQUEST_HEADER_VALUE = "IM-DRUID";
 
   private final KeycloakDeployment internalDeployment;
   private final KeycloakDeployment userDeployment;
+  private final KeycloakAuthorizerCacheManager cacheManager;
 
   @Inject
   public DruidKeycloakConfigResolver(
       Escalator escalator,
-      AdapterConfig userConfig
+      AdapterConfig userConfig,
+      KeycloakAuthorizerCacheManager cacheManager
   )
   {
     KeycloakDeployment internalDeployment = null;
@@ -51,6 +55,7 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
     
     this.internalDeployment = internalDeployment;
     this.userDeployment = KeycloakDeploymentBuilder.build(userConfig);
+    this.cacheManager = cacheManager;
   }
 
   @Override
@@ -62,14 +67,18 @@ public class DruidKeycloakConfigResolver implements KeycloakConfigResolver
            : userDeployment;
   }
 
-  @VisibleForTesting
-  KeycloakDeployment getInternalDeployment()
+  public KeycloakDeployment getInternalDeployment()
   {
     return internalDeployment;
   }
 
-  KeycloakDeployment getUserDeployment()
+  public KeycloakDeployment getUserDeployment()
   {
     return userDeployment;
+  }
+
+  public KeycloakAuthorizerCacheManager getCacheManager()
+  {
+    return cacheManager;
   }
 }

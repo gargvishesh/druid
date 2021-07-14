@@ -25,7 +25,7 @@ public class KeycloakAuthCommonCacheConfigTest
   @Test
   public void test_serde_defaults() throws IOException
   {
-    target = new KeycloakAuthCommonCacheConfig(null, null, null, null, null, null, null);
+    target = new KeycloakAuthCommonCacheConfig(null, null, null, null, null, null, null, null, null, null);
 
     Assert.assertEquals(60000L, target.getPollingPeriod());
     Assert.assertEquals(6000L, target.getMaxRandomDelay());
@@ -34,6 +34,9 @@ public class KeycloakAuthCommonCacheConfigTest
     Assert.assertTrue(target.isEnableCacheNotifications());
     Assert.assertEquals(5000L, target.getCacheNotificationTimeout());
     Assert.assertEquals(6000L, target.getNotifierUpdatePeriod());
+    Assert.assertTrue(target.isEnforceNotBeforePolicies());
+    Assert.assertTrue(target.isAutoPopulateAdmin());
+    Assert.assertNull(target.getInitialRoleMappingFile());
 
     byte[] cacheConfigBytes = objectMapper.writeValueAsBytes(target);
     KeycloakAuthCommonCacheConfig cacheConfigDeserialized = objectMapper.readValue(
@@ -50,7 +53,7 @@ public class KeycloakAuthCommonCacheConfigTest
   @Test
   public void test_serde_nonDefaults() throws IOException
   {
-    target = new KeycloakAuthCommonCacheConfig(100L, 200L, "/tmp/cache", 5, false, 1000L, 2000L);
+    target = new KeycloakAuthCommonCacheConfig(100L, 200L, "/tmp/cache", 5, false, 1000L, 2000L, false, false, "foo.json");
 
     Assert.assertEquals(100L, target.getPollingPeriod());
     Assert.assertEquals(200L, target.getMaxRandomDelay());
@@ -66,9 +69,6 @@ public class KeycloakAuthCommonCacheConfigTest
         KeycloakAuthCommonCacheConfig.class
     );
 
-    Assert.assertEquals(target.getPollingPeriod(), cacheConfigDeserialized.getPollingPeriod());
-    Assert.assertEquals(target.getMaxRandomDelay(), cacheConfigDeserialized.getMaxRandomDelay());
-    Assert.assertEquals(target.getCacheDirectory(), cacheConfigDeserialized.getCacheDirectory());
-    Assert.assertEquals(target.getMaxSyncRetries(), cacheConfigDeserialized.getMaxSyncRetries());
+    Assert.assertEquals(target, cacheConfigDeserialized);
   }
 }

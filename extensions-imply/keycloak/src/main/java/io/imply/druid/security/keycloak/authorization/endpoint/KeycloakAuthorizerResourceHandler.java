@@ -36,7 +36,11 @@ public interface KeycloakAuthorizerResourceHandler
   // non-coordinator methods
   Response authorizerRoleUpdateListener(byte[] serializedRoleMap);
 
+  Response authorizerNotBeforeUpdateListener(byte[] serializedRoleMap);
+
   Response refreshAll();
 
   Response getCachedRoleMaps();
+
+  Response getCachedNotBeforeMaps();
 }

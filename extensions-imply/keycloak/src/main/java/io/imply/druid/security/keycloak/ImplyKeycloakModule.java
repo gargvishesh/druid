@@ -17,19 +17,19 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
-import io.imply.druid.security.keycloak.authorization.db.cache.CoordinatorKeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.cache.CoordinatorPollingKeycloakAuthorizerCacheManager;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheManager;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.cache.MetadataStoragePollingKeycloakAuthorizerCacheManager;
-import io.imply.druid.security.keycloak.authorization.db.cache.NoopKeycloakAuthorizerCacheNotifier;
-import io.imply.druid.security.keycloak.authorization.db.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
-import io.imply.druid.security.keycloak.authorization.db.updater.KeycloakAuthorizerMetadataStorageUpdater;
-import io.imply.druid.security.keycloak.authorization.db.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResource;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
+import io.imply.druid.security.keycloak.authorization.state.cache.CoordinatorKeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.cache.CoordinatorPollingKeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
+import io.imply.druid.security.keycloak.authorization.state.notifier.CoordinatorKeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.notifier.KeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.notifier.NoopKeycloakAuthorizerCacheNotifier;
+import io.imply.druid.security.keycloak.authorization.state.updater.CoordinatorKeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.state.updater.KeycloakAuthorizerMetadataStorageUpdater;
+import io.imply.druid.security.keycloak.authorization.state.updater.NoopKeycloakAuthorizerMetadataStorageUpdater;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
@@ -137,7 +137,7 @@ public class ImplyKeycloakModule implements DruidModule
   private static Class<? extends KeycloakAuthorizerCacheManager> getCacheManagerClassForService(Set<NodeRole> nodeRoles)
   {
     if (isCoordinatorRole(nodeRoles)) {
-      return MetadataStoragePollingKeycloakAuthorizerCacheManager.class;
+      return CoordinatorKeycloakAuthorizerCacheManager.class;
     } else {
       return CoordinatorPollingKeycloakAuthorizerCacheManager.class;
     }

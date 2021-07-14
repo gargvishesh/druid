@@ -9,6 +9,7 @@
 
 package io.imply.druid.security.keycloak;
 
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Escalator;
@@ -33,7 +34,8 @@ public class DruidKeycloakConfigResolverTest
     userConfig.setAuthServerUrl("http://user-auth");
     final DruidKeycloakConfigResolver resolver = new DruidKeycloakConfigResolver(
         new ImplyKeycloakEscalator("authorizer", internalConfig),
-        userConfig
+        userConfig,
+        Mockito.mock(KeycloakAuthorizerCacheManager.class)
     );
     final Request request = Mockito.mock(Request.class);
     Mockito.when(request.getHeader(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER))
@@ -68,7 +70,8 @@ public class DruidKeycloakConfigResolverTest
             return null;
           }
         },
-        userConfig
+        userConfig,
+        Mockito.mock(KeycloakAuthorizerCacheManager.class)
     );
     final Request request = Mockito.mock(Request.class);
     Mockito.when(request.getHeader(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER))
@@ -99,7 +102,8 @@ public class DruidKeycloakConfigResolverTest
             return null;
           }
         },
-        userConfig
+        userConfig,
+        Mockito.mock(KeycloakAuthorizerCacheManager.class)
     );
     final Request request = Mockito.mock(Request.class);
     Mockito.when(request.getHeader(DruidKeycloakConfigResolver.IMPLY_INTERNAL_REQUEST_HEADER))

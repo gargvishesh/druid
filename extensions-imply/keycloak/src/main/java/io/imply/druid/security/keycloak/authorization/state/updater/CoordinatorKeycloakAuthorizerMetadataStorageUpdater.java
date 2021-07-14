@@ -7,9 +7,10 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.security.keycloak.authorization.db.updater;
+package io.imply.druid.security.keycloak.authorization.state.updater;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -21,12 +22,13 @@ import io.imply.druid.security.keycloak.ImplyKeycloakAuthorizer;
 import io.imply.druid.security.keycloak.KeycloakAuthCommonCacheConfig;
 import io.imply.druid.security.keycloak.KeycloakAuthUtils;
 import io.imply.druid.security.keycloak.KeycloakSecurityDBResourceException;
-import io.imply.druid.security.keycloak.authorization.db.cache.KeycloakAuthorizerCacheNotifier;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRole;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleMapBundle;
+import io.imply.druid.security.keycloak.authorization.state.notifier.KeycloakAuthorizerCacheNotifier;
 import org.apache.druid.concurrent.LifecycleLock;
 import org.apache.druid.guice.ManageLifecycle;
+import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -48,6 +50,8 @@ import org.joda.time.Duration;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,11 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   private static final EmittingLogger LOG =
       new EmittingLogger(CoordinatorKeycloakAuthorizerMetadataStorageUpdater.class);
 
+  private static final TypeReference<Map<String, List<ResourceAction>>> AUTO_POPULATE_FILE_TYPE_REFERENCE =
+      new TypeReference<Map<String, List<ResourceAction>>>()
+      {
+      };
+
   private static final long UPDATE_RETRY_DELAY = 1000;
 
   private static final String ROLES = "roles";
@@ -71,7 +80,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   private final MetadataStorageConnector connector;
   private final MetadataStorageTablesConfig connectorConfig;
   private final KeycloakAuthorizerCacheNotifier cacheNotifier;
-  private final ObjectMapper objectMapper;
+  private final ObjectMapper smileMapper;
+  private final ObjectMapper jsonMapper;
   private volatile KeycloakAuthorizerRoleMapBundle roleMapBundle;
   private final KeycloakAuthCommonCacheConfig commonCacheConfig;
 
@@ -87,7 +97,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
       Injector injector,
       MetadataStorageConnector connector,
       MetadataStorageTablesConfig connectorConfig,
-      @Smile ObjectMapper objectMapper,
+      @Smile ObjectMapper smileMapper,
+      @Json ObjectMapper jsonMapper,
       KeycloakAuthorizerCacheNotifier cacheNotifier,
       KeycloakAuthCommonCacheConfig commonCacheConfig
   )
@@ -96,12 +107,13 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     this.injector = injector;
     this.connector = connector;
     this.connectorConfig = connectorConfig;
-    this.objectMapper = objectMapper;
+    this.smileMapper = smileMapper;
+    this.jsonMapper = jsonMapper;
     this.cacheNotifier = cacheNotifier;
     this.commonCacheConfig = commonCacheConfig;
     this.roleMapBundle = null;
     if (commonCacheConfig.isEnableCacheNotifications()) {
-      this.cacheNotifier.setUpdateSource(
+      this.cacheNotifier.setRoleUpdateSource(
           () -> roleMapSerialized
       );
     }
@@ -114,7 +126,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     this.injector = null;
     this.connector = null;
     this.connectorConfig = null;
-    this.objectMapper = null;
+    this.smileMapper = null;
+    this.jsonMapper = null;
     this.cacheNotifier = null;
     this.commonCacheConfig = null;
     this.roleMapBundle = null;
@@ -133,6 +146,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
     }
 
     try {
+      // config table must exist, else this is going to be sad
+      connector.createConfigTable();
       LOG.info("Starting CoordinatorKeycloakAuthorizerMetadataStorageUpdater");
       KeycloakAuthUtils.maybeInitialize(
           () -> {
@@ -141,7 +156,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
               if (authorizer instanceof ImplyKeycloakAuthorizer) {
                 byte[] roleMapBytes = getCurrentRoleMapBytes();
                 Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
-                    objectMapper,
+                    smileMapper,
                     roleMapBytes
                 );
                 synchronized (this) {
@@ -167,7 +182,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
               LOG.debug("Scheduled db poll is running");
               byte[] roleMapBytes = getCurrentRoleMapBytes();
               Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
-                  objectMapper,
+                  smileMapper,
                   roleMapBytes
               );
               if (roleMapBytes != null) {
@@ -271,13 +286,13 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   private boolean createRoleOnce(String roleName)
   {
     byte[] oldValue = getCurrentRoleMapBytes();
-    Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(objectMapper, oldValue);
+    Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(smileMapper, oldValue);
     if (roleMap.get(roleName) != null) {
       throw new KeycloakSecurityDBResourceException("Role [%s] already exists.", roleName);
     } else {
       roleMap.put(roleName, new KeycloakAuthorizerRole(roleName, null));
     }
-    byte[] newValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(objectMapper, roleMap);
+    byte[] newValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(smileMapper, roleMap);
     return tryUpdateRoleMap(roleMap, oldValue, newValue);
   }
 
@@ -304,7 +319,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   {
     byte[] oldRoleMapValue = getCurrentRoleMapBytes();
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
-        objectMapper,
+        smileMapper,
         oldRoleMapValue
     );
     if (roleMap.get(roleName) == null) {
@@ -313,7 +328,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
       roleMap.remove(roleName);
     }
 
-    byte[] newRoleMapValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(objectMapper, roleMap);
+    byte[] newRoleMapValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(smileMapper, roleMap);
 
     return tryUpdateRoleMap(
         roleMap,
@@ -377,7 +392,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   {
     byte[] oldRoleMapValue = getCurrentRoleMapBytes();
     Map<String, KeycloakAuthorizerRole> roleMap = KeycloakAuthUtils.deserializeAuthorizerRoleMap(
-        objectMapper,
+        smileMapper,
         oldRoleMapValue
     );
     if (roleMap.get(roleName) == null) {
@@ -387,7 +402,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
         roleName,
         new KeycloakAuthorizerRole(roleName, KeycloakAuthorizerPermission.makePermissionList(permissions))
     );
-    byte[] newRoleMapValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(objectMapper, roleMap);
+    byte[] newRoleMapValue = KeycloakAuthUtils.serializeAuthorizerRoleMap(smileMapper, roleMap);
 
     return tryUpdateRoleMap(roleMap, oldRoleMapValue, newRoleMapValue);
   }
@@ -411,9 +426,47 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
   private void initAdminRoleAndPermissions(Map<String, KeycloakAuthorizerRole> roleMap)
   {
-    if (!roleMap.containsKey(KeycloakAuthUtils.ADMIN_NAME)) {
-      createRoleInternal(KeycloakAuthUtils.ADMIN_NAME);
-      setPermissionsInternal(KeycloakAuthUtils.ADMIN_NAME, SUPERUSER_PERMISSIONS);
+    if (commonCacheConfig.isAutoPopulateAdmin()) {
+      if (commonCacheConfig.getInitialRoleMappingFile() != null) {
+        initializeFromFile(roleMap);
+      } else if (!roleMap.containsKey(KeycloakAuthUtils.ADMIN_NAME)) {
+        // built-in
+        createRoleInternal(KeycloakAuthUtils.ADMIN_NAME);
+        setPermissionsInternal(KeycloakAuthUtils.ADMIN_NAME, SUPERUSER_PERMISSIONS);
+      }
+    }
+  }
+
+  private void initializeFromFile(Map<String, KeycloakAuthorizerRole> roleMap)
+  {
+    // since this is only called by initAdminRoleAndPermissions we can use assert here instead of Preconditions
+    assert commonCacheConfig.getInitialRoleMappingFile() != null;
+    File mappingFile = new File(commonCacheConfig.getInitialRoleMappingFile());
+    if (!mappingFile.exists()) {
+      LOG.warn("Skipping auto-populate, role to permission map file [%s] does not exist", mappingFile.getAbsolutePath());
+      return;
+    }
+    try {
+      Map<String, List<ResourceAction>> fromDisk = jsonMapper.readValue(
+          mappingFile,
+          AUTO_POPULATE_FILE_TYPE_REFERENCE
+      );
+      for (Map.Entry<String, List<ResourceAction>> roleEntry : fromDisk.entrySet()) {
+        if (!roleMap.containsKey(roleEntry.getKey())) {
+          createRoleInternal(roleEntry.getKey());
+          setPermissionsInternal(
+              roleEntry.getKey(),
+              roleEntry.getValue()
+          );
+        }
+      }
+    }
+    catch (IOException e) {
+      LOG.error(
+          e,
+          "Failed to auto-populate role to permission mappings from file [%s]",
+          mappingFile.getAbsolutePath()
+      );
     }
   }
 
@@ -424,8 +477,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   private void serializeCache()
   {
     try {
-      roleMapSerialized = objectMapper.writeValueAsBytes(getCachedRoleMap());
-      cacheNotifier.scheduleUpdate();
+      roleMapSerialized = smileMapper.writeValueAsBytes(getCachedRoleMap());
+      cacheNotifier.scheduleRoleUpdate();
     }
     catch (JsonProcessingException e) {
       throw new ISE(e, "Failed to JSON-Smile serialize cached view definitions");

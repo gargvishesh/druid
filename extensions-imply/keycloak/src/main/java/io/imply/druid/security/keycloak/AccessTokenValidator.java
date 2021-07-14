@@ -19,6 +19,7 @@ import org.keycloak.adapters.rotation.AdapterTokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.representations.AccessToken;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -52,6 +53,7 @@ public class AccessTokenValidator
    * @param deployment The keycloak deployment to use when validating the token.
    * @return If the token is authentic, a {@link AuthenticationResult} is returned. If the token is not authentic,  null is returned.
    */
+  @Nullable
   protected AuthenticationResult authenticateToken(String tokenString, KeycloakDeployment deployment)
   {
     AccessToken token;
@@ -72,16 +74,32 @@ public class AccessTokenValidator
    * @param deployment The keycloak deployment to use when validating the token.
    * @return If the token is authentic, a {@link AuthenticationResult} is returned. If the token is not authentic,  null is returned.
    */
+  @Nullable
   protected AuthenticationResult authenticateToken(
       AccessToken token,
       KeycloakDeployment deployment
   )
   {
-    if (token.getIat() < deployment.getNotBefore()) {
-      LOG.debug("Stale token");
-      return null;
+    if (configResolver.getCacheManager().validateNotBeforePolicies()) {
+      if (configResolver.getCacheManager() == null || configResolver.getCacheManager().getNotBefore() == null) {
+        LOG.warn("Authentication failed, 'not-before' policies are unavailable, cannot authenticate");
+        return null;
+      }
+      Integer notBefore = configResolver.getCacheManager().getNotBefore().get(token.getIssuedFor());
+      if (notBefore != null && token.getIat() < notBefore) {
+        LOG.warn(
+            "Authentication failed, token for %s issued at %s but must be issued after %s",
+            token.getIssuedFor(),
+            token.getIat(),
+            notBefore
+        );
+        return null;
+      } else if (notBefore == null) {
+        LOG.warn("Authentication failed, unable to find token 'not-before' policy for %s", token.getIssuedFor());
+        return null;
+      }
     }
-    LOG.debug("successful authorized");
+    LOG.debug("successfully authenticated token, extracting role information");
 
     Map<String, Object> authContext;
     // always use the base client roles, because the escalated service account assumes roles under the client id

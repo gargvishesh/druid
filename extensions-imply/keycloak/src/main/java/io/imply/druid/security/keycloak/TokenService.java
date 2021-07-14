@@ -9,15 +9,20 @@
 
 package io.imply.druid.security.keycloak;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.authentication.ClientCredentialsProviderUtils;
@@ -32,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A simple service that handles HTTP requests to grant or refresh tokens.
@@ -39,6 +45,7 @@ import java.util.Map;
  */
 public class TokenService
 {
+  private static final Logger LOG = new Logger(TokenService.class);
   private final KeycloakDeployment deployment;
   private final Map<String, String> reqHeaders;
   private final Map<String, String> reqParams;
@@ -61,6 +68,43 @@ public class TokenService
   public AccessTokenResponse refreshToken(String refreshToken)
   {
     return requestToken(refreshToken);
+  }
+
+  public ClientTokenNotBeforeResponse getClientNotBefore()
+  {
+    final HttpClient client = deployment.getClient();
+    final String url = StringUtils.format(
+        "%s/realms/%s/not-before-policies",
+        deployment.getAuthServerBaseUrl(),
+        deployment.getRealm()
+    );
+    try {
+      HttpGet req = new HttpGet(url);
+      req.setHeader(
+          HttpHeaders.Names.AUTHORIZATION,
+          KeycloakedHttpClient.BEARER + requestToken(null).getToken()
+      );
+
+      HttpResponse response = client.execute(req);
+      int status = response.getStatusLine().getStatusCode();
+      HttpEntity entity = response.getEntity();
+      if (status != 200) {
+        String json = getContent(entity);
+        String error = "Service token grant failed. Bad status: " + status + " response: " + json;
+        if (status == 400) {
+          throw new KeycloakSecurityBadRequestException(error);
+        }
+        throw new RuntimeException(error);
+      } else if (entity == null) {
+        throw new RuntimeException("No entity");
+      } else {
+        String json = getContent(entity);
+        return JsonSerialization.readValue(json, ClientTokenNotBeforeResponse.class);
+      }
+    }
+    catch (IOException e) {
+      throw new RE(e, "Service token grant failed. IOException occured. See server.log for details.");
+    }
   }
 
   private AccessTokenResponse requestToken(@Nullable String refreshToken)
@@ -125,5 +169,51 @@ public class TokenService
     }
     InputStream is = entity.getContent();
     return StreamUtil.readString(is, StringUtils.UTF8_CHARSET);
+  }
+
+  public static class ClientTokenNotBeforeResponse
+  {
+    private final Map<String, Integer> notBeforePolicies;
+
+    @JsonCreator
+    public ClientTokenNotBeforeResponse(
+        @JsonProperty("notBeforePolicies") Map<String, Integer> notBeforePolicies
+    )
+    {
+      this.notBeforePolicies = notBeforePolicies;
+    }
+
+    @JsonProperty("notBeforePolicies")
+    public Map<String, Integer> getNotBeforePolicies()
+    {
+      return notBeforePolicies;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ClientTokenNotBeforeResponse that = (ClientTokenNotBeforeResponse) o;
+      return Objects.equals(notBeforePolicies, that.notBeforePolicies);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(notBeforePolicies);
+    }
+
+    @Override
+    public String toString()
+    {
+      return "ClientTokenNotBeforeResponse{" +
+             "notBeforePolicies=" + notBeforePolicies +
+             '}';
+    }
   }
 }

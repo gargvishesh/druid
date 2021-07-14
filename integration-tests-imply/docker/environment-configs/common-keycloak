@@ -34,15 +34,31 @@ druid_auth_authorizer_basic_type=basic
 druid_auth_authorizers=["ImplyKeycloakAuthorizer", "basic"]
 
 # many of the keycloak options live in druid.sh
+
+# common keycloak
+# delete this once keycloak server includes imply custom 'not-before' policies extension
+druid_auth_keycloak_common_enforceNotBeforePolicies=false
+
+# external client
 druid_keycloak_realm=druid
 druid_keycloak_resource=some-druid-cluster
+# set in druid.sh (script doesnt like '-')
+#druid_keycloak_auth-server-url=http://imply-keycloak:8080/auth
+#druid_keycloak_bearer-only=true
+#druid_keycloak_ssl-required=NONE
+#druid_keycloak_verify-token-audience=true
+#druid_keycloak_use-resource-role-mappings=true
 
 # Internal communications
 druid_escalator_type=imply-keycloak
 druid_escalator_authorizerName=ImplyKeycloakAuthorizer
-
 druid_escalator_keycloak_realm=druid
 druid_escalator_keycloak_resource=some-druid-cluster-internal
+# set in druid.sh (script doesnt like '-')
+#druid_escalator_keycloak_auth-server-url=http://imply-keycloak:8080/auth
+#druid_escalator_keycloak_ssl-required=NONE
+#druid_escalator_keycloak_credentials={"secret" : "secret"}
+#druid_escalator_keycloak_verify-token-audience=true
 
 druid_client_https_certAlias=druid
 druid_client_https_keyManagerPassword=druid123

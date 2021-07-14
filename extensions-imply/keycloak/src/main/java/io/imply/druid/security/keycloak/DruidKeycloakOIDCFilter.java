@@ -144,7 +144,7 @@ public class DruidKeycloakOIDCFilter implements Filter
     OIDCServletHttpFacade facade = new OIDCServletHttpFacade(request, response);
     KeycloakDeployment deployment = deploymentContext.resolveDeployment(facade);
     if (deployment == null || !deployment.isConfigured()) {
-      response.sendError(403);
+      response.sendError(HttpServletResponse.SC_FORBIDDEN);
       LOG.warn("deployment not configured");
       return;
     }
@@ -179,6 +179,10 @@ public class DruidKeycloakOIDCFilter implements Filter
         final AccessToken token = getAccessToken(request);
         if (token != null) {
           final AuthenticationResult authenticationResult = tokenValidator.authenticateToken(token, deployment);
+          if (authenticationResult == null) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+          }
           wrapper.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
         }
         // ------- new part end -------
@@ -192,7 +196,7 @@ public class DruidKeycloakOIDCFilter implements Filter
       challenge.challenge(facade);
       return;
     }
-    response.sendError(403);
+    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
   }
 
   @VisibleForTesting

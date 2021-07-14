@@ -11,6 +11,7 @@ package io.imply.druid.security.keycloak;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.junit.Assert;
 import org.junit.Before;
@@ -20,6 +21,7 @@ import org.keycloak.common.VerificationException;
 import org.keycloak.representations.AccessToken;
 import org.mockito.Mockito;
 
+import java.util.Map;
 import java.util.Set;
 
 public class AccessTokenValidatorTest
@@ -29,10 +31,13 @@ public class AccessTokenValidatorTest
   private static final String USER1 = "user1";
   private static final String CLIENT_ID = "clusterId";
   private static final String ESCALATED_CLIENT_ID = "clusterId-internal";
+  private static final String ISSUE_FOR = "clientId";
+  private static final Map<String, Integer> NOT_BEFORE = ImmutableMap.of(ISSUE_FOR, 1);
 
   private KeycloakDeployment deployment;
   private KeycloakDeployment escalatedDeployment;
   private DruidKeycloakConfigResolver configResolver;
+  private KeycloakAuthorizerCacheManager cacheManager;
   private AccessTokenValidator validator;
 
   @Before
@@ -41,12 +46,14 @@ public class AccessTokenValidatorTest
     configResolver = Mockito.mock(DruidKeycloakConfigResolver.class);
     deployment = Mockito.mock(KeycloakDeployment.class);
     escalatedDeployment = Mockito.mock(KeycloakDeployment.class);
+    cacheManager = Mockito.mock(KeycloakAuthorizerCacheManager.class);
     Mockito.when(configResolver.getUserDeployment()).thenReturn(deployment);
     Mockito.when(configResolver.getInternalDeployment()).thenReturn(escalatedDeployment);
+    Mockito.when(configResolver.getCacheManager()).thenReturn(cacheManager);
     Mockito.when(deployment.getResourceName()).thenReturn(CLIENT_ID);
-    Mockito.when(deployment.getNotBefore()).thenReturn(1);
     Mockito.when(escalatedDeployment.getResourceName()).thenReturn(ESCALATED_CLIENT_ID);
-    Mockito.when(escalatedDeployment.getNotBefore()).thenReturn(1);
+    Mockito.when(cacheManager.getNotBefore()).thenReturn(NOT_BEFORE);
+    Mockito.when(cacheManager.validateNotBeforePolicies()).thenReturn(true);
     validator = Mockito.spy(new AccessTokenValidator(AUTHENTICATOR_NAME, AUTHORIZER_NAME, configResolver));
   }
 
@@ -60,11 +67,33 @@ public class AccessTokenValidatorTest
   }
 
   @Test
+  public void test_authenticateToken_tokenIssueTimeBeforeNotBeforeCacheUnavailable_returnsNull() throws VerificationException
+  {
+    AccessToken accessToken = Mockito.mock(AccessToken.class);
+    Mockito.when(accessToken.getIat()).thenReturn(0L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
+    Mockito.when(cacheManager.getNotBefore()).thenReturn(null);
+    Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
+    Assert.assertNull(validator.authenticateToken("token", deployment));
+  }
+
+  @Test
+  public void test_authenticateToken_tokenIssueTimeBeforeNotBeforeUnknownIssueFor_returnsNull() throws VerificationException
+  {
+    AccessToken accessToken = Mockito.mock(AccessToken.class);
+    Mockito.when(accessToken.getIat()).thenReturn(0L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn("unknown-client");
+    Mockito.when(cacheManager.getNotBefore()).thenReturn(NOT_BEFORE);
+    Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
+    Assert.assertNull(validator.authenticateToken("token", deployment));
+  }
+
+  @Test
   public void test_authenticateToken_tokenIssueTimeBeforeNotBefore_returnsNull() throws VerificationException
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(0L);
-    Mockito.when(deployment.getNotBefore()).thenReturn(1);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
     Assert.assertNull(validator.authenticateToken("token", deployment));
   }
@@ -74,6 +103,7 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
     Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(null);
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
@@ -92,6 +122,7 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
     Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(null);
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
@@ -110,6 +141,7 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
     Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access());
     Mockito.doReturn(accessToken).when(validator).verifyToken("token", deployment);
@@ -128,6 +160,7 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
     Set<String> roles = ImmutableSet.of("role1", "role2");
     Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access().roles(roles));
@@ -147,6 +180,7 @@ public class AccessTokenValidatorTest
   {
     AccessToken accessToken = Mockito.mock(AccessToken.class);
     Mockito.when(accessToken.getIat()).thenReturn(2L);
+    Mockito.when(accessToken.getIssuedFor()).thenReturn(ISSUE_FOR);
     Mockito.when(accessToken.getPreferredUsername()).thenReturn(USER1);
     Set<String> roles = ImmutableSet.of("role1", "role2");
     Mockito.when(accessToken.getResourceAccess(CLIENT_ID)).thenReturn(new AccessToken.Access().roles(roles));
