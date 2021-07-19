@@ -553,7 +553,7 @@ pipeline {
             }
         }
 
-        stage('Unit tests and checks - Phase 1') {
+        stage('Tests - phase 1') {
             when {
                 expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS }
                 beforeAgent true
@@ -816,7 +816,7 @@ pipeline {
                     }
                 }
 
-                stage('web-console') {
+                stage('web console') {
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -841,6 +841,40 @@ pipeline {
                                 { for i in 1 2 3; do npm run codecov && break || sleep 15; done }
                             '''
                         }
+                    }
+                }
+
+                stage('web-console end-to-end test') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${DOCKER_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+                        }
+                    }
+                    steps {
+                        setupMavenSettings()
+                        sh script: '''
+                                web-console/script/druid build
+                                echo 'Starting nvm install...'
+                                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+                                [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
+                                apt install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \\
+                                libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libgtk-3-0 \\
+                                libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libasound2 libatspi2.0-0 gconf-service  \\
+                                libpangocairo-1.0-0 libgconf-2-4 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxext6 libxi6 \\
+                                libxrender1 libxss1 libxtst6 fonts-liberation libappindicator1  xdg-utils 
+                                nvm install 10.24.0
+                                npm i -D playwright
+                                web-console/script/druid start
+                                cd web-console && npm run test-e2e
+                            '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
                     }
                 }
 
@@ -960,640 +994,628 @@ pipeline {
             }
         }
 
-        stage('Unit tests and checks - Phase 2') {
-            when {
-                expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS }
-                beforeAgent true
-            }
-            environment {
-                DOCKER_AGENT_ARGS = "-u root:root"
-            }
-            parallel {
-                stage('(openjdk11) packaging check') {
-                    agent {
-                        docker {
-                            image "${IMAGE_JDK11}-${DOCKER_TAG}"
-                            args "${DOCKER_AGENT_ARGS}"
-                            registryUrl "${RT_REGISTRY_URL}"
-                            registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+        stage('Tests - phase 2') {
+                when {
+                    expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS }
+                    beforeAgent true
+                }
+                environment {
+                    DOCKER_AGENT_ARGS = "-u root:root"
+                }
+                parallel {
+                    stage('(openjdk11) packaging check') {
+                        agent {
+                            docker {
+                                image "${IMAGE_JDK11}-${DOCKER_TAG}"
+                                args "${DOCKER_AGENT_ARGS}"
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
+                                label "${DOCKER_AGENT_LABEL}-multi-exec"
+                            }
+                        }
+                        environment {
+                            MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+                        }
+                        steps {
+                            setupMavenSettings()
+                            sh script: '''
+                                MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
+                                    -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
+                            '''
+                        }
+                        post {
+                            always { buildArtifacts(env.STAGE_NAME) }
+                            cleanup { resetWs() }
                         }
                     }
-                    environment {
-                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
-                    }
-                    steps {
-                        setupMavenSettings()
-                        sh script:'''
-                            MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
-                        '''
-                    }
-                    post {
-                        always { buildArtifacts(env.STAGE_NAME) }
-                        cleanup { resetWs() }
-                    }
-                }
 
-                stage('(openjdk15) packaging check') {
-                    agent {
-                        docker {
-                            image "${IMAGE_JDK15}-${DOCKER_TAG}"
-                            args "${DOCKER_AGENT_ARGS}"
-                            registryUrl "${RT_REGISTRY_URL}"
-                            registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+                    stage('(openjdk15) packaging check') {
+                        agent {
+                            docker {
+                                image "${IMAGE_JDK15}-${DOCKER_TAG}"
+                                args "${DOCKER_AGENT_ARGS}"
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
+                                label "${DOCKER_AGENT_LABEL}-multi-exec"
+                            }
+                        }
+                        environment {
+                            MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+                        }
+                        steps {
+                            setupMavenSettings()
+                            sh script: '''
+                                MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
+                                    -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
+                            '''
+                        }
+                        post {
+                            always { buildArtifacts(env.STAGE_NAME) }
+                            cleanup { resetWs() }
                         }
                     }
-                    environment {
-                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
-                    }
-                    steps {
-                        setupMavenSettings()
-                        sh script:'''
-                            MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
-                        '''
-                    }
-                    post {
-                        always { buildArtifacts(env.STAGE_NAME) }
-                        cleanup { resetWs() }
-                    }
-                }
 
-                stage('web-console end-to-end test') {
-                    agent {
-                        docker {
-                            image "${IMAGE_JDK8}-${DOCKER_TAG}"
-                            args "${DOCKER_AGENT_ARGS}"
-                            registryUrl "${RT_REGISTRY_URL}"
-                            registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+                    stage('(openjdk11) processing module test') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "processing"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) processing module test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "processing"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) processing module test') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "processing"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) processing module test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "processing"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) indexing modules test') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) indexing modules test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) indexing modules test') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) indexing modules test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) server module test') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "server"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) server module test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "server"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) server module test') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "server"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) server module test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "server"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) other modules test') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk11) other modules test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) other modules test') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage('(openjdk15) other modules test (SQL Compatibility)') {
+                        agent { docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
+                            DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
+                        }
+                        steps { processingModuleTest() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    // example of integration tests stage:
+                    stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                        agent {
+                            docker {
+                                image "${IMAGE_JDK8}-${DOCKER_TAG}"
+                                args "${DOCKER_AGENT_ARGS}"
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
+                                label "${DOCKER_AGENT_LABEL}"
+                            }
+                        }
+                        steps {
+                            // integration tests here:
+                            // jvm runtime is specified here:
+                            implyQueryIntegrationTests('-Djvm.runtime=8')
+                        }
+                        post {
+                            // collect artifacts (docker logs and task logs):
+                            always { buildArtifacts(env.STAGE_NAME) }
+                            // clean untracked files from cloned repo:
+                            cleanup { resetWs() }
                         }
                     }
-                    steps {
-                        setupMavenSettings()
-                        sh script:'''
-                            web-console/script/druid build
-                            echo 'Starting nvm install...'
-                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-                            [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
-                            apt install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \\
-                            libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libgtk-3-0 \\
-                            libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libasound2 libatspi2.0-0 gconf-service  \\
-                            libpangocairo-1.0-0 libgconf-2-4 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxext6 libxi6 \\
-                            libxrender1 libxss1 libxtst6 fonts-liberation libappindicator1  xdg-utils 
-                            nvm install 10.24.0
-                            npm i -D playwright
-                            web-console/script/druid start
-                            cd web-console && npm run test-e2e
-                        '''
-                    }
-                    post {
-                        always { buildArtifacts(env.STAGE_NAME) }
-                        cleanup { resetWs() }
-                    }
-                }
 
-                stage('(openjdk11) processing module test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    // here is short format of integration tests stage:
+                    stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) processing module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    // here is short format of integration tests stage:
+                    stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) processing module test') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { s3DeepStorageTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) processing module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { azureDeepStorageTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) indexing modules test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage('(Compile=openjdk8, Run=openjdk8) hdfs deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { hdfsDeepStorageTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) indexing modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { gcsDeepStorageTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) indexing modules test') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) indexing modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    // -Djvm.runtime=11
+
+                    stage("(Compile=openjdk8, Run=openjdk11) query integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=11';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) server module test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="server"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage("(Compile=openjdk8, Run=openjdk11) query integration test (mariaDB)") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=11';
+                            USE_INDEXER = 'middleManager'; MYSQL_DRIVER_CLASSNAME = 'org.mariadb.jdbc.Driver'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) server module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="server"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) server module test') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="server"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage("(Compile=openjdk8, Run=openjdk11) query error integration test for missing segments") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query-error'; JVM_RUNTIME = '-Djvm.runtime=11';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) server module test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="server"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) other modules test') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage('(Compile=openjdk8, Run=openjdk11) imply keycloak security integration tests') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk11) other modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { s3DeepStorageTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) other modules test') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
+                    stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { azureDeepStorageTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
 
-                stage('(openjdk15) other modules test (SQL Compatibility)') {
-                    agent {docker { image "${IMAGE_JDK15}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
-                    environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
+                    stage('(Compile=openjdk8, Run=openjdk11) hdfs deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { hdfsDeepStorageTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { processingModuleTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-            }
-        }
 
-        stage('Integration tests') {
-            when {
-                expression { !params.SKIP_JENKINS_INTEGRATION_TESTS && !params.SKIP_ALL_JENKINS_TESTS }
-                beforeAgent true
-            }
-            environment {
-                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
-            }
-            parallel {
-                // example of integration tests stage:
-                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-                    agent {
-                        docker {
-                            image "${IMAGE_JDK8}-${DOCKER_TAG}"
-                            args "${DOCKER_AGENT_ARGS}"
-                            registryUrl "${RT_REGISTRY_URL}"
-                            registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}"
+                    stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test') {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        steps { gcsDeepStorageTests('-Djvm.runtime=11') }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    // core integration tests
+
+                    stage("(Compile=openjdk8, Run=openjdk8) batch index integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=batch-index'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) batch index integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=batch-index'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) input format integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=input-format'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) input format integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=input-format'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) input source integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=input-source'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) input source integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=input-source'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) perfect rollup parallel batch index integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=perfect-rollup-parallel-batch-index';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) perfect rollup parallel batch index integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=perfect-rollup-parallel-batch-index';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-index'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) kafka index, transactional kafka index integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-index,kafka-transactional-index';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test slow") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-index-slow'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test slow with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-index-slow'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-transactional-index';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test slow") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-transactional-index-slow';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test slow with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-transactional-index-slow';
+                            JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) Kafka index integration test with various formats") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-data-format'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) Kafka index integration test with various formats with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=kafka-data-format'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) query integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) query integration test (mariaDB)") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; MYSQL_DRIVER_CLASSNAME = 'org.mariadb.jdbc.Driver'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) query error integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query-error'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) query retry integration test for missing segments") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=query-retry'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) security integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=security'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) ldap security integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=ldap-security'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) realtime index integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=realtime-index'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) append ingestion integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=append-ingestion'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) append ingestion integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=append-ingestion'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) compaction integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=compaction'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) compaction integration test with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=compaction'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'indexer'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                    }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) other integration tests") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            TESTNG_GROUPS = '-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
+                            JVM_RUNTIME = '-Djvm.runtime=8'
+                            USE_INDEXER = 'middleManager'
                         }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps {
-                        // integration tests here:
-                        // jvm runtime is specified here:
-                        implyQueryIntegrationTests('-Djvm.runtime=8')
+
+                    stage("(Compile=openjdk8, Run=openjdk8) other integration tests with Indexer") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment {
+                            TESTNG_GROUPS = '-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
+                            JVM_RUNTIME = '-Djvm.runtime=8'
+                            USE_INDEXER = 'indexer'
+                        }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    post {
-                        // collect artifacts (docker logs and task logs):
-                        always { buildArtifacts(env.STAGE_NAME) }
-                        // clean untracked files from cloned repo:
-                        cleanup { resetWs() }
+
+                    stage("(Compile=openjdk8, Run=openjdk8) leadership and high availability integration tests") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=high-availability'; JVM_RUNTIME = '-Djvm.runtime=8';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                }
 
-                // here is short format of integration tests stage:
-                stage('(Compile=openjdk8, Run=openjdk8) imply ingest service integration tests') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                // here is short format of integration tests stage:
-                stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { s3DeepStorageTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { azureDeepStorageTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) hdfs deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { hdfsDeepStorageTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { gcsDeepStorageTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                // -Djvm.runtime=11
-
-                stage("(Compile=openjdk8, Run=openjdk11) query integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query'; JVM_RUNTIME='-Djvm.runtime=11'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk11) query integration test (mariaDB)") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query'; JVM_RUNTIME='-Djvm.runtime=11'; USE_INDEXER='middleManager'; MYSQL_DRIVER_CLASSNAME='org.mariadb.jdbc.Driver'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk11) query error integration test for missing segments") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query-error'; JVM_RUNTIME='-Djvm.runtime=11'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) imply ingest service integration tests') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { implyIngestServiceIntegrationTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) imply keycloak security integration tests') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { s3DeepStorageTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { azureDeepStorageTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) hdfs deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { hdfsDeepStorageTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test') {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    steps { gcsDeepStorageTests('-Djvm.runtime=11') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                // core integration tests
-
-                stage("(Compile=openjdk8, Run=openjdk8) batch index integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) batch index integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) input format integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=input-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) input format integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=input-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) input source integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=input-source'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) input source integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=input-source'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) perfect rollup parallel batch index integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=perfect-rollup-parallel-batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) perfect rollup parallel batch index integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=perfect-rollup-parallel-batch-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) kafka index, transactional kafka index integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-index,kafka-transactional-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test slow") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-index-slow'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) kafka index integration test slow with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-index-slow'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-transactional-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test slow") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-transactional-index-slow'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test slow with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-transactional-index-slow'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) Kafka index integration test with various formats") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-data-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) Kafka index integration test with various formats with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=kafka-data-format'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) query integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) query integration test (mariaDB)") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; MYSQL_DRIVER_CLASSNAME='org.mariadb.jdbc.Driver'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) query error integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query-error'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) query retry integration test for missing segments") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=query-retry'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) security integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=security'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) ldap security integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=ldap-security'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) realtime index integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=realtime-index'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) append ingestion integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=append-ingestion'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) append ingestion integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=append-ingestion'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) compaction integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=compaction'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) compaction integration test with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=compaction'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='indexer'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) other integration tests") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment {
-                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
-                        JVM_RUNTIME='-Djvm.runtime=8'
-                        USE_INDEXER='middleManager'
+                    stage("(Compile=openjdk8, Run=openjdk11) ldap security integration test") {
+                        agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                        environment { TESTNG_GROUPS = '-Dgroups=ldap-security'; JVM_RUNTIME = '-Djvm.runtime=11';
+                            USE_INDEXER = 'middleManager'; }
+                        steps { coreIntegrationTests() }
+                        post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                     }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) other integration tests with Indexer") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment {
-                        TESTNG_GROUPS='-DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,query-error'
-                        JVM_RUNTIME='-Djvm.runtime=8'
-                        USE_INDEXER='indexer'
-                    }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk8) leadership and high availability integration tests") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=high-availability'; JVM_RUNTIME='-Djvm.runtime=8'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage("(Compile=openjdk8, Run=openjdk11) ldap security integration test") {
-                    agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}"}}
-                    environment { TESTNG_GROUPS='-Dgroups=ldap-security'; JVM_RUNTIME='-Djvm.runtime=11'; USE_INDEXER='middleManager'; }
-                    steps { coreIntegrationTests() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-            } // end of parallel
-        } // end of stage('Checks')
+                } // end of parallel
+            } // end of stage('Checks')
 
         stage("Build and publish") {
             when {
