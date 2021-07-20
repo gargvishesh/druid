@@ -323,11 +323,14 @@ public class MySQLFirehoseDatabaseConnectorTest
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage(StringUtils.format("Invalid URL format for MySQL: [%s]", url));
-    new MySQLFirehoseDatabaseConnector(
+    JdbcAccessSecurityConfig accessConfig = new JdbcAccessSecurityConfig();
+    MySQLFirehoseDatabaseConnector connector = new MySQLFirehoseDatabaseConnector(
         connectorConfig,
         null,
-        new JdbcAccessSecurityConfig()
+        accessConfig
     );
+    // this needs to be called in Imply because we default to not checking the allowed properties
+    connector.findPropertyKeysFromConnectURL(url, accessConfig.isAllowUnknownJdbcUrlFormat());
   }
 
   private static JdbcAccessSecurityConfig newSecurityConfigEnforcingAllowList(Set<String> allowedProperties)
