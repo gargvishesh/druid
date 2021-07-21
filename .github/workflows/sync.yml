@@ -25,6 +25,8 @@ jobs:
         if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
+          SLACK_USERNAME: "barista"
+          SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required."
           SLACK_TITLE: "[FAILED] Update implydata/druid master from apache/druid master"
           SLACK_COLOR: "danger"

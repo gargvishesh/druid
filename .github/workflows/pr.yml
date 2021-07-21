@@ -47,6 +47,8 @@ jobs:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
+          SLACK_USERNAME: "barista"
+          SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: "Pull request url: ${{ steps.pull_request.outputs.pull_request_url }} (If null, the PR already exists and can be accessed at https://github.com/implydata/druid/pulls)"
           SLACK_TITLE: Automatic Backport PR Created
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

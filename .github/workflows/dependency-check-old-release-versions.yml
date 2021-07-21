@@ -59,6 +59,8 @@ jobs:
         if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
+          SLACK_USERNAME: "barista"
+          SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: "There is a vulnerability in the branch ${{ matrix.branch }} file a jira to fix this issue. Can github actions create this JIRA?"
           SLACK_TITLE: "[FAILED] Found vulnerability in dependencies for ${{ matrix.branch }}"
           SLACK_COLOR: "danger"
