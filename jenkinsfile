@@ -494,6 +494,10 @@ pipeline {
         RT_DOCKER_REPOSITORY_PREFIX = "repo.qa.imply.io"
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.qa.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
+        EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
+        EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
+        EXPECTED_SHA1_RUN_ZK = "ee4c4f10bb721a69738d49c4835d81456992e295"
+       
     }
 
     stages {
@@ -1823,6 +1827,23 @@ pipeline {
                                           }
                                         }
                                         EOT
+                                        
+                                        function verify_checksum() {
+                                            local file="$1"
+                                            local checksum="$2"
+                                            if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
+                                                1>&2 cat << EOF
+                                                    $file has changed in the druid repo! Look at the changes and incorporate them in the
+                                                    script if needed. Then update the expected sha1 in this script. Also update the imply 
+                                                    startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
+                                                EOF
+                                                exit 1
+                                            fi
+                                        }
+
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"
 
                                         tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
 
