@@ -72,6 +72,9 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ldap-security" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.ldap-security.yml up -d
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ]
+  then
+    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.virtual-segments.yml up -d
   else
     bash ${DIR}/script/docker_run_cluster.sh
   fi

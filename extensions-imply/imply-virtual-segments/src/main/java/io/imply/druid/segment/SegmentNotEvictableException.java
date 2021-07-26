@@ -7,11 +7,15 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.tests;
+package io.imply.druid.segment;
 
-public class ImplyTestNGGroup
+import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.timeline.SegmentId;
+
+public class SegmentNotEvictableException extends IAE
 {
-  public static final String INGEST_SERVICE = "ingest-service";
-  public static final String KEYCLOAK_SECURITY = "keycloak-security";
-  public static final String VIRTUAL_SEGMENTS = "virtual-segments";
+  public SegmentNotEvictableException(SegmentId segmentId)
+  {
+    super("[%s] is not evictable", segmentId);
+  }
 }

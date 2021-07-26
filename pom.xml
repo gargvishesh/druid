@@ -181,6 +181,7 @@
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>
+        <module>extensions-imply/imply-virtual-segments</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>

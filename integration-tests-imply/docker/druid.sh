@@ -109,6 +109,9 @@ setupData()
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ingest-service" ]; then
     setKey $DRUID_SERVICE druid.extensions.loadList [\"ingest-service\",\"druid-s3-extensions\"]
     export AWS_REGION=us-east-1
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ] && [ "$DRUID_SERVICE" = "historical" ]; then
+    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-virtual-segments\",\"druid-s3-extensions\"]
+    export AWS_REGION=us-east-1
   else
     if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
       setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"imply-keycloak\"]
@@ -124,6 +127,7 @@ setupData()
       setKey $DRUID_SERVICE "druid.escalator.keycloak.verify-token-audience" "true"
     else
       setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\"]
+      export AWS_REGION=us-east-1
     fi
   fi
 

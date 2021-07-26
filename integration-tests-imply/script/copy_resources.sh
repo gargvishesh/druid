@@ -32,3 +32,7 @@ mv $SHARED_DIR/docker/lib/jboss-jaxrs-* $SHARED_DIR/docker/extensions/imply-keyc
 # move imply-druid-security to extension
 mkdir -p $SHARED_DIR/docker/extensions/imply-druid-security
 mv $SHARED_DIR/docker/lib/imply-druid-security-* $SHARED_DIR/docker/extensions/imply-druid-security
+
+# move imply-virtual-segments to extension
+mkdir -p $SHARED_DIR/docker/extensions/imply-virtual-segments
+mv $SHARED_DIR/docker/lib/imply-virtual-segments-* $SHARED_DIR/docker/extensions/imply-virtual-segments

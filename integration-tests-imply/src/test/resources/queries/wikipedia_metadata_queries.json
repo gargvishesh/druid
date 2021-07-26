@@ -1,0 +1,24 @@
+[
+  {
+    "description": "query information schema to make sure table is there",
+    "query": {
+      "query": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%%TABLE%%' AND TABLE_SCHEMA = 'druid'"
+    },
+    "expectedResults": [
+      {
+        "TABLE_NAME": "%%TABLE%%"
+      }
+    ]
+  },
+  {
+    "description": "query information schema to make sure druid schema is refreshed",
+    "query": {
+      "query": "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%%TABLE%%'"
+    },
+    "expectedResults": [
+      {
+        "EXPR$0": 20
+      }
+    ]
+  }
+]

@@ -223,6 +223,28 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
     }
 }
 
+def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=virtual-segments \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "imply cold tier integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
 def s3DeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
@@ -1249,6 +1271,12 @@ pipeline {
                 stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk8) imply cold tier integration tests') {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    steps { implyVirtualSegmentsIntegrationTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
