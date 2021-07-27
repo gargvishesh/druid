@@ -90,7 +90,8 @@ public class ImplyManagerAutoScalerTest
             11,
             new ImplyManagerEnvironmentConfig(
                 "implymanager.io",
-                "cluster-id-123"
+                "cluster-id-123",
+                false
             ),
             null,
             null

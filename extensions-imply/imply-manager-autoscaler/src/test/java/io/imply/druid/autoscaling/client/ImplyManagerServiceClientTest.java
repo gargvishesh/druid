@@ -18,6 +18,8 @@ import io.imply.druid.autoscaling.server.ImplyManagerServiceException;
 import io.imply.druid.autoscaling.server.ListInstancesResponse;
 import io.imply.druid.autoscaling.server.ProvisionInstancesRequest;
 import io.imply.druid.autoscaling.server.ProvisionInstancesResponse;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -34,13 +36,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(JUnitParamsRunner.class)
 public class ImplyManagerServiceClientTest
 {
   private static final String IMPLY_MANAGER_ADDRESS = "www.implymanager.io";
@@ -56,16 +58,18 @@ public class ImplyManagerServiceClientTest
   @Before
   public void setUp()
   {
+    MockitoAnnotations.openMocks(this);
     implyManagerServiceClient = new ImplyManagerServiceClient(
         mockHttpClient,
         objectMapper
     );
-    implyManagerEnvironmentConfig = new ImplyManagerEnvironmentConfig(IMPLY_MANAGER_ADDRESS, CLUSTER_ID);
   }
 
   @Test
-  public void testProvisionInstances() throws Exception
+  @Parameters({"false", "true" })
+  public void testProvisionInstances(boolean useHttps) throws Exception
   {
+    implyManagerEnvironmentConfig = new ImplyManagerEnvironmentConfig(IMPLY_MANAGER_ADDRESS, CLUSTER_ID, useHttps);
     String workerVersion = "999";
     int numberToCreate = 1;
 
@@ -93,6 +97,7 @@ public class ImplyManagerServiceClientTest
     // Verify captured request
     Request request = requestArgumentCaptor.getValue();
     Assert.assertEquals(HttpMethod.POST, request.getMethod());
+    Assert.assertEquals(useHttps ? "https" : "http", request.getUrl().getProtocol());
     Assert.assertEquals(IMPLY_MANAGER_ADDRESS, request.getUrl().getHost());
     Assert.assertEquals(StringUtils.format("/manager/v1/autoscaler/%s/instances", CLUSTER_ID), request.getUrl().getPath());
     ProvisionInstancesRequest actualRequestBody = objectMapper.readValue(request.getContent().array(), ProvisionInstancesRequest.class);
@@ -107,8 +112,10 @@ public class ImplyManagerServiceClientTest
   }
 
   @Test
-  public void testTerminateInstances() throws Exception
+  @Parameters({"false", "true" })
+  public void testTerminateInstances(boolean useHttps) throws Exception
   {
+    implyManagerEnvironmentConfig = new ImplyManagerEnvironmentConfig(IMPLY_MANAGER_ADDRESS, CLUSTER_ID, useHttps);
     String instanceIdToTerminate = "999";
 
     InputStreamFullResponseHolder responseHolder = Mockito.mock(InputStreamFullResponseHolder.class);
@@ -127,14 +134,17 @@ public class ImplyManagerServiceClientTest
     // Verify captured request
     Request request = requestArgumentCaptor.getValue();
     Assert.assertEquals(HttpMethod.DELETE, request.getMethod());
+    Assert.assertEquals(useHttps ? "https" : "http", request.getUrl().getProtocol());
     Assert.assertEquals(IMPLY_MANAGER_ADDRESS, request.getUrl().getHost());
     Assert.assertEquals(StringUtils.format("/manager/v1/autoscaler/%s/instances/" + instanceIdToTerminate, CLUSTER_ID), request.getUrl().getPath());
     Assert.assertNull(request.getContent());
   }
 
   @Test
-  public void testListInstances() throws Exception
+  @Parameters({"false", "true" })
+  public void testListInstances(boolean useHttps) throws Exception
   {
+    implyManagerEnvironmentConfig = new ImplyManagerEnvironmentConfig(IMPLY_MANAGER_ADDRESS, CLUSTER_ID, useHttps);
     String instanceStatus1 = "RUNNING";
     String instanceIp1 = "1.1.1.1";
     String instanceId1 = "id1";
@@ -165,6 +175,7 @@ public class ImplyManagerServiceClientTest
     // Verify captured request
     Request request = requestArgumentCaptor.getValue();
     Assert.assertEquals(HttpMethod.GET, request.getMethod());
+    Assert.assertEquals(useHttps ? "https" : "http", request.getUrl().getProtocol());
     Assert.assertEquals(IMPLY_MANAGER_ADDRESS, request.getUrl().getHost());
     Assert.assertEquals(StringUtils.format("/manager/v1/autoscaler/%s/instances", CLUSTER_ID), request.getUrl().getPath());
     Assert.assertNull(request.getContent());
