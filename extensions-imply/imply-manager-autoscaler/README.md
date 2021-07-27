@@ -67,7 +67,7 @@ Note that SaaS variant of Imply Manager uses keycloak for authentication. Please
 | property | description | requried? | default |
 | --- | --- | --- | --- |
 | `implyManagerAddress` | Address to the Imply Manager service  | yes | None. |
-| `useHttps` | Setting to true will make Druid uses https for Imply Manager endpoints, while setting to false will make Druid uses http for Imply Manager endpoints.| no | false |
+| `useHttps` | Setting it to `true` will make Druid use `https` protocol for Imply Manager endpoints while setting to `false` will make Druid uses `http` for Imply Manager endpoints.| no | false |
 | `clusterId` | Id of Druid cluster in Imply Manager | yes | None. |
 | `maxNumWorkers` | Maximum number of ingestion service instances | yes | None. |
 | `minNumWorkers` | Minimum number of ingestion service instances | yes | None. |
