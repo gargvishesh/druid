@@ -181,6 +181,7 @@
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>
+        <module>extensions-imply/imply-virtual-segments</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>
@@ -423,7 +424,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
-                <version>1.19</version>
+                <version>1.21</version>
             </dependency>
             <dependency>
                 <groupId>org.tukaani</groupId>

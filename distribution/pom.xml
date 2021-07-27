@@ -441,6 +441,9 @@
                                         <argument>-l</argument>
                                         <argument>${settings.localRepository}</argument>
                                         <argument>--no-default-hadoop</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-virtual-segments</argument>
+                                        <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

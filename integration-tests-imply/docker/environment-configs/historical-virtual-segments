@@ -1,0 +1,25 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+DRUID_SERVICE=historical
+DRUID_LOG_PATH=/shared/logs/historical-for-virtual-segments.log
+
+# JAVA OPTS
+SERVICE_DRUID_JAVA_OPTS=-server -Xmx512m -Xms512m -XX:+UseG1GC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5010
+
+# Druid configs
+druid_processing_buffer_sizeBytes=25000000
+druid_processing_numThreads=2
+druid_query_groupBy_maxOnDiskStorage=300000000
+druid_segmentCache_locations=[{"path":"/shared/druid/indexCache-virtual-segments","maxSize":20000}]
+druid_auth_basic_common_cacheDirectory=/tmp/authCache/historical-for-virtual-segments
+druid_server_https_crlPath=/tls/revocations.crl
+druid_virtualSegment_enabled=true
+druid_server_tier=__cold-tier
+druid_server_maxSize=5000000000

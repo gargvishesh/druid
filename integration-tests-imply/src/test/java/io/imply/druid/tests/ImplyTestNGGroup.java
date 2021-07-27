@@ -13,4 +13,5 @@ public class ImplyTestNGGroup
 {
   public static final String INGEST_SERVICE = "ingest-service";
   public static final String KEYCLOAK_SECURITY = "keycloak-security";
+  public static final String VIRTUAL_SEGMENTS = "virtual-segments";
 }

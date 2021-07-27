@@ -72,6 +72,12 @@
       <artifactId>imply-view-manager</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.imply</groupId>
+      <artifactId>imply-virtual-segments</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.druid</groupId>
@@ -153,6 +159,11 @@
       <groupId>org.apache.calcite.avatica</groupId>
       <artifactId>avatica-core</artifactId>
       <version>1.17.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>

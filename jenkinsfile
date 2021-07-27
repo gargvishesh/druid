@@ -223,6 +223,28 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
     }
 }
 
+def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=virtual-segments \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                label: "imply cold tier integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
 def s3DeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
@@ -494,6 +516,10 @@ pipeline {
         RT_DOCKER_REPOSITORY_PREFIX = "repo.qa.imply.io"
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.qa.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
+        EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
+        EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
+        EXPECTED_SHA1_RUN_ZK = "ee4c4f10bb721a69738d49c4835d81456992e295"
+       
     }
 
     stages {
@@ -861,11 +887,6 @@ pipeline {
                                 echo 'Starting nvm install...'
                                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
                                 [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
-                                apt install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \\
-                                libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libgtk-3-0 \\
-                                libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libasound2 libatspi2.0-0 gconf-service  \\
-                                libpangocairo-1.0-0 libgconf-2-4 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxext6 libxi6 \\
-                                libxrender1 libxss1 libxtst6 fonts-liberation libappindicator1  xdg-utils 
                                 nvm install 10.24.0
                                 npm i -D playwright
                                 web-console/script/druid start
@@ -1250,6 +1271,12 @@ pipeline {
                 stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { implyKeycloakSecurityIntegrationTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk8) imply cold tier integration tests') {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    steps { implyVirtualSegmentsIntegrationTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1823,6 +1850,23 @@ pipeline {
                                           }
                                         }
                                         EOT
+                                        
+                                        function verify_checksum() {
+                                            local file="$1"
+                                            local checksum="$2"
+                                            if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
+                                                1>&2 cat << EOF
+                                                    $file has changed in the druid repo! Look at the changes and incorporate them in the
+                                                    script if needed. Then update the expected sha1 in this script. Also update the imply 
+                                                    startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
+                                                EOF
+                                                exit 1
+                                            fi
+                                        }
+
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"
 
                                         tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
 

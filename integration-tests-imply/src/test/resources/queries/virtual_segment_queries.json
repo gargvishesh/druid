@@ -1,0 +1,12 @@
+[
+  {
+    "description": "query all segments",
+    "query": {
+      "query": "SELECT SUM(\"added\") as \"total_added\" FROM \"druid\".\"%%TABLE%%\"",
+      "resultFormat": "OBJECT"
+    },
+    "expectedResults":  [
+      {"total_added":12360}
+    ]
+  }
+]
