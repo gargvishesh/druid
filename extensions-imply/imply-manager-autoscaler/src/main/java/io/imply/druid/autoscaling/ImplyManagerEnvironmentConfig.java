@@ -22,15 +22,18 @@ public class ImplyManagerEnvironmentConfig
 {
   private final String implyManagerAddress;
   private final String clusterId;
+  private final boolean useHttps;
 
   @JsonCreator
   public ImplyManagerEnvironmentConfig(
       @JsonProperty("implyManagerAddress") String implyManagerAddress,
-      @JsonProperty("clusterId") String clusterId
+      @JsonProperty("clusterId") String clusterId,
+      @JsonProperty("useHttps") boolean useHttps
   )
   {
     this.implyManagerAddress = Preconditions.checkNotNull(implyManagerAddress, "implyManagerAddress must be not null");
     this.clusterId = Preconditions.checkNotNull(clusterId, "clusterId must be not null");
+    this.useHttps = useHttps;
   }
 
   @JsonProperty
@@ -45,12 +48,19 @@ public class ImplyManagerEnvironmentConfig
     return clusterId;
   }
 
+  @JsonProperty
+  public boolean isUseHttps()
+  {
+    return useHttps;
+  }
+
   @Override
   public String toString()
   {
     return "ImplyManagerEnvironmentConfig{" +
            "implyManagerAddress='" + implyManagerAddress + '\'' +
            ", clusterId='" + clusterId + '\'' +
+           ", useHttps=" + useHttps +
            '}';
   }
 
@@ -64,13 +74,14 @@ public class ImplyManagerEnvironmentConfig
       return false;
     }
     ImplyManagerEnvironmentConfig that = (ImplyManagerEnvironmentConfig) o;
-    return Objects.equals(implyManagerAddress, that.implyManagerAddress) &&
+    return useHttps == that.useHttps &&
+           Objects.equals(implyManagerAddress, that.implyManagerAddress) &&
            Objects.equals(clusterId, that.clusterId);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(implyManagerAddress, clusterId);
+    return Objects.hash(implyManagerAddress, clusterId, useHttps);
   }
 }
