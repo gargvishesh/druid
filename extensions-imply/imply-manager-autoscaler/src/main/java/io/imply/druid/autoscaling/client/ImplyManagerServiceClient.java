@@ -11,7 +11,6 @@ package io.imply.druid.autoscaling.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import io.imply.druid.autoscaling.ImplyManagerEnvironmentConfig;
 import io.imply.druid.autoscaling.Instance;
 import io.imply.druid.autoscaling.server.ImplyManagerServiceException;
