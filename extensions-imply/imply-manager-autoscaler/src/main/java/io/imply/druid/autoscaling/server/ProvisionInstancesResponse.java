@@ -18,20 +18,20 @@ import java.util.Objects;
 
 public class ProvisionInstancesResponse
 {
-  private final List<ProvisionInstanceResponse> instances;
+  private final List<String> instanceIds;
 
   @JsonCreator
   public ProvisionInstancesResponse(
-      @JsonProperty("instances") List<ProvisionInstanceResponse> instances
+      @JsonProperty("instanceIds") List<String> instanceIds
   )
   {
-    this.instances = instances;
+    this.instanceIds = instanceIds;
   }
 
   @JsonProperty
-  public List<ProvisionInstanceResponse> getInstances()
+  public List<String> getInstanceIds()
   {
-    return instances;
+    return instanceIds;
   }
 
   @Override
@@ -44,60 +44,12 @@ public class ProvisionInstancesResponse
       return false;
     }
     ProvisionInstancesResponse response = (ProvisionInstancesResponse) o;
-    return Objects.equals(instances, response.instances);
+    return Objects.equals(instanceIds, response.instanceIds);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(instances);
-  }
-
-  public static class ProvisionInstanceResponse
-  {
-    private final String version;
-    private final List<String> instanceIds;
-
-    @JsonCreator
-    public ProvisionInstanceResponse(
-        @JsonProperty("version") String version,
-        @JsonProperty("instanceIds") List<String> instanceIds
-    )
-    {
-      this.version = Preconditions.checkNotNull(version, "version must be not null");
-      this.instanceIds = instanceIds;
-    }
-
-    @JsonProperty("version")
-    public String getVersion()
-    {
-      return version;
-    }
-
-    @JsonProperty("instanceIds")
-    public List<String> getInstanceIds()
-    {
-      return instanceIds;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ProvisionInstanceResponse that = (ProvisionInstanceResponse) o;
-      return Objects.equals(version, that.version) &&
-             Objects.equals(instanceIds, that.instanceIds);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(version, instanceIds);
-    }
+    return Objects.hash(instanceIds);
   }
 }

@@ -22,10 +22,11 @@ public class ProvisionInstancesResponseTest
   @Test
   public void testSerde() throws Exception
   {
-    String createdNodeId = "new-node-id";
+    String createdNodeId1 = "new-node-id-1";
+    String createdNodeId2 = "new-node-id-2";
     ProvisionInstancesResponse response = new ProvisionInstancesResponse(
         ImmutableList.of(
-            new ProvisionInstancesResponse.ProvisionInstanceResponse("versionx", ImmutableList.of(createdNodeId))
+            createdNodeId1, createdNodeId2
         )
     );
     String json = OBJECT_MAPPER.writeValueAsString(response);
@@ -37,7 +38,7 @@ public class ProvisionInstancesResponseTest
   public void testEquals()
   {
     EqualsVerifier.forClass(ProvisionInstancesResponse.class)
-                  .withNonnullFields("instances")
+                  .withNonnullFields("instanceIds")
                   .usingGetClass()
                   .verify();
   }

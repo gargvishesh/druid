@@ -72,13 +72,7 @@ public class ImplyManagerServiceClient
     final Request request = new Request(HttpMethod.POST, requestUrl);
     request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
     ProvisionInstancesResponse response = doRequest(request, ProvisionInstancesResponse.class);
-    for (ProvisionInstancesResponse.ProvisionInstanceResponse provisionInstanceResponse : response.getInstances()) {
-      if (workerVersion.equals(provisionInstanceResponse.getVersion())) {
-        return provisionInstanceResponse.getInstanceIds();
-      }
-    }
-    LOGGER.error("Response does not contain provision instances for requested version %s", workerVersion);
-    return ImmutableList.of();
+    return response.getInstanceIds();
   }
 
   public void terminateInstance(
