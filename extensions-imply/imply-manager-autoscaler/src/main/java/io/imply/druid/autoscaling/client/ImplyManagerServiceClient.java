@@ -11,7 +11,6 @@ package io.imply.druid.autoscaling.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import io.imply.druid.autoscaling.ImplyManagerEnvironmentConfig;
 import io.imply.druid.autoscaling.Instance;
 import io.imply.druid.autoscaling.server.ImplyManagerServiceException;
@@ -72,13 +71,7 @@ public class ImplyManagerServiceClient
     final Request request = new Request(HttpMethod.POST, requestUrl);
     request.setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(requestBody));
     ProvisionInstancesResponse response = doRequest(request, ProvisionInstancesResponse.class);
-    for (ProvisionInstancesResponse.ProvisionInstanceResponse provisionInstanceResponse : response.getInstances()) {
-      if (workerVersion.equals(provisionInstanceResponse.getVersion())) {
-        return provisionInstanceResponse.getInstanceIds();
-      }
-    }
-    LOGGER.error("Response does not contain provision instances for requested version %s", workerVersion);
-    return ImmutableList.of();
+    return response.getInstanceIds();
   }
 
   public void terminateInstance(
