@@ -41,7 +41,9 @@ import java.util.concurrent.ExecutionException;
 public class ImplyManagerServiceClient
 {
   private static final Logger LOGGER = new Logger(ImplyManagerServiceClient.class);
-  private static final String INSTANCES_API_PATH = "https://%s/manager/v1/autoscaler/%s/instances";
+  private static final String HTTP_PROTOCOL = "http";
+  private static final String HTTPS_PROTOCOL = "https";
+  private static final String INSTANCES_API_PATH = "%s://%s/manager/v1/autoscaler/%s/instances";
 
   private final HttpClient client;
   private final ObjectMapper jsonMapper;
@@ -62,6 +64,7 @@ public class ImplyManagerServiceClient
     URL requestUrl = new URL(
         StringUtils.format(
             INSTANCES_API_PATH,
+            implyConfig.isUseHttps() ? HTTPS_PROTOCOL : HTTP_PROTOCOL,
             implyConfig.getImplyManagerAddress(),
             implyConfig.getClusterId()
         )
@@ -86,6 +89,7 @@ public class ImplyManagerServiceClient
     URL requestUrl = new URL(
         StringUtils.format(
             INSTANCES_API_PATH + "/%s",
+            implyConfig.isUseHttps() ? HTTPS_PROTOCOL : HTTP_PROTOCOL,
             implyConfig.getImplyManagerAddress(),
             implyConfig.getClusterId(),
             instanceIdToTerminate
@@ -103,6 +107,7 @@ public class ImplyManagerServiceClient
     URL requestUrl = new URL(
         StringUtils.format(
           INSTANCES_API_PATH,
+          implyConfig.isUseHttps() ? HTTPS_PROTOCOL : HTTP_PROTOCOL,
           implyConfig.getImplyManagerAddress(),
           implyConfig.getClusterId()
         )
