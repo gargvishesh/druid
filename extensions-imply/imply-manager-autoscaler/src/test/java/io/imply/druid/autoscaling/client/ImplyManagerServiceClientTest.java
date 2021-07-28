@@ -73,10 +73,10 @@ public class ImplyManagerServiceClientTest
     String workerVersion = "999";
     int numberToCreate = 1;
 
-    String createdNodeId = "new-node-id";
+    String createdNodeId1 = "new-node-id-1";
     ProvisionInstancesResponse response = new ProvisionInstancesResponse(
         ImmutableList.of(
-            new ProvisionInstancesResponse.ProvisionInstanceResponse(workerVersion, ImmutableList.of(createdNodeId))
+            createdNodeId1
         )
     );
     InputStream inputStream = new ByteArrayInputStream(objectMapper.writeValueAsBytes(response));
@@ -108,7 +108,7 @@ public class ImplyManagerServiceClientTest
     // Verify response
     Assert.assertNotNull(actual);
     Assert.assertEquals(1, actual.size());
-    Assert.assertEquals(createdNodeId, actual.get(0));
+    Assert.assertEquals(createdNodeId1, actual.get(0));
   }
 
   @Test
