@@ -10,7 +10,7 @@
 # Virtual segment extension
 
 ## Introduction
-Virtual segment extension enables  a historical to download segments lazily at the query time, instead of pre-fetching
+Virtual segment extension enables a historical to download segments lazily at the query time, instead of pre-fetching
 the segment. It also enables the historical to assign itself more segments than what can be stored on the disk. If the extension
 is enabled on the historical, historical will evict segments from the disk if new segments need to be downloaded and there 
 is not enough space on the disk. This allows users to query far more data than what can be fit on the disk.

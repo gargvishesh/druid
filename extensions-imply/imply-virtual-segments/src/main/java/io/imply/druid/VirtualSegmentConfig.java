@@ -18,7 +18,6 @@ import org.apache.druid.utils.JvmUtils;
  */
 public class VirtualSegmentConfig
 {
-  private static final int DEFAULT_DOWNLOAD_THREADS = 5;
   private static final long DEFAULT_DOWNLOAD_DELAY_MS = 10;
 
   @JsonProperty
