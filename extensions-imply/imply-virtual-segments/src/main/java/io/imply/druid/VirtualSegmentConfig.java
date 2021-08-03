@@ -11,6 +11,7 @@ package io.imply.druid;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.utils.JvmUtils;
 
 /**
  * Any configuration specific to the virtual segment extension goes in here.
@@ -32,7 +33,7 @@ public class VirtualSegmentConfig
       @JsonProperty("downloadDelayMs") Long downloadDelayMs
   )
   {
-    this.downloadThreads = downloadThreads != null ? downloadThreads : DEFAULT_DOWNLOAD_THREADS;
+    this.downloadThreads = downloadThreads != null ? downloadThreads : JvmUtils.getRuntimeInfo().getAvailableProcessors();
     this.downloadDelayMs = downloadDelayMs != null ? downloadDelayMs : DEFAULT_DOWNLOAD_DELAY_MS;
   }
 
