@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.loading.VirtualSegmentLoader;
 import io.imply.druid.processing.Deferred;
@@ -60,10 +61,8 @@ import org.joda.time.Interval;
 
 import javax.inject.Inject;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -342,7 +341,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
 
     final VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) chunk.getObject();
 
-    return (queryPlus, responseContext) -> {
+    final QueryRunner<T> delegate = (queryPlus, responseContext) -> {
       DataSegment dataSegment = ((VirtualSegment) segment.getBaseSegment()).asDataSegment();
       return (Sequence<T>) Sequences.simple(
           Collections.singletonList(
@@ -360,6 +359,13 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
           )
       );
     };
-  }
 
+    // Return a query runner of type DeferredQueryRunner
+    return new DeferredQueryRunner<T>(
+        Futures.immediateFuture(null),
+        segment,
+        () -> {
+        },
+        () -> delegate);
+  }
 }
