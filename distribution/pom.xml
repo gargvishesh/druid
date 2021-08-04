@@ -442,6 +442,66 @@
                                         <argument>${settings.localRepository}</argument>
                                         <argument>--no-default-hadoop</argument>
                                         <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-avro-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-azure-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-bloom-filter</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-datasketches</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-hdfs-storage</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-histogram</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-kafka-extraction-namespace</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-kafka-indexing-service</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-kinesis-indexing-service</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-lookups-cached-global</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-lookups-cached-single</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-protobuf-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:mysql-metadata-storage</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-orc-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-parquet-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:postgresql-metadata-storage</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-kerberos</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-s3-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-ec2-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-google-extensions</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-stats</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:simple-client-sslcontext</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-basic-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-utility-belt</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:indexed-table-loader</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:imply-druid-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-view-manager</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter-kafka</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-keycloak</argument>
+                                        <argument>-c</argument>
                                         <argument>io.imply:imply-virtual-segments</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
