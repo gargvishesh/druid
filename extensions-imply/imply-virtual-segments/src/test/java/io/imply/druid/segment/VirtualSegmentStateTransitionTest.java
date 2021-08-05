@@ -10,6 +10,7 @@
 package io.imply.druid.segment;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.TestData;
 import io.imply.druid.loading.FIFOSegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentMetadata;
@@ -78,9 +79,19 @@ public class VirtualSegmentStateTransitionTest
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     virtualSegmentHolder.registerIfAbsent(segment);
     ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
-    Assert.assertSame(future, virtualSegmentHolder.queue(segment));
+    Assert.assertNotSame(future, virtualSegmentHolder.queue(segment));
     Assert.assertSame(segment, virtualSegmentHolder.get(segment.getId()));
     assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
+
+    // cancelling result future should not affect the state
+    virtualSegmentHolder.queue(segment).cancel(true);
+    assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
+    Assert.assertFalse(virtualSegmentHolder.queue(segment).isDone());
+
+    // completing result future should not affect the state
+    ((SettableFuture<Void>) virtualSegmentHolder.queue(segment)).set(null);
+    assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
+    Assert.assertFalse(virtualSegmentHolder.queue(segment).isDone());
   }
 
   @Test
