@@ -113,5 +113,6 @@ both rules will not be applied together.
 
 ## Querying data on cold-tier
 
-To query the data from cold-tier, caller must set the `brokerService` to `_cold_tier` in the query context. Only queries
-with correct value of `brokerService` will go to cold-tier. 
+To query the data from cold-tier, caller must set the `brokerService` to `druid/broker-cold` in the query context. Only queries
+with correct value of `brokerService` will go to cold-tier. If the value is not set or incorrect, the queries will go to hot-tier and query 
+only those segments that are loaded on hot historicals. 
