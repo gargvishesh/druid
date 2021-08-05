@@ -23,7 +23,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -60,6 +62,7 @@ public class SqlAsyncResource
 {
   private static final Logger log = new Logger(SqlAsyncResource.class);
 
+  private final String brokerId;
   private final SqlAsyncQueryPool queryPool;
   private final SqlAsyncMetadataManager metadataManager;
   private final SqlAsyncResultManager resultManager;
@@ -69,6 +72,7 @@ public class SqlAsyncResource
 
   @Inject
   public SqlAsyncResource(
+      @Named("brokerId") final String brokerId,
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
@@ -77,6 +81,7 @@ public class SqlAsyncResource
       @Json final ObjectMapper jsonMapper
   )
   {
+    this.brokerId = brokerId;
     this.queryPool = queryPool;
     this.metadataManager = metadataManager;
     this.resultManager = resultManager;
@@ -96,6 +101,7 @@ public class SqlAsyncResource
     final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
     final String remoteAddr = req.getRemoteAddr();
     final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
+    final String asyncResultId = IdUtils.getRandomIdWithPrefix(brokerId + "_" + sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {
@@ -103,20 +109,35 @@ public class SqlAsyncResource
       lifecycle.validateAndAuthorize(req);
 
       // TODO(gianm): Reject immediately if pool full -- max async!!
-      final SqlAsyncQueryDetails queryDetails = queryPool.execute(sqlQuery, lifecycle, remoteAddr);
+      final SqlAsyncQueryDetails queryDetails = queryPool.execute(asyncResultId, sqlQuery, lifecycle, remoteAddr);
       return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }
     catch (QueryCapacityExceededException cap) {
       lifecycle.emitLogsAndMetrics(cap, remoteAddr, -1);
-      return buildImmediateErrorResponse(sqlQueryId, resultFormat, QueryCapacityExceededException.STATUS_CODE, cap);
+      return buildImmediateErrorResponse(
+          asyncResultId,
+          resultFormat,
+          QueryCapacityExceededException.STATUS_CODE,
+          cap
+      );
     }
     catch (QueryUnsupportedException unsupported) {
       lifecycle.emitLogsAndMetrics(unsupported, remoteAddr, -1);
-      return buildImmediateErrorResponse(sqlQueryId, resultFormat, QueryUnsupportedException.STATUS_CODE, unsupported);
+      return buildImmediateErrorResponse(
+          asyncResultId,
+          resultFormat,
+          QueryUnsupportedException.STATUS_CODE,
+          unsupported
+      );
     }
     catch (SqlPlanningException | ResourceLimitExceededException e) {
       lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
-      return buildImmediateErrorResponse(sqlQueryId, resultFormat, BadQueryException.STATUS_CODE, e);
+      return buildImmediateErrorResponse(
+          asyncResultId,
+          resultFormat,
+          BadQueryException.STATUS_CODE,
+          e
+      );
     }
     catch (ForbiddenException e) {
       // Let ForbiddenExceptionMapper handle it.
@@ -135,7 +156,7 @@ public class SqlAsyncResource
       }
 
       return buildImmediateErrorResponse(
-          sqlQueryId,
+          asyncResultId,
           resultFormat,
           Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
           exceptionToReport
@@ -147,11 +168,11 @@ public class SqlAsyncResource
   @Path("/{id}/status")
   @Produces(MediaType.APPLICATION_JSON)
   public Response doGetStatus(
-      @PathParam("id") final String sqlQueryId,
+      @PathParam("id") final String asyncResultId,
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(sqlQueryId, req);
+    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(asyncResultId, req);
 
     if (queryDetails.isPresent()) {
       return Response.ok(queryDetails.get().toApiResponse()).build();
@@ -163,11 +184,11 @@ public class SqlAsyncResource
   @GET
   @Path("/{id}/results")
   public Response doGetResults(
-      @PathParam("id") final String sqlQueryId,
+      @PathParam("id") final String asyncResultId,
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(sqlQueryId, req);
+    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(asyncResultId, req);
 
     if (queryDetails.isPresent() && queryDetails.get().getState() == SqlAsyncQueryDetails.State.COMPLETE) {
       final Optional<SqlAsyncResults> results = resultManager.readResults(queryDetails.get());
@@ -184,13 +205,13 @@ public class SqlAsyncResource
   }
 
   private Optional<SqlAsyncQueryDetails> getQueryDetailsAndAuthorizeRequest(
-      final String sqlQueryId,
+      final String asyncResultId,
       final HttpServletRequest req
   ) throws IOException
   {
     AuthorizationUtils.authorizeAllResourceActions(req, Collections.emptyList(), authorizerMapper);
     final AuthenticationResult authenticationResult = AuthorizationUtils.authenticationResultFromRequest(req);
-    return metadataManager.getQueryDetails(sqlQueryId)
+    return metadataManager.getQueryDetails(asyncResultId)
                           .filter(
                               queryDetails ->
                                   !Strings.isNullOrEmpty(queryDetails.getIdentity())
@@ -199,14 +220,14 @@ public class SqlAsyncResource
   }
 
   private Response buildImmediateErrorResponse(
-      final String sqlQueryId,
+      final String asyncResultId,
       final ResultFormat resultFormat,
       final int status,
       final Exception e
   ) throws JsonProcessingException
   {
     final SqlAsyncQueryDetailsApiResponse errorDetails =
-        SqlAsyncQueryDetails.createError(sqlQueryId, null, resultFormat, e).toApiResponse();
+        SqlAsyncQueryDetails.createError(asyncResultId, null, resultFormat, e).toApiResponse();
 
     return Response.status(status)
                    .type(MediaType.APPLICATION_JSON_TYPE)

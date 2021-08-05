@@ -54,14 +54,14 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public void addNewQuery(final SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryAlreadyExistsException
   {
-    final String path = makePath(queryDetails.getSqlQueryId());
+    final String path = makePath(queryDetails.getAsyncResultId());
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
-      curator.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
+      curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(path, payload);
     }
     catch (KeeperException.NodeExistsException e) {
-      throw new AsyncQueryAlreadyExistsException(queryDetails.getSqlQueryId());
+      throw new AsyncQueryAlreadyExistsException(queryDetails.getAsyncResultId());
     }
     catch (Exception e) {
       throw new IOE(e, "Error while creating path at [%s]", path);
@@ -72,14 +72,14 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   public void updateQueryDetails(final SqlAsyncQueryDetails queryDetails)
       throws IOException, AsyncQueryDoesNotExistException
   {
-    final String path = makePath(queryDetails.getSqlQueryId());
+    final String path = makePath(queryDetails.getAsyncResultId());
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
       curator.setData().forPath(path, payload);
     }
     catch (KeeperException.NoNodeException e) {
-      throw new AsyncQueryDoesNotExistException(queryDetails.getSqlQueryId());
+      throw new AsyncQueryDoesNotExistException(queryDetails.getAsyncResultId());
     }
     catch (Exception e) {
       throw new IOE(e, "Error while updating path at [%s]", path);
@@ -89,7 +89,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public boolean removeQueryDetails(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    final String path = makePath(queryDetails.getSqlQueryId());
+    final String path = makePath(queryDetails.getAsyncResultId());
 
     try {
       curator.delete().forPath(path);

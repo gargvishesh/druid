@@ -36,7 +36,7 @@ public class SqlAsyncQueryDetails
   private static final int MAX_ERROR_MESSAGE_LENGTH = 50_000;
   private static final long UNKNOWN_RESULT_LENGTH = 0;
 
-  private final String sqlQueryId;
+  private final String asyncResultId;
   private final State state;
   private final ResultFormat resultFormat;
   private final long resultLength;
@@ -49,7 +49,7 @@ public class SqlAsyncQueryDetails
 
   @JsonCreator
   private SqlAsyncQueryDetails(
-      @JsonProperty("sqlQueryId") final String sqlQueryId,
+      @JsonProperty("asyncResultId") final String asyncResultId,
       @JsonProperty("state") final State state,
       @JsonProperty("identity") @Nullable final String identity,
       @JsonProperty("resultFormat") final ResultFormat resultFormat,
@@ -57,15 +57,15 @@ public class SqlAsyncQueryDetails
       @JsonProperty("error") @Nullable final QueryException error
   )
   {
-    this.sqlQueryId = Preconditions.checkNotNull(sqlQueryId, "sqlQueryId");
+    this.asyncResultId = Preconditions.checkNotNull(asyncResultId, "asyncResultId");
     this.state = Preconditions.checkNotNull(state, "state");
     this.identity = identity;
     this.resultFormat = Preconditions.checkNotNull(resultFormat, "resultFormat");
     this.resultLength = resultLength;
     this.error = error;
 
-    if (sqlQueryId.isEmpty()) {
-      throw new IAE("sqlQueryId must be nonempty");
+    if (asyncResultId.isEmpty()) {
+      throw new IAE("asyncResultId must be nonempty");
     }
 
     if (state != State.ERROR && identity == null) {
@@ -82,23 +82,30 @@ public class SqlAsyncQueryDetails
   }
 
   public static SqlAsyncQueryDetails createNew(
-      final String sqlQueryId,
+      final String asyncResultId,
       final String identity,
       final ResultFormat resultFormat
   )
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, State.INITIALIZED, identity, resultFormat, UNKNOWN_RESULT_LENGTH, null);
+    return new SqlAsyncQueryDetails(
+        asyncResultId,
+        State.INITIALIZED,
+        identity,
+        resultFormat,
+        UNKNOWN_RESULT_LENGTH,
+        null
+    );
   }
 
   public static SqlAsyncQueryDetails createError(
-      final String sqlQueryId,
+      final String asyncResultId,
       @Nullable final String identity,
       final ResultFormat resultFormat,
       @Nullable final Throwable e
   )
   {
     return new SqlAsyncQueryDetails(
-        sqlQueryId,
+        asyncResultId,
         State.ERROR,
         identity,
         resultFormat,
@@ -109,9 +116,9 @@ public class SqlAsyncQueryDetails
   }
 
   @JsonProperty
-  public String getSqlQueryId()
+  public String getAsyncResultId()
   {
-    return sqlQueryId;
+    return asyncResultId;
   }
 
   @JsonProperty
@@ -151,23 +158,37 @@ public class SqlAsyncQueryDetails
 
   public SqlAsyncQueryDetails toRunning()
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, State.RUNNING, identity, resultFormat, resultLength, error);
+    return new SqlAsyncQueryDetails(
+        asyncResultId,
+        State.RUNNING,
+        identity,
+        resultFormat,
+        resultLength,
+        error
+    );
   }
 
   public SqlAsyncQueryDetails toComplete(final long newResultLength)
   {
-    return new SqlAsyncQueryDetails(sqlQueryId, State.COMPLETE, identity, resultFormat, newResultLength, error);
+    return new SqlAsyncQueryDetails(
+        asyncResultId,
+        State.COMPLETE,
+        identity,
+        resultFormat,
+        newResultLength,
+        error
+    );
   }
 
   public SqlAsyncQueryDetails toError(@Nullable final Throwable e)
   {
-    return createError(sqlQueryId, identity, resultFormat, e);
+    return createError(asyncResultId, identity, resultFormat, e);
   }
 
   public SqlAsyncQueryDetailsApiResponse toApiResponse()
   {
     return new SqlAsyncQueryDetailsApiResponse(
-        sqlQueryId,
+        asyncResultId,
         state,
         state == State.COMPLETE ? resultFormat : null,
         resultLength,
@@ -175,6 +196,7 @@ public class SqlAsyncQueryDetails
     );
   }
 
+  // TODO: should be extendable
   public enum State
   {
     INITIALIZED,

@@ -64,6 +64,7 @@ public class SqlAsyncQueryPool
   }
 
   public SqlAsyncQueryDetails execute(
+      final String asyncResultId,
       final SqlQuery sqlQuery,
       final SqlLifecycle lifecycle,
       final String remoteAddr
@@ -73,7 +74,7 @@ public class SqlAsyncQueryPool
     final String sqlQueryId = lifecycle.getPlannerContext().getSqlQueryId();
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
-        sqlQueryId,
+        asyncResultId,
         lifecycle.getPlannerContext().getAuthenticationResult().getIdentity(),
         sqlQuery.getResultFormat()
     );

@@ -24,6 +24,8 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import com.google.inject.name.Named;
+import org.apache.druid.common.utils.UUIDUtils;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
@@ -77,5 +79,13 @@ public class SqlAsyncModule implements Module
     // TODO(gianm): Limit concurrency somehow on the executor service
     final ExecutorService exec = Execs.multiThreaded(4, "sql-async-pool-%d");
     return new SqlAsyncQueryPool(exec, metadataManager, resultManager, jsonMapper);
+  }
+
+  @Provides
+  @LazySingleton
+  @Named("brokerId")
+  public String getBrokerId()
+  {
+    return UUIDUtils.generateUuid();
   }
 }
