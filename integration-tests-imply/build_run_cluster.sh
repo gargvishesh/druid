@@ -66,7 +66,7 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
     done
     [ $counter -lt 11 ]
 
-    docker exec imply-keycloak /bin/bash -c '/tmp/setup.sh'
+    docker exec -e KEYCLOAK_NOT_BEFORE_API_VERSION=$KEYCLOAK_NOT_BEFORE_API_VERSION imply-keycloak /bin/bash -c '/tmp/setup.sh'
 
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-cluster.yml up -d
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ldap-security" ]

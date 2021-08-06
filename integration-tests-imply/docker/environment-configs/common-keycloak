@@ -36,8 +36,7 @@ druid_auth_authorizers=["ImplyKeycloakAuthorizer", "basic"]
 # many of the keycloak options live in druid.sh
 
 # common keycloak
-# delete this once keycloak server includes imply custom 'not-before' policies extension
-druid_auth_keycloak_common_enforceNotBeforePolicies=false
+druid_auth_keycloak_common_pollingPeriod=10000
 
 # external client
 druid_keycloak_realm=druid
