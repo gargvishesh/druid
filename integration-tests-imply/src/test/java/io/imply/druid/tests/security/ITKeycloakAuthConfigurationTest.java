@@ -14,6 +14,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.imply.druid.security.keycloak.KeycloakedHttpClient;
 import io.imply.druid.security.keycloak.TokenManager;
@@ -21,6 +23,7 @@ import io.imply.druid.security.keycloak.TokenService;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerPermission;
 import io.imply.druid.security.keycloak.authorization.entity.KeycloakAuthorizerRoleSimplifiedPermissions;
 import io.imply.druid.tests.ImplyTestNGGroup;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -40,7 +43,11 @@ import org.keycloak.OAuth2Constants;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
 import org.keycloak.adapters.authentication.ClientCredentialsProviderUtils;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.adapters.config.AdapterConfig;
+import org.keycloak.representations.idm.ClientRepresentation;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Guice;
@@ -135,6 +142,39 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         SYS_SCHEMA_TASKS_QUERY,
         adminTasks
     );
+  }
+
+  @Test
+  public void test_systemSchemaAccess_admin_staleToken() throws Exception
+  {
+    // check that admin access works on all nodes
+    checkNodeAccess(adminClient);
+    int notBefore = Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000);
+    LOG.info("Setting keycloak not-before policy to %s", notBefore);
+    setKeycloakClientNotBefore(notBefore);
+
+    try {
+      // sleep to let policy propagate
+      Thread.sleep(1000 * 20);
+      // as admin
+      LOG.info("Checking sys.segments query as admin fails with token issued prior to not-before policy...");
+      Map<String, Object> queryMap = ImmutableMap.of("query", SYS_SCHEMA_SERVERS_QUERY);
+      StatusResponseHolder responseHolder = HttpUtil.makeRequestWithExpectedStatus(
+          adminClient,
+          HttpMethod.POST,
+          this.config.getBrokerUrl() + "/druid/v2/sql",
+          this.jsonMapper.writeValueAsBytes(queryMap),
+          HttpResponseStatus.UNAUTHORIZED
+      );
+      Assert.assertEquals(HttpResponseStatus.UNAUTHORIZED, responseHolder.getStatus());
+      Assert.assertTrue(responseHolder.getContent().contains("<tr><th>MESSAGE:</th><td>Unauthorized</td></tr>"));
+    }
+    finally {
+      LOG.info("Resetting keycloak not-before policy to 0");
+      setKeycloakClientNotBefore(0);
+      // sleep to let policy propagate
+      Thread.sleep(1000 * 30);
+    }
   }
 
   @Test
@@ -537,6 +577,25 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       LOG.error("exception occured");
       throw e;
     }
+  }
+
+  void setKeycloakClientNotBefore(int notBefore)
+  {
+    Keycloak keycloak = KeycloakBuilder.builder()
+                                       .serverUrl("http://localhost:8080/auth")
+                                       .grantType(OAuth2Constants.PASSWORD)
+                                       .realm("master")
+                                       .clientId("admin-cli")
+                                       .username("admin")
+                                       .password("password")
+                                       .build();
+
+    keycloak.tokenManager().getAccessToken();
+    RealmResource druidRealm = keycloak.realm("druid");
+    List<ClientRepresentation> clientRepresentations = druidRealm.clients().findByClientId("some-druid-cluster");
+    ClientRepresentation clientRepresentation = Iterables.getOnlyElement(clientRepresentations);
+    clientRepresentation.setNotBefore(notBefore);
+    druidRealm.clients().get(clientRepresentation.getId()).update(clientRepresentation);
   }
 
   StatusResponseHolder makeGetRolesRequest(

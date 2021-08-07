@@ -11,7 +11,7 @@
 set -e
 
 echo "copying extra imply dependencies"
-mvn -B dependency:copy-dependencies -DoutputDirectory=$SHARED_DIR/docker/lib
+mvn -B dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=$SHARED_DIR/docker/lib
 
 # this copies everything over again, so remove extensions that were moved
 rm $SHARED_DIR/docker/lib/druid-s3-extensions-*
