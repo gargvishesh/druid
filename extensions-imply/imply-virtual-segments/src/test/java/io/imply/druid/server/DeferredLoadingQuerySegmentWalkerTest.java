@@ -10,6 +10,7 @@
 package io.imply.druid.server;
 
 import com.google.common.collect.Sets;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.query.SegmentDescriptor;
 import org.joda.time.DateTime;
@@ -28,7 +29,6 @@ public class DeferredLoadingQuerySegmentWalkerTest
   @Test
   public void testMinMaxSegmentsToQuery_singleIntervalSingleSegment()
   {
-    List<SegmentDescriptor> segmentDescriptors = new ArrayList<>();
     Interval interval = Intervals.of("2021-08-04/2021-08-05");
     Set<SegmentDescriptor> descriptors = DeferredLoadingQuerySegmentWalker.segmentsToQueryForMetadata(
         Collections.singletonList(new SegmentDescriptor(interval, "v1", 0))
@@ -60,7 +60,7 @@ public class DeferredLoadingQuerySegmentWalkerTest
   public void testMinMaxSegmentsToQuery_multipleIntervalSingleSegment()
   {
     List<SegmentDescriptor> segmentDescriptors = new ArrayList<>();
-    DateTime date = DateTime.parse("2021-08-04");
+    DateTime date = DateTimes.of("2021-08-04");
     for (int i = 0; i < 10; i++) {
       Interval interval = date.toLocalDate().toInterval(DateTimeZone.UTC);
       segmentDescriptors.add(new SegmentDescriptor(interval, "v1", 0));
@@ -78,7 +78,7 @@ public class DeferredLoadingQuerySegmentWalkerTest
   public void testMinMaxSegmentsToQuery_multipleIntervalMultipleSegments()
   {
     List<SegmentDescriptor> segmentDescriptors = new ArrayList<>();
-    DateTime date = DateTime.parse("2021-08-04");
+    DateTime date = DateTimes.of("2021-08-04");
     for (int i = 0; i < 10; i++) {
       Interval interval = date.toLocalDate().toInterval(DateTimeZone.UTC);
       segmentDescriptors.add(new SegmentDescriptor(interval, "v1", 0));
