@@ -26,6 +26,7 @@ import org.apache.druid.timeline.SegmentId;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -121,8 +122,9 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       return metadata;
     });
 
-    // Instead of return newMetadata.getDownloadFuture(), we return a different Future object. This is done because
-    // we do not want the download future to be set or cancelled outside this class without concurrency guards.
+    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
+    // because we do not want the download future to be set or cancelled outside this class without the protectionf of
+    // concurrency guards present in this class.
     SettableFuture<Void> resultFuture = SettableFuture.create();
     Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
     {
@@ -135,6 +137,10 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       @Override
       public void onFailure(Throwable t)
       {
+        if (t instanceof CancellationException) {
+          resultFuture.cancel(true);
+          return;
+        }
         resultFuture.setException(t);
       }
     });

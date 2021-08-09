@@ -69,9 +69,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 /**
- * This is {@link org.apache.druid.query.QuerySegmentWalker} used in historicals with virtual segments. It overrides
- * {@link ServerManager#buildQueryRunnerForSegment} so that download of virtual segment can be scheduled. The query runner
- * that is returned will wait on the download of segment before running the query on segment.
+ * This is {@link org.apache.druid.query.QuerySegmentWalker} used in historicals with virtual segments. It is a copy of
+ * {@link org.apache.druid.query.QuerySegmentWalker} except following changes
+ *  - overrides {@link ServerManager#getQueryRunnerForSegments(Query, Iterable)} to intercept segment metadata queries
+ *  and handle them differently. Refer to {@link #buildQueryRunnerForSegmentMetadataQuery}
+ *  - overrides {@link ServerManager#buildQueryRunnerForSegment} so that download of virtual segment can be scheduled.
+ *  The query runner that is returned will wait on the download of segment before running the query on segment.
  */
 public class DeferredLoadingQuerySegmentWalker extends ServerManager
 {
@@ -273,6 +276,10 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
                          .orElseThrow(() -> new ISE("could not acquire the reference"));
   }
 
+  /**
+   * Builds a QueryRunner object for segment metadata query such that not all segments need to be downloaded. It
+   * samples few segments and schedules them for download. For rest of the segments, dummy results are returned.
+   */
   private <T> FunctionalIterable<QueryRunner<T>> buildQueryRunnerForSegmentMetadataQuery(Iterable<SegmentDescriptor> specs, Query<T> query, QueryRunnerFactory<T, Query<T>> factory, QueryToolChest<T, Query<T>> toolChest, VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline, Function<SegmentReference, SegmentReference> segmentMapFn, AtomicLong cpuTimeAccumulator, Optional<byte[]> cacheKeyPrefix)
   {
     Set<SegmentDescriptor> queryableSpecs = segmentsToQueryForMetadata(specs);
@@ -305,6 +312,10 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
         );
   }
 
+  /**
+   * Sample the segment descriptors. It returns the latest and oldest segment in the specs.
+   * @param specs - segment descriptors to sample
+   */
   @VisibleForTesting
   static Set<SegmentDescriptor> segmentsToQueryForMetadata(Iterable<SegmentDescriptor> specs)
   {

@@ -23,6 +23,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 public class VirtualSegmentStateTransitionTest
 {
@@ -82,16 +83,61 @@ public class VirtualSegmentStateTransitionTest
     Assert.assertNotSame(future, virtualSegmentHolder.queue(segment));
     Assert.assertSame(segment, virtualSegmentHolder.get(segment.getId()));
     assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
+  }
+
+  @Test
+  public void testQueue_resultFutureCancellation()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    virtualSegmentHolder.registerIfAbsent(segment);
 
     // cancelling result future should not affect the state
     virtualSegmentHolder.queue(segment).cancel(true);
     assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
     Assert.assertFalse(virtualSegmentHolder.queue(segment).isDone());
+  }
+
+  @Test
+  public void testQueue_resultFutureCompletion()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    virtualSegmentHolder.registerIfAbsent(segment);
 
     // completing result future should not affect the state
     ((SettableFuture<Void>) virtualSegmentHolder.queue(segment)).set(null);
     assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
     Assert.assertFalse(virtualSegmentHolder.queue(segment).isDone());
+
+  }
+
+  @Test
+  public void testQueue_downloadFutureCancellation()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    virtualSegmentHolder.registerIfAbsent(segment);
+    // cancelling download future should cancel result future too
+    ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
+    virtualSegmentHolder.getMetadata(segment.getId()).getDownloadFuture().cancel(true);
+    Assert.assertTrue(future.isCancelled());
+  }
+
+  @Test
+  public void testQueue_downloadFutureException() throws Exception
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    virtualSegmentHolder.registerIfAbsent(segment);
+
+    // failing the download future with an exception should propogate the exception
+    ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
+    virtualSegmentHolder.getMetadata(segment.getId()).getDownloadFuture().setException(new RuntimeException("Failure"));
+    Assert.assertTrue(future.isDone());
+    String exceptionMsg = null;
+    try {
+      future.get(1, TimeUnit.MILLISECONDS);
+    } catch (ExecutionException e) {
+      exceptionMsg = e.getCause().getMessage();
+    }
+    Assert.assertEquals("Failure", exceptionMsg);
   }
 
   @Test
