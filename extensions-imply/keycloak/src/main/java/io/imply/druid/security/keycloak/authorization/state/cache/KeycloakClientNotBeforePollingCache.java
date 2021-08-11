@@ -33,7 +33,7 @@ public class KeycloakClientNotBeforePollingCache extends PollingManagedCache<Map
 
   private final KeycloakDeployment keycloakDeployment;
   private final KeycloakAuthorizerCacheNotifier notifier;
-  private final TokenService keycloakTokenSerivce;
+  private final TokenService keycloakTokenService;
   private volatile ConcurrentHashMap<String, Integer> cachedMap;
   private volatile byte[] cacheBytes;
 
@@ -48,7 +48,7 @@ public class KeycloakClientNotBeforePollingCache extends PollingManagedCache<Map
     super(cacheName, commonCacheConfig, objectMapper);
     this.keycloakDeployment = deployment;
     this.notifier = notifier;
-    this.keycloakTokenSerivce = new TokenService(keycloakDeployment, Collections.emptyMap(), Collections.emptyMap());
+    this.keycloakTokenService = new TokenService(keycloakDeployment, Collections.emptyMap(), Collections.emptyMap());
     this.cachedMap = new ConcurrentHashMap<>();
 
     if (commonCacheConfig.isEnableCacheNotifications()) {
@@ -113,7 +113,7 @@ public class KeycloakClientNotBeforePollingCache extends PollingManagedCache<Map
   @Override
   protected byte[] tryFetchDataForPath(String path) throws Exception
   {
-    TokenService.ClientTokenNotBeforeResponse response = keycloakTokenSerivce.getClientNotBefore();
+    TokenService.ClientTokenNotBeforeResponse response = keycloakTokenService.getClientNotBefore();
     return objectMapper.writeValueAsBytes(response.getNotBeforePolicies());
   }
 }

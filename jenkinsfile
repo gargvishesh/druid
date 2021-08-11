@@ -1544,7 +1544,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas'
+                        values 'dist', 'imply-saas', 'imply-experimental'
                     }
                 }
                 stages {
@@ -1558,6 +1558,8 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid-experimental"
                                 else
                                     echo "druid"
                                 fi
@@ -1565,6 +1567,8 @@ pipeline {
                             ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid.saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid.experimental"
                                 else
                                     echo "druid"
                                 fi
