@@ -166,6 +166,8 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
         ? joinableFactoryWrapper.computeJoinDataSourceCacheKey(analysis)
         : Optional.of(StringUtils.EMPTY_BYTES);
 
+    // This is where the code diverges. We have to diverge the code here instead of inside `buildQueryRunnerForSegment`
+    // since we need the information of all segments together to decide what segments should be downloaded
     FunctionalIterable<QueryRunner<T>> queryRunners;
     if (query.getType().equals(Query.SEGMENT_METADATA)) {
       queryRunners = buildQueryRunnerForSegmentMetadataQuery(specs,

@@ -134,7 +134,8 @@ public class VirtualSegmentStateTransitionTest
     String exceptionMsg = null;
     try {
       future.get(1, TimeUnit.MILLISECONDS);
-    } catch (ExecutionException e) {
+    } catch (ExecutionException e)
+    {
       exceptionMsg = e.getCause().getMessage();
     }
     Assert.assertEquals("Failure", exceptionMsg);

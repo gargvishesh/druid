@@ -123,7 +123,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
     });
 
     // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
-    // because we do not want the download future to be set or cancelled outside this class without the protectionf of
+    // because we do not want the download future to be set or cancelled outside this class without the protection of
     // concurrency guards present in this class.
     SettableFuture<Void> resultFuture = SettableFuture.create();
     Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
