@@ -17,17 +17,14 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.java.util.common.StringUtils;
 
-public class LocalSqlAsyncResultManagerConfig
+public class AsyncQueryAlreadyExistsException extends Exception
 {
-  @JsonProperty
-  public String directory;
-
-  public String getDirectory()
+  public AsyncQueryAlreadyExistsException(final String sqlQueryId)
   {
-    return directory;
+    super(StringUtils.format("Async query [%s] already exists", sqlQueryId));
   }
 }

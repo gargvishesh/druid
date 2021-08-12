@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;

@@ -17,14 +17,28 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
-import org.apache.druid.java.util.common.StringUtils;
+import java.io.InputStream;
 
-public class AsyncQueryAlreadyExistsException extends Exception
+public class SqlAsyncResults
 {
-  public AsyncQueryAlreadyExistsException(final String sqlQueryId)
+  private final InputStream inputStream;
+  private final long size;
+
+  public SqlAsyncResults(final InputStream inputStream, final long size)
   {
-    super(StringUtils.format("Async query [%s] already exists", sqlQueryId));
+    this.inputStream = inputStream;
+    this.size = size;
+  }
+
+  public InputStream getInputStream()
+  {
+    return inputStream;
+  }
+
+  public long getSize()
+  {
+    return size;
   }
 }

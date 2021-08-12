@@ -17,19 +17,14 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
-import java.io.IOException;
-import java.util.Optional;
+import org.apache.druid.java.util.common.StringUtils;
 
-public interface SqlAsyncMetadataManager
+public class AsyncQueryDoesNotExistException extends Exception
 {
-  void addNewQuery(SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryAlreadyExistsException;
-
-  void updateQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryDoesNotExistException;
-
-  // TODO(gianm): Actually call this and clean stuff up
-  boolean removeQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException;
-
-  Optional<SqlAsyncQueryDetails> getQueryDetails(String sqlQueryId) throws IOException;
+  public AsyncQueryDoesNotExistException(final String sqlQueryId)
+  {
+    super(StringUtils.format("Async query [%s] does not exist", sqlQueryId));
+  }
 }

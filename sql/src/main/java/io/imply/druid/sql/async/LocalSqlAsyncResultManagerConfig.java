@@ -17,29 +17,17 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
-import com.google.common.hash.Hashing;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.nio.charset.StandardCharsets;
-import java.util.regex.Pattern;
-
-public class SqlAsyncUtil
+public class LocalSqlAsyncResultManagerConfig
 {
-  // Nothing bad will happen if IDs matching this pattern are used as-is in znodes, filenames, etc.
-  private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9._\\-]{1,128}$");
+  @JsonProperty
+  public String directory;
 
-  private SqlAsyncUtil()
+  public String getDirectory()
   {
-    // No instantiation.
-  }
-
-  public static String safeId(final String id)
-  {
-    if (SAFE_ID_PATTERN.matcher(id).matches()) {
-      return id;
-    } else {
-      return Hashing.sha256().hashString(id, StandardCharsets.UTF_8).toString();
-    }
+    return directory;
   }
 }

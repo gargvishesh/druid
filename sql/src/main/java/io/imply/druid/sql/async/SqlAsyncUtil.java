@@ -17,28 +17,29 @@
  * under the License.
  */
 
-package org.apache.druid.sql.async;
+package io.imply.druid.sql.async;
 
-import java.io.InputStream;
+import com.google.common.hash.Hashing;
 
-public class SqlAsyncResults
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
+
+public class SqlAsyncUtil
 {
-  private final InputStream inputStream;
-  private final long size;
+  // Nothing bad will happen if IDs matching this pattern are used as-is in znodes, filenames, etc.
+  private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9._\\-]{1,128}$");
 
-  public SqlAsyncResults(final InputStream inputStream, final long size)
+  private SqlAsyncUtil()
   {
-    this.inputStream = inputStream;
-    this.size = size;
+    // No instantiation.
   }
 
-  public InputStream getInputStream()
+  public static String safeId(final String id)
   {
-    return inputStream;
-  }
-
-  public long getSize()
-  {
-    return size;
+    if (SAFE_ID_PATTERN.matcher(id).matches()) {
+      return id;
+    } else {
+      return Hashing.sha256().hashString(id, StandardCharsets.UTF_8).toString();
+    }
   }
 }
