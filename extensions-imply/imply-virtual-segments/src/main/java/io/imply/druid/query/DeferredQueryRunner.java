@@ -70,9 +70,4 @@ public class DeferredQueryRunner<T> implements QueryRunner<T>
   {
     return downloadFuture;
   }
-
-  public Segment getSegment()
-  {
-    return segment;
-  }
 }

@@ -70,7 +70,7 @@ import java.util.function.Function;
 
 /**
  * This is {@link org.apache.druid.query.QuerySegmentWalker} used in historicals with virtual segments. It is a copy of
- * {@link org.apache.druid.query.QuerySegmentWalker} except following changes
+ * {@link ServerManager} except following changes
  *  - overrides {@link ServerManager#getQueryRunnerForSegments(Query, Iterable)} to intercept segment metadata queries
  *  and handle them differently. Refer to {@link #buildQueryRunnerForSegmentMetadataQuery}
  *  - overrides {@link ServerManager#buildQueryRunnerForSegment} so that download of virtual segment can be scheduled.
@@ -170,7 +170,8 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
     // since we need the information of all segments together to decide what segments should be downloaded
     FunctionalIterable<QueryRunner<T>> queryRunners;
     if (query.getType().equals(Query.SEGMENT_METADATA)) {
-      queryRunners = buildQueryRunnerForSegmentMetadataQuery(specs,
+      queryRunners = buildQueryRunnerForSegmentMetadataQuery(
+          specs,
           query,
           factory,
           toolChest,
@@ -280,9 +281,22 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
 
   /**
    * Builds a QueryRunner object for segment metadata query such that not all segments need to be downloaded. It
-   * samples few segments and schedules them for download. For rest of the segments, dummy results are returned.
+   * samples few segments and schedules them for download. For rest of the segments, dummy results are returned. we need
+   * to return dummy results to not mess up the result ordering. If we do not return any result for some specs, it might
+   * surface as an error on the broker side. Broker may also keep retrying pulling metadata for the skipped segments that
+   * we do not want. Dummy metadata for these segments is fine since any queries for showing console will
+   * always land on hot brokers. Hot brokers are not aware of cold segments and they will not issue metadata queries
+   * for the cold segments anyway.
    */
-  private <T> FunctionalIterable<QueryRunner<T>> buildQueryRunnerForSegmentMetadataQuery(Iterable<SegmentDescriptor> specs, Query<T> query, QueryRunnerFactory<T, Query<T>> factory, QueryToolChest<T, Query<T>> toolChest, VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline, Function<SegmentReference, SegmentReference> segmentMapFn, AtomicLong cpuTimeAccumulator, Optional<byte[]> cacheKeyPrefix)
+  private <T> FunctionalIterable<QueryRunner<T>> buildQueryRunnerForSegmentMetadataQuery(
+      Iterable<SegmentDescriptor> specs,
+      Query<T> query,
+      QueryRunnerFactory<T, Query<T>> factory,
+      QueryToolChest<T, Query<T>> toolChest,
+      VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline,
+      Function<SegmentReference, SegmentReference> segmentMapFn,
+      AtomicLong cpuTimeAccumulator,
+      Optional<byte[]> cacheKeyPrefix)
   {
     Set<SegmentDescriptor> queryableSpecs = segmentsToQueryForMetadata(specs);
     return FunctionalIterable
@@ -315,7 +329,11 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
   }
 
   /**
-   * Sample the segment descriptors. It returns the latest and oldest segment in the specs.
+   * Sample the segment descriptors. It returns the latest and oldest segment in the specs. The rationale in picking two
+   * segments is that it gives a good spread as opposed to picking just one segment. If we just pick one segment, say the
+   * latest one, it is possible that the schema of that segment is very different from existing segments. The datasource
+   * signature on the cold broker could change drastically because of just one segment. By including the oldest segment
+   * as well, the impact is minimized to a certain extent. It is not very perfect either but will do for now.
    * @param specs - segment descriptors to sample
    */
   @VisibleForTesting
