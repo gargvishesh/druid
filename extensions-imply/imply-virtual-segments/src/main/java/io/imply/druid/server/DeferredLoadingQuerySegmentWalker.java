@@ -339,23 +339,23 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
   @VisibleForTesting
   static Set<SegmentDescriptor> segmentsToQueryForMetadata(Iterable<SegmentDescriptor> specs)
   {
-    SegmentDescriptor oldest = null;
-    SegmentDescriptor newest = null;
-    Interval min = null;
-    Interval max = null;
+    SegmentDescriptor oldestSpec = null;
+    SegmentDescriptor newestSpec = null;
+    Interval minInterval = null;
+    Interval maxInterval = null;
     Comparator<Interval> comparator = Comparators.intervalsByEndThenStart();
     for (SegmentDescriptor spec : specs) {
       Interval interval = spec.getInterval();
-      if (min == null || comparator.compare(min, interval) > 0) {
-        min = interval;
-        oldest = spec;
+      if (minInterval == null || comparator.compare(minInterval, interval) > 0) {
+        minInterval = interval;
+        oldestSpec = spec;
       }
-      if (max == null || comparator.compare(interval, max) > 0) {
-        max = interval;
-        newest = spec;
+      if (maxInterval == null || comparator.compare(interval, maxInterval) > 0) {
+        maxInterval = interval;
+        newestSpec = spec;
       }
     }
-    return Sets.newHashSet(oldest, newest);
+    return Sets.newHashSet(oldestSpec, newestSpec);
   }
 
   private <T> QueryRunner<T> buildDummyRunnerForSegmentMetadata(SegmentDescriptor descriptor, VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline)
