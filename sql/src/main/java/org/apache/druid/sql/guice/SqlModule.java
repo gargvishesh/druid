@@ -86,7 +86,10 @@ public class SqlModule implements Module
       binder.install(new CalcitePlannerModule());
       binder.install(new SqlAggregationModule());
       binder.install(new DruidViewModule());
+
+      // BEGIN: Imply-specific modules
       binder.install(new SqlAsyncModule());
+      // END: Imply-specific modules
 
       // QueryLookupOperatorConversion isn't in DruidOperatorTable since it needs a LookupExtractorFactoryContainerProvider injected.
       SqlBindings.addOperatorConversion(binder, QueryLookupOperatorConversion.class);

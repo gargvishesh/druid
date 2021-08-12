@@ -71,11 +71,10 @@ public class SqlAsyncQueryPool
   ) throws IOException, AsyncQueryAlreadyExistsException
   {
     // TODO(gianm): Document precondition: lifecycle must be in AUTHORIZED state. Validate, too?
-    final String sqlQueryId = lifecycle.getPlannerContext().getSqlQueryId();
-
+    assert lifecycle.getAuthenticationResult() != null;
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
         asyncResultId,
-        lifecycle.getPlannerContext().getAuthenticationResult().getIdentity(),
+        lifecycle.getAuthenticationResult().getIdentity(),
         sqlQuery.getResultFormat()
     );
 
@@ -86,7 +85,7 @@ public class SqlAsyncQueryPool
           final String currThreadName = Thread.currentThread().getName();
 
           try {
-            Thread.currentThread().setName(StringUtils.format("sql-async[%s]", sqlQueryId));
+            Thread.currentThread().setName(StringUtils.format("sql-async[%s]", asyncResultId));
 
             metadataManager.updateQueryDetails(queryDetails.toRunning());
 
@@ -160,14 +159,14 @@ public class SqlAsyncQueryPool
             lifecycle.emitLogsAndMetrics(null, remoteAddr, outputStream.getCount());
           }
           catch (Exception e) {
-            log.warn(e, "Failed to execute async query [%s]", sqlQueryId);
+            log.warn(e, "Failed to execute async query [%s]", asyncResultId);
             lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
 
             try {
               metadataManager.updateQueryDetails(queryDetails.toError(e));
             }
             catch (Exception e2) {
-              log.warn(e2, "Failed to set error for async query [%s]", sqlQueryId);
+              log.warn(e2, "Failed to set error for async query [%s]", asyncResultId);
             }
           }
           finally {

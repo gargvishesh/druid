@@ -20,7 +20,6 @@
 package org.apache.druid.sql.http;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
 
@@ -33,7 +32,7 @@ import java.util.List;
 
 public enum ResultFormat
 {
-  ARRAY("array") {
+  ARRAY {
     @Override
     public String contentType()
     {
@@ -47,7 +46,7 @@ public enum ResultFormat
     }
   },
 
-  ARRAYLINES("arrayLines") {
+  ARRAYLINES {
     @Override
     public String contentType()
     {
@@ -61,7 +60,7 @@ public enum ResultFormat
     }
   },
 
-  CSV("csv") {
+  CSV {
     @Override
     public String contentType()
     {
@@ -75,7 +74,7 @@ public enum ResultFormat
     }
   },
 
-  OBJECT("object") {
+  OBJECT {
     @Override
     public String contentType()
     {
@@ -89,7 +88,7 @@ public enum ResultFormat
     }
   },
 
-  OBJECTLINES("objectLines") {
+  OBJECTLINES {
     @Override
     public String contentType()
     {
@@ -103,23 +102,9 @@ public enum ResultFormat
     }
   };
 
-  private final String name;
-
-  ResultFormat(final String name)
-  {
-    this.name = name;
-  }
-
   public abstract String contentType();
 
   public abstract Writer createFormatter(OutputStream outputStream, ObjectMapper jsonMapper) throws IOException;
-
-  @Override
-  @JsonValue
-  public String toString()
-  {
-    return name;
-  }
 
   public interface Writer extends Closeable
   {

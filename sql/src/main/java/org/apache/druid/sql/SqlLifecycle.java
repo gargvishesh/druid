@@ -480,13 +480,6 @@ public class SqlLifecycle
     }
   }
 
-  public PlannerContext getPlannerContext()
-  {
-    synchronized (lock) {
-      return plannerContext;
-    }
-  }
-
   @GuardedBy("lock")
   private void transition(final State from, final State to)
   {
@@ -508,4 +501,14 @@ public class SqlLifecycle
     UNAUTHORIZED,
     DONE
   }
+
+  // BEGIN: Imply-specific code
+  @Nullable
+  public AuthenticationResult getAuthenticationResult()
+  {
+    synchronized (lock) {
+      return plannerContext.getAuthenticationResult();
+    }
+  }
+  // END: Imply-specific code
 }
