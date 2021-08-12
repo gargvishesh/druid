@@ -58,7 +58,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
-      curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(path, payload);
+      curator.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
     }
     catch (KeeperException.NodeExistsException e) {
       throw new AsyncQueryAlreadyExistsException(queryDetails.getAsyncResultId());
