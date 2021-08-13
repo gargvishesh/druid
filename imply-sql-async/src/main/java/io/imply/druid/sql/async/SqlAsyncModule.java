@@ -88,12 +88,18 @@ public class SqlAsyncModule implements Module
     return UUIDUtils.generateUuid();
   }
 
+  /**
+   * This method must match to {@link SqlModule#isEnabled()}.
+   */
   private boolean isSqlEnabled()
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE, "true"));
   }
 
+  /**
+   * This method must match to {@link SqlModule#isJsonOverHttpEnabled()}.
+   */
   private boolean isJsonOverHttpEnabled()
   {
     Preconditions.checkNotNull(props, "props");
