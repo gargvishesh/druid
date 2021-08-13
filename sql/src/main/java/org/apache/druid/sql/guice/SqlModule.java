@@ -25,7 +25,6 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.sql.avatica.AvaticaModule;
@@ -92,10 +91,6 @@ public class SqlModule implements Module
 
       if (isJsonOverHttpEnabled()) {
         binder.install(new SqlHttpModule());
-
-        // BEGIN: Imply-specific module
-        binder.install(new SqlAsyncModule());
-        // END: Imply-specific module
       }
 
       if (isAvaticaEnabled()) {
