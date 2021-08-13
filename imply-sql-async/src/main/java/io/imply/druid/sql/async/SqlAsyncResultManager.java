@@ -20,5 +20,5 @@ public interface SqlAsyncResultManager
   Optional<SqlAsyncResults> readResults(SqlAsyncQueryDetails queryDetails) throws IOException;
 
   // TODO(gianm): Actually call this and clean stuff up
-  void deleteResults(String SqlQueryId) throws IOException;
+  void deleteResults(String SqlQueryId);
 }
