@@ -95,7 +95,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
       curator.delete().forPath(path);
       return true;
     }
-    catch (KeeperException.NodeExistsException e) {
+    catch (KeeperException.NoNodeException e) {
       return false;
     }
     catch (Exception e) {
@@ -104,9 +104,9 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   }
 
   @Override
-  public Optional<SqlAsyncQueryDetails> getQueryDetails(final String sqlQueryId) throws IOException
+  public Optional<SqlAsyncQueryDetails> getQueryDetails(final String asyncResultId) throws IOException
   {
-    final String path = makePath(sqlQueryId);
+    final String path = makePath(asyncResultId);
     final byte[] bytes;
 
     try {

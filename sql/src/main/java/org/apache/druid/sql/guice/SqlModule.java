@@ -82,10 +82,6 @@ public class SqlModule implements Module
           NoopViewManager.TYPE
       );
 
-      // BEGIN: Imply-specific modules
-      binder.install(new SqlAsyncModule());
-      // END: Imply-specific modules
-
       binder.install(new DruidCalciteSchemaModule());
       binder.install(new CalcitePlannerModule());
       binder.install(new SqlAggregationModule());
@@ -96,6 +92,10 @@ public class SqlModule implements Module
 
       if (isJsonOverHttpEnabled()) {
         binder.install(new SqlHttpModule());
+
+        // BEGIN: Imply-specific module
+        binder.install(new SqlAsyncModule());
+        // END: Imply-specific module
       }
 
       if (isAvaticaEnabled()) {

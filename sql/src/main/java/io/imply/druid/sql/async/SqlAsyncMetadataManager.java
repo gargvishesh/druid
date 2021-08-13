@@ -31,5 +31,5 @@ public interface SqlAsyncMetadataManager
   // TODO(gianm): Actually call this and clean stuff up
   boolean removeQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException;
 
-  Optional<SqlAsyncQueryDetails> getQueryDetails(String sqlQueryId) throws IOException;
+  Optional<SqlAsyncQueryDetails> getQueryDetails(String asyncResultId) throws IOException;
 }

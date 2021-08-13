@@ -41,7 +41,7 @@ public class SqlAsyncQueryDetails
   private final ResultFormat resultFormat;
   private final long resultLength;
 
-  @Nullable // Can only be null if state == ERROR
+  @Nullable // User identity. Can only be null if state == ERROR
   private final String identity;
 
   @Nullable
