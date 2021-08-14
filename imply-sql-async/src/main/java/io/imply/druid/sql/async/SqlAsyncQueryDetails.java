@@ -58,11 +58,11 @@ public class SqlAsyncQueryDetails
       throw new IAE("asyncResultId must be nonempty");
     }
 
-    if (state != State.ERROR && identity == null) {
+    if (state != State.FAILED && identity == null) {
       throw new ISE("Cannot have nil identity in state [%s]", state);
     }
 
-    if (state != State.ERROR && error != null) {
+    if (state != State.FAILED && error != null) {
       throw new ISE("Cannot have error details in state [%s]", state);
     }
 
@@ -96,7 +96,7 @@ public class SqlAsyncQueryDetails
   {
     return new SqlAsyncQueryDetails(
         asyncResultId,
-        State.ERROR,
+        State.FAILED,
         identity,
         resultFormat,
         UNKNOWN_RESULT_LENGTH,
@@ -192,7 +192,8 @@ public class SqlAsyncQueryDetails
     INITIALIZED,
     RUNNING,
     COMPLETE,
-    ERROR
+    FAILED,
+    UNDETERMINED
   }
 
   private static String clipErrorMessage(@Nullable final String errorMessage)
