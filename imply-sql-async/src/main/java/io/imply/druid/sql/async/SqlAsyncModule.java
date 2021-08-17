@@ -15,6 +15,7 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
 import org.apache.druid.common.utils.UUIDUtils;
@@ -65,20 +66,36 @@ public class SqlAsyncModule implements Module
 
       // Force eager initialization.
       LifecycleModule.register(binder, SqlAsyncResource.class);
+
+      binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class);
     }
   }
 
-  @Provides
-  @LazySingleton
-  public SqlAsyncQueryPool createQueryPool(
-      final SqlAsyncMetadataManager metadataManager,
-      final SqlAsyncResultManager resultManager,
-      @Json ObjectMapper jsonMapper
-  )
+  public static class SqlAsyncQueryPoolProvider implements Provider<SqlAsyncQueryPool>
   {
-    // TODO(gianm): Limit concurrency somehow on the executor service
-    final ExecutorService exec = Execs.multiThreaded(4, "sql-async-pool-%d");
-    return new SqlAsyncQueryPool(exec, metadataManager, resultManager, jsonMapper);
+    private final SqlAsyncMetadataManager metadataManager;
+    private final SqlAsyncResultManager resultManager;
+    private final ObjectMapper jsonMapper;
+
+    @Inject
+    public SqlAsyncQueryPoolProvider(
+        final SqlAsyncMetadataManager metadataManager,
+        final SqlAsyncResultManager resultManager,
+        @Json ObjectMapper jsonMapper
+    )
+    {
+      this.metadataManager = metadataManager;
+      this.resultManager = resultManager;
+      this.jsonMapper = jsonMapper;
+    }
+
+    @Override
+    public SqlAsyncQueryPool get()
+    {
+      // TODO(gianm): Limit concurrency somehow on the executor service
+      final ExecutorService exec = Execs.multiThreaded(4, "sql-async-pool-%d");
+      return new SqlAsyncQueryPool(exec, metadataManager, resultManager, jsonMapper);
+    }
   }
 
   @Provides
