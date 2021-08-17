@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 public class SqlAsyncModule implements Module
 {
   private static final String LOCAL_RESULT_MANAGER_TYPE = "local";
+  private static final String ASYNC_ENABLED_KEY = "druid.sql.asyncstorage.enabled";
 
   @Inject
   private Properties props;
@@ -40,7 +41,7 @@ public class SqlAsyncModule implements Module
   @Override
   public void configure(Binder binder)
   {
-    if (isSqlEnabled() && isJsonOverHttpEnabled()) {
+    if (isAsyncEnabled() && isSqlEnabled() && isJsonOverHttpEnabled()) {
       binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
 
       PolyBind.createChoice(
@@ -104,5 +105,11 @@ public class SqlAsyncModule implements Module
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true"));
+  }
+
+  private boolean isAsyncEnabled()
+  {
+    Preconditions.checkNotNull(props, "props");
+    return Boolean.valueOf(props.getProperty(ASYNC_ENABLED_KEY, "false"));
   }
 }
