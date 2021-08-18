@@ -134,6 +134,7 @@
         <module>processing</module>
         <module>server</module>
         <module>sql</module>
+        <module>imply-sql-async</module>
         <module>services</module>
         <module>integration-tests</module>
         <module>benchmarks</module>

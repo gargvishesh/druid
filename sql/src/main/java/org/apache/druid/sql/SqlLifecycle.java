@@ -276,7 +276,6 @@ public class SqlLifecycle
    * Prepare the query lifecycle for execution, without completely planning into something that is executable, but
    * including some initial parsing and validation and any dyanmic parameter type resolution, to support prepared
    * statements via JDBC.
-   *
    */
   public PrepareResult prepare() throws RelConversionException
   {
@@ -502,4 +501,14 @@ public class SqlLifecycle
     UNAUTHORIZED,
     DONE
   }
+
+  // BEGIN: Imply-specific code
+  @Nullable
+  public AuthenticationResult getAuthenticationResult()
+  {
+    synchronized (lock) {
+      return plannerContext.getAuthenticationResult();
+    }
+  }
+  // END: Imply-specific code
 }
