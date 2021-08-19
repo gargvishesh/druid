@@ -445,7 +445,7 @@ def coreIntegrationTests() {
     prepareIfconfig()
     getInstanceId()
     script {
-        retry(2) {
+        retry(3) {
             try {
                 sh script: '''
                     ${MVN} verify -pl integration-tests -P integration-tests \
