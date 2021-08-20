@@ -40,7 +40,7 @@ install_zk() {
   rm /tmp/$ZK_TAR.tar.gz
 }
 
-ZK_TAR=apache-zookeeper-$ZK_VERSION-bin
+ZK_TAR=zookeeper-$ZK_VERSION
 install_zk
 ln -s /usr/local/$ZK_TAR /usr/local/zookeeper
 
