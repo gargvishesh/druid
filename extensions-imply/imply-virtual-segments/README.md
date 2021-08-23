@@ -103,16 +103,40 @@ will be evaulated only for those segments that do not match Rule-1.
   "period" : "P6M",
   "includeFuture" : true,
   "tieredReplicants": {
-      "_cold_tier": 1
+    "_cold_tier": 1
   }
 }
 ```
 
-Rule-1 must appear before Rule-2 when reading the rules from the top in console. This ensures that for same segment, 
+Rule-1 must appear before Rule-2 when reading the rules from the top in console. This ensures that for same segment,
 both rules will not be applied together.
 
 ## Querying data on cold-tier
 
-To query the data from cold-tier, caller must set the `brokerService` to `druid/broker-cold` in the query context. Only queries
-with correct value of `brokerService` will go to cold-tier. If the value is not set or incorrect, the queries will go to hot-tier and query 
-only those segments that are loaded on hot historicals. 
+To query the data from cold-tier, caller must set the `brokerService` to `druid/broker-cold` in the query context. Only
+queries with correct value of `brokerService` will go to cold-tier. If the value is not set or incorrect, the queries
+will go to hot-tier and query only those segments that are loaded on hot historicals.
+
+## Available Metrics
+
+### Cold Historical
+
+The extension enables some custom metrics by default. If you want more metrics, please enable the metrics monitors as
+one would enable on a normal historical.
+
+|Metric|Description|Dimensions|Normal Value|
+|------|-----------|----------|------------|
+|`virtual/segment/download/throughputBytesPerSecond`|Download throughput across segments in bytes per second.|Tier| < network performance|
+|`virtual/segment/download/waitMS`|Avg wait time for downloaded segments in milliseconds.|Tier| <60000|
+|`virtual/segment/evicted`|Number of segments evicted.|Tier||
+|`virtual/segment/removed`|Number of segments removed because coordinator unassigned the segment.|Tier||
+|`virtual/segment/queued`|Number of segments queued for download.|Tier|<20|
+|`virtual/segment/downloaded`|Number of segments downloaded.|Tier||
+|`virtual/segment/download/pool/completed`|Number of download tasks completed.|Tier||
+|`virtual/segment/download/pool/active`|Number of download threads currently downloading a segment.|Tier||
+|`virtual/segment/download/pool/queued`|Number of download tasks currently queued.|Tier|<20|
+|`virtual/segment/download/pool/remaining`|Remaining download pool capacity.|Tier||
+|`virtual/segment/download/pool/size`|Active number of download threads.|Tier||
+|`virtual/segment/download/pool/core`|Number of core download threads.|Tier||
+|`virtual/segment/download/pool/max`|Max download pool queue size.|Tier||
+

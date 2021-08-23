@@ -36,7 +36,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -50,6 +49,7 @@ public class VirtualSegmentLoaderTest
   private SegmentLoaderConfig loaderConfig;
   private VirtualSegmentConfig config;
   private SegmentizerFactory segmentizerFactory;
+  private VirtualSegmentStats virtualSegmentStats;
 
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -66,6 +66,7 @@ public class VirtualSegmentLoaderTest
         10_000L,
         0.0d
     )));
+    virtualSegmentStats = new VirtualSegmentStats();
   }
 
   @Test
@@ -75,15 +76,26 @@ public class VirtualSegmentLoaderTest
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     VirtualReferenceCountingSegment firstSegment = TestData.buildVirtualSegment(1);
     VirtualReferenceCountingSegment secondSegment = TestData.buildVirtualSegment(2);
+    virtualSegmentStats.getDownloadThroughputBytesPerSecond();
     Mockito.when(physicalManager.reserve(ArgumentMatchers.any())).thenReturn(true);
     Mockito
         .when(physicalManager.getSegmentFiles(ArgumentMatchers.any()))
-        .thenAnswer(args -> new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString()));
+        .thenAnswer(args -> {
+          //Adding sleep for metrics
+          Thread.sleep(100);
+          return new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString());
+        });
     Mockito
-        .when(segmentizerFactory.factorize(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.eq(false), ArgumentMatchers.eq(null)))
+        .when(segmentizerFactory.factorize(
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.eq(false),
+            ArgumentMatchers.eq(null)
+        ))
         .thenAnswer(args -> toRealSegment(args.getArgument(0), parentDir));
     Mockito.when(segmentHolder.toDownload()).thenReturn(firstSegment).thenReturn(secondSegment).thenReturn(null);
     cacheManager.downloadNextSegment();
+    Assert.assertTrue(virtualSegmentStats.getDownloadThroughputBytesPerSecond() > 0L);
     Mockito.verify(physicalManager, Mockito.times(2)).getSegmentFiles(ArgumentMatchers.any());
     Mockito.verify(segmentHolder).downloaded(firstSegment);
     Mockito.verify(segmentHolder).downloaded(secondSegment);
@@ -106,7 +118,12 @@ public class VirtualSegmentLoaderTest
         .when(physicalManager.getSegmentFiles(ArgumentMatchers.any()))
         .thenAnswer(args -> new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString()));
     Mockito
-        .when(segmentizerFactory.factorize(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.eq(false), ArgumentMatchers.eq(null)))
+        .when(segmentizerFactory.factorize(
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.eq(false),
+            ArgumentMatchers.eq(null)
+        ))
         .thenAnswer(args -> toRealSegment(args.getArgument(0), parentDir));
     cacheManager.downloadNextSegment();
     Mockito.verify(physicalManager, Mockito.times(3)).cleanup(toDataSegment(secondSegment));
@@ -146,7 +163,12 @@ public class VirtualSegmentLoaderTest
         .when(physicalManager.getSegmentFiles(ArgumentMatchers.any()))
         .thenAnswer(args -> new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString()));
     Mockito
-        .when(segmentizerFactory.factorize(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.eq(false), ArgumentMatchers.eq(null)))
+        .when(segmentizerFactory.factorize(
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.eq(false),
+            ArgumentMatchers.eq(null)
+        ))
         .thenAnswer(args -> toRealSegment(args.getArgument(0), parentDir));
     try {
       cacheManager.start();
@@ -172,14 +194,20 @@ public class VirtualSegmentLoaderTest
         .when(physicalManager.getSegmentFiles(ArgumentMatchers.any()))
         .thenAnswer(args -> new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString()));
     Mockito
-        .when(segmentizerFactory.factorize(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.eq(false), ArgumentMatchers.eq(null)))
+        .when(segmentizerFactory.factorize(
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.eq(false),
+            ArgumentMatchers.eq(null)
+        ))
         .thenAnswer(args -> toRealSegment(args.getArgument(0), parentDir));
     try {
       cacheManager.start();
       Future<Void> future = cacheManager.scheduleDownload(segment);
       Assert.assertTrue(future.isDone());
       Mockito.verify(physicalManager).getSegmentFiles(dataSegment);
-      Mockito.verify(segmentizerFactory).factorize(dataSegment, new File(parentDir, dataSegment.getId().toString()), false, null);
+      Mockito.verify(segmentizerFactory)
+             .factorize(dataSegment, new File(parentDir, dataSegment.getId().toString()), false, null);
       Mockito.verify(segmentHolder, Mockito.never()).queue(segment);
       Mockito.verify(segmentHolder).downloaded(segment);
       Assert.assertEquals(new TestSegment(dataSegment, parentDir), segment.getRealSegment());
@@ -213,14 +241,16 @@ public class VirtualSegmentLoaderTest
   {
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     DataSegment dataSegment = TestData.buildDataSegment(1);
-    Mockito.when(segmentHolder.registerIfAbsent(ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
+    Mockito.when(segmentHolder.registerIfAbsent(ArgumentMatchers.any()))
+           .thenAnswer(invocation -> invocation.getArgument(0));
     ReferenceCountingSegment virtualSegment = cacheManager.getSegment(dataSegment, true, () -> {
     });
     Assert.assertNotNull(virtualSegment);
     Assert.assertEquals(VirtualReferenceCountingSegment.class, virtualSegment.getClass());
     Assert.assertEquals(dataSegment.getId(), virtualSegment.getId());
 
-    Mockito.when(segmentHolder.registerIfAbsent(ArgumentMatchers.any())).thenReturn((VirtualReferenceCountingSegment) virtualSegment);
+    Mockito.when(segmentHolder.registerIfAbsent(ArgumentMatchers.any()))
+           .thenReturn((VirtualReferenceCountingSegment) virtualSegment);
     ReferenceCountingSegment otherVirtualSegment = cacheManager.getSegment(dataSegment, true, () -> {
     });
     Assert.assertSame(virtualSegment, otherVirtualSegment);
@@ -238,7 +268,15 @@ public class VirtualSegmentLoaderTest
 
   private VirtualSegmentLoader newVirtualSegmentLoader()
   {
-    return new VirtualSegmentLoader(physicalManager, loaderConfig, segmentHolder, config, null, segmentizerFactory);
+    return new VirtualSegmentLoader(
+        physicalManager,
+        loaderConfig,
+        segmentHolder,
+        config,
+        null,
+        segmentizerFactory,
+        virtualSegmentStats
+    );
   }
 
   private static class TestSegment implements Segment

@@ -41,11 +41,11 @@ import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
 
 import javax.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -59,7 +59,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class VirtualSegmentLoader implements SegmentLoader
 {
   private static final Logger LOG = new Logger(VirtualSegmentLoader.class);
-  private final ScheduledExecutorService downloadExecutor;
+  private final ScheduledThreadPoolExecutor downloadExecutor;
   private final VirtualSegmentStateManager segmentStateManager;
   private final SegmentLocalCacheManager physicalCacheManager;
   // Size of the location with largest space
@@ -68,7 +68,10 @@ public class VirtualSegmentLoader implements SegmentLoader
   private final ReentrantLock lock = new ReentrantLock();
   private final SegmentizerFactory defaultSegmentizerFactory;
   private final ObjectMapper jsonMapper;
+  private final VirtualSegmentStats virtualSegmentStats;
   private volatile boolean started = false;
+  public final String downloadMetricPrefix = "virtual/segment/download/pool/";
+
 
   @Inject
   public VirtualSegmentLoader(
@@ -76,6 +79,7 @@ public class VirtualSegmentLoader implements SegmentLoader
       final SegmentLoaderConfig segmentLoaderConfig,
       final VirtualSegmentStateManager segmentStateManager,
       final VirtualSegmentConfig config,
+      final VirtualSegmentStats virtualSegmentStats,
       IndexIO indexIO,
       @Json ObjectMapper mapper
   )
@@ -86,7 +90,8 @@ public class VirtualSegmentLoader implements SegmentLoader
         segmentStateManager,
         config,
         mapper,
-        new MMappedQueryableSegmentizerFactory(indexIO)
+        new MMappedQueryableSegmentizerFactory(indexIO),
+        virtualSegmentStats
     );
   }
 
@@ -97,24 +102,31 @@ public class VirtualSegmentLoader implements SegmentLoader
       final VirtualSegmentStateManager segmentStateManager,
       final VirtualSegmentConfig config,
       final ObjectMapper mapper,
-      final SegmentizerFactory defaultSegmentizerFactory
+      final SegmentizerFactory defaultSegmentizerFactory,
+      final VirtualSegmentStats virtualSegmentStats
   )
   {
-    Preconditions.checkArgument(segmentLoaderConfig.isDeleteOnRemove(), "For virtual segments to work, druid.segmentCache.deleteOnRemove must be set to true");
-    downloadExecutor = Executors.newScheduledThreadPool(
+    Preconditions.checkArgument(
+        segmentLoaderConfig.isDeleteOnRemove(),
+        "For virtual segments to work, druid.segmentCache.deleteOnRemove must be set to true"
+    );
+    // TODO: Take queue size as an input in the virtual segment config. Default to infinite queue.q
+    downloadExecutor = new ScheduledThreadPoolExecutor(
         config.getDownloadThreads(),
         Execs.makeThreadFactory("virtual-segment-download-%d")
     );
+
     this.segmentStateManager = segmentStateManager;
     this.physicalCacheManager = physicalCacheManager;
     this.maxSizeLocation = segmentLoaderConfig.getLocations()
-        .stream()
-        .mapToLong(StorageLocationConfig::getMaxSize)
-        .max()
-        .orElseThrow(() -> new IAE("No locations configured"));
+                                              .stream()
+                                              .mapToLong(StorageLocationConfig::getMaxSize)
+                                              .max()
+                                              .orElseThrow(() -> new IAE("No locations configured"));
     this.config = config;
     this.jsonMapper = mapper;
     this.defaultSegmentizerFactory = defaultSegmentizerFactory;
+    this.virtualSegmentStats = virtualSegmentStats;
   }
 
   @LifecycleStart
@@ -228,6 +240,7 @@ public class VirtualSegmentLoader implements SegmentLoader
 
   private void evictSegment(VirtualReferenceCountingSegment segment)
   {
+    virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
     segmentStateManager.evict(segment);
     physicalCacheManager.cleanup(dataSegment);
@@ -306,6 +319,18 @@ public class VirtualSegmentLoader implements SegmentLoader
     physicalCacheManager.cleanup(segment);
   }
 
+  public Map<String, Number> getDownloadQueueGuages()
+  {
+    final Map<String, Number> qMetricsMap = new HashMap<>();
+    qMetricsMap.put(downloadMetricPrefix + "active", downloadExecutor.getActiveCount());
+    qMetricsMap.put(downloadMetricPrefix + "queued", downloadExecutor.getQueue().size());
+    qMetricsMap.put(downloadMetricPrefix + "remaining", downloadExecutor.getQueue().remainingCapacity());
+    qMetricsMap.put(downloadMetricPrefix + "size", downloadExecutor.getPoolSize());
+    qMetricsMap.put(downloadMetricPrefix + "core", downloadExecutor.getCorePoolSize());
+    qMetricsMap.put(downloadMetricPrefix + "max", downloadExecutor.getMaximumPoolSize());
+    return qMetricsMap;
+  }
+
   //TODO: maybe this should be called in {SegmentStateManager.compute()] so its called serially for a segment
   private void materializeSegment(VirtualReferenceCountingSegment segmentReference, DataSegment dataSegment)
       throws SegmentLoadingException
@@ -328,10 +353,16 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
     return ((VirtualSegment) baseSegment).asDataSegment();
   }
-  
-  private Segment loadRealSegment(DataSegment dataSegment, boolean lazy, SegmentLazyLoadFailCallback loadFailed) throws SegmentLoadingException
+
+  private Segment loadRealSegment(DataSegment dataSegment, boolean lazy, SegmentLazyLoadFailCallback loadFailed)
+      throws SegmentLoadingException
   {
+    // download metrics
+    long startDownloadTime = System.currentTimeMillis();
     File segmentFiles = physicalCacheManager.getSegmentFiles(dataSegment);
+    virtualSegmentStats.recordDownloadTime(
+        System.currentTimeMillis() - startDownloadTime, dataSegment.getSize());
+
     File factoryJson = new File(segmentFiles, "factory.json");
     final SegmentizerFactory factory;
 

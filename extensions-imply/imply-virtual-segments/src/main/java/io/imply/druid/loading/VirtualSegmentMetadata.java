@@ -21,6 +21,7 @@ public class VirtualSegmentMetadata
   private final VirtualReferenceCountingSegment virtualSegment;
   private VirtualSegmentStateManagerImpl.Status status;
   private SettableFuture<Void> downloadFuture;
+  private long queueStartTimeMillis = 0L;
 
   public VirtualSegmentMetadata(
       final VirtualReferenceCountingSegment virtualSegment,
@@ -59,6 +60,16 @@ public class VirtualSegmentMetadata
   public void resetFuture()
   {
     downloadFuture = null;
+  }
+
+  public long getQueueStartTimeMillis()
+  {
+    return queueStartTimeMillis;
+  }
+
+  public void setQueueStartTimeMillis(long queueStartTimeMillis)
+  {
+    this.queueStartTimeMillis = queueStartTimeMillis;
   }
 
 }

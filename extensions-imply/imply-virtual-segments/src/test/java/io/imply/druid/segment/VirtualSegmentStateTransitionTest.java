@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.TestData;
 import io.imply.druid.loading.FIFOSegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentMetadata;
+import io.imply.druid.loading.VirtualSegmentStats;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.Assert;
@@ -30,11 +31,15 @@ public class VirtualSegmentStateTransitionTest
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
   private VirtualSegmentStateManagerImpl virtualSegmentHolder;
+  private VirtualSegmentStats virtualSegmentStats = new VirtualSegmentStats();
 
   @Before
   public void setup()
   {
-    virtualSegmentHolder = new VirtualSegmentStateManagerImpl(new FIFOSegmentReplacementStrategy());
+    virtualSegmentHolder = new VirtualSegmentStateManagerImpl(
+        new FIFOSegmentReplacementStrategy(),
+        virtualSegmentStats
+    );
   }
 
   @Test
@@ -65,10 +70,12 @@ public class VirtualSegmentStateTransitionTest
   @Test
   public void testReadyToQueue()
   {
+    virtualSegmentStats.resetMetrics();
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     virtualSegmentHolder.registerIfAbsent(segment);
     ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
     assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
+    Assert.assertEquals(1, virtualSegmentStats.getNumSegmentsQueued());
     Assert.assertFalse(future.isDone());
     Assert.assertFalse(future.isCancelled());
     Assert.assertSame(segment, virtualSegmentHolder.get(segment.getId()));
@@ -180,24 +187,37 @@ public class VirtualSegmentStateTransitionTest
   @Test
   public void testQueueToDownload()
   {
+    virtualSegmentStats.resetMetrics();
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     virtualSegmentHolder.registerIfAbsent(segment);
     ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
+    assertStatus(VirtualSegmentStateManagerImpl.Status.QUEUED, segment.getId());
     Assert.assertFalse(future.isDone());
-    virtualSegmentHolder.downloaded(segment);
-    Assert.assertTrue(future.isDone());
+    // adding a sleep while the callback runs
+    try {
+      Thread.sleep(100);
+      virtualSegmentHolder.downloaded(segment);
+      Assert.assertTrue(future.isDone());
+      Thread.sleep(100);
+    }
+    catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     assertStatus(VirtualSegmentStateManagerImpl.Status.DOWNLOADED, segment.getId());
+    Assert.assertTrue(virtualSegmentStats.getAvgDownloadWaitingTimeInMS() > 0);
   }
 
   @Test
   public void testDownloadToDownload()
   {
+    virtualSegmentStats.resetMetrics();
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     virtualSegmentHolder.registerIfAbsent(segment);
     virtualSegmentHolder.downloaded(segment);
     virtualSegmentHolder.downloaded(segment);
     assertStatus(VirtualSegmentStateManagerImpl.Status.DOWNLOADED, segment.getId());
     Assert.assertTrue(virtualSegmentHolder.getMetadata(segment.getId()).getDownloadFuture().isDone());
+    Assert.assertEquals(1, virtualSegmentStats.getNumSegmentsDownloaded());
   }
 
   @Test
@@ -238,13 +258,25 @@ public class VirtualSegmentStateTransitionTest
   @Test
   public void testQueueToRemove() throws ExecutionException, InterruptedException
   {
+    virtualSegmentStats.resetMetrics();
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     SegmentId segmentId = segment.getId();
     virtualSegmentHolder.registerIfAbsent(segment);
     ListenableFuture<Void> future = virtualSegmentHolder.queue(segment);
-    virtualSegmentHolder.remove(segment.getId());
-    Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
-    Assert.assertTrue(future.isDone());
+    // adding a sleep while the callback runs
+    try {
+      Thread.sleep(100);
+      virtualSegmentHolder.remove(segment.getId());
+      Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
+      Assert.assertTrue(future.isDone());
+      Thread.sleep(100);
+    }
+    catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+    Assert.assertEquals(0L, virtualSegmentStats.getAvgDownloadWaitingTimeInMS());
+    Assert.assertEquals(1, virtualSegmentStats.getNumSegmentsRemoved());
+
     expectedException.expect(ExecutionException.class);
     expectedException.expectMessage("Segment was removed");
     future.get();
@@ -273,7 +305,6 @@ public class VirtualSegmentStateTransitionTest
     Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
   }
 
- 
 
   private void assertStatus(VirtualSegmentStateManagerImpl.Status status, SegmentId segmentId)
   {
