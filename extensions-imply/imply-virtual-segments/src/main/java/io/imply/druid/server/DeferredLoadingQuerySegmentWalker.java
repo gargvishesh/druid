@@ -32,6 +32,7 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.CPUTimeMetricQueryRunner;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.Query;
@@ -391,12 +392,19 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       );
     };
 
+    // Following wrappers are required since they change the result type
+    BySegmentQueryRunner<T> bySegmentQueryRunner = new BySegmentQueryRunner<>(
+        segment.getId(),
+        segment.getDataInterval().getStart(),
+        delegate
+    );
+
     // Return a query runner of type DeferredQueryRunner
     return new DeferredQueryRunner<T>(
         Futures.immediateFuture(null),
         segment,
         () -> {
         },
-        () -> delegate);
+        () -> bySegmentQueryRunner);
   }
 }
