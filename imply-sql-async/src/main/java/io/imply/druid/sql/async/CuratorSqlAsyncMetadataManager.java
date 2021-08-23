@@ -48,6 +48,8 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
+      // TODO (jihoon): should create a persistent node instead of ephemeral
+      //                once druid can clean up persistent nodes automatically.
       curator.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
     }
     catch (KeeperException.NodeExistsException e) {

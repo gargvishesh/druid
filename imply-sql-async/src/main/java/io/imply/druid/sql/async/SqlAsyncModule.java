@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -33,16 +34,28 @@ import java.util.concurrent.ExecutorService;
 
 public class SqlAsyncModule implements Module
 {
+  static final String ASYNC_BROKER_ID = "asyncBrokerId";
+  static final String ASYNC_ENABLED_KEY = "druid.sql.async.enabled";
+
   private static final String LOCAL_RESULT_MANAGER_TYPE = "local";
-  private static final String ASYNC_ENABLED_KEY = "druid.sql.asyncstorage.enabled";
 
   @Inject
   private Properties props;
 
+  public SqlAsyncModule()
+  {
+  }
+
+  @VisibleForTesting
+  SqlAsyncModule(Properties props)
+  {
+    this.props = props;
+  }
+
   @Override
   public void configure(Binder binder)
   {
-    if (isAsyncEnabled() && isSqlEnabled() && isJsonOverHttpEnabled()) {
+    if (isSqlEnabled() && isJsonOverHttpEnabled() && isAsyncEnabled()) {
       binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
 
       PolyBind.createChoice(
@@ -57,7 +70,7 @@ public class SqlAsyncModule implements Module
               .to(LocalSqlAsyncResultManager.class)
               .in(LazySingleton.class);
 
-      JsonConfigProvider.bind(binder, "druid.sql.asyncstorage", LocalSqlAsyncResultManagerConfig.class);
+      JsonConfigProvider.bind(binder, "druid.sql.asyncstorage.local", LocalSqlAsyncResultManagerConfig.class);
 
       binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
 
@@ -100,7 +113,7 @@ public class SqlAsyncModule implements Module
 
   @Provides
   @LazySingleton
-  @Named("brokerId")
+  @Named(ASYNC_BROKER_ID)
   public String getBrokerId()
   {
     return UUIDUtils.generateUuid();
