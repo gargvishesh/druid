@@ -10,7 +10,9 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.imply.druid.sql.async.SqlAsyncQueryDetails.State;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -94,7 +96,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   @Test
   public void testSubmitQuery() throws IOException
   {
-    Response response = resource.doPost(
+    Response submitResponse = resource.doPost(
         new SqlQuery(
             "select count(*) from foo",
             ResultFormat.CSV,
@@ -104,16 +106,50 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         ),
         req
     );
-    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), response.getStatus());
-    Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, response.getEntity().getClass());
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    Assert.assertEquals(State.INITIALIZED, response.getState());
+  }
+
+  @Test(timeout = 5000)
+  public void testGetStatus() throws IOException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select sleep(2), 10",
+            ResultFormat.OBJECTLINES,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.RUNNING);
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+    Response statusResponse = resource.doGetStatus(response.getAsyncResultId(), req);
+    Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
+    response = (SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity();
+    Assert.assertEquals(ResultFormat.OBJECTLINES, response.getResultFormat());
+    Assert.assertEquals(57, response.getResultLength());
+    Assert.assertNull(response.getError());
   }
 
   @Test
-  public void testGetStatus() throws IOException
+  public void testGetStatusUnknownQuery() throws IOException
   {
-    Response response = resource.doPost(
+    Response statusResponse = resource.doGetStatus("unknownQuery", req);
+    Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+  }
+
+  @Test
+  public void testGetResults() throws IOException
+  {
+    Response submitResponse = resource.doPost(
         new SqlQuery(
-            "select sleep(5)",
+            "select dim1, sum(m1) from foo group by 1",
             ResultFormat.CSV,
             true,
             null,
@@ -121,8 +157,44 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         ),
         req
     );
-    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), response.getStatus());
-    Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, response.getEntity().getClass());
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+
+    Response resultsResponse = resource.doGetResults(response.getAsyncResultId(), req);
+    SqlAsyncResults results = (SqlAsyncResults) resultsResponse.getEntity();
+    Assert.assertEquals(55, results.getSize());
+    byte[] buf = new byte[(int) results.getSize()];
+    Assert.assertEquals(results.getSize(), results.getInputStream().read(buf));
+    Assert.assertEquals(
+        "dim1,EXPR$1\n"
+        + ",1.0\n"
+        + "1,4.0\n"
+        + "10.1,2.0\n"
+        + "2,3.0\n"
+        + "abc,6.0\n"
+        + "def,5.0\n"
+        + "\n",
+        StringUtils.fromUtf8(buf)
+    );
+  }
+
+  @Test
+  public void testGetResultsUnknownQuery() throws IOException
+  {
+    Response statusResponse = resource.doGetResults("unknownQuery", req);
+    Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+  }
+
+  private void waitUntilState(String asyncResultId, State state) throws IOException
+  {
+    SqlAsyncQueryDetailsApiResponse response = null;
+
+    while (response == null || response.getState() != state) {
+      Response statusResponse = resource.doGetStatus(asyncResultId, req);
+      Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
+      response = (SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity();
+    }
   }
 
   private static HttpServletRequest mockAuthenticatedRequest()
