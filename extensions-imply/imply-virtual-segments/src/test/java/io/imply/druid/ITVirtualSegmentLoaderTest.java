@@ -30,6 +30,7 @@ import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.ServerTypeConfig;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.DirectQueryProcessingPool;
 import org.apache.druid.query.QueryProcessingPool;
@@ -73,7 +74,6 @@ import org.mockito.Mockito;
 
 import javax.validation.Validation;
 import javax.validation.Validator;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -118,34 +118,32 @@ public class ITVirtualSegmentLoaderTest
 
   @Test
   public void testAddSegment()
-      throws InterruptedException, ExecutionException, TimeoutException
+      throws InterruptedException, ExecutionException, TimeoutException, IOException
   {
     Injector injector = setupInjector();
     SegmentLoadDropHandler handler = injector.getInstance(SegmentLoadDropHandler.class);
     handler.addSegment(makeSegment("test", "segment-1"), DataSegmentChangeCallback.NOOP);
     handler.addSegment(makeSegment("test", "segment-2"), DataSegmentChangeCallback.NOOP);
     SegmentManager segmentManager = injector.getInstance(SegmentManager.class);
-    VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = segmentManager.getTimeline(DataSourceAnalysis
-                                                                                                          .forDataSource(
-                                                                                                              new TableDataSource(
-                                                                                                                  "test")))
-                                                                                         .orElseThrow(() -> new IllegalStateException(
-                                                                                             "Null timeline"));
+    VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = segmentManager
+        .getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource("test")))
+        .orElseThrow(() -> new IllegalStateException("Null timeline"));
     Assert.assertEquals(2, timeline.getNumObjects());
-    VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) timeline.findChunk(
-        interval,
-        "segment-1",
-        0
-    ).getObject();
+    VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) timeline
+        .findChunk(interval, "segment-1", 0)
+        .getObject();
+
     Assert.assertTrue(segment.getBaseSegment() instanceof VirtualSegment);
 
     VirtualSegment virtualSegment = (VirtualSegment) segment.getBaseSegment();
     Assert.assertNull(virtualSegment.getRealSegment());
 
     VirtualSegmentLoader cacheManager = injector.getInstance(VirtualSegmentLoader.class);
-    try {
+    try (Closer segmentResource = Closer.create()) {
       cacheManager.start();
-      ListenableFuture<Void> future = cacheManager.scheduleDownload(segment);
+      ListenableFuture<Void> future = cacheManager.scheduleDownload(segment, segmentResource);
+      Assert.assertTrue(segment.hasActiveQueries());
+
       future.get(10, TimeUnit.SECONDS);
       Assert.assertNotNull(virtualSegment.getRealSegment());
       Assert.assertNotNull(virtualSegment.asQueryableIndex());
@@ -153,6 +151,49 @@ public class ITVirtualSegmentLoaderTest
     }
     finally {
       cacheManager.stop();
+    }
+  }
+
+  @Test(expected = TimeoutException.class)
+  public void testScheduleDownloadWithNoQuery()
+      throws InterruptedException, ExecutionException, TimeoutException, IOException
+  {
+    Injector injector = setupInjector();
+    SegmentLoadDropHandler handler = injector.getInstance(SegmentLoadDropHandler.class);
+    handler.addSegment(makeSegment("test", "segment-1"), DataSegmentChangeCallback.NOOP);
+    handler.addSegment(makeSegment("test", "segment-2"), DataSegmentChangeCallback.NOOP);
+    SegmentManager segmentManager = injector.getInstance(SegmentManager.class);
+    VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = segmentManager
+        .getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource("test")))
+        .orElseThrow(() -> new IllegalStateException("Null timeline"));
+    Assert.assertEquals(2, timeline.getNumObjects());
+    VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) timeline
+        .findChunk(interval, "segment-1", 0)
+        .getObject();
+    Assert.assertTrue(segment.getBaseSegment() instanceof VirtualSegment);
+
+    VirtualSegment virtualSegment = (VirtualSegment) segment.getBaseSegment();
+    Assert.assertNull(virtualSegment.getRealSegment());
+
+    VirtualSegmentLoader cacheManager = injector.getInstance(VirtualSegmentLoader.class);
+    try {
+      // Try to download the segment
+      cacheManager.start();
+      Closer segmentResource = Closer.create();
+      ListenableFuture<Void> future = cacheManager.scheduleDownload(segment, segmentResource);
+
+      // Verify that closing the resource removes active queries from the segment
+      Assert.assertTrue(segment.hasActiveQueries());
+      segmentResource.close();
+      Assert.assertFalse(segment.hasActiveQueries());
+
+      future.get(10, TimeUnit.SECONDS);
+    }
+    finally {
+      cacheManager.stop();
+
+      // Verify that download did not succeed
+      Assert.assertNull(virtualSegment.getRealSegment());
     }
   }
 

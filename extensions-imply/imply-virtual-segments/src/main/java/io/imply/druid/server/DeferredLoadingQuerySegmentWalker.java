@@ -30,6 +30,8 @@ import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.java.util.common.guava.FunctionalIterable;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
+import org.apache.druid.java.util.common.io.Closer;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.BySegmentQueryRunner;
@@ -79,7 +81,8 @@ import java.util.function.Function;
  */
 public class DeferredLoadingQuerySegmentWalker extends ServerManager
 {
-  private static final EmittingLogger log = new EmittingLogger(DeferredLoadingQuerySegmentWalker.class);
+  private static final EmittingLogger ALERT_LOG = new EmittingLogger(DeferredLoadingQuerySegmentWalker.class);
+  private static final Logger LOG = new Logger(DeferredLoadingQuerySegmentWalker.class);
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ServiceEmitter emitter;
   private final QueryProcessingPool queryProcessingPool;
@@ -130,7 +133,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       final QueryUnsupportedException e = new QueryUnsupportedException(
           StringUtils.format("Unknown query type, [%s]", query.getClass())
       );
-      log.makeAlert(e, "Error while executing a query[%s]", query.getId())
+      ALERT_LOG.makeAlert(e, "Error while executing a query[%s]", query.getId())
           .addData("dataSource", query.getDataSource())
           .emit();
       throw e;
@@ -260,24 +263,23 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       VirtualReferenceCountingSegment virtualSegment
   )
   {
-    ListenableFuture<Void> future = virtualSegmentLoader.scheduleDownload(virtualSegment);
-    return virtualSegment.acquireReferences()
-                         .map(closeable -> new DeferredQueryRunner<T>(
-                             future,
-                             virtualSegment,
-                             closeable,
-                             () -> super.buildQueryRunnerForSegment(
-                                 query,
-                                 descriptor,
-                                 factory,
-                                 toolChest,
-                                 timeline,
-                                 segmentMapFn,
-                                 cpuTimeAccumulator,
-                                 cacheKeyPrefix
-                             )
-                         ))
-                         .orElseThrow(() -> new ISE("could not acquire the reference"));
+    Closer closer = Closer.create();
+    ListenableFuture<Void> future = virtualSegmentLoader.scheduleDownload(virtualSegment, closer);
+    return new DeferredQueryRunner<T>(
+        future,
+        virtualSegment,
+        closer,
+        () -> super.buildQueryRunnerForSegment(
+            query,
+            descriptor,
+            factory,
+            toolChest,
+            timeline,
+            segmentMapFn,
+            cpuTimeAccumulator,
+            cacheKeyPrefix
+        )
+    );
   }
 
   /**
@@ -392,7 +394,8 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       );
     };
 
-    // Following wrappers are required since they change the result type
+    // Following wrapper is required since it changes the result type when bySegment field is set to true
+    // Broker expects row of to be of type `Result` instead of `SegmentAnalysis`
     BySegmentQueryRunner<T> bySegmentQueryRunner = new BySegmentQueryRunner<>(
         segment.getId(),
         segment.getDataInterval().getStart(),

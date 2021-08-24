@@ -12,18 +12,19 @@ package io.imply.druid.loading;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.VirtualSegmentConfig;
 import io.imply.druid.segment.SegmentNotEvictableException;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import io.imply.druid.segment.VirtualSegment;
 import io.imply.druid.segment.VirtualSegmentStateManager;
+import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -169,10 +170,21 @@ public class VirtualSegmentLoader implements SegmentLoader
       lock.lock();
       try {
         segmentReference = segmentStateManager.toDownload();
+
+        // Do not continue the loop if there are no more segments to download
         if (null == segmentReference) {
           LOG.trace("No new segments to download");
           return;
         }
+
+        // Skip the download of this segment if it has no active queries
+        // and the cancel of download was successful
+        if (!segmentReference.hasActiveQueries()
+            && segmentStateManager.cancelDownload(segmentReference)) {
+          // Continue with the next segment without waiting
+          continue;
+        }
+
         dataSegment = asDataSegment(segmentReference);
 
         // First we try to reserve the space
@@ -187,7 +199,7 @@ public class VirtualSegmentLoader implements SegmentLoader
             evictSegment(toEvict);
           }
           catch (SegmentNotEvictableException sne) {
-            LOG.error("[%s] in already in use", toEvict.getId());
+            LOG.warn("[%s] in already in use", toEvict.getId());
             continue;
           }
           isReserved = physicalCacheManager.reserve(dataSegment);
@@ -200,7 +212,9 @@ public class VirtualSegmentLoader implements SegmentLoader
               "segment size %d too large to reserve space",
               dataSegment.getSize()
           ), false);
-          scheduleDownload(segmentReference);
+          segmentStateManager.requeue(segmentReference);
+
+          // Do not continue the loop because space is not available
           return;
         }
       }
@@ -218,7 +232,7 @@ public class VirtualSegmentLoader implements SegmentLoader
         }
         if (null != segmentReference) {
           SegmentLifecycleLogger.LOG.debug("Rescheduling [%s] for re-download after failure", segmentReference.getId());
-          scheduleDownload(segmentReference);
+          segmentStateManager.requeue(segmentReference);
         }
         return;
       }
@@ -233,7 +247,7 @@ public class VirtualSegmentLoader implements SegmentLoader
       catch (SegmentLoadingException e) {
         LOG.error(e, "Failed to materialize the segment [%s]", dataSegment.getId());
         //TODO: pause
-        scheduleDownload(segmentReference);
+        segmentStateManager.requeue(segmentReference);
       }
     }
   }
@@ -247,34 +261,18 @@ public class VirtualSegmentLoader implements SegmentLoader
   }
 
   /**
-   * Marks a segment for download
+   * Marks a segment for download.
+   * @param segment - Segment to schedule the download for.
+   * @param closer - once the segment is no longer in need by the caller, this closer will be closed.
    *
    * @return - Future object which is completed successfully if segment is downloaed or fails with an error
    */
-  public ListenableFuture<Void> scheduleDownload(VirtualReferenceCountingSegment segment)
+  public ListenableFuture<Void> scheduleDownload(VirtualReferenceCountingSegment segment, Closer closer)
   {
     if (!started) {
       throw new ISE("cannot schedule a download unless this component is started");
     }
-    lock.lock();
-    try {
-      DataSegment dataSegment = asDataSegment(segment);
-      boolean isCached = physicalCacheManager.isSegmentCached(dataSegment);
-      if (isCached) {
-        SegmentLifecycleLogger.LOG.debug("[%s] is already cached on the disk", dataSegment);
-        try {
-          materializeSegment(segment, dataSegment);
-          return Futures.immediateFuture(null);
-        }
-        catch (SegmentLoadingException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-    finally {
-      lock.unlock();
-    }
-    return segmentStateManager.queue(segment);
+    return segmentStateManager.queue(segment, closer);
   }
 
   @Override
@@ -358,10 +356,10 @@ public class VirtualSegmentLoader implements SegmentLoader
       throws SegmentLoadingException
   {
     // download metrics
-    long startDownloadTime = System.currentTimeMillis();
+    long startDownloadTime = System.nanoTime();
     File segmentFiles = physicalCacheManager.getSegmentFiles(dataSegment);
     virtualSegmentStats.recordDownloadTime(
-        System.currentTimeMillis() - startDownloadTime, dataSegment.getSize());
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startDownloadTime), dataSegment.getSize());
 
     File factoryJson = new File(segmentFiles, "factory.json");
     final SegmentizerFactory factory;

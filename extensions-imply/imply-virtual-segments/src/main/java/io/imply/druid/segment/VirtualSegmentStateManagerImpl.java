@@ -18,9 +18,9 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.loading.SegmentLifecycleLogger;
 import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentMetadata;
-import io.imply.druid.loading.VirtualSegmentStats;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.SegmentId;
 
@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -67,13 +68,47 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   }
 
   @Override
-  public ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment)
+  public void requeue(VirtualReferenceCountingSegment segment)
+  {
+    queueInternal(segment, null, true);
+  }
+
+  @Override
+  public ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment, Closer closer)
+  {
+    VirtualSegmentMetadata newMetadata = queueInternal(segment, closer, false);
+    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
+    // because we do not want the download future to be set or cancelled outside this class without the protection of
+    // concurrency guards present in this class.
+    SettableFuture<Void> resultFuture = SettableFuture.create();
+    Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
+    {
+      @Override
+      public void onSuccess(@Nullable Void result)
+      {
+        resultFuture.set(result);
+      }
+
+      @Override
+      public void onFailure(Throwable t)
+      {
+        if (t instanceof CancellationException) {
+          resultFuture.cancel(true);
+          return;
+        }
+        resultFuture.setException(t);
+      }
+    });
+    return resultFuture;
+  }
+
+  private VirtualSegmentMetadata queueInternal(VirtualReferenceCountingSegment segment, @Nullable Closer closer, boolean isRequeue)
   {
     if (null == segment) {
       throw new IAE("Null segment being queued");
     }
 
-    VirtualSegmentMetadata newMetadata = segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
+    return segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
       SegmentLifecycleLogger.LOG.debug("Queuing data segment [%s]", segment.getId());
       if (null == metadata) {
         throw new ISE("segment [%s] must be added first before queuing", segment.getId());
@@ -81,7 +116,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       switch (metadata.getStatus()) {
         case READY:
           metadata.setStatus(Status.QUEUED);
-          metadata.setQueueStartTimeMillis(System.currentTimeMillis());
+          metadata.setQueueStartTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()));
           virtualSegmentsStats.incrementQueued();
           metadata.setDownloadFuture(SettableFuture.create());
           strategy.queue(segment.getId(), metadata);
@@ -115,7 +150,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
               "Segment [%s] is queued but future is already complete",
               segment.getId()
           );
-          //TODO: fix this
+          //TODO: fix this. Below need to be called only during re-queuing.
           // It will be better to introduce a new status called `DOWNLOADING` and queue the segment only if the state
           // transitions from DOWNLOADING to QUEUED.
           strategy.queue(segment.getId(), metadata);
@@ -124,32 +159,68 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
         default:
           throw new ISE("unknown state: %s", metadata.getStatus());
       }
+
+      if (!isRequeue) {
+        // Make sure the reference is acquired and cleaned when closer is closed.
+        closer.register(
+            metadata
+                .getVirtualSegment()
+                .acquireReferences()
+                .orElseThrow(() -> new ISE("could not acquire the reference")));
+      }
+      return metadata;
+    });
+  }
+
+  @Override
+  public boolean cancelDownload(VirtualReferenceCountingSegment segment)
+  {
+    if (null == segment) {
+      throw new IAE("Download of null segment being cancelled");
+    }
+
+    VirtualSegmentMetadata computedMetadata = segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
+      SegmentLifecycleLogger.LOG.debug("Cancelling download of data segment [%s]", segment.getId());
+      if (null == metadata) {
+        throw new ISE("Segment [%s] must be added first before cancelling download", segment.getId());
+      }
+      switch (metadata.getStatus()) {
+        case QUEUED:
+          // Verify the sanity of the state
+          Preconditions.checkArgument(
+              !metadata.getDownloadFuture().isDone(),
+              "Segment [%s] is queued but future is already complete",
+              segment.getId()
+          );
+
+          // Cancel the download if the segment has no active query
+          if (!metadata.getVirtualSegment().hasActiveQueries()) {
+            strategy.remove(segment.getId());
+            metadata.setStatus(Status.READY);
+            metadata.resetFuture();
+            SegmentLifecycleLogger.LOG.debug(
+                "Transitioned [%s] from [%s] to [%s]",
+                segment.getId(),
+                Status.QUEUED,
+                Status.READY
+            );
+          }
+          break;
+        case READY:
+        case DOWNLOADED:
+        case ERROR:
+          SegmentLifecycleLogger.LOG.debug(
+              "Doing nothing since state is already [%s]",
+              metadata.getStatus()
+          );
+          break;
+        default:
+          throw new ISE("unknown segment state: %s", metadata.getStatus());
+      }
       return metadata;
     });
 
-    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
-    // because we do not want the download future to be set or cancelled outside this class without the protection of
-    // concurrency guards present in this class.
-    SettableFuture<Void> resultFuture = SettableFuture.create();
-    Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
-    {
-      @Override
-      public void onSuccess(@Nullable Void result)
-      {
-        resultFuture.set(result);
-      }
-
-      @Override
-      public void onFailure(Throwable t)
-      {
-        if (t instanceof CancellationException) {
-          resultFuture.cancel(true);
-          return;
-        }
-        resultFuture.setException(t);
-      }
-    });
-    return resultFuture;
+    return computedMetadata.getStatus() != Status.QUEUED;
   }
 
   @Override
@@ -199,7 +270,9 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       if (metadata.getStatus() == Status.QUEUED) {
         final long queueStartTime = metadata.getQueueStartTimeMillis();
         if (queueStartTime != 0) {
-          virtualSegmentsStats.recordDownloadWaitingTime(System.currentTimeMillis() - queueStartTime);
+          virtualSegmentsStats.recordDownloadWaitingTime(
+              TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
+              - queueStartTime);
         }
       }
 
