@@ -18,6 +18,7 @@ import io.imply.druid.segment.SegmentNotEvictableException;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import io.imply.druid.segment.VirtualSegment;
 import io.imply.druid.segment.VirtualSegmentStateManager;
+import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
@@ -342,10 +343,10 @@ public class VirtualSegmentLoader implements SegmentLoader
       throws SegmentLoadingException
   {
     // download metrics
-    long startDownloadTime = System.currentTimeMillis();
+    long startDownloadTime = System.nanoTime();
     File segmentFiles = physicalCacheManager.getSegmentFiles(dataSegment);
     virtualSegmentStats.recordDownloadTime(
-        System.currentTimeMillis() - startDownloadTime, dataSegment.getSize());
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startDownloadTime), dataSegment.getSize());
 
     File factoryJson = new File(segmentFiles, "factory.json");
     final SegmentizerFactory factory;

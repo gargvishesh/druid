@@ -7,7 +7,9 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.loading;
+package io.imply.druid.segment;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -29,7 +31,7 @@ public class VirtualSegmentStats
   /**
    * Adding synchronized as we need to update two variables. The synchronization overhead is low since methods are called infrequently and have simple operations.
    */
-  protected synchronized void recordDownloadTime(long curSegmentDownloadTimeInMS, long segmentSizeInBytes)
+  public synchronized void recordDownloadTime(long curSegmentDownloadTimeInMS, long segmentSizeInBytes)
   {
     downloadTimeInMS += curSegmentDownloadTimeInMS;
     numBytesDownloaded += segmentSizeInBytes;
@@ -95,6 +97,13 @@ public class VirtualSegmentStats
   {
     return this.numSegmentsDownloaded.get();
   }
+
+  @VisibleForTesting
+  long getNumSegmentsWaitingToDownLoad()
+  {
+    return numSegmentsWaitingToDownLoad;
+  }
+
 
   public void resetMetrics()
   {

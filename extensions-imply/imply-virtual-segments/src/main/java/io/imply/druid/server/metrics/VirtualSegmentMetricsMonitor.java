@@ -10,7 +10,7 @@
 package io.imply.druid.server.metrics;
 
 import io.imply.druid.loading.VirtualSegmentLoader;
-import io.imply.druid.loading.VirtualSegmentStats;
+import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.client.DruidServerConfig;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;

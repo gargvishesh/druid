@@ -18,7 +18,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.loading.SegmentLifecycleLogger;
 import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentMetadata;
-import io.imply.druid.loading.VirtualSegmentStats;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.io.Closer;
@@ -29,6 +28,7 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -116,7 +116,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       switch (metadata.getStatus()) {
         case READY:
           metadata.setStatus(Status.QUEUED);
-          metadata.setQueueStartTimeMillis(System.currentTimeMillis());
+          metadata.setQueueStartTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()));
           virtualSegmentsStats.incrementQueued();
           metadata.setDownloadFuture(SettableFuture.create());
           strategy.queue(segment.getId(), metadata);
@@ -219,7 +219,9 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       if (metadata.getStatus() == Status.QUEUED) {
         final long queueStartTime = metadata.getQueueStartTimeMillis();
         if (queueStartTime != 0) {
-          virtualSegmentsStats.recordDownloadWaitingTime(System.currentTimeMillis() - queueStartTime);
+          virtualSegmentsStats.recordDownloadWaitingTime(
+              TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
+              - queueStartTime);
         }
       }
 

@@ -14,6 +14,7 @@ import io.imply.druid.VirtualSegmentConfig;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import io.imply.druid.segment.VirtualSegment;
 import io.imply.druid.segment.VirtualSegmentStateManager;
+import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.segment.QueryableIndex;
@@ -72,17 +73,18 @@ public class VirtualSegmentLoaderTest
   @Test
   public void downloadNextSegment() throws SegmentLoadingException, IOException
   {
+
     File parentDir = tempFolder.newFolder();
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     VirtualReferenceCountingSegment firstSegment = TestData.buildVirtualSegment(1);
     VirtualReferenceCountingSegment secondSegment = TestData.buildVirtualSegment(2);
-    virtualSegmentStats.getDownloadThroughputBytesPerSecond();
+    virtualSegmentStats.resetMetrics();
     Mockito.when(physicalManager.reserve(ArgumentMatchers.any())).thenReturn(true);
     Mockito
         .when(physicalManager.getSegmentFiles(ArgumentMatchers.any()))
         .thenAnswer(args -> {
           //Adding sleep for metrics
-          Thread.sleep(100);
+          Thread.sleep(1);
           return new File(parentDir, ((DataSegment) args.getArgument(0)).getId().toString());
         });
     Mockito
@@ -95,10 +97,10 @@ public class VirtualSegmentLoaderTest
         .thenAnswer(args -> toRealSegment(args.getArgument(0), parentDir));
     Mockito.when(segmentHolder.toDownload()).thenReturn(firstSegment).thenReturn(secondSegment).thenReturn(null);
     cacheManager.downloadNextSegment();
-    Assert.assertTrue(virtualSegmentStats.getDownloadThroughputBytesPerSecond() > 0L);
     Mockito.verify(physicalManager, Mockito.times(2)).getSegmentFiles(ArgumentMatchers.any());
     Mockito.verify(segmentHolder).downloaded(firstSegment);
     Mockito.verify(segmentHolder).downloaded(secondSegment);
+    Assert.assertTrue(virtualSegmentStats.getDownloadThroughputBytesPerSecond() > 20L);
     Assert.assertEquals(new TestSegment(toDataSegment(firstSegment), parentDir), firstSegment.getRealSegment());
     Assert.assertEquals(new TestSegment(toDataSegment(secondSegment), parentDir), secondSegment.getRealSegment());
   }
