@@ -12,7 +12,6 @@ package io.imply.druid.loading;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.VirtualSegmentConfig;
 import io.imply.druid.segment.SegmentNotEvictableException;
@@ -24,6 +23,7 @@ import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -41,11 +41,11 @@ import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
 
 import javax.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -59,7 +59,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class VirtualSegmentLoader implements SegmentLoader
 {
   private static final Logger LOG = new Logger(VirtualSegmentLoader.class);
-  private final ScheduledExecutorService downloadExecutor;
+  private final ScheduledThreadPoolExecutor downloadExecutor;
   private final VirtualSegmentStateManager segmentStateManager;
   private final SegmentLocalCacheManager physicalCacheManager;
   // Size of the location with largest space
@@ -68,7 +68,10 @@ public class VirtualSegmentLoader implements SegmentLoader
   private final ReentrantLock lock = new ReentrantLock();
   private final SegmentizerFactory defaultSegmentizerFactory;
   private final ObjectMapper jsonMapper;
+  private final VirtualSegmentStats virtualSegmentStats;
   private volatile boolean started = false;
+  public final String downloadMetricPrefix = "virtual/segment/download/pool/";
+
 
   @Inject
   public VirtualSegmentLoader(
@@ -76,6 +79,7 @@ public class VirtualSegmentLoader implements SegmentLoader
       final SegmentLoaderConfig segmentLoaderConfig,
       final VirtualSegmentStateManager segmentStateManager,
       final VirtualSegmentConfig config,
+      final VirtualSegmentStats virtualSegmentStats,
       IndexIO indexIO,
       @Json ObjectMapper mapper
   )
@@ -86,7 +90,8 @@ public class VirtualSegmentLoader implements SegmentLoader
         segmentStateManager,
         config,
         mapper,
-        new MMappedQueryableSegmentizerFactory(indexIO)
+        new MMappedQueryableSegmentizerFactory(indexIO),
+        virtualSegmentStats
     );
   }
 
@@ -97,24 +102,31 @@ public class VirtualSegmentLoader implements SegmentLoader
       final VirtualSegmentStateManager segmentStateManager,
       final VirtualSegmentConfig config,
       final ObjectMapper mapper,
-      final SegmentizerFactory defaultSegmentizerFactory
+      final SegmentizerFactory defaultSegmentizerFactory,
+      final VirtualSegmentStats virtualSegmentStats
   )
   {
-    Preconditions.checkArgument(segmentLoaderConfig.isDeleteOnRemove(), "For virtual segments to work, druid.segmentCache.deleteOnRemove must be set to true");
-    downloadExecutor = Executors.newScheduledThreadPool(
+    Preconditions.checkArgument(
+        segmentLoaderConfig.isDeleteOnRemove(),
+        "For virtual segments to work, druid.segmentCache.deleteOnRemove must be set to true"
+    );
+    // TODO: Take queue size as an input in the virtual segment config. Default to infinite queue.q
+    downloadExecutor = new ScheduledThreadPoolExecutor(
         config.getDownloadThreads(),
         Execs.makeThreadFactory("virtual-segment-download-%d")
     );
+
     this.segmentStateManager = segmentStateManager;
     this.physicalCacheManager = physicalCacheManager;
     this.maxSizeLocation = segmentLoaderConfig.getLocations()
-        .stream()
-        .mapToLong(StorageLocationConfig::getMaxSize)
-        .max()
-        .orElseThrow(() -> new IAE("No locations configured"));
+                                              .stream()
+                                              .mapToLong(StorageLocationConfig::getMaxSize)
+                                              .max()
+                                              .orElseThrow(() -> new IAE("No locations configured"));
     this.config = config;
     this.jsonMapper = mapper;
     this.defaultSegmentizerFactory = defaultSegmentizerFactory;
+    this.virtualSegmentStats = virtualSegmentStats;
   }
 
   @LifecycleStart
@@ -188,7 +200,7 @@ public class VirtualSegmentLoader implements SegmentLoader
               "segment size %d too large to reserve space",
               dataSegment.getSize()
           ), false);
-          scheduleDownload(segmentReference);
+          segmentStateManager.requeue(segmentReference);
           return;
         }
       }
@@ -206,7 +218,7 @@ public class VirtualSegmentLoader implements SegmentLoader
         }
         if (null != segmentReference) {
           SegmentLifecycleLogger.LOG.debug("Rescheduling [%s] for re-download after failure", segmentReference.getId());
-          scheduleDownload(segmentReference);
+          segmentStateManager.requeue(segmentReference);
         }
         return;
       }
@@ -221,47 +233,32 @@ public class VirtualSegmentLoader implements SegmentLoader
       catch (SegmentLoadingException e) {
         LOG.error(e, "Failed to materialize the segment [%s]", dataSegment.getId());
         //TODO: pause
-        scheduleDownload(segmentReference);
+        segmentStateManager.requeue(segmentReference);
       }
     }
   }
 
   private void evictSegment(VirtualReferenceCountingSegment segment)
   {
+    virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
     segmentStateManager.evict(segment);
     physicalCacheManager.cleanup(dataSegment);
   }
 
   /**
-   * Marks a segment for download
+   * Marks a segment for download.
+   * @param segment - Segment to schedule the download for.
+   * @param closer - once the segment is no longer in need by the caller, this closer will be closed.
    *
    * @return - Future object which is completed successfully if segment is downloaed or fails with an error
    */
-  public ListenableFuture<Void> scheduleDownload(VirtualReferenceCountingSegment segment)
+  public ListenableFuture<Void> scheduleDownload(VirtualReferenceCountingSegment segment, Closer closer)
   {
     if (!started) {
       throw new ISE("cannot schedule a download unless this component is started");
     }
-    lock.lock();
-    try {
-      DataSegment dataSegment = asDataSegment(segment);
-      boolean isCached = physicalCacheManager.isSegmentCached(dataSegment);
-      if (isCached) {
-        SegmentLifecycleLogger.LOG.debug("[%s] is already cached on the disk", dataSegment);
-        try {
-          materializeSegment(segment, dataSegment);
-          return Futures.immediateFuture(null);
-        }
-        catch (SegmentLoadingException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-    finally {
-      lock.unlock();
-    }
-    return segmentStateManager.queue(segment);
+    return segmentStateManager.queue(segment, closer);
   }
 
   @Override
@@ -306,6 +303,18 @@ public class VirtualSegmentLoader implements SegmentLoader
     physicalCacheManager.cleanup(segment);
   }
 
+  public Map<String, Number> getDownloadQueueGuages()
+  {
+    final Map<String, Number> qMetricsMap = new HashMap<>();
+    qMetricsMap.put(downloadMetricPrefix + "active", downloadExecutor.getActiveCount());
+    qMetricsMap.put(downloadMetricPrefix + "queued", downloadExecutor.getQueue().size());
+    qMetricsMap.put(downloadMetricPrefix + "remaining", downloadExecutor.getQueue().remainingCapacity());
+    qMetricsMap.put(downloadMetricPrefix + "size", downloadExecutor.getPoolSize());
+    qMetricsMap.put(downloadMetricPrefix + "core", downloadExecutor.getCorePoolSize());
+    qMetricsMap.put(downloadMetricPrefix + "max", downloadExecutor.getMaximumPoolSize());
+    return qMetricsMap;
+  }
+
   //TODO: maybe this should be called in {SegmentStateManager.compute()] so its called serially for a segment
   private void materializeSegment(VirtualReferenceCountingSegment segmentReference, DataSegment dataSegment)
       throws SegmentLoadingException
@@ -328,10 +337,16 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
     return ((VirtualSegment) baseSegment).asDataSegment();
   }
-  
-  private Segment loadRealSegment(DataSegment dataSegment, boolean lazy, SegmentLazyLoadFailCallback loadFailed) throws SegmentLoadingException
+
+  private Segment loadRealSegment(DataSegment dataSegment, boolean lazy, SegmentLazyLoadFailCallback loadFailed)
+      throws SegmentLoadingException
   {
+    // download metrics
+    long startDownloadTime = System.currentTimeMillis();
     File segmentFiles = physicalCacheManager.getSegmentFiles(dataSegment);
+    virtualSegmentStats.recordDownloadTime(
+        System.currentTimeMillis() - startDownloadTime, dataSegment.getSize());
+
     File factoryJson = new File(segmentFiles, "factory.json");
     final SegmentizerFactory factory;
 
