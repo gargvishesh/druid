@@ -209,6 +209,20 @@ public class VirtualSegmentStateTransitionTest
   }
 
   @Test
+  public void testQueueToReady()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    virtualSegmentHolder.registerIfAbsent(segment);
+
+    ListenableFuture<Void> future = virtualSegmentHolder.queue(segment, closer);
+    verifyCloser(segment, closer, 1);
+    Assert.assertFalse(future.isDone());
+    virtualSegmentHolder.cancelDownload(segment);
+    Assert.assertFalse(future.isDone());
+    assertStatus(VirtualSegmentStateManagerImpl.Status.READY, segment.getId());
+  }
+
+  @Test
   public void testDownloadToDownload()
   {
     virtualSegmentStats.resetMetrics();

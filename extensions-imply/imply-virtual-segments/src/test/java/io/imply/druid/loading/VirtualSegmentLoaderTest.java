@@ -38,6 +38,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -71,13 +72,16 @@ public class VirtualSegmentLoaderTest
   }
 
   @Test
-  public void downloadNextSegment() throws SegmentLoadingException, IOException
+  public void testDownloadNextSegment() throws SegmentLoadingException, IOException
   {
 
     File parentDir = tempFolder.newFolder();
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     VirtualReferenceCountingSegment firstSegment = TestData.buildVirtualSegment(1);
+    firstSegment.acquireReferences();
     VirtualReferenceCountingSegment secondSegment = TestData.buildVirtualSegment(2);
+    secondSegment.acquireReferences();
+    virtualSegmentStats.getDownloadThroughputBytesPerSecond();
     virtualSegmentStats.resetMetrics();
     Mockito.when(physicalManager.reserve(ArgumentMatchers.any())).thenReturn(true);
     Mockito
@@ -111,6 +115,7 @@ public class VirtualSegmentLoaderTest
     File parentDir = tempFolder.newFolder();
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     VirtualReferenceCountingSegment firstSegment = TestData.buildVirtualSegment(1);
+    firstSegment.acquireReferences();
     DataSegment dataSegment = toDataSegment(firstSegment);
     VirtualReferenceCountingSegment secondSegment = TestData.buildVirtualSegment(2);
     Mockito.when(segmentHolder.toDownload()).thenReturn(firstSegment).thenReturn(null);
@@ -138,6 +143,7 @@ public class VirtualSegmentLoaderTest
   {
     VirtualSegmentLoader cacheManager = newVirtualSegmentLoader();
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment(1);
+    segment.acquireReferences();
     DataSegment dataSegment = toDataSegment(segment);
     Mockito.when(segmentHolder.toDownload()).thenReturn(segment).thenReturn(null);
     Mockito.when(segmentHolder.toEvict()).thenReturn(null);
@@ -205,6 +211,45 @@ public class VirtualSegmentLoaderTest
     ReferenceCountingSegment otherVirtualSegment = cacheManager.getSegment(dataSegment, true, () -> {
     });
     Assert.assertSame(virtualSegment, otherVirtualSegment);
+  }
+
+  @Test
+  public void testCancelDownloadWhenNoActiveQuery() throws IOException
+  {
+    VirtualSegmentLoader segmentLoader = newVirtualSegmentLoader();
+
+    // Create a segment
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment(1);
+    Mockito.when(segmentHolder.toDownload()).thenReturn(segment);
+
+    // Acquire and then release the reference
+    Closeable resource = segment.acquireReferences().orElse(() -> {});
+    resource.close();
+
+    segmentLoader.downloadNextSegment();
+
+    // Verify that cancel download is called
+    Mockito.verify(segmentHolder, Mockito.times(1)).cancelDownload(segment);
+  }
+
+  @Test
+  public void testDownloadWhenCancelFails() throws SegmentLoadingException
+  {
+    VirtualSegmentLoader segmentLoader = newVirtualSegmentLoader();
+
+    // Create a segment
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment(1);
+
+    // cancelDownload should fail
+    Mockito.when(segmentHolder.toDownload()).thenReturn(segment).thenReturn(null);
+    Mockito.when(segmentHolder.cancelDownload(segment)).thenReturn(false);
+    Mockito.when(physicalManager.reserve(ArgumentMatchers.any())).thenReturn(true);
+
+    segmentLoader.downloadNextSegment();
+
+    // Verify that download completes
+    Mockito.verify(physicalManager).getSegmentFiles(ArgumentMatchers.any());
+    Mockito.verify(segmentHolder).downloaded(segment);
   }
 
   private DataSegment toDataSegment(VirtualReferenceCountingSegment segment)

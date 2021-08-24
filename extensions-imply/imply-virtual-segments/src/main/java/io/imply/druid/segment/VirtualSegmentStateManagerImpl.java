@@ -173,6 +173,57 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   }
 
   @Override
+  public boolean cancelDownload(VirtualReferenceCountingSegment segment)
+  {
+    if (null == segment) {
+      throw new IAE("Download of null segment being cancelled");
+    }
+
+    VirtualSegmentMetadata computedMetadata = segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
+      SegmentLifecycleLogger.LOG.debug("Cancelling download of data segment [%s]", segment.getId());
+      if (null == metadata) {
+        throw new ISE("Segment [%s] must be added first before cancelling download", segment.getId());
+      }
+      switch (metadata.getStatus()) {
+        case QUEUED:
+          // Verify the sanity of the state
+          Preconditions.checkArgument(
+              !metadata.getDownloadFuture().isDone(),
+              "Segment [%s] is queued but future is already complete",
+              segment.getId()
+          );
+
+          // Cancel the download if the segment has no active query
+          if (!metadata.getVirtualSegment().hasActiveQueries()) {
+            strategy.remove(segment.getId());
+            metadata.setStatus(Status.READY);
+            metadata.resetFuture();
+            SegmentLifecycleLogger.LOG.debug(
+                "Transitioned [%s] from [%s] to [%s]",
+                segment.getId(),
+                Status.QUEUED,
+                Status.READY
+            );
+          }
+          break;
+        case READY:
+        case DOWNLOADED:
+        case ERROR:
+          SegmentLifecycleLogger.LOG.debug(
+              "Doing nothing since state is already [%s]",
+              metadata.getStatus()
+          );
+          break;
+        default:
+          throw new ISE("unknown segment state: %s", metadata.getStatus());
+      }
+      return metadata;
+    });
+
+    return computedMetadata.getStatus() != Status.QUEUED;
+  }
+
+  @Override
   @Nullable
   //TODO: add contract explicitly stating that two successive toProcess can't return same segment
   public synchronized VirtualReferenceCountingSegment toDownload()

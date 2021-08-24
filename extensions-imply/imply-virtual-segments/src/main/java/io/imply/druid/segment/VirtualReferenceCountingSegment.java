@@ -193,4 +193,11 @@ public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
       return references.get() <= 0;
     }
   }
+
+  public boolean hasActiveQueries()
+  {
+    synchronized (references) {
+      return references.get() > 0;
+    }
+  }
 }

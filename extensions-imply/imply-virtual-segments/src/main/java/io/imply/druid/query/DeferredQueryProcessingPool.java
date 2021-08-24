@@ -11,6 +11,7 @@ package io.imply.druid.query;
 
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.ForwardingListeningExecutorService;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -41,10 +42,12 @@ public class DeferredQueryProcessingPool extends ForwardingListeningExecutorServ
     QueryRunner<V> queryRunner = task.getRunner();
     if (queryRunner instanceof DeferredQueryRunner) {
       DeferredQueryRunner<?> deferredQueryRunner = (DeferredQueryRunner<?>) queryRunner;
-      return Futures.transform(
+      ListenableFuture<T> runnerFuture = Futures.transform(
           deferredQueryRunner.getDownloadFuture(),
           (AsyncFunction<Void, T>) input -> delegate.submit(task)
       );
+      addCancelCallback(runnerFuture, deferredQueryRunner::tearDown);
+      return runnerFuture;
     }
 
     throw new IAE(
@@ -57,5 +60,31 @@ public class DeferredQueryProcessingPool extends ForwardingListeningExecutorServ
   protected ListeningExecutorService delegate()
   {
     return delegate;
+  }
+
+  /**
+   * Adds a callback to be invoked if the given future is cancelled.
+   */
+  private <T> void addCancelCallback(ListenableFuture<T> future, Runnable callback)
+  {
+    Futures.addCallback(
+        future,
+        new FutureCallback<T>()
+        {
+          @Override
+          public void onSuccess(T result)
+          {
+
+          }
+
+          @Override
+          public void onFailure(Throwable t)
+          {
+            if (future.isCancelled()) {
+              callback.run();
+            }
+          }
+        }
+    );
   }
 }

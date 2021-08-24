@@ -63,6 +63,15 @@ public interface VirtualSegmentStateManager
   ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment, Closer closer);
 
   /**
+   * Cancels the download of the segment. If the segment is already queued for
+   * download, it is removed from the queue. Otherwise, this has no effect.
+   *
+   * @return true, if the download has been cancelled or is already complete.
+   * false if the download is still required
+   */
+  boolean cancelDownload(VirtualReferenceCountingSegment segment);
+
+  /**
    * @return The segment that is eligible to be downloaded next.
    */
   @Nullable

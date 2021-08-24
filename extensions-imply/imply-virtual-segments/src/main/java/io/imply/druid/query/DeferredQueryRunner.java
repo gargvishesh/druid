@@ -25,6 +25,9 @@ import java.util.function.Supplier;
  * This class defers the actual execution and creation of query runner to the time after segment has been downloaded.
  * Query runner creation is deferred too so that {@link org.apache.druid.query.QueryRunnerFactory#createRunner(Segment)}
  * can access physical properties of segment if required.
+ *
+ * If the query for this runner gets cancelled, {@link #tearDown()} must be
+ * called explicitly so that the resources held by this runner are released.
  */
 public class DeferredQueryRunner<T> implements QueryRunner<T>
 {
@@ -33,7 +36,6 @@ public class DeferredQueryRunner<T> implements QueryRunner<T>
   private final Closeable resource;
   private final Supplier<QueryRunner<T>> baseRunnerSupplier;
 
-  //TODO: can run be not called and resource held on forever
   public DeferredQueryRunner(
       final ListenableFuture<Void> downloadFuture,
       final Segment segment,
@@ -57,12 +59,7 @@ public class DeferredQueryRunner<T> implements QueryRunner<T>
       throw new IAE("run shouldn't be called till segment [%s] is downloaed", segment.getId());
     }
     finally {
-      try {
-        resource.close();
-      }
-      catch (IOException ioe) {
-        //TODO: log
-      }
+      tearDown();
     }
   }
 
@@ -70,4 +67,19 @@ public class DeferredQueryRunner<T> implements QueryRunner<T>
   {
     return downloadFuture;
   }
+
+  /**
+   * Releases resources that this Query Runner has held. This method should be
+   * called explicitly only when the query is cancelled.
+   */
+  public void tearDown()
+  {
+    try {
+      resource.close();
+    }
+    catch (IOException ioe) {
+      //TODO: log
+    }
+  }
+
 }
