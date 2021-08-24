@@ -11,6 +11,7 @@ package io.imply.druid.segment;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.loading.VirtualSegmentLoader;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
@@ -46,12 +47,20 @@ public interface VirtualSegmentStateManager
   VirtualReferenceCountingSegment registerIfAbsent(VirtualReferenceCountingSegment segment);
 
   /**
-   * Queues a segment for download
-   *
+   * Re-queues a segment for download. There is no new reference acquired since re-queue is not done for a particular
+   * query.
+   */
+  void requeue(VirtualReferenceCountingSegment segment);
+
+  /**
+   * Queues a segment for download and acquire a reference together. The acquired reference is cleared when
+   * closer passed as the parameter is closed.
+   * @param segment - Segment to queue
+   * @param closer - Closer, which the reference release will be registered with.
    * @return {@link ListenableFuture} which is completed successfully when segment is downloaded or with an error
    * if the download fails. Queuing a segment without registering it first will result in an error.
    */
-  ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment);
+  ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment, Closer closer);
 
   /**
    * @return The segment that is eligible to be downloaded next.

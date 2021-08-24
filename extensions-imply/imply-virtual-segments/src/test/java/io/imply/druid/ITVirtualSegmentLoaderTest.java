@@ -30,6 +30,7 @@ import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.ServerTypeConfig;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.DirectQueryProcessingPool;
 import org.apache.druid.query.QueryProcessingPool;
@@ -145,7 +146,7 @@ public class ITVirtualSegmentLoaderTest
     VirtualSegmentLoader cacheManager = injector.getInstance(VirtualSegmentLoader.class);
     try {
       cacheManager.start();
-      ListenableFuture<Void> future = cacheManager.scheduleDownload(segment);
+      ListenableFuture<Void> future = cacheManager.scheduleDownload(segment, Closer.create());
       future.get(10, TimeUnit.SECONDS);
       Assert.assertNotNull(virtualSegment.getRealSegment());
       Assert.assertNotNull(virtualSegment.asQueryableIndex());

@@ -21,6 +21,7 @@ import io.imply.druid.loading.VirtualSegmentMetadata;
 import io.imply.druid.loading.VirtualSegmentStats;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.SegmentId;
 
@@ -67,13 +68,47 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   }
 
   @Override
-  public ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment)
+  public void requeue(VirtualReferenceCountingSegment segment)
+  {
+    queueInternal(segment, null, true);
+  }
+
+  @Override
+  public ListenableFuture<Void> queue(VirtualReferenceCountingSegment segment, Closer closer)
+  {
+    VirtualSegmentMetadata newMetadata = queueInternal(segment, closer, false);
+    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
+    // because we do not want the download future to be set or cancelled outside this class without the protection of
+    // concurrency guards present in this class.
+    SettableFuture<Void> resultFuture = SettableFuture.create();
+    Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
+    {
+      @Override
+      public void onSuccess(@Nullable Void result)
+      {
+        resultFuture.set(result);
+      }
+
+      @Override
+      public void onFailure(Throwable t)
+      {
+        if (t instanceof CancellationException) {
+          resultFuture.cancel(true);
+          return;
+        }
+        resultFuture.setException(t);
+      }
+    });
+    return resultFuture;
+  }
+
+  private VirtualSegmentMetadata queueInternal(VirtualReferenceCountingSegment segment, @Nullable Closer closer, boolean isRequeue)
   {
     if (null == segment) {
       throw new IAE("Null segment being queued");
     }
 
-    VirtualSegmentMetadata newMetadata = segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
+    return segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
       SegmentLifecycleLogger.LOG.debug("Queuing data segment [%s]", segment.getId());
       if (null == metadata) {
         throw new ISE("segment [%s] must be added first before queuing", segment.getId());
@@ -115,7 +150,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
               "Segment [%s] is queued but future is already complete",
               segment.getId()
           );
-          //TODO: fix this
+          //TODO: fix this. Below need to be called only during re-queuing.
           // It will be better to introduce a new status called `DOWNLOADING` and queue the segment only if the state
           // transitions from DOWNLOADING to QUEUED.
           strategy.queue(segment.getId(), metadata);
@@ -124,32 +159,17 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
         default:
           throw new ISE("unknown state: %s", metadata.getStatus());
       }
+
+      if (!isRequeue) {
+        // Make sure the reference is acquired and cleaned when closer is closed.
+        closer.register(
+            metadata
+                .getVirtualSegment()
+                .acquireReferences()
+                .orElseThrow(() -> new ISE("could not acquire the reference")));
+      }
       return metadata;
     });
-
-    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
-    // because we do not want the download future to be set or cancelled outside this class without the protection of
-    // concurrency guards present in this class.
-    SettableFuture<Void> resultFuture = SettableFuture.create();
-    Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
-    {
-      @Override
-      public void onSuccess(@Nullable Void result)
-      {
-        resultFuture.set(result);
-      }
-
-      @Override
-      public void onFailure(Throwable t)
-      {
-        if (t instanceof CancellationException) {
-          resultFuture.cancel(true);
-          return;
-        }
-        resultFuture.setException(t);
-      }
-    });
-    return resultFuture;
   }
 
   @Override
