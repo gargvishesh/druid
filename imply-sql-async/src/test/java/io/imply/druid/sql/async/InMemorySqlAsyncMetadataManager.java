@@ -15,6 +15,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * A simple HashMap-based metadata manager for testing.
+ */
 public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
 {
   private final Object lock = new Object();

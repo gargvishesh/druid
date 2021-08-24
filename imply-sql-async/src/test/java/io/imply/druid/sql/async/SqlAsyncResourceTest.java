@@ -10,14 +10,23 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.async.SqlAsyncQueryDetails.State;
+import org.apache.druid.common.config.NullHandling;
+import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.ExprMacroTable.ExprMacro;
+import org.apache.druid.query.expression.LookupExprMacro;
+import org.apache.druid.query.expressions.SleepExprMacro;
+import org.apache.druid.query.sql.SleepOperatorConversion;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.http.ResultFormat;
@@ -35,6 +44,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -44,6 +55,27 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private ExecutorService exec;
   private SqlAsyncResource resource;
   private HttpServletRequest req;
+
+  @Override
+  public DruidOperatorTable createOperatorTable()
+  {
+    return new DruidOperatorTable(
+        ImmutableSet.of(),
+        ImmutableSet.of(new SleepOperatorConversion())
+    );
+  }
+
+  @Override
+  public ExprMacroTable createMacroTable()
+  {
+    final List<ExprMacro> exprMacros = new ArrayList<>();
+    for (Class<? extends ExprMacroTable.ExprMacro> clazz : ExpressionModule.EXPR_MACROS) {
+      exprMacros.add(CalciteTests.INJECTOR.getInstance(clazz));
+    }
+    exprMacros.add(CalciteTests.INJECTOR.getInstance(LookupExprMacro.class));
+    exprMacros.add(new SleepExprMacro());
+    return new ExprMacroTable(exprMacros);
+  }
 
   @Before
   public void setupTest() throws IOException
@@ -127,13 +159,14 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     );
     Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
     SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
-    waitUntilState(response.getAsyncResultId(), State.RUNNING);
-    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
-    Response statusResponse = resource.doGetStatus(response.getAsyncResultId(), req);
-    Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
-    response = (SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity();
+    response = waitUntilState(response.getAsyncResultId(), State.RUNNING);
+    Assert.assertNull(response.getResultFormat());
+    Assert.assertEquals(0, response.getResultLength());
+    Assert.assertNull(response.getError());
+
+    response = waitUntilState(response.getAsyncResultId(), State.COMPLETE);
     Assert.assertEquals(ResultFormat.OBJECTLINES, response.getResultFormat());
-    Assert.assertEquals(57, response.getResultLength());
+    Assert.assertEquals(NullHandling.replaceWithDefault() ? 57 : 59, response.getResultLength());
     Assert.assertNull(response.getError());
   }
 
@@ -186,7 +219,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
   }
 
-  private void waitUntilState(String asyncResultId, State state) throws IOException
+  private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException
   {
     SqlAsyncQueryDetailsApiResponse response = null;
 
@@ -195,6 +228,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
       Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
       response = (SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity();
     }
+    return response;
   }
 
   private static HttpServletRequest mockAuthenticatedRequest()
