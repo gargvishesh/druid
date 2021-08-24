@@ -18,6 +18,7 @@ import io.imply.druid.segment.SegmentNotEvictableException;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import io.imply.druid.segment.VirtualSegment;
 import io.imply.druid.segment.VirtualSegmentStateManager;
+import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
@@ -169,10 +170,21 @@ public class VirtualSegmentLoader implements SegmentLoader
       lock.lock();
       try {
         segmentReference = segmentStateManager.toDownload();
+
+        // Do not continue the loop if there are no more segments to download
         if (null == segmentReference) {
           LOG.trace("No new segments to download");
           return;
         }
+
+        // Skip the download of this segment if it has no active queries
+        // and the cancel of download was successful
+        if (!segmentReference.hasActiveQueries()
+            && segmentStateManager.cancelDownload(segmentReference)) {
+          // Continue with the next segment without waiting
+          continue;
+        }
+
         dataSegment = asDataSegment(segmentReference);
 
         // First we try to reserve the space
@@ -187,7 +199,7 @@ public class VirtualSegmentLoader implements SegmentLoader
             evictSegment(toEvict);
           }
           catch (SegmentNotEvictableException sne) {
-            LOG.error("[%s] in already in use", toEvict.getId());
+            LOG.warn("[%s] in already in use", toEvict.getId());
             continue;
           }
           isReserved = physicalCacheManager.reserve(dataSegment);
@@ -201,6 +213,8 @@ public class VirtualSegmentLoader implements SegmentLoader
               dataSegment.getSize()
           ), false);
           segmentStateManager.requeue(segmentReference);
+
+          // Do not continue the loop because space is not available
           return;
         }
       }
@@ -342,10 +356,10 @@ public class VirtualSegmentLoader implements SegmentLoader
       throws SegmentLoadingException
   {
     // download metrics
-    long startDownloadTime = System.currentTimeMillis();
+    long startDownloadTime = System.nanoTime();
     File segmentFiles = physicalCacheManager.getSegmentFiles(dataSegment);
     virtualSegmentStats.recordDownloadTime(
-        System.currentTimeMillis() - startDownloadTime, dataSegment.getSize());
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startDownloadTime), dataSegment.getSize());
 
     File factoryJson = new File(segmentFiles, "factory.json");
     final SegmentizerFactory factory;
