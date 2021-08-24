@@ -11,6 +11,8 @@ package io.imply.druid.segment;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.loading.SegmentLifecycleLogger;
@@ -24,6 +26,7 @@ import org.apache.druid.timeline.SegmentId;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -118,7 +121,30 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       }
       return metadata;
     });
-    return newMetadata.getDownloadFuture();
+
+    // Instead of returning newMetadata.getDownloadFuture() itself, we return a different Future object. This is done
+    // because we do not want the download future to be set or cancelled outside this class without the protection of
+    // concurrency guards present in this class.
+    SettableFuture<Void> resultFuture = SettableFuture.create();
+    Futures.addCallback(newMetadata.getDownloadFuture(), new FutureCallback<Void>()
+    {
+      @Override
+      public void onSuccess(@Nullable Void result)
+      {
+        resultFuture.set(result);
+      }
+
+      @Override
+      public void onFailure(Throwable t)
+      {
+        if (t instanceof CancellationException) {
+          resultFuture.cancel(true);
+          return;
+        }
+        resultFuture.setException(t);
+      }
+    });
+    return resultFuture;
   }
 
   @Override
