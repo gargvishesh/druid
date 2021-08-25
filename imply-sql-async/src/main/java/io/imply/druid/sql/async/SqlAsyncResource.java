@@ -62,7 +62,7 @@ public class SqlAsyncResource
 
   @Inject
   public SqlAsyncResource(
-      @Named("brokerId") final String brokerId,
+      @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,

@@ -13,8 +13,8 @@ import org.apache.druid.java.util.common.StringUtils;
 
 public class AsyncQueryAlreadyExistsException extends Exception
 {
-  public AsyncQueryAlreadyExistsException(final String sqlQueryId)
+  public AsyncQueryAlreadyExistsException(final String asyncResultId)
   {
-    super(StringUtils.format("Async query [%s] already exists", sqlQueryId));
+    super(StringUtils.format("Async query [%s] already exists", asyncResultId));
   }
 }
