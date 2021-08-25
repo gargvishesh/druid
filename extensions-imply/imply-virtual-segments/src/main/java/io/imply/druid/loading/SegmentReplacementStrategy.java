@@ -13,11 +13,12 @@ package io.imply.druid.loading;
 import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
+import java.util.Map;
 
 /**
  * SegmentReplacementStrategy is used to decide
- *  - which segment should be downloaded first from a pool of pending segments
- *  - which segment should be evicted first from a pool of downloaded segments
+ * - which segment should be downloaded first from a pool of pending segments
+ * - which segment should be evicted first from a pool of downloaded segments
  */
 public interface SegmentReplacementStrategy
 {
@@ -50,5 +51,10 @@ public interface SegmentReplacementStrategy
    * Remove a segment completely.
    */
   void remove(SegmentId segment);
+
+  /**
+   * Get metric map for monitoring
+   */
+  Map<String, Number> getMetrics();
 
 }
