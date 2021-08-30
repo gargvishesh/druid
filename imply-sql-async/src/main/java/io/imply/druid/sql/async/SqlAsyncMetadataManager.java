@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface SqlAsyncMetadataManager
@@ -22,4 +23,8 @@ public interface SqlAsyncMetadataManager
   boolean removeQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException;
 
   Optional<SqlAsyncQueryDetails> getQueryDetails(String asyncResultId) throws IOException;
+
+  Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(String asyncResultId) throws IOException;
+
+  Collection<String> getAllAsyncResultIds() throws IOException;
 }

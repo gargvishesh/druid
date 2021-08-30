@@ -72,6 +72,9 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ldap-security" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.ldap-security.yml up -d
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "async-download" ]
+    then
+      docker-compose -f $IMPLYTESTDIR/docker/docker-compose.async-download.yml up -d
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.virtual-segments.yml up -d

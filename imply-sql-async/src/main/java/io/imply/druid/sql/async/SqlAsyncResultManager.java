@@ -11,6 +11,7 @@ package io.imply.druid.sql.async;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface SqlAsyncResultManager
@@ -19,6 +20,21 @@ public interface SqlAsyncResultManager
 
   Optional<SqlAsyncResults> readResults(SqlAsyncQueryDetails queryDetails) throws IOException;
 
-  // TODO(gianm): Actually call this and clean stuff up
-  void deleteResults(String SqlQueryId);
+  /**
+   * Delete results from storage of the given {@param asyncResultId}. This method is idempotent.
+   * If the result of {@param asyncResultId} does not exist then this method simply return true.
+   *
+   * @param asyncResultId of the async result to be deleted
+   * @return true if the result of the given {@param asyncResultId} is successfully deleted or does not exist; false otherwise
+   *
+   */
+  boolean deleteResults(String asyncResultId);
+
+  /**
+   * Retrieve all async result ids with existing result stored in storage
+   *
+   * @return async result ids
+   *
+   */
+  Collection<String> getAllResults();
 }

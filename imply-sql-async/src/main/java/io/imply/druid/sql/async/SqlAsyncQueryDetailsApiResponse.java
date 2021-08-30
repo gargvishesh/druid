@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.async;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
@@ -31,12 +32,13 @@ public class SqlAsyncQueryDetailsApiResponse
   @Nullable
   private final QueryException error;
 
+  @JsonCreator
   public SqlAsyncQueryDetailsApiResponse(
-      final String asyncResultId,
-      final SqlAsyncQueryDetails.State state,
-      @Nullable final ResultFormat resultFormat,
-      final long resultLength,
-      @Nullable final QueryException error
+      @JsonProperty("asyncResultId") final String asyncResultId,
+      @JsonProperty("state") final SqlAsyncQueryDetails.State state,
+      @JsonProperty("resultFormat") @Nullable final ResultFormat resultFormat,
+      @JsonProperty("resultLength") final long resultLength,
+      @JsonProperty("error") @Nullable final QueryException error
   )
   {
     this.asyncResultId = Preconditions.checkNotNull(asyncResultId, "asyncResultId");

@@ -11,6 +11,7 @@ package io.imply.druid.sql.async;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -22,7 +23,7 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
 {
   private final Object lock = new Object();
   @GuardedBy("lock")
-  private final Map<String, SqlAsyncQueryDetails> queries = new HashMap<>();
+  private final Map<String, SqlAsyncQueryDetailsAndMetadata> queries = new HashMap<>();
 
   @Override
   public void addNewQuery(SqlAsyncQueryDetails queryDetails) throws AsyncQueryAlreadyExistsException
@@ -31,7 +32,8 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
       if (queries.containsKey(queryDetails.getAsyncResultId())) {
         throw new AsyncQueryAlreadyExistsException(queryDetails.getAsyncResultId());
       }
-      queries.put(queryDetails.getAsyncResultId(), queryDetails);
+      SqlAsyncQueryMetadata metadata = new SqlAsyncQueryMetadata(System.currentTimeMillis());
+      queries.put(queryDetails.getAsyncResultId(), new SqlAsyncQueryDetailsAndMetadata(queryDetails, metadata));
     }
   }
 
@@ -42,7 +44,8 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
       if (!queries.containsKey(queryDetails.getAsyncResultId())) {
         throw new AsyncQueryDoesNotExistException(queryDetails.getAsyncResultId());
       }
-      queries.put(queryDetails.getAsyncResultId(), queryDetails);
+      SqlAsyncQueryMetadata metadata = new SqlAsyncQueryMetadata(System.currentTimeMillis());
+      queries.put(queryDetails.getAsyncResultId(), new SqlAsyncQueryDetailsAndMetadata(queryDetails, metadata));
     }
   }
 
@@ -58,7 +61,31 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
   public Optional<SqlAsyncQueryDetails> getQueryDetails(String asyncResultId)
   {
     synchronized (lock) {
-      return Optional.ofNullable(queries.get(asyncResultId));
+      if (queries.containsKey(asyncResultId)) {
+        return Optional.of(queries.get(asyncResultId).getSqlAsyncQueryDetails());
+      } else {
+        return Optional.empty();
+      }
+    }
+  }
+
+  @Override
+  public Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(String asyncResultId)
+  {
+    synchronized (lock) {
+      if (queries.containsKey(asyncResultId)) {
+        return Optional.of(queries.get(asyncResultId));
+      } else {
+        return Optional.empty();
+      }
+    }
+  }
+
+  @Override
+  public Collection<String> getAllAsyncResultIds()
+  {
+    synchronized (lock) {
+      return queries.keySet();
     }
   }
 }

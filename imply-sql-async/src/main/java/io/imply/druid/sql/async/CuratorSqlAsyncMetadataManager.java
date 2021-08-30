@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
@@ -17,8 +18,12 @@ import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.server.initialization.ZkPathsConfig;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
@@ -44,7 +49,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public void addNewQuery(final SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryAlreadyExistsException
   {
-    final String path = makePath(queryDetails.getAsyncResultId());
+    final String path = makeAsyncQueryStatePath(queryDetails.getAsyncResultId());
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
@@ -64,7 +69,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   public void updateQueryDetails(final SqlAsyncQueryDetails queryDetails)
       throws IOException, AsyncQueryDoesNotExistException
   {
-    final String path = makePath(queryDetails.getAsyncResultId());
+    final String path = makeAsyncQueryStatePath(queryDetails.getAsyncResultId());
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
@@ -81,7 +86,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public boolean removeQueryDetails(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    final String path = makePath(queryDetails.getAsyncResultId());
+    final String path = makeAsyncQueryStatePath(queryDetails.getAsyncResultId());
 
     try {
       curator.delete().forPath(path);
@@ -98,11 +103,29 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public Optional<SqlAsyncQueryDetails> getQueryDetails(final String asyncResultId) throws IOException
   {
-    final String path = makePath(asyncResultId);
-    final byte[] bytes;
+    Optional<SqlAsyncQueryDetailsAndMetadata> sqlAsyncQueryDetailsAndStatOptional = getQueryDetailsAndMetadataHelper(asyncResultId, null);
+    return sqlAsyncQueryDetailsAndStatOptional.map(SqlAsyncQueryDetailsAndMetadata::getSqlAsyncQueryDetails);
+  }
 
+  @Override
+  public Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(final String asyncResultId) throws IOException
+  {
+    Stat stat = new Stat();
+    return getQueryDetailsAndMetadataHelper(asyncResultId, stat);
+  }
+
+  private Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadataHelper(final String asyncResultId, @Nullable final Stat stat) throws IOException
+  {
+    final String path = makeAsyncQueryStatePath(asyncResultId);
+    final byte[] bytes;
+    SqlAsyncQueryMetadata metadata = null;
     try {
-      bytes = curator.getData().forPath(path);
+      if (stat != null) {
+        bytes = curator.getData().storingStatIn(stat).forPath(path);
+        metadata = new SqlAsyncQueryMetadata(stat.getMtime());
+      } else {
+        bytes = curator.getData().forPath(path);
+      }
     }
     catch (KeeperException.NoNodeException e) {
       return Optional.empty();
@@ -111,12 +134,36 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
       throw new IOE(e, "Error while retrieving data from path at [%s]", path);
     }
 
-    return Optional.of(jsonMapper.readValue(bytes, SqlAsyncQueryDetails.class));
+    SqlAsyncQueryDetails sqlAsyncQueryDetails = jsonMapper.readValue(bytes, SqlAsyncQueryDetails.class);
+    return Optional.of(new SqlAsyncQueryDetailsAndMetadata(sqlAsyncQueryDetails, metadata));
   }
 
-  private String makePath(final String sqlQueryId)
+  @Override
+  public Collection<String> getAllAsyncResultIds() throws IOException
+  {
+    final String path = makeAsyncRootPath();
+    List<String> asyncResultIds;
+    try {
+      asyncResultIds = curator.getChildren().forPath(path);
+    }
+    catch (KeeperException.NoNodeException e) {
+      return ImmutableList.of();
+    }
+    catch (Exception e) {
+      throw new IOE(e, "Error while retrieving children from path at [%s]", path);
+    }
+    return ImmutableList.copyOf(asyncResultIds);
+  }
+
+  private String makeAsyncQueryStatePath(final String asyncResultId)
   {
     // TODO(gianm): Configurable PATH? But why...
-    return ZKPaths.makePath(config.getBase(), PATH, SqlAsyncUtil.safeId(sqlQueryId));
+    return ZKPaths.makePath(makeAsyncRootPath(), SqlAsyncUtil.safeId(asyncResultId));
+  }
+
+  private String makeAsyncRootPath()
+  {
+    // TODO(gianm): Configurable PATH? But why...
+    return ZKPaths.makePath(config.getBase(), PATH);
   }
 }

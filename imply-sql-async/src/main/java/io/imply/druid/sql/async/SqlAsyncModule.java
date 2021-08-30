@@ -34,8 +34,8 @@ import java.util.concurrent.ExecutorService;
 
 public class SqlAsyncModule implements Module
 {
+  public static final String ASYNC_ENABLED_KEY = "druid.sql.async.enabled";
   static final String ASYNC_BROKER_ID = "asyncBrokerId";
-  static final String ASYNC_ENABLED_KEY = "druid.sql.async.enabled";
 
   private static final String LOCAL_RESULT_MANAGER_TYPE = "local";
 
@@ -55,24 +55,9 @@ public class SqlAsyncModule implements Module
   @Override
   public void configure(Binder binder)
   {
-    if (isSqlEnabled() && isJsonOverHttpEnabled() && isAsyncEnabled()) {
-      binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
-
-      PolyBind.createChoice(
-          binder,
-          "druid.sql.asyncstorage.type",
-          Key.get(SqlAsyncResultManager.class),
-          Key.get(LocalSqlAsyncResultManager.class)
-      );
-
-      PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
-              .addBinding(LOCAL_RESULT_MANAGER_TYPE)
-              .to(LocalSqlAsyncResultManager.class)
-              .in(LazySingleton.class);
-
-      JsonConfigProvider.bind(binder, "druid.sql.asyncstorage.local", LocalSqlAsyncResultManagerConfig.class);
-
-      binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
+    if (isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props)) {
+      bindAsyncMetadataManager(binder);
+      bindAsyncStorage(binder);
 
       Jerseys.addResource(binder, SqlAsyncResource.class);
       Jerseys.addResource(binder, SqlAsyncResultsMessageBodyWriter.class);
@@ -122,7 +107,7 @@ public class SqlAsyncModule implements Module
   /**
    * This method must match to {@link SqlModule#isEnabled()}.
    */
-  private boolean isSqlEnabled()
+  public static boolean isSqlEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE, "true"));
@@ -131,15 +116,38 @@ public class SqlAsyncModule implements Module
   /**
    * This method must match to {@link SqlModule#isJsonOverHttpEnabled()}.
    */
-  private boolean isJsonOverHttpEnabled()
+  public static boolean isJsonOverHttpEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true"));
   }
 
-  private boolean isAsyncEnabled()
+  public static boolean isAsyncEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(ASYNC_ENABLED_KEY, "false"));
+  }
+
+  public static void bindAsyncStorage(Binder binder)
+  {
+    PolyBind.createChoice(
+        binder,
+        "druid.sql.asyncstorage.type",
+        Key.get(SqlAsyncResultManager.class),
+        Key.get(LocalSqlAsyncResultManager.class)
+    );
+
+    PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
+            .addBinding(LOCAL_RESULT_MANAGER_TYPE)
+            .to(LocalSqlAsyncResultManager.class)
+            .in(LazySingleton.class);
+
+    JsonConfigProvider.bind(binder, "druid.sql.asyncstorage.local", LocalSqlAsyncResultManagerConfig.class);
+  }
+
+  public static void bindAsyncMetadataManager(Binder binder)
+  {
+    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
+    binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
   }
 }
