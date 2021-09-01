@@ -80,6 +80,11 @@ public class ClarityMetricsUtils
       dimensionSetter.accept("lane", String.valueOf(lane));
     }
 
+    final Object priority = context.get(QueryContexts.PRIORITY_KEY);
+    if (priority != null) {
+      dimensionSetter.accept("priority", String.valueOf(priority));
+    }
+
     if (config.isAnonymous()) {
       for (final String sensitiveDim : IMPLY_SENSITIVE_QUERY_DIMENSIONS) {
         final Object value = dimensionGetter.apply(sensitiveDim);
