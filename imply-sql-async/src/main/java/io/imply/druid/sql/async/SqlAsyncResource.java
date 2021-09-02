@@ -97,8 +97,6 @@ public class SqlAsyncResource
     try {
       lifecycle.setParameters(sqlQuery.getParameterList());
       lifecycle.validateAndAuthorize(req);
-
-      // TODO(gianm): Reject immediately if pool full -- max async!!
       final SqlAsyncQueryDetails queryDetails = queryPool.execute(asyncResultId, sqlQuery, lifecycle, remoteAddr);
       return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }

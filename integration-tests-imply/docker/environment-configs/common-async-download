@@ -10,6 +10,10 @@
 druid_sql_async_enabled=true
 druid_sql_asyncstorage_local_directory=/shared/storage/async-results
 
+druid_sql_async_limit_maxSimultaneousQuery=10
+druid_sql_async_limit_maxQueryRetentionCount=15
+druid_sql_async_limit_maxQueryQueueSize=3
+
 druid_coordinator_dutyGroups=["cleanup"]
 druid_coordinator_cleanup_duties=["killAsyncQueryMetadata", "killAsyncQueryResultWithoutMetadata"]
 druid_coordinator_cleanup_duty_killAsyncQueryMetadata_retainDuration=PT30S

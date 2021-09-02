@@ -38,8 +38,6 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
 {
   private static final String INDEX_TASK = "/indexer/wikipedia_index_task.json";
   private static final String INDEX_DATASOURCE = "wikipedia_index_test";
-  private static final int NUM_RETRIES = 120;
-  private static final long RETRY_DELAY = TimeUnit.SECONDS.toMillis(5);
 
   @Inject
   private DruidClusterAdminClient druidClusterAdminClient;
@@ -97,8 +95,8 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
             return statusResponse == null;
           },
           true,
-          RETRY_DELAY, // 5 seconds
-          NUM_RETRIES, // 8 times
+          TimeUnit.SECONDS.toMillis(5),
+          8,
           "Wating for async cleanup coordinator duty to complete"
       );
 

@@ -45,7 +45,7 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
     Preconditions.checkArgument(this.retainDuration != null && this.retainDuration.getMillis() >= 0, "Coordinator async result cleanup duty retainDuration must be >= 0");
     this.sqlAsyncMetadataManager = sqlAsyncMetadataManager;
     log.info(
-        "Coordinator killAsyncQueryStatesAndResults scheduling enabled with retainDuration [%s]",
+        "Coordinator killAsyncQueryMetadata scheduling enabled with retainDuration [%s]",
         this.retainDuration
     );
   }
@@ -96,7 +96,7 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
         failed++;
       }
     }
-    log.info("Finished killAsyncQueryStatesAndResults duty. Removed [%,d]. Failed [%,d]. Skipped [%,d].", removed, failed, skipped);
+    log.info("Finished killAsyncQueryMetadata duty. Removed [%,d]. Failed [%,d]. Skipped [%,d].", removed, failed, skipped);
     return params;
   }
 

@@ -12,15 +12,16 @@ package io.imply.druid.tests.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
 import io.imply.druid.sql.async.SqlAsyncQueryDetailsApiResponse;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
+import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.sql.http.SqlQuery;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.guice.TestClient;
@@ -34,8 +35,6 @@ import java.util.List;
 
 public class AsyncResourceTestClient
 {
-  private static final Logger LOG = new Logger(AsyncResourceTestClient.class);
-
   private final ObjectMapper jsonMapper;
   private final HttpClient httpClient;
   private final String broker;
@@ -73,7 +72,9 @@ public class AsyncResourceTestClient
         new BytesFullResponseHandler()
     ).get();
 
-    if (!response.getStatus().equals(HttpResponseStatus.ACCEPTED)) {
+    if (response.getStatus().equals(HttpResponseStatus.TOO_MANY_REQUESTS)) {
+      throw QueryCapacityExceededException.withErrorMessageAndResolvedHost("");
+    } else if (!response.getStatus().equals(HttpResponseStatus.ACCEPTED)) {
       throw new ISE(
           "Error while submiting async query. status[%s] content[%s]",
           response.getStatus(),
@@ -132,5 +133,12 @@ public class AsyncResourceTestClient
     }
 
     return jsonMapper.readValue(response.getContent(), new TypeReference<List<List<Object>>>() {});
+  }
+
+  public AsyncQueryLimitsConfig getAsyncQueryLimitsConfig()
+  {
+    // The limit configs are set in integration-tests-imply/docker/environment-configs/common-async-download
+    // The hardcoded values below must be keep in sync with the configs in the configuration file mentioned above.
+    return new AsyncQueryLimitsConfig(10, 15, 3);
   }
 }

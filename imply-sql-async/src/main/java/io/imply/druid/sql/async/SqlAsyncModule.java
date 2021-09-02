@@ -27,13 +27,22 @@ import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.lifecycle.Lifecycle;
+import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.sql.guice.SqlModule;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class SqlAsyncModule implements Module
 {
+  private static final Logger LOG = new Logger(SqlAsyncModule.class);
+
   public static final String ASYNC_ENABLED_KEY = "druid.sql.async.enabled";
   static final String ASYNC_BROKER_ID = "asyncBrokerId";
 
@@ -65,7 +74,9 @@ public class SqlAsyncModule implements Module
       // Force eager initialization.
       LifecycleModule.register(binder, SqlAsyncResource.class);
 
-      binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class);
+      binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class).in(LazySingleton.class);
+
+      JsonConfigProvider.bind(binder, "druid.sql.async.limit", AsyncQueryLimitsConfig.class);
     }
   }
 
@@ -74,25 +85,69 @@ public class SqlAsyncModule implements Module
     private final SqlAsyncMetadataManager metadataManager;
     private final SqlAsyncResultManager resultManager;
     private final ObjectMapper jsonMapper;
+    private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
+    private final Lifecycle lifecycle;
 
     @Inject
     public SqlAsyncQueryPoolProvider(
         final SqlAsyncMetadataManager metadataManager,
         final SqlAsyncResultManager resultManager,
-        @Json ObjectMapper jsonMapper
+        @Json ObjectMapper jsonMapper,
+        AsyncQueryLimitsConfig asyncQueryLimitsConfig,
+        Lifecycle lifecycle
     )
     {
       this.metadataManager = metadataManager;
       this.resultManager = resultManager;
       this.jsonMapper = jsonMapper;
+      this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
+      this.lifecycle = lifecycle;
     }
 
     @Override
     public SqlAsyncQueryPool get()
     {
-      // TODO(gianm): Limit concurrency somehow on the executor service
-      final ExecutorService exec = Execs.multiThreaded(4, "sql-async-pool-%d");
-      return new SqlAsyncQueryPool(exec, metadataManager, resultManager, jsonMapper);
+      final ExecutorService exec = new ThreadPoolExecutor(
+          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
+          // The maximum number of simultaneous query allowed is control by setting maximumPoolSize of the
+          // ThreadPoolExecutor. This basically control how many query can be executing at the same time.
+          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
+          0L,
+          TimeUnit.MILLISECONDS,
+          // The queue limit is control by setting the size of the queue use for holding tasks before they are executed
+          new LinkedBlockingQueue<>(asyncQueryLimitsConfig.getMaxQueryQueueSize()),
+          Execs.makeThreadFactory("sql-async-pool-%d", null),
+          new RejectedExecutionHandler()
+          {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor)
+            {
+              throw new QueryCapacityExceededException(asyncQueryLimitsConfig.getMaxQueryQueueSize());
+            }
+          }
+      );
+      SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(exec, metadataManager, resultManager, asyncQueryLimitsConfig, jsonMapper);
+      lifecycle.addHandler(
+          new Lifecycle.Handler()
+          {
+            @Override
+            public void start()
+            {
+            }
+
+            @Override
+            public void stop()
+            {
+              sqlAsyncQueryPool.shutdownNow();
+            }
+          }
+      );
+      LOG.debug(
+          "Created SqlAsyncQueryPool with maxSimultaneousQuery[%d] and maxQueryQueueSize[%d]",
+          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
+          asyncQueryLimitsConfig.getMaxQueryQueueSize()
+      );
+      return sqlAsyncQueryPool;
     }
   }
 

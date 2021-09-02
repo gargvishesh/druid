@@ -16,9 +16,10 @@ import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExprMacroTable.ExprMacro;
+import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.expressions.SleepExprMacro;
 import org.apache.druid.query.sql.SleepOperatorConversion;
@@ -46,13 +47,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 @RunWith(MockitoJUnitRunner.class)
 public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 {
+  private static final int MAX_SIMULTANEOUS_QUERY_LIMIT = 2;
+  private static final int MAX_QUERY_RETENTION_LIMIT = 6;
+  private static final int MAX_QUERY_QUEUE_SIZE_LIMIT = 2;
+
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-  private ExecutorService exec;
+  private SqlAsyncQueryPool queryPool;
   private SqlAsyncResource resource;
   private HttpServletRequest req;
 
@@ -82,6 +86,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     final File resultStorage = temporaryFolder.newFolder();
     final SqlAsyncMetadataManager metadataManager = new InMemorySqlAsyncMetadataManager();
+    final Lifecycle lifecycle = new Lifecycle();
     final SqlAsyncResultManager resultManager = new LocalSqlAsyncResultManager(
         new LocalSqlAsyncResultManagerConfig()
         {
@@ -92,13 +97,19 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
           }
         }
     );
-    exec = Execs.multiThreaded(2, "sql-async-resource-test-%d");
-    final SqlAsyncQueryPool queryPool = new SqlAsyncQueryPool(
-        exec,
+    AsyncQueryLimitsConfig asyncQueryLimitsConfig = new AsyncQueryLimitsConfig(
+        MAX_SIMULTANEOUS_QUERY_LIMIT,
+        MAX_QUERY_RETENTION_LIMIT,
+        MAX_QUERY_QUEUE_SIZE_LIMIT
+    );
+    SqlAsyncModule.SqlAsyncQueryPoolProvider poolProvider = new SqlAsyncModule.SqlAsyncQueryPoolProvider(
         metadataManager,
         resultManager,
-        jsonMapper
+        jsonMapper,
+        asyncQueryLimitsConfig,
+        lifecycle
     );
+    queryPool = poolProvider.get();
     final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(
         new PlannerConfig(),
         createOperatorTable(),
@@ -106,7 +117,6 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         CalciteTests.getJsonMapper()
     );
-
     resource = new SqlAsyncResource(
         "brokerId",
         queryPool,
@@ -122,7 +132,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   @After
   public void tearDownTest()
   {
-    exec.shutdownNow();
+    queryPool.shutdownNow();
   }
 
   @Test
@@ -217,6 +227,114 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     Response statusResponse = resource.doGetResults("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+  }
+
+  @Test(timeout = 5000)
+  public void testSimultaneousAsyncQueryLimit() throws Exception
+  {
+    List<String> queryIds = new ArrayList<>();
+    // Submit MAX_SIMULTANEOUS_QUERY_LIMIT + 1 number of queries
+    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT + 1; i++) {
+      Response submitResponse = resource.doPost(
+          new SqlQuery(
+              "select sleep(2), 10",
+              ResultFormat.OBJECTLINES,
+              true,
+              null,
+              null
+          ),
+          req
+      );
+      Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+      Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
+      SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+      queryIds.add(response.getAsyncResultId());
+    }
+
+    // Wait for queries submitted to start running
+    waitUntilState(queryIds.get(MAX_SIMULTANEOUS_QUERY_LIMIT - 1), State.RUNNING);
+
+    // Now the first MAX_SIMULTANEOUS_QUERY_LIMIT queries should be RUNNING
+    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT; i++) {
+      Response statusResponse = resource.doGetStatus(queryIds.get(i), req);
+      Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
+      Assert.assertEquals(State.RUNNING, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
+    }
+
+    // The last query that was over MAX_SIMULTANEOUS_QUERY_LIMIT limit should still be in INITIALIZED state
+    Response statusResponse = resource.doGetStatus(queryIds.get(MAX_SIMULTANEOUS_QUERY_LIMIT), req);
+    Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
+    Assert.assertEquals(State.INITIALIZED, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
+  }
+
+  @Test(timeout = 5000)
+  public void testQueueLimit() throws Exception
+  {
+    // Submit MAX_SIMULTANEOUS_QUERY_LIMIT + MAX_QUERY_QUEUE_SIZE_LIMIT number of queries
+    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT + MAX_QUERY_QUEUE_SIZE_LIMIT; i++) {
+      Response submitResponse = resource.doPost(
+          new SqlQuery(
+              "select sleep(2), 10",
+              ResultFormat.OBJECTLINES,
+              true,
+              null,
+              null
+          ),
+          req
+      );
+      Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+      Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
+      SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+      Assert.assertEquals(State.INITIALIZED, response.getState());
+    }
+    // Now submit one more so that we will exceed the queue limit
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select sleep(2), 10",
+            ResultFormat.OBJECTLINES,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(QueryCapacityExceededException.STATUS_CODE, submitResponse.getStatus());
+  }
+
+  @Test(timeout = 5000)
+  public void testRetentionNumberOfQueriesLimit() throws Exception
+  {
+    // Submit MAX_QUERY_RETENTION_LIMIT number of queries
+    for (int i = 0; i < MAX_QUERY_RETENTION_LIMIT; i++) {
+      Response submitResponse = resource.doPost(
+          new SqlQuery(
+              "select 10",
+              ResultFormat.OBJECTLINES,
+              true,
+              null,
+              null
+          ),
+          req
+      );
+      Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+      Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
+      SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+      Assert.assertEquals(State.INITIALIZED, response.getState());
+      response = waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+      Assert.assertNull(response.getError());
+    }
+    // Now submit one more so that we will exceed the retention limit
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select sleep(2), 10",
+            ResultFormat.OBJECTLINES,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(QueryCapacityExceededException.STATUS_CODE, submitResponse.getStatus());
   }
 
   private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException
