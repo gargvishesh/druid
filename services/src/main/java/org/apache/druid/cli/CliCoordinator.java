@@ -33,6 +33,7 @@ import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import io.airlift.airline.Command;
+import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.druid.audit.AuditManager;
 import org.apache.druid.client.CoordinatorSegmentWatcherConfig;
@@ -363,6 +364,10 @@ public class CliCoordinator extends ServerRunnable
       modules.add(new LookupSerdeModule());
     }
 
+    // BEGIN: Imply-specific module
+    modules.add(new SqlAsyncCleanupModule());
+    // END: Imply-specific module
+
     return modules;
   }
 
@@ -435,7 +440,7 @@ public class CliCoordinator extends ServerRunnable
           if (Strings.isNullOrEmpty(props.getProperty(groupPeriodPropKey))) {
             throw new IAE("Run period for coordinator custom duty group must be set for group %s", coordinatorCustomDutyGroupName);
           }
-          Duration groupPeriod = jsonMapper.readValue(props.getProperty(groupPeriodPropKey), Duration.class);
+          Duration groupPeriod = new Duration(props.getProperty(groupPeriodPropKey));
           coordinatorCustomDutyGroups.add(new CoordinatorCustomDutyGroup(coordinatorCustomDutyGroupName, groupPeriod, coordinatorCustomDuties));
         }
         return new CoordinatorCustomDutyGroups(coordinatorCustomDutyGroups);

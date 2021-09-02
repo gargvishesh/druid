@@ -1,0 +1,99 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+version: "2.2"
+services:
+  druid-zookeeper-kafka:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-zookeeper-kafka
+
+  druid-metadata-storage:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-metadata-storage
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-zookeeper-kafka
+
+  druid-coordinator:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-coordinator
+    env_file:
+      - ./environment-configs/common-async-download
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-metadata-storage
+      - druid-zookeeper-kafka
+
+  druid-overlord:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-overlord
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-coordinator
+      - druid-metadata-storage
+      - druid-zookeeper-kafka
+
+  druid-historical:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-historical
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-zookeeper-kafka
+
+  druid-middlemanager:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-middlemanager
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-zookeeper-kafka
+      - druid-overlord
+
+  druid-broker:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-broker
+    env_file:
+      - ./environment-configs/common-async-download
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-coordinator
+      - druid-zookeeper-kafka
+      - druid-middlemanager
+      - druid-historical
+
+  druid-router:
+    extends:
+      file: ./../../integration-tests/docker/docker-compose.base.yml
+      service: druid-router
+    environment:
+      - DRUID_INTEGRATION_TEST_GROUP=${DRUID_INTEGRATION_TEST_GROUP}
+    depends_on:
+      - druid-zookeeper-kafka
+      - druid-coordinator
+      - druid-broker
+      - druid-overlord
+
+networks:
+  druid-it-net:
+    name: druid-it-net
+    ipam:
+      config:
+        - subnet: 172.172.172.0/24

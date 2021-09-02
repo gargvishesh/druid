@@ -9,6 +9,7 @@
 
 package io.imply.druid.server.metrics;
 
+import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentLoader;
 import io.imply.druid.segment.VirtualSegmentStats;
 import org.apache.druid.client.DruidServerConfig;
@@ -29,17 +30,20 @@ public class VirtualSegmentMetricsMonitor extends AbstractMonitor
   private final VirtualSegmentStats virtualSegmentStats;
   private final VirtualSegmentLoader virtualSegmentLoader;
   private final DruidServerConfig serverConfig;
+  private final SegmentReplacementStrategy segmentReplacementStrategy;
 
   @Inject
   public VirtualSegmentMetricsMonitor(
       VirtualSegmentStats virtualSegmentStats,
       DruidServerConfig serverConfig,
-      VirtualSegmentLoader virtualSegmentLoader
+      VirtualSegmentLoader virtualSegmentLoader,
+      SegmentReplacementStrategy segmentReplacementStrategy
   )
   {
     this.virtualSegmentStats = virtualSegmentStats;
     this.virtualSegmentLoader = virtualSegmentLoader;
     this.serverConfig = serverConfig;
+    this.segmentReplacementStrategy = segmentReplacementStrategy;
   }
 
   @Override
@@ -80,7 +84,11 @@ public class VirtualSegmentMetricsMonitor extends AbstractMonitor
 
     virtualSegmentStats.resetMetrics();
 
-    virtualSegmentLoader.getDownloadQueueGuages().forEach(
+    virtualSegmentLoader.getDownloadWorkersGuage().forEach(
+        (key, value) ->
+            emitter.emit(builder.build(key, value)));
+
+    segmentReplacementStrategy.getMetrics().forEach(
         (key, value) ->
             emitter.emit(builder.build(key, value)));
 

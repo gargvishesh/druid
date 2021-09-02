@@ -139,12 +139,15 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
 
     LOG.info("Starting scheduled downloads");
-    downloadExecutor.scheduleWithFixedDelay(
-        this::downloadNextSegment,
-        config.getDownloadDelayMs(),
-        config.getDownloadDelayMs(),
-        TimeUnit.MILLISECONDS
-    );
+    for (int i = 0; i < config.getDownloadThreads(); i++) {
+      LOG.info("Scheduling downloads tasks %d", i);
+      downloadExecutor.scheduleWithFixedDelay(
+          this::downloadNextSegment,
+          config.getDownloadDelayMs(),
+          config.getDownloadDelayMs(),
+          TimeUnit.MILLISECONDS
+      );
+    }
     started = true;
   }
 
@@ -262,9 +265,9 @@ public class VirtualSegmentLoader implements SegmentLoader
 
   /**
    * Marks a segment for download.
-   * @param segment - Segment to schedule the download for.
-   * @param closer - once the segment is no longer in need by the caller, this closer will be closed.
    *
+   * @param segment - Segment to schedule the download for.
+   * @param closer  - once the segment is no longer in need by the caller, this closer will be closed.
    * @return - Future object which is completed successfully if segment is downloaed or fails with an error
    */
   public ListenableFuture<Void> scheduleDownload(VirtualReferenceCountingSegment segment, Closer closer)
@@ -317,15 +320,10 @@ public class VirtualSegmentLoader implements SegmentLoader
     physicalCacheManager.cleanup(segment);
   }
 
-  public Map<String, Number> getDownloadQueueGuages()
+  public Map<String, Number> getDownloadWorkersGuage()
   {
     final Map<String, Number> qMetricsMap = new HashMap<>();
-    qMetricsMap.put(downloadMetricPrefix + "active", downloadExecutor.getActiveCount());
-    qMetricsMap.put(downloadMetricPrefix + "queued", downloadExecutor.getQueue().size());
-    qMetricsMap.put(downloadMetricPrefix + "remaining", downloadExecutor.getQueue().remainingCapacity());
-    qMetricsMap.put(downloadMetricPrefix + "size", downloadExecutor.getPoolSize());
-    qMetricsMap.put(downloadMetricPrefix + "core", downloadExecutor.getCorePoolSize());
-    qMetricsMap.put(downloadMetricPrefix + "max", downloadExecutor.getMaximumPoolSize());
+    qMetricsMap.put(downloadMetricPrefix + "workers", downloadExecutor.getCorePoolSize());
     return qMetricsMap;
   }
 

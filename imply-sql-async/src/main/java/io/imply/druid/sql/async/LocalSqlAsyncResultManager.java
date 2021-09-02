@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
 
 /**
@@ -93,11 +95,29 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   }
 
   @Override
-  public void deleteResults(final String sqlQueryId)
+  public boolean deleteResults(final String asyncResultId)
   {
     // TODO(gianm): Call this in a way that doesn't cause problems when two users happen to issue queries with
     //  the same manually-specified ID
-    makeFile(sqlQueryId).delete();
+    File result = makeFile(asyncResultId);
+    if (!result.exists()) {
+      return true;
+    } else {
+      return result.delete();
+    }
+  }
+
+  @Override
+  public Collection<String> getAllResults()
+  {
+    final File[] files = directory.listFiles();
+    final Collection<String> results = new HashSet<>();
+    if (files != null) {
+      for (File file : files) {
+        results.add(file.getName());
+      }
+    }
+    return results;
   }
 
   private void createDirectory()
@@ -127,8 +147,8 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
     }
   }
 
-  private File makeFile(final String sqlQueryId)
+  private File makeFile(final String asyncResultId)
   {
-    return new File(directory, SqlAsyncUtil.safeId(sqlQueryId));
+    return new File(directory, SqlAsyncUtil.safeId(asyncResultId));
   }
 }

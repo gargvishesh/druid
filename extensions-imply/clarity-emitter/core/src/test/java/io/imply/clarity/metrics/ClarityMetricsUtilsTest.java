@@ -9,8 +9,10 @@
 
 package io.imply.clarity.metrics;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.clarity.TestClarityEmitterConfig;
+import org.apache.druid.query.QueryContexts;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -101,5 +103,40 @@ public class ClarityMetricsUtilsTest
         context
     );
     Assert.assertEquals(expectedAnonymizedMap, anonymizedDimensions);
+  }
+
+  @Test
+  public void test_priority_and_lane_in_context()
+  {
+    TestClarityEmitterConfig config = new TestClarityEmitterConfig(
+        "cluster",
+        false,
+        1000L,
+        false,
+        100,
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        ImmutableSet.of()
+    );
+
+    Map<String, Object> context = ImmutableMap.of(
+        QueryContexts.LANE_KEY, "some_lane",
+        QueryContexts.PRIORITY_KEY, QueryContexts.DEFAULT_PRIORITY,
+        "some_random_key", "wat"
+    );
+
+    Map<String, String> expected = ImmutableMap.of(
+        QueryContexts.LANE_KEY, "some_lane",
+        QueryContexts.PRIORITY_KEY, String.valueOf(QueryContexts.DEFAULT_PRIORITY)
+    );
+    Map<String, String> dimensions = new HashMap<>();
+
+    ClarityMetricsUtils.addContextDimensions(
+        config,
+        dimensions::put,
+        dimensions::get,
+        context
+    );
+    Assert.assertEquals(expected, dimensions);
   }
 }

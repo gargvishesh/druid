@@ -13,8 +13,8 @@ import org.apache.druid.java.util.common.StringUtils;
 
 public class AsyncQueryDoesNotExistException extends Exception
 {
-  public AsyncQueryDoesNotExistException(final String sqlQueryId)
+  public AsyncQueryDoesNotExistException(final String asyncResultId)
   {
-    super(StringUtils.format("Async query [%s] does not exist", sqlQueryId));
+    super(StringUtils.format("Async query [%s] does not exist", asyncResultId));
   }
 }

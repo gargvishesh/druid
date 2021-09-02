@@ -12,8 +12,10 @@ package io.imply.druid.loading;
 
 import org.apache.druid.timeline.SegmentId;
 
-import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * This is a very simple implementation of {@link SegmentReplacementStrategy} that is used to decide which segment
@@ -23,21 +25,22 @@ public class FIFOSegmentReplacementStrategy implements SegmentReplacementStrateg
 {
   private final Queue<SegmentId> processQueue;
   private final Queue<QueueItem> downloadedSegments;
+  private static final String METRIC_PREFIX = "virtual/segments/queue/";
 
   public FIFOSegmentReplacementStrategy()
   {
-    processQueue = new ArrayDeque<>();
-    downloadedSegments = new ArrayDeque<>();
+    processQueue = new ConcurrentLinkedDeque<>();
+    downloadedSegments = new ConcurrentLinkedDeque<>();
   }
 
   @Override
-  public synchronized SegmentId nextProcess()
+  public SegmentId nextProcess()
   {
     return processQueue.poll();
   }
 
   @Override
-  public synchronized SegmentId nextEvict()
+  public SegmentId nextEvict()
   {
     for (QueueItem item : downloadedSegments) {
       if (item.metadata.getVirtualSegment().isEvictable()) {
@@ -48,7 +51,7 @@ public class FIFOSegmentReplacementStrategy implements SegmentReplacementStrateg
   }
 
   @Override
-  public synchronized void downloaded(SegmentId segmentId, VirtualSegmentMetadata metadata)
+  public void downloaded(SegmentId segmentId, VirtualSegmentMetadata metadata)
   {
     downloadedSegments.add(new QueueItem(segmentId, metadata));
   }
@@ -64,10 +67,19 @@ public class FIFOSegmentReplacementStrategy implements SegmentReplacementStrateg
   }
 
   @Override
-  public synchronized void remove(SegmentId segmentId)
+  public void remove(SegmentId segmentId)
   {
     processQueue.remove(segmentId);
     downloadedSegments.removeIf(item -> item.segmentId.equals(segmentId));
+  }
+
+  @Override
+  public Map<String, Number> getMetrics()
+  {
+    Map<String, Number> metrics = new HashMap<>();
+    metrics.put(METRIC_PREFIX + "toDownload", processQueue.size());
+    metrics.put(METRIC_PREFIX + "downloaded", downloadedSegments.size());
+    return metrics;
   }
 
   //TODO: ideally, the check that we should not evict a current used segment should be outside this class

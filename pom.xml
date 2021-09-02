@@ -170,6 +170,7 @@
         <module>extensions-core/simple-client-sslcontext</module>
         <module>extensions-core/druid-basic-security</module>
         <module>extensions-core/google-extensions</module>
+        <module>extensions-core/testing-tools</module>
         <!-- Imply extensions -->
         <module>extensions-imply/clarity-emitter/core</module>
         <module>extensions-imply/clarity-emitter/http</module>

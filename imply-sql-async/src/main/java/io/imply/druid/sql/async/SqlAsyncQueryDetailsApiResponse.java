@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.async;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
@@ -16,13 +17,14 @@ import org.apache.druid.query.QueryException;
 import org.apache.druid.sql.http.ResultFormat;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 /**
  * Like {@link SqlAsyncQueryDetails}, but used for API responses. Has less information.
  */
 public class SqlAsyncQueryDetailsApiResponse
 {
-  private final String sqlQueryId;
+  private final String asyncResultId;
   private final SqlAsyncQueryDetails.State state;
   @Nullable
   private final ResultFormat resultFormat;
@@ -30,15 +32,16 @@ public class SqlAsyncQueryDetailsApiResponse
   @Nullable
   private final QueryException error;
 
+  @JsonCreator
   public SqlAsyncQueryDetailsApiResponse(
-      final String sqlQueryId,
-      final SqlAsyncQueryDetails.State state,
-      @Nullable final ResultFormat resultFormat,
-      final long resultLength,
-      @Nullable final QueryException error
+      @JsonProperty("asyncResultId") final String asyncResultId,
+      @JsonProperty("state") final SqlAsyncQueryDetails.State state,
+      @JsonProperty("resultFormat") @Nullable final ResultFormat resultFormat,
+      @JsonProperty("resultLength") final long resultLength,
+      @JsonProperty("error") @Nullable final QueryException error
   )
   {
-    this.sqlQueryId = Preconditions.checkNotNull(sqlQueryId, "sqlQueryId");
+    this.asyncResultId = Preconditions.checkNotNull(asyncResultId, "asyncResultId");
     this.state = Preconditions.checkNotNull(state, "state");
     this.resultFormat = resultFormat;
     this.resultLength = resultLength;
@@ -46,9 +49,9 @@ public class SqlAsyncQueryDetailsApiResponse
   }
 
   @JsonProperty
-  public String getSqlQueryId()
+  public String getAsyncResultId()
   {
-    return sqlQueryId;
+    return asyncResultId;
   }
 
   @JsonProperty
@@ -81,10 +84,33 @@ public class SqlAsyncQueryDetailsApiResponse
   }
 
   @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) o;
+    return resultLength == response.resultLength
+           && Objects.equals(asyncResultId, response.asyncResultId)
+           && state == response.state
+           && resultFormat == response.resultFormat
+           && Objects.equals(error, response.error);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(asyncResultId, state, resultFormat, resultLength, error);
+  }
+
+  @Override
   public String toString()
   {
     return "SqlAsyncQueryDetailsApiResponse{" +
-           "sqlQueryId='" + sqlQueryId + '\'' +
+           "asyncResultId='" + asyncResultId + '\'' +
            ", state=" + state +
            ", resultLength=" + resultLength +
            ", resultFormat=" + resultFormat +

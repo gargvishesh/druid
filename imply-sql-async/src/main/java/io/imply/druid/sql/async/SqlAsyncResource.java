@@ -62,7 +62,7 @@ public class SqlAsyncResource
 
   @Inject
   public SqlAsyncResource(
-      @Named("brokerId") final String brokerId,
+      @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
@@ -97,8 +97,6 @@ public class SqlAsyncResource
     try {
       lifecycle.setParameters(sqlQuery.getParameterList());
       lifecycle.validateAndAuthorize(req);
-
-      // TODO(gianm): Reject immediately if pool full -- max async!!
       final SqlAsyncQueryDetails queryDetails = queryPool.execute(asyncResultId, sqlQuery, lifecycle, remoteAddr);
       return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }

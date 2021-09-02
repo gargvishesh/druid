@@ -125,6 +125,7 @@ JVM
 JVMs
 Joda
 JsonProperty
+Jupyter
 KMS
 Kerberized
 Kerberos
@@ -681,6 +682,7 @@ tgtHllType
  - ../docs/development/extensions-core/datasketches-quantiles.md
 CDF
 DoublesSketch
+maxStreamLength
 PMF
 quantilesDoublesSketch
 toString
