@@ -69,10 +69,10 @@ public class SqlAsyncQueryPool
     assert lifecycle.getAuthenticationResult() != null;
     // Check if we are under retention number of queries limit. Reject query if we are over the limit
     int currentRetainQueryCount = metadataManager.getAllAsyncResultIds().size();
-    if (currentRetainQueryCount >= asyncQueryLimitsConfig.getMaxQueryRetentionCount()) {
+    if (currentRetainQueryCount >= asyncQueryLimitsConfig.getMaxAsyncQueries()) {
       String errorMessage = StringUtils.format(
           "Too many retained queries, total query retained of %s exceeded. Please try your query again later.",
-          asyncQueryLimitsConfig.getMaxQueryRetentionCount()
+          asyncQueryLimitsConfig.getMaxAsyncQueries()
       );
       throw new QueryCapacityExceededException(
           QueryCapacityExceededException.ERROR_CODE,

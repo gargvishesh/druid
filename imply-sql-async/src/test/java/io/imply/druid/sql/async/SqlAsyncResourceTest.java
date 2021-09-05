@@ -51,9 +51,9 @@ import java.util.List;
 @RunWith(MockitoJUnitRunner.class)
 public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 {
-  private static final int MAX_SIMULTANEOUS_QUERY_LIMIT = 2;
-  private static final int MAX_QUERY_RETENTION_LIMIT = 6;
-  private static final int MAX_QUERY_QUEUE_SIZE_LIMIT = 2;
+  private static final int MAX_CONCURRENT_QUERIES = 2;
+  private static final int MAX_ASYNC_QUERIES = 6;
+  private static final int MAX_QUERIES_TO_QUEUE = 2;
 
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
   private SqlAsyncQueryPool queryPool;
@@ -98,9 +98,9 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         }
     );
     AsyncQueryLimitsConfig asyncQueryLimitsConfig = new AsyncQueryLimitsConfig(
-        MAX_SIMULTANEOUS_QUERY_LIMIT,
-        MAX_QUERY_RETENTION_LIMIT,
-        MAX_QUERY_QUEUE_SIZE_LIMIT
+        MAX_CONCURRENT_QUERIES,
+        MAX_ASYNC_QUERIES,
+        MAX_QUERIES_TO_QUEUE
     );
     SqlAsyncModule.SqlAsyncQueryPoolProvider poolProvider = new SqlAsyncModule.SqlAsyncQueryPoolProvider(
         metadataManager,
@@ -140,8 +140,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
-            "select count(*) from foo",
-            ResultFormat.CSV,
+            "select sleep(2), 10",
+            ResultFormat.OBJECTLINES,
             true,
             null,
             null
@@ -230,11 +230,11 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testSimultaneousAsyncQueryLimit() throws Exception
+  public void testConcurrentAsyncQueryLimit() throws Exception
   {
     List<String> queryIds = new ArrayList<>();
-    // Submit MAX_SIMULTANEOUS_QUERY_LIMIT + 1 number of queries
-    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT + 1; i++) {
+    // Submit MAX_CONCURRENT_QUERIES + 1 number of queries
+    for (int i = 0; i < MAX_CONCURRENT_QUERIES + 1; i++) {
       Response submitResponse = resource.doPost(
           new SqlQuery(
               "select sleep(2), 10",
@@ -252,17 +252,17 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     }
 
     // Wait for queries submitted to start running
-    waitUntilState(queryIds.get(MAX_SIMULTANEOUS_QUERY_LIMIT - 1), State.RUNNING);
+    waitUntilState(queryIds.get(MAX_CONCURRENT_QUERIES - 1), State.RUNNING);
 
-    // Now the first MAX_SIMULTANEOUS_QUERY_LIMIT queries should be RUNNING
-    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT; i++) {
+    // Now the first MAX_CONCURRENT_QUERIES queries should be RUNNING
+    for (int i = 0; i < MAX_CONCURRENT_QUERIES; i++) {
       Response statusResponse = resource.doGetStatus(queryIds.get(i), req);
       Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
       Assert.assertEquals(State.RUNNING, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
     }
 
-    // The last query that was over MAX_SIMULTANEOUS_QUERY_LIMIT limit should still be in INITIALIZED state
-    Response statusResponse = resource.doGetStatus(queryIds.get(MAX_SIMULTANEOUS_QUERY_LIMIT), req);
+    // The last query that was over MAX_CONCURRENT_QUERIES limit should still be in INITIALIZED state
+    Response statusResponse = resource.doGetStatus(queryIds.get(MAX_CONCURRENT_QUERIES), req);
     Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
     Assert.assertEquals(State.INITIALIZED, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
   }
@@ -270,8 +270,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   @Test(timeout = 5000)
   public void testQueueLimit() throws Exception
   {
-    // Submit MAX_SIMULTANEOUS_QUERY_LIMIT + MAX_QUERY_QUEUE_SIZE_LIMIT number of queries
-    for (int i = 0; i < MAX_SIMULTANEOUS_QUERY_LIMIT + MAX_QUERY_QUEUE_SIZE_LIMIT; i++) {
+    // Submit MAX_CONCURRENT_QUERIES + MAX_QUERIES_TO_QUEUE number of queries
+    for (int i = 0; i < MAX_CONCURRENT_QUERIES + MAX_QUERIES_TO_QUEUE; i++) {
       Response submitResponse = resource.doPost(
           new SqlQuery(
               "select sleep(2), 10",
@@ -304,8 +304,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   @Test(timeout = 5000)
   public void testRetentionNumberOfQueriesLimit() throws Exception
   {
-    // Submit MAX_QUERY_RETENTION_LIMIT number of queries
-    for (int i = 0; i < MAX_QUERY_RETENTION_LIMIT; i++) {
+    // Submit MAX_ASYNC_QUERIES number of queries
+    for (int i = 0; i < MAX_ASYNC_QUERIES; i++) {
       Response submitResponse = resource.doPost(
           new SqlQuery(
               "select 10",

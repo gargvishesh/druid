@@ -104,7 +104,7 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
     }
   }
 
-  // Note: This test depends on the Druid cluster using local asyncstorage with asyncstorage directory at path /shared/storage/async-results
+  // Note: This test depends on the Druid cluster using local async storage with async storage directory at path /shared/storage/async-results
   @Test
   public void testKillAsyncQueryResultWithoutMetadata() throws Exception
   {

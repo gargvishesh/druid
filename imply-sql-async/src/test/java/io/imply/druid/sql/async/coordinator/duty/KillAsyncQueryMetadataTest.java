@@ -14,6 +14,8 @@ import io.imply.druid.sql.async.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.SqlAsyncQueryMetadata;
+import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.sql.http.ResultFormat;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -47,7 +49,12 @@ public class KillAsyncQueryMetadataTest
   public void testConstructorFailIfRetainDurationNull()
   {
     exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Coordinator async result cleanup duty retainDuration must be >= 0");
+    exception.expectMessage(
+        StringUtils.format(
+            "Coordinator async result cleanup duty timeToRetain [%s] must be >= 0",
+            SqlAsyncCleanupModule.CLEANUP_TIME_TO_RETAIN_CONFIG_KEY
+        )
+    );
     killAsyncQueryMetadata = new KillAsyncQueryMetadata(null, mockSqlAsyncMetadataManager);
   }
 
@@ -55,7 +62,12 @@ public class KillAsyncQueryMetadataTest
   public void testConstructorFailIfRetainDurationInvalid()
   {
     exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Coordinator async result cleanup duty retainDuration must be >= 0");
+    exception.expectMessage(
+        StringUtils.format(
+            "Coordinator async result cleanup duty timeToRetain [%s] must be >= 0",
+            SqlAsyncCleanupModule.CLEANUP_TIME_TO_RETAIN_CONFIG_KEY
+        )
+    );
     killAsyncQueryMetadata = new KillAsyncQueryMetadata(new Duration("PT-1S"), mockSqlAsyncMetadataManager);
   }
 
