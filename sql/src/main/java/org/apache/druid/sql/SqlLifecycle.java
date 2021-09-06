@@ -549,9 +549,7 @@ public class SqlLifecycle
   @Nullable
   public AuthenticationResult getAuthenticationResult()
   {
-    synchronized (lock) {
-      return plannerContext.getAuthenticationResult();
-    }
+    return plannerContext.getAuthenticationResult();
   }
   // END: Imply-specific code
 }
