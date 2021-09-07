@@ -255,7 +255,12 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
   }
 
-  private void evictSegment(VirtualReferenceCountingSegment segment)
+  /**
+   * Evicts the segment and cleans up the data but does not deregister the segment from the historical.
+   *
+   * @param segment Segment to evict and remove from disk
+   */
+  public void evictSegment(VirtualReferenceCountingSegment segment)
   {
     virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
