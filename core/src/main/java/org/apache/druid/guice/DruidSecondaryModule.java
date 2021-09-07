@@ -32,6 +32,7 @@ import com.google.inject.Provides;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.guice.annotations.JsonNonNull;
 import org.apache.druid.guice.annotations.Smile;
+import org.apache.druid.license.ImplyLicenseManager;
 import org.skife.config.ConfigurationObjectFactory;
 
 import javax.validation.Validator;
@@ -45,6 +46,7 @@ public class DruidSecondaryModule implements Module
   private final ObjectMapper jsonMapperOnlyNonNullValueSerialization;
   private final ObjectMapper smileMapper;
   private final Validator validator;
+  private ImplyLicenseManager implyLicenseManager;
 
   @Inject
   public DruidSecondaryModule(
@@ -119,5 +121,17 @@ public class DruidSecondaryModule implements Module
             mapper.getDeserializationConfig().getAnnotationIntrospector()
         )
     );
+  }
+
+  @Inject
+  public void setImplyLicenseManager(ImplyLicenseManager implyLicenseManager)
+  {
+    this.implyLicenseManager = implyLicenseManager;
+  }
+
+  @Provides @LazySingleton
+  public ImplyLicenseManager getImplyLicenseManager()
+  {
+    return this.implyLicenseManager;
   }
 }
