@@ -95,9 +95,16 @@ public interface VirtualSegmentStateManager
   void evict(VirtualReferenceCountingSegment segment);
 
   /**
-   * De-register the segment. Any state associated with the segment is removed.
+   * De-register the segment. Any state associated with the segment is removed. {@link #beginRemove} must be called before
+   * calling this function.
+   * @return whether the segment was actually removed or not.
    */
-  void remove(SegmentId segmentId);
+  boolean finishRemove(SegmentId segmentId);
+
+  /**
+   * Soft removal of a segment. Any state associated with the segment is still intact but new queries might get rejected
+   */
+  void beginRemove(SegmentId segmentId);
 
   /**
    * Gets the Virtual segment entry from {@link SegmentId} .

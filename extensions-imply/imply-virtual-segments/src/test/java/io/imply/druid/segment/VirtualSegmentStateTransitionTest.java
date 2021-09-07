@@ -58,16 +58,34 @@ public class VirtualSegmentStateTransitionTest
   }
 
   @Test
-  public void testRemoveToReady()
+  public void testFinishRemoveToReady()
   {
     VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
     Assert.assertNull(virtualSegmentHolder.registerIfAbsent(segment));
-    virtualSegmentHolder.remove(segment.getId());
+    virtualSegmentHolder.beginRemove(segment.getId());
+    Assert.assertTrue(virtualSegmentHolder.finishRemove(segment.getId()));
     Assert.assertEquals(0, virtualSegmentHolder.size());
     VirtualReferenceCountingSegment newSegment = TestData.buildVirtualSegment();
     Assert.assertNull(virtualSegmentHolder.registerIfAbsent(newSegment));
     Assert.assertSame(newSegment, virtualSegmentHolder.get(newSegment.getId()));
     Assert.assertEquals(1, virtualSegmentHolder.size());
+  }
+
+  @Test
+  public void testBeginRemoveToReady()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    Assert.assertNull(virtualSegmentHolder.registerIfAbsent(segment));
+    virtualSegmentHolder.beginRemove(segment.getId());
+    Assert.assertEquals(1, virtualSegmentHolder.size());
+    VirtualReferenceCountingSegment newSegment = TestData.buildVirtualSegment();
+    Assert.assertNotNull(virtualSegmentHolder.registerIfAbsent(newSegment));
+    Assert.assertSame(segment, virtualSegmentHolder.get(newSegment.getId()));
+    Assert.assertEquals(1, virtualSegmentHolder.size());
+
+    // FinishRemove should return false
+    Assert.assertFalse(virtualSegmentHolder.finishRemove(segment.getId()));
+    Assert.assertSame(segment, virtualSegmentHolder.get(newSegment.getId()));
   }
 
   @Test
@@ -279,7 +297,8 @@ public class VirtualSegmentStateTransitionTest
     virtualSegmentHolder.registerIfAbsent(segment);
     ListenableFuture<Void> future = virtualSegmentHolder.queue(segment, closer);
 
-    virtualSegmentHolder.remove(segment.getId());
+    virtualSegmentHolder.beginRemove(segmentId);
+    virtualSegmentHolder.finishRemove(segmentId);
     Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
     Assert.assertTrue(future.isDone());
 
@@ -299,7 +318,8 @@ public class VirtualSegmentStateTransitionTest
     SegmentId segmentId = segment.getId();
     virtualSegmentHolder.registerIfAbsent(segment);
     virtualSegmentHolder.downloaded(segment);
-    virtualSegmentHolder.remove(segment.getId());
+    virtualSegmentHolder.beginRemove(segmentId);
+    virtualSegmentHolder.finishRemove(segment.getId());
     Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
   }
 
@@ -311,8 +331,84 @@ public class VirtualSegmentStateTransitionTest
     virtualSegmentHolder.registerIfAbsent(segment);
     virtualSegmentHolder.downloaded(segment);
     virtualSegmentHolder.evict(segment);
-    virtualSegmentHolder.remove(segment.getId());
+    virtualSegmentHolder.beginRemove(segment.getId());
+    virtualSegmentHolder.finishRemove(segment.getId());
     Assert.assertNull(virtualSegmentHolder.getMetadata(segmentId));
+  }
+
+  @Test
+  public void testQueueToBeginRemoveToReady()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    SegmentId segmentId = segment.getId();
+    virtualSegmentHolder.registerIfAbsent(segment);
+    ListenableFuture<Void> future = virtualSegmentHolder.queue(segment, closer);
+
+    virtualSegmentHolder.beginRemove(segmentId);
+    Assert.assertNotNull(virtualSegmentHolder.getMetadata(segmentId));
+    Assert.assertFalse(future.isDone());
+
+    VirtualReferenceCountingSegment previous = virtualSegmentHolder.registerIfAbsent(TestData.buildVirtualSegment());
+    Assert.assertSame(segment, previous);
+    VirtualSegmentMetadata metadata = virtualSegmentHolder.getMetadata(segmentId);
+    Assert.assertNotNull(metadata);
+    Assert.assertEquals(VirtualSegmentStateManagerImpl.Status.QUEUED, metadata.getStatus());
+    Assert.assertFalse(metadata.isToBeRemoved());
+  }
+
+  @Test
+  public void testQueueToBeginRemoveToDownload()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    SegmentId segmentId = segment.getId();
+    virtualSegmentHolder.registerIfAbsent(segment);
+    ListenableFuture<Void> future = virtualSegmentHolder.queue(segment, closer);
+
+    virtualSegmentHolder.beginRemove(segmentId);
+    Assert.assertNotNull(virtualSegmentHolder.getMetadata(segmentId));
+    Assert.assertFalse(future.isDone());
+
+    virtualSegmentHolder.downloaded(segment);
+    VirtualSegmentMetadata metadata = virtualSegmentHolder.getMetadata(segmentId);
+    Assert.assertNotNull(metadata);
+    Assert.assertEquals(VirtualSegmentStateManagerImpl.Status.DOWNLOADED, metadata.getStatus());
+    Assert.assertTrue(metadata.isToBeRemoved());
+    Assert.assertTrue(metadata.getDownloadFuture().isDone());
+  }
+
+  @Test
+  public void testDownloadToBeginRemoveToReady()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    SegmentId segmentId = segment.getId();
+    virtualSegmentHolder.registerIfAbsent(segment);
+    virtualSegmentHolder.downloaded(segment);
+    virtualSegmentHolder.beginRemove(segmentId);
+    VirtualReferenceCountingSegment previous = virtualSegmentHolder.registerIfAbsent(TestData.buildVirtualSegment());
+    Assert.assertSame(segment, previous);
+    VirtualSegmentMetadata metadata = virtualSegmentHolder.getMetadata(segmentId);
+    Assert.assertNotNull(metadata);
+    Assert.assertEquals(VirtualSegmentStateManagerImpl.Status.DOWNLOADED, metadata.getStatus());
+    Assert.assertFalse(metadata.isToBeRemoved());
+    Assert.assertTrue(metadata.getDownloadFuture().isDone());
+  }
+
+  @Test
+  public void testEvictToBeginRemoveToReady()
+  {
+    VirtualReferenceCountingSegment segment = TestData.buildVirtualSegment();
+    SegmentId segmentId = segment.getId();
+    virtualSegmentHolder.registerIfAbsent(segment);
+    virtualSegmentHolder.downloaded(segment);
+    virtualSegmentHolder.evict(segment);
+    virtualSegmentHolder.beginRemove(segmentId);
+    VirtualReferenceCountingSegment previous = virtualSegmentHolder.registerIfAbsent(TestData.buildVirtualSegment());
+    Assert.assertSame(segment, previous);
+    VirtualSegmentMetadata metadata = virtualSegmentHolder.getMetadata(segmentId);
+    Assert.assertNotNull(metadata);
+    Assert.assertEquals(VirtualSegmentStateManagerImpl.Status.READY, metadata.getStatus());
+    Assert.assertFalse(metadata.isToBeRemoved());
+    Assert.assertNull(metadata.getDownloadFuture());
   }
 
   private void verifyCloser(VirtualReferenceCountingSegment segment, Closer closer, int expectedReferences)

@@ -84,7 +84,7 @@ public class VirtualSegmentMetricsMonitor extends AbstractMonitor
 
     virtualSegmentStats.resetMetrics();
 
-    virtualSegmentLoader.getDownloadWorkersGuage().forEach(
+    virtualSegmentLoader.getWorkersGauges().forEach(
         (key, value) ->
             emitter.emit(builder.build(key, value)));
 

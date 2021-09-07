@@ -12,6 +12,7 @@ package io.imply.druid.segment;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.imply.druid.loading.SegmentLifecycleLogger;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.ReferenceCountingSegment;
@@ -38,12 +39,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * Reference maintenance has to be synchronized to support above features. When the eviction starts, query system
  * should not be able to get the reference.
+ *
+ * TODO: Since a segment is evicted only when all the active references are closed, it needs to be ensured that there are no
+ * dangling references that could result in a leak.
  */
 public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
 {
   private static final Logger LOG = new Logger(VirtualReferenceCountingSegment.class);
   private final AtomicBoolean evicted = new AtomicBoolean(false);
   private final AtomicInteger references = new AtomicInteger(0);
+  private Runnable callbacksOnInactiveState = null;
 
   protected VirtualReferenceCountingSegment(
       VirtualSegment baseSegment,
@@ -140,6 +145,10 @@ public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
     synchronized (references) {
       references.decrementAndGet();
       super.decrement();
+      if (references.get() == 0 && callbacksOnInactiveState != null) {
+        callbacksOnInactiveState.run();
+        callbacksOnInactiveState = null;
+      }
     }
   }
 
@@ -174,10 +183,22 @@ public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
     }
   }
 
+  /**
+   * Following is called only from the SegmentManager however we want to retain the control over closing the segment. If we close the segment here
+   * but segment is re-assigned before it is completely removed, segment will end up in a bad state. So
+   * we override with a dummy implementation and implement the actual closure in {@link #closeFully()}. {@link #closeFully()}
+   * is called from VirtualSegmentLoader.
+   * TODO: it is certainly risky.
+   */
   @Override
   public void close()
   {
-    SegmentLifecycleLogger.LOG.debug("Closing virtual segment [%s]", this.getId());
+    SegmentLifecycleLogger.LOG.debug("Ignoring request to close the virtual segment [%s]", this.getId());
+  }
+
+  public void closeFully()
+  {
+    SegmentLifecycleLogger.LOG.debug("Ignoring request to close the virtual segment [%s]", this.getId());
     evicted.set(false);
     super.close();
   }
@@ -187,10 +208,24 @@ public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
     return evicted.get();
   }
 
-  public boolean isEvictable()
+  /**
+   * Registers a callback to be notified when there are no active queries for this segment. There can be only
+   * one active callback at a time. So a different callback can be set only after the active callback has been invoked.
+   * callbacks should be short and lock-free since they are invoked inside a lock itself.
+   */
+  public void whenNotActive(Runnable callback)
   {
     synchronized (references) {
-      return references.get() <= 0;
+      if (references.get() == 0) {
+        callback.run();
+        return;
+      }
+
+      if (callbacksOnInactiveState == null) {
+        callbacksOnInactiveState = callback;
+      } else {
+        throw new IAE("A callback is alreay set on this segment [%s]", getId());
+      }
     }
   }
 

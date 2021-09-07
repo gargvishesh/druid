@@ -16,6 +16,7 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import io.imply.druid.loading.FIFOSegmentReplacementStrategy;
 import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentCacheManager;
@@ -32,6 +33,7 @@ import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QuerySegmentWalker;
@@ -42,6 +44,7 @@ import org.apache.druid.server.metrics.MetricsModule;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
  * This module can only be loaded on historicals.
@@ -109,9 +112,20 @@ public class VirtualSegmentModule implements DruidModule
     return new VirtualSegmentStats();
   }
 
+  @Provides
+  @LazySingleton
+  @Named("virtualSegmentCleanup")
+  ScheduledThreadPoolExecutor getCleanupExecutor()
+  {
+    return new ScheduledThreadPoolExecutor(
+        1,
+        Execs.makeThreadFactory("virtual-segment-cleanup-%d")
+    );
+  }
+
   private boolean isEnabled(String propertyName)
   {
     Preconditions.checkNotNull(props, "props field was not injected");
-    return Boolean.valueOf(props.getProperty(propertyName, "false"));
+    return Boolean.parseBoolean(props.getProperty(propertyName, "false"));
   }
 }

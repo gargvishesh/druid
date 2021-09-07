@@ -22,6 +22,9 @@ public class VirtualSegmentMetadata
   private VirtualSegmentStateManagerImpl.Status status;
   private SettableFuture<Void> downloadFuture;
   private long queueStartTimeMillis = 0L;
+  // Whether the segment is to removed from this server. This state is tracked separately through this
+  // flag since a segment to be removed can also go through state transitions if the segment is in use already.
+  private boolean toBeRemoved = false;
 
   public VirtualSegmentMetadata(
       final VirtualReferenceCountingSegment virtualSegment,
@@ -70,6 +73,21 @@ public class VirtualSegmentMetadata
   public void setQueueStartTimeMillis(long queueStartTimeMillis)
   {
     this.queueStartTimeMillis = queueStartTimeMillis;
+  }
+
+  public void markToBeRemoved()
+  {
+    this.toBeRemoved = true;
+  }
+
+  public void unmarkToBeRemoved()
+  {
+    this.toBeRemoved = false;
+  }
+
+  public boolean isToBeRemoved()
+  {
+    return this.toBeRemoved;
   }
 
 }

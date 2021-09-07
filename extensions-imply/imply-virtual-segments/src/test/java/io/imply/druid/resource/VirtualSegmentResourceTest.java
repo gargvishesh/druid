@@ -27,7 +27,6 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.segment.loading.SegmentLoaderConfig;
-import org.apache.druid.segment.loading.SegmentLoadingException;
 import org.apache.druid.segment.loading.SegmentLocalCacheManager;
 import org.apache.druid.segment.loading.SegmentizerFactory;
 import org.apache.druid.segment.loading.StorageLocationConfig;
@@ -50,6 +49,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class VirtualSegmentResourceTest
 {
@@ -85,7 +85,7 @@ public class VirtualSegmentResourceTest
   }
 
   @Test
-  public void deleteSegmentsSanity() throws IOException, SegmentLoadingException
+  public void deleteSegmentsSanity() throws IOException
   {
     Closer closer = Closer.create();
     VirtualReferenceCountingSegment firstSegment = TestData.buildVirtualSegment(1);
@@ -203,7 +203,8 @@ public class VirtualSegmentResourceTest
         config,
         null,
         segmentizerFactory,
-        stats
+        stats,
+        new ScheduledThreadPoolExecutor(1)
     );
     virtualSegmentLoader.start();
     return new VirtualSegmentResource(segmentManager, virtualSegmentLoader, jsonMapper);
