@@ -35,15 +35,29 @@ import java.util.Optional;
 @ManageLifecycle
 public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
 {
-  private static final Logger log = new Logger(LocalSqlAsyncResultManager.class);
+  public static final String LOCAL_RESULT_MANAGER_TYPE = "local";
+  public static final String BASE_LOCAL_STORAGE_CONFIG_KEY = String.join(
+      ".",
+      SqlAsyncModule.BASE_STORAGE_CONFIG_KEY,
+      LOCAL_RESULT_MANAGER_TYPE
+  );
+  public static final String LOCAL_STORAGE_DIRECTORY_CONFIG_KEY = String.join(
+      ".",
+      BASE_LOCAL_STORAGE_CONFIG_KEY,
+      "directory"
+  );
 
+  private static final Logger log = new Logger(LocalSqlAsyncResultManager.class);
   private final File directory;
 
   @Inject
   public LocalSqlAsyncResultManager(final LocalSqlAsyncResultManagerConfig config)
   {
     if (Strings.isNullOrEmpty(config.getDirectory())) {
-      throw new ISE("Property 'druid.sql.asyncstorage.directory' is required");
+      throw new ISE(
+          "Property '%s' is required",
+          LOCAL_STORAGE_DIRECTORY_CONFIG_KEY
+      );
     }
 
     this.directory = new File(config.getDirectory());
@@ -127,7 +141,8 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
 
       if (!directory.isDirectory()) {
         throw new ISE(
-            "Location of 'druid.sql.asyncstorage.directory' (%s) does not exist and cannot be created",
+            "Location of '%s' (%s) does not exist and cannot be created",
+            LOCAL_STORAGE_DIRECTORY_CONFIG_KEY,
             directory
         );
       }

@@ -26,14 +26,42 @@ import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
  * For the purpose of this class, refer to docs of {@link VirtualSegmentStateManager}.
+ *
+ * <p>
+ * Valid state transitions (NULL refers to no state). Each list item is an origin state and nested list items are
+ * destination state. There are scenarios in comments to reflect those state transitions.
+ *
+ * NULL
+ *    - READY (new segment has been assigned)
+ * READY
+ *    - QUEUED (segment is queued for download)
+ *    - DOWNLOADED (segment was already cached)
+ *    - NULL (segment was un-assigned)
+ * QUEUED
+ *    - QUEUED  (different request comes for the same segment)
+ *    - DOWNLOADED (segment that was queued for download, is now downloaded)
+ *    - READY (segment is most likely cancelled)
+ *    - NULL (segment was un-assigned while it was queued. This can happen if queries are cancelled but segment is removed
+ *    entirely before the segment download is cancelled)
+ * DOWNLOADED
+ *    - QUEUED (state transition is ignored without any error)
+ *    - DOWNLOADED (unlikely to happen but transition is ignored without any error)
+ *    - READY (segment was evicted due to lack of disk space but is still assigned to this server)
+ *    - NULL (segment was un-assigned and removed from historical)
+ *
+ * </p>
  */
+
 public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManager
 {
   private final SegmentReplacementStrategy strategy;
@@ -56,15 +84,24 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   public VirtualReferenceCountingSegment registerIfAbsent(VirtualReferenceCountingSegment segment)
   {
     SegmentLifecycleLogger.LOG.debug("Trying to add the segment [%s]", segment.getId());
-    VirtualSegmentMetadata previous = segmentMetadataMap.putIfAbsent(
-        segment.getId(),
-        new VirtualSegmentMetadata(segment, Status.READY)
+    final AtomicReference<VirtualReferenceCountingSegment> previous = new AtomicReference<>(null);
+    segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
+          if (null == metadata) {
+            return new VirtualSegmentMetadata(segment, Status.READY);
+          }
+          if (metadata.isToBeRemoved()) {
+            LOG.info("Unmarking a to be removed segment [%s]", segment.getId());
+            metadata.unmarkToBeRemoved();
+          }
+          previous.set(metadata.getVirtualSegment());
+          return metadata;
+        }
     );
-    if (null == previous) {
+    if (null == previous.get()) {
       SegmentLifecycleLogger.LOG.debug("Added a new segment [%s]", segment.getId());
       return null;
     }
-    return previous.getVirtualSegment();
+    return previous.get();
   }
 
   @Override
@@ -113,6 +150,11 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       if (null == metadata) {
         throw new ISE("segment [%s] must be added first before queuing", segment.getId());
       }
+      if (metadata.isToBeRemoved() && !isRequeue) {
+        throw new IAE("[%s] is being queried while it is already unassigned from server. " +
+            "Consider increasing 'druid.segmentCache.dropSegmentDelayMillis'", segment.getId());
+      }
+
       switch (metadata.getStatus()) {
         case READY:
           metadata.setStatus(Status.QUEUED);
@@ -135,15 +177,6 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
           );
           SegmentLifecycleLogger.LOG.debug("[%s] is already downloaded", segment.getId());
           break;
-        case ERROR:
-          //TODO: what exception
-          Preconditions.checkArgument(
-              metadata.getDownloadFuture().isDone(),
-              "Segment [%s] is errored but future is incomplete",
-              segment.getId()
-          );
-          SegmentLifecycleLogger.LOG.debug("[%s] is in error state", segment.getId());
-          break;
         case QUEUED:
           Preconditions.checkArgument(
               !metadata.getDownloadFuture().isDone(),
@@ -160,13 +193,13 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
           throw new ISE("unknown state: %s", metadata.getStatus());
       }
 
-      if (!isRequeue) {
+      if (null != closer && !isRequeue) {
         // Make sure the reference is acquired and cleaned when closer is closed.
         closer.register(
             metadata
                 .getVirtualSegment()
                 .acquireReferences()
-                .orElseThrow(() -> new ISE("could not acquire the reference")));
+                .orElseThrow(() -> new ISE("could not acquire the reference for segment [%s]", segment.getId())));
       }
       return metadata;
     });
@@ -208,14 +241,13 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
           break;
         case READY:
         case DOWNLOADED:
-        case ERROR:
           SegmentLifecycleLogger.LOG.debug(
               "Doing nothing since state is already [%s]",
               metadata.getStatus()
           );
           break;
         default:
-          throw new ISE("unknown segment state: %s", metadata.getStatus());
+          throw new ISE("unknown segment state: %s for segment [%s]", metadata.getStatus(), segment.getId());
       }
       return metadata;
     });
@@ -286,6 +318,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   @Override
   public void downloadFailed(VirtualReferenceCountingSegment segment, Throwable th, boolean recoverable)
   {
+    LOG.warn(th, "Failed to download [%s]", segment.getId());
     //TODO
   }
 
@@ -312,16 +345,34 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   }
 
   @Override
-  public void remove(SegmentId segmentId)
+  public boolean finishRemove(SegmentId segmentId)
   {
+    final AtomicBoolean result = new AtomicBoolean(true);
+
     segmentMetadataMap.compute(segmentId, (key, metadata) -> {
       if (null == metadata) {
         throw new ISE("Being asked to remove a segment [%s] that is not added yet", segmentId);
       }
+      if (!metadata.isToBeRemoved()) {
+        LOG.warn("[%s] was being asked to remove but is not marked for removal. " +
+            "It might have been re-assigned back to this server. Skipping the remove operation", segmentId);
+        result.set(false);
+        return metadata;
+      }
       VirtualReferenceCountingSegment segmentReference = metadata.getVirtualSegment();
+
       if (null != segmentReference) {
+        if (segmentReference.hasActiveQueries()) {
+          LOG.warn("Being asked to remove a segment [%s] that has active queries in progress", segmentId);
+          //TODO: maybe throw segmentNotEvictableException and retry remove after caching the exception
+        }
         try {
-          segmentReference.close();
+          // Do an actual close of segment. We are closing the segment here instead of doing it in the segment manager
+          // since segment could be re-assigned even before we actually get to deleting the segment. If segment manager
+          // closes the segment and segment gets re-assigned before being removed entirely, we end up with a virtual
+          // segment whose base object is closed and we can't open it back. There could also be in-flight queries
+          // referring to this virtual segment before segment is eligible for full removal.
+          segmentReference.closeFully();
         }
         catch (Exception ex) {
           LOG.error(ex, "Failed to close the segment [%s]", segmentId);
@@ -329,11 +380,25 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       }
       strategy.remove(segmentId);
       if (metadata.getStatus() == Status.QUEUED) {
-        // fail the future with an exception
-        metadata.getDownloadFuture().setException(new ISE("[%s] Segment was removed", segmentId));
+        // This can happen if queries are cancelled but segment is remove entirely before the segment download is cancelled
+        // fail the future with an exception.
+        metadata.getDownloadFuture().setException(new ISE("[%s] Segment was removed from this machine", segmentId));
       }
       virtualSegmentsStats.incrementNumSegmentRemoved();
       return null;
+    });
+    return result.get();
+  }
+
+  @Override
+  public void beginRemove(SegmentId segmentId)
+  {
+    segmentMetadataMap.compute(segmentId, (key, metadata) -> {
+      if (null == metadata) {
+        throw new ISE("Being asked to remove a segment [%s] that is not added yet", segmentId);
+      }
+      metadata.markToBeRemoved();
+      return metadata;
     });
   }
 
@@ -378,11 +443,16 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
     return segmentMetadataMap.get(segmentId);
   }
 
+
   public enum Status
   {
+    // Segment is ready to be used.
     READY,
+
+    // Segment is queued for download.
     QUEUED,
-    DOWNLOADED,
-    ERROR
+
+    // Segment is downloaded to disk
+    DOWNLOADED
   }
 }

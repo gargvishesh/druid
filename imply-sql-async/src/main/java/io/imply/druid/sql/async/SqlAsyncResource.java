@@ -101,7 +101,7 @@ public class SqlAsyncResource
       return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }
     catch (QueryCapacityExceededException cap) {
-      lifecycle.emitLogsAndMetrics(cap, remoteAddr, -1);
+      lifecycle.finalizeStateAndEmitLogsAndMetrics(cap, remoteAddr, -1);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -110,7 +110,7 @@ public class SqlAsyncResource
       );
     }
     catch (QueryUnsupportedException unsupported) {
-      lifecycle.emitLogsAndMetrics(unsupported, remoteAddr, -1);
+      lifecycle.finalizeStateAndEmitLogsAndMetrics(unsupported, remoteAddr, -1);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -119,7 +119,7 @@ public class SqlAsyncResource
       );
     }
     catch (SqlPlanningException | ResourceLimitExceededException e) {
-      lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
+      lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -133,7 +133,7 @@ public class SqlAsyncResource
     }
     catch (Exception e) {
       log.warn(e, "Failed to handle query: %s", sqlQuery);
-      lifecycle.emitLogsAndMetrics(e, remoteAddr, -1);
+      lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
 
       final Exception exceptionToReport;
 

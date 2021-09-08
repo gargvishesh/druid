@@ -43,10 +43,11 @@ public class SqlAsyncModule implements Module
 {
   private static final Logger LOG = new Logger(SqlAsyncModule.class);
 
-  public static final String ASYNC_ENABLED_KEY = "druid.sql.async.enabled";
+  public static final String BASE_ASYNC_CONFIG_KEY = "druid.query.async";
+  public static final String ASYNC_ENABLED_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "sql", "enabled");
+  public static final String BASE_STORAGE_CONFIG_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "storage");
+  public static final String STORAGE_TYPE_CONFIG_KEY = String.join(".", BASE_STORAGE_CONFIG_KEY, "type");
   static final String ASYNC_BROKER_ID = "asyncBrokerId";
-
-  private static final String LOCAL_RESULT_MANAGER_TYPE = "local";
 
   @Inject
   private Properties props;
@@ -67,6 +68,7 @@ public class SqlAsyncModule implements Module
     if (isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props)) {
       bindAsyncMetadataManager(binder);
       bindAsyncStorage(binder);
+      bindAsyncLimitsConfig(binder);
 
       Jerseys.addResource(binder, SqlAsyncResource.class);
       Jerseys.addResource(binder, SqlAsyncResultsMessageBodyWriter.class);
@@ -75,8 +77,6 @@ public class SqlAsyncModule implements Module
       LifecycleModule.register(binder, SqlAsyncResource.class);
 
       binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class).in(LazySingleton.class);
-
-      JsonConfigProvider.bind(binder, "druid.sql.async.limit", AsyncQueryLimitsConfig.class);
     }
   }
 
@@ -108,21 +108,21 @@ public class SqlAsyncModule implements Module
     public SqlAsyncQueryPool get()
     {
       final ExecutorService exec = new ThreadPoolExecutor(
-          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
-          // The maximum number of simultaneous query allowed is control by setting maximumPoolSize of the
+          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
+          // The maximum number of concurrent query allowed is control by setting maximumPoolSize of the
           // ThreadPoolExecutor. This basically control how many query can be executing at the same time.
-          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
+          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
           0L,
           TimeUnit.MILLISECONDS,
           // The queue limit is control by setting the size of the queue use for holding tasks before they are executed
-          new LinkedBlockingQueue<>(asyncQueryLimitsConfig.getMaxQueryQueueSize()),
+          new LinkedBlockingQueue<>(asyncQueryLimitsConfig.getMaxQueriesToQueue()),
           Execs.makeThreadFactory("sql-async-pool-%d", null),
           new RejectedExecutionHandler()
           {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor)
             {
-              throw new QueryCapacityExceededException(asyncQueryLimitsConfig.getMaxQueryQueueSize());
+              throw new QueryCapacityExceededException(asyncQueryLimitsConfig.getMaxQueriesToQueue());
             }
           }
       );
@@ -143,9 +143,9 @@ public class SqlAsyncModule implements Module
           }
       );
       LOG.debug(
-          "Created SqlAsyncQueryPool with maxSimultaneousQuery[%d] and maxQueryQueueSize[%d]",
-          asyncQueryLimitsConfig.getMaxSimultaneousQuery(),
-          asyncQueryLimitsConfig.getMaxQueryQueueSize()
+          "Created SqlAsyncQueryPool with maxConcurrentQueries[%d] and maxQueriesToQueue[%d]",
+          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
+          asyncQueryLimitsConfig.getMaxQueriesToQueue()
       );
       return sqlAsyncQueryPool;
     }
@@ -187,22 +187,31 @@ public class SqlAsyncModule implements Module
   {
     PolyBind.createChoice(
         binder,
-        "druid.sql.asyncstorage.type",
+        STORAGE_TYPE_CONFIG_KEY,
         Key.get(SqlAsyncResultManager.class),
         Key.get(LocalSqlAsyncResultManager.class)
     );
 
     PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
-            .addBinding(LOCAL_RESULT_MANAGER_TYPE)
+            .addBinding(LocalSqlAsyncResultManager.LOCAL_RESULT_MANAGER_TYPE)
             .to(LocalSqlAsyncResultManager.class)
             .in(LazySingleton.class);
 
-    JsonConfigProvider.bind(binder, "druid.sql.asyncstorage.local", LocalSqlAsyncResultManagerConfig.class);
+    JsonConfigProvider.bind(
+        binder,
+        LocalSqlAsyncResultManager.BASE_LOCAL_STORAGE_CONFIG_KEY,
+        LocalSqlAsyncResultManagerConfig.class
+    );
   }
 
   public static void bindAsyncMetadataManager(Binder binder)
   {
     binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
     binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
+  }
+
+  public static void bindAsyncLimitsConfig(Binder binder)
+  {
+    JsonConfigProvider.bind(binder, BASE_ASYNC_CONFIG_KEY, AsyncQueryLimitsConfig.class);
   }
 }

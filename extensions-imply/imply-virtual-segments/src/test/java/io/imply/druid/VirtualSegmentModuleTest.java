@@ -12,7 +12,9 @@ package io.imply.druid;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
+import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.query.QuerySegmentWalker;
 import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.loading.SegmentLoader;
@@ -59,6 +61,7 @@ public class VirtualSegmentModuleTest
       bind(QuerySegmentWalker.class).toInstance(mockServerManager);
       bind(SegmentLoader.class).toInstance(mockSegmentLoader);
       bind(SegmentCacheManager.class).toInstance(mockCacheManager);
+      bindScope(LazySingleton.class, Scopes.SINGLETON);
     }
   }
 

@@ -7,14 +7,14 @@
 # of the license agreement you entered into with Imply.
 #
 
-druid_sql_async_enabled=true
-druid_sql_asyncstorage_local_directory=/shared/storage/async-results
+druid_query_async_sql_enabled=true
 
-druid_sql_async_limit_maxSimultaneousQuery=10
-druid_sql_async_limit_maxQueryRetentionCount=15
-druid_sql_async_limit_maxQueryQueueSize=3
+druid_query_async_storage_type=local
+druid_query_async_storage_local_directory=/shared/storage/async-results
 
-druid_coordinator_dutyGroups=["cleanup"]
-druid_coordinator_cleanup_duties=["killAsyncQueryMetadata", "killAsyncQueryResultWithoutMetadata"]
-druid_coordinator_cleanup_duty_killAsyncQueryMetadata_retainDuration=PT30S
-druid_coordinator_cleanup_period=PT3S
+druid_query_async_maxConcurrentQueries=10
+druid_query_async_maxAsyncQueries=15
+druid_query_async_maxQueriesToQueue=3
+
+druid_query_async_cleanup_pollPeriod=PT3S
+druid_query_async_cleanup_timeToRetain=PT30S

@@ -39,7 +39,7 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
   public void testClusterAsyncQueryRunningLimits() throws Exception
   {
     // This test covers the following limits:
-    // 1. Cluster Simultaneous Async Query Limit - number of simultaneous Async queries per cluster. New queries will be queued after the cluster hits the limit.
+    // 1. Cluster Concurrent Async Query Limit - number of concurrent Async queries per cluster. New queries will be queued after the cluster hits the limit.
     // 2. Queue limit. New queries will be rejected.
     List<String> asyncResultIds = new ArrayList<>();
     try {
@@ -51,14 +51,14 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
           null
       );
       AsyncQueryLimitsConfig asyncQueryLimitsConfig = asyncResourceTestClient.getAsyncQueryLimitsConfig();
-      int maxQueryCanSubmit = asyncQueryLimitsConfig.getMaxQueryQueueSize() + asyncQueryLimitsConfig.getMaxSimultaneousQuery();
+      int maxQueryCanSubmit = asyncQueryLimitsConfig.getMaxQueriesToQueue() + asyncQueryLimitsConfig.getMaxConcurrentQueries();
       for (int i = 0; i < maxQueryCanSubmit; i++) {
         SqlAsyncQueryDetailsApiResponse response = asyncResourceTestClient.submitAsyncQuery(query);
         Assert.assertEquals(response.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
         asyncResultIds.add(response.getAsyncResultId());
       }
-      // The first asyncQueryLimitsConfig.getMaxSimultaneousQuery() query submitted will be RUNNING
-      for (int i = 0; i < asyncQueryLimitsConfig.getMaxSimultaneousQuery(); i++) {
+      // The first asyncQueryLimitsConfig.getMaxConcurrentQueries() query submitted will be RUNNING
+      for (int i = 0; i < asyncQueryLimitsConfig.getMaxConcurrentQueries(); i++) {
         final String asyncResultId = asyncResultIds.get(i);
         ITRetryUtil.retryUntilTrue(
             () -> {
@@ -69,7 +69,7 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
         );
       }
       // The remaining query submitted will still be in INITIALIZED state (queued)
-      for (int i = asyncQueryLimitsConfig.getMaxSimultaneousQuery(); i < maxQueryCanSubmit; i++) {
+      for (int i = asyncQueryLimitsConfig.getMaxConcurrentQueries(); i < maxQueryCanSubmit; i++) {
         SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultIds.get(i));
         Assert.assertEquals(statusResponse.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
       }
@@ -112,7 +112,7 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
           null
       );
       AsyncQueryLimitsConfig asyncQueryLimitsConfig = asyncResourceTestClient.getAsyncQueryLimitsConfig();
-      for (int i = 0; i < asyncQueryLimitsConfig.getMaxQueryRetentionCount(); i++) {
+      for (int i = 0; i < asyncQueryLimitsConfig.getMaxAsyncQueries(); i++) {
         SqlAsyncQueryDetailsApiResponse response = asyncResourceTestClient.submitAsyncQuery(query);
         Assert.assertEquals(response.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
         String asyncResultId = response.getAsyncResultId();

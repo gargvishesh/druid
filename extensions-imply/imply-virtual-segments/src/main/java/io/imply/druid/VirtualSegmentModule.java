@@ -16,20 +16,25 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import io.imply.druid.loading.FIFOSegmentReplacementStrategy;
 import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentCacheManager;
 import io.imply.druid.loading.VirtualSegmentLoader;
 import io.imply.druid.processing.Deferred;
 import io.imply.druid.query.DeferredQueryProcessingPool;
+import io.imply.druid.resource.VirtualSegmentResource;
 import io.imply.druid.segment.VirtualSegmentStateManager;
 import io.imply.druid.segment.VirtualSegmentStateManagerImpl;
 import io.imply.druid.segment.VirtualSegmentStats;
 import io.imply.druid.server.DeferredLoadingQuerySegmentWalker;
 import io.imply.druid.server.metrics.VirtualSegmentMetricsMonitor;
+import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QuerySegmentWalker;
 import org.apache.druid.segment.loading.SegmentCacheManager;
@@ -39,14 +44,17 @@ import org.apache.druid.server.metrics.MetricsModule;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
  * This module can only be loaded on historicals.
  */
 public class VirtualSegmentModule implements DruidModule
 {
+  private static final Logger LOG = new Logger(VirtualSegmentModule.class);
   public static final String PROPERTY_PREFIX = "druid.virtualSegment";
   public static final String ENABLED_PROPERTY = PROPERTY_PREFIX + ".enabled";
+  public static final String EXPERIMENTAL_PROPERTY = PROPERTY_PREFIX + ".experimental";
 
   @Inject
   private Properties props;
@@ -71,7 +79,7 @@ public class VirtualSegmentModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (!isEnabled()) {
+    if (!isEnabled(ENABLED_PROPERTY)) {
       return;
     }
     JsonConfigProvider.bind(binder, PROPERTY_PREFIX, VirtualSegmentConfig.class);
@@ -89,6 +97,12 @@ public class VirtualSegmentModule implements DruidModule
           .in(LazySingleton.class);
 
     MetricsModule.register(binder, VirtualSegmentMetricsMonitor.class);
+
+    if (isEnabled(EXPERIMENTAL_PROPERTY)) {
+      Jerseys.addResource(binder, VirtualSegmentResource.class);
+      LOG.warn("Enabling experimental mode for virtual segments. This %s should not be set in"
+               + " production and can be removed in future releases.", EXPERIMENTAL_PROPERTY);
+    }
   }
 
   @Provides
@@ -98,9 +112,20 @@ public class VirtualSegmentModule implements DruidModule
     return new VirtualSegmentStats();
   }
 
-  private boolean isEnabled()
+  @Provides
+  @LazySingleton
+  @Named("virtualSegmentCleanup")
+  ScheduledThreadPoolExecutor getCleanupExecutor()
+  {
+    return new ScheduledThreadPoolExecutor(
+        1,
+        Execs.makeThreadFactory("virtual-segment-cleanup-%d")
+    );
+  }
+
+  private boolean isEnabled(String propertyName)
   {
     Preconditions.checkNotNull(props, "props field was not injected");
-    return Boolean.valueOf(props.getProperty(ENABLED_PROPERTY, "false"));
+    return Boolean.parseBoolean(props.getProperty(propertyName, "false"));
   }
 }

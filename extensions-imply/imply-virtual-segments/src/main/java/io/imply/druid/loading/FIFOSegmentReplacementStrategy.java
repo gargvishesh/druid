@@ -43,7 +43,7 @@ public class FIFOSegmentReplacementStrategy implements SegmentReplacementStrateg
   public SegmentId nextEvict()
   {
     for (QueueItem item : downloadedSegments) {
-      if (item.metadata.getVirtualSegment().isEvictable()) {
+      if (!item.metadata.getVirtualSegment().hasActiveQueries()) {
         return item.segmentId;
       }
     }

@@ -56,7 +56,14 @@ public class SqlAsyncModuleTest
     properties.setProperty(SqlModule.PROPERTY_SQL_ENABLE, "true");
     properties.setProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true");
     properties.setProperty(SqlAsyncModule.ASYNC_ENABLED_KEY, "true");
-    properties.setProperty("druid.sql.asyncstorage.local.directory", "test");
+    properties.setProperty(
+        SqlAsyncModule.STORAGE_TYPE_CONFIG_KEY,
+        LocalSqlAsyncResultManager.LOCAL_RESULT_MANAGER_TYPE
+    );
+    properties.setProperty(
+        LocalSqlAsyncResultManager.LOCAL_STORAGE_DIRECTORY_CONFIG_KEY,
+        "test"
+    );
     Injector injector = makeInjector(properties);
     Assert.assertNotNull(injector.getInstance(SqlAsyncMetadataManager.class));
     Assert.assertNotNull(injector.getInstance(SqlAsyncResultManager.class));

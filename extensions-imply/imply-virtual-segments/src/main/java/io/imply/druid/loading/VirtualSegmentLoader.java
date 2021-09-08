@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.name.Named;
 import io.imply.druid.VirtualSegmentConfig;
 import io.imply.druid.segment.SegmentNotEvictableException;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
@@ -40,8 +41,10 @@ import org.apache.druid.segment.loading.SegmentLocalCacheManager;
 import org.apache.druid.segment.loading.SegmentizerFactory;
 import org.apache.druid.segment.loading.StorageLocationConfig;
 import org.apache.druid.timeline.DataSegment;
+import org.apache.druid.timeline.SegmentId;
 
 import javax.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -61,6 +64,7 @@ public class VirtualSegmentLoader implements SegmentLoader
 {
   private static final Logger LOG = new Logger(VirtualSegmentLoader.class);
   private final ScheduledThreadPoolExecutor downloadExecutor;
+  private final ScheduledThreadPoolExecutor cleanupExecutor;
   private final VirtualSegmentStateManager segmentStateManager;
   private final SegmentLocalCacheManager physicalCacheManager;
   // Size of the location with largest space
@@ -71,7 +75,8 @@ public class VirtualSegmentLoader implements SegmentLoader
   private final ObjectMapper jsonMapper;
   private final VirtualSegmentStats virtualSegmentStats;
   private volatile boolean started = false;
-  public final String downloadMetricPrefix = "virtual/segment/download/pool/";
+  public static final String DOWNLOAD_METRIC_PREFIX = "virtual/segment/download/pool/";
+  public static final String CLEANUP_METRIC_PREFIX = "virtual/segment/cleanup/pool/";
 
 
   @Inject
@@ -81,8 +86,9 @@ public class VirtualSegmentLoader implements SegmentLoader
       final VirtualSegmentStateManager segmentStateManager,
       final VirtualSegmentConfig config,
       final VirtualSegmentStats virtualSegmentStats,
-      IndexIO indexIO,
-      @Json ObjectMapper mapper
+      final IndexIO indexIO,
+      @Named("virtualSegmentCleanup") final ScheduledThreadPoolExecutor cleanupExecutor,
+      @Json final ObjectMapper mapper
   )
   {
     this(
@@ -92,7 +98,8 @@ public class VirtualSegmentLoader implements SegmentLoader
         config,
         mapper,
         new MMappedQueryableSegmentizerFactory(indexIO),
-        virtualSegmentStats
+        virtualSegmentStats,
+        cleanupExecutor
     );
   }
 
@@ -104,7 +111,8 @@ public class VirtualSegmentLoader implements SegmentLoader
       final VirtualSegmentConfig config,
       final ObjectMapper mapper,
       final SegmentizerFactory defaultSegmentizerFactory,
-      final VirtualSegmentStats virtualSegmentStats
+      final VirtualSegmentStats virtualSegmentStats,
+      final ScheduledThreadPoolExecutor cleanupExecutor
   )
   {
     Preconditions.checkArgument(
@@ -128,6 +136,7 @@ public class VirtualSegmentLoader implements SegmentLoader
     this.jsonMapper = mapper;
     this.defaultSegmentizerFactory = defaultSegmentizerFactory;
     this.virtualSegmentStats = virtualSegmentStats;
+    this.cleanupExecutor = cleanupExecutor;
   }
 
   @LifecycleStart
@@ -160,6 +169,7 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
     LOG.info("Stopping scheduled downloads");
     downloadExecutor.shutdown();
+    cleanupExecutor.shutdown();
     started = false;
   }
 
@@ -202,7 +212,7 @@ public class VirtualSegmentLoader implements SegmentLoader
             evictSegment(toEvict);
           }
           catch (SegmentNotEvictableException sne) {
-            LOG.warn("[%s] in already in use", toEvict.getId());
+            LOG.info("[%s] in already in use", toEvict.getId());
             continue;
           }
           isReserved = physicalCacheManager.reserve(dataSegment);
@@ -255,7 +265,12 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
   }
 
-  private void evictSegment(VirtualReferenceCountingSegment segment)
+  /**
+   * Evicts the segment and cleans up the data but does not deregister the segment from the historical.
+   *
+   * @param segment Segment to evict and remove from disk
+   */
+  public void evictSegment(VirtualReferenceCountingSegment segment)
   {
     virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
@@ -305,7 +320,9 @@ public class VirtualSegmentLoader implements SegmentLoader
       );
     }
 
-    // This snippet cannot be called multiple times for same data segment
+    // This snippet cannot be called multiple times for same data segment. This could mean that we are
+    // creating multiple segment references for same underying segment. It is possible in such a situation
+    // that a reference is acquired on one segment reference but released on other reference.
     boolean isCached = physicalCacheManager.isSegmentCached(segment);
     if (isCached) {
       materializeSegment(segmentReference, segment);
@@ -316,14 +333,23 @@ public class VirtualSegmentLoader implements SegmentLoader
   @Override
   public void cleanup(DataSegment segment)
   {
-    segmentStateManager.remove(segment.getId());
-    physicalCacheManager.cleanup(segment);
+    final SegmentId segmentId = segment.getId();
+    segmentStateManager.beginRemove(segmentId);
+
+    // Once a segment has been marked to be removed, the reference count of a segment will only decrease or stay at zero
+    // unless segment gets re-assigned.
+    VirtualReferenceCountingSegment segmentReference = segmentStateManager.get(segmentId);
+    if (null != segmentReference) {
+      // callback should be quick and submit a task to cleanup threadpool.
+      segmentReference.whenNotActive(() -> cleanupExecutor.execute(new SegmentCleanupRunnable(segment)));
+    }
   }
 
-  public Map<String, Number> getDownloadWorkersGuage()
+  public Map<String, Number> getWorkersGauges()
   {
     final Map<String, Number> qMetricsMap = new HashMap<>();
-    qMetricsMap.put(downloadMetricPrefix + "workers", downloadExecutor.getCorePoolSize());
+    qMetricsMap.put(DOWNLOAD_METRIC_PREFIX + "workers", downloadExecutor.getCorePoolSize());
+    qMetricsMap.put(CLEANUP_METRIC_PREFIX + "pending", cleanupExecutor.getQueue().size());
     return qMetricsMap;
   }
 
@@ -374,5 +400,42 @@ public class VirtualSegmentLoader implements SegmentLoader
     }
 
     return factory.factorize(dataSegment, segmentFiles, lazy, loadFailed);
+  }
+
+  private final class SegmentCleanupRunnable implements Runnable
+  {
+    private final DataSegment dataSegment;
+
+    public SegmentCleanupRunnable(DataSegment dataSegment)
+    {
+      this.dataSegment = dataSegment;
+    }
+
+    @Override
+    public void run()
+    {
+      SegmentId segmentId = dataSegment.getId();
+      try {
+        lock.lock();
+        VirtualReferenceCountingSegment segmentReference = segmentStateManager.get(segmentId);
+        if (null == segmentReference) {
+          LOG.error("an entry in state manager was expected for segment [%s]", segmentId);
+          return;
+        }
+        if (segmentStateManager.finishRemove(segmentId)) {
+          // do the actual cleanup if the segment was successfully removed.
+          // the cleanup below won't race with download or materialization since we are taking a lock
+          // cleanup is only done if the segment was cached. Though we release the location in any case
+          // in case we reserved it due to a bug.
+          if (physicalCacheManager.isSegmentCached(dataSegment)) {
+            physicalCacheManager.cleanup(dataSegment);
+          }
+          physicalCacheManager.release(dataSegment);
+        }
+      }
+      finally {
+        lock.unlock();
+      }
+    }
   }
 }

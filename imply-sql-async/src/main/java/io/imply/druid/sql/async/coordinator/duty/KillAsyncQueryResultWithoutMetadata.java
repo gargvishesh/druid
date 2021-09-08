@@ -20,9 +20,10 @@ import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 
 import java.util.Collection;
 
-@JsonTypeName("killAsyncQueryResultWithoutMetadata")
+@JsonTypeName(KillAsyncQueryResultWithoutMetadata.JSON_TYPE_NAME)
 public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDuty
 {
+  public static final String JSON_TYPE_NAME = "killAsyncQueryResultWithoutMetadata";
   private static final Logger log = new Logger(KillAsyncQueryResultWithoutMetadata.class);
 
   private final SqlAsyncResultManager sqlAsyncResultManager;
@@ -36,7 +37,7 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
   {
     this.sqlAsyncResultManager = sqlAsyncResultManager;
     this.sqlAsyncMetadataManager = sqlAsyncMetadataManager;
-    log.info("Coordinator killAsyncQueryResultWithoutMetadata scheduling enabled");
+    log.info("Coordinator %s scheduling enabled", JSON_TYPE_NAME);
   }
 
   @Override
@@ -72,7 +73,7 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
         failed++;
       }
     }
-    log.info("Finished killAsyncQueryResultWithoutMetadata duty. Removed [%,d]. Failed [[%,d].", removed, failed);
+    log.info("Finished %s duty. Removed [%,d]. Failed [[%,d].", JSON_TYPE_NAME, removed, failed);
 
     return params;
   }

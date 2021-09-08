@@ -19,6 +19,8 @@ import io.imply.druid.sql.async.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.SqlAsyncQueryMetadata;
+import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
@@ -27,26 +29,35 @@ import org.joda.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
 
-@JsonTypeName("killAsyncQueryMetadata")
+@JsonTypeName(KillAsyncQueryMetadata.JSON_TYPE_NAME)
 public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
 {
+  public static final String JSON_TYPE_NAME = "killAsyncQueryMetadata";
+  public static final String TIME_TO_RETAIN_KEY = "timeToRetain";
   private static final Logger log = new Logger(KillAsyncQueryMetadata.class);
 
-  private final Duration retainDuration;
+  private final Duration timeToRetain;
   private final SqlAsyncMetadataManager sqlAsyncMetadataManager;
 
   @JsonCreator
   public KillAsyncQueryMetadata(
-      @JsonProperty("retainDuration") Duration retainDuration,
+      @JsonProperty(KillAsyncQueryMetadata.TIME_TO_RETAIN_KEY) Duration timeToRetain,
       @JacksonInject SqlAsyncMetadataManager sqlAsyncMetadataManager
   )
   {
-    this.retainDuration = retainDuration;
-    Preconditions.checkArgument(this.retainDuration != null && this.retainDuration.getMillis() >= 0, "Coordinator async result cleanup duty retainDuration must be >= 0");
+    this.timeToRetain = timeToRetain;
+    Preconditions.checkArgument(
+        this.timeToRetain != null && this.timeToRetain.getMillis() >= 0,
+        StringUtils.format(
+            "Coordinator async result cleanup duty timeToRetain [%s] must be >= 0",
+            SqlAsyncCleanupModule.CLEANUP_TIME_TO_RETAIN_CONFIG_KEY
+        )
+    );
     this.sqlAsyncMetadataManager = sqlAsyncMetadataManager;
     log.info(
-        "Coordinator killAsyncQueryMetadata scheduling enabled with retainDuration [%s]",
-        this.retainDuration
+        "Coordinator %s scheduling enabled with timeToRetain [%s]",
+        JSON_TYPE_NAME,
+        this.timeToRetain
     );
   }
 
@@ -79,7 +90,7 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
           failed++;
           continue;
         }
-        if (isQueryEligibleForCleanup(sqlAsyncQueryDetails, metadata.getLastUpdatedTime(), retainDuration.getMillis())) {
+        if (isQueryEligibleForCleanup(sqlAsyncQueryDetails, metadata.getLastUpdatedTime(), timeToRetain.getMillis())) {
           boolean metadataDeleted = sqlAsyncMetadataManager.removeQueryDetails(sqlAsyncQueryDetails);
           if (!metadataDeleted) {
             log.warn("Failed to cleanup async metadata for asyncResultId [%s]", asyncResultIds);
@@ -96,7 +107,7 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
         failed++;
       }
     }
-    log.info("Finished killAsyncQueryMetadata duty. Removed [%,d]. Failed [%,d]. Skipped [%,d].", removed, failed, skipped);
+    log.info("Finished %s duty. Removed [%,d]. Failed [%,d]. Skipped [%,d].", JSON_TYPE_NAME, removed, failed, skipped);
     return params;
   }
 

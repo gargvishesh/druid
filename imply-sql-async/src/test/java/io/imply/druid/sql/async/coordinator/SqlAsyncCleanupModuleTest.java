@@ -21,7 +21,6 @@ import com.google.inject.Injector;
 import com.google.inject.TypeLiteral;
 import io.imply.druid.sql.async.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.SqlAsyncModule;
-import io.imply.druid.sql.async.SqlAsyncResultManager;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryMetadata;
 import org.apache.druid.curator.CuratorModule;
 import org.apache.druid.guice.DruidGuiceExtensions;
@@ -29,6 +28,7 @@ import org.apache.druid.guice.JsonConfigurator;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.jackson.JacksonModule;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.DefaultQueryConfig;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 import org.apache.druid.sql.guice.SqlModule;
@@ -56,7 +56,7 @@ public class SqlAsyncCleanupModuleTest
         () -> injector.getInstance(SqlAsyncMetadataManager.class)
     );
     ObjectMapper objectMapper = injector.getInstance(ObjectMapper.class);
-    KillAsyncQueryMetadata cleanup = new KillAsyncQueryMetadata(new Duration("PT1S"), null);
+    KillAsyncQueryMetadata cleanup = new KillAsyncQueryMetadata(Duration.standardDays(1), null);
     final byte[] bytes = objectMapper.writeValueAsBytes(cleanup);
     Assert.assertThrows(
         "Jackson configuration errors",
@@ -77,9 +77,11 @@ public class SqlAsyncCleanupModuleTest
 
     ObjectMapper objectMapper = injector.getInstance(ObjectMapper.class);
     final InjectableValues.Std injectableValues = new InjectableValues.Std();
-    injectableValues.addValue(SqlAsyncResultManager.class, null);
     injectableValues.addValue(SqlAsyncMetadataManager.class, null);
-    String json = "{\"type\":\"killAsyncQueryMetadata\", \"retainDuration\":\"PT1S\"}";
+    String json = StringUtils.format(
+        "{\"type\":\"%s\", \"%s\":\"PT30S\"}",
+        KillAsyncQueryMetadata.JSON_TYPE_NAME,
+        KillAsyncQueryMetadata.TIME_TO_RETAIN_KEY);
     CoordinatorCustomDuty customDuty = objectMapper.setInjectableValues(injectableValues).readValue(json, CoordinatorCustomDuty.class);
     Assert.assertTrue(customDuty instanceof KillAsyncQueryMetadata);
   }
