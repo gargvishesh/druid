@@ -49,7 +49,7 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
     Collection<String> asyncResultsFromStorage;
     try {
       asyncResultIdsFromMetadata = sqlAsyncMetadataManager.getAllAsyncResultIds();
-      asyncResultsFromStorage = sqlAsyncResultManager.getAllResults();
+      asyncResultsFromStorage = sqlAsyncResultManager.getAllAsyncResultIds();
     }
     catch (Exception e) {
       log.warn(e, "Failed to get async results. Skipping duty run.");

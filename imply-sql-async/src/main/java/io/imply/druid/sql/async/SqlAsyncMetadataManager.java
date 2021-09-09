@@ -27,4 +27,6 @@ public interface SqlAsyncMetadataManager
   Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(String asyncResultId) throws IOException;
 
   Collection<String> getAllAsyncResultIds() throws IOException;
+
+  long totalCompleteQueryResultsSize() throws IOException;
 }

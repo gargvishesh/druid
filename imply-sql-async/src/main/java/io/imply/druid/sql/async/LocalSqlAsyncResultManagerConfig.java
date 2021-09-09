@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class LocalSqlAsyncResultManagerConfig
 {
   @JsonProperty
-  public String directory;
+  private String directory;
 
   public String getDirectory()
   {

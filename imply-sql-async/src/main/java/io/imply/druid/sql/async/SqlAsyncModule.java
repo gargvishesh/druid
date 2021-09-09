@@ -66,7 +66,7 @@ public class SqlAsyncModule implements Module
   @Override
   public void configure(Binder binder)
   {
-    if (isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props)) {
+    if (isEnabled(props)) {
       bindAsyncMetadataManager(binder);
       bindAsyncStorage(binder);
       bindAsyncLimitsConfig(binder);
@@ -154,7 +154,7 @@ public class SqlAsyncModule implements Module
   /**
    * This method must match to {@link SqlModule#isEnabled()}.
    */
-  public static boolean isSqlEnabled(Properties props)
+  private static boolean isSqlEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE, "true"));
@@ -163,16 +163,21 @@ public class SqlAsyncModule implements Module
   /**
    * This method must match to {@link SqlModule#isJsonOverHttpEnabled()}.
    */
-  public static boolean isJsonOverHttpEnabled(Properties props)
+  private static boolean isJsonOverHttpEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true"));
   }
 
-  public static boolean isAsyncEnabled(Properties props)
+  private static boolean isAsyncEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(ASYNC_ENABLED_KEY, "false"));
+  }
+
+  public static boolean isEnabled(Properties props)
+  {
+    return isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props);
   }
 
   public static void bindAsyncStorage(Binder binder)
@@ -198,8 +203,7 @@ public class SqlAsyncModule implements Module
 
   public static void bindAsyncMetadataManager(Binder binder)
   {
-    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
-    binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
+    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
   }
 
   public static void bindAsyncLimitsConfig(Binder binder)

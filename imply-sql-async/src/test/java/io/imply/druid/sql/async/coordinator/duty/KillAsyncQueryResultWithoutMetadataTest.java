@@ -40,13 +40,13 @@ public class KillAsyncQueryResultWithoutMetadataTest
     String query2 = "asyncResultId2";
 
     Mockito.when(mockSqlAsyncMetadataManager.getAllAsyncResultIds()).thenReturn(ImmutableList.of(query1));
-    Mockito.when(mockSqlAsyncResultManager.getAllResults()).thenReturn(ImmutableList.of(query1, query2));
+    Mockito.when(mockSqlAsyncResultManager.getAllAsyncResultIds()).thenReturn(ImmutableList.of(query1, query2));
     Mockito.when(mockSqlAsyncResultManager.deleteResults(ArgumentMatchers.eq(query2))).thenReturn(true);
 
     KillAsyncQueryResultWithoutMetadata = new KillAsyncQueryResultWithoutMetadata(mockSqlAsyncResultManager, mockSqlAsyncMetadataManager);
     KillAsyncQueryResultWithoutMetadata.run(null);
 
-    Mockito.verify(mockSqlAsyncResultManager).getAllResults();
+    Mockito.verify(mockSqlAsyncResultManager).getAllAsyncResultIds();
     Mockito.verify(mockSqlAsyncResultManager).deleteResults(ArgumentMatchers.eq(query2));
     Mockito.verify(mockSqlAsyncMetadataManager).getAllAsyncResultIds();
     Mockito.verifyNoMoreInteractions(mockSqlAsyncResultManager);

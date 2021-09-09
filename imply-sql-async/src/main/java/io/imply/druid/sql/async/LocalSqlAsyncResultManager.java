@@ -122,7 +122,7 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   }
 
   @Override
-  public Collection<String> getAllResults()
+  public Collection<String> getAllAsyncResultIds()
   {
     final File[] files = directory.listFiles();
     final Collection<String> results = new HashSet<>();
