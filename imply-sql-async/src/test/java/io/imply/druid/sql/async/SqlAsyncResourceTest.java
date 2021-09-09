@@ -54,6 +54,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private static final int MAX_CONCURRENT_QUERIES = 2;
   private static final int MAX_ASYNC_QUERIES = 6;
   private static final int MAX_QUERIES_TO_QUEUE = 2;
+  private static final String BROKER_ID = "brokerId123";
 
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
   private SqlAsyncQueryPool queryPool;
@@ -107,7 +108,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         resultManager,
         jsonMapper,
         asyncQueryLimitsConfig,
-        lifecycle
+        lifecycle,
+        BROKER_ID
     );
     queryPool = poolProvider.get();
     final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(
@@ -118,7 +120,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.getJsonMapper()
     );
     resource = new SqlAsyncResource(
-        "brokerId",
+        BROKER_ID,
         queryPool,
         metadataManager,
         resultManager,
@@ -130,9 +132,9 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @After
-  public void tearDownTest()
+  public void tearDownTest() throws IOException
   {
-    queryPool.shutdownNow();
+    queryPool.stop();
   }
 
   @Test
@@ -335,6 +337,39 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         req
     );
     Assert.assertEquals(QueryCapacityExceededException.STATUS_CODE, submitResponse.getStatus());
+  }
+
+  @Test(timeout = 5000)
+  public void testQueryPoolShutdown() throws Exception
+  {
+    List<String> queryIds = new ArrayList<>();
+
+    // Submit MAX_SIMULTANEOUS_QUERY_LIMIT + MAX_QUERY_QUEUE_SIZE_LIMIT number of queries
+    for (int i = 0; i < MAX_CONCURRENT_QUERIES + MAX_QUERIES_TO_QUEUE; i++) {
+      Response submitResponse = resource.doPost(
+          new SqlQuery(
+              "select sleep(2), 10",
+              ResultFormat.OBJECTLINES,
+              true,
+              null,
+              null
+          ),
+          req
+      );
+      Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+      Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
+      SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+      Assert.assertEquals(State.INITIALIZED, response.getState());
+      queryIds.add(response.getAsyncResultId());
+    }
+
+    queryPool.stop();
+
+    for (String queryId : queryIds) {
+      Response statusResponse = resource.doGetStatus(queryId, req);
+      Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
+      Assert.assertEquals(State.FAILED, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
+    }
   }
 
   private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException

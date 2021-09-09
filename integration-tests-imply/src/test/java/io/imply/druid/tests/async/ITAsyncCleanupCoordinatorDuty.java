@@ -87,8 +87,8 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
       // The count(*) value should equal 10
       Assert.assertEquals(results.get(0).get(0), 10);
 
-      // Cleanup should finish in no more than 35 seconds as retain time is set to 30 seconds and duty cycle is run
-      // every 5 seconds.
+      // Cleanup should finish in no more than 100 seconds as retain time is set to 90 seconds and duty cycle is run
+      // every 3 seconds.
       ITRetryUtil.retryUntil(
           () -> {
             SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
@@ -96,7 +96,7 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
           },
           true,
           TimeUnit.SECONDS.toMillis(5),
-          8,
+          20,
           "Wating for async cleanup coordinator duty to complete"
       );
 

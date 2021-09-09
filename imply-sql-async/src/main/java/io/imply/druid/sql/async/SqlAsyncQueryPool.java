@@ -15,8 +15,11 @@ import com.google.common.io.CountingOutputStream;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
+import org.apache.druid.java.util.common.io.Closer;
+import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
@@ -24,12 +27,15 @@ import org.apache.druid.sql.http.SqlQuery;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 public class SqlAsyncQueryPool
 {
   private static final Logger log = new Logger(SqlAsyncQueryPool.class);
 
+  private final String brokerId;
   private final ExecutorService exec;
   private final SqlAsyncMetadataManager metadataManager;
   private final SqlAsyncResultManager resultManager;
@@ -41,7 +47,8 @@ public class SqlAsyncQueryPool
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
       AsyncQueryLimitsConfig asyncQueryLimitsConfig,
-      final ObjectMapper jsonMapper
+      final ObjectMapper jsonMapper,
+      final String brokerId
   )
   {
     this.exec = exec;
@@ -49,6 +56,7 @@ public class SqlAsyncQueryPool
     this.resultManager = resultManager;
     this.jsonMapper = jsonMapper;
     this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
+    this.brokerId = brokerId;
   }
 
   public SqlAsyncQueryDetails execute(
@@ -157,8 +165,40 @@ public class SqlAsyncQueryPool
   }
 
   @VisibleForTesting
-  public void shutdownNow()
+  @LifecycleStop
+  public void stop() throws IOException
   {
-    exec.shutdownNow();
+    Closer closer = Closer.create();
+    closer.register(() -> {
+      Collection<String> asyncResultIds = metadataManager.getAllAsyncResultIds();
+      for (String asyncResultId : asyncResultIds) {
+        try {
+          if (brokerId.equals(SqlAsyncUtil.getBrokerIdFromAsyncResultId(asyncResultId))) {
+            Optional<SqlAsyncQueryDetails> details = metadataManager.getQueryDetails(asyncResultId);
+            if (details.isPresent()
+                && (details.get().getState() == SqlAsyncQueryDetails.State.INITIALIZED
+                    || details.get().getState() == SqlAsyncQueryDetails.State.RUNNING
+                )
+            ) {
+              metadataManager.updateQueryDetails(
+                  details.get().toError(
+                      new QueryInterruptedException(
+                          QueryInterruptedException.QUERY_INTERRUPTED,
+                          "Interrupted by broker shutdown",
+                          null,
+                          null
+                      )
+                  )
+              );
+            }
+          }
+        }
+        catch (Exception e) {
+          log.warn(e, "Failed to update state while stopping SqlAsyncQueryPool for asyncResultIds[%s]", asyncResultId);
+        }
+      }
+    });
+    closer.register(exec::shutdownNow);
+    closer.close();
   }
 }

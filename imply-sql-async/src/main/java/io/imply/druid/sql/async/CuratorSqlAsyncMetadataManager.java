@@ -16,7 +16,6 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.server.initialization.ZkPathsConfig;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
@@ -53,9 +52,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
-      // TODO (jihoon): should create a persistent node instead of ephemeral
-      //                once druid can clean up persistent nodes automatically.
-      curator.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
+      curator.create().creatingParentsIfNeeded().forPath(path, payload);
     }
     catch (KeeperException.NodeExistsException e) {
       throw new AsyncQueryAlreadyExistsException(queryDetails.getAsyncResultId());
