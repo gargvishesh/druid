@@ -36,6 +36,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
+/**
+ * An implementation to protect proprietary features behind an Imply License. The behaviour is as follows :
+ * 1. If a license with name ‘implyLicense.bin’ is not found in the druid classpath, none of the features behind the license are accessible
+ * 2. If the license is found but is expired, none of the features behind the license are accessible
+ * 3. If the license is found and is not verifiable or corrupted, the druid process crashes at startup
+ * 4. If the license is found and is valid, the protected features mentioned in the license are accessible.
+ *    The validity of a license is marked by a 90 days grace period after the expiration date mentioned in the license
+ */
 public class ImplyLicenseManager
 {
   // stripped pem files for the public keys
@@ -57,7 +65,6 @@ public class ImplyLicenseManager
   private static final Logger log = new Logger(ImplyLicenseManager.class);
   private static final Integer LICENSE_GRACE_PERIOD_DAYS = 90;
   private static final String INVALID_LICENSE_MESSAGE = "Invalid Imply License";
-  private static final String EXPIRED_LICENSE_MESSAGE = "Expired Imply License";
   private final LicenseMetadata licenseMetadata;
 
   public static ImplyLicenseManager make()
@@ -81,6 +88,11 @@ public class ImplyLicenseManager
     this.licenseMetadata = licenseMetadata;
   }
 
+  /**
+   * Checks if a feature is enabled as per the provided license
+   * @param featureName
+   * @return true if the feature is enabled, else false
+   */
   public boolean isFeatureEnabled(String featureName)
   {
     return licenseMetadata.isFeatureEnabled(featureName);
@@ -126,7 +138,8 @@ public class ImplyLicenseManager
     }
     LicenseMetadata licenseMetadata = createLicenseMetadata(jsonPayload);
     if (licenseMetadata.isExpired()) {
-      throw new IAE(EXPIRED_LICENSE_MESSAGE);
+      log.warn("Imply License found expired. Proprietary features may be not accessible");
+      return createLicenseMetadata(NO_LICENSE);
     } else {
       log.info("Validated License : " + jsonPayload);
     }
@@ -164,22 +177,24 @@ public class ImplyLicenseManager
     private String expiryDate;
     @JsonProperty
     private List<String> features;
+    private volatile Boolean isExpired;
 
     public boolean isFeatureEnabled(String featureName)
     {
-      return features != null && features.contains(featureName);
+      return !isExpired() && features != null && features.contains(featureName);
     }
 
     public boolean isExpired()
     {
-      LocalDate expirationDate;
-      try {
-        expirationDate = LocalDate.parse(expiryDate);
+      if (isExpired == null) {
+        if (!isValidISODate(expiryDate)) {
+          isExpired = true;
+        } else {
+          LocalDate expirationDate = LocalDate.parse(expiryDate);
+          isExpired = LocalDate.now(ZoneId.systemDefault()).isAfter(expirationDate.plus(LICENSE_GRACE_PERIOD_DAYS, ChronoUnit.DAYS));
+        }
       }
-      catch (Exception e) {
-        return true;
-      }
-      return LocalDate.now(ZoneId.systemDefault()).isAfter(expirationDate.plus(LICENSE_GRACE_PERIOD_DAYS, ChronoUnit.DAYS));
+      return isExpired;
     }
   }
 }
