@@ -163,8 +163,14 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public long totalCompleteQueryResultsSize() throws IOException
   {
+    return totalCompleteQueryResultsSize(getAllAsyncResultIds());
+  }
+
+  @Override
+  public long totalCompleteQueryResultsSize(Collection<String> asyncResultIds) throws IOException
+  {
     long sum = 0L;
-    for (String asyncResultId : getAllAsyncResultIds()) {
+    for (String asyncResultId : asyncResultIds) {
       sum += getQueryDetails(asyncResultId).filter(queryDetails -> queryDetails.getState() == State.COMPLETE)
                                            .map(SqlAsyncQueryDetails::getResultLength)
                                            .orElse(0L);

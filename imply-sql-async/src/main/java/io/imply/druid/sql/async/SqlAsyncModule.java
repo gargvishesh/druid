@@ -31,10 +31,10 @@ import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.server.metrics.MetricsModule;
 import org.apache.druid.sql.guice.SqlModule;
 
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -78,6 +78,8 @@ public class SqlAsyncModule implements Module
       LifecycleModule.register(binder, SqlAsyncResource.class);
 
       binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class).in(LazySingleton.class);
+      binder.bind(SqlAsyncQueryStatsMonitor.class).in(LazySingleton.class);
+      MetricsModule.register(binder, SqlAsyncQueryStatsMonitor.class);
     }
   }
 
@@ -111,7 +113,7 @@ public class SqlAsyncModule implements Module
     @Override
     public SqlAsyncQueryPool get()
     {
-      final ExecutorService exec = new ThreadPoolExecutor(
+      final ThreadPoolExecutor exec = new ThreadPoolExecutor(
           asyncQueryLimitsConfig.getMaxConcurrentQueries(),
           // The maximum number of concurrent query allowed is control by setting maximumPoolSize of the
           // ThreadPoolExecutor. This basically control how many query can be executing at the same time.

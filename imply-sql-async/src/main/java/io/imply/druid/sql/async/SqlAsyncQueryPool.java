@@ -10,14 +10,13 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.CountingOutputStream;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
-import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.sql.SqlLifecycle;
@@ -29,21 +28,21 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 
 public class SqlAsyncQueryPool
 {
-  private static final Logger log = new Logger(SqlAsyncQueryPool.class);
+  private static final EmittingLogger log = new EmittingLogger(SqlAsyncQueryPool.class);
 
+  private final ThreadPoolExecutor exec;
   private final String brokerId;
-  private final ExecutorService exec;
   private final SqlAsyncMetadataManager metadataManager;
   private final SqlAsyncResultManager resultManager;
   private final ObjectMapper jsonMapper;
   private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
 
   public SqlAsyncQueryPool(
-      final ExecutorService exec,
+      final ThreadPoolExecutor exec,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
       AsyncQueryLimitsConfig asyncQueryLimitsConfig,
@@ -69,18 +68,20 @@ public class SqlAsyncQueryPool
     // TODO(gianm): Document precondition: lifecycle must be in AUTHORIZED state. Validate, too?
     assert lifecycle.getAuthenticationResult() != null;
     // Check if we are under retention number of queries limit. Reject query if we are over the limit
-    int currentRetainQueryCount = metadataManager.getAllAsyncResultIds().size();
-    if (currentRetainQueryCount >= asyncQueryLimitsConfig.getMaxAsyncQueries()) {
+    int currentQueryCount = metadataManager.getAllAsyncResultIds().size();
+    if (currentQueryCount >= asyncQueryLimitsConfig.getMaxAsyncQueries()) {
       String errorMessage = StringUtils.format(
-          "Too many retained queries, total query retained of %s exceeded. Please try your query again later.",
+          "Too many async queries. Total async query limit of %s exceeded. Please try your query again later.",
           asyncQueryLimitsConfig.getMaxAsyncQueries()
       );
-      throw new QueryCapacityExceededException(
+      QueryCapacityExceededException e = new QueryCapacityExceededException(
           QueryCapacityExceededException.ERROR_CODE,
           errorMessage,
           QueryCapacityExceededException.class.getName(),
           null
       );
+      log.makeAlert(e, "Total async query limit exceeded").addData("asyncResultId", asyncResultId).emit();
+      throw e;
     }
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
@@ -157,14 +158,56 @@ public class SqlAsyncQueryPool
       );
     }
     catch (QueryCapacityExceededException e) {
+      // The QueryCapacityExceededException is thrown by the Executor's RejectedExecutionHandler
+      // when the Executor's queue is full. The Executor's queue size is control by Druid
+      // See more details in SqlAsyncQueryPoolProvider#get()
       metadataManager.removeQueryDetails(queryDetails);
+      log.makeAlert(e, "Async query queue capacity exceeded").addData("asyncResultId", asyncResultId).emit();
       throw e;
     }
 
     return queryDetails;
   }
 
-  @VisibleForTesting
+  public BestEffortStatsSnapshot getBestEffortStatsSnapshot()
+  {
+    // There can be race in metrics values as metric values are retrieved sequentially
+    // However, this is fine as these metrics are only use for emitting stats and does not have to be perfect
+    return new BestEffortStatsSnapshot(
+        exec.getActiveCount(),
+        exec.getQueue().size()
+    );
+  }
+
+  /**
+   * This class is created by {@link SqlAsyncQueryPool#getBestEffortStatsSnapshot()} which
+   * can have race in populating the metric values.
+   */
+  public static class BestEffortStatsSnapshot
+  {
+    private final int queryRunningCount;
+    private final int queryQueuedCount;
+
+    public BestEffortStatsSnapshot(
+        final int queryRunningCount,
+        final int queryQueuedCount
+    )
+    {
+      this.queryRunningCount = queryRunningCount;
+      this.queryQueuedCount = queryQueuedCount;
+    }
+
+    public int getQueryRunningCount()
+    {
+      return queryRunningCount;
+    }
+
+    public int getQueryQueuedCount()
+    {
+      return queryQueuedCount;
+    }
+  }
+
   @LifecycleStop
   public void stop() throws IOException
   {

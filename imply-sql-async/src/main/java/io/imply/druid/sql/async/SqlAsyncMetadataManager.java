@@ -29,4 +29,6 @@ public interface SqlAsyncMetadataManager
   Collection<String> getAllAsyncResultIds() throws IOException;
 
   long totalCompleteQueryResultsSize() throws IOException;
+
+  long totalCompleteQueryResultsSize(Collection<String> asyncResultIds) throws IOException;
 }
