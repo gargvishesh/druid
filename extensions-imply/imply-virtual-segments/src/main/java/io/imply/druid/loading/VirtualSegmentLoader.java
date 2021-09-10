@@ -221,10 +221,8 @@ public class VirtualSegmentLoader implements SegmentLoader
         if (!isReserved) {
           //TODO: maybe there are many segments in use so it can't be downloaded right now
           // Add a pause mechanism
-          segmentStateManager.downloadFailed(segmentReference, new SegmentLoadingException(
-              "segment size %d too large to reserve space",
-              dataSegment.getSize()
-          ), false);
+          LOG.info("Failed to download [%s] since there is not enough space. Will try again", dataSegment.getId());
+          segmentStateManager.downloadFailed(segmentReference, false);
           segmentStateManager.requeue(segmentReference);
 
           // Do not continue the loop because space is not available

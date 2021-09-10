@@ -286,7 +286,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
         return metadata;
       }
       if (segment.isEvicted()) {
-        SegmentLifecycleLogger.LOG.debug("Unevicting the segment [%s]", segment.getId());
+        LOG.info("Unevicting the segment [%s]", segment.getId());
         segment.unEvict();
       }
       strategy.downloaded(segment.getId(), metadata);
@@ -316,9 +316,8 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   }
 
   @Override
-  public void downloadFailed(VirtualReferenceCountingSegment segment, Throwable th, boolean recoverable)
+  public void downloadFailed(VirtualReferenceCountingSegment segment, boolean recoverable)
   {
-    LOG.warn(th, "Failed to download [%s]", segment.getId());
     //TODO
   }
 
@@ -326,7 +325,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   public void evict(VirtualReferenceCountingSegment segment)
   {
     segmentMetadataMap.compute(segment.getId(), (key, metadata) -> {
-      SegmentLifecycleLogger.LOG.debug("Evicting segment [%s]", segment.getId());
+      LOG.info("Evicting segment [%s]", segment.getId());
       if (null == metadata || metadata.getStatus() != Status.DOWNLOADED) {
         throw new ISE(
             "[%s] being asked to evict but is not marked downloaded. Current state [%s]",
@@ -350,11 +349,12 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
     final AtomicBoolean result = new AtomicBoolean(true);
 
     segmentMetadataMap.compute(segmentId, (key, metadata) -> {
+      LOG.info("Going to completely removing the segment [%s]", segmentId);
       if (null == metadata) {
         throw new ISE("Being asked to remove a segment [%s] that is not added yet", segmentId);
       }
       if (!metadata.isToBeRemoved()) {
-        LOG.warn("[%s] was being asked to remove but is not marked for removal. " +
+        LOG.info("[%s] was being asked to remove but is not marked for removal. " +
             "It might have been re-assigned back to this server. Skipping the remove operation", segmentId);
         result.set(false);
         return metadata;

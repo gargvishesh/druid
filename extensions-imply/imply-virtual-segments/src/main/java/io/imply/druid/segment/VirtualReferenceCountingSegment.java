@@ -156,7 +156,7 @@ public class VirtualReferenceCountingSegment extends ReferenceCountingSegment
   {
     synchronized (references) {
       if (references.get() != 0) {
-        LOG.error("Reference count should have been zero. Instead [%d] for segment [%s]", references.get(), getId());
+        LOG.info("Reference count should have been zero. Instead [%d] for segment [%s]", references.get(), getId());
         throw new SegmentNotEvictableException(this.getId());
       }
       if (evicted.compareAndSet(false, true)) {
