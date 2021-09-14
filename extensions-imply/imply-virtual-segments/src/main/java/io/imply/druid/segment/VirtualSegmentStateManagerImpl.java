@@ -26,7 +26,6 @@ import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +66,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   private final SegmentReplacementStrategy strategy;
   public static final Logger LOG = new Logger(VirtualSegmentStateManagerImpl.class);
   private final ConcurrentHashMap<SegmentId, VirtualSegmentMetadata> segmentMetadataMap;
-  private final VirtualSegmentStats virtualSegmentsStats;
+  private final VirtualSegmentStats virtualSegmentStats;
 
   @Inject
   public VirtualSegmentStateManagerImpl(
@@ -76,7 +75,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
   )
   {
     this.strategy = segmentReplacementStrategy;
-    this.virtualSegmentsStats = virtualSegmentStats;
+    this.virtualSegmentStats = virtualSegmentStats;
     this.segmentMetadataMap = new ConcurrentHashMap<>();
   }
 
@@ -139,7 +138,11 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
     return resultFuture;
   }
 
-  private VirtualSegmentMetadata queueInternal(VirtualReferenceCountingSegment segment, @Nullable Closer closer, boolean isRequeue)
+  private VirtualSegmentMetadata queueInternal(
+      VirtualReferenceCountingSegment segment,
+      @Nullable Closer closer,
+      boolean isRequeue
+  )
   {
     if (null == segment) {
       throw new IAE("Null segment being queued");
@@ -159,7 +162,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
         case READY:
           metadata.setStatus(Status.QUEUED);
           metadata.setQueueStartTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()));
-          virtualSegmentsStats.incrementQueued();
+          virtualSegmentStats.incrementQueued();
           metadata.setDownloadFuture(SettableFuture.create());
           strategy.queue(segment.getId(), metadata);
           SegmentLifecycleLogger.LOG.debug(
@@ -302,7 +305,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       if (metadata.getStatus() == Status.QUEUED) {
         final long queueStartTime = metadata.getQueueStartTimeMillis();
         if (queueStartTime != 0) {
-          virtualSegmentsStats.recordDownloadWaitingTime(
+          virtualSegmentStats.recordDownloadWaitingTime(
               TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
               - queueStartTime);
         }
@@ -310,7 +313,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
 
       metadata.getDownloadFuture().set(null);
       metadata.setStatus(Status.DOWNLOADED);
-      virtualSegmentsStats.incrementDownloaded();
+      virtualSegmentStats.incrementDownloaded();
       return metadata;
     });
   }
@@ -336,6 +339,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
       }
       //Following could throw SegmentNotEvictableException
       segment.evict();
+      virtualSegmentStats.incrementEvicted();
       strategy.remove(segment.getId());
       metadata.resetFuture();
       metadata.setStatus(Status.READY);
@@ -384,7 +388,7 @@ public class VirtualSegmentStateManagerImpl implements VirtualSegmentStateManage
         // fail the future with an exception.
         metadata.getDownloadFuture().setException(new ISE("[%s] Segment was removed from this machine", segmentId));
       }
-      virtualSegmentsStats.incrementNumSegmentRemoved();
+      virtualSegmentStats.incrementNumSegmentRemoved();
       return null;
     });
     return result.get();

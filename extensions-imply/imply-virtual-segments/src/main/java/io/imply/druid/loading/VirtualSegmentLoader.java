@@ -44,7 +44,6 @@ import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
 
 import javax.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -270,7 +269,6 @@ public class VirtualSegmentLoader implements SegmentLoader
    */
   public void evictSegment(VirtualReferenceCountingSegment segment)
   {
-    virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
     segmentStateManager.evict(segment);
     physicalCacheManager.cleanup(dataSegment);
