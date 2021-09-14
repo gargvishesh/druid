@@ -29,6 +29,7 @@
 
   <modelVersion>4.0.0</modelVersion>
 
+  <groupId>io.imply</groupId>
   <artifactId>imply-sql-async</artifactId>
   <name>imply-sql-async</name>
   <description>Imply SQL async download APIs</description>
@@ -94,6 +95,10 @@
     <dependency>
       <groupId>com.google.inject.extensions</groupId>
       <artifactId>guice-multibindings</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.curator</groupId>
@@ -188,6 +193,17 @@
         <configuration>
           <headerLocation>extensions-imply/codestyle/LICENSE.txt</headerLocation>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

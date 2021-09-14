@@ -54,9 +54,20 @@ public class DeferredQueryRunner<T> implements QueryRunner<T>
   {
     try {
       if (downloadFuture.isDone()) {
-        return baseRunnerSupplier.get().run(queryPlus, responseContext);
+        try {
+          // Download should be completed
+          downloadFuture.get();
+          return baseRunnerSupplier.get().run(queryPlus, responseContext);
+        }
+        catch (Exception e) {
+          throw new IAE(
+              e,
+              "Future is done but the download was not completed sucessfull for segment [%s]",
+              segment.getId()
+          );
+        }
       }
-      throw new IAE("run shouldn't be called till segment [%s] is downloaed", segment.getId());
+      throw new IAE("Run shouldn't be called till segment [%s] is downloaed", segment.getId());
     }
     finally {
       tearDown();

@@ -151,7 +151,7 @@ class DependencyReportParser(HTMLParser):
             if tag == "tr":
                 self.state = "row_end"
                 # print(json.dumps({"groupId": self.group_id, "artifactId": self.artifact_id, "version": self.version, "classifier": self.classifier, "type": self.dep_type, "license": self.license}))
-                if self.group_id.find("org.apache.druid") < 0:
+                if self.group_id.find("org.apache.druid") < 0 and self.group_id.find("io.imply") < 0:
                     self.dep_to_license[get_dep_key(self.group_id, self.artifact_id, self.version)] = (self.license, self.druid_module_name)
 
         if self.state == "row_end":

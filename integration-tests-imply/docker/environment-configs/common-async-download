@@ -17,4 +17,4 @@ druid_query_async_maxAsyncQueries=15
 druid_query_async_maxQueriesToQueue=3
 
 druid_query_async_cleanup_pollPeriod=PT3S
-druid_query_async_cleanup_timeToRetain=PT30S
+druid_query_async_cleanup_timeToRetain=PT90S

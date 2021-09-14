@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.sql.async.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.SqlAsyncResultManager;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.server.coordinator.CoordinatorStats;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 
@@ -24,6 +25,8 @@ import java.util.Collection;
 public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDuty
 {
   public static final String JSON_TYPE_NAME = "killAsyncQueryResultWithoutMetadata";
+  static final String RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY = "resultRemovedSucceedCount";
+  static final String RESULT_REMOVED_FAILED_COUNT_STAT_KEY = "resultRemovedFailedCount";
   private static final Logger log = new Logger(KillAsyncQueryResultWithoutMetadata.class);
 
   private final SqlAsyncResultManager sqlAsyncResultManager;
@@ -49,7 +52,7 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
     Collection<String> asyncResultsFromStorage;
     try {
       asyncResultIdsFromMetadata = sqlAsyncMetadataManager.getAllAsyncResultIds();
-      asyncResultsFromStorage = sqlAsyncResultManager.getAllResults();
+      asyncResultsFromStorage = sqlAsyncResultManager.getAllAsyncResultIds();
     }
     catch (Exception e) {
       log.warn(e, "Failed to get async results. Skipping duty run.");
@@ -74,8 +77,10 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
       }
     }
     log.info("Finished %s duty. Removed [%,d]. Failed [[%,d].", JSON_TYPE_NAME, removed, failed);
-
-    return params;
+    CoordinatorStats stats = new CoordinatorStats();
+    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, removed);
+    stats.addToGlobalStat(RESULT_REMOVED_FAILED_COUNT_STAT_KEY, failed);
+    return params.buildFromExisting().withCoordinatorStats(stats).build();
   }
 
 }

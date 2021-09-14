@@ -86,7 +86,7 @@ public interface VirtualSegmentStateManager
    * Register a download error for the segment. Segments can be rescheduled for download if {@param recoverable}
    * is set to true.
    */
-  void downloadFailed(VirtualReferenceCountingSegment segment, Throwable th, boolean recoverable);
+  void downloadFailed(VirtualReferenceCountingSegment segment, boolean recoverable);
 
   /**
    * Evicts a segment. Eviction only deletes the content from disk but does not de-register the segment since it can be

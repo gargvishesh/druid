@@ -58,7 +58,7 @@ public class SqlAsyncCleanupModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    if (SqlAsyncModule.isSqlEnabled(props) && SqlAsyncModule.isJsonOverHttpEnabled(props) && SqlAsyncModule.isAsyncEnabled(props)) {
+    if (SqlAsyncModule.isEnabled(props)) {
       return ImmutableList.<Module>of(
           new SimpleModule("SqlAsyncCleanupModule")
               .registerSubtypes(KillAsyncQueryMetadata.class, KillAsyncQueryResultWithoutMetadata.class)
@@ -71,7 +71,7 @@ public class SqlAsyncCleanupModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (SqlAsyncModule.isSqlEnabled(props) && SqlAsyncModule.isJsonOverHttpEnabled(props) && SqlAsyncModule.isAsyncEnabled(props)) {
+    if (SqlAsyncModule.isEnabled(props)) {
       SqlAsyncModule.bindAsyncMetadataManager(binder);
       SqlAsyncModule.bindAsyncStorage(binder);
       SqlAsyncModule.bindAsyncLimitsConfig(binder);

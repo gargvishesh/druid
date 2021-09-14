@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+io.imply.druid.sql.async.result.S3SqlAsyncResultStorageModule
+io.imply.druid.storage.s3.S3StorageImplyModule
 org.apache.druid.storage.s3.S3StorageDruidModule
 org.apache.druid.firehose.s3.S3FirehoseDruidModule
 org.apache.druid.data.input.s3.S3InputSourceDruidModule

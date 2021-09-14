@@ -12,11 +12,11 @@ package io.imply.druid.sql.async;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import io.imply.druid.sql.async.SqlAsyncQueryDetails.State;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.server.initialization.ZkPathsConfig;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
@@ -53,9 +53,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
     final byte[] payload = jsonMapper.writeValueAsBytes(queryDetails);
 
     try {
-      // TODO (jihoon): should create a persistent node instead of ephemeral
-      //                once druid can clean up persistent nodes automatically.
-      curator.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
+      curator.create().creatingParentsIfNeeded().forPath(path, payload);
     }
     catch (KeeperException.NodeExistsException e) {
       throw new AsyncQueryAlreadyExistsException(queryDetails.getAsyncResultId());
@@ -103,18 +101,25 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
   @Override
   public Optional<SqlAsyncQueryDetails> getQueryDetails(final String asyncResultId) throws IOException
   {
-    Optional<SqlAsyncQueryDetailsAndMetadata> sqlAsyncQueryDetailsAndStatOptional = getQueryDetailsAndMetadataHelper(asyncResultId, null);
+    Optional<SqlAsyncQueryDetailsAndMetadata> sqlAsyncQueryDetailsAndStatOptional = getQueryDetailsAndMetadataHelper(
+        asyncResultId,
+        null
+    );
     return sqlAsyncQueryDetailsAndStatOptional.map(SqlAsyncQueryDetailsAndMetadata::getSqlAsyncQueryDetails);
   }
 
   @Override
-  public Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(final String asyncResultId) throws IOException
+  public Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadata(final String asyncResultId)
+      throws IOException
   {
     Stat stat = new Stat();
     return getQueryDetailsAndMetadataHelper(asyncResultId, stat);
   }
 
-  private Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadataHelper(final String asyncResultId, @Nullable final Stat stat) throws IOException
+  private Optional<SqlAsyncQueryDetailsAndMetadata> getQueryDetailsAndMetadataHelper(
+      final String asyncResultId,
+      @Nullable final Stat stat
+  ) throws IOException
   {
     final String path = makeAsyncQueryStatePath(asyncResultId);
     final byte[] bytes;
@@ -153,6 +158,24 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
       throw new IOE(e, "Error while retrieving children from path at [%s]", path);
     }
     return ImmutableList.copyOf(asyncResultIds);
+  }
+
+  @Override
+  public long totalCompleteQueryResultsSize() throws IOException
+  {
+    return totalCompleteQueryResultsSize(getAllAsyncResultIds());
+  }
+
+  @Override
+  public long totalCompleteQueryResultsSize(Collection<String> asyncResultIds) throws IOException
+  {
+    long sum = 0L;
+    for (String asyncResultId : asyncResultIds) {
+      sum += getQueryDetails(asyncResultId).filter(queryDetails -> queryDetails.getState() == State.COMPLETE)
+                                           .map(SqlAsyncQueryDetails::getResultLength)
+                                           .orElse(0L);
+    }
+    return sum;
   }
 
   private String makeAsyncQueryStatePath(final String asyncResultId)

@@ -49,6 +49,7 @@ public class ImplyLicenseManagerTest
     ObjectMapper objectMapper = new ObjectMapper();
     ImplyLicenseManager.LicenseMetadata licenseMetadata = objectMapper.readValue(jsonPayload, ImplyLicenseManager.LicenseMetadata.class);
     Assert.assertTrue(licenseMetadata.isExpired());
+    Assert.assertFalse(licenseMetadata.isFeatureEnabled("alerts"));
   }
 
   @Test

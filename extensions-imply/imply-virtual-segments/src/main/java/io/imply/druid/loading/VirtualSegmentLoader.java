@@ -44,7 +44,6 @@ import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
 
 import javax.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -221,10 +220,8 @@ public class VirtualSegmentLoader implements SegmentLoader
         if (!isReserved) {
           //TODO: maybe there are many segments in use so it can't be downloaded right now
           // Add a pause mechanism
-          segmentStateManager.downloadFailed(segmentReference, new SegmentLoadingException(
-              "segment size %d too large to reserve space",
-              dataSegment.getSize()
-          ), false);
+          LOG.info("Failed to download [%s] since there is not enough space. Will try again", dataSegment.getId());
+          segmentStateManager.downloadFailed(segmentReference, false);
           segmentStateManager.requeue(segmentReference);
 
           // Do not continue the loop because space is not available
@@ -272,7 +269,6 @@ public class VirtualSegmentLoader implements SegmentLoader
    */
   public void evictSegment(VirtualReferenceCountingSegment segment)
   {
-    virtualSegmentStats.incrementEvicted();
     DataSegment dataSegment = asDataSegment(segment);
     segmentStateManager.evict(segment);
     physicalCacheManager.cleanup(dataSegment);

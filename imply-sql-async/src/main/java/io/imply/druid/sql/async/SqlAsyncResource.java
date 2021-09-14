@@ -15,7 +15,6 @@ import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -91,7 +90,7 @@ public class SqlAsyncResource
     final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
     final String remoteAddr = req.getRemoteAddr();
     final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
-    final String asyncResultId = IdUtils.getRandomIdWithPrefix(brokerId + "_" + sqlQueryId);
+    final String asyncResultId = SqlAsyncUtil.createAsyncResultId(brokerId, sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {

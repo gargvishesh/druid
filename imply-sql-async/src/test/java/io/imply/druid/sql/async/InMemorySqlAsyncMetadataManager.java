@@ -88,4 +88,24 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
       return queries.keySet();
     }
   }
+
+  @Override
+  public long totalCompleteQueryResultsSize()
+  {
+    synchronized (lock) {
+      return queries.values().stream().mapToLong(details -> details.getSqlAsyncQueryDetails().getResultLength()).sum();
+    }
+  }
+
+  @Override
+  public long totalCompleteQueryResultsSize(Collection<String> asyncResultIds)
+  {
+    synchronized (lock) {
+      return queries.values()
+                    .stream()
+                    .filter(detailsAndMetadata -> asyncResultIds.contains(detailsAndMetadata.getSqlAsyncQueryDetails().getAsyncResultId()))
+                    .mapToLong(details -> details.getSqlAsyncQueryDetails().getResultLength())
+                    .sum();
+    }
+  }
 }

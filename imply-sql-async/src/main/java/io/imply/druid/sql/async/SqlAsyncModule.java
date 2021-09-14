@@ -26,14 +26,15 @@ import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.server.metrics.MetricsModule;
 import org.apache.druid.sql.guice.SqlModule;
 
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -65,7 +66,7 @@ public class SqlAsyncModule implements Module
   @Override
   public void configure(Binder binder)
   {
-    if (isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props)) {
+    if (isEnabled(props)) {
       bindAsyncMetadataManager(binder);
       bindAsyncStorage(binder);
       bindAsyncLimitsConfig(binder);
@@ -77,6 +78,8 @@ public class SqlAsyncModule implements Module
       LifecycleModule.register(binder, SqlAsyncResource.class);
 
       binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class).in(LazySingleton.class);
+      binder.bind(SqlAsyncQueryStatsMonitor.class).in(LazySingleton.class);
+      MetricsModule.register(binder, SqlAsyncQueryStatsMonitor.class);
     }
   }
 
@@ -87,6 +90,7 @@ public class SqlAsyncModule implements Module
     private final ObjectMapper jsonMapper;
     private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
     private final Lifecycle lifecycle;
+    private final String brokerId;
 
     @Inject
     public SqlAsyncQueryPoolProvider(
@@ -94,7 +98,8 @@ public class SqlAsyncModule implements Module
         final SqlAsyncResultManager resultManager,
         @Json ObjectMapper jsonMapper,
         AsyncQueryLimitsConfig asyncQueryLimitsConfig,
-        Lifecycle lifecycle
+        Lifecycle lifecycle,
+        @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId
     )
     {
       this.metadataManager = metadataManager;
@@ -102,12 +107,13 @@ public class SqlAsyncModule implements Module
       this.jsonMapper = jsonMapper;
       this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
       this.lifecycle = lifecycle;
+      this.brokerId = brokerId;
     }
 
     @Override
     public SqlAsyncQueryPool get()
     {
-      final ExecutorService exec = new ThreadPoolExecutor(
+      final ThreadPoolExecutor exec = new ThreadPoolExecutor(
           asyncQueryLimitsConfig.getMaxConcurrentQueries(),
           // The maximum number of concurrent query allowed is control by setting maximumPoolSize of the
           // ThreadPoolExecutor. This basically control how many query can be executing at the same time.
@@ -126,22 +132,8 @@ public class SqlAsyncModule implements Module
             }
           }
       );
-      SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(exec, metadataManager, resultManager, asyncQueryLimitsConfig, jsonMapper);
-      lifecycle.addHandler(
-          new Lifecycle.Handler()
-          {
-            @Override
-            public void start()
-            {
-            }
-
-            @Override
-            public void stop()
-            {
-              sqlAsyncQueryPool.shutdownNow();
-            }
-          }
-      );
+      SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(exec, metadataManager, resultManager, asyncQueryLimitsConfig, jsonMapper, brokerId);
+      lifecycle.addManagedInstance(sqlAsyncQueryPool);
       LOG.debug(
           "Created SqlAsyncQueryPool with maxConcurrentQueries[%d] and maxQueriesToQueue[%d]",
           asyncQueryLimitsConfig.getMaxConcurrentQueries(),
@@ -156,13 +148,15 @@ public class SqlAsyncModule implements Module
   @Named(ASYNC_BROKER_ID)
   public String getBrokerId()
   {
-    return UUIDUtils.generateUuid();
+    // The UUID generated should never have SqlAsyncUtil.BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR charater
+    // Hence, the removing should never do anything and is just a safety check
+    return StringUtils.removeChar(UUIDUtils.generateUuid(), SqlAsyncUtil.BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_CHAR);
   }
 
   /**
    * This method must match to {@link SqlModule#isEnabled()}.
    */
-  public static boolean isSqlEnabled(Properties props)
+  private static boolean isSqlEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE, "true"));
@@ -171,16 +165,21 @@ public class SqlAsyncModule implements Module
   /**
    * This method must match to {@link SqlModule#isJsonOverHttpEnabled()}.
    */
-  public static boolean isJsonOverHttpEnabled(Properties props)
+  private static boolean isJsonOverHttpEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true"));
   }
 
-  public static boolean isAsyncEnabled(Properties props)
+  private static boolean isAsyncEnabled(Properties props)
   {
     Preconditions.checkNotNull(props, "props");
     return Boolean.valueOf(props.getProperty(ASYNC_ENABLED_KEY, "false"));
+  }
+
+  public static boolean isEnabled(Properties props)
+  {
+    return isSqlEnabled(props) && isJsonOverHttpEnabled(props) && isAsyncEnabled(props);
   }
 
   public static void bindAsyncStorage(Binder binder)
@@ -206,8 +205,7 @@ public class SqlAsyncModule implements Module
 
   public static void bindAsyncMetadataManager(Binder binder)
   {
-    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class);
-    binder.bind(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
+    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
   }
 
   public static void bindAsyncLimitsConfig(Binder binder)

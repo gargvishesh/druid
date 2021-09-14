@@ -73,7 +73,7 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.druid</groupId>
+      <groupId>io.imply</groupId>
       <artifactId>imply-sql-async</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
