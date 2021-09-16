@@ -1,25 +1,24 @@
-name: Update implydata/druid master from apache/druid master
+name: Update implydata/druid monthly with implydata/druid master
 on:
   schedule:
-    - cron:  '0 */2 * * *' #Every 2 hours
+    - cron:  '0 */1 * * *' #Every 1 hours
 jobs:
-  updateMaster:
+  updateMonthly:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           repository: implydata/druid
-          ref: master
+          ref: monthly
           fetch-depth: 0
           token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
-      - name: rebase implydata/druid with apache/druid
+      - name: rebase implydata/druid monthly with implydata/druid master
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git remote add upstream https://github.com/apache/druid.git
-          git fetch upstream
-          git checkout master
-          git merge upstream/master
+          git fetch
+          git checkout monthly
+          git merge master
           git push
       - name: Slack Notification for job failed
         if: ${{ failure() }}
@@ -28,6 +27,6 @@ jobs:
           SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
-          SLACK_TITLE: "[FAILED] Update implydata/druid master from apache/druid master"
+          SLACK_TITLE: "[FAILED] Update implydata/druid#monthly with implydata/druid#master"
           SLACK_COLOR: "danger"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
