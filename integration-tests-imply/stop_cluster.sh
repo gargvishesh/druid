@@ -35,13 +35,6 @@ then
   docker rm druid-it-hadoop
 fi
 
-# stop ingest service container if it exists
-INGEST_CONTAINER="$(docker ps -aq -f name=imply-ingest-service)"
-if [ ! -z "$INGEST_CONTAINER" ]
-then
-  docker stop imply-ingest-service
-  docker rm imply-ingest-service
-fi
 
 # cleanup if keycloak-security group
 if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]

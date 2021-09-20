@@ -20,6 +20,7 @@ import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,7 +76,7 @@ public class ImplyAuthorizer implements Authorizer
     }
 
     Resource permissionResource = permissionResourceAction.getResource();
-    if (permissionResource.getType() != resource.getType()) {
+    if (!Objects.equals(permissionResource.getType(), resource.getType())) {
       return false;
     }
 

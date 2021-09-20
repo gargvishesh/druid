@@ -10,10 +10,10 @@
 package org.apache.druid.query.aggregation.datasketches.tuple;
 
 import com.fasterxml.jackson.databind.Module;
+import io.imply.druid.license.TestingImplyLicenseManager;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
-import org.apache.druid.license.TestingImplyLicenseManager;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;

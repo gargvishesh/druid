@@ -16,7 +16,6 @@ import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
 import io.imply.druid.sql.calcite.view.state.ViewStateUtils;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.FileUtils;
@@ -29,6 +28,7 @@ import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
+import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -73,7 +73,7 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 
-    SchemaPlus rootSchema = CalciteTests.createMockRootSchema(
+    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
         conglomerate,
         walker,
         PLANNER_CONFIG_DEFAULT,

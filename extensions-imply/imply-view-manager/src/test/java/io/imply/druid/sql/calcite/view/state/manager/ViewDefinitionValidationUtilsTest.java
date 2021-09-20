@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import nl.jqno.equalsverifier.EqualsVerifier;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.expression.TestExprMacroTable;
@@ -29,6 +28,7 @@ import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
+import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.junit.Assert;
 import org.junit.Before;
@@ -63,7 +63,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 
-    SchemaPlus rootSchema = CalciteTests.createMockRootSchema(
+    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
         conglomerate,
         walker,
         PLANNER_CONFIG_DEFAULT,

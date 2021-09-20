@@ -7,11 +7,18 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.tests;
+package io.imply.druid.license;
 
-public class ImplyTestNGGroup
+public class TestingImplyLicenseManager extends ImplyLicenseManager
 {
-  public static final String KEYCLOAK_SECURITY = "keycloak-security";
-  public static final String VIRTUAL_SEGMENTS = "virtual-segments";
-  public static final String ASYNC_DOWNLOAD = "async-download";
+  public TestingImplyLicenseManager(LicenseMetadata metadata)
+  {
+    super(metadata);
+  }
+
+  @Override
+  public boolean isFeatureEnabled(String featureName)
+  {
+    return true;
+  }
 }

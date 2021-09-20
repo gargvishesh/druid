@@ -106,9 +106,6 @@ setupData()
 
   if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query-retry" ]; then
     setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"druid-integration-tests\"]
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ingest-service" ]; then
-    setKey $DRUID_SERVICE druid.extensions.loadList [\"ingest-service\",\"druid-s3-extensions\"]
-    export AWS_REGION=us-east-1
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ] && [ "$DRUID_SERVICE" = "historical" ]; then
     setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-virtual-segments\",\"druid-s3-extensions\"]
     export AWS_REGION=us-east-1
