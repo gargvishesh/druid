@@ -7,18 +7,15 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.license;
+package io.imply.druid.license;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.io.IOUtils;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.logger.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -33,16 +30,18 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
  * An implementation to protect proprietary features behind an Imply License. The behaviour is as follows :
- * 1. If a license with name ‘implyLicense.bin’ is not found in the druid classpath, none of the features behind the license are accessible
- * 2. If the license is found but is expired, none of the features behind the license are accessible
- * 3. If the license is found and is not verifiable or corrupted, the druid process crashes at startup
- * 4. If the license is found and is valid, the protected features mentioned in the license are accessible.
- *    The validity of a license is marked by a 90 days grace period after the expiration date mentioned in the license
+ * 1. If a license with name {@link #LICENSE_FILE_NAME} is not found in the druid classpath and a config property with
+ *    name {@link #LICENSE_CONFIG} is not found, none of the features behind the license are accessible.
+ * 2. If a license is found both in classpath as well as config property, the druid process prefers the license found in
+ *    config property.
+ * 3. If the license is found but is expired, none of the features behind the license are accessible
+ * 4. If the license is found and is not verifiable or corrupted, the druid process crashes at startup
+ * 5. If the license is found and is valid, the protected features mentioned in the license are accessible.
+ *    The validity of a license is marked by a 90 days grace period after the expiration date mentioned in the license.
  */
 public class ImplyLicenseManager
 {
@@ -62,17 +61,18 @@ public class ImplyLicenseManager
                                    + "F8l5c/yrEa58wuI7bXt3sunA+Apji/HTm/Vd2sfUl6sU8224UdNkU04xBaoxWf4J\n"
                                    + "fQIDAQAB\n";
   static final String NO_LICENSE = "{}";
+  static final String LICENSE_FILE_NAME = "implyLicense.bin";
+  static final String LICENSE_CONFIG = "imply.license";
   private static final Logger log = new Logger(ImplyLicenseManager.class);
   private static final Integer LICENSE_GRACE_PERIOD_DAYS = 90;
   private static final String INVALID_LICENSE_MESSAGE = "Invalid Imply License";
   private final LicenseMetadata licenseMetadata;
 
-  public static ImplyLicenseManager make()
+  public static ImplyLicenseManager make(String license)
   {
-    InputStream licenseInputStream = ImplyLicenseManager.class.getClassLoader().getResourceAsStream("implyLicense.bin");
     try {
-      if (licenseInputStream != null) {
-        return new ImplyLicenseManager(fetchLicenseMetadata(loadLicense(licenseInputStream)));
+      if (license != null) {
+        return new ImplyLicenseManager(fetchLicenseMetadata(license));
       } else {
         log.info("Unable to find Imply License. Proprietary features may be not accessible");
         return new ImplyLicenseManager(createLicenseMetadata(NO_LICENSE));
@@ -144,13 +144,6 @@ public class ImplyLicenseManager
       log.info("Validated License : " + jsonPayload);
     }
     return licenseMetadata;
-  }
-
-  private static String loadLicense(InputStream licenseInputStream) throws IOException
-  {
-    try (InputStream inputStream = licenseInputStream) {
-      return IOUtils.toString(Objects.requireNonNull(inputStream), StandardCharsets.UTF_8);
-    }
   }
 
   private static LicenseMetadata createLicenseMetadata(String jsonPayload) throws JsonProcessingException

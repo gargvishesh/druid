@@ -15,9 +15,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
+import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.license.ImplyLicenseManager;
 
 import java.util.Collections;
 import java.util.List;

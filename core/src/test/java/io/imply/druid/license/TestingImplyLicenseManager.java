@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.license;
+package io.imply.druid.license;
 
 public class TestingImplyLicenseManager extends ImplyLicenseManager
 {

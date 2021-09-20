@@ -29,10 +29,10 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.guice.annotations.JsonNonNull;
 import org.apache.druid.guice.annotations.Smile;
-import org.apache.druid.license.ImplyLicenseManager;
 import org.skife.config.ConfigurationObjectFactory;
 
 import javax.validation.Validator;

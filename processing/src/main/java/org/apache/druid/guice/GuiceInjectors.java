@@ -23,8 +23,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import io.imply.druid.license.ImplyLicenseModule;
 import org.apache.druid.jackson.JacksonModule;
-import org.apache.druid.license.ImplyLicenseModule;
 
 import java.util.ArrayList;
 import java.util.Arrays;

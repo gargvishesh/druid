@@ -7,16 +7,17 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.license;
+package io.imply.druid.license;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import org.apache.druid.guice.LazySingleton;
 
 public class ImplyLicenseModule implements Module
 {
   @Override
   public void configure(Binder binder)
   {
-    binder.bind(ImplyLicenseManager.class).toInstance(ImplyLicenseManager.make());
+    binder.bind(ImplyLicenseManager.class).toProvider(ImplyLicenseManagerProvider.class).in(LazySingleton.class);
   }
 }
