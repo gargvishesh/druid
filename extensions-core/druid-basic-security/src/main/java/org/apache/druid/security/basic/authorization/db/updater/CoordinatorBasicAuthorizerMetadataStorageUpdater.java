@@ -88,7 +88,7 @@ public class CoordinatorBasicAuthorizerMetadataStorageUpdater implements BasicAu
   public static final List<ResourceAction> SUPERUSER_PERMISSIONS =
       AuthorizationUtils.makeSuperUserPermissions()
                         .stream()
-                        .filter(x -> x.getResource().getType() != ResourceType.VIEW)
+                        .filter(x -> !ResourceType.VIEW.equals(x.getResource().getType()))
                         .collect(Collectors.toList());
 
   private final AuthorizerMapper authorizerMapper;

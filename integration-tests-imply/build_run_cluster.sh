@@ -81,11 +81,6 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   else
     bash ${DIR}/script/docker_run_cluster.sh
   fi
-  # start ingest service if needed
-  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "ingest-service" ]
-  then
-    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.ingest-service.yml up -d
-  fi
 fi
 
 if ($DRUID_INTEGRATION_TEST_START_HADOOP_DOCKER); then

@@ -12,7 +12,6 @@ package io.imply.druid.sql.calcite.view;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -27,6 +26,7 @@ import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
+import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.junit.Before;
 import org.junit.Rule;
@@ -53,7 +53,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 
-    SchemaPlus rootSchema = CalciteTests.createMockRootSchema(
+    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
         conglomerate,
         walker,
         PLANNER_CONFIG_DEFAULT,

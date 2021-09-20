@@ -178,7 +178,6 @@
         <module>extensions-imply/imply-utility-belt</module>
         <module>extensions-imply/indexed-table-loader</module>
         <module>extensions-imply/imply-druid-security</module>
-        <module>extensions-imply/ingest-service</module>
         <module>extensions-imply/imply-view-manager</module>
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
