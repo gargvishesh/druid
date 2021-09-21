@@ -32,9 +32,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 import com.google.common.io.CountingOutputStream;
-import io.imply.druid.sql.async.SqlAsyncMetadataManager;
-import io.imply.druid.sql.async.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.SqlAsyncUtil;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import org.apache.commons.io.FileUtils;
@@ -59,19 +59,19 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A retriable output stream for s3. How it works is,
- *
+ * <p>
  * 1) When new data is written, it first creates a chunk in local disk.
  * 2) New data is written to the local chunk until it is full.
  * 3) When the chunk is full, it uploads the chunk to s3 using the multipart upload API.
- *    Since this happens synchronously, {@link #write(byte[], int, int)} can be blocked until the upload is done.
- *    The upload can be retries when it fails with transient errors.
+ * Since this happens synchronously, {@link #write(byte[], int, int)} can be blocked until the upload is done.
+ * The upload can be retries when it fails with transient errors.
  * 4) Once the upload succeeds, it creates a new chunk and continue.
  * 5) When the stream is closed, it uploads the last chunk and finalize the multipart upload.
- *    {@link #close()} can be blocked until upload is done.
- *
+ * {@link #close()} can be blocked until upload is done.
+ * <p>
  * For compression format support, this output stream supports compression formats if they are <i>concatenatable</i>,
  * such as ZIP or GZIP.
- *
+ * <p>
  * This class is not thread-safe.
  */
 class RetriableS3OutputStream extends OutputStream

@@ -182,13 +182,45 @@ GET /druid/v2/sql/async/{asyncResultId}/results
 
 The file, if it is ready.
 
-HTTP 404 if the async result ID does not exist, if the async result ID has expired, if the async result ID is not in state `COMPLETE`.
+HTTP 404 if the async result ID does not exist, if the async result ID has expired, if the async result ID is not in
+state `COMPLETE`.
 
 The following headers will be set on a successful response:
+
 - Content-Length is set to the result file size.
-- Content-Type is set based on the query resultFormat as described in [SQL response](https://druid.apache.org/docs/latest/querying/sql.html#responses).
+- Content-Type is set based on the query resultFormat as described
+  in [SQL response](https://druid.apache.org/docs/latest/querying/sql.html#responses).
 - Content-Disposition is set to "attachment"
 
+### Cancelling a query
+
+After a query has been submitted, you can cancel the query. Canceling a query cleans up all records of it, as if it
+never happened. Queries can be canceled while in any state.
+
+#### Request
+
+```
+DELETE /druid/v2/sql/async/{asyncResultId}
+```
+
+#### Response
+
+HTTP 404 if the query ID does not exist, if the query ID has expired, if the query ID originated by a different user, or
+if the Broker running the query goes offline.
+
+HTTP 202 if the deletion request has been accepted.
+
+HTTP 500 in case of internal server error eg:
+
+```
+{
+  "asyncResultId":"xxxx",
+  "error":"unable to clear metadata",
+}
+```
+
+The actual cancellation will proceed in the background. It is possible that immediately after cancellation, the status
+API will still return details for the query.
 
 ## Metrics
 
@@ -198,7 +230,8 @@ The following headers will be set on a successful response:
 - `async/result/tracked/bytes`: Total results query size tracked by Druid.
 - `async/sqlQuery/running/count`: number of running queries.
 - `async/sqlQuery/queued/count`: number of queued queries.
-- `async/sqlQuery/tracked/max`: max number of queries tracked by Druid. Must be the same as `druid.query.async.maxAsyncQueries`.
+- `async/sqlQuery/tracked/max`: max number of queries tracked by Druid. Must be the same
+  as `druid.query.async.maxAsyncQueries`.
 - `async/sqlQuery/running/max`: max number of running queries. Must be the same as `druid.query.async.maxConcurrentQueries`.
 - `async/sqlQuery/queued/max`: max number of queued queries. Must be the same as `druid.query.async.maxQueriesToQueue`.
 

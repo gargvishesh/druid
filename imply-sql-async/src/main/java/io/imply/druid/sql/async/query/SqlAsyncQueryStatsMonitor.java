@@ -7,9 +7,11 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.query;
 
 import com.google.inject.Inject;
+import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;

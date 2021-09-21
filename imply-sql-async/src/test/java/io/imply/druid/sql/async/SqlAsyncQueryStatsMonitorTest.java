@@ -9,6 +9,9 @@
 
 package io.imply.druid.sql.async;
 
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
+import io.imply.druid.sql.async.query.SqlAsyncQueryStatsMonitor;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceEventBuilder;
 import org.junit.Test;

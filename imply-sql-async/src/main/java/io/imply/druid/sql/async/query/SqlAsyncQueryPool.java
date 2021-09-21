@@ -7,10 +7,16 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CountingOutputStream;
+import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
+import io.imply.druid.sql.async.SqlAsyncLifecycleManager;
+import io.imply.druid.sql.async.SqlAsyncUtil;
+import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
@@ -40,12 +46,14 @@ public class SqlAsyncQueryPool
   private final SqlAsyncResultManager resultManager;
   private final ObjectMapper jsonMapper;
   private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
+  private final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
 
   public SqlAsyncQueryPool(
       final ThreadPoolExecutor exec,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
       AsyncQueryLimitsConfig asyncQueryLimitsConfig,
+      final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
       final ObjectMapper jsonMapper,
       final String brokerId
   )
@@ -55,6 +63,7 @@ public class SqlAsyncQueryPool
     this.resultManager = resultManager;
     this.jsonMapper = jsonMapper;
     this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
+    this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
     this.brokerId = brokerId;
   }
 
@@ -91,8 +100,9 @@ public class SqlAsyncQueryPool
     );
 
     metadataManager.addNewQuery(queryDetails);
+
     try {
-      exec.submit(
+      sqlAsyncLifecycleManager.add(asyncResultId, lifecycle, exec.submit(
           () -> {
             final String currThreadName = Thread.currentThread().getName();
 
@@ -153,15 +163,17 @@ public class SqlAsyncQueryPool
             }
             finally {
               Thread.currentThread().setName(currThreadName);
+              sqlAsyncLifecycleManager.remove(asyncResultId);
             }
           }
-      );
+      ));
     }
     catch (QueryCapacityExceededException e) {
       // The QueryCapacityExceededException is thrown by the Executor's RejectedExecutionHandler
       // when the Executor's queue is full. The Executor's queue size is control by Druid
       // See more details in SqlAsyncQueryPoolProvider#get()
       metadataManager.removeQueryDetails(queryDetails);
+      sqlAsyncLifecycleManager.remove(asyncResultId);
       log.makeAlert(e, "Async query queue capacity exceeded").addData("asyncResultId", asyncResultId).emit();
       throw e;
     }

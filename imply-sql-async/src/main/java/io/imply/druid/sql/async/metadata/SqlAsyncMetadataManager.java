@@ -7,7 +7,12 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.metadata;
+
+import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
+import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 
 import java.io.IOException;
 import java.util.Collection;

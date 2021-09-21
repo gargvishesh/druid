@@ -7,12 +7,14 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.metadata;
 
 public class SqlAsyncQueryMetadata
 {
   // The time in milliseconds from epoch when Sql Async Query was last updated.
+
   private final long lastUpdatedTime;
+
 
   public SqlAsyncQueryMetadata(
       long lastUpdatedTime

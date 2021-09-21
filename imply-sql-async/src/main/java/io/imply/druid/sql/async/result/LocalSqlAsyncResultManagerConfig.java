@@ -7,14 +7,17 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.result;
 
-import org.apache.druid.java.util.common.StringUtils;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class AsyncQueryDoesNotExistException extends Exception
+public class LocalSqlAsyncResultManagerConfig
 {
-  public AsyncQueryDoesNotExistException(final String asyncResultId)
+  @JsonProperty
+  private String directory;
+
+  public String getDirectory()
   {
-    super(StringUtils.format("Async query [%s] does not exist", asyncResultId));
+    return directory;
   }
 }

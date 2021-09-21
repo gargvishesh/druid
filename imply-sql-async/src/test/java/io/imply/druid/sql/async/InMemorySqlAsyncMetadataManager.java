@@ -10,6 +10,12 @@
 package io.imply.druid.sql.async;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
+import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncQueryMetadata;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 
 import java.util.Collection;
 import java.util.HashMap;

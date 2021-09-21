@@ -19,6 +19,14 @@ import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import io.imply.druid.sql.async.metadata.CuratorSqlAsyncMetadataManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
+import io.imply.druid.sql.async.query.SqlAsyncQueryStatsMonitor;
+import io.imply.druid.sql.async.result.LocalSqlAsyncResultManager;
+import io.imply.druid.sql.async.result.LocalSqlAsyncResultManagerConfig;
+import io.imply.druid.sql.async.result.SqlAsyncResultManager;
+import io.imply.druid.sql.async.result.SqlAsyncResultsMessageBodyWriter;
 import org.apache.druid.common.utils.UUIDUtils;
 import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
@@ -90,6 +98,7 @@ public class SqlAsyncModule implements Module
     private final ObjectMapper jsonMapper;
     private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
     private final Lifecycle lifecycle;
+    private final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
     private final String brokerId;
 
     @Inject
@@ -98,6 +107,7 @@ public class SqlAsyncModule implements Module
         final SqlAsyncResultManager resultManager,
         @Json ObjectMapper jsonMapper,
         AsyncQueryLimitsConfig asyncQueryLimitsConfig,
+        SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
         Lifecycle lifecycle,
         @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId
     )
@@ -106,6 +116,7 @@ public class SqlAsyncModule implements Module
       this.resultManager = resultManager;
       this.jsonMapper = jsonMapper;
       this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
+      this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
       this.lifecycle = lifecycle;
       this.brokerId = brokerId;
     }
@@ -132,7 +143,15 @@ public class SqlAsyncModule implements Module
             }
           }
       );
-      SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(exec, metadataManager, resultManager, asyncQueryLimitsConfig, jsonMapper, brokerId);
+      SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(
+          exec,
+          metadataManager,
+          resultManager,
+          asyncQueryLimitsConfig,
+          sqlAsyncLifecycleManager,
+          jsonMapper,
+          brokerId
+      );
       lifecycle.addManagedInstance(sqlAsyncQueryPool);
       LOG.debug(
           "Created SqlAsyncQueryPool with maxConcurrentQueries[%d] and maxQueriesToQueue[%d]",

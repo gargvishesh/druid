@@ -58,7 +58,7 @@ public class S3SqlAsyncResultManagerConfig
 
   /**
    * Max size of all query results stored in s3.
-   * This limit counts only the queries that are marked in {@link io.imply.druid.sql.async.SqlAsyncMetadataManager}.
+   * This limit counts only the queries that are marked in {@link io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager}.
    */
   @JsonProperty
   private HumanReadableBytes maxTotalResultsSize = new HumanReadableBytes("5GiB");
