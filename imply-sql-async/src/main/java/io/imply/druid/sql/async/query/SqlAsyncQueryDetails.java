@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -169,6 +169,7 @@ public class SqlAsyncQueryDetails
         error
     );
   }
+
 
   public SqlAsyncQueryDetails toError(@Nullable final Throwable e)
   {

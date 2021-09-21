@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
-import io.imply.druid.sql.async.SqlAsyncQueryDetailsApiResponse;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.HttpClient;

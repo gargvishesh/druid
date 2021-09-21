@@ -7,7 +7,9 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.result;
+
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -50,11 +52,10 @@ public interface SqlAsyncResultManager
   /**
    * Retrieve all async result ids with existing result stored in storage.
    * The returned collection should include all asyncResultIds in the result storage even if their metadata
-   * doesn't exist {@link SqlAsyncMetadataManager}, so that they can be cleaned up.
+   * doesn't exist {@link io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager}, so that they can be cleaned up.
    * This method can return asyncResultIds of the queries that are still writing results using {@link #writeResults}.
    *
    * @return async result ids
-   *
    */
   Collection<String> getAllAsyncResultIds();
 }

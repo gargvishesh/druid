@@ -15,11 +15,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import io.imply.druid.sql.async.SqlAsyncMetadataManager;
-import io.imply.druid.sql.async.SqlAsyncQueryDetails;
-import io.imply.druid.sql.async.SqlAsyncQueryDetailsAndMetadata;
-import io.imply.druid.sql.async.SqlAsyncQueryMetadata;
 import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncQueryMetadata;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.coordinator.CoordinatorStats;
@@ -81,7 +81,8 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
     int failed = 0;
     for (String asyncResultId : asyncResultIds) {
       try {
-        Optional<SqlAsyncQueryDetailsAndMetadata> queryDetailsAndStat = sqlAsyncMetadataManager.getQueryDetailsAndMetadata(asyncResultId);
+        Optional<SqlAsyncQueryDetailsAndMetadata> queryDetailsAndStat = sqlAsyncMetadataManager.getQueryDetailsAndMetadata(
+            asyncResultId);
         if (!queryDetailsAndStat.isPresent()) {
           log.warn("Failed to get details for asyncResultId [%s]", asyncResultId);
           failed++;
@@ -123,8 +124,8 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
   static boolean isQueryEligibleForCleanup(SqlAsyncQueryDetails queryDetails, long updatedTime, long retainDuration)
   {
     return ((queryDetails.getState() == SqlAsyncQueryDetails.State.COMPLETE
-         || queryDetails.getState() == SqlAsyncQueryDetails.State.FAILED
-         || queryDetails.getState() == SqlAsyncQueryDetails.State.UNDETERMINED)
-        && updatedTime <= (System.currentTimeMillis() - retainDuration));
+             || queryDetails.getState() == SqlAsyncQueryDetails.State.FAILED
+             || queryDetails.getState() == SqlAsyncQueryDetails.State.UNDETERMINED)
+            && updatedTime <= (System.currentTimeMillis() - retainDuration));
   }
 }

@@ -10,8 +10,8 @@
 package io.imply.druid.sql.async.coordinator.duty;
 
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.sql.async.SqlAsyncMetadataManager;
-import io.imply.druid.sql.async.SqlAsyncResultManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.server.coordinator.CoordinatorRuntimeParamsTestHelpers;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.junit.Assert;

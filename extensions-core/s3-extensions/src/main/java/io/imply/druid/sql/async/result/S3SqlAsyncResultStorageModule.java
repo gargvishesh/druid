@@ -24,7 +24,6 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import io.imply.druid.sql.async.SqlAsyncModule;
-import io.imply.druid.sql.async.SqlAsyncResultManager;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;

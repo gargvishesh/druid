@@ -7,7 +7,9 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.query;
+
+import io.imply.druid.sql.async.metadata.SqlAsyncQueryMetadata;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;

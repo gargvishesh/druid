@@ -11,8 +11,8 @@ package io.imply.druid.tests.async;
 
 import com.google.inject.Inject;
 import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
-import io.imply.druid.sql.async.SqlAsyncQueryDetails;
-import io.imply.druid.sql.async.SqlAsyncQueryDetailsApiResponse;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.tests.ImplyTestNGGroup;
 import io.imply.druid.tests.client.AsyncResourceTestClient;
 import org.apache.druid.sql.http.ResultFormat;

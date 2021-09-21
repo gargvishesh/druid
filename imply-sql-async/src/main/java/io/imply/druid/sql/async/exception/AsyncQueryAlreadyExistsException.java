@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.exception;
 
 import org.apache.druid.java.util.common.StringUtils;
 

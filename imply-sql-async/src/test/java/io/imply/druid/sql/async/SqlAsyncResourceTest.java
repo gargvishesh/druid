@@ -11,7 +11,14 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
-import io.imply.druid.sql.async.SqlAsyncQueryDetails.State;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
+import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
+import io.imply.druid.sql.async.result.LocalSqlAsyncResultManager;
+import io.imply.druid.sql.async.result.LocalSqlAsyncResultManagerConfig;
+import io.imply.druid.sql.async.result.SqlAsyncResultManager;
+import io.imply.druid.sql.async.result.SqlAsyncResults;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
@@ -28,6 +35,7 @@ import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlLifecycleManager;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
@@ -106,11 +114,13 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         MAX_ASYNC_QUERIES,
         MAX_QUERIES_TO_QUEUE
     );
+    SqlAsyncLifecycleManager sqlAsyncLifecycleManager = new SqlAsyncLifecycleManager(new SqlLifecycleManager());
     SqlAsyncModule.SqlAsyncQueryPoolProvider poolProvider = new SqlAsyncModule.SqlAsyncQueryPoolProvider(
         metadataManager,
         resultManager,
         jsonMapper,
         asyncQueryLimitsConfig,
+        sqlAsyncLifecycleManager,
         lifecycle,
         BROKER_ID
     );
@@ -128,6 +138,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         metadataManager,
         resultManager,
         sqlLifecycleFactory,
+        sqlAsyncLifecycleManager,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         jsonMapper
     );
@@ -384,6 +395,81 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
       Assert.assertEquals(Status.OK.getStatusCode(), statusResponse.getStatus());
       Assert.assertEquals(State.FAILED, ((SqlAsyncQueryDetailsApiResponse) statusResponse.getEntity()).getState());
     }
+  }
+
+  @Test(timeout = 5000)
+  public void testDeleteRunningQuery() throws IOException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select sleep(2), 10",
+            ResultFormat.OBJECTLINES,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    response = waitUntilState(response.getAsyncResultId(), State.RUNNING);
+    Response cancelResponse = resource.deleteQuery(response.getAsyncResultId(), req);
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), cancelResponse.getStatus());
+    Assert.assertEquals(
+        Status.NOT_FOUND.getStatusCode(),
+        resource.doGetStatus(response.getAsyncResultId(), req).getStatus()
+    );
+    Assert.assertEquals(
+        Status.NOT_FOUND.getStatusCode(),
+        resource.deleteQuery(response.getAsyncResultId(), req).getStatus()
+    );
+    Assert.assertNull(response.getError());
+  }
+
+  @Test(timeout = 5000)
+  public void testDeleteCompletedQuery() throws IOException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select dim1, sum(m1) from foo group by 1",
+            ResultFormat.CSV,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+
+    Response resultsResponse = resource.doGetResults(response.getAsyncResultId(), req);
+    SqlAsyncResults results = (SqlAsyncResults) resultsResponse.getEntity();
+    Assert.assertEquals(55, results.getSize());
+
+    Response cancelResponse = resource.deleteQuery(response.getAsyncResultId(), req);
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), cancelResponse.getStatus());
+    Assert.assertEquals(
+        Status.NOT_FOUND.getStatusCode(),
+        resource.doGetStatus(response.getAsyncResultId(), req).getStatus()
+    );
+    // delete twice
+    Assert.assertEquals(
+        Status.NOT_FOUND.getStatusCode(),
+        resource.deleteQuery(response.getAsyncResultId(), req).getStatus()
+    );
+
+    Assert.assertEquals(
+        Status.NOT_FOUND.getStatusCode(),
+        resource.doGetResults(response.getAsyncResultId(), req).getStatus()
+    );
+    Assert.assertNull(response.getError());
+  }
+
+  @Test(timeout = 5000)
+  public void testDeleteUnkownQuery()
+  {
+    Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), resource.deleteQuery("unknownQuery", req).getStatus());
   }
 
   private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException

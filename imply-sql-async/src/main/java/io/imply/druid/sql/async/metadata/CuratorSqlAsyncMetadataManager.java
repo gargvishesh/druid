@@ -7,12 +7,17 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.sql.async;
+package io.imply.druid.sql.async.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.SqlAsyncQueryDetails.State;
+import io.imply.druid.sql.async.SqlAsyncUtil;
+import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
+import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.druid.java.util.common.IOE;
