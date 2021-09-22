@@ -94,3 +94,5 @@ druid_metadata_storage_type=mysql
 druid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid
 druid_metadata_storage_connector_user=druid
 druid_metadata_storage_connector_password=diurd
+
+druid_sql_planner_authorizeSystemTablesDirectly=true
