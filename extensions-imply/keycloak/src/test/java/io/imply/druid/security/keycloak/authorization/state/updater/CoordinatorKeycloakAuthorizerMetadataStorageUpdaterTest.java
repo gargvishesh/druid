@@ -30,6 +30,7 @@ import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
 import org.apache.druid.metadata.MetadataStorageTablesConfig;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
@@ -50,38 +51,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
 {
   private static final Map<String, Authorizer> AUTHORIZER_MAP_WITH_KEYCLOAK =
       ImmutableMap.of("keycloak", new ImplyKeycloakAuthorizer());
 
-  private static final List<KeycloakAuthorizerPermission> SUPER_PERMISSIONS = ImmutableList.of(
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.DATASOURCE), Action.READ),
-          Pattern.compile(".*")
-      ),
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.DATASOURCE), Action.WRITE),
-          Pattern.compile(".*")
-      ),
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.CONFIG), Action.READ),
-          Pattern.compile(".*")
-      ),
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.CONFIG), Action.WRITE),
-          Pattern.compile(".*")
-      ),
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.STATE), Action.READ),
-          Pattern.compile(".*")
-      ),
-      new KeycloakAuthorizerPermission(
-          new ResourceAction(new Resource(".*", ResourceType.STATE), Action.WRITE),
-          Pattern.compile(".*")
-      )
-  );
+  private static final List<KeycloakAuthorizerPermission> SUPER_PERMISSIONS =
+      AuthorizationUtils.makeSuperUserPermissions()
+                        .stream()
+                        .map(x -> new KeycloakAuthorizerPermission(x, Pattern.compile(x.getResource().getName())))
+                        .collect(Collectors.toList());
 
   private static final String INITIAL_ROLE_NAME = "role";
   private static final Map<String, List<ResourceAction>> INITIAL_ROLE_MAP = ImmutableMap.of(

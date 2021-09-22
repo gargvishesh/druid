@@ -14,7 +14,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -40,12 +39,10 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.metadata.MetadataCASUpdate;
 import org.apache.druid.metadata.MetadataStorageConnector;
 import org.apache.druid.metadata.MetadataStorageTablesConfig;
-import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.Authorizer;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
-import org.apache.druid.server.security.ResourceType;
 import org.joda.time.Duration;
 
 import javax.annotation.Nonnull;
@@ -74,7 +71,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
 
   private static final String ROLES = "roles";
 
-  public static final List<ResourceAction> SUPERUSER_PERMISSIONS = makeSuperUserPermissions();
+  public static final List<ResourceAction> SUPERUSER_PERMISSIONS = AuthorizationUtils.makeSuperUserPermissions();
 
   private final Injector injector;
   private final MetadataStorageConnector connector;
@@ -488,40 +485,5 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
   private static String getPrefixedKeyColumn(String keyName)
   {
     return StringUtils.format("keycloak_authorization_%s", keyName);
-  }
-
-  private static List<ResourceAction> makeSuperUserPermissions()
-  {
-    ResourceAction datasourceR = new ResourceAction(
-        new Resource(".*", ResourceType.DATASOURCE),
-        Action.READ
-    );
-
-    ResourceAction datasourceW = new ResourceAction(
-        new Resource(".*", ResourceType.DATASOURCE),
-        Action.WRITE
-    );
-
-    ResourceAction configR = new ResourceAction(
-        new Resource(".*", ResourceType.CONFIG),
-        Action.READ
-    );
-
-    ResourceAction configW = new ResourceAction(
-        new Resource(".*", ResourceType.CONFIG),
-        Action.WRITE
-    );
-
-    ResourceAction stateR = new ResourceAction(
-        new Resource(".*", ResourceType.STATE),
-        Action.READ
-    );
-
-    ResourceAction stateW = new ResourceAction(
-        new Resource(".*", ResourceType.STATE),
-        Action.WRITE
-    );
-
-    return Lists.newArrayList(datasourceR, datasourceW, configR, configW, stateR, stateW);
   }
 }

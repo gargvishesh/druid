@@ -214,6 +214,13 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Override
+  @Test
+  public void test_admin_loadStatus()
+  {
+    // do nothing, this test is specific to the basic-security extension
+  }
+
+  @Override
   protected Properties getAvaticaConnectionProperties()
   {
     Properties connectionProperties = new Properties();
