@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.async.coordinator.duty;
 
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceEventBuilder;
 import org.apache.druid.server.coordinator.CoordinatorRuntimeParamsTestHelpers;
@@ -25,38 +26,43 @@ import org.mockito.junit.MockitoJUnitRunner;
 public class EmitAsyncStatsAndMetricsTest
 {
   @Mock
+  private SqlAsyncMetadataManager mockSqlAsyncMetadataManager;
+
+  @Mock
   private ServiceEmitter mockServiceEmitter;
 
   @Test
   public void testRun()
   {
-    EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics();
+    EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
     CoordinatorStats stats = new CoordinatorStats();
     stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, 1);
     stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_COUNT_STAT_KEY, 2);
     stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY, 3);
     stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_FAILED_COUNT_STAT_KEY, 4);
     stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY, 5);
+    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY, 6);
+    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY, 7);
     DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder()
                                                                               .withCoordinatorStats(stats)
                                                                               .withEmitter(mockServiceEmitter)
                                                                               .build();
     emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(5)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(9)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 
   @Test
   public void testRunWithSomeDutyMetricMissing()
   {
-    EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics();
+    EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
     CoordinatorStats stats = new CoordinatorStats();
     DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder()
                                                                               .withCoordinatorStats(stats)
                                                                               .withEmitter(mockServiceEmitter)
                                                                               .build();
     emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(5)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(9)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 }

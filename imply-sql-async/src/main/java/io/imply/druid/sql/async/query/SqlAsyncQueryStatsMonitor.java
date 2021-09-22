@@ -10,31 +10,28 @@
 package io.imply.druid.sql.async.query;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
-import org.apache.druid.java.util.common.logger.Logger;
+import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.java.util.metrics.AbstractMonitor;
-
-import java.util.Collection;
+import org.apache.druid.query.DruidMetrics;
 
 public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
 {
-  private static final Logger LOG = new Logger(SqlAsyncQueryStatsMonitor.class);
-
-  private final SqlAsyncMetadataManager metadataManager;
+  private final String brokerId;
   private final SqlAsyncQueryPool sqlAsyncQueryPool;
   private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
 
   @Inject
   public SqlAsyncQueryStatsMonitor(
-      SqlAsyncMetadataManager metadataManager,
+      @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
       SqlAsyncQueryPool sqlAsyncQueryPool,
       AsyncQueryLimitsConfig asyncQueryLimitsConfig
   )
   {
-    this.metadataManager = metadataManager;
+    this.brokerId = brokerId;
     this.sqlAsyncQueryPool = sqlAsyncQueryPool;
     this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
   }
@@ -42,61 +39,35 @@ public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
   @Override
   public boolean doMonitor(ServiceEmitter emitter)
   {
-    // Emit stats from current state
-    try {
-      Collection<String> allAsyncResultIds = metadataManager.getAllAsyncResultIds();
-
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/result/tracked/count",
-              allAsyncResultIds.size()
-          )
-      );
-
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/result/tracked/bytes",
-              metadataManager.totalCompleteQueryResultsSize(allAsyncResultIds)
-          )
-      );
-    }
-    catch (Exception e) {
-      LOG.warn(e, "Cannot emit metrics as fail get all async result ids from metadata");
-    }
-
     SqlAsyncQueryPool.BestEffortStatsSnapshot sqlAsyncQueryPoolStats = sqlAsyncQueryPool.getBestEffortStatsSnapshot();
     emitter.emit(
-        new ServiceMetricEvent.Builder().build(
-            "async/sqlQuery/running/count",
-            sqlAsyncQueryPoolStats.getQueryRunningCount()
-        )
+        new ServiceMetricEvent.Builder()
+            .setDimension(DruidMetrics.SERVER, brokerId)
+            .build("async/sqlQuery/running/count", sqlAsyncQueryPoolStats.getQueryRunningCount())
     );
     emitter.emit(
-        new ServiceMetricEvent.Builder().build(
-            "async/sqlQuery/queued/count",
-            sqlAsyncQueryPoolStats.getQueryQueuedCount()
-        )
+        new ServiceMetricEvent.Builder()
+            .setDimension(DruidMetrics.SERVER, brokerId)
+            .build("async/sqlQuery/queued/count", sqlAsyncQueryPoolStats.getQueryQueuedCount())
     );
 
     // Emit stats from limit configs
     emitter.emit(
-        new ServiceMetricEvent.Builder().build(
-            "async/sqlQuery/tracked/max",
-            asyncQueryLimitsConfig.getMaxAsyncQueries()
-        )
+        new ServiceMetricEvent.Builder()
+            .setDimension(DruidMetrics.SERVER, brokerId)
+            .build("async/sqlQuery/tracked/max", asyncQueryLimitsConfig.getMaxAsyncQueries())
     );
     emitter.emit(
-        new ServiceMetricEvent.Builder().build(
-            "async/sqlQuery/running/max",
-            asyncQueryLimitsConfig.getMaxConcurrentQueries()
-        )
+        new ServiceMetricEvent.Builder()
+            .setDimension(DruidMetrics.SERVER, brokerId)
+            .build("async/sqlQuery/running/max", asyncQueryLimitsConfig.getMaxConcurrentQueries())
     );
     emitter.emit(
-        new ServiceMetricEvent.Builder().build(
-            "async/sqlQuery/queued/max",
-            asyncQueryLimitsConfig.getMaxQueriesToQueue()
-        )
+        new ServiceMetricEvent.Builder()
+            .setDimension(DruidMetrics.SERVER, brokerId)
+            .build("async/sqlQuery/queued/max", asyncQueryLimitsConfig.getMaxQueriesToQueue())
     );
+
     return true;
   }
 }

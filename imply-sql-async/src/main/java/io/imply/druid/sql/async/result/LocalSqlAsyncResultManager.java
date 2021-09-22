@@ -137,6 +137,17 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
     return results;
   }
 
+  @Override
+  public long getResultSize(String asyncResultId) throws IOException
+  {
+    File result = makeFile(asyncResultId);
+    if (!result.exists()) {
+      throw new IOException("File does not exist");
+    } else {
+      return result.length();
+    }
+  }
+
   private void createDirectory()
   {
     if (!directory.isDirectory()) {

@@ -9,7 +9,6 @@
 
 package io.imply.druid.sql.async;
 
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.query.SqlAsyncQueryStatsMonitor;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
@@ -25,13 +24,10 @@ import org.mockito.junit.MockitoJUnitRunner;
 public class SqlAsyncQueryStatsMonitorTest
 {
   @Mock
-  private SqlAsyncMetadataManager mockSqlAsyncMetadataManager;
+  private SqlAsyncQueryPool mockSqlAsyncQueryPool;
 
   @Mock
   private AsyncQueryLimitsConfig mockAsyncQueryLimitsConfig;
-
-  @Mock
-  private SqlAsyncQueryPool mockSqlAsyncQueryPool;
 
   @Mock
   private ServiceEmitter mockServiceEmitter;
@@ -43,12 +39,12 @@ public class SqlAsyncQueryStatsMonitorTest
     Mockito.when(mockSqlAsyncQueryPool.getBestEffortStatsSnapshot()).thenReturn(sqlAsyncQueryPoolStats);
 
     SqlAsyncQueryStatsMonitor sqlAsyncQueryStatsMonitor = new SqlAsyncQueryStatsMonitor(
-        mockSqlAsyncMetadataManager,
+        "brokerId123",
         mockSqlAsyncQueryPool,
         mockAsyncQueryLimitsConfig
     );
     sqlAsyncQueryStatsMonitor.doMonitor(mockServiceEmitter);
-    Mockito.verify(mockServiceEmitter, Mockito.times(7)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(5)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 }

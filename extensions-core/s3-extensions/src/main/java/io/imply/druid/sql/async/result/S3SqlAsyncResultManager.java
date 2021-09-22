@@ -19,6 +19,7 @@
 
 package io.imply.druid.sql.async.result;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -101,5 +102,20 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
     return Streams.sequentialStreamFrom(S3Utils.objectSummaryIterator(s3Client, ImmutableList.of(uri), 10000))
                   .map(summary -> summary.getKey().substring(config.getPrefix().length() + 1)) // + 1 to eliminate a slash
                   .collect(Collectors.toList());
+  }
+
+  @Override
+  public long getResultSize(String asyncResultId) throws IOException
+  {
+    final String key = RetriableS3OutputStream.getS3KeyForQuery(config.getPrefix(), asyncResultId);
+    long size;
+    try {
+      size = s3Client.getObjectMetadata(config.getBucket(), key).getContentLength();
+    }
+    catch (AmazonServiceException e) {
+      throw new IOException(e);
+    }
+    return size;
+
   }
 }
