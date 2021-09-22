@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async.coordinator.duty;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
@@ -18,13 +19,20 @@ import org.apache.druid.server.coordinator.CoordinatorStats;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 
+import java.util.Collection;
+
 @JsonTypeName("emitAsyncStatsAndMetrics")
 public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
 {
   private static final Logger LOG = new Logger(EmitAsyncStatsAndMetrics.class);
 
-  public EmitAsyncStatsAndMetrics()
+  private final SqlAsyncMetadataManager metadataManager;
+
+  public EmitAsyncStatsAndMetrics(
+      SqlAsyncMetadataManager metadataManager
+  )
   {
+    this.metadataManager = metadataManager;
     LOG.info("Coordinator emitAsyncStatsAndMetrics scheduling enabled");
   }
 
@@ -50,6 +58,18 @@ public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
       );
       emitter.emit(
           new ServiceMetricEvent.Builder().build(
+              "async/cleanup/result/removed/bytes",
+              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY)
+          )
+      );
+      emitter.emit(
+          new ServiceMetricEvent.Builder().build(
+              "async/cleanup/result/failed/bytes",
+              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY)
+          )
+      );
+      emitter.emit(
+          new ServiceMetricEvent.Builder().build(
               "async/cleanup/metadata/removed/count",
               stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY)
           )
@@ -66,6 +86,28 @@ public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
               stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY)
           )
       );
+
+      // Emit stats from current state
+      try {
+        Collection<String> allAsyncResultIds = metadataManager.getAllAsyncResultIds();
+
+        emitter.emit(
+            new ServiceMetricEvent.Builder().build(
+                "async/result/tracked/count",
+                allAsyncResultIds.size()
+            )
+        );
+
+        emitter.emit(
+            new ServiceMetricEvent.Builder().build(
+                "async/result/tracked/bytes",
+                metadataManager.totalCompleteQueryResultsSize(allAsyncResultIds)
+            )
+        );
+      }
+      catch (Exception e) {
+        LOG.warn(e, "Cannot emit metrics as fail get all async result ids from metadata");
+      }
 
       // Emit coordinator runtime stats
       emitDutyStats(emitter, "coordinator/time", stats, "runtime");

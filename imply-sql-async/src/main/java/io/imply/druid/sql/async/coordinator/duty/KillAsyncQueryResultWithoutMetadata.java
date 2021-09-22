@@ -27,6 +27,8 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
   public static final String JSON_TYPE_NAME = "killAsyncQueryResultWithoutMetadata";
   static final String RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY = "resultRemovedSucceedCount";
   static final String RESULT_REMOVED_FAILED_COUNT_STAT_KEY = "resultRemovedFailedCount";
+  static final String RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY = "resultRemovedSucceedSize";
+  static final String RESULT_REMOVED_FAILED_SIZE_STAT_KEY = "resultRemovedFailedSize";
   private static final Logger log = new Logger(KillAsyncQueryResultWithoutMetadata.class);
 
   private final SqlAsyncResultManager sqlAsyncResultManager;
@@ -46,8 +48,10 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    int removed = 0;
-    int failed = 0;
+    int removedCount = 0;
+    int failedCount = 0;
+    long removedSize = 0;
+    long failedSize = 0;
     Collection<String> asyncResultIdsFromMetadata;
     Collection<String> asyncResultsFromStorage;
     try {
@@ -60,26 +64,46 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
     }
 
     for (String asyncResultFromStorage : asyncResultsFromStorage) {
-      try {
-        if (!asyncResultIdsFromMetadata.contains(asyncResultFromStorage)) {
+      if (!asyncResultIdsFromMetadata.contains(asyncResultFromStorage)) {
+        long size = 0;
+        try {
+          size = sqlAsyncResultManager.getResultSize(asyncResultFromStorage);
+        }
+        catch (Exception e) {
+          log.debug("Failed to get file size for asyncResultId [%s]", asyncResultFromStorage);
+        }
+        try {
           boolean resultDeleted = sqlAsyncResultManager.deleteResults(asyncResultFromStorage);
           if (resultDeleted) {
-            removed++;
+            removedCount++;
+            removedSize += size;
           } else {
             log.warn("Failed to cleanup async result for asyncResultId [%s]", asyncResultFromStorage);
-            failed++;
+            failedCount++;
+            failedSize += size;
           }
         }
-      }
-      catch (Exception e) {
-        log.warn(e, "Failed to cleanup async result for asyncResultId [%s]", asyncResultFromStorage);
-        failed++;
+        catch (Exception e) {
+          log.warn(e, "Failed to cleanup async result for asyncResultId [%s]", asyncResultFromStorage);
+          failedCount++;
+          failedSize += size;
+        }
       }
     }
-    log.info("Finished %s duty. Removed [%,d]. Failed [[%,d].", JSON_TYPE_NAME, removed, failed);
+    log.info(
+        "Finished %s duty. Removed [%,d] files with total size [%,d]. Failed to remove [%,d] files with total size [%,d].",
+        JSON_TYPE_NAME,
+        removedCount,
+        removedSize,
+        failedCount,
+        failedSize
+    );
     CoordinatorStats stats = new CoordinatorStats();
-    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, removed);
-    stats.addToGlobalStat(RESULT_REMOVED_FAILED_COUNT_STAT_KEY, failed);
+    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, removedCount);
+    stats.addToGlobalStat(RESULT_REMOVED_FAILED_COUNT_STAT_KEY, failedCount);
+    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY, removedSize);
+    stats.addToGlobalStat(RESULT_REMOVED_FAILED_SIZE_STAT_KEY, failedSize);
+
     return params.buildFromExisting().withCoordinatorStats(stats).build();
   }
 

@@ -58,4 +58,13 @@ public interface SqlAsyncResultManager
    * @return async result ids
    */
   Collection<String> getAllAsyncResultIds();
+
+  /**
+   * Retrieve result file size
+   *
+   * @return result file size in bytes
+   *
+   * @throws IOException if result does not exist or encountered error retrieving the size of the result
+   */
+  long getResultSize(String asyncResultId) throws IOException;
 }

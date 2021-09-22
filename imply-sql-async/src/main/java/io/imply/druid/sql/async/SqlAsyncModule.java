@@ -56,7 +56,7 @@ public class SqlAsyncModule implements Module
   public static final String ASYNC_ENABLED_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "sql", "enabled");
   public static final String BASE_STORAGE_CONFIG_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "storage");
   public static final String STORAGE_TYPE_CONFIG_KEY = String.join(".", BASE_STORAGE_CONFIG_KEY, "type");
-  static final String ASYNC_BROKER_ID = "asyncBrokerId";
+  public static final String ASYNC_BROKER_ID = "asyncBrokerId";
 
   @Inject
   private Properties props;
