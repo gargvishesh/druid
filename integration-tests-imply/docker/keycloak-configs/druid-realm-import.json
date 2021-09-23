@@ -284,6 +284,14 @@
           "attributes": {}
         },
         {
+          "id": "f7993f0d-1b41-4a44-88c4-0650511ad61f",
+          "name": "datasourceWithSysRole",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc",
+          "attributes": {}
+        },
+        {
           "id": "709400c5-732c-4505-8a84-e9bbe15fd62a",
           "name": "datasourceWithStateRole",
           "composite": false,
