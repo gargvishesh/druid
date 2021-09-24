@@ -215,7 +215,7 @@ public class SqlAsyncResource
    * request has been accepted.
    */
   @DELETE
-  @Path("/{id}}")
+  @Path("/{id}")
   @Produces(MediaType.APPLICATION_JSON)
   public Response deleteQuery(@PathParam("id") final String asyncResultId, @Context final HttpServletRequest req)
   {
@@ -239,20 +239,15 @@ public class SqlAsyncResource
           // if running or about to be run
           sqlAsyncLifecycleManager.cancel(asyncResultId);
           sqlAsyncLifecycleManager.remove(asyncResultId);
-          return Response.status(Response.Status.ACCEPTED).entity(details.toApiResponse()).build();
         } else if (details.getState().equals(SqlAsyncQueryDetails.State.COMPLETE)) {
           // if completed remove output
           resultManager.deleteResults(asyncResultId);
-          return Response.status(Response.Status.ACCEPTED).entity(details.toApiResponse()).build();
         } else if (details.getState().equals(SqlAsyncQueryDetails.State.FAILED)) {
           // removing state if failed as a safety check
           sqlAsyncLifecycleManager.remove(asyncResultId);
-          return Response.status(Response.Status.ACCEPTED).entity(details.toApiResponse()).build();
-        } else {
-          //UNDETERMINED and anything else
-          return Response.status(Response.Status.ACCEPTED).build();
         }
-
+        // response for all states of SqlAsyncQueryDetails
+        return Response.status(Response.Status.ACCEPTED).build();
       } else {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
