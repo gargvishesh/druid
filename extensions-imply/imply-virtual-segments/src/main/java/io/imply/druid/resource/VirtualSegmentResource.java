@@ -77,9 +77,14 @@ public class VirtualSegmentResource
               //TODO: there can be a case where numReferences changes to non zero value after the check
               if (referenceCountingSegment.getNumReferences() == 0) {
                 log.info("Removing virtual segment %s", referenceCountingSegment.getId().toString());
-                dataSourceSegment.computeIfAbsent(dataSource, k -> new ArrayList<>());
-                dataSourceSegment.get(dataSource).add(referenceCountingSegment.getId().toString());
-                virtualSegmentLoader.evictSegment((VirtualReferenceCountingSegment) referenceCountingSegment);
+                try {
+                  virtualSegmentLoader.evictSegment((VirtualReferenceCountingSegment) referenceCountingSegment);
+                  dataSourceSegment.computeIfAbsent(dataSource, k -> new ArrayList<>());
+                  dataSourceSegment.get(dataSource).add(referenceCountingSegment.getId().toString());
+                }
+                catch (Exception e) {
+                  log.warn(e, "Unable to evict segment %s", referenceCountingSegment.getId().toString());
+                }
               }
             }
           }

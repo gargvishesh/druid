@@ -30,6 +30,7 @@ It must not be enabled on non-historical services.
 | `druid.virtualSegment.enabled` | Whether the extension should be enabled or not. This value should be set to `true` on cold historicals when using cold-tier. | false |
 | `druid.virtualSegment.downloadThreads` | Number of threads downloading the segments. |  `Runtime.getRuntime().availableProcessors()`  |
 | `druid.virtualSegment.downloadDelayMs` | Time interval in milliseconds between successive download requests if no space was available. | 10 |
+| `druid.virtualSegment.experimental` | Enables experimental mode. Should never be enabled in production. | false |
 
 # Cold-tier
 Virtual segment extension by itself is not usable but it is a key piece for enabling cold-tier. For the cold-tier to 
@@ -69,19 +70,35 @@ more hot historical tiers, they should be added to the list in above configurati
 
 ## Router configuration
 
-
 ```
 druid.router.strategies=[{"type":"manual","defaultManualBrokerService":"druid/broker"}]
 druid.router.tierToBrokerMap={"_cold_tier":"druid/broker-cold", "_default_tier":"druid/broker"}
 ```
 
+## Additional configs for long-running queries
+
+As cold tier query's can be long-running, its usefull to set these additional configs. Set elb timeout from 300 seconds
+to 1800 seconds in aws ec2 loadbalancer console.
+
+### Cold Broker configuration
+
+```
+druid.server.http.defaultQueryTimeout=1200000
+```
+
+### Router configuration
+
+```
+druid.router.http.readTimeout=PT16M
+```
+
 ## Loading data on cold-tier
 
-To load data on cold-tier, add a new load rule via web-console. For example, add the following load rules to keep 
-the last 6 months of data on cold-tier and 1 month of data on hot-tier.
+To load data on cold-tier, add a new load rule via web-console. For example, add the following load rules to keep the
+last 6 months of data on cold-tier and 1 month of data on hot-tier.
 
-Rule-1 - This rule instructs druid to keep 1 replica in hot-tier and 1 replica in cold-tier for any segment that falls 
-in the last 1 month interval. 
+Rule-1 - This rule instructs druid to keep 1 replica in hot-tier and 1 replica in cold-tier for any segment that falls
+in the last 1 month interval.
 
 ```json
 {
@@ -132,11 +149,7 @@ one would enable on a normal historical.
 |`virtual/segment/removed`|Number of segments removed because coordinator unassigned the segment.|Tier||
 |`virtual/segment/queued`|Number of segments queued for download.|Tier|<20|
 |`virtual/segment/downloaded`|Number of segments downloaded.|Tier||
-|`virtual/segment/download/pool/completed`|Number of download tasks completed.|Tier||
-|`virtual/segment/download/pool/active`|Number of download threads currently downloading a segment.|Tier||
-|`virtual/segment/download/pool/queued`|Number of download tasks currently queued.|Tier|<20|
-|`virtual/segment/download/pool/remaining`|Remaining download pool capacity.|Tier||
-|`virtual/segment/download/pool/size`|Active number of download threads.|Tier||
-|`virtual/segment/download/pool/core`|Number of core download threads.|Tier||
-|`virtual/segment/download/pool/max`|Max download pool queue size.|Tier||
-
+|`virtual/segment/download/pool/workers`|Number of download threads.|Tier||
+|`virtual/segment/cleanup/pool/pending`|Number of cleanup tasks pending.|Tier||
+|`virtual/segments/queue/toDownload`|Number of segments to download currently in queue.|Tier||
+|`virtual/segments/queue/downloaded`|Number of segments currently downloaded.|Tier||

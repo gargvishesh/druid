@@ -19,12 +19,12 @@ import io.imply.druid.segment.VirtualSegmentStateManagerImpl;
 public class VirtualSegmentMetadata
 {
   private final VirtualReferenceCountingSegment virtualSegment;
-  private VirtualSegmentStateManagerImpl.Status status;
-  private SettableFuture<Void> downloadFuture;
-  private long queueStartTimeMillis = 0L;
+  private volatile VirtualSegmentStateManagerImpl.Status status;
+  private volatile SettableFuture<Void> downloadFuture;
+  private volatile long queueStartTimeMillis = 0L;
   // Whether the segment is to removed from this server. This state is tracked separately through this
   // flag since a segment to be removed can also go through state transitions if the segment is in use already.
-  private boolean toBeRemoved = false;
+  private volatile boolean toBeRemoved = false;
 
   public VirtualSegmentMetadata(
       final VirtualReferenceCountingSegment virtualSegment,
