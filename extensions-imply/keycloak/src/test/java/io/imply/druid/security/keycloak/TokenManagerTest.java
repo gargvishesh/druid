@@ -97,6 +97,18 @@ public class TokenManagerTest
   }
 
   @Test
+  public void testGrantTokenReturnCachedTokenBeforeTokenExpiresWithNoRefresh()
+  {
+    final AccessTokenResponse expected = new AccessTokenResponse();
+    expected.setToken("accessToken");
+    expected.setExpiresIn(10000);
+    expected.setRefreshExpiresIn(0);
+    mockGrantToken(tokenService, expected);
+    Assert.assertEquals(expected.getToken(), tokenManager.getAccessTokenString());
+    Assert.assertEquals(expected.getToken(), tokenManager.getAccessTokenString());
+  }
+
+  @Test
   public void testRefreshTokenAfterAccessTokenIsExpired()
   {
     final AccessTokenResponse expected = new AccessTokenResponse();
@@ -127,6 +139,23 @@ public class TokenManagerTest
     final AccessTokenResponse expected2 = new AccessTokenResponse();
     expected2.setToken("accessToken2");
     expected2.setRefreshToken("refreshToken2");
+    expected2.setExpiresIn(0);
+    expected2.setRefreshExpiresIn(0);
+    mockGrantToken(tokenService, expected, expected2);
+
+    Assert.assertEquals(expected.getToken(), tokenManager.getAccessTokenString());
+    Assert.assertEquals(expected2.getToken(), tokenManager.getAccessTokenString());
+  }
+
+  @Test
+  public void testTokenGrantAfterTokenIsExpiredNoRefresh()
+  {
+    final AccessTokenResponse expected = new AccessTokenResponse();
+    expected.setToken("accessToken");
+    expected.setExpiresIn(0);
+    expected.setRefreshExpiresIn(0);
+    final AccessTokenResponse expected2 = new AccessTokenResponse();
+    expected2.setToken("accessToken2");
     expected2.setExpiresIn(0);
     expected2.setRefreshExpiresIn(0);
     mockGrantToken(tokenService, expected, expected2);
