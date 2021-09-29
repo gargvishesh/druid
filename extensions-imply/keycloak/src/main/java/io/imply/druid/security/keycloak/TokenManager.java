@@ -54,6 +54,8 @@ public class TokenManager
   private long expirationTimeSec;
   @GuardedBy("tokenLock")
   private long refreshTokenExpirationTimeSec;
+  @GuardedBy("tokenLock")
+  private boolean hasRefreshToken;
 
   public TokenManager(
       KeycloakDeployment deployment,
@@ -87,10 +89,14 @@ public class TokenManager
   {
     synchronized (tokenLock) {
       try {
-        if (accessTokenString == null || refreshTokenString == null || isRefreshTokenExpired()) {
+        if (hasRefreshToken) {
+          if (isRefreshTokenExpired()) {
+            grantToken();
+          } else if (isTokenExpired() || deployment.isAlwaysRefreshToken()) {
+            refreshToken();
+          }
+        } else if (accessTokenString == null || isTokenExpired()) {
           grantToken();
-        } else if (isTokenExpired() || deployment.isAlwaysRefreshToken()) {
-          refreshToken();
         }
       }
       catch (VerificationException e) {
@@ -125,6 +131,7 @@ public class TokenManager
     synchronized (tokenLock) {
       accessTokenString = tokenResponse.getToken();
       refreshTokenString = tokenResponse.getRefreshToken();
+      hasRefreshToken = refreshTokenString != null;
       if (verifyToken) {
         AdapterTokenVerifier.VerifiedTokens parsedTokens = AdapterTokenVerifier.verifyTokens(
             accessTokenString,
