@@ -24,14 +24,6 @@ jobs:
           # There is an existing automated check on master/ monthly that runs
           # on Jenkins, so we don't need a cron job to check it
           - release/4.0.x
-          # 3.4.x
-          - 0.19.0-iap
-          # 3.3.x
-          - 0.18.0-iap
-          # 3.2.x
-          - 0.17.0-iap
-          # At the time of writing older 3.x versions do not support
-          # dependency vulnerability checks. 2.x versions are not supported.
     steps:
       - uses: actions/checkout@v2
         with:
