@@ -20,7 +20,6 @@ import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
-import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.sql.http.SqlQuery;
 import org.apache.druid.testing.IntegrationTestingConfig;
@@ -38,7 +37,6 @@ public class AsyncResourceTestClient
   private final ObjectMapper jsonMapper;
   private final HttpClient httpClient;
   private final String broker;
-  private final StatusResponseHandler responseHandler;
 
   @Inject
   AsyncResourceTestClient(
@@ -50,7 +48,6 @@ public class AsyncResourceTestClient
     this.jsonMapper = jsonMapper;
     this.httpClient = httpClient;
     this.broker = config.getBrokerUrl();
-    this.responseHandler = StatusResponseHandler.getInstance();
   }
 
   private String getBrokerURL()
@@ -110,7 +107,7 @@ public class AsyncResourceTestClient
     return jsonMapper.readValue(response.getContent(), new TypeReference<SqlAsyncQueryDetailsApiResponse>() {});
   }
 
-  public List<List<Object>> getResult(final String asyncResultId) throws Exception
+  public <T> List<T> getResults(final String asyncResultId) throws Exception
   {
     String url = StringUtils.format("%ssql/async/%s/results", getBrokerURL(), asyncResultId);
     Request request = new Request(HttpMethod.GET, new URL(url));
@@ -132,7 +129,7 @@ public class AsyncResourceTestClient
       );
     }
 
-    return jsonMapper.readValue(response.getContent(), new TypeReference<List<List<Object>>>() {});
+    return jsonMapper.readValue(response.getContent(), new TypeReference<List<T>>() {});
   }
 
   public AsyncQueryLimitsConfig getAsyncQueryLimitsConfig()

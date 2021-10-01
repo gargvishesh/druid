@@ -245,6 +245,36 @@ def implyAsyncDownloadIntegrationTests(jvmRuntimeOpt) {
     }
 }
 
+def implyS3Tests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            def cloudpath = UUID.randomUUID().toString()
+            writeFile   file: "jenkins/s3-config",
+                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]\ndruid_query_async_sql_enabled=true\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results"
+            retry(2) {
+                try {
+                    sh script: """
+                        \${MVN} verify -P integration-tests-imply -pl integration-tests-imply \
+                        -Dgroups=imply-s3 \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=druid-qa \
+                        -Ddruid.test.config.cloudPath=${cloudpath}/ \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                    label: "imply-s3 with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    dockerCleanup()
+                }
+            }
+        }
+    }
+}
+
 def s3DeepStorageTests(jvmRuntimeOpt) {
     mavenCacheRestore()
     prepareIfconfig()
@@ -1162,6 +1192,12 @@ pipeline {
                 stage('(Compile=openjdk8, Run=openjdk8) imply async query result download integration tests') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { implyAsyncDownloadIntegrationTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+
+                stage('(Compile=openjdk8, Run=openjdk8) imply s3 tests') {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    steps { implyS3Tests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 

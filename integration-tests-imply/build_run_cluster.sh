@@ -78,6 +78,15 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.virtual-segments.yml up -d
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "imply-s3" ]
+  then
+    if [ -z "$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH" ]
+    then
+      echo "Test group $DRUID_INTEGRATION_TEST_GROUP requires override config file. Stopping test..."
+      exit 1
+    fi
+    echo "\$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH is set with value ${DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH}"
+    bash ${DIR}/script/docker_run_cluster.sh
   else
     bash ${DIR}/script/docker_run_cluster.sh
   fi

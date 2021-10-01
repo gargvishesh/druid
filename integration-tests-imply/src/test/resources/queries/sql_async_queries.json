@@ -1,0 +1,43 @@
+[
+  {
+    "query": {
+      "query": "SELECT count(*) cnt FROM \"%%DATASOURCE%%\" WHERE __time >= TIMESTAMP '2013-08-31' AND __time < TIMESTAMP '2013-09-01'"
+    },
+    "expectedResults": [
+      {
+        "cnt": 5
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "SELECT namespace, robot, count(*) \"count\", EARLIEST(added) firstAdded, LATEST(added) lastAdded, APPROX_COUNT_DISTINCT_DS_THETA(user) approxCountTheta from \"%%DATASOURCE%%\" group by 1, 2 order by 2, 1 limit 3"
+    },
+    "expectedResults": [
+      {
+        "count": 2,
+        "approxCountTheta": 1,
+        "firstAdded": 57.0,
+        "lastAdded": 57.0,
+        "robot": "false",
+        "namespace": "article"
+      },
+      {
+        "count": 2,
+        "approxCountTheta": 1,
+        "firstAdded": 123.0,
+        "lastAdded": 123.0,
+        "robot": "true",
+        "namespace": "article"
+      },
+      {
+        "count": 6,
+        "approxCountTheta": 3,
+        "firstAdded": 459.0,
+        "lastAdded": 1.0,
+        "robot": "true",
+        "namespace": "wikipedia"
+      }
+    ]
+  }
+]

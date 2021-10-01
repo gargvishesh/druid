@@ -50,6 +50,7 @@ public class S3SqlAsyncResultStorageModule implements DruidModule
   public void configure(Binder binder)
   {
     if (SqlAsyncModule.isEnabled(props)) {
+      SqlAsyncModule.bindAsyncMetadataManager(binder);
       JsonConfigProvider.bind(
           binder,
           StringUtils.format("%s.s3", SqlAsyncModule.BASE_STORAGE_CONFIG_KEY),
