@@ -79,7 +79,7 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
           "Waiting for async task to be completed"
       );
 
-      List<List<Object>> results = asyncResourceTestClient.getResult(asyncResultId);
+      List<List<Object>> results = asyncResourceTestClient.getResults(asyncResultId);
       // Result should only contain one row
       Assert.assertEquals(results.size(), 1);
       // The row should only have one column
@@ -100,7 +100,7 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
           "Wating for async cleanup coordinator duty to complete"
       );
 
-      Assert.assertNull(asyncResourceTestClient.getResult(asyncResultId));
+      Assert.assertNull(asyncResourceTestClient.getResults(asyncResultId));
     }
   }
 
@@ -148,7 +148,7 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
       );
 
       // Verify that async result with metadata was not deleted by the duty
-      List<List<Object>> results = asyncResourceTestClient.getResult(asyncResultId);
+      List<List<Object>> results = asyncResourceTestClient.getResults(asyncResultId);
       // Result should only contain one row
       Assert.assertEquals(results.size(), 1);
       // The row should only have one column

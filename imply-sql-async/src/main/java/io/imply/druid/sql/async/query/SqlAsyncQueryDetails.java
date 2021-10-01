@@ -190,11 +190,43 @@ public class SqlAsyncQueryDetails
   // TODO: should be extendable
   public enum State
   {
-    INITIALIZED,
-    RUNNING,
-    COMPLETE,
-    FAILED,
-    UNDETERMINED
+    INITIALIZED {
+      @Override
+      public boolean isFinal()
+      {
+        return false;
+      }
+    },
+    RUNNING {
+      @Override
+      public boolean isFinal()
+      {
+        return false;
+      }
+    },
+    COMPLETE {
+      @Override
+      public boolean isFinal()
+      {
+        return true;
+      }
+    },
+    FAILED {
+      @Override
+      public boolean isFinal()
+      {
+        return true;
+      }
+    },
+    UNDETERMINED {
+      @Override
+      public boolean isFinal()
+      {
+        return true;
+      }
+    };
+
+    public abstract boolean isFinal();
   }
 
   private static String clipErrorMessage(@Nullable final String errorMessage)
