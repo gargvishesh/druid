@@ -43,12 +43,13 @@ public class EmitAsyncStatsAndMetricsTest
     stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY, 5);
     stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY, 6);
     stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY, 7);
+    stats.addToGlobalStat(UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT, 8);
     DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder()
                                                                               .withCoordinatorStats(stats)
                                                                               .withEmitter(mockServiceEmitter)
                                                                               .build();
     emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(9)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(10)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 
@@ -62,7 +63,7 @@ public class EmitAsyncStatsAndMetricsTest
                                                                               .withEmitter(mockServiceEmitter)
                                                                               .build();
     emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(9)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(10)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 }

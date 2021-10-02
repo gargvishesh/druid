@@ -20,7 +20,9 @@ import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.sql.http.ResultFormat;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class SqlAsyncQueryDetails
 {
   private static final int MAX_ERROR_MESSAGE_LENGTH = 50_000;
@@ -131,16 +133,13 @@ public class SqlAsyncQueryDetails
 
   @Nullable
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getIdentity()
   {
-    // TODO(gianm): Include in ZK metadata, but not in API response. Two different objects?
     return identity;
   }
 
   @Nullable
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   public QueryException getError()
   {
     return error;
@@ -176,6 +175,18 @@ public class SqlAsyncQueryDetails
     return createError(asyncResultId, identity, resultFormat, e);
   }
 
+  public SqlAsyncQueryDetails toUndetermined()
+  {
+    return new SqlAsyncQueryDetails(
+        asyncResultId,
+        State.UNDETERMINED,
+        identity,
+        resultFormat,
+        resultLength,
+        null
+    );
+  }
+
   public SqlAsyncQueryDetailsApiResponse toApiResponse()
   {
     return new SqlAsyncQueryDetailsApiResponse(
@@ -185,6 +196,30 @@ public class SqlAsyncQueryDetails
         resultLength,
         error
     );
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SqlAsyncQueryDetails that = (SqlAsyncQueryDetails) o;
+    return resultLength == that.resultLength
+           && Objects.equals(asyncResultId, that.asyncResultId)
+           && state == that.state
+           && resultFormat == that.resultFormat
+           && Objects.equals(identity, that.identity)
+           && Objects.equals(error, that.error);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(asyncResultId, state, resultFormat, resultLength, identity, error);
   }
 
   // TODO: should be extendable

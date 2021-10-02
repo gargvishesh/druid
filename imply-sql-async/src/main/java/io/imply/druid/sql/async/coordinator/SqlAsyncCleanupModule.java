@@ -21,6 +21,7 @@ import com.google.inject.Inject;
 import io.imply.druid.sql.async.SqlAsyncModule;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryMetadata;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryResultWithoutMetadata;
+import io.imply.druid.sql.async.coordinator.duty.UpdateStaleQueryState;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -34,6 +35,11 @@ public class SqlAsyncCleanupModule implements DruidModule
   public static final String BASE_CLEANUP_CONFIG_KEY = String.join(".", SqlAsyncModule.BASE_ASYNC_CONFIG_KEY, "cleanup");
   public static final String CLEANUP_POLL_PERIOD_CONFIG_KEY = String.join(".", BASE_CLEANUP_CONFIG_KEY, "pollPeriod");
   public static final String CLEANUP_TIME_TO_RETAIN_CONFIG_KEY = String.join(".", BASE_CLEANUP_CONFIG_KEY, KillAsyncQueryMetadata.TIME_TO_RETAIN_KEY);
+  public static final String TIME_TO_WAIT_AFTER_BROKER_GONE = String.join(
+      ".",
+      BASE_CLEANUP_CONFIG_KEY,
+      UpdateStaleQueryState.TIME_TO_WAIT_AFTER_BROKER_GONE
+  );
 
   private static final Logger LOG = new Logger(SqlAsyncCleanupModule.class);
   private static final String DEFAULT_QUERY_TIME_TO_RETAIN = "PT60S";
@@ -50,9 +56,10 @@ public class SqlAsyncCleanupModule implements DruidModule
   }
 
   @VisibleForTesting
-  SqlAsyncCleanupModule(Properties props)
+  SqlAsyncCleanupModule(Properties props, ObjectMapper jsonMapper)
   {
     this.props = props;
+    this.jsonMapper = jsonMapper;
   }
 
   @Override
@@ -61,7 +68,11 @@ public class SqlAsyncCleanupModule implements DruidModule
     if (SqlAsyncModule.isEnabled(props)) {
       return ImmutableList.<Module>of(
           new SimpleModule("SqlAsyncCleanupModule")
-              .registerSubtypes(KillAsyncQueryMetadata.class, KillAsyncQueryResultWithoutMetadata.class)
+              .registerSubtypes(
+                  KillAsyncQueryMetadata.class,
+                  KillAsyncQueryResultWithoutMetadata.class,
+                  UpdateStaleQueryState.class
+              )
       );
     } else {
       return ImmutableList.of();
@@ -86,21 +97,40 @@ public class SqlAsyncCleanupModule implements DruidModule
 
   private static void setupAsyncCleanupCoordinatorDutyGroup(ObjectMapper jsonMapper, Properties props) throws Exception
   {
-    String asyncCleanupPeriod;
+    setupAsyncCleanupCoordinatorDutyGroup(
+        StringUtils.format("asyncResultsCleanupInternal-%s", UUID.randomUUID()),
+        jsonMapper,
+        props
+    );
+  }
+
+  @VisibleForTesting
+  static void setupAsyncCleanupCoordinatorDutyGroup(
+      String asyncCleanupGroupName,
+      ObjectMapper jsonMapper,
+      Properties props
+  ) throws Exception
+  {
+    final String asyncCleanupPeriod;
     if (Strings.isNullOrEmpty(props.getProperty(CLEANUP_POLL_PERIOD_CONFIG_KEY))) {
       asyncCleanupPeriod = DEFAULT_ASYNC_CLEANUP_COORDINATOR_DUTY_PERIOD;
     } else {
       asyncCleanupPeriod = props.getProperty(CLEANUP_POLL_PERIOD_CONFIG_KEY);
     }
-    String asyncCleanupTimeToRetain;
+    final String asyncCleanupTimeToRetain;
     if (Strings.isNullOrEmpty(props.getProperty(CLEANUP_TIME_TO_RETAIN_CONFIG_KEY))) {
       asyncCleanupTimeToRetain = DEFAULT_QUERY_TIME_TO_RETAIN;
     } else {
       asyncCleanupTimeToRetain = props.getProperty(CLEANUP_TIME_TO_RETAIN_CONFIG_KEY);
     }
+    final String timeToWaitAfterBrokerGone;
+    if (Strings.isNullOrEmpty(props.getProperty(TIME_TO_WAIT_AFTER_BROKER_GONE))) {
+      timeToWaitAfterBrokerGone = null;
+    } else {
+      timeToWaitAfterBrokerGone = props.getProperty(TIME_TO_WAIT_AFTER_BROKER_GONE);
+    }
 
     // Added randomUUID to async cleanup group name to ensure no collision with any other user provided Coordinator Custom Duty groups
-    String asyncCleanupGroupName = StringUtils.format("asyncResultsCleanupInternal-%s", UUID.randomUUID());
     if (Strings.isNullOrEmpty(props.getProperty("druid.coordinator.dutyGroups"))) {
       props.setProperty("druid.coordinator.dutyGroups", jsonMapper.writeValueAsString(ImmutableList.of(asyncCleanupGroupName)));
     } else {
@@ -113,7 +143,8 @@ public class SqlAsyncCleanupModule implements DruidModule
         jsonMapper.writeValueAsString(
             ImmutableList.of(
                 KillAsyncQueryMetadata.JSON_TYPE_NAME,
-                KillAsyncQueryResultWithoutMetadata.JSON_TYPE_NAME
+                KillAsyncQueryResultWithoutMetadata.JSON_TYPE_NAME,
+                UpdateStaleQueryState.TYPE
             )
         )
     );
@@ -126,6 +157,17 @@ public class SqlAsyncCleanupModule implements DruidModule
         ),
         asyncCleanupTimeToRetain
     );
+    if (timeToWaitAfterBrokerGone != null) {
+      props.setProperty(
+          StringUtils.format(
+              "druid.coordinator.%s.duty.%s.%s",
+              asyncCleanupGroupName,
+              UpdateStaleQueryState.TYPE,
+              UpdateStaleQueryState.TIME_TO_WAIT_AFTER_BROKER_GONE
+          ),
+          timeToWaitAfterBrokerGone
+      );
+    }
     props.setProperty(
         StringUtils.format("druid.coordinator.%s.period", asyncCleanupGroupName),
         asyncCleanupPeriod

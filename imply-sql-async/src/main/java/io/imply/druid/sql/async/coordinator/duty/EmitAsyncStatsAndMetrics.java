@@ -86,6 +86,12 @@ public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
               stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY)
           )
       );
+      emitter.emit(
+          new ServiceMetricEvent.Builder().build(
+              UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT,
+              stats.getGlobalStat(UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT)
+          )
+      );
 
       // Emit stats from current state
       try {

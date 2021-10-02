@@ -96,15 +96,23 @@ A recommended value for `DaysAfterInitiation` is 2 * query timeout.
 
 ### Query state and result file management
 
-Async downloads uses two coordinator duties to clean up expired query states and result files: `killAsyncQueryMetadata` and `killAsyncQueryResultWithoutMetadata`.
+Async downloads uses two coordinator duties to clean up expired query states and result files: `killAsyncQueryMetadata`, `killAsyncQueryResultWithoutMetadata`, and `updateStaleQueryState`.
 When you turn on async downloads, Druid enables these duties automatically.
 These duties support the following properties:
 
 |config|description|required|default|
 | --- | --- | --- | --- |
 |`druid.query.async.cleanup.timeToRetain`| Retention period of query states and result files. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
+|`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
 |`druid.query.async.cleanup.pollPeriod`| Duty group run period. Must be a form of `PT{n}S` to set this to `n` seconds. | no | PT30S |
 
+#### Configuring coordinator duties
+
+The coordinator duties for cleaning up query states and results are executed periodically per `druid.query.async.cleanup.pollPeriod`.
+As a result, any time-based configuration for duties will be affected by the `pollPeriod`. For example, if you set
+`druid.query.async.cleanup.timeToWaitAfterBrokerGone` and `druid.query.async.cleanup.pollPeriod` to `PT40S` and `PT30S`, respectively,
+the actual effective `timeToWaitAfterBrokerGone` will be `PT60S` because the `updateStaleQueryState` duty will check
+whether the broker has gone offline for longer than `timeToWaitAfterBrokerGone` every 30 seconds.
 
 ### Query execution limits
 
@@ -242,6 +250,7 @@ API will still return details for the query.
 - `async/cleanup/metadata/removed/count`: number of query states successfully cleaned up in each coordinator run.
 - `async/cleanup/metadata/failed/count`: number of failed attempts to clean up query states in each coordinator run.
 - `async/cleanup/metadata/skipped/count`: number of query states that have not expired in each coordinator run.
+- `async/query/undetermined/count`: number of queries that have been marked as undetermined during `druid.query.async.cleanup.pollPeriod`.
 
 
 ## Caveats

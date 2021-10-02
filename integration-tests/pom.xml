@@ -39,6 +39,13 @@
     </repositories>
 
     <dependencies>
+        <!-- BEGIN: imply-specific dependencies-->
+        <dependency>
+            <groupId>io.imply</groupId>
+            <artifactId>imply-sql-async</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <!-- END: imply-specific dependencies-->
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-producer</artifactId>

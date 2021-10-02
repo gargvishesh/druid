@@ -25,7 +25,9 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
 import io.airlift.airline.Command;
+import io.imply.druid.sql.async.BrokerIdServiceModule;
 import io.imply.druid.sql.async.SqlAsyncModule;
+import io.imply.druid.sql.async.discovery.BrokerIdService;
 import org.apache.druid.client.BrokerSegmentWatcherConfig;
 import org.apache.druid.client.BrokerServerView;
 import org.apache.druid.client.CachingClusteredClient;
@@ -157,7 +159,15 @@ public class CliBroker extends ServerRunnable
               binder,
               DiscoverySideEffectsProvider
                   .builder(NodeRole.BROKER)
-                  .serviceClasses(ImmutableList.of(DataNodeService.class, LookupNodeService.class))
+                  .serviceClasses(
+                      ImmutableList.of(
+                          DataNodeService.class,
+                          LookupNodeService.class,
+                          // BEGIN: Imply-specific service
+                          BrokerIdService.class
+                          // END: Imply-specific service
+                      )
+                  )
                   .useLegacyAnnouncer(true)
                   .build()
           );
@@ -168,7 +178,8 @@ public class CliBroker extends ServerRunnable
         new LookupModule(),
         new SqlModule(),
         // BEGIN: Imply-specific module
-        new SqlAsyncModule()
+        new SqlAsyncModule(),
+        new BrokerIdServiceModule()
         // END: Imply-specific module
     );
   }

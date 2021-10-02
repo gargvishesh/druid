@@ -10,13 +10,16 @@
 package io.imply.druid.sql.async.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.io.CountingOutputStream;
-import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
+import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.SqlAsyncLifecycleManager;
 import io.imply.druid.sql.async.SqlAsyncUtil;
 import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
+import org.apache.druid.guice.ManageLifecycleAnnouncements;
+import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
@@ -24,7 +27,9 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryInterruptedException;
+import org.apache.druid.server.initialization.jetty.BadRequestException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
@@ -33,38 +38,78 @@ import org.apache.druid.sql.http.SqlQuery;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadPoolExecutor;
 
+@ManageLifecycleAnnouncements
 public class SqlAsyncQueryPool
 {
   private static final EmittingLogger log = new EmittingLogger(SqlAsyncQueryPool.class);
 
-  private final ThreadPoolExecutor exec;
   private final String brokerId;
+  private final AsyncQueryPoolConfig asyncQueryPoolConfig;
+  private final ThreadPoolExecutor exec;
   private final SqlAsyncMetadataManager metadataManager;
   private final SqlAsyncResultManager resultManager;
   private final ObjectMapper jsonMapper;
-  private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
   private final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
 
   public SqlAsyncQueryPool(
+      final String brokerId,
+      final AsyncQueryPoolConfig asyncQueryPoolConfig,
       final ThreadPoolExecutor exec,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
-      AsyncQueryLimitsConfig asyncQueryLimitsConfig,
       final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
-      final ObjectMapper jsonMapper,
-      final String brokerId
+      final ObjectMapper jsonMapper
   )
   {
+    this.brokerId = brokerId;
+    this.asyncQueryPoolConfig = asyncQueryPoolConfig;
     this.exec = exec;
     this.metadataManager = metadataManager;
     this.resultManager = resultManager;
     this.jsonMapper = jsonMapper;
-    this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
     this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
-    this.brokerId = brokerId;
+  }
+
+  @LifecycleStop
+  public void stop() throws IOException
+  {
+    // Closeables are executed in LIFO order.
+    Closer closer = Closer.create();
+    closer.register(() -> {
+      Collection<String> asyncResultIds = metadataManager.getAllAsyncResultIds();
+      for (String asyncResultId : asyncResultIds) {
+        try {
+          if (brokerId.equals(SqlAsyncUtil.getBrokerIdFromAsyncResultId(asyncResultId))) {
+            Optional<SqlAsyncQueryDetails> details = metadataManager.getQueryDetails(asyncResultId);
+            if (details.isPresent()
+                && (details.get().getState() == SqlAsyncQueryDetails.State.INITIALIZED
+                    || details.get().getState() == SqlAsyncQueryDetails.State.RUNNING
+                )
+            ) {
+              metadataManager.updateQueryDetails(
+                  details.get().toError(
+                      new QueryInterruptedException(
+                          QueryInterruptedException.QUERY_INTERRUPTED,
+                          "Interrupted by broker shutdown",
+                          null,
+                          null
+                      )
+                  )
+              );
+            }
+          }
+        }
+        catch (Exception e) {
+          log.warn(e, "Failed to update state while stopping SqlAsyncQueryPool for asyncResultIds[%s]", asyncResultId);
+        }
+      }
+    });
+    closer.register(exec::shutdownNow);
+    closer.close();
   }
 
   public SqlAsyncQueryDetails execute(
@@ -78,10 +123,10 @@ public class SqlAsyncQueryPool
     assert lifecycle.getAuthenticationResult() != null;
     // Check if we are under retention number of queries limit. Reject query if we are over the limit
     int currentQueryCount = metadataManager.getAllAsyncResultIds().size();
-    if (currentQueryCount >= asyncQueryLimitsConfig.getMaxAsyncQueries()) {
+    if (currentQueryCount >= asyncQueryPoolConfig.getMaxAsyncQueries()) {
       String errorMessage = StringUtils.format(
           "Too many async queries. Total async query limit of %s exceeded. Please try your query again later.",
-          asyncQueryLimitsConfig.getMaxAsyncQueries()
+          asyncQueryPoolConfig.getMaxAsyncQueries()
       );
       QueryCapacityExceededException e = new QueryCapacityExceededException(
           QueryCapacityExceededException.ERROR_CODE,
@@ -91,6 +136,11 @@ public class SqlAsyncQueryPool
       );
       log.makeAlert(e, "Total async query limit exceeded").addData("asyncResultId", asyncResultId).emit();
       throw e;
+    }
+
+    final long timeout = getTimeout(sqlQuery.getContext());
+    if (!hasTimeout(timeout)) {
+      throw new BadRequestException("Query must have timeout");
     }
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
@@ -220,40 +270,32 @@ public class SqlAsyncQueryPool
     }
   }
 
-  @LifecycleStop
-  public void stop() throws IOException
+  // These methods are copied from QueryContexts.
+
+  private static long getDefaultTimeout(Map<String, Object> context)
   {
-    Closer closer = Closer.create();
-    closer.register(() -> {
-      Collection<String> asyncResultIds = metadataManager.getAllAsyncResultIds();
-      for (String asyncResultId : asyncResultIds) {
-        try {
-          if (brokerId.equals(SqlAsyncUtil.getBrokerIdFromAsyncResultId(asyncResultId))) {
-            Optional<SqlAsyncQueryDetails> details = metadataManager.getQueryDetails(asyncResultId);
-            if (details.isPresent()
-                && (details.get().getState() == SqlAsyncQueryDetails.State.INITIALIZED
-                    || details.get().getState() == SqlAsyncQueryDetails.State.RUNNING
-                )
-            ) {
-              metadataManager.updateQueryDetails(
-                  details.get().toError(
-                      new QueryInterruptedException(
-                          QueryInterruptedException.QUERY_INTERRUPTED,
-                          "Interrupted by broker shutdown",
-                          null,
-                          null
-                      )
-                  )
-              );
-            }
-          }
-        }
-        catch (Exception e) {
-          log.warn(e, "Failed to update state while stopping SqlAsyncQueryPool for asyncResultIds[%s]", asyncResultId);
-        }
-      }
-    });
-    closer.register(exec::shutdownNow);
-    closer.close();
+    final long defaultTimeout = parseLong(
+        context,
+        QueryContexts.DEFAULT_TIMEOUT_KEY,
+        QueryContexts.DEFAULT_TIMEOUT_MILLIS
+    );
+    Preconditions.checkState(defaultTimeout >= 0, "Timeout must be a non negative value, but was [%s]", defaultTimeout);
+    return defaultTimeout;
+  }
+
+  private static long getTimeout(Map<String, Object> context)
+  {
+    return parseLong(context, QueryContexts.TIMEOUT_KEY, getDefaultTimeout(context));
+  }
+
+  private static boolean hasTimeout(long timeout)
+  {
+    return timeout != QueryContexts.NO_TIMEOUT;
+  }
+
+  private static long parseLong(Map<String, Object> context, String key, long defaultValue)
+  {
+    final Object val = context.get(key);
+    return val == null ? defaultValue : Numbers.parseLong(val);
   }
 }

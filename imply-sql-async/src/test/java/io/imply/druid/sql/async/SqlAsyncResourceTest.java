@@ -109,20 +109,21 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
           }
         }
     );
-    AsyncQueryLimitsConfig asyncQueryLimitsConfig = new AsyncQueryLimitsConfig(
+    AsyncQueryPoolConfig asyncQueryPoolConfig = new AsyncQueryPoolConfig(
         MAX_CONCURRENT_QUERIES,
         MAX_ASYNC_QUERIES,
         MAX_QUERIES_TO_QUEUE
     );
     SqlAsyncLifecycleManager sqlAsyncLifecycleManager = new SqlAsyncLifecycleManager(new SqlLifecycleManager());
     SqlAsyncModule.SqlAsyncQueryPoolProvider poolProvider = new SqlAsyncModule.SqlAsyncQueryPoolProvider(
+        BROKER_ID,
+        jsonMapper,
+        asyncQueryPoolConfig,
         metadataManager,
         resultManager,
-        jsonMapper,
-        asyncQueryLimitsConfig,
+        asyncQueryPoolConfig,
         sqlAsyncLifecycleManager,
-        lifecycle,
-        BROKER_ID
+        lifecycle
     );
     queryPool = poolProvider.get();
     final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(

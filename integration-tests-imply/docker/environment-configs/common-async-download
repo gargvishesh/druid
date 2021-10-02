@@ -18,3 +18,5 @@ druid_query_async_maxQueriesToQueue=3
 
 druid_query_async_cleanup_pollPeriod=PT3S
 druid_query_async_cleanup_timeToRetain=PT90S
+
+druid_query_async_cleanup_timeToWaitAfterBrokerGone=PT10S

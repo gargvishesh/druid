@@ -28,12 +28,13 @@ import org.apache.zookeeper.data.Stat;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
 {
-  private static final String PATH = "sql-async-query";
+  private static final String PATH = "imply-async-query";
 
   private final CuratorFramework curator;
   private final ZkPathsConfig config;
@@ -82,6 +83,8 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
       throw new AsyncQueryDoesNotExistException(queryDetails.getAsyncResultId());
     }
     catch (Exception e) {
+      // oops, something bad happened. but don't worry. coordinator will clean up stale query states.
+      // see UpdateStaleQueryState.
       throw new IOE(e, "Error while updating path at [%s]", path);
     }
   }
@@ -162,7 +165,7 @@ public class CuratorSqlAsyncMetadataManager implements SqlAsyncMetadataManager
     catch (Exception e) {
       throw new IOE(e, "Error while retrieving children from path at [%s]", path);
     }
-    return ImmutableList.copyOf(asyncResultIds);
+    return Collections.unmodifiableCollection(asyncResultIds);
   }
 
   @Override

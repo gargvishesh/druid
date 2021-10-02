@@ -145,8 +145,7 @@ public class KillAsyncQueryMetadataTest
 
     // query2 is not eligible for cleanup due to running state
     String query2 = "asyncResultId2";
-    SqlAsyncQueryDetails sqlAsyncQueryDetail2 = SqlAsyncQueryDetails.createNew(query2, IDENTITY, RESULT_FORMAT)
-                                                                    .toRunning();
+    SqlAsyncQueryDetails sqlAsyncQueryDetail2 = SqlAsyncQueryDetails.createNew(query2, IDENTITY, RESULT_FORMAT).toRunning();
     SqlAsyncQueryMetadata metadata2 = new SqlAsyncQueryMetadata(0);
     SqlAsyncQueryDetailsAndMetadata sqlAsyncQueryDetailAndStat2 = new SqlAsyncQueryDetailsAndMetadata(
         sqlAsyncQueryDetail2,
