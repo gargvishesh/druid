@@ -12,7 +12,7 @@ package io.imply.druid.tests.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
+import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -20,6 +20,8 @@ import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
+import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
+import org.apache.druid.java.util.http.client.response.StatusResponseHolder;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.sql.http.SqlQuery;
 import org.apache.druid.testing.IntegrationTestingConfig;
@@ -28,9 +30,11 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.ws.rs.core.MediaType;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class AsyncResourceTestClient
 {
@@ -132,10 +136,37 @@ public class AsyncResourceTestClient
     return jsonMapper.readValue(response.getContent(), new TypeReference<List<T>>() {});
   }
 
-  public AsyncQueryLimitsConfig getAsyncQueryLimitsConfig()
+  public boolean cancel(final String asyncResultId)
+      throws MalformedURLException, ExecutionException, InterruptedException
+  {
+    String url = StringUtils.format("%ssql/async/%s", getBrokerURL(), asyncResultId);
+
+    Request request = new Request(HttpMethod.DELETE, new URL(url));
+
+    StatusResponseHolder response = httpClient.go(
+        request,
+        StatusResponseHandler.getInstance()
+    ).get();
+
+    if (response.getStatus().equals(HttpResponseStatus.NOT_FOUND)) {
+      return false;
+    }
+
+    if (!response.getStatus().equals(HttpResponseStatus.ACCEPTED)) {
+      throw new ISE(
+          "Got [%s] while cancelling async query [%s]",
+          response.getStatus(),
+          asyncResultId
+      );
+    }
+
+    return true;
+  }
+
+  public AsyncQueryPoolConfig getAsyncQueryPoolConfig()
   {
     // The limit configs are set in integration-tests-imply/docker/environment-configs/common-async-download
     // The hardcoded values below must be keep in sync with the configs in the configuration file mentioned above.
-    return new AsyncQueryLimitsConfig(10, 15, 3);
+    return new AsyncQueryPoolConfig(10, 15, 3);
   }
 }

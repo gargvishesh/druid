@@ -19,6 +19,7 @@ import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import io.imply.druid.sql.async.discovery.BrokerIdService;
 import io.imply.druid.sql.async.metadata.CuratorSqlAsyncMetadataManager;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
@@ -50,13 +51,13 @@ import java.util.concurrent.TimeUnit;
 
 public class SqlAsyncModule implements Module
 {
-  private static final Logger LOG = new Logger(SqlAsyncModule.class);
-
   public static final String BASE_ASYNC_CONFIG_KEY = "druid.query.async";
   public static final String ASYNC_ENABLED_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "sql", "enabled");
   public static final String BASE_STORAGE_CONFIG_KEY = String.join(".", BASE_ASYNC_CONFIG_KEY, "storage");
   public static final String STORAGE_TYPE_CONFIG_KEY = String.join(".", BASE_STORAGE_CONFIG_KEY, "type");
   public static final String ASYNC_BROKER_ID = "asyncBrokerId";
+
+  private static final Logger LOG = new Logger(SqlAsyncModule.class);
 
   @Inject
   private Properties props;
@@ -93,70 +94,72 @@ public class SqlAsyncModule implements Module
 
   public static class SqlAsyncQueryPoolProvider implements Provider<SqlAsyncQueryPool>
   {
+    private final String brokerId;
+    private final AsyncQueryPoolConfig asyncQueryPoolConfig;
     private final SqlAsyncMetadataManager metadataManager;
     private final SqlAsyncResultManager resultManager;
     private final ObjectMapper jsonMapper;
-    private final AsyncQueryLimitsConfig asyncQueryLimitsConfig;
     private final Lifecycle lifecycle;
     private final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
-    private final String brokerId;
 
     @Inject
     public SqlAsyncQueryPoolProvider(
+        @Named(ASYNC_BROKER_ID) final String brokerId,
+        final @Json ObjectMapper jsonMapper,
+        final AsyncQueryPoolConfig asyncQueryPoolConfig,
         final SqlAsyncMetadataManager metadataManager,
         final SqlAsyncResultManager resultManager,
-        @Json ObjectMapper jsonMapper,
-        AsyncQueryLimitsConfig asyncQueryLimitsConfig,
-        SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
-        Lifecycle lifecycle,
-        @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId
+        final AsyncQueryPoolConfig asyncQueryLimitsConfig,
+        final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
+        final Lifecycle lifecycle
     )
     {
+      this.brokerId = brokerId;
+      this.asyncQueryPoolConfig = asyncQueryPoolConfig;
       this.metadataManager = metadataManager;
       this.resultManager = resultManager;
       this.jsonMapper = jsonMapper;
-      this.asyncQueryLimitsConfig = asyncQueryLimitsConfig;
       this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
       this.lifecycle = lifecycle;
-      this.brokerId = brokerId;
     }
 
     @Override
     public SqlAsyncQueryPool get()
     {
       final ThreadPoolExecutor exec = new ThreadPoolExecutor(
-          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
+          asyncQueryPoolConfig.getMaxConcurrentQueries(),
           // The maximum number of concurrent query allowed is control by setting maximumPoolSize of the
           // ThreadPoolExecutor. This basically control how many query can be executing at the same time.
-          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
+          asyncQueryPoolConfig.getMaxConcurrentQueries(),
           0L,
           TimeUnit.MILLISECONDS,
           // The queue limit is control by setting the size of the queue use for holding tasks before they are executed
-          new LinkedBlockingQueue<>(asyncQueryLimitsConfig.getMaxQueriesToQueue()),
+          new LinkedBlockingQueue<>(asyncQueryPoolConfig.getMaxQueriesToQueue()),
           Execs.makeThreadFactory("sql-async-pool-%d", null),
           new RejectedExecutionHandler()
           {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor)
             {
-              throw new QueryCapacityExceededException(asyncQueryLimitsConfig.getMaxQueriesToQueue());
+              throw new QueryCapacityExceededException(asyncQueryPoolConfig.getMaxQueriesToQueue());
             }
           }
       );
       SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(
+          brokerId,
+          asyncQueryPoolConfig,
           exec,
           metadataManager,
           resultManager,
-          asyncQueryLimitsConfig,
           sqlAsyncLifecycleManager,
-          jsonMapper,
-          brokerId
+          jsonMapper
+
       );
       lifecycle.addManagedInstance(sqlAsyncQueryPool);
       LOG.debug(
           "Created SqlAsyncQueryPool with maxConcurrentQueries[%d] and maxQueriesToQueue[%d]",
-          asyncQueryLimitsConfig.getMaxConcurrentQueries(),
-          asyncQueryLimitsConfig.getMaxQueriesToQueue()
+          asyncQueryPoolConfig.getMaxConcurrentQueries(),
+          asyncQueryPoolConfig.getMaxQueriesToQueue()
       );
       return sqlAsyncQueryPool;
     }
@@ -170,6 +173,13 @@ public class SqlAsyncModule implements Module
     // The UUID generated should never have SqlAsyncUtil.BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR charater
     // Hence, the removing should never do anything and is just a safety check
     return StringUtils.removeChar(UUIDUtils.generateUuid(), SqlAsyncUtil.BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_CHAR);
+  }
+
+  @Provides
+  @LazySingleton
+  public BrokerIdService getBrokerIdService(@Named(ASYNC_BROKER_ID) String brokerId)
+  {
+    return new BrokerIdService(brokerId);
   }
 
   /**
@@ -229,6 +239,6 @@ public class SqlAsyncModule implements Module
 
   public static void bindAsyncLimitsConfig(Binder binder)
   {
-    JsonConfigProvider.bind(binder, BASE_ASYNC_CONFIG_KEY, AsyncQueryLimitsConfig.class);
+    JsonConfigProvider.bind(binder, BASE_ASYNC_CONFIG_KEY, AsyncQueryPoolConfig.class);
   }
 }

@@ -33,6 +33,7 @@ import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import io.airlift.airline.Command;
+import io.imply.druid.sql.async.BrokerIdServiceModule;
 import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.druid.audit.AuditManager;
@@ -366,6 +367,7 @@ public class CliCoordinator extends ServerRunnable
 
     // BEGIN: Imply-specific module
     modules.add(new SqlAsyncCleanupModule());
+    modules.add(new BrokerIdServiceModule());
     // END: Imply-specific module
 
     return modules;

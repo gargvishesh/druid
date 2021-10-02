@@ -22,6 +22,8 @@ public interface SqlAsyncMetadataManager
 {
   void addNewQuery(SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryAlreadyExistsException;
 
+  // TODO(jihoon): this method is racy because query state can be updated by both coordinator and broker.
+  //               should add compareAndSwap() instead.
   void updateQueryDetails(SqlAsyncQueryDetails queryDetails) throws IOException, AsyncQueryDoesNotExistException;
 
   // TODO(gianm): Actually call this and clean stuff up

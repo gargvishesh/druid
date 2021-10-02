@@ -109,6 +109,12 @@ public class DruidClusterAdminClient
     restartDockerContainer(BROKER_DOCKER_CONTAINER_NAME);
   }
 
+  // TODO: this change should be made for open source
+  public void killAndRestartBrokerContainer()
+  {
+    killAndRestartDockerContainer(BROKER_DOCKER_CONTAINER_NAME);
+  }
+
   public void restartRouterContainer()
   {
     restartDockerContainer(ROUTER_DOCKER_CONTAINER_NAME);

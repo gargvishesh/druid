@@ -14,7 +14,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.StringUtils;
 
-public class AsyncQueryLimitsConfig
+import javax.annotation.Nullable;
+import javax.validation.constraints.Min;
+
+public class AsyncQueryPoolConfig
 {
   private static final String MAX_CONCURRENT_QUERIES_KEY = "maxConcurrentQueries";
   private static final String MAX_ASYNC_QUERIES_KEY = "maxAsyncQueries";
@@ -25,27 +28,30 @@ public class AsyncQueryLimitsConfig
   private static final int DEFAULT_MAX_QUERIES_TO_QUEUE = 20;
 
   @JsonProperty
+  @Min(1)
   private int maxConcurrentQueries;
 
   @JsonProperty
+  @Min(1)
   private int maxAsyncQueries;
 
   @JsonProperty
+  @Min(1)
   private int maxQueriesToQueue;
 
   @JsonCreator
-  public AsyncQueryLimitsConfig(
-      @JsonProperty(MAX_CONCURRENT_QUERIES_KEY) Integer maxConcurrentQueries,
-      @JsonProperty(MAX_ASYNC_QUERIES_KEY) Integer maxAsyncQueries,
-      @JsonProperty(MAX_QUERIES_TO_QUEUE_KEY) Integer maxQueriesToQueue
+  public AsyncQueryPoolConfig(
+      @JsonProperty(MAX_CONCURRENT_QUERIES_KEY) @Nullable Integer maxConcurrentQueries,
+      @JsonProperty(MAX_ASYNC_QUERIES_KEY) @Nullable Integer maxAsyncQueries,
+      @JsonProperty(MAX_QUERIES_TO_QUEUE_KEY) @Nullable Integer maxQueriesToQueue
   )
   {
-    this.maxConcurrentQueries = maxConcurrentQueries == null ?
-                                DEFAULT_MAX_CONCURRENT_QUERIES :
-                                maxConcurrentQueries;
-    this.maxAsyncQueries = maxAsyncQueries == null ?
-                           DEFAULT_MAX_ASYNC_QUERIES :
-                           maxAsyncQueries;
+    this.maxConcurrentQueries = maxConcurrentQueries == null
+                                ? DEFAULT_MAX_CONCURRENT_QUERIES
+                                : maxConcurrentQueries;
+    this.maxAsyncQueries = maxAsyncQueries == null
+                           ? DEFAULT_MAX_ASYNC_QUERIES
+                           : maxAsyncQueries;
     Preconditions.checkArgument(
         this.maxAsyncQueries >= this.maxConcurrentQueries,
         StringUtils.format(
@@ -56,9 +62,9 @@ public class AsyncQueryLimitsConfig
             String.join(".", SqlAsyncModule.BASE_ASYNC_CONFIG_KEY, MAX_CONCURRENT_QUERIES_KEY)
         )
     );
-    this.maxQueriesToQueue = maxQueriesToQueue == null ?
-                             DEFAULT_MAX_QUERIES_TO_QUEUE :
-                             maxQueriesToQueue;
+    this.maxQueriesToQueue = maxQueriesToQueue == null
+                             ? DEFAULT_MAX_QUERIES_TO_QUEUE
+                             : maxQueriesToQueue;
   }
 
   public int getMaxConcurrentQueries()

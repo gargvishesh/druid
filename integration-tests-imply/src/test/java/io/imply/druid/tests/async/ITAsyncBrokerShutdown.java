@@ -10,7 +10,7 @@
 package io.imply.druid.tests.async;
 
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.AsyncQueryLimitsConfig;
+import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.tests.ImplyTestNGGroup;
@@ -50,7 +50,7 @@ public class ITAsyncBrokerShutdown extends AbstractIndexerTest
           null,
           null
       );
-      AsyncQueryLimitsConfig asyncQueryLimitsConfig = asyncResourceTestClient.getAsyncQueryLimitsConfig();
+      AsyncQueryPoolConfig asyncQueryLimitsConfig = asyncResourceTestClient.getAsyncQueryPoolConfig();
       int maxQueryCanSubmit = asyncQueryLimitsConfig.getMaxQueriesToQueue() + asyncQueryLimitsConfig.getMaxConcurrentQueries();
       // Submit queries so that we have both running queries and queued query
       for (int i = 0; i < maxQueryCanSubmit; i++) {
