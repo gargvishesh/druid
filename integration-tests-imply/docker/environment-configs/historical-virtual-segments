@@ -23,3 +23,4 @@ druid_server_https_crlPath=/tls/revocations.crl
 druid_virtualSegment_enabled=true
 druid_server_tier=__cold-tier
 druid_server_maxSize=5000000000
+imply_license={"name":"coldTierIT","expiryDate":"2025-09-29","features":["cold-tier"]}|2021-09-29|R75sWO37imT7oSiz9FIZSZ6UKgml1Tif3GxyVbt5VcYsqPPsVwZ6E4IIbvekBXlWw/pPT4jw3IHtONeKjQV+XKrzsNWJy10/0BMU25mX1pwsEHclAKGurwA/mfAFYiuWmbTFYZsrNyiPzyFLNFtfd/Q3banHExwSH3Gkme1A51H1htaeGouYqAP8jWZgAlo6I+xQ49VLqV4yzZzeV6lAVx1a/vIRjjoXumTE/U5m5V+Qpc4dxboH44XdUzSR5Ozu389KQ/oQY2v9ozoW2ma7KBLOauS/gMOK6jcUWw2CxWTrfauUPexx42pfKFaFd7YXJSkICGL76TXDs4j7P+TIMg==

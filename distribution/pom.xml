@@ -253,6 +253,8 @@
                                         <argument>io.imply:clarity-emitter-kafka</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-virtual-segments</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>
