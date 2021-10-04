@@ -90,7 +90,7 @@ public class ImplyKeycloakAuthenticatorTest
   }
 
   @Test
-  public void test_authenticateJDBCContext_bearerKeyInContext_authenticatesToken()
+  public void test_authenticateJDBCContext_passwordKeyInContext_authenticatesToken()
   {
     AuthenticationResult expectedResult = new AuthenticationResult(
         "identity",
@@ -111,7 +111,7 @@ public class ImplyKeycloakAuthenticatorTest
         accessTokenValidator
     );
 
-    AuthenticationResult actualResult = authenticator.authenticateJDBCContext(ImmutableMap.of("Bearer", accessTokenStr));
+    AuthenticationResult actualResult = authenticator.authenticateJDBCContext(ImmutableMap.of("password", accessTokenStr));
     Assert.assertEquals(expectedResult, actualResult);
     Mockito.verify(accessTokenValidator).authenticateToken(accessTokenStr, userDeployment);
   }
