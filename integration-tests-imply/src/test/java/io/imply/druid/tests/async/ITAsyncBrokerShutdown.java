@@ -19,7 +19,6 @@ import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.testing.utils.DruidClusterAdminClient;
-import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.tests.indexer.AbstractIndexerTest;
 import org.testng.Assert;
 import org.testng.annotations.Guice;
@@ -69,19 +68,16 @@ public class ITAsyncBrokerShutdown extends AbstractIndexerTest
       for (String asyncResultId : asyncResultIds) {
         SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
         Assert.assertEquals(statusResponse.getState(), SqlAsyncQueryDetails.State.FAILED);
+        //We should be able to clean the query
+        Assert.assertTrue(asyncResourceTestClient.cancel(asyncResultId));
+        Assert.assertNull(asyncResourceTestClient.getStatus(asyncResultId));
+
       }
     }
     finally {
       // Wait for all the query to be completed and cleanup
       for (String asyncResultId : asyncResultIds) {
-        //TODO: Use the cancel API instead of waiting for cleanup
-        ITRetryUtil.retryUntilTrue(
-            () -> {
-              SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
-              return statusResponse == null;
-            },
-            "Wating for async cleanup coordinator duty to complete"
-        );
+        asyncResourceTestClient.cancel(asyncResultId);
       }
     }
   }
