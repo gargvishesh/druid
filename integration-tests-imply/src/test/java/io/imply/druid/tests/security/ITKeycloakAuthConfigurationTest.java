@@ -224,7 +224,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   protected Properties getAvaticaConnectionProperties()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    connectionProperties.setProperty("password", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
     return connectionProperties;
   }
 
@@ -232,7 +232,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   protected Properties getAvaticaConnectionPropertiesFailure()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty("NotBearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
     return connectionProperties;
   }
 

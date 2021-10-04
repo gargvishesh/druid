@@ -167,7 +167,18 @@ Example request:
 Example response:
 HTTP 200
 
+## JDBC
 
+JDBC connections to keycloak can enter the bearer token into the `password` connection property, which allows keycloak authorization to piggy-back on any external Druid integrations which already support `druid-basic-security`.
+
+```
+      ...
+      Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("password", accessTokenString);
+      Connection connection = DriverManager.getConnection(jdbcUri, connectionProperties);
+      Statement statement = connection.createStatement();
+      ...
+```
 
 ## Additional information
 

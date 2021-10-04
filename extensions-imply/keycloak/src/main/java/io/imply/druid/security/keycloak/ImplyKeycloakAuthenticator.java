@@ -103,7 +103,9 @@ public class ImplyKeycloakAuthenticator implements Authenticator
   @Override
   public AuthenticationResult authenticateJDBCContext(Map<String, Object> context)
   {
-    String bearerTokenString = (String) context.get("Bearer");
+    // we use the "password" field in jdbc to store the token because it plays nicely with external integrations
+    // that already support druid-basic-security
+    String bearerTokenString = (String) context.get("password");
     if (bearerTokenString == null) {
       return null;
     }
