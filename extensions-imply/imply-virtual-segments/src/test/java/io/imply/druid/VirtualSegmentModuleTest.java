@@ -14,6 +14,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
+import io.imply.druid.license.ImplyLicenseManager;
+import io.imply.druid.license.TestingImplyLicenseManager;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.query.QuerySegmentWalker;
 import org.apache.druid.segment.loading.SegmentCacheManager;
@@ -34,22 +36,42 @@ public class VirtualSegmentModuleTest
   @Test
   public void testGetSegmentLoader_VirtualConfigDisabled()
   {
-    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(new VirtualSegmentModule(new Properties())));
+    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(createVirtualSegmentModule()));
     Assert.assertEquals(mockSegmentLoader, injector.getInstance(SegmentLoader.class));
   }
 
   @Test
   public void testGetQuerySegmentWalker_VirtualConfigDisabled()
   {
-    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(new VirtualSegmentModule(new Properties())));
+    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(createVirtualSegmentModule()));
     Assert.assertEquals(mockServerManager, injector.getInstance(QuerySegmentWalker.class));
   }
 
   @Test
   public void testGetSegmentCacheManager_VirtualConfigDisabled()
   {
-    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(new VirtualSegmentModule(new Properties())));
+    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(createVirtualSegmentModule()));
     Assert.assertEquals(mockCacheManager, injector.getInstance(SegmentCacheManager.class));
+  }
+
+  @Test
+  public void testLicenseDisabledAndVirtualConfigEnabled()
+  {
+    Properties properties = new Properties();
+    properties.setProperty(VirtualSegmentModule.ENABLED_PROPERTY, "true");
+    VirtualSegmentModule virtualSegmentModule = new VirtualSegmentModule(properties);
+    virtualSegmentModule.setImplyLicenseManager(ImplyLicenseManager.make(null));
+    Injector injector = Guice.createInjector(Modules.override(new BaseModule()).with(virtualSegmentModule));
+    Assert.assertEquals(mockSegmentLoader, injector.getInstance(SegmentLoader.class));
+    Assert.assertEquals(mockServerManager, injector.getInstance(QuerySegmentWalker.class));
+    Assert.assertEquals(mockCacheManager, injector.getInstance(SegmentCacheManager.class));
+  }
+
+  private VirtualSegmentModule createVirtualSegmentModule()
+  {
+    VirtualSegmentModule virtualSegmentModule = new VirtualSegmentModule(new Properties());
+    virtualSegmentModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
+    return virtualSegmentModule;
   }
 
   private static class BaseModule extends AbstractModule

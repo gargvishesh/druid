@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.loading.FIFOSegmentReplacementStrategy;
 import io.imply.druid.loading.SegmentReplacementStrategy;
 import io.imply.druid.loading.VirtualSegmentCacheManager;
@@ -55,6 +56,7 @@ public class VirtualSegmentModule implements DruidModule
   public static final String PROPERTY_PREFIX = "druid.virtualSegment";
   public static final String ENABLED_PROPERTY = PROPERTY_PREFIX + ".enabled";
   public static final String EXPERIMENTAL_PROPERTY = PROPERTY_PREFIX + ".experimental";
+  private ImplyLicenseManager implyLicenseManager;
 
   @Inject
   private Properties props;
@@ -62,6 +64,12 @@ public class VirtualSegmentModule implements DruidModule
   public VirtualSegmentModule()
   {
 
+  }
+
+  @Inject
+  public void setImplyLicenseManager(ImplyLicenseManager implyLicenseManager)
+  {
+    this.implyLicenseManager = implyLicenseManager;
   }
 
   @VisibleForTesting
@@ -80,6 +88,11 @@ public class VirtualSegmentModule implements DruidModule
   public void configure(Binder binder)
   {
     if (!isEnabled(ENABLED_PROPERTY)) {
+      return;
+    }
+
+    if (!implyLicenseManager.isFeatureEnabled("cold-tier")) {
+      LOG.error("Falling back to eager segment downloading. Cold tier feature is not available in the attached Imply License.");
       return;
     }
     JsonConfigProvider.bind(binder, PROPERTY_PREFIX, VirtualSegmentConfig.class);

@@ -22,6 +22,7 @@ import com.google.inject.Injector;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
+import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.loading.VirtualSegmentLoader;
 import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import io.imply.druid.segment.VirtualSegment;
@@ -201,7 +202,9 @@ public class ITVirtualSegmentLoaderTest
   {
     Properties properties = new Properties();
     properties.setProperty(VirtualSegmentModule.ENABLED_PROPERTY, "true");
-    return Guice.createInjector(Modules.override(new VirtualSegmentModule(properties), new LifecycleModule())
+    VirtualSegmentModule virtualSegmentModule = new VirtualSegmentModule(properties);
+    virtualSegmentModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
+    return Guice.createInjector(Modules.override(virtualSegmentModule, new LifecycleModule())
                                        .with(new StorageModule()));
   }
 
