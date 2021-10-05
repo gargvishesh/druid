@@ -23,7 +23,7 @@ The current state of this feature is _alpha_. The APIs, properties, metrics expl
 
 ## Setup
 
-To enable async query downloads, replicate the following properties for the Broker in `broker/runtime.properties` and the Coordinator in `coordinator/runtime.properties`.
+To enable async query downloads, add the following properties in `common.runtime.properties`.
 
 
 ### Enabling async downloads
@@ -118,9 +118,9 @@ whether the broker has gone offline for longer than `timeToWaitAfterBrokerGone` 
 
 |config|description|required|default|
 | --- | --- | --- | --- |
-|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently. Druid queues any queries that exceed the active limit. | no | 10 |
-|`druid.query.async.maxAsyncQueries`| Max number of queries Druid can track, including actively running queries, queued queries, complete queries, and failed queries. Druid rejects any queries that exceed the limit. For example if you have 10 actively running queries, 15 queued queries, 20 complete queries, and 5 failed queries with `maxAsyncQueries` setting to 50, Druid rejects the 16th query instead of queueing it. | no | 50 |
-|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the queue. Druid rejects any queries that exceed the limit. | no | 20 |
+|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently in each Broker. The Broker queues any queries that exceed the active limit. | no | 1 |
+|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the Broker queue. The Broker rejects any queries that exceed the limit. | no | 20 |
+|`druid.query.async.maxAsyncQueries`| Max number of queries a Druid cluster can track, including actively running queries, queued queries, complete queries, and failed queries. Druid rejects any queries that exceed the limit. For example if you have 10 actively running queries, 15 queued queries, 20 complete queries, and 5 failed queries, with `maxAsyncQueries` setting to 50, Druid rejects the next query instead of adding it as the 16th queued query.<br/><br/>This property should be replicated in all brokers.| no | 50 |
 
 
 ## APIs
@@ -250,11 +250,19 @@ API will still return details for the query.
 - `async/cleanup/metadata/removed/count`: number of query states successfully cleaned up in each coordinator run.
 - `async/cleanup/metadata/failed/count`: number of failed attempts to clean up query states in each coordinator run.
 - `async/cleanup/metadata/skipped/count`: number of query states that have not expired in each coordinator run.
-- `async/query/undetermined/count`: number of queries that have been marked as undetermined during `druid.query.async.cleanup.pollPeriod`.
+- `async/query/undetermined/count`: number of queries that have been marked as `UNDETERMINED` during each `druid.query.async.cleanup.pollPeriod`.
 
 
-## Caveats
+## Known issues
 
 - When the broker shuts down gracefully, it marks all queries running in it as `FAILED` before it completely shuts down.
   However, if the broker fails before it finishes updating the query status, the states of queries in progress remain unchanged.
   In this case, you must manually clean up the queries left in invalid states.
+- Even when the broker shuts down gracefully, it currently doesn't wait for running queries in it to complete before
+  it completely shuts down. Instead, it simply marks them `FAILED`. This can fail your queries during rolling updates.
+- When the broker has intermittent connection issues to ZooKeeper, the coordinator can treat the broker as unstable
+  and mark all queries running in that broker as `UNDETERMINED`, indicating that the query state is undeterminable since
+  the broker state is unstable. Currently, there is a race between when the coordinator marks queries `UNDETERMINED`
+  and when the broker updates query states. As a result, you may see the query state changing from `UNDETERMINED` to
+  either `COMPLETE` or `FAILED`, or vice versa when both the coordinator and broker try to update query states, even though
+  `UNDETERMINED`, `COMPLETE`, and `FAILED` states are final states.
