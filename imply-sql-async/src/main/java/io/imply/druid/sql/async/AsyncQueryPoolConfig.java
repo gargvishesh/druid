@@ -23,7 +23,7 @@ public class AsyncQueryPoolConfig
   private static final String MAX_ASYNC_QUERIES_KEY = "maxAsyncQueries";
   private static final String MAX_QUERIES_TO_QUEUE_KEY = "maxQueriesToQueue";
 
-  private static final int DEFAULT_MAX_CONCURRENT_QUERIES = 10;
+  private static final int DEFAULT_MAX_CONCURRENT_QUERIES = 1;
   private static final int DEFAULT_MAX_ASYNC_QUERIES = 50;
   private static final int DEFAULT_MAX_QUERIES_TO_QUEUE = 20;
 
