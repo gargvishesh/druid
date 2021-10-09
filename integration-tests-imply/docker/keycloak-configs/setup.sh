@@ -28,17 +28,21 @@ set -e
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username admin --new-password priest
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername admin --cclientid some-druid-cluster --rolename admin
 
-/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourceonlyuser -s enabled=true
-/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceonlyuser --new-password helloworld
-/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourceonlyuser --cclientid some-druid-cluster --rolename datasourceOnlyRole
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcereadonlyuser -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcereadonlyuser --new-password helloworld
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcereadonlyuser --cclientid some-druid-cluster --rolename datasourceReadOnlyRole
 
-/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewithsysuser -s enabled=true
-/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewithsysuser --new-password helloworld
-/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcewithsysuser --cclientid some-druid-cluster --rolename datasourceWithSysRole
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcereadwithsysuser -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcereadwithsysuser --new-password helloworld
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcereadwithsysuser --cclientid some-druid-cluster --rolename datasourceReadWithSysRole
 
-/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewithstateuser -s enabled=true
-/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewithstateuser --new-password helloworld
-/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcewithstateuser --cclientid some-druid-cluster --rolename datasourceWithStateRole
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewritewithsysuser -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewritewithsysuser --new-password helloworld
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcewritewithsysuser --cclientid some-druid-cluster --rolename datasourceWriteWithSysRole
+
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcereadwithstateuser -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcereadwithstateuser --new-password helloworld
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcereadwithstateuser --cclientid some-druid-cluster --rolename datasourceReadWithStateRole
 
 /opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=stateonlyuser -s enabled=true
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username stateonlyuser --new-password helloworld
