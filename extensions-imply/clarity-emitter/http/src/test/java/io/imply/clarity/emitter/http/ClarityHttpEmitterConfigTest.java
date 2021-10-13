@@ -130,6 +130,6 @@ public class ClarityHttpEmitterConfigTest
     Assert.assertEquals(92, config.getSamplingRate());
     Assert.assertEquals(ImmutableSet.of("arf"), config.getSampledMetrics());
     Assert.assertEquals(ImmutableSet.of("woof"), config.getSampledNodeTypes());
-    Assert.assertEquals(ImmutableMap.of("accountId", (Object)"123-456-7890"), config.getContext());
+    Assert.assertEquals(ImmutableMap.of("accountId", (Object) "123-456-7890"), config.getContext());
   }
 }

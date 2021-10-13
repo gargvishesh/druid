@@ -161,7 +161,7 @@ public class ClarityKafkaEmitterTest
     emitToKafka(emitterConfig, events);
   }
 
-  public void emitToKafka(final Map<String,String> emitterConfig, final List<Event> events)
+  public void emitToKafka(final Map<String, String> emitterConfig, final List<Event> events)
   {
     final ClarityKafkaEmitter emitter = makeEmitter(emitterConfig);
 
