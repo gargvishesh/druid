@@ -10,6 +10,7 @@
 package io.imply.clarity.emitter.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.ProvisionException;
 import org.apache.druid.guice.JsonConfigurator;
@@ -78,6 +79,7 @@ public class ClarityHttpEmitterConfigTest
         ImmutableSet.of("druid/historical", "druid/peon", "druid/realtime"),
         config.getSampledNodeTypes()
     );
+    Assert.assertNull(config.getContext());
   }
 
   @Test
@@ -102,6 +104,7 @@ public class ClarityHttpEmitterConfigTest
     props.setProperty("clarity.samplingRate", "92");
     props.setProperty("clarity.sampledMetrics", "[\"arf\"]");
     props.setProperty("clarity.sampledNodeTypes", "[\"woof\"]");
+    props.setProperty("clarity.context", "{\"accountId\": \"123-456-7890\"}");
 
     final ClarityHttpEmitterConfig config = configurator.configurate(
         props,
@@ -127,5 +130,6 @@ public class ClarityHttpEmitterConfigTest
     Assert.assertEquals(92, config.getSamplingRate());
     Assert.assertEquals(ImmutableSet.of("arf"), config.getSampledMetrics());
     Assert.assertEquals(ImmutableSet.of("woof"), config.getSampledNodeTypes());
+    Assert.assertEquals(ImmutableMap.of("accountId", (Object)"123-456-7890"), config.getContext());
   }
 }

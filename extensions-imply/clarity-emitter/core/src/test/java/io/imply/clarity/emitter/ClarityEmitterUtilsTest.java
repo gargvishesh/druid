@@ -49,7 +49,8 @@ public class ClarityEmitterUtilsTest
         100,
         ImmutableSet.of(),
         ImmutableSet.of(),
-        ImmutableSet.of()
+        ImmutableSet.of(),
+        null
     );
 
     Map<String, Object> nonAnonymizedMap = ClarityEmitterUtils.getModifiedEventMap(
@@ -98,7 +99,8 @@ public class ClarityEmitterUtilsTest
         100,
         ImmutableSet.of(),
         ImmutableSet.of(),
-        ImmutableSet.of()
+        ImmutableSet.of(),
+        null
     );
 
     Map<String, Object> anonymizedMap = ClarityEmitterUtils.getModifiedEventMap(

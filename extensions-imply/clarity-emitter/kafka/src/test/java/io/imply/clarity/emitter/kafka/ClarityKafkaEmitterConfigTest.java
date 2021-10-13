@@ -69,6 +69,7 @@ public class ClarityKafkaEmitterConfigTest
         config.getSampledNodeTypes()
     );
     Assert.assertEquals(ImmutableSet.of(), config.getCustomQueryDimensions());
+    Assert.assertNull(config.getContext());
   }
 
   @Test
@@ -85,6 +86,7 @@ public class ClarityKafkaEmitterConfigTest
     props.setProperty("clarity.sampledMetrics", "[\"arf\"]");
     props.setProperty("clarity.sampledNodeTypes", "[\"woof\"]");
     props.setProperty("clarity.customQueryDimensions", "[\"dim1\", \"dim2\"]");
+    props.setProperty("clarity.context", "{\"accountId\": \"123-456-7890\"}");
 
     final ClarityKafkaEmitterConfig config = configurator.configurate(
         props,
@@ -101,5 +103,6 @@ public class ClarityKafkaEmitterConfigTest
     Assert.assertEquals(ImmutableSet.of("arf"), config.getSampledMetrics());
     Assert.assertEquals(ImmutableSet.of("woof"), config.getSampledNodeTypes());
     Assert.assertEquals(ImmutableSet.of("dim1", "dim2"), config.getCustomQueryDimensions());
+    Assert.assertEquals(ImmutableMap.of("accountId", (Object)"123-456-7890"), config.getContext());
   }
 }
