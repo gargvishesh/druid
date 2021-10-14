@@ -26,6 +26,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
+import io.imply.druid.meter.VCpuMonitorModule;
 import org.apache.commons.io.FileUtils;
 import org.apache.druid.curator.CuratorModule;
 import org.apache.druid.curator.discovery.DiscoveryModule;
@@ -413,7 +414,8 @@ public class Initialization
         new AuthorizerModule(),
         new AuthorizerMapperModule(),
         new StartupLoggingModule(),
-        new ExternalStorageAccessSecurityModule()
+        new ExternalStorageAccessSecurityModule(),
+        new VCpuMonitorModule()
     );
 
     ModuleList actualModules = new ModuleList(baseInjector);
