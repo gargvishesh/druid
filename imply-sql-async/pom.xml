@@ -24,7 +24,7 @@
   <parent>
     <artifactId>druid</artifactId>
     <groupId>org.apache.druid</groupId>
-    <version>2021.10.0-iap-SNAPSHOT</version>
+    <version>2021.11.0-iap-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>

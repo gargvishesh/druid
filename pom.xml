@@ -29,7 +29,7 @@
 
     <groupId>org.apache.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>2021.10.0-iap-SNAPSHOT</version>
+    <version>2021.11.0-iap-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Druid</name>
