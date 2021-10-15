@@ -50,7 +50,7 @@ public class ClarityEmitterUtilsTest
         ImmutableSet.of(),
         ImmutableSet.of(),
         ImmutableSet.of(),
-        null
+        ImmutableMap.of("accountId", "123-456-7890")
     );
 
     Map<String, Object> nonAnonymizedMap = ClarityEmitterUtils.getModifiedEventMap(
@@ -69,7 +69,8 @@ public class ClarityEmitterUtilsTest
                     .put("implyDruidVersion", "0.30.0")
                     .put("implyVersion", "2024.02")
                     .put("identity", "walker")
-                    .put("remoteAddress", "theAbyss").build(),
+                    .put("remoteAddress", "theAbyss")
+                    .put("accountId", "123-456-7890").build(),
         nonAnonymizedMap
     );
   }
