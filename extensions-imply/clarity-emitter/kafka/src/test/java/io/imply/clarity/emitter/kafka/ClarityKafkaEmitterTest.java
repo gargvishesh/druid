@@ -102,13 +102,43 @@ public class ClarityKafkaEmitterTest
         AlertBuilder.create("My Alert").build("myService", "myHost")
     );
 
-    emitToKafka(topic, events);
+    final Map<String, String> emitterConfig = ImmutableMap.of(
+        "clarity.producer.bootstrap.servers", "localhost:" + KAFKA_SERVER.getPort(),
+        "clarity.producer.acks", "all",
+        "clarity.topic", topic
+    );
+
+    emitToKafka(emitterConfig, events);
     final List<Map<String, Object>> eventsRead = readFromKafka(topic, events.size());
 
     Assert.assertEquals(
         events.stream().map(this::makeExpectedMap).collect(Collectors.toList()),
         eventsRead
     );
+  }
+
+  @Test(timeout = 60_000L)
+  public void testContext() throws Exception
+  {
+    final String topic = "test-" + UUID.randomUUID();
+    final Event event = ServiceMetricEvent.builder()
+                                          .build(new DateTime("2000", DateTimeZone.UTC), "myMetric", 3.2)
+                                          .build("myService", "myHost");
+
+    final Map<String, String> emitterConfig = ImmutableMap.of(
+        "clarity.producer.bootstrap.servers", "localhost:" + KAFKA_SERVER.getPort(),
+        "clarity.producer.acks", "all",
+        "clarity.topic", topic,
+        "clarity.context", "{\"accountId\": \"123-456-7890\"}"
+    );
+
+    emitToKafka(emitterConfig, ImmutableList.of(event));
+    final List<Map<String, Object>> eventsRead = readFromKafka(topic, 1);
+
+    HashMap<String, Object> expectedMap = new HashMap<>(makeExpectedMap(event));
+    expectedMap.put("accountId", "123-456-7890");
+
+    Assert.assertEquals(expectedMap, eventsRead.get(0));
   }
 
   @Test(timeout = 60_000L)
@@ -122,33 +152,18 @@ public class ClarityKafkaEmitterTest
         AlertBuilder.create("My Alert").build("myService", "myHost")
     );
 
-    final ClarityKafkaEmitter emitter = makeEmitter(
-        ImmutableMap.of(
-            "clarity.producer.bootstrap.servers", "nonexistent.example.com:9999",
-            "clarity.producer.acks", "all",
-            "clarity.topic", topic
-        )
+    final Map<String, String> emitterConfig = ImmutableMap.of(
+        "clarity.producer.bootstrap.servers", "nonexistent.example.com:9999",
+        "clarity.producer.acks", "all",
+        "clarity.topic", topic
     );
 
-    try {
-      events.forEach(emitter::emit);
-    }
-    finally {
-      emitter.close();
-    }
-
-    Assert.assertTrue(true);
+    emitToKafka(emitterConfig, events);
   }
 
-  public void emitToKafka(final String topic, final List<Event> events)
+  public void emitToKafka(final Map<String, String> emitterConfig, final List<Event> events)
   {
-    final ClarityKafkaEmitter emitter = makeEmitter(
-        ImmutableMap.of(
-            "clarity.producer.bootstrap.servers", "localhost:" + KAFKA_SERVER.getPort(),
-            "clarity.producer.acks", "all",
-            "clarity.topic", topic
-        )
-    );
+    final ClarityKafkaEmitter emitter = makeEmitter(emitterConfig);
 
     try {
       events.forEach(emitter::emit);

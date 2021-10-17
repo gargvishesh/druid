@@ -12,6 +12,7 @@ package io.imply.clarity;
 import io.imply.clarity.emitter.BaseClarityEmitterConfig;
 
 import javax.annotation.Nullable;
+import java.util.Map;
 import java.util.Set;
 
 public class TestClarityEmitterConfig implements BaseClarityEmitterConfig
@@ -24,6 +25,7 @@ public class TestClarityEmitterConfig implements BaseClarityEmitterConfig
   private final Set<String> sampledMetrics;
   private final Set<String> sampledNodeTypes;
   private final Set<String> customQueryDimensions;
+  private final Map<String, Object> context;
 
   public TestClarityEmitterConfig(
       String clusterName,
@@ -33,7 +35,8 @@ public class TestClarityEmitterConfig implements BaseClarityEmitterConfig
       Integer samplingRate,
       Set<String> sampledMetrics,
       Set<String> sampledNodeTypes,
-      Set<String> customQueryDimensions
+      Set<String> customQueryDimensions,
+      Map<String, Object> context
   )
   {
     this.clusterName = clusterName;
@@ -44,6 +47,7 @@ public class TestClarityEmitterConfig implements BaseClarityEmitterConfig
     this.sampledMetrics = sampledMetrics;
     this.sampledNodeTypes = sampledNodeTypes;
     this.customQueryDimensions = customQueryDimensions;
+    this.context = context;
   }
 
   @Nullable
@@ -93,5 +97,11 @@ public class TestClarityEmitterConfig implements BaseClarityEmitterConfig
   public Set<String> getCustomQueryDimensions()
   {
     return customQueryDimensions;
+  }
+
+  @Override
+  public Map<String, Object> getContext()
+  {
+    return context;
   }
 }

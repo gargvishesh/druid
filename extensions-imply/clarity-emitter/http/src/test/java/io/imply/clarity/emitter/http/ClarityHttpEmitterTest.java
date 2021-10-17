@@ -11,6 +11,7 @@ package io.imply.clarity.emitter.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -138,6 +139,57 @@ public class ClarityHttpEmitterTest
     for (UnitEvent event : events) {
       emitter.emit(event);
     }
+    waitForEmission(emitter);
+    closeNoFlush(emitter);
+    Assert.assertTrue(httpClient.succeeded());
+  }
+
+  @Test
+  public void testMetricContext() throws Exception
+  {
+    final UnitEvent event = buildUnitEvent(1);
+    emitter = getEmitter(
+        ClarityHttpEmitterConfig.builder(TARGET_URL)
+                                .withClusterName(TEST_IMPLY_CLUSTER)
+                                .withCompression(ClarityHttpEmitterConfig.Compression.NONE)
+                                .withFlushCount(1)
+                                .withContext(ImmutableMap.of(
+                                    "accountId",
+                                    "123-456-7890",
+                                    "contextMap",
+                                    ImmutableMap.of("key", "value")
+                                ))
+                                .build()
+    );
+
+    httpClient.setGoHandler(
+        new GoHandler()
+        {
+          @Override
+          public <Intermediate, Final> ListenableFuture<Final> go(
+              Request request,
+              HttpResponseHandler<Intermediate, Final> handler,
+              Duration duration
+          ) throws Exception
+          {
+            HashMap<String, Object> eventMap = new HashMap<>(event.toMap());
+            eventMap.put("accountId", "123-456-7890");
+            eventMap.put("contextMap", ImmutableMap.of("key", "value"));
+
+            List<Map<String, Object>> emitted = JSON_MAPPER.readValue(
+                request.getContent().toString(StandardCharsets.UTF_8),
+                List.class
+            );
+
+            Assert.assertEquals(eventMap, emitted.get(0));
+
+            return Futures.immediateFuture((Final) okResponse());
+          }
+        }.times(1)
+    );
+
+    emitter.emit(event);
+
     waitForEmission(emitter);
     closeNoFlush(emitter);
     Assert.assertTrue(httpClient.succeeded());
