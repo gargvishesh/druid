@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableSet;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 public interface BaseClarityEmitterConfig
@@ -49,4 +50,6 @@ public interface BaseClarityEmitterConfig
   Set<String> getSampledNodeTypes();
 
   Set<String> getCustomQueryDimensions();
+
+  Map<String, Object> getContext();
 }

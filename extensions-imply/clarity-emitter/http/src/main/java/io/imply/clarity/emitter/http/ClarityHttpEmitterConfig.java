@@ -20,6 +20,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
@@ -108,6 +109,9 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
   @JsonProperty
   private Set<String> customQueryDimensions = Collections.emptySet();
 
+  @JsonProperty
+  private Map<String, Object> context = null;
+
   private ClarityHttpEmitterConfig()
   {
     // For Jackson.
@@ -132,7 +136,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       Integer samplingRate,
       Set<String> sampledMetrics,
       Set<String> sampledNodeTypes,
-      Set<String> customQueryDimensions
+      Set<String> customQueryDimensions,
+      Map<String, Object> context
   )
   {
     this.flushMillis = (flushMillis != null ? flushMillis : DEFAULT_FLUSH_MILLIS);
@@ -159,6 +164,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     this.customQueryDimensions = (customQueryDimensions != null
                                   ? customQueryDimensions
                                   : DEFAULT_CUSTOM_QUERY_DIMENSIONS);
+    this.context = context;
   }
 
   public long getFlushMillis()
@@ -266,6 +272,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
   }
 
   @Override
+  public Map<String, Object> getContext()
+  {
+    return context;
+  }
+
+  @Override
   public String toString()
   {
     return "ClarityHttpEmitterConfig{" +
@@ -288,6 +300,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
            ", sampledMetrics=" + sampledMetrics +
            ", sampledNodeTypes=" + sampledNodeTypes +
            ", customQueryDimensions=" + customQueryDimensions +
+           ", context=" + context +
            '}';
   }
 
@@ -317,6 +330,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     private Set<String> sampledMetrics;
     private Set<String> sampledNodeTypes;
     private Set<String> customQueryDimensions;
+    private Map<String, Object> context;
 
     public Builder(String recipientBaseUrl)
     {
@@ -431,6 +445,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       return this;
     }
 
+    public Builder withContext(Map<String, Object> context)
+    {
+      this.context = context;
+      return this;
+    }
+
     public ClarityHttpEmitterConfig build()
     {
       return new ClarityHttpEmitterConfig(
@@ -452,7 +472,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
           samplingRate,
           sampledMetrics,
           sampledNodeTypes,
-          customQueryDimensions
+          customQueryDimensions,
+          context
       );
     }
   }

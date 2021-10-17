@@ -155,6 +155,12 @@ public class ClarityEmitterUtils
       newMap = new HashMap<>(event.toMap());
     }
 
+    if (config.getContext() != null) {
+      for (Map.Entry<String, Object> entry : config.getContext().entrySet()) {
+        newMap.putIfAbsent(entry.getKey(), entry.getValue());
+      }
+    }
+
     newMap.put(IMPLY_NODE_TYPE_KEY, nodeDetails.getNodeType());
     newMap.put(IMPLY_CLUSTER_KEY, nodeDetails.getClusterName());
     newMap.put(IMPLY_DRUID_VERSION_KEY, nodeDetails.getDruidVersion());

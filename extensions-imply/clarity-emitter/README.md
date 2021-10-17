@@ -37,6 +37,7 @@ All the keys below should be prefixed by `druid.emitter.clarity.`, i.e. `druid.e
 |`sampledNodeTypes`|List<String>|Which node types are sampled|`["druid/historical", "druid/peon", "druid/realtime"]`|no|
 |`customQueryDimensions`|List<String>|Context dimensions that will be extracted and emitted. When emitted, they will be prepended with the string `context:`.|`[]`|no|
 |`metricsFactoryChoice`|Boolean|If true, registers Clarity's custom query metrics modules as options rather than defaults. Useful if you are defining your own query metrics factories through your own extensions.|false|no|
+|`context`|Map<String, Object>|The keys in this map will be added as additional dimensions to all metrics. They will not override other keys if there's a collision.|null|no|
 
 ### HTTPS Context Configuration
 

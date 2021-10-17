@@ -58,6 +58,9 @@ public class ClarityKafkaEmitterConfig implements BaseClarityEmitterConfig
   @JsonProperty
   private Set<String> customQueryDimensions = DEFAULT_CUSTOM_QUERY_DIMENSIONS;
 
+  @JsonProperty
+  private Map<String, Object> context = null;
+
   public ClarityKafkaEmitterConfig()
   {
     // For Jackson.
@@ -132,6 +135,12 @@ public class ClarityKafkaEmitterConfig implements BaseClarityEmitterConfig
   }
 
   @Override
+  public Map<String, Object> getContext()
+  {
+    return context;
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {
@@ -150,7 +159,8 @@ public class ClarityKafkaEmitterConfig implements BaseClarityEmitterConfig
            Objects.equals(clusterName, that.clusterName) &&
            Objects.equals(sampledMetrics, that.sampledMetrics) &&
            Objects.equals(sampledNodeTypes, that.sampledNodeTypes) &&
-           Objects.equals(customQueryDimensions, that.customQueryDimensions);
+           Objects.equals(customQueryDimensions, that.customQueryDimensions) &&
+           Objects.equals(context, that.context);
   }
 
   @Override
@@ -166,7 +176,8 @@ public class ClarityKafkaEmitterConfig implements BaseClarityEmitterConfig
         samplingRate,
         sampledMetrics,
         sampledNodeTypes,
-        customQueryDimensions
+        customQueryDimensions,
+        context
     );
   }
 
@@ -184,6 +195,7 @@ public class ClarityKafkaEmitterConfig implements BaseClarityEmitterConfig
            ", sampledMetrics=" + sampledMetrics +
            ", sampledNodeTypes=" + sampledNodeTypes +
            ", customQueryDimensions=" + customQueryDimensions +
+           ", context=" + context +
            '}';
   }
 }

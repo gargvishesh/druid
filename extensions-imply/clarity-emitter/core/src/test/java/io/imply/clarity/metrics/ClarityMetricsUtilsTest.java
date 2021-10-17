@@ -32,7 +32,8 @@ public class ClarityMetricsUtilsTest
         100,
         ImmutableSet.of(),
         ImmutableSet.of(),
-        ImmutableSet.of()
+        ImmutableSet.of(),
+        null
     );
 
     Map<String, Object> context = new HashMap<>();
@@ -74,7 +75,8 @@ public class ClarityMetricsUtilsTest
         100,
         ImmutableSet.of(),
         ImmutableSet.of(),
-        ImmutableSet.of()
+        ImmutableSet.of(),
+        null
     );
 
     Map<String, Object> context = new HashMap<>();
@@ -116,7 +118,8 @@ public class ClarityMetricsUtilsTest
         100,
         ImmutableSet.of(),
         ImmutableSet.of(),
-        ImmutableSet.of()
+        ImmutableSet.of(),
+        null
     );
 
     Map<String, Object> context = ImmutableMap.of(
