@@ -277,7 +277,7 @@
       "some-druid-cluster": [
         {
           "id": "2edd0c21-36fd-4f54-8228-26b5e7f2cee7",
-          "name": "datasourceReadOnlyRole",
+          "name": "datasourceOnlyRole",
           "composite": false,
           "clientRole": true,
           "containerId": "cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc",
@@ -285,15 +285,7 @@
         },
         {
           "id": "f7993f0d-1b41-4a44-88c4-0650511ad61f",
-          "name": "datasourceReadWithSysRole",
-          "composite": false,
-          "clientRole": true,
-          "containerId": "cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc",
-          "attributes": {}
-        },
-        {
-          "id": "9a45e18e-2817-11ec-9621-0242ac130002",
-          "name": "datasourceWriteWithSysRole",
+          "name": "datasourceWithSysRole",
           "composite": false,
           "clientRole": true,
           "containerId": "cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc",
@@ -301,7 +293,7 @@
         },
         {
           "id": "709400c5-732c-4505-8a84-e9bbe15fd62a",
-          "name": "datasourceReadWithStateRole",
+          "name": "datasourceWithStateRole",
           "composite": false,
           "clientRole": true,
           "containerId": "cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc",

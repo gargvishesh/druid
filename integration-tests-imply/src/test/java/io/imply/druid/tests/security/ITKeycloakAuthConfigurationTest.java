@@ -237,28 +237,22 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Override
-  protected void setupDatasourceReadOnlyUser() throws Exception
+  protected void setupDatasourceOnlyUser() throws Exception
   {
 
-    createRolesWithPermissions(ImmutableMap.of("datasourceReadOnlyRole", DATASOURCE_READ_ONLY_PERMISSIONS));
+    createRolesWithPermissions(ImmutableMap.of("datasourceOnlyRole", DATASOURCE_ONLY_PERMISSIONS));
   }
 
   @Override
-  protected void setupDatasourceReadAndSysTableUser() throws Exception
+  protected void setupDatasourceAndSysTableUser() throws Exception
   {
-    createRolesWithPermissions(ImmutableMap.of("datasourceReadWithSysRole", DATASOURCE_READ_SYS_PERMISSIONS));
+    createRolesWithPermissions(ImmutableMap.of("datasourceWithSysRole", DATASOURCE_SYS_PERMISSIONS));
   }
 
   @Override
-  protected void setupDatasourceWriteAndSysTableUser() throws Exception
+  protected void setupDatasourceAndSysAndStateUser() throws Exception
   {
-    createRolesWithPermissions(ImmutableMap.of("datasourceWriteWithSysRole", DATASOURCE_WRITE_SYS_PERMISSIONS));
-  }
-
-  @Override
-  protected void setupDatasourceReadAndSysAndStateUser() throws Exception
-  {
-    createRolesWithPermissions(ImmutableMap.of("datasourceReadWithStateRole", DATASOURCE_READ_SYS_STATE_PERMISSIONS));
+    createRolesWithPermissions(ImmutableMap.of("datasourceWithStateRole", DATASOURCE_SYS_STATE_PERMISSIONS));
   }
 
   @Override
@@ -271,10 +265,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   protected void setupTestSpecificHttpClients()
   {
     adminClient = buildHttpClientForUser("admin", "priest");
-    datasourceReadOnlyUserClient = buildHttpClientForUser("datasourcereadonlyuser", "helloworld");
-    datasourceReadAndSysUserClient = buildHttpClientForUser("datasourcereadwithsysuser", "helloworld");
-    datasourceWriteAndSysUserClient = buildHttpClientForUser("datasourcewritewithsysuser", "helloworld");
-    datasourceReadWithStateUserClient = buildHttpClientForUser("datasourcereadwithstateuser", "helloworld");
+    datasourceOnlyUserClient = buildHttpClientForUser("datasourceonlyuser", "helloworld");
+    datasourceAndSysUserClient = buildHttpClientForUser("datasourcewithsysuser", "helloworld");
+    datasourceWithStateUserClient = buildHttpClientForUser("datasourcewithstateuser", "helloworld");
     stateOnlyUserClient = buildHttpClientForUser("stateonlyuser", "helloworld");
   }
 
