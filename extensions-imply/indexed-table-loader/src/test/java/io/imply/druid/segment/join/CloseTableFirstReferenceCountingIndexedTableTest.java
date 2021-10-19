@@ -12,8 +12,8 @@ package io.imply.druid.segment.join;
 import com.google.common.collect.ImmutableSet;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.join.table.IndexedTable;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.Assert;
@@ -32,9 +32,9 @@ public class CloseTableFirstReferenceCountingIndexedTableTest
   private static final String EXPECTED_VERSION = "v0";
   private static final Set<String> EXPECTED_KEY_COLUMNS = ImmutableSet.of("a", "b", "c");
   private static final RowSignature EXPECTED_SIGNATURE = RowSignature.builder()
-                                                                     .add("a", ValueType.STRING)
-                                                                     .add("b", ValueType.LONG)
-                                                                     .add("c", ValueType.DOUBLE)
+                                                                     .add("a", ColumnType.STRING)
+                                                                     .add("b", ColumnType.LONG)
+                                                                     .add("c", ColumnType.DOUBLE)
                                                                      .build();
 
   private boolean baseTableIsClosed = false;

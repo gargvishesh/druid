@@ -21,9 +21,10 @@ import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.SegmentLazyLoadFailCallback;
+import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.join.table.RowBasedIndexedTable;
 import org.apache.druid.segment.loading.SegmentLoadingException;
 import org.apache.druid.segment.loading.SegmentizerFactory;
@@ -88,9 +89,14 @@ public class OnHeapIndexedTableSegmentizerFactory implements SegmentizerFactory
 
         RowSignature.Builder sigBuilder = RowSignature.builder();
         QueryableIndexStorageAdapter adapter = (QueryableIndexStorageAdapter) theSegment.asStorageAdapter();
-        sigBuilder.add(ColumnHolder.TIME_COLUMN_NAME, ValueType.LONG);
+        sigBuilder.add(ColumnHolder.TIME_COLUMN_NAME, ColumnType.LONG);
         for (String column : theSegment.asQueryableIndex().getColumnNames()) {
-          sigBuilder.add(column, adapter.getColumnCapabilities(column).getType());
+          final ColumnCapabilities capabilities = adapter.getColumnCapabilities(column);
+          if (capabilities != null) {
+            sigBuilder.add(column, capabilities.toColumnType());
+          } else {
+            sigBuilder.add(column, null);
+          }
         }
 
         return new RowBasedIndexedTable<>(

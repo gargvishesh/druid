@@ -29,7 +29,7 @@ import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.TestHelper;
-import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
@@ -128,13 +128,13 @@ public class SampledAvgScoreObjectSqlAggregatorTest extends BaseCalciteQueryTest
                       new ExpressionVirtualColumn(
                           "v0",
                           "(\"m1\" * 2)",
-                          ValueType.DOUBLE,
+                          ColumnType.DOUBLE,
                           TestExprMacroTable.INSTANCE
                       ),
                       new ExpressionVirtualColumn(
                           "v1",
                           "(\"m1\" * 3)",
-                          ValueType.DOUBLE,
+                          ColumnType.DOUBLE,
                           TestExprMacroTable.INSTANCE
                       )
                   )
