@@ -36,7 +36,6 @@ import org.apache.druid.segment.DoubleColumnSelector;
 import org.apache.druid.segment.FloatColumnSelector;
 import org.apache.druid.segment.LongColumnSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 import org.apache.druid.segment.vector.VectorValueSelector;
 import org.apache.druid.segment.virtual.ExpressionSelectors;
@@ -344,7 +343,7 @@ public class AggregatorUtil
   {
     if (fieldName != null) {
       final ColumnCapabilities capabilities = columnInspector.getColumnCapabilities(fieldName);
-      return capabilities == null || ValueType.isNumeric(capabilities.getType());
+      return capabilities == null || capabilities.isNumeric();
     }
     if (expression != null) {
       return fieldExpression.get().canVectorize(columnInspector);
