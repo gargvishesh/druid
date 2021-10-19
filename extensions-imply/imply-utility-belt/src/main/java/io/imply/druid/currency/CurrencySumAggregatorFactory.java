@@ -24,7 +24,7 @@ import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -172,16 +172,16 @@ public class CurrencySumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ValueType getType()
+  public ColumnType getType()
   {
     if (storeDoubleAsFloat) {
-      return ValueType.FLOAT;
+      return ColumnType.FLOAT;
     }
-    return ValueType.DOUBLE;
+    return ColumnType.DOUBLE;
   }
 
   @Override
-  public ValueType getFinalizedType()
+  public ColumnType getFinalizedType()
   {
     return getType();
   }

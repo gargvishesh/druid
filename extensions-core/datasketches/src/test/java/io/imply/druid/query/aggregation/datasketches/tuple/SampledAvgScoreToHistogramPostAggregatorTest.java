@@ -24,8 +24,8 @@ import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketc
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.query.timeseries.TimeseriesQueryQueryToolChest;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -164,7 +164,7 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
         RowSignature.builder()
                     .addTimeColumn()
                     .add("sketch", null)
-                    .add("a", ValueType.LONG_ARRAY)
+                    .add("a", ColumnType.LONG_ARRAY)
                     .build(),
         new TimeseriesQueryQueryToolChest().resultArraySignature(query)
     );
