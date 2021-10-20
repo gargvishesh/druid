@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.clarity.emitter.BaseClarityEmitterConfig;
 import io.imply.clarity.emitter.ClarityEmitterUtils;
+import org.apache.druid.java.util.http.client.HttpClientProxyConfig;
 import org.joda.time.Period;
 
 import javax.annotation.Nullable;
@@ -109,6 +110,9 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
   @JsonProperty
   private Set<String> customQueryDimensions = Collections.emptySet();
 
+  @JsonProperty("proxy")
+  private HttpClientProxyConfig proxyConfig = null;
+
   @JsonProperty
   private Map<String, Object> context = null;
 
@@ -137,6 +141,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       Set<String> sampledMetrics,
       Set<String> sampledNodeTypes,
       Set<String> customQueryDimensions,
+      HttpClientProxyConfig proxyConfig,
       Map<String, Object> context
   )
   {
@@ -164,6 +169,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     this.customQueryDimensions = (customQueryDimensions != null
                                   ? customQueryDimensions
                                   : DEFAULT_CUSTOM_QUERY_DIMENSIONS);
+    this.proxyConfig = proxyConfig;
     this.context = context;
   }
 
@@ -271,6 +277,11 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     return customQueryDimensions;
   }
 
+  public HttpClientProxyConfig getProxyConfig()
+  {
+    return proxyConfig;
+  }
+
   @Override
   public Map<String, Object> getContext()
   {
@@ -300,6 +311,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
            ", sampledMetrics=" + sampledMetrics +
            ", sampledNodeTypes=" + sampledNodeTypes +
            ", customQueryDimensions=" + customQueryDimensions +
+           ", proxyConfig=" + proxyConfig +
            ", context=" + context +
            '}';
   }
@@ -330,6 +342,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     private Set<String> sampledMetrics;
     private Set<String> sampledNodeTypes;
     private Set<String> customQueryDimensions;
+    private HttpClientProxyConfig proxyConfig;
     private Map<String, Object> context;
 
     public Builder(String recipientBaseUrl)
@@ -445,6 +458,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       return this;
     }
 
+    public Builder withProxyConfig(HttpClientProxyConfig proxyConfig)
+    {
+      this.proxyConfig = proxyConfig;
+      return this;
+    }
+
     public Builder withContext(Map<String, Object> context)
     {
       this.context = context;
@@ -473,6 +492,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
           sampledMetrics,
           sampledNodeTypes,
           customQueryDimensions,
+          proxyConfig,
           context
       );
     }
