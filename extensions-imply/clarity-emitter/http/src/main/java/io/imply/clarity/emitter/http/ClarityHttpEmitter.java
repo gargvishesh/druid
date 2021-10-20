@@ -142,7 +142,7 @@ public class ClarityHttpEmitter implements Flushable, Closeable, Emitter
   {
     synchronized (started) {
       if (!started.getAndSet(true)) {
-        log.info("%s started: %s", this.getClass().getSimpleName(), nodeDetails);
+        log.info("%s started: %s, proxy[%s]", this.getClass().getSimpleName(), nodeDetails, config.getProxyConfig());
         exec.schedule(new ScheduledEmittingRunnable(version.get()), nextRunDelay(), TimeUnit.MILLISECONDS);
       }
     }

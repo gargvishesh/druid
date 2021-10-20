@@ -75,7 +75,8 @@ public class ClarityHttpEmitterModule implements DruidModule
     final HttpClientConfig.Builder builder = HttpClientConfig
         .builder()
         .withNumConnections(1)
-        .withReadTimeout(config.getReadTimeout().toStandardDuration());
+        .withReadTimeout(config.getReadTimeout().toStandardDuration())
+        .withHttpProxyConfig(config.getProxyConfig());
 
     final SSLContext context;
     if (sslConfig.get().getTrustStorePath() == null) {
