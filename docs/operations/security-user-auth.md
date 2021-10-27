@@ -141,8 +141,9 @@ datasources are omitted.
 Queries on the [system schema tables](../querying/sql.md#system-schema) require the following permissions:
 - `segments`: Druid filters segments according to DATASOURCE READ permissions.
 - `servers`: The user requires STATE READ permissions.
-- `server_segments`: The user requires STATE READ permissions and segments will be filtered based on DATASOURCE READ permissions.
-- `tasks`: Tasks will be filtered based on DATASOURCE READ permissions.
+- `server_segments`: The user requires STATE READ permissions. Druid filters segments according to DATASOURCE READ permissions.
+- `tasks`: Druid filters tasks according to DATASOURCE READ permissions.
+- `supervisors`: Druid filters supervisors according to DATASOURCE READ permissions.
 
 When the Broker property `druid.sql.planner.authorizeSystemTablesDirectly` is true, users also require  `SYSTEM_TABLE` authorization on a system schema table to query it.
 
