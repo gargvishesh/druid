@@ -490,13 +490,7 @@
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-utility-belt</argument>
                                         <argument>-c</argument>
-<<<<<<< HEAD
                                         <argument>io.imply:indexed-table-loader</argument>
-=======
-                                        <argument>org.apache.druid.extensions.contrib:prometheus-emitter</argument>
-                                        <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions.contrib:druid-thrift-extensions</argument>
->>>>>>> upstream/master
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
@@ -504,13 +498,7 @@
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
-<<<<<<< HEAD
                                         <argument>io.imply:clarity-emitter-kafka</argument>
-=======
-                                        <argument>org.apache.druid.extensions.contrib:druid-momentsketch</argument>
-                                        <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions.contrib:druid-tdigestsketch</argument>
->>>>>>> upstream/master
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
                                         <argument>-c</argument>
