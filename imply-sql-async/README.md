@@ -171,14 +171,15 @@ GET /druid/v2/sql/async/{asyncResultId}/status
 
 When the API succeeds, it returns the same JSON object as described in the previous section.
 
-404 if the async result ID does not exist or if the async result ID has expired.
+HTTP 404 if the async result ID does not exist or if the async result ID has expired.
 
+HTTP 403 if the user is not authorized to get the query status.
 
 ### Getting query results
 
-After a query has been completed, you can fetch the results. Attempting to fetch results before query completion returns a 404.
-This API should return the same results for the same query during the async download retention period, no matter how many times you call the API.
-
+After a query has been completed, you can fetch the results. Attempting to fetch results before query completion returns
+a 404. This API should return the same results for the same query during the async download retention period, no matter
+how many times you call the API.
 
 #### Request
 
@@ -192,6 +193,8 @@ The file, if it is ready.
 
 HTTP 404 if the async result ID does not exist, if the async result ID has expired, if the async result ID is not in
 state `COMPLETE`.
+
+HTTP 403 if the user is not authorized to get the query results.
 
 The following headers will be set on a successful response:
 
@@ -215,6 +218,8 @@ DELETE /druid/v2/sql/async/{asyncResultId}
 
 HTTP 404 if the query ID does not exist, if the query ID has expired, if the query ID originated by a different user, or
 if the Broker running the query goes offline.
+
+HTTP 403 if the user is not authorized to cancel.
 
 HTTP 202 if the deletion request has been accepted.
 

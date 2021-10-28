@@ -57,6 +57,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @RunWith(MockitoJUnitRunner.class)
 public class SqlAsyncResourceTest extends BaseCalciteQueryTest
@@ -143,7 +144,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         jsonMapper
     );
-    req = mockAuthenticatedRequest();
+    req = mockAuthenticatedRequest("userID");
   }
 
   @After
@@ -473,6 +474,39 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), resource.deleteQuery("unknownQuery", req).getStatus());
   }
 
+  @Test(timeout = 5000)
+  public void testForbidden() throws IOException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select 1,2",
+            ResultFormat.CSV,
+            true,
+            null,
+            null
+        ),
+        req
+    );
+
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+
+    HttpServletRequest secondUser = makeRandomUserRequest();
+    Assert.assertEquals(
+        Status.FORBIDDEN.getStatusCode(),
+        resource.doGetStatus(response.getAsyncResultId(), secondUser).getStatus()
+    );
+    Assert.assertEquals(
+        Status.FORBIDDEN.getStatusCode(),
+        resource.doGetResults(response.getAsyncResultId(), secondUser).getStatus()
+    );
+    Assert.assertEquals(
+        Status.FORBIDDEN.getStatusCode(),
+        resource.deleteQuery(response.getAsyncResultId(), secondUser).getStatus()
+    );
+  }
+
   private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException
   {
     SqlAsyncQueryDetailsApiResponse response = null;
@@ -485,11 +519,16 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     return response;
   }
 
-  private static HttpServletRequest mockAuthenticatedRequest()
+  private static HttpServletRequest mockAuthenticatedRequest(String user)
   {
     HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
     Mockito.when(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
-           .thenReturn(new AuthenticationResult("userId", "testAuthorizor", "testAuthenticator", null));
+           .thenReturn(new AuthenticationResult(user, "testAuthorizor", "testAuthenticator", null));
     return request;
+  }
+
+  private static HttpServletRequest makeRandomUserRequest()
+  {
+    return mockAuthenticatedRequest(UUID.randomUUID().toString());
   }
 }
