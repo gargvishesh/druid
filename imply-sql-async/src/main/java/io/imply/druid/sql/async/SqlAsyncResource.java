@@ -173,13 +173,15 @@ public class SqlAsyncResource
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(asyncResultId, req);
+    final Optional<SqlAsyncQueryDetails> queryDetails = metadataManager.getQueryDetails(asyncResultId);
 
-    if (queryDetails.isPresent()) {
-      return Response.ok(queryDetails.get().toApiResponse()).build();
-    } else {
+    if (!queryDetails.isPresent()) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
+    if (!isAuthorizedForQuery(queryDetails.get(), req)) {
+      return Response.status(Response.Status.FORBIDDEN).build();
+    }
+    return Response.ok(queryDetails.get().toApiResponse()).build();
   }
 
   @GET
@@ -189,9 +191,16 @@ public class SqlAsyncResource
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    final Optional<SqlAsyncQueryDetails> queryDetails = getQueryDetailsAndAuthorizeRequest(asyncResultId, req);
+    final Optional<SqlAsyncQueryDetails> queryDetails = metadataManager.getQueryDetails(asyncResultId);
 
-    if (queryDetails.isPresent() && queryDetails.get().getState() == SqlAsyncQueryDetails.State.COMPLETE) {
+    if (!queryDetails.isPresent()) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
+    if (!isAuthorizedForQuery(queryDetails.get(), req)) {
+      return Response.status(Response.Status.FORBIDDEN).build();
+    }
+
+    if (queryDetails.get().getState() == SqlAsyncQueryDetails.State.COMPLETE) {
       final Optional<SqlAsyncResults> results = resultManager.readResults(queryDetails.get());
 
       if (results.isPresent()) {
@@ -226,31 +235,34 @@ public class SqlAsyncResource
       // the back ground, checkout {@link SqlAsyncQueryPool#execute}, and moves to completed state. In such a case the
       // result set will not be deleted. The job of cleaning such results happen in the coordiantor duty
       // {@link KillAsyncQueryResultWithoutMetadata}.
-      queryDetailsOptional = getQueryDetailsAndAuthorizeRequest(asyncResultId, req);
-      if (queryDetailsOptional.isPresent()) {
-        SqlAsyncQueryDetails details = queryDetailsOptional.get();
-        // Clean up no matter what.
-        // Reduce, not remove, the chances of incorrect output in case cancel with same asyncResultId is called
-        // multiple times. Operations below are no-op in case called twice.
-        // TODO: Add concurrency controls per asyncResultId so that parallel invocations of delete give correct results
-        metadataManager.removeQueryDetails(details);
-        if (details.getState().equals(SqlAsyncQueryDetails.State.INITIALIZED) || details.getState().equals(
-            SqlAsyncQueryDetails.State.RUNNING)) {
-          // if running or about to be run
-          sqlAsyncLifecycleManager.cancel(asyncResultId);
-          sqlAsyncLifecycleManager.remove(asyncResultId);
-        } else if (details.getState().equals(SqlAsyncQueryDetails.State.COMPLETE)) {
-          // if completed remove output
-          resultManager.deleteResults(asyncResultId);
-        } else if (details.getState().equals(SqlAsyncQueryDetails.State.FAILED)) {
-          // removing state if failed as a safety check
-          sqlAsyncLifecycleManager.remove(asyncResultId);
-        }
-        // response for all states of SqlAsyncQueryDetails
-        return Response.status(Response.Status.ACCEPTED).build();
-      } else {
+      queryDetailsOptional = metadataManager.getQueryDetails(asyncResultId);
+      if (!queryDetailsOptional.isPresent()) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
+
+      SqlAsyncQueryDetails details = queryDetailsOptional.get();
+      if (!isAuthorizedForQuery(details, req)) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+      }
+      // Clean up no matter what.
+      // Reduce, not remove, the chances of incorrect output in case cancel with same asyncResultId is called
+      // multiple times. Operations below are no-op in case called twice.
+      // TODO: Add concurrency controls per asyncResultId so that parallel invocations of delete give correct results
+      metadataManager.removeQueryDetails(details);
+      if (details.getState().equals(SqlAsyncQueryDetails.State.INITIALIZED) || details.getState().equals(
+          SqlAsyncQueryDetails.State.RUNNING)) {
+        // if running or about to be run
+        sqlAsyncLifecycleManager.cancel(asyncResultId);
+        sqlAsyncLifecycleManager.remove(asyncResultId);
+      } else if (details.getState().equals(SqlAsyncQueryDetails.State.COMPLETE)) {
+        // if completed remove output
+        resultManager.deleteResults(asyncResultId);
+      } else if (details.getState().equals(SqlAsyncQueryDetails.State.FAILED)) {
+        // removing state if failed as a safety check
+        sqlAsyncLifecycleManager.remove(asyncResultId);
+      }
+      // response for all states of SqlAsyncQueryDetails
+      return Response.status(Response.Status.ACCEPTED).build();
     }
     catch (Exception e) {
       log.error(
@@ -276,19 +288,12 @@ public class SqlAsyncResource
     return response;
   }
 
-  private Optional<SqlAsyncQueryDetails> getQueryDetailsAndAuthorizeRequest(
-      final String asyncResultId,
-      final HttpServletRequest req
-  ) throws IOException
+  private boolean isAuthorizedForQuery(SqlAsyncQueryDetails queryDetails, HttpServletRequest req)
   {
     AuthorizationUtils.authorizeAllResourceActions(req, Collections.emptyList(), authorizerMapper);
     final AuthenticationResult authenticationResult = AuthorizationUtils.authenticationResultFromRequest(req);
-    return metadataManager.getQueryDetails(asyncResultId)
-                          .filter(
-                              queryDetails ->
-                                  !Strings.isNullOrEmpty(queryDetails.getIdentity())
-                                  && queryDetails.getIdentity().equals(authenticationResult.getIdentity())
-                          );
+    return !Strings.isNullOrEmpty(queryDetails.getIdentity())
+           && queryDetails.getIdentity().equals(authenticationResult.getIdentity());
   }
 
   private Response buildImmediateErrorResponse(
