@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.query.aggregation.datasketches.tuple;
+package io.imply.druid.query.aggregation.datasketches.tuple;
 
 import com.fasterxml.jackson.databind.Module;
 import io.imply.druid.license.TestingImplyLicenseManager;
@@ -15,6 +15,7 @@ import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
+import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketchModule;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
@@ -44,9 +45,8 @@ public class ArrayOfDoublesSketchAdTechAggregationTest
   public ArrayOfDoublesSketchAdTechAggregationTest(final GroupByQueryConfig config)
   {
     DruidModule module = new ArrayOfDoublesSketchModule();
-    ArrayOfDoublesSketchAdTechModule adTechModule = new ArrayOfDoublesSketchAdTechModule();
+    ImplyArrayOfDoublesSketchModule adTechModule = new ImplyArrayOfDoublesSketchModule();
     module.configure(null);
-    adTechModule.configure(null);
     adTechModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     List<Module> modules = Stream.concat(module.getJacksonModules().stream(), adTechModule.getJacksonModules().stream())
                                  .collect(Collectors.toList());

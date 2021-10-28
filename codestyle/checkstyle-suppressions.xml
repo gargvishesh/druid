@@ -72,7 +72,6 @@
   <suppress checks="AvoidStaticImport" files="[\\/]src[\\/](test)[\\/]"/>
 
 
-  <suppress checks="Header" files="org.apache.druid.query.aggregation.datasketches.*" />
   <suppress checks="Header" files="io.imply.druid.license.*" />
   <suppress checks="Header" files="io.imply.druid.query.aggregation.datasketches.tuple.*" />
   <suppress checks="Header" files="io.imply.druid.meter.*" />

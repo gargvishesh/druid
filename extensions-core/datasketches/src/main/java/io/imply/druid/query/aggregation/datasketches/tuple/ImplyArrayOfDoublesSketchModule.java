@@ -27,7 +27,9 @@ import java.util.List;
 
 public class ImplyArrayOfDoublesSketchModule implements DruidModule
 {
+  static final String AD_TECH_INVENTORY = "adTechInventory";
   static final String SAMPLED_AVG_SCORE_FEATURE_NAME = "sampled-avg-score";
+  static final String AD_TECH_AGGREGATORS_FEATURE_NAME = "ad-tech-aggregators";
   static final String SAMPLED_AVG_SCORE = "sampledAvgScore";
   static final String SAMPLED_AVG_SCORE_HISTOGRAM = "sampledAvgScoreHistogram";
   private ImplyLicenseManager implyLicenseManager;
@@ -56,6 +58,10 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
       log.info("The %s feature is enabled", SAMPLED_AVG_SCORE_FEATURE_NAME);
       jacksonModules.add(sampledAvgScoreJacksonModule());
     }
+    if (implyLicenseManager.isFeatureEnabled(AD_TECH_AGGREGATORS_FEATURE_NAME)) {
+      log.info("The %s feature is enabled", AD_TECH_AGGREGATORS_FEATURE_NAME);
+      jacksonModules.add(adTechAggregatorsJacksonModule());
+    }
     return jacksonModules.build();
   }
 
@@ -72,5 +78,12 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     return new SimpleModule(SAMPLED_AVG_SCORE_FEATURE_NAME).registerSubtypes(
         new NamedType(SampledAvgScoreAggregatorFactory.class, SAMPLED_AVG_SCORE),
         new NamedType(SampledAvgScoreToHistogramPostAggregator.class, SAMPLED_AVG_SCORE_HISTOGRAM));
+  }
+
+  private SimpleModule adTechAggregatorsJacksonModule()
+  {
+    return new SimpleModule(AD_TECH_AGGREGATORS_FEATURE_NAME).registerSubtypes(
+        new NamedType(AdTechInventoryAggregatorFactory.class, AD_TECH_INVENTORY)
+    );
   }
 }
