@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.query.aggregation.datasketches.tuple;
+package io.imply.druid.query.aggregation.datasketches.tuple;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -18,6 +18,7 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketchAggregatorFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 
 import javax.annotation.Nullable;
@@ -115,7 +116,7 @@ public class AdTechInventoryAggregatorFactory extends ArrayOfDoublesSketchAggreg
   public List<AggregatorFactory> getRequiredColumns()
   {
     throw new UOE(StringUtils.format("GroupByStrategyV1 is not supported for %s aggregator",
-                                     ArrayOfDoublesSketchAdTechModule.AD_TECH_INVENTORY
+                                     ImplyArrayOfDoublesSketchModule.AD_TECH_INVENTORY
     ));
   }
 

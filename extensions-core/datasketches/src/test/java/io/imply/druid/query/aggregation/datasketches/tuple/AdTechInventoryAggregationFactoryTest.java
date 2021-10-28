@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package org.apache.druid.query.aggregation.datasketches.tuple;
+package io.imply.druid.query.aggregation.datasketches.tuple;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesSketch;
@@ -19,6 +19,7 @@ import org.apache.druid.query.aggregation.AggregateCombiner;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.TestObjectColumnSelector;
+import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketchModule;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.aggregation.post.FinalizingFieldAccessPostAggregator;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
@@ -75,7 +76,7 @@ public class AdTechInventoryAggregationFactoryTest
               .aggregators(
                   new CountAggregatorFactory("count"),
                   new AdTechInventoryAggregatorFactory(
-                      ArrayOfDoublesSketchAdTechModule.AD_TECH_INVENTORY,
+                      ImplyArrayOfDoublesSketchModule.AD_TECH_INVENTORY,
                       "userCol",
                       "impressionCol",
                       null,
@@ -84,8 +85,8 @@ public class AdTechInventoryAggregationFactoryTest
                   )
               )
               .postAggregators(
-                  new FieldAccessPostAggregator("a", ArrayOfDoublesSketchAdTechModule.AD_TECH_INVENTORY),
-                  new FinalizingFieldAccessPostAggregator("b", ArrayOfDoublesSketchAdTechModule.AD_TECH_INVENTORY)
+                  new FieldAccessPostAggregator("a", ImplyArrayOfDoublesSketchModule.AD_TECH_INVENTORY),
+                  new FinalizingFieldAccessPostAggregator("b", ImplyArrayOfDoublesSketchModule.AD_TECH_INVENTORY)
               )
               .build();
 
@@ -93,7 +94,7 @@ public class AdTechInventoryAggregationFactoryTest
         RowSignature.builder()
                     .addTimeColumn()
                     .add("count", ColumnType.LONG)
-                    .add(ArrayOfDoublesSketchAdTechModule.AD_TECH_INVENTORY, null)
+                    .add(ImplyArrayOfDoublesSketchModule.AD_TECH_INVENTORY, null)
                     .add("a", ArrayOfDoublesSketchModule.MERGE_TYPE)
                     .add("b", ColumnType.DOUBLE)
                     .build(),
