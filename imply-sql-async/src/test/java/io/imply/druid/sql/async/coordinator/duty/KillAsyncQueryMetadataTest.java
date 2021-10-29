@@ -131,7 +131,7 @@ public class KillAsyncQueryMetadataTest
   }
 
   @Test
-  public void testRun() throws Exception
+  public void testRun()
   {
     // query1 is eligible for cleanup
     String query1 = "asyncResultId1";

@@ -9,20 +9,24 @@
 
 package io.imply.druid.sql.async.metadata;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class SqlAsyncQueryMetadata
 {
   // The time in milliseconds from epoch when Sql Async Query was last updated.
 
   private final long lastUpdatedTime;
 
-
+  @JsonCreator
   public SqlAsyncQueryMetadata(
-      long lastUpdatedTime
+      @JsonProperty("lastUpdatedTime") long lastUpdatedTime
   )
   {
     this.lastUpdatedTime = lastUpdatedTime;
   }
 
+  @JsonProperty
   public long getLastUpdatedTime()
   {
     return lastUpdatedTime;

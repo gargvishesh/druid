@@ -19,6 +19,7 @@ import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.guice.ManageLifecycleAnnouncements;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
@@ -45,7 +46,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 @ManageLifecycleAnnouncements
 public class SqlAsyncQueryPool
 {
-  private static final EmittingLogger log = new EmittingLogger(SqlAsyncQueryPool.class);
+  private static final EmittingLogger LOG = new EmittingLogger(SqlAsyncQueryPool.class);
 
   private final String brokerId;
   private final AsyncQueryPoolConfig asyncQueryPoolConfig;
@@ -90,7 +91,7 @@ public class SqlAsyncQueryPool
                     || details.get().getState() == SqlAsyncQueryDetails.State.RUNNING
                 )
             ) {
-              metadataManager.updateQueryDetails(
+              final boolean updated = metadataManager.updateQueryDetails(
                   details.get().toError(
                       new QueryInterruptedException(
                           QueryInterruptedException.QUERY_INTERRUPTED,
@@ -100,11 +101,17 @@ public class SqlAsyncQueryPool
                       )
                   )
               );
+              if (!updated) {
+                LOG.warn(
+                    "Failed to mark query [%s] FAILED because it was already in a final state",
+                    details.get().getAsyncResultId()
+                );
+              }
             }
           }
         }
         catch (Exception e) {
-          log.warn(e, "Failed to update state while stopping SqlAsyncQueryPool for asyncResultIds[%s]", asyncResultId);
+          LOG.warn(e, "Failed to update state while stopping SqlAsyncQueryPool for asyncResultIds[%s]", asyncResultId);
         }
       }
     });
@@ -117,7 +124,7 @@ public class SqlAsyncQueryPool
       final SqlQuery sqlQuery,
       final SqlLifecycle lifecycle,
       final String remoteAddr
-  ) throws IOException, AsyncQueryAlreadyExistsException
+  ) throws AsyncQueryAlreadyExistsException
   {
     // TODO(gianm): Document precondition: lifecycle must be in AUTHORIZED state. Validate, too?
     assert lifecycle.getAuthenticationResult() != null;
@@ -134,7 +141,7 @@ public class SqlAsyncQueryPool
           QueryCapacityExceededException.class.getName(),
           null
       );
-      log.makeAlert(e, "Total async query limit exceeded").addData("asyncResultId", asyncResultId).emit();
+      LOG.makeAlert(e, "Total async query limit exceeded").addData("asyncResultId", asyncResultId).emit();
       throw e;
     }
 
@@ -159,7 +166,13 @@ public class SqlAsyncQueryPool
             try {
               Thread.currentThread().setName(StringUtils.format("sql-async[%s]", asyncResultId));
 
-              metadataManager.updateQueryDetails(queryDetails.toRunning());
+              if (!metadataManager.updateQueryDetails(queryDetails.toRunning())) {
+                throw new ISE(
+                    "Failed to update query state to [%s] for [%s]",
+                    queryDetails.toRunning().getState(),
+                    asyncResultId
+                );
+              }
 
               // TODO(gianm): Most of this code is copy-pasted from SqlResource
               lifecycle.plan();
@@ -197,18 +210,32 @@ public class SqlAsyncQueryPool
                 yielder.close();
               }
 
-              metadataManager.updateQueryDetails(queryDetails.toComplete(outputStream.getCount()));
+              final SqlAsyncQueryDetails complete = queryDetails.toComplete(outputStream.getCount());
+              if (!metadataManager.updateQueryDetails(complete)) {
+                throw new ISE(
+                    "Failed to update query state to [%s] for [%s]",
+                    complete.getState(),
+                    asyncResultId
+                );
+              }
               lifecycle.finalizeStateAndEmitLogsAndMetrics(null, remoteAddr, outputStream.getCount());
             }
             catch (Exception e) {
-              log.warn(e, "Failed to execute async query [%s]", asyncResultId);
+              LOG.warn(e, "Failed to execute async query [%s]", asyncResultId);
               lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
 
               try {
-                metadataManager.updateQueryDetails(queryDetails.toError(e));
+                final SqlAsyncQueryDetails error = queryDetails.toError(e);
+                if (!metadataManager.updateQueryDetails(error)) {
+                  throw new ISE(
+                      "Failed to update query state to [%s] for [%s]",
+                      error.getState(),
+                      asyncResultId
+                  );
+                }
               }
               catch (Exception e2) {
-                log.warn(e2, "Failed to set error for async query [%s]", asyncResultId);
+                LOG.warn(e2, "Failed to set error for async query [%s]", asyncResultId);
               }
             }
             finally {
@@ -224,7 +251,7 @@ public class SqlAsyncQueryPool
       // See more details in SqlAsyncQueryPoolProvider#get()
       metadataManager.removeQueryDetails(queryDetails);
       sqlAsyncLifecycleManager.remove(asyncResultId);
-      log.makeAlert(e, "Async query queue capacity exceeded").addData("asyncResultId", asyncResultId).emit();
+      LOG.makeAlert(e, "Async query queue capacity exceeded").addData("asyncResultId", asyncResultId).emit();
       throw e;
     }
 

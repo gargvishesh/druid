@@ -31,7 +31,6 @@ import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -302,13 +301,13 @@ public class UpdateStaleQueryState implements CoordinatorCustomDuty
   }
 
   private void markUndetermined(String asyncResultId, SqlAsyncQueryDetails undeterminedQueryDetails)
-      throws IOException, AsyncQueryDoesNotExistException
+      throws AsyncQueryDoesNotExistException
   {
-    // TODO: This is racy because, even though the broker was not in the live brokers set, it might be still alive.
-    //       The update should fail if the broker is alive and has updated the state before coordinator does.
-    //       This will be fixed when compareAndSwap() method is added for metadaaManager.
-    sqlAsyncMetadataManager.updateQueryDetails(undeterminedQueryDetails);
-    LOG.debug("Marked query [%s] as UNDETERMINED", asyncResultId);
-    numStaleQueriesMarked.addAndGet(1);
+    if (sqlAsyncMetadataManager.updateQueryDetails(undeterminedQueryDetails)) {
+      LOG.debug("Marked query [%s] as UNDETERMINED", asyncResultId);
+      numStaleQueriesMarked.addAndGet(1);
+    } else {
+      LOG.warn("Failed to mark query [%s] UNDETERMINED because it was already in a final state", asyncResultId);
+    }
   }
 }

@@ -20,8 +20,9 @@ import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
 import io.imply.druid.sql.async.discovery.BrokerIdService;
-import io.imply.druid.sql.async.metadata.CuratorSqlAsyncMetadataManager;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManagerImpl;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataStorageTableConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.query.SqlAsyncQueryStatsMonitor;
 import io.imply.druid.sql.async.result.LocalSqlAsyncResultManager;
@@ -33,6 +34,7 @@ import org.apache.druid.guice.Jerseys;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
+import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.StringUtils;
@@ -234,7 +236,8 @@ public class SqlAsyncModule implements Module
 
   public static void bindAsyncMetadataManager(Binder binder)
   {
-    binder.bind(SqlAsyncMetadataManager.class).to(CuratorSqlAsyncMetadataManager.class).in(LazySingleton.class);
+    binder.bind(SqlAsyncMetadataManager.class).to(SqlAsyncMetadataManagerImpl.class).in(ManageLifecycle.class);
+    JsonConfigProvider.bind(binder, "druid.metadata.storage.tables", SqlAsyncMetadataStorageTableConfig.class);
   }
 
   public static void bindAsyncLimitsConfig(Binder binder)

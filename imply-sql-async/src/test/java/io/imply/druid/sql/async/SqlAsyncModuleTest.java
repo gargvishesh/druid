@@ -27,9 +27,13 @@ import org.apache.druid.guice.JsonConfigurator;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.jackson.JacksonModule;
+import org.apache.druid.metadata.MetadataStorageConnectorConfig;
+import org.apache.druid.metadata.SQLMetadataConnector;
+import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.query.DefaultQueryConfig;
 import org.apache.druid.sql.guice.SqlModule;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 import javax.validation.Validation;
@@ -38,6 +42,9 @@ import java.util.Properties;
 
 public class SqlAsyncModuleTest
 {
+  @Rule
+  public DerbyConnectorRule connectorRule = new DerbyConnectorRule();
+
   @Test
   public void testDisableAsyncQuery()
   {
@@ -99,6 +106,9 @@ public class SqlAsyncModuleTest
               new TypeLiteral<Supplier<DefaultQueryConfig>>(){})
                 .toInstance(Suppliers.ofInstance(new DefaultQueryConfig(null))
           );
+          binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>(){})
+                .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
+          binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
         },
         new SqlAsyncModule(props)
     );

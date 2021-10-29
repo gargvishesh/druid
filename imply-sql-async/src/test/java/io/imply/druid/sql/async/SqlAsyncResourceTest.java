@@ -11,7 +11,8 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManagerImpl;
+import io.imply.druid.sql.async.metadata.SqlAsyncMetadataStorageTableConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
@@ -27,6 +28,8 @@ import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExprMacroTable.ExprMacro;
+import org.apache.druid.metadata.MetadataStorageConnectorConfig;
+import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.expressions.SleepExprMacro;
@@ -45,6 +48,7 @@ import org.apache.druid.sql.http.SqlQuery;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -67,7 +71,12 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private static final int MAX_QUERIES_TO_QUEUE = 2;
   private static final String BROKER_ID = "brokerId123";
 
+  @Rule
+  public final DerbyConnectorRule connectorRule = new DerbyConnectorRule();
+
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
+  private final SqlAsyncMetadataStorageTableConfig tableConfig = new SqlAsyncMetadataStorageTableConfig(null, null);
+
   private SqlAsyncQueryPool queryPool;
   private SqlAsyncResource resource;
   private HttpServletRequest req;
@@ -98,7 +107,13 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     EmittingLogger.registerEmitter(new NoopServiceEmitter());
     final File resultStorage = temporaryFolder.newFolder();
-    final SqlAsyncMetadataManager metadataManager = new InMemorySqlAsyncMetadataManager();
+    final SqlAsyncMetadataManagerImpl metadataManager = new SqlAsyncMetadataManagerImpl(
+        jsonMapper,
+        MetadataStorageConnectorConfig::new,
+        tableConfig,
+        connectorRule.getConnector()
+    );
+    metadataManager.initialize();
     final Lifecycle lifecycle = new Lifecycle();
     final SqlAsyncResultManager resultManager = new LocalSqlAsyncResultManager(
         new LocalSqlAsyncResultManagerConfig()
@@ -151,6 +166,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   public void tearDownTest() throws IOException
   {
     queryPool.stop();
+    connectorRule.getConnector().deleteAllRecords(tableConfig.getSqlAsyncQueriesTable());
   }
 
   @Test
@@ -199,7 +215,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGetStatusUnknownQuery() throws IOException
+  public void testGetStatusUnknownQuery()
   {
     Response statusResponse = resource.doGetStatus("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
@@ -507,7 +523,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     );
   }
 
-  private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state) throws IOException
+  private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state)
   {
     SqlAsyncQueryDetailsApiResponse response = null;
 
