@@ -253,7 +253,7 @@ def implyS3Tests(jvmRuntimeOpt) {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             def cloudpath = UUID.randomUUID().toString()
             writeFile   file: "jenkins/s3-config",
-                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]\ndruid_query_async_sql_enabled=true\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results"
+                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]\ndruid_query_async_sql_enabled=true\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results\ndruid_metadata_storage_type=mysql\ndruid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid\ndruid_metadata_storage_connector_user=druid\ndruid_metadata_storage_connector_password=diurd"
             retry(2) {
                 try {
                     sh script: """

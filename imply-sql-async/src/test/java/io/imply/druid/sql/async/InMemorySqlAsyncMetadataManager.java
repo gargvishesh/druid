@@ -44,14 +44,26 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
   }
 
   @Override
-  public void updateQueryDetails(SqlAsyncQueryDetails queryDetails) throws AsyncQueryDoesNotExistException
+  public boolean updateQueryDetails(SqlAsyncQueryDetails newQueryDetails) throws AsyncQueryDoesNotExistException
   {
     synchronized (lock) {
-      if (!queries.containsKey(queryDetails.getAsyncResultId())) {
-        throw new AsyncQueryDoesNotExistException(queryDetails.getAsyncResultId());
+      final SqlAsyncQueryDetailsAndMetadata existing = queries.get(newQueryDetails.getAsyncResultId());
+      if (existing == null) {
+        throw new AsyncQueryDoesNotExistException(newQueryDetails.getAsyncResultId());
       }
-      SqlAsyncQueryMetadata metadata = new SqlAsyncQueryMetadata(System.currentTimeMillis());
-      queries.put(queryDetails.getAsyncResultId(), new SqlAsyncQueryDetailsAndMetadata(queryDetails, metadata));
+      final SqlAsyncQueryDetails actual = existing.getSqlAsyncQueryDetails();
+      if (actual.getState().isFinal()) {
+        return false;
+      } else {
+        queries.put(
+            newQueryDetails.getAsyncResultId(),
+            new SqlAsyncQueryDetailsAndMetadata(
+                newQueryDetails,
+                new SqlAsyncQueryMetadata(System.currentTimeMillis())
+            )
+        );
+        return true;
+      }
     }
   }
 
@@ -109,7 +121,8 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
     synchronized (lock) {
       return queries.values()
                     .stream()
-                    .filter(detailsAndMetadata -> asyncResultIds.contains(detailsAndMetadata.getSqlAsyncQueryDetails().getAsyncResultId()))
+                    .filter(detailsAndMetadata -> asyncResultIds.contains(detailsAndMetadata.getSqlAsyncQueryDetails()
+                                                                                            .getAsyncResultId()))
                     .mapToLong(details -> details.getSqlAsyncQueryDetails().getResultLength())
                     .sum();
     }

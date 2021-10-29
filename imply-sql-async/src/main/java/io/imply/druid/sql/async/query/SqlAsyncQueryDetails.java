@@ -15,8 +15,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryException;
 import org.apache.druid.query.QueryInterruptedException;
+import org.apache.druid.query.QueryTimeoutException;
+import org.apache.druid.query.QueryUnsupportedException;
+import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.sql.http.ResultFormat;
 
 import javax.annotation.Nullable;
@@ -54,7 +58,7 @@ public class SqlAsyncQueryDetails
     this.identity = identity;
     this.resultFormat = Preconditions.checkNotNull(resultFormat, "resultFormat");
     this.resultLength = resultLength;
-    this.error = error;
+    this.error = error == null ? null : convertException(error);
 
     if (asyncResultId.isEmpty()) {
       throw new IAE("asyncResultId must be nonempty");
@@ -208,18 +212,44 @@ public class SqlAsyncQueryDetails
       return false;
     }
     SqlAsyncQueryDetails that = (SqlAsyncQueryDetails) o;
-    return resultLength == that.resultLength
-           && Objects.equals(asyncResultId, that.asyncResultId)
-           && state == that.state
-           && resultFormat == that.resultFormat
-           && Objects.equals(identity, that.identity)
-           && Objects.equals(error, that.error);
+    boolean equals = resultLength == that.resultLength
+                     && Objects.equals(asyncResultId, that.asyncResultId)
+                     && state == that.state
+                     && resultFormat == that.resultFormat
+                     && Objects.equals(identity, that.identity);
+
+    if (!equals) {
+      return false;
+    }
+
+    if (error == null && that.error == null) {
+      return true;
+    } else if (error != null && that.error != null) {
+      return Objects.equals(error.getErrorClass(), that.error.getErrorClass())
+             && Objects.equals(error.getErrorCode(), that.error.getErrorCode())
+             && Objects.equals(error.getMessage(), that.error.getMessage())
+             && Objects.equals(error.getHost(), that.error.getHost());
+    }
+    return false;
   }
 
   @Override
   public int hashCode()
   {
     return Objects.hash(asyncResultId, state, resultFormat, resultLength, identity, error);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "SqlAsyncQueryDetails{" +
+           "asyncResultId='" + asyncResultId + '\'' +
+           ", state=" + state +
+           ", resultFormat=" + resultFormat +
+           ", resultLength=" + resultLength +
+           ", identity='" + identity + '\'' +
+           ", error=" + error +
+           '}';
   }
 
   // TODO: should be extendable
@@ -264,12 +294,64 @@ public class SqlAsyncQueryDetails
     public abstract boolean isFinal();
   }
 
-  private static String clipErrorMessage(@Nullable final String errorMessage)
+  // copied over from JsonParserIterator
+  private QueryException convertException(Throwable cause)
   {
-    if (errorMessage != null && errorMessage.length() > MAX_ERROR_MESSAGE_LENGTH) {
-      return errorMessage.substring(0, MAX_ERROR_MESSAGE_LENGTH - 3) + "...";
+    if (cause instanceof QueryException) {
+      final QueryException queryException = (QueryException) cause;
+      if (queryException.getErrorCode() == null) {
+        // errorCode should not be null now, but maybe could be null in the past..
+        return new QueryInterruptedException(
+            queryException.getErrorCode(),
+            queryException.getMessage(),
+            queryException.getErrorClass(),
+            queryException.getHost()
+        );
+      }
+
+      // Note: this switch clause is to restore the 'type' information of QueryExceptions which is lost during
+      // JSON serialization. This is not a good way to restore the correct exception type. Rather, QueryException
+      // should store its type when it is serialized, so that we can know the exact type when it is deserialized.
+      switch (queryException.getErrorCode()) {
+        // The below is the list of exceptions that can be thrown in historicals and propagated to the broker.
+        case QueryTimeoutException.ERROR_CODE:
+          return new QueryTimeoutException(
+              queryException.getErrorCode(),
+              queryException.getMessage(),
+              queryException.getErrorClass(),
+              queryException.getHost()
+          );
+        case QueryCapacityExceededException.ERROR_CODE:
+          return new QueryCapacityExceededException(
+              queryException.getErrorCode(),
+              queryException.getMessage(),
+              queryException.getErrorClass(),
+              queryException.getHost()
+          );
+        case QueryUnsupportedException.ERROR_CODE:
+          return new QueryUnsupportedException(
+              queryException.getErrorCode(),
+              queryException.getMessage(),
+              queryException.getErrorClass(),
+              queryException.getHost()
+          );
+        case ResourceLimitExceededException.ERROR_CODE:
+          return new ResourceLimitExceededException(
+              queryException.getErrorCode(),
+              queryException.getMessage(),
+              queryException.getErrorClass(),
+              queryException.getHost()
+          );
+        default:
+          return new QueryInterruptedException(
+              queryException.getErrorCode(),
+              queryException.getMessage(),
+              queryException.getErrorClass(),
+              queryException.getHost()
+          );
+      }
     } else {
-      return errorMessage;
+      return new QueryInterruptedException(cause);
     }
   }
 }

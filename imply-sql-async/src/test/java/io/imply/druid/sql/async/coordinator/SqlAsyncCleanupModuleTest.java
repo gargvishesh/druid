@@ -13,9 +13,12 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.inject.ConfigurationException;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.TypeLiteral;
 import io.imply.druid.sql.async.SqlAsyncModule;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryMetadata;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryResultWithoutMetadata;
@@ -29,10 +32,14 @@ import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.metadata.MetadataStorageConnectorConfig;
+import org.apache.druid.metadata.SQLMetadataConnector;
+import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
 import org.apache.druid.sql.guice.SqlModule;
 import org.joda.time.Duration;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 import javax.validation.Validation;
@@ -41,6 +48,9 @@ import java.util.Properties;
 
 public class SqlAsyncCleanupModuleTest
 {
+  @Rule
+  public DerbyConnectorRule connectorRule = new DerbyConnectorRule();
+
   @Test
   public void testDisableAsyncQuery() throws Exception
   {
@@ -173,6 +183,9 @@ public class SqlAsyncCleanupModuleTest
           binder.bind(Validator.class).toInstance(Validation.buildDefaultValidatorFactory().getValidator());
           binder.bind(JsonConfigurator.class).in(LazySingleton.class);
           binder.bind(Properties.class).toInstance(props);
+          binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>(){})
+                .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
+          binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
         },
         cleanupModule
     );

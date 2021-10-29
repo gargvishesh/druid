@@ -78,6 +78,7 @@ services:
       - druid-zookeeper-kafka
       - druid-middlemanager
       - druid-historical
+      - druid-metadata-storage
 
   druid-router:
     extends:

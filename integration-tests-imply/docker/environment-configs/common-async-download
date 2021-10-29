@@ -20,3 +20,8 @@ druid_query_async_cleanup_pollPeriod=PT3S
 druid_query_async_cleanup_timeToRetain=PT90S
 
 druid_query_async_cleanup_timeToWaitAfterBrokerGone=PT10S
+
+druid_metadata_storage_type=mysql
+druid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid
+druid_metadata_storage_connector_user=druid
+druid_metadata_storage_connector_password=diurd

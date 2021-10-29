@@ -171,7 +171,7 @@ public class SqlAsyncResource
   public Response doGetStatus(
       @PathParam("id") final String asyncResultId,
       @Context final HttpServletRequest req
-  ) throws IOException
+  )
   {
     final Optional<SqlAsyncQueryDetails> queryDetails = metadataManager.getQueryDetails(asyncResultId);
 
