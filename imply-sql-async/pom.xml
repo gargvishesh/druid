@@ -108,19 +108,8 @@
       <artifactId>guava</artifactId>
     </dependency>
     <dependency>
-<<<<<<< HEAD
-      <groupId>org.apache.curator</groupId>
-      <artifactId>curator-client</artifactId>
-      <version>4.3.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
-      <version>${zookeeper.version}</version>
-=======
       <groupId>org.jdbi</groupId>
       <artifactId>jdbi</artifactId>
->>>>>>> origin/master
     </dependency>
     <dependency>
       <groupId>javax.ws.rs</groupId>
