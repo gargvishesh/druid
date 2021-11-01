@@ -265,9 +265,3 @@ API will still return details for the query.
   In this case, you must manually clean up the queries left in invalid states.
 - Even when the broker shuts down gracefully, it currently doesn't wait for running queries in it to complete before
   it completely shuts down. Instead, it simply marks them `FAILED`. This can fail your queries during rolling updates.
-- When the broker has intermittent connection issues to ZooKeeper, the coordinator can treat the broker as unstable
-  and mark all queries running in that broker as `UNDETERMINED`, indicating that the query state is undeterminable since
-  the broker state is unstable. Currently, there is a race between when the coordinator marks queries `UNDETERMINED`
-  and when the broker updates query states. As a result, you may see the query state changing from `UNDETERMINED` to
-  either `COMPLETE` or `FAILED`, or vice versa when both the coordinator and broker try to update query states, even though
-  `UNDETERMINED`, `COMPLETE`, and `FAILED` states are final states.
