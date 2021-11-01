@@ -1140,7 +1140,6 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-<<<<<<< HEAD
                 <groupId>com.github.stefanbirkner</groupId>
                 <artifactId>system-rules</artifactId>
                 <version>1.19.0</version>
