@@ -282,6 +282,7 @@
                     <CONFLUENT_VERSION>5.5.1</CONFLUENT_VERSION>
                     <KAFKA_VERSION>${apache.kafka.version}</KAFKA_VERSION>
                     <ZK_VERSION>${zookeeper.version}</ZK_VERSION>
+                    <HADOOP_VERSION>${hadoop.compile.version}</HADOOP_VERSION>
                     <KEYCLOAK_NOT_BEFORE_API_VERSION>2021.07.0-SNAPSHOT</KEYCLOAK_NOT_BEFORE_API_VERSION>
                   </environmentVariables>
                   <executable>${project.basedir}/build_run_cluster.sh</executable>
