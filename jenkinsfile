@@ -164,7 +164,7 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
         retry(2) {
             try {
                 sh script: """
-                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    \${MVN} -pl integration-tests process-resources && \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=query \
                     -Dit.indexer=middleManager \
                     ${jvmRuntimeOpt} \
@@ -187,7 +187,7 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
         retry(3) {
             try {
                 sh script: """
-                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=keycloak-security \
                     -Dit.indexer=middleManager \
                     ${jvmRuntimeOpt} \
@@ -209,7 +209,7 @@ def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
         retry(2) {
             try {
                 sh script: """
-                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=virtual-segments \
                     -Dit.indexer=middleManager \
                     ${jvmRuntimeOpt} \
@@ -231,7 +231,7 @@ def implyAsyncDownloadIntegrationTests(jvmRuntimeOpt) {
         retry(2) {
             try {
                 sh script: """
-                    \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=async-download \
                     -Dit.indexer=middleManager \
                     ${jvmRuntimeOpt} \
@@ -257,7 +257,7 @@ def implyS3Tests(jvmRuntimeOpt) {
             retry(2) {
                 try {
                     sh script: """
-                        \${MVN} verify -P integration-tests-imply -pl integration-tests-imply \
+                        \${MVN} -pl integration-tests process-resources && ${MVN} verify -P integration-tests-imply -pl integration-tests-imply \
                         -Dgroups=imply-s3 \
                         -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
                         ${jvmRuntimeOpt} \
