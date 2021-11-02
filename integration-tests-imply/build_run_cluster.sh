@@ -24,7 +24,12 @@ echo $DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH
 IMPLYTESTDIR=$(cd $(dirname $0) && pwd)
 
 export DIR=$IMPLYTESTDIR/../integration-tests
+
 export HADOOP_DOCKER_DIR=$DIR/../examples/quickstart/tutorial/hadoop/docker
+if [ -n "${HADOOP_VERSION}" ] && [ ${HADOOP_VERSION:0:1)} == "3" ]; then
+   export HADOOP_DOCKER_DIR=$DIR/../examples/quickstart/tutorial/hadoop3/docker
+fi
+
 export DOCKERDIR=$DIR/docker
 export SHARED_DIR=${HOME}/shared
 
@@ -36,7 +41,7 @@ if !($DRUID_INTEGRATION_TEST_SKIP_BUILD_DOCKER); then
   # copy standard integration test resources
   # change to integration-test directory t
   cd $DIR
-  bash ./script/copy_resources.sh
+  bash ./gen-scripts/copy_resources.sh
 
   cd $IMPLYTESTDIR
   # copy imply test resources (needs to be in imply-integration-tests root for correct mvn command to run)
