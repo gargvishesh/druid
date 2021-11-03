@@ -62,7 +62,7 @@ druid.broker.segment.watchedTiers=["_cold_tier"]
 ## Hot-tier broker configuration
 
 ```
-druid.broker.segment.watchedTiers=["_default_tier"]
+druid.broker.segment.ignoredTiers=["_cold_tier"]
 ```
 
 Above configuration ensures that hot brokers are only aware of the segments that are on hot historicals. If you have
