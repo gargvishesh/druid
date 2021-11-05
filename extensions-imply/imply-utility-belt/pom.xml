@@ -150,6 +150,21 @@
       <version>1.0.0</version>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>com.github.seancfoley</groupId>
+      <artifactId>ipaddress</artifactId>
+      <version>5.3.3</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>it.unimi.dsi</groupId>
+      <artifactId>fastutil-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- Tests -->
     <dependency>
@@ -175,6 +190,11 @@
       <groupId>org.openjdk.jmh</groupId>
       <artifactId>jmh-core</artifactId>
       <version>1.21</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>nl.jqno.equalsverifier</groupId>
+      <artifactId>equalsverifier</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
