@@ -189,3 +189,17 @@ The conversion table is applied with the following rules:
 3. Rows with timestamps before the earliest provided conversion time will use the rate 1.0.
 4. All other rows use the rate corresponding to the latest conversion table timestamp which is equal
    to or less than the row's timestamp. (i.e. the most recent conversion as of the timestamp in that row)
+
+
+## IP Address Columns
+
+IPv4 and IPv6 addresses can be ingested into specialized column type that stores IP address in their native 128-bit binary format.
+
+```json
+{
+   "type": "ipAddress",
+   "name": "someColumnName"
+}
+```
+
+_WIP_

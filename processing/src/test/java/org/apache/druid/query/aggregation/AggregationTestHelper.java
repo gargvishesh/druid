@@ -851,5 +851,10 @@ public class AggregationTestHelper implements Closeable
   {
     resourceCloser.close();
   }
+
+  public IndexIO getIndexIO()
+  {
+    return indexIO;
+  }
 }
 
