@@ -25,6 +25,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.imply.druid.license.ImplyLicenseModule;
 import org.apache.druid.jackson.JacksonModule;
+import org.apache.druid.math.expr.ExpressionProcessingModule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +46,7 @@ public class GuiceInjectors
         new ConfigModule(),
         new NullHandlingModule(),
         new ImplyLicenseModule(),
+        new ExpressionProcessingModule(),
         binder -> {
           binder.bind(DruidSecondaryModule.class);
           JsonConfigProvider.bind(binder, "druid.extensions", ExtensionsConfig.class);
