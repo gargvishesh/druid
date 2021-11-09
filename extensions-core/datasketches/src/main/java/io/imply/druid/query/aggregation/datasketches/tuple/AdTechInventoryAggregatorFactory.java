@@ -183,6 +183,15 @@ public class AdTechInventoryAggregatorFactory extends ArrayOfDoublesSketchAggreg
   }
 
   @Override
+  public List<String> requiredFields()
+  {
+    if (userColumn != null && impressionColumn != null) {
+      return ImmutableList.of(userColumn, impressionColumn);
+    }
+    return ImmutableList.of(adTechInventoryColumn);
+  }
+
+  @Override
   public String toString()
   {
     return this.getClass().getSimpleName() + "{"

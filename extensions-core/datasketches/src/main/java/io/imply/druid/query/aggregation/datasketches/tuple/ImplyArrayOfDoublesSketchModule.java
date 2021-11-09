@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import io.imply.druid.license.ImplyLicenseManager;
+import io.imply.druid.query.aggregation.datasketches.tuple.sql.AdTechInventorySqlAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SampledAvgScoreObjectSqlAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SampledAvgScoreToEstimateOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SampledAvgScoreToHistogramOperatorConversion;
@@ -47,6 +48,10 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     if (implyLicenseManager.isFeatureEnabled(SAMPLED_AVG_SCORE_FEATURE_NAME)) {
       configureSampledAvgScore(binder);
     }
+
+    if (implyLicenseManager.isFeatureEnabled(AD_TECH_AGGREGATORS_FEATURE_NAME)) {
+      configureAdTechAggregator(binder);
+    }
   }
 
   @Override
@@ -71,6 +76,11 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
 
     SqlBindings.addOperatorConversion(binder, SampledAvgScoreToHistogramOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, SampledAvgScoreToEstimateOperatorConversion.class);
+  }
+
+  private void configureAdTechAggregator(Binder binder)
+  {
+    SqlBindings.addAggregator(binder, AdTechInventorySqlAggregator.class);
   }
 
   private SimpleModule sampledAvgScoreJacksonModule()
