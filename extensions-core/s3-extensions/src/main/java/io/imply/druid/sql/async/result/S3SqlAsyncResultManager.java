@@ -28,8 +28,8 @@ import io.imply.druid.sql.async.SqlAsyncModule;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
-import org.apache.commons.io.FileUtils;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 import org.apache.druid.storage.s3.S3Utils;
@@ -66,7 +66,9 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
     this.config = config;
     this.metadataManager = metadataManager;
 
-    FileUtils.forceMkdir(config.getTempDir());
+    if (config.getTempDir() != null) {
+      FileUtils.mkdirp(config.getTempDir());
+    }
   }
 
   @Override

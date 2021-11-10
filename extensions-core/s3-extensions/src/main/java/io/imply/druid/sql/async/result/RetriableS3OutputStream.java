@@ -37,7 +37,7 @@ import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
-import org.apache.commons.io.FileUtils;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.java.util.common.RetryUtils;
@@ -154,7 +154,7 @@ class RetriableS3OutputStream extends OutputStream
     );
     this.uploadId = result.getUploadId();
     this.chunkStorePath = new File(config.getTempDir(), SqlAsyncUtil.safeId(queryDetails.getAsyncResultId()));
-    FileUtils.forceMkdir(this.chunkStorePath);
+    FileUtils.mkdirp(this.chunkStorePath);
     this.chunkSize = config.getChunkSize() == null ? computeChunkSize(config) : config.getChunkSize();
     this.pushStopwatch = Stopwatch.createUnstarted();
     this.pushStopwatch.reset();
@@ -317,7 +317,7 @@ class RetriableS3OutputStream extends OutputStream
     });
 
     // Closeables are closed in LIFO order
-    closer.register(() -> FileUtils.forceDelete(chunkStorePath));
+    closer.register(() -> org.apache.commons.io.FileUtils.forceDelete(chunkStorePath));
 
     closer.register(() -> {
       try {

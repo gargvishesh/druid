@@ -9,9 +9,13 @@
 
 package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
+import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.tuple.AdTechInventoryAggregatorFactory;
+import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -40,6 +44,14 @@ import java.util.Collections;
 public class AdTechInventorySqlAggregatorTest extends BaseCalciteQueryTest
 {
   private static final String NAME = AdTechInventorySqlAggregator.NAME;
+
+  @Override
+  public Iterable<? extends Module> getJacksonModules()
+  {
+    ImplyArrayOfDoublesSketchModule module = new ImplyArrayOfDoublesSketchModule();
+    module.setImplyLicenseManager(new TestingImplyLicenseManager(null));
+    return Iterables.concat(super.getJacksonModules(), module.getJacksonModules());
+  }
 
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException

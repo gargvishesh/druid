@@ -138,7 +138,7 @@ public abstract class PollingManagedCache<T>
   protected void writeCachedDataToDisk(byte[] cacheBytes) throws IOException
   {
     File cacheDir = new File(commonCacheConfig.getCacheDirectory());
-    cacheDir.mkdirs();
+    FileUtils.mkdirp(cacheDir);
     File cacheFile = new File(commonCacheConfig.getCacheDirectory(), getCacheFilename());
     LOG.debug("Writing cached data to file [%s]", cacheFile.getAbsolutePath());
     writeFileAtomically(cacheFile, cacheBytes);
