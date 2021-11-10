@@ -59,7 +59,7 @@ public class LongLastAggregationTest extends InitializedNullHandlingTest
   @Before
   public void setup()
   {
-    longLastAggFactory = new LongLastAggregatorFactory("billy", "nilly");
+    longLastAggFactory = new LongLastAggregatorFactory("billy", "nilly", null);
     combiningAggFactory = (LongLastAggregatorFactory) longLastAggFactory.getCombiningFactory();
     timeSelector = new TestLongColumnSelector(times);
     valueSelector = new TestLongColumnSelector(longValues);

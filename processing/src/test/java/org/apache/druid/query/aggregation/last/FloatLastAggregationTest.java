@@ -60,7 +60,7 @@ public class FloatLastAggregationTest extends InitializedNullHandlingTest
   @Before
   public void setup()
   {
-    floatLastAggregatorFactory = new FloatLastAggregatorFactory("billy", "nilly");
+    floatLastAggregatorFactory = new FloatLastAggregatorFactory("billy", "nilly", null);
     combiningAggFactory = (FloatLastAggregatorFactory) floatLastAggregatorFactory.getCombiningFactory();
     timeSelector = new TestLongColumnSelector(times);
     valueSelector = new TestFloatColumnSelector(floats);
