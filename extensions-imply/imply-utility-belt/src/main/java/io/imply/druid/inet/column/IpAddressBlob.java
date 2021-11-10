@@ -9,6 +9,7 @@
 
 package io.imply.druid.inet.column;
 
+import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.ipv6.IPv6Address;
@@ -52,6 +53,9 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
   public static IpAddressBlob ofString(final String value)
   {
     final IPAddressString addressString = new IPAddressString(value);
+    if (!addressString.isValid()) {
+      return null;
+    }
     final IPAddress address = addressString.getAddress();
     if (address == null) {
       return null;
@@ -89,6 +93,42 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
   public byte[] getBytes()
   {
     return bytes;
+  }
+
+  public String stringify(boolean compact, boolean forceV6)
+  {
+    IPAddress addr = new IPv6Address(bytes);
+    if (!forceV6 && addr.isIPv4Convertible()) {
+      if (compact) {
+        return addr.toIPv4().toCompressedString();
+      }
+      return addr.toIPv4().toNormalizedString();
+    }
+    if (compact) {
+      return addr.toCompressedString();
+    }
+    return addr.toFullString();
+  }
+
+  public IpAddressBlob toPrefix(int length)
+  {
+    IPAddress addr = new IPv6Address(bytes);
+    if (addr.isIPv4Convertible()) {
+      return new IpAddressBlob(addr.toIPv4().toPrefixBlock(length).toIPv6().getBytes());
+    }
+    return new IpAddressBlob(addr.toPrefixBlock(length).getBytes());
+  }
+
+  public boolean matches(String toMatch)
+  {
+    IPAddress addr = new IPv6Address(bytes);
+    try {
+      IPAddress matchAddr = new IPAddressString(toMatch).toAddress().toIPv6();
+      return matchAddr.contains(addr);
+    }
+    catch (AddressStringException e) {
+      return false;
+    }
   }
 
   public String asCompressedString()
