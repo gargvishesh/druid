@@ -827,7 +827,7 @@ public class TopNQueryRunnerTest extends InitializedNullHandlingTest
         .intervals(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
         .aggregators(
             new LongFirstAggregatorFactory("first", "index"),
-            new LongLastAggregatorFactory("last", "index")
+            new LongLastAggregatorFactory("last", "index", null)
         )
         .build();
 
@@ -936,7 +936,7 @@ public class TopNQueryRunnerTest extends InitializedNullHandlingTest
         .intervals(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
         .aggregators(
             new FloatFirstAggregatorFactory("first", "index"),
-            new FloatLastAggregatorFactory("last", "index")
+            new FloatLastAggregatorFactory("last", "index", null)
         )
         .build();
 
@@ -1045,7 +1045,7 @@ public class TopNQueryRunnerTest extends InitializedNullHandlingTest
         .intervals(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
         .aggregators(
             new FloatFirstAggregatorFactory("first", "indexFloat"),
-            new FloatLastAggregatorFactory("last", "indexFloat")
+            new FloatLastAggregatorFactory("last", "indexFloat", null)
         )
         .build();
 

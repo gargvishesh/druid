@@ -60,7 +60,7 @@ public class DoubleLastAggregationTest extends InitializedNullHandlingTest
   @Before
   public void setup()
   {
-    doubleLastAggFactory = new DoubleLastAggregatorFactory("billy", "nilly");
+    doubleLastAggFactory = new DoubleLastAggregatorFactory("billy", "nilly", null);
     combiningAggFactory = (DoubleLastAggregatorFactory) doubleLastAggFactory.getCombiningFactory();
     timeSelector = new TestLongColumnSelector(times);
     valueSelector = new TestDoubleColumnSelectorImpl(doubles);
