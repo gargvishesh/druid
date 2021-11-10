@@ -12,6 +12,7 @@ package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import io.imply.druid.query.aggregation.datasketches.tuple.SampledAvgScoreAggregatorFactory;
@@ -49,6 +50,21 @@ import java.util.stream.Stream;
 
 public class SampledAvgScoreObjectSqlAggregatorTest extends BaseCalciteQueryTest
 {
+  @Override
+  public Iterable<? extends Module> getJacksonModules()
+  {
+    ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
+    arrayOfDoublesSketch.configure(null);
+    ImplyArrayOfDoublesSketchModule implyArrayOfDoublesSketchModule = new ImplyArrayOfDoublesSketchModule();
+    implyArrayOfDoublesSketchModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
+
+    return Iterables.concat(
+        super.getJacksonModules(),
+        arrayOfDoublesSketch.getJacksonModules(),
+        implyArrayOfDoublesSketchModule.getJacksonModules()
+    );
+  }
+
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
   {

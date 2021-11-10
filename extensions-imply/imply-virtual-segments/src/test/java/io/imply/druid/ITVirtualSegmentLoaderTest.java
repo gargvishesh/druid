@@ -30,6 +30,7 @@ import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.ServerTypeConfig;
 import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.emitter.EmittingLogger;
@@ -246,7 +247,7 @@ public class ITVirtualSegmentLoaderTest
       File segmentFile = new File(destDir, "segment");
       File factoryJson = new File(destDir, "factory.json");
       try {
-        destDir.mkdirs();
+        FileUtils.mkdirp(destDir);
         segmentFile.createNewFile();
         factoryJson.createNewFile();
       }

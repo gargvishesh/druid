@@ -17,6 +17,7 @@ import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import org.apache.druid.guice.ManageLifecycle;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStart;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
@@ -151,7 +152,12 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   private void createDirectory()
   {
     if (!directory.isDirectory()) {
-      directory.mkdirs();
+      try {
+        FileUtils.mkdirp(directory);
+      }
+      catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
 
       if (!directory.isDirectory()) {
         throw new ISE(

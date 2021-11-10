@@ -235,7 +235,7 @@ public class BrokerViewStateListener implements ViewStateListener
   {
     File viewMapFile = getViewStateSnapshotFile();
     File cacheDir = new File(commonCacheConfig.getCacheDirectory());
-    cacheDir.mkdirs();
+    FileUtils.mkdirp(cacheDir);
     FileUtils.writeAtomically(
         viewMapFile,
         out -> {
