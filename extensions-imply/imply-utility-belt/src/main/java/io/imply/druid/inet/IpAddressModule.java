@@ -14,13 +14,19 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
+import io.imply.druid.inet.column.IpAddressBlob;
+import io.imply.druid.inet.column.IpAddressBlobJsonSerializer;
 import io.imply.druid.inet.column.IpAddressComplexTypeSerde;
 import io.imply.druid.inet.column.IpAddressDimensionHandler;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
+import io.imply.druid.inet.expression.IpAddressExpressions;
+import io.imply.druid.inet.expression.sql.IpAddressSqlOperatorConversions;
+import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.serde.ComplexMetrics;
+import org.apache.druid.sql.guice.SqlBindings;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +44,7 @@ public class IpAddressModule implements DruidModule
             .registerSubtypes(
                 new NamedType(IpAddressDimensionSchema.class, TYPE_NAME)
             )
+            .addSerializer(IpAddressBlob.class, new IpAddressBlobJsonSerializer())
     );
   }
 
@@ -45,6 +52,17 @@ public class IpAddressModule implements DruidModule
   public void configure(Binder binder)
   {
     registerHandlersAndSerde();
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.ParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.TryParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.StringifyExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.MatchExprMacro.class);
+
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.ParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.TryParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.StringifyOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.MatchOperatorConversion.class);
   }
 
   @VisibleForTesting

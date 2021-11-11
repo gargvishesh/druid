@@ -128,8 +128,9 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
     List<ScanResultValue> results = seq.toList();
-    Assert.assertEquals(1, results.size());
-    Assert.assertEquals(2, ((List) results.get(0).getEvents()).size());
+    // bitmap index isn't supported in this context since it needs strings and selector doesn't know what to do with ip
+    // address or how to compare them so predicate is out
+    Assert.assertEquals(0, results.size());
   }
 
   @Test
@@ -147,10 +148,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
-    // this actually works because the range comparison is pushed down to bitmap index
+
     List<ScanResultValue> results = seq.toList();
-    Assert.assertEquals(1, results.size());
-    Assert.assertEquals(2, ((List) results.get(0).getEvents()).size());
+    // bitmap index isn't supported in this context since it needs strings and bound doesn't know what to do with ip
+    // address or how to compare them so predicate is out
+    Assert.assertEquals(0, results.size());
   }
 
   @Test

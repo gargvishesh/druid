@@ -207,13 +207,13 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       @Override
       public Object getObject()
       {
-        return lookupName(getRowValue());
+        return IpAddressDictionaryEncodedColumn.this.lookupName(getRowValue());
       }
 
       @Override
       public Class classOfObject()
       {
-        return String.class;
+        return IpAddressBlob.class;
       }
 
       @Override
