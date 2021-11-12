@@ -32,6 +32,7 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
+import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.groupby.GroupByQuery;
@@ -253,6 +254,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
         + "IP_STRINGIFY(IP_PREFIX(ipv4, 16)), "
         + "IP_STRINGIFY(IP_PREFIX(ipv6, 16)), "
         + "IP_STRINGIFY(IP_PREFIX(ipvmix, 16)), "
+        + "IP_PARSE('1.2.3.4'), "
         + "SUM(cnt) "
         + "FROM druid.iptest GROUP BY 1,2,3,4,5,6,7,8,9",
         ImmutableList.of(
@@ -285,6 +287,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                             )
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setPostAggregatorSpecs(ImmutableList.of(new ExpressionPostAggregator("p0", "ip_parse('1.2.3.4')", null, macroTable)))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -299,6 +302,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                 "109.8.0.0",
                 "890d::",
                 "77b7::",
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
                 2L
             },
             new Object[]{
@@ -311,6 +315,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.0.0",
                 "2001::",
                 "6.5.0.0",
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
                 2L
             },
             new Object[]{
@@ -323,6 +328,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.0.0",
                 "3114::",
                 "3556::",
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
                 2L
             },
             new Object[]{
@@ -335,6 +341,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.0.0",
                 "28::",
                 "11::",
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
                 2L
             },
             new Object[]{
@@ -347,6 +354,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                 "215.235.0.0",
                 "c305::",
                 "100.200.0.0",
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
                 2L
             }
         )
