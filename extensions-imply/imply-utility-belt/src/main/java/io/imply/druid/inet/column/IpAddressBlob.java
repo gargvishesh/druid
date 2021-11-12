@@ -9,7 +9,6 @@
 
 package io.imply.druid.inet.column;
 
-import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.ipv6.IPv6Address;
@@ -122,13 +121,12 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
   public boolean matches(String toMatch)
   {
     IPAddress addr = new IPv6Address(bytes);
-    try {
-      IPAddress matchAddr = new IPAddressString(toMatch).toAddress().toIPv6();
-      return matchAddr.contains(addr);
+    IPAddressString stringAddr = new IPAddressString(toMatch);
+    if (!stringAddr.isValid()) {
+      throw new IAE("Cannot match [%s] with invalid address [%s]", addr.toCompressedString(), toMatch);
     }
-    catch (AddressStringException e) {
-      return false;
-    }
+    IPAddress matchAddr = stringAddr.getAddress().toIPv6();
+    return matchAddr.toPrefixBlock().contains(addr);
   }
 
   public String asCompressedString()

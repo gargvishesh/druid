@@ -55,6 +55,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
       throw new RuntimeException("failed");
     }
   }
+
   private static final IpAddressBlob V4_BLOB = IpAddressBlob.ofString(V4_STRING);
   private static final IpAddressBlob V6_BLOB = IpAddressBlob.ofString(V6_STRING);
 
@@ -214,5 +215,31 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     expr = Parser.parse("ip_match(ipv6, '1.2.0.0/24')", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertFalse(eval.asBoolean());
+
+
+    expr = Parser.parse("ip_match(ip_parse('0.1.2.3'), '0.1.2.0/23')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_match(ip_parse('0.1.2.3'), '0.1.2.0/22')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_match(ip_parse('1:2:3:4:5:6:7:8'), '1:2:3:4:5::/80')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_match(ip_parse('1:2:3:4:5:6:7:8'), '1:2:3:4:5::/70')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+  }
+
+  @Test
+  public void testMatchBadRange()
+  {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Cannot match [2001:db8::8a2e:370:7334] with invalid address [NOT AN IP]");
+    Expr expr = Parser.parse("ip_match(ipv6, 'NOT AN IP')", MACRO_TABLE);
+    expr.eval(inputBindings);
   }
 }
