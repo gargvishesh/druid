@@ -46,6 +46,8 @@ public class ITAsyncBrokerShutdown extends AbstractIndexerTest
           "SELECT sleep(6000), 10",
           ResultFormat.ARRAY,
           false,
+          false,
+          false,
           null,
           null
       );

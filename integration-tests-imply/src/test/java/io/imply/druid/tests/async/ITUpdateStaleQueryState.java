@@ -42,6 +42,8 @@ public class ITUpdateStaleQueryState
         "SELECT sleep(6000), 10",
         ResultFormat.ARRAY,
         false,
+        false,
+        false,
         null,
         null
     );

@@ -47,6 +47,8 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
           "SELECT sleep(3), 10",
           ResultFormat.ARRAY,
           false,
+          false,
+          false,
           null,
           null
       );
@@ -107,6 +109,8 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
       final SqlQuery query = new SqlQuery(
           "SELECT 10",
           ResultFormat.ARRAY,
+          false,
+          false,
           false,
           null,
           null
