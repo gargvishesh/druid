@@ -73,6 +73,6 @@
 
 
   <suppress checks="Header" files="io.imply.druid.license.*" />
-  <suppress checks="Header" files="io.imply.druid.query.aggregation.datasketches.tuple.*" />
+  <suppress checks="Header" files="io.imply.druid.query.aggregation.*" />
   <suppress checks="Header" files="io.imply.druid.meter.*" />
 </suppressions>
