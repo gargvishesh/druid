@@ -177,6 +177,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select sleep(2), 10",
             ResultFormat.OBJECTLINES,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -196,6 +198,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select sleep(2), 10",
             ResultFormat.OBJECTLINES,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -229,6 +233,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select dim1, sum(m1) from foo group by 1",
             ResultFormat.CSV,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -274,6 +280,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
               "select sleep(2), 10",
               ResultFormat.OBJECTLINES,
               true,
+              false,
+              false,
               null,
               null
           ),
@@ -314,6 +322,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
               "select sleep(2), 10",
               ResultFormat.OBJECTLINES,
               true,
+              false,
+              false,
               null,
               null
           ),
@@ -333,6 +343,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select sleep(2), 10",
             ResultFormat.OBJECTLINES,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -351,6 +363,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
               "select 10",
               ResultFormat.OBJECTLINES,
               true,
+              false,
+              false,
               null,
               null
           ),
@@ -374,6 +388,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select sleep(2), 10",
             ResultFormat.OBJECTLINES,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -394,6 +410,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
               "select sleep(2), 10",
               ResultFormat.OBJECTLINES,
               true,
+              false,
+              false,
               null,
               null
           ),
@@ -423,6 +441,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select sleep(2), 10",
             ResultFormat.OBJECTLINES,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -452,6 +472,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select dim1, sum(m1) from foo group by 1",
             ResultFormat.CSV,
             true,
+            false,
+            false,
             null,
             null
         ),
@@ -498,6 +520,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
             "select 1,2",
             ResultFormat.CSV,
             true,
+            false,
+            false,
             null,
             null
         ),
