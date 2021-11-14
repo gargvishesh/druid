@@ -640,7 +640,7 @@ public class ViewStateManagerResource
         HttpMethod.POST,
         listenerURL
     );
-    SqlQuery query = new SqlQuery("EXPLAIN PLAN FOR " + viewSql, null, false, null, null);
+    SqlQuery query = new SqlQuery("EXPLAIN PLAN FOR " + viewSql, null, false, false, false, null, null);
     byte[] serializedEntity;
     try {
       serializedEntity = jsonMapper.writeValueAsBytes(query);
