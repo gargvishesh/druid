@@ -63,6 +63,8 @@ public class ITAsyncDeleteQueryTest extends AbstractIndexerTest
           "SELECT count(*) FROM \"" + fullDatasourceName + "\"",
           ResultFormat.ARRAY,
           false,
+          false,
+          false,
           null,
           null
       );
@@ -112,6 +114,8 @@ public class ITAsyncDeleteQueryTest extends AbstractIndexerTest
     final SqlQuery query = new SqlQuery(
         "SELECT sleep(10)",
         ResultFormat.ARRAY,
+        false,
+        false,
         false,
         null,
         null

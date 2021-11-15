@@ -190,7 +190,11 @@ public class SqlAsyncQueryPool
                 writer.writeResponseStart();
 
                 if (sqlQuery.includeHeader()) {
-                  writer.writeHeader(rowTransformer.getFieldList());
+                  writer.writeHeader(
+                      rowTransformer.getRowType(),
+                      sqlQuery.includeTypesHeader(),
+                      sqlQuery.includeSqlTypesHeader()
+                  );
                 }
 
                 while (!yielder.isDone()) {
