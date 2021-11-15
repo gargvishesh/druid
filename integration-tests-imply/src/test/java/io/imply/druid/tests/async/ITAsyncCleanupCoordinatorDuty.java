@@ -65,6 +65,8 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
           "SELECT count(*) FROM \"" + fullDatasourceName + "\"",
           ResultFormat.ARRAY,
           false,
+          false,
+          false,
           null,
           null
       );
@@ -113,6 +115,8 @@ public class ITAsyncCleanupCoordinatorDuty extends AbstractIndexerTest
       final SqlQuery query = new SqlQuery(
           "SELECT count(*) FROM \"" + fullDatasourceName + "\"",
           ResultFormat.ARRAY,
+          false,
+          false,
           false,
           null,
           null

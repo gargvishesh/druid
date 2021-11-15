@@ -182,6 +182,8 @@ public class ITS3SqlAsyncResultManager extends AbstractS3InputSourceParallelInde
         ),
         query.getResultFormat(),
         query.includeHeader(),
+        query.includeTypesHeader(),
+        query.includeSqlTypesHeader(),
         query.getContext(),
         query.getParameters()
     );
