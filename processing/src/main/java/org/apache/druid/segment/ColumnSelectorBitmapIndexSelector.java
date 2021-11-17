@@ -114,6 +114,8 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
       return null;
     }
     if (!columnHolder.getCapabilities().toColumnType().is(ValueType.STRING)) {
+      // this method only supports returning STRING values, so other types of dictionary encoded columns will not
+      // work correctly here until reworking is done to support filtering/indexing other types of columns
       return null;
     }
     BaseColumn col = columnHolder.getColumn();
@@ -264,6 +266,8 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
         }
       };
     } else if (columnHolder.getCapabilities().hasBitmapIndexes() && columnHolder.getCapabilities().is(ValueType.STRING)) {
+      // currently BitmapIndex are reliant on STRING dictionaries to operate correctly, and will fail when used with
+      // other types of dictionary encoded columns
       return columnHolder.getBitmapIndex();
     } else {
       return null;
@@ -290,7 +294,9 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
       }
     }
 
-    if (!columnHolder.getCapabilities().hasBitmapIndexes()) {
+    if (!columnHolder.getCapabilities().hasBitmapIndexes() || !columnHolder.getCapabilities().is(ValueType.STRING)) {
+      // currently BitmapIndex are reliant on STRING dictionaries to operate correctly, and will fail when used with
+      // other types of dictionary encoded columns
       return null;
     }
 

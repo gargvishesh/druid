@@ -147,6 +147,7 @@ public class DruidRexExecutor implements RexExecutor
           assert exprResult.isArray();
           literal = rexBuilder.makeLiteral(Arrays.asList(exprResult.asArray()), constExp.getType(), true);
         } else if (sqlTypeName == SqlTypeName.OTHER && constExp.getType() instanceof RowSignatures.ComplexSqlType) {
+          // complex constant is not reducible, so just leave it as an expression
           literal = constExp;
         } else {
           literal = rexBuilder.makeLiteral(exprResult.value(), constExp.getType(), true);
