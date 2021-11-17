@@ -10,6 +10,7 @@
 package io.imply.druid.inet.column;
 
 import io.imply.druid.inet.IpAddressModule;
+import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
@@ -56,6 +57,12 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
   public DimensionSpec getDimensionSpec()
   {
     return new DefaultDimensionSpec(name, name, IpAddressModule.TYPE);
+  }
+
+  @Override
+  public DimensionSchema getDimensionSchema(ColumnCapabilities capabilities)
+  {
+    return new IpAddressDimensionSchema(name, true);
   }
 
   @Override
