@@ -20,13 +20,21 @@ jobs:
           git checkout monthly
           git merge origin/master
           git push
+      - name: Files causing merge conflict
+          if: ${{ failure() }}
+          run: |
+            echo "FILE=$(git diff --name-only --diff-filter=U |head -1)"  >> $GITHUB_ENV
+            echo "MONTHLY_COMMIT=$(git log monthly -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+            echo "MONTHLY_COMMITER=$(git log monthly -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
+            echo "MASTER_COMMIT=$(git log origin/master -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+            echo "MASTER_COMMITER=$(git log origin/master -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
       - name: Slack Notification for job failed
         if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
           SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
-          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
+          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. `${{ env.FILE }}` caused the conflict and was last updated in `imply/druid` by ${{ env.IMPLY_COMMITER }} with commit [${{ env.IMPLY_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.IMPLY_COMMIT }}) and in `apache/druid` by ${{ env.APACHE_COMMITER }} with commit [${{ env.APACHE_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.APACHE_COMMIT }}). See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
           SLACK_TITLE: "[FAILED] Update implydata/druid#monthly with implydata/druid#master"
           SLACK_COLOR: "danger"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
