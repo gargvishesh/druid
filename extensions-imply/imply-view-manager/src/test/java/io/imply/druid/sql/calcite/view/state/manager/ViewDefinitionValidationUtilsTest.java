@@ -59,7 +59,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     );
 
     this.viewManager = new ImplyViewManager(
-        CalciteTests.TEST_AUTHENTICATOR_ESCALATOR,
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 

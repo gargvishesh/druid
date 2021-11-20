@@ -49,7 +49,6 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   public void setUp2()
   {
     this.viewManager = new ImplyViewManager(
-        CalciteTests.TEST_AUTHENTICATOR_ESCALATOR,
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 

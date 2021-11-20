@@ -16,7 +16,6 @@ import com.google.inject.Injector;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.server.security.Escalator;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.view.DruidViewMacro;
 import org.apache.druid.sql.calcite.view.DruidViewMacroFactory;
@@ -29,17 +28,14 @@ import java.util.concurrent.ConcurrentMap;
 
 public class ImplyViewManager implements ViewManager
 {
-  private final Escalator escalator;
   private final DruidViewMacroFactory druidViewMacroFactory;
   private volatile ConcurrentMap<String, DruidViewMacro> views;
 
   @Inject
   public ImplyViewManager(
-      final Escalator escalator,
       final Injector injector
   )
   {
-    this.escalator = escalator;
     this.views = new ConcurrentHashMap<>();
 
     Set<NodeRole> nodeRoles = ImplyViewManagerModule.getNodeRoles(injector);
@@ -55,11 +51,9 @@ public class ImplyViewManager implements ViewManager
 
   @VisibleForTesting
   public ImplyViewManager(
-      final Escalator escalator,
       final DruidViewMacroFactory druidViewMacroFactory
   )
   {
-    this.escalator = escalator;
     this.druidViewMacroFactory = druidViewMacroFactory;
     this.views = new ConcurrentHashMap<>();
   }
@@ -73,7 +67,7 @@ public class ImplyViewManager implements ViewManager
   {
     brokerCheck();
     final TableMacro oldValue =
-        views.putIfAbsent(viewName, druidViewMacroFactory.create(plannerFactory, escalator, viewSql));
+        views.putIfAbsent(viewName, druidViewMacroFactory.create(plannerFactory, viewSql));
     if (oldValue != null) {
       throw new ISE("View[%s] already exists", viewName);
     }
@@ -87,7 +81,7 @@ public class ImplyViewManager implements ViewManager
   )
   {
     brokerCheck();
-    views.put(viewName, druidViewMacroFactory.create(plannerFactory, escalator, viewSql));
+    views.put(viewName, druidViewMacroFactory.create(plannerFactory, viewSql));
   }
 
   @Override
@@ -114,7 +108,7 @@ public class ImplyViewManager implements ViewManager
   {
     ConcurrentMap<String, DruidViewMacro> newViews = new ConcurrentHashMap<>();
     for (Map.Entry<String, ImplyViewDefinition> view : newViewMap.entrySet()) {
-      DruidViewMacro newMacro = druidViewMacroFactory.create(plannerFactory, escalator, view.getValue().getViewSql());
+      DruidViewMacro newMacro = druidViewMacroFactory.create(plannerFactory, view.getValue().getViewSql());
       newViews.put(view.getKey(), newMacro);
     }
 
