@@ -69,7 +69,6 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
     EmittingLogger.registerEmitter(EMITTER);
     EMITTER.start();
     this.viewManager = new ImplyViewManager(
-        CalciteTests.TEST_AUTHENTICATOR_ESCALATOR,
         CalciteTests.DRUID_VIEW_MACRO_FACTORY
     );
 
