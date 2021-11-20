@@ -199,7 +199,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   }
 
   @Override
-  public ColumnType getType()
+  public ColumnType getIntermediateType()
   {
     return ColumnType.ofComplex("imply-ts-avg");
   }

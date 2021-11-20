@@ -172,7 +172,7 @@ public class CurrencySumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ColumnType getType()
+  public ColumnType getIntermediateType()
   {
     if (storeDoubleAsFloat) {
       return ColumnType.FLOAT;
@@ -181,9 +181,9 @@ public class CurrencySumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ColumnType getFinalizedType()
+  public ColumnType getResultType()
   {
-    return getType();
+    return getIntermediateType();
   }
 
   @Override

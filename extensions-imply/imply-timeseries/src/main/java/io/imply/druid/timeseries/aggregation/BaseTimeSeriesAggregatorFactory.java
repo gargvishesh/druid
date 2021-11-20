@@ -213,13 +213,13 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public ColumnType getType()
+  public ColumnType getIntermediateType()
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public ColumnType getFinalizedType()
+  public ColumnType getResultType()
   {
     return ColumnType.ofComplex("imply-ts-simple");
   }

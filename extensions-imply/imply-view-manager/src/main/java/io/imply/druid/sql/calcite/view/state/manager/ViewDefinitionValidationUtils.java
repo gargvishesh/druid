@@ -169,7 +169,7 @@ public class ViewDefinitionValidationUtils
       );
     }
 
-    if (scanQuery.getOrder() != ScanQuery.Order.NONE) {
+    if (!scanQuery.getOrderBys().isEmpty()) {
       throw new ClientValidationException("ORDER BY cannot be used in view definitions.");
     }
 
