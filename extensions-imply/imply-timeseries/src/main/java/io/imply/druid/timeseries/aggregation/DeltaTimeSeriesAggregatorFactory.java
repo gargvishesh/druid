@@ -197,7 +197,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
   }
 
   @Override
-  public ColumnType getType()
+  public ColumnType getIntermediateType()
   {
     return ColumnType.ofComplex("imply-ts-delta");
   }
