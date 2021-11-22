@@ -222,7 +222,10 @@ class RetriableS3OutputStream extends OutputStream
     }
 
     try {
-      if (currentChunk == null || currentChunk.length() >= chunkSize) {
+      // If the chunk will be greater than the max chunk size, then push the current chunk and start a new chunk.
+      // For the edge case of an empty chunk which would grow to bigger than the configured max chunk size, this
+      // writes to the current chunk and will attempt to push the chunk on the next upload.
+      if (currentChunk == null || (currentChunk.length() + len >= chunkSize) && (currentChunk.length() != 0)) {
         pushCurrentChunk();
         currentChunk = new Chunk(nextChunkId, new File(chunkStorePath, String.valueOf(nextChunkId++)));
       }

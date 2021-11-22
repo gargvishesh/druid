@@ -172,8 +172,31 @@ public class RetriableS3OutputStreamTest
         out.write(bb.array());
       }
     }
-    // each chunk will be 12 bytes large, so there should be 9 chunks.
-    Assert.assertEquals(9, s3.partRequests.size());
+    // each chunk will be 8 bytes, so there should be 13 chunks.
+    Assert.assertEquals(13, s3.partRequests.size());
+    s3.assertCompleted();
+  }
+
+  @Test
+  public void testWriteSizeLargerThanConfiguredMaxChunkSizeShouldSucceed() throws IOException
+  {
+    maxTotalResultsSize = 1000;
+    maxResultsSize = 1000;
+    ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES * 3);
+    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+        config,
+        metadataManager,
+        s3,
+        queryDetails
+    )) {
+      bb.clear();
+      bb.putInt(1);
+      bb.putInt(2);
+      bb.putInt(3);
+      out.write(bb.array());
+    }
+    // each chunk will be 8 bytes, so there should be 13 chunks.
+    Assert.assertEquals(1, s3.partRequests.size());
     s3.assertCompleted();
   }
 
@@ -189,7 +212,7 @@ public class RetriableS3OutputStreamTest
         s3,
         queryDetails
     )) {
-      for (int i = 0; i < 15; i++) {
+      for (int i = 0; i < 14; i++) {
         bb.clear();
         bb.putInt(i);
         out.write(bb.array());
@@ -200,7 +223,7 @@ public class RetriableS3OutputStreamTest
           IOException.class,
           () -> {
             bb.clear();
-            bb.putInt(15);
+            bb.putInt(14);
             out.write(bb.array());
           }
       );
@@ -221,7 +244,7 @@ public class RetriableS3OutputStreamTest
         s3,
         queryDetails
     )) {
-      for (int i = 0; i < 15; i++) {
+      for (int i = 0; i < 14; i++) {
         bb.clear();
         bb.putInt(i);
         out.write(bb.array());
@@ -232,7 +255,7 @@ public class RetriableS3OutputStreamTest
           IOException.class,
           () -> {
             bb.clear();
-            bb.putInt(15);
+            bb.putInt(14);
             out.write(bb.array());
           }
       );
@@ -261,8 +284,8 @@ public class RetriableS3OutputStreamTest
         out.write(bb.array());
       }
     }
-    // each chunk will be 12 bytes large, so there should be 9 chunks.
-    Assert.assertEquals(9, s3.partRequests.size());
+    // each chunk will be 8 bytes, so there should be 13 chunks.
+    Assert.assertEquals(13, s3.partRequests.size());
     s3.assertCompleted();
   }
 
@@ -280,7 +303,7 @@ public class RetriableS3OutputStreamTest
         s3,
         queryDetails
     )) {
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 2; i++) {
         bb.clear();
         bb.putInt(i);
         out.write(bb.array());
