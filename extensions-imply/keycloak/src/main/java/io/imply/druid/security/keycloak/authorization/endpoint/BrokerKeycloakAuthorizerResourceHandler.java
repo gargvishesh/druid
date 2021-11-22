@@ -23,9 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthorizerResourceHandler
+public class BrokerKeycloakAuthorizerResourceHandler implements KeycloakAuthorizerResourceHandler
 {
-  private static final Logger LOG = new Logger(DefaultKeycloakAuthorizerResourceHandler.class);
+  private static final Logger LOG = new Logger(BrokerKeycloakAuthorizerResourceHandler.class);
 
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
 
@@ -33,7 +33,7 @@ public class DefaultKeycloakAuthorizerResourceHandler implements KeycloakAuthori
   private final Map<String, ImplyKeycloakAuthorizer> authorizerMap;
 
   @Inject
-  public DefaultKeycloakAuthorizerResourceHandler(
+  public BrokerKeycloakAuthorizerResourceHandler(
       KeycloakAuthorizerCacheManager cacheManager,
       AuthorizerMapper authorizerMapper
   )

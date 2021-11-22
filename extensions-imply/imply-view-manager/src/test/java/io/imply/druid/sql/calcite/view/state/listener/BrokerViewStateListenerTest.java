@@ -29,6 +29,7 @@ import org.apache.druid.segment.TestHelper;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
+import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -77,6 +78,7 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
         walker,
         PLANNER_CONFIG_DEFAULT,
         viewManager,
+        new NoopDruidSchemaManager(),
         CalciteTests.TEST_AUTHORIZER_MAPPER
     );
 
