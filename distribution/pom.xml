@@ -582,6 +582,8 @@
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-manager-autoscaler</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-external-druid-schema</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -685,6 +687,8 @@
                                         <argument>io.imply:imply-keycloak</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-virtual-segments</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-external-druid-schema</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>

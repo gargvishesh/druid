@@ -29,7 +29,7 @@ public class DefaultKeycloakAuthorizerResourceHandlerTest
   private KeycloakAuthorizerCacheManager cacheManager;
   private AuthorizerMapper authorizerMapper;
 
-  private DefaultKeycloakAuthorizerResourceHandler target;
+  private BrokerKeycloakAuthorizerResourceHandler target;
 
   @Before
   public void setup()
@@ -40,7 +40,7 @@ public class DefaultKeycloakAuthorizerResourceHandlerTest
         "authorizer", new ImplyKeycloakAuthorizer()
     ));
 
-    target = new DefaultKeycloakAuthorizerResourceHandler(cacheManager, authorizerMapper);
+    target = new BrokerKeycloakAuthorizerResourceHandler(cacheManager, authorizerMapper);
   }
 
   @Test
@@ -101,7 +101,7 @@ public class DefaultKeycloakAuthorizerResourceHandlerTest
     byte[] roleMapSerialized = StringUtils.toUtf8("ROLE_MAP");
 
     Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(ImmutableMap.of());
-    target = new DefaultKeycloakAuthorizerResourceHandler(cacheManager, authorizerMapper);
+    target = new BrokerKeycloakAuthorizerResourceHandler(cacheManager, authorizerMapper);
     Response response = target.authorizerRoleUpdateListener(roleMapSerialized);
 
     Assert.assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());

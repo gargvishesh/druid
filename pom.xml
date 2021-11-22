@@ -185,6 +185,7 @@
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>
         <module>extensions-imply/imply-virtual-segments</module>
+        <module>extensions-imply/imply-external-druid-schema</module>
         <module>extensions-imply/imply-timeseries</module>
         <!-- distribution packaging -->
         <module>distribution</module>

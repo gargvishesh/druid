@@ -29,6 +29,7 @@ import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
+import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,6 +68,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         walker,
         PLANNER_CONFIG_DEFAULT,
         viewManager,
+        new NoopDruidSchemaManager(),
         CalciteTests.TEST_AUTHORIZER_MAPPER
     );
 
