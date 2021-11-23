@@ -46,6 +46,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   private static final String V6_COMPACT;
   private static final String CIDR_V6 = "2001::/16";
   private static final String CIDR_v4 = "1.2.0.0/16";
+  private static final String NULL_STR ="";
 
   static {
     try {
@@ -241,5 +242,29 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     expectedException.expectMessage("Cannot match [2001:db8::8a2e:370:7334] with invalid address [NOT AN IP]");
     Expr expr = Parser.parse("ip_match(ipv6, 'NOT AN IP')", MACRO_TABLE);
     expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testNullHandlings()
+  {
+    Expr expr = Parser.parse("ip_match(nullString, ipv6_string)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_stringify(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_parse(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_try_parse(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_prefix(nullString,20)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
   }
 }
