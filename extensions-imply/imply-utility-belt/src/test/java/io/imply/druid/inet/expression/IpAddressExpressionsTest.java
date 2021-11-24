@@ -242,4 +242,48 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     Expr expr = Parser.parse("ip_match(ipv6, 'NOT AN IP')", MACRO_TABLE);
     expr.eval(inputBindings);
   }
+
+  @Test
+  public void testNullHandlings()
+  {
+    Expr expr = Parser.parse("ip_match(nullString, ipv6_string)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_match(null, ipv6_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_stringify(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_stringify(null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_parse(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_parse(null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_try_parse(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_try_parse(null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_prefix(nullString,20)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_prefix(null,20)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+  }
 }

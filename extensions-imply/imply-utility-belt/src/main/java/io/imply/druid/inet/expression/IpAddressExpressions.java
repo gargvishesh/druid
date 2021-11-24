@@ -128,7 +128,7 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!TYPE.equals(input.type())) {
+          if (!TYPE.equals(input.type()) && input.value() != null) {
             throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
           }
           boolean compact = true;
@@ -194,7 +194,7 @@ public class IpAddressExpressions
           public ExprEval eval(ObjectBinding bindings)
           {
             ExprEval input = args.get(0).eval(bindings);
-            if (!TYPE.equals(input.type())) {
+            if (!TYPE.equals(input.type()) && input.value() != null) {
               throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
             }
             IpAddressBlob blob = (IpAddressBlob) input.value();
@@ -232,7 +232,7 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!TYPE.equals(input.type())) {
+          if (!TYPE.equals(input.type()) && input.value() != null) {
             throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
           }
           ExprEval prefixSize = args.get(1).eval(bindings);
@@ -297,7 +297,7 @@ public class IpAddressExpressions
           public ExprEval eval(ObjectBinding bindings)
           {
             ExprEval input = args.get(0).eval(bindings);
-            if (!TYPE.equals(input.type())) {
+            if (!TYPE.equals(input.type()) && input.value() != null) {
               throw new IAE("Function[%s] first argmument must be [%s] as input, got [%s]", name, TYPE.asTypeString(), input.type());
             }
             IpAddressBlob blob = (IpAddressBlob) input.value();
@@ -336,7 +336,7 @@ public class IpAddressExpressions
         {
           ExprEval input = args.get(0).eval(bindings);
           ExprEval matchesInput = args.get(1).eval(bindings);
-          if (!TYPE.equals(input.type())) {
+          if (!TYPE.equals(input.type()) && input.value() != null) {
             throw new IAE("Function[%s] first argmument must be [%s] as input, got [%s]", name, TYPE.asTypeString(), input.type());
           }
           if (!matchesInput.type().is(ExprType.STRING)) {
