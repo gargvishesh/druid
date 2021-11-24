@@ -18,8 +18,22 @@ jobs:
           git config user.email github-actions@github.com
           git fetch
           git checkout monthly
+          echo "PREV_MONTHLY_COMMIT=$(git log monthly -n 1 --pretty=format:'%h' --grep='into monthly' -- ${{ env.FILE }})" >> $GITHUB_ENV
           git merge origin/master
           git push
+      - name: setup jdk 8
+        if: ${{ success() }}
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'zulu'
+      - name: create jira tickets for apache/druid PR merged
+        if: ${{ success() }}
+        run: |
+          FIX_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout| cut -d'.' -f1,2)
+          chmod +x "${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh"
+          GIT_TOKEN=${{ secrets.JIRA_USER }}":"${{ secrets.JIRA_TOKEN }}
+          .github/script.sh -d ${GITHUB_WORKSPACE} -c ${{ env.PREV_MONTHLY_COMMIT }} -j $GIT_TOKEN -f $FIX_VERSION
       - name: Files causing merge conflict
         if: ${{ failure() }}
         run: |

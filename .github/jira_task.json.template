@@ -1,0 +1,53 @@
+{
+  "update": {},
+  "fields": {
+    "priority": {
+      "name": "Medium",
+      "id": "3"
+    },
+    "labels": ["release-OSS-PR"],
+    "issuetype": {
+      "id": "10010",
+      "name": "Task",
+      "subtask": false
+    },
+    "project": {
+      "id": "10005",
+      "key": "IMPLY",
+      "name": "Imply"
+    },
+    "customfield_10033": [{
+      "value": "Druid",
+      "id": "10025"
+    }],
+    "customfield_10037": "https://github.com/apache/druid/pull/%%PR%%/",
+    "customfield_10140": [{
+      "value": "QA",
+      "id": "10523"
+    }],
+    "description": {
+      "version": 1,
+      "type": "doc",
+      "content": [{
+        "type": "paragraph",
+        "content": [{
+          "type": "text",
+          "text": "Apache druid PR: "
+        }, {
+          "type": "text",
+          "text": "https://github.com/apache/druid/pull/%%PR%%/",
+          "marks": [{
+            "type": "link",
+            "attrs": {
+              "href": "https://github.com/apache/druid/pull/%%PR%%/"
+            }
+          }]
+        }]
+      }]
+    },
+    "summary": "Release Ticket - OS: %%PRDESC%%",
+    "fixVersions": [{
+      "name": "%%FIXVERSION%%"
+    }]
+  }
+}
