@@ -46,7 +46,6 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   private static final String V6_COMPACT;
   private static final String CIDR_V6 = "2001::/16";
   private static final String CIDR_v4 = "1.2.0.0/16";
-  private static final String NULL_STR ="";
 
   static {
     try {
@@ -251,7 +250,15 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     ExprEval eval = expr.eval(inputBindings);
     Assert.assertFalse(eval.asBoolean());
 
+    expr = Parser.parse("ip_match(null, ipv6_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
     expr = Parser.parse("ip_stringify(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_stringify(null)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
 
@@ -259,11 +266,23 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
 
+    expr = Parser.parse("ip_parse(null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
     expr = Parser.parse("ip_try_parse(nullString)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
 
+    expr = Parser.parse("ip_try_parse(null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
     expr = Parser.parse("ip_prefix(nullString,20)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_prefix(null,20)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
   }
