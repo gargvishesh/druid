@@ -27,13 +27,17 @@ jobs:
         with:
           java-version: '8'
           distribution: 'zulu'
-      - name: create jira tickets for apache/druid PR merged
+      - name: get fix version
         if: ${{ success() }}
         run: |
           echo "FIX_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout| cut -d'.' -f1,2)"  >> $GITHUB_ENV
+      - name: create jira tickets for apache/druid PR merged
+        if: ${{ success() }}
+        env:
+          JIRA_CREDS: ${{ secrets.JIRA_USER }}":"${{ secrets.JIRA_TOKEN }}
+        run: |
           chmod +x "${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh"
-          echo "GIT_TOKEN=${{ secrets.JIRA_USER }}:${{ secrets.JIRA_TOKEN }}"  >> $GITHUB_ENV
-          ${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh -d ${GITHUB_WORKSPACE} -c ${{ env.PREV_MONTHLY_COMMIT }} -j ${{ env.GIT_TOKEN }} -f ${{ env.FIX_VERSION }}
+          ${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh -c ${{ env.PREV_MONTHLY_COMMIT }} -j ${JIRA_CREDS} -f ${{ env.FIX_VERSION }}
       - name: Files causing merge conflict
         if: ${{ failure() }}
         run: |
