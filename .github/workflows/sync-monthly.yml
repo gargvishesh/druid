@@ -30,10 +30,10 @@ jobs:
       - name: create jira tickets for apache/druid PR merged
         if: ${{ success() }}
         run: |
-          FIX_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout| cut -d'.' -f1,2)
+          echo "FIX_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout| cut -d'.' -f1,2)"  >> $GITHUB_ENV
           chmod +x "${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh"
-          GIT_TOKEN=${{ secrets.JIRA_USER }}":"${{ secrets.JIRA_TOKEN }}
-          .github/script.sh -d ${GITHUB_WORKSPACE} -c ${{ env.PREV_MONTHLY_COMMIT }} -j $GIT_TOKEN -f $FIX_VERSION
+          echo "GIT_TOKEN=${{ secrets.JIRA_USER }}:${{ secrets.JIRA_TOKEN }}"  >> $GITHUB_ENV
+          ${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh -d ${GITHUB_WORKSPACE} -c ${{ env.PREV_MONTHLY_COMMIT }} -j ${{ env.GIT_TOKEN }} -f ${{ env.FIX_VERSION }}
       - name: Files causing merge conflict
         if: ${{ failure() }}
         run: |
