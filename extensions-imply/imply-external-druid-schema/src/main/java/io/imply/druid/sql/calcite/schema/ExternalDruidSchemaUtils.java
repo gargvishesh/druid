@@ -40,6 +40,7 @@ public class ExternalDruidSchemaUtils
       DruidTable druidTable = new DruidTable(
           new TableDataSource(tableSchema.getName()),
           rowSignatureBuilder.build(),
+          null,
           false,
           false
       );
