@@ -1898,6 +1898,8 @@
                                 <exclude>codestyle/*-forbidden-apis.txt</exclude>
                                 <exclude>conf/**</exclude>
                                 <exclude>.github/workflows/*.yml</exclude>
+                                <exclude>.github/jira_task.json.template</exclude>
+                                <exclude>.github/create_jira_ticket.sh</exclude>
                                 <exclude>docker/*.conf</exclude>
                                 <exclude>docker/service-supervisords/*.conf</exclude>
                                 <exclude>target/**</exclude>

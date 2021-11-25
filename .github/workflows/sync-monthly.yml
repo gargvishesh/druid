@@ -34,7 +34,7 @@ jobs:
       - name: create jira tickets for apache/druid PR merged
         if: ${{ success() }}
         env:
-          JIRA_CREDS: ${{ secrets.JIRA_USER }}":"${{ secrets.JIRA_TOKEN }}
+          JIRA_CREDS: ${{ secrets.JIRA_USER }}:${{ secrets.JIRA_TOKEN }}
         run: |
           chmod +x "${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh"
           ${GITHUB_WORKSPACE}/.github/create_jira_ticket.sh -c ${{ env.PREV_MONTHLY_COMMIT }} -j ${JIRA_CREDS} -f ${{ env.FIX_VERSION }}
