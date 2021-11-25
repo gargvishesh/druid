@@ -221,6 +221,7 @@ public class StringLastAggregatorFactory extends AggregatorFactory
   {
     return new CacheKeyBuilder(AggregatorUtil.STRING_LAST_CACHE_TYPE_ID)
         .appendString(fieldName)
+        .appendString(timeColumn)
         .appendInt(maxStringBytes)
         .build();
   }

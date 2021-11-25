@@ -2598,7 +2598,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
         .setDimensions(new DefaultDimensionSpec("market", "market"))
         .setAggregatorSpecs(
-            new LongFirstAggregatorFactory("first", "index"),
+            new LongFirstAggregatorFactory("first", "index", null),
             new LongLastAggregatorFactory("last", "index", null)
         )
         .setGranularity(QueryRunnerTestHelper.MONTH_GRAN)
@@ -2691,7 +2691,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
             QueryRunnerTestHelper.ROWS_COUNT,
             QueryRunnerTestHelper.INDEX_LONG_SUM,
             QueryRunnerTestHelper.QUALITY_CARDINALITY,
-            new LongFirstAggregatorFactory("first", "index"),
+            new LongFirstAggregatorFactory("first", "index", null),
             new LongLastAggregatorFactory("last", "index", null)
         )
         .setGranularity(QueryRunnerTestHelper.DAY_GRAN)
@@ -6361,7 +6361,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
         .setDimensions(new DefaultDimensionSpec("market", "market"))
         .setAggregatorSpecs(
             QueryRunnerTestHelper.ROWS_COUNT,
-            new LongFirstAggregatorFactory("innerfirst", "index"),
+            new LongFirstAggregatorFactory("innerfirst", "index", null),
             new LongLastAggregatorFactory("innerlast", "index", null)
         )
         .setGranularity(QueryRunnerTestHelper.DAY_GRAN)
@@ -6373,7 +6373,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
         .setDimensions(Collections.emptyList())
         .setAggregatorSpecs(
-            new LongFirstAggregatorFactory("first", "innerfirst"),
+            new LongFirstAggregatorFactory("first", "innerfirst", null),
             new LongLastAggregatorFactory("last", "innerlast", null)
         )
         .setGranularity(QueryRunnerTestHelper.MONTH_GRAN)

@@ -54,7 +54,6 @@ import org.apache.druid.query.aggregation.post.FinalizingFieldAccessPostAggregat
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
@@ -82,14 +81,14 @@ public class EarliestLatestAnySqlAggregator implements SqlAggregator
       {
         switch (type.getType()) {
           case LONG:
-            return new LongFirstAggregatorFactory(name, fieldName);
+            return new LongFirstAggregatorFactory(name, fieldName, timeColumn);
           case FLOAT:
-            return new FloatFirstAggregatorFactory(name, fieldName);
+            return new FloatFirstAggregatorFactory(name, fieldName, timeColumn);
           case DOUBLE:
-            return new DoubleFirstAggregatorFactory(name, fieldName);
+            return new DoubleFirstAggregatorFactory(name, fieldName, timeColumn);
           case STRING:
           case COMPLEX:
-            return new StringFirstAggregatorFactory(name, fieldName, maxStringBytes);
+            return new StringFirstAggregatorFactory(name, fieldName, timeColumn, maxStringBytes);
           default:
             throw new ISE("Cannot build EARLIEST aggregatorFactory for type[%s]", type);
         }
@@ -203,7 +202,7 @@ public class EarliestLatestAnySqlAggregator implements SqlAggregator
         theAggFactory = aggregatorType.createAggregatorFactory(aggregatorName, fieldName, null, outputType, -1);
         break;
       case 2:
-        if (outputType.anyOf(ValueType.STRING, ValueType.COMPLEX)) {
+        if (!outputType.isNumeric()) { // translates (expr, maxBytesPerString) signature
           theAggFactory = aggregatorType.createAggregatorFactory(
               aggregatorName,
               fieldName,
@@ -211,7 +210,7 @@ public class EarliestLatestAnySqlAggregator implements SqlAggregator
               outputType,
               RexLiteral.intValue(rexNodes.get(1))
           );
-        } else {
+        } else { // translates (expr, timeColumn) signature
           theAggFactory = aggregatorType.createAggregatorFactory(
               aggregatorName,
               fieldName,
@@ -251,16 +250,16 @@ public class EarliestLatestAnySqlAggregator implements SqlAggregator
       RexNode rexNode
   )
   {
-    String timeColumn;
+    String columnName;
     if (arg.isDirectColumnAccess()) {
-      timeColumn = arg.getDirectColumn();
+      columnName = arg.getDirectColumn();
     } else {
       final RelDataType dataType = rexNode.getType();
       final VirtualColumn virtualColumn =
           virtualColumnRegistry.getOrCreateVirtualColumnForExpression(plannerContext, arg, dataType);
-      timeColumn = virtualColumn.getOutputName();
+      columnName = virtualColumn.getOutputName();
     }
-    return timeColumn;
+    return columnName;
   }
 
   static class EarliestLatestReturnTypeInference implements SqlReturnTypeInference
@@ -310,13 +309,13 @@ public class EarliestLatestAnySqlAggregator implements SqlAggregator
               OperandTypes.sequence(
                   "'" + aggregatorType.name() + "(expr, timeColumn)'\n",
                   OperandTypes.ANY,
-                  OperandTypes.ANY
+                  OperandTypes.NUMERIC
               ),
               OperandTypes.sequence(
                   "'" + aggregatorType.name() + "(expr, maxBytesPerString, timeColumn)'\n",
                   OperandTypes.ANY,
                   OperandTypes.and(OperandTypes.NUMERIC, OperandTypes.LITERAL),
-                  OperandTypes.ANY
+                  OperandTypes.NUMERIC
               )
           ),
           SqlFunctionCategory.STRING,

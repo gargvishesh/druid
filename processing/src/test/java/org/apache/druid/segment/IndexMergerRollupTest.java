@@ -105,7 +105,7 @@ public class IndexMergerRollupTest extends InitializedNullHandlingTest
   public void testStringFirstRollup() throws Exception
   {
     AggregatorFactory[] aggregatorFactories = new AggregatorFactory[]{
-        new StringFirstAggregatorFactory("m", "m", 1024)
+        new StringFirstAggregatorFactory("m", "m", null, 1024)
     };
     testStringFirstLastRollup(aggregatorFactories);
   }
