@@ -20,7 +20,8 @@ import io.imply.druid.inet.column.IpAddressComplexTypeSerde;
 import io.imply.druid.inet.column.IpAddressDimensionHandler;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
 import io.imply.druid.inet.expression.IpAddressExpressions;
-import io.imply.druid.inet.expression.sql.IpAddressSqlOperatorConversions;
+import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
+import io.imply.druid.inet.sql.IpAddressSqlOperatorConversions;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.segment.DimensionHandlerUtils;
@@ -42,7 +43,8 @@ public class IpAddressModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule("IpAddressModule")
             .registerSubtypes(
-                new NamedType(IpAddressDimensionSchema.class, TYPE_NAME)
+                new NamedType(IpAddressDimensionSchema.class, TYPE_NAME),
+                new NamedType(IpAddressFormatVirtualColumn.class, IpAddressFormatVirtualColumn.TYPE_NAME)
             )
             .addSerializer(IpAddressBlob.class, new IpAddressBlobJsonSerializer())
     );

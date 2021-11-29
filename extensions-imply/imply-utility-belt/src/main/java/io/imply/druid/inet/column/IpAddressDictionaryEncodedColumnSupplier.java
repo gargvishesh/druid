@@ -16,7 +16,7 @@ import org.apache.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
 
-public class IpAddressDictionaryEncodedColumnSupplier  implements Supplier<IpAddressDictionaryEncodedColumn>
+public class IpAddressDictionaryEncodedColumnSupplier implements Supplier<IpAddressDictionaryEncodedColumn>
 {
   private final GenericIndexed<ByteBuffer> dictionary;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
@@ -28,8 +28,8 @@ public class IpAddressDictionaryEncodedColumnSupplier  implements Supplier<IpAdd
       GenericIndexed<ImmutableBitmap> bitmaps
   )
   {
-    this.dictionary = dictionary;
     this.column = column;
+    this.dictionary = dictionary;
     this.bitmaps = bitmaps;
   }
 

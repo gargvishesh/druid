@@ -9,7 +9,6 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Supplier;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.segment.column.BitmapIndex;
@@ -18,14 +17,13 @@ import org.apache.druid.segment.data.GenericIndexed;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
-public class IpAddressBitmapIndexColumnPartSupplier implements Supplier<BitmapIndex>
+public abstract class IpAddressBitmapIndex implements BitmapIndex
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final GenericIndexed<ByteBuffer> dictionary;
 
-
-  public IpAddressBitmapIndexColumnPartSupplier(
+  public IpAddressBitmapIndex(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
       GenericIndexed<ByteBuffer> dictionary
@@ -37,25 +35,41 @@ public class IpAddressBitmapIndexColumnPartSupplier implements Supplier<BitmapIn
   }
 
   @Override
-  public BitmapIndex get()
+  public int getCardinality()
   {
-    return new IpAddressBitmapIndex(bitmapFactory, bitmaps, dictionary)
-    {
-      @Nullable
-      @Override
-      public String getValue(int index)
-      {
-        ByteBuffer value = dictionary.get(index);
-        if (value == null) {
-          return null;
-        }
-        IpAddressBlob blob = IpAddressBlob.ofByteBuffer(value);
-        if (blob == null) {
-          return null;
-        }
-        return blob.asCompressedString();
-      }
-    };
+    return dictionary.size();
+  }
+
+  @Override
+  public boolean hasNulls()
+  {
+    return dictionary.indexOf(null) >= 0;
+  }
+
+  @Override
+  public BitmapFactory getBitmapFactory()
+  {
+    return bitmapFactory;
+  }
+
+  @Override
+  public int getIndex(@Nullable String value)
+  {
+    // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
+    if (value == null) {
+      return dictionary.indexOf(null);
+    }
+    return dictionary.indexOf(ByteBuffer.wrap(IpAddressBlob.ofString(value).getBytes()));
+  }
+
+  @Override
+  public ImmutableBitmap getBitmap(int idx)
+  {
+    if (idx < 0) {
+      return bitmapFactory.makeEmptyImmutableBitmap();
+    }
+
+    final ImmutableBitmap bitmap = bitmaps.get(idx);
+    return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
   }
 }
-

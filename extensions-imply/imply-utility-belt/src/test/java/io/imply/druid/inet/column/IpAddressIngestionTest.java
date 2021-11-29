@@ -56,7 +56,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -75,7 +79,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -99,7 +107,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -118,7 +130,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .filters(new SelectorDimFilter("ipv4", "22.22.23.24", null))
                                              .limit(100)
@@ -138,9 +154,24 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .filters(new BoundDimFilter("ipv4", "11.11.11.11", "55.55.55.55", null, null, null, null, null))
+                                             .filters(
+                                                 new BoundDimFilter(
+                                                     "ipv4",
+                                                     "11.11.11.11",
+                                                     "55.55.55.55",
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null
+                                                 )
+                                             )
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();
@@ -162,7 +193,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -183,7 +218,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     Segment index = IpAddressTestUtils.createDefaultDailyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -204,7 +243,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     Segment index = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .filters(new SelectorDimFilter("ipv4", "22.22.23.24", null))
                                              .limit(100)
@@ -226,9 +269,24 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     Segment index = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
-                                             .intervals(new MultipleIntervalSegmentSpec(Collections.singletonList(Intervals.ETERNITY)))
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .filters(new BoundDimFilter("ipv4", "11.11.11.11", "55.55.55.55", null, null, null, null, null))
+                                             .filters(
+                                                 new BoundDimFilter(
+                                                     "ipv4",
+                                                     "11.11.11.11",
+                                                     "55.55.55.55",
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null,
+                                                     null
+                                                 )
+                                             )
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();

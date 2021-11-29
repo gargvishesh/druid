@@ -23,7 +23,7 @@ import org.apache.druid.segment.IdLookup;
 import org.apache.druid.segment.column.ComplexColumn;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.druid.segment.data.ColumnarInts;
-import org.apache.druid.segment.data.Indexed;
+import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.data.SingleIndexedInt;
@@ -43,13 +43,13 @@ import java.util.BitSet;
 public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn<IpAddressBlob>, ComplexColumn
 {
   private final ColumnarInts column;
-  private final Indexed<ByteBuffer> dictionary;
-  private final Indexed<ImmutableBitmap> bitmaps;
+  private final GenericIndexed<ByteBuffer> dictionary;
+  private final GenericIndexed<ImmutableBitmap> bitmaps;
 
   public IpAddressDictionaryEncodedColumn(
       ColumnarInts column,
-      Indexed<ByteBuffer> dictionary,
-      Indexed<ImmutableBitmap> bitmaps
+      GenericIndexed<ByteBuffer> dictionary,
+      GenericIndexed<ImmutableBitmap> bitmaps
   )
   {
     this.column = column;
@@ -384,5 +384,21 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
     catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+
+  public ColumnarInts getEncodedValuesColumn()
+  {
+    return column;
+  }
+
+  public GenericIndexed<ByteBuffer> getDictionary()
+  {
+    return dictionary;
+  }
+
+  public GenericIndexed<ImmutableBitmap> getBitmaps()
+  {
+    return bitmaps;
   }
 }
