@@ -184,6 +184,7 @@ public class IpAddressExpressions
         class PrefixExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
         {
           final int prefixLength;
+
           public PrefixExpr(List<Expr> args, int prefixLength)
           {
             super(NAME, args);
@@ -282,7 +283,12 @@ public class IpAddressExpressions
       if (args.get(1).isLiteral()) {
         final ExprEval literalEval = args.get(1).eval(InputBindings.nilBindings());
         if (!literalEval.type().is(ExprType.STRING)) {
-          throw new IAE("Function[%s] second argmument must be [%s] as input, got [%s]", NAME, ExpressionType.STRING.asTypeString(), literalEval.type());
+          throw new IAE(
+              "Function[%s] second argmument must be [%s] as input, got [%s]",
+              NAME,
+              ExpressionType.STRING.asTypeString(),
+              literalEval.type()
+          );
         }
         final String literal = literalEval.asString();
 
@@ -298,7 +304,12 @@ public class IpAddressExpressions
           {
             ExprEval input = args.get(0).eval(bindings);
             if (!TYPE.equals(input.type()) && input.value() != null) {
-              throw new IAE("Function[%s] first argmument must be [%s] as input, got [%s]", name, TYPE.asTypeString(), input.type());
+              throw new IAE(
+                  "Function[%s] first argmument must be [%s] as input, got [%s]",
+                  name,
+                  TYPE.asTypeString(),
+                  input.type()
+              );
             }
             IpAddressBlob blob = (IpAddressBlob) input.value();
             if (blob == null) {
@@ -337,10 +348,20 @@ public class IpAddressExpressions
           ExprEval input = args.get(0).eval(bindings);
           ExprEval matchesInput = args.get(1).eval(bindings);
           if (!TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] first argmument must be [%s] as input, got [%s]", name, TYPE.asTypeString(), input.type());
+            throw new IAE(
+                "Function[%s] first argmument must be [%s] as input, got [%s]",
+                name,
+                TYPE.asTypeString(),
+                input.type()
+            );
           }
           if (!matchesInput.type().is(ExprType.STRING)) {
-            throw new IAE("Function[%s] second argmument must be [%s] as input, got [%s]", name, ExpressionType.STRING.asTypeString(), matchesInput.type());
+            throw new IAE(
+                "Function[%s] second argmument must be [%s] as input, got [%s]",
+                name,
+                ExpressionType.STRING.asTypeString(),
+                matchesInput.type()
+            );
           }
           IpAddressBlob blob = (IpAddressBlob) input.value();
           if (blob == null) {

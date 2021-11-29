@@ -99,9 +99,10 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
       byte version = buffer.get();
       Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
       IpAddressBlobColumnMetadata metadata = IpAddressComplexTypeSerde.JSON_MAPPER.readValue(
-            SERIALIZER_UTILS.readString(buffer),
-            IpAddressBlobColumnMetadata.class
-        );
+          SERIALIZER_UTILS.readString(buffer),
+          IpAddressBlobColumnMetadata.class
+      );
+
       final GenericIndexed<ByteBuffer> dictionaryBytes = GenericIndexed.read(
           buffer,
           NULLABLE_BYTE_BUFFER_STRATEGY,

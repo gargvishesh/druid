@@ -35,6 +35,10 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
       return null;
     }
     final IpAddressBlob blob;
+    if (input instanceof IpAddressBlob) {
+      return (IpAddressBlob) input;
+    }
+
     if (input instanceof String) {
       blob = IpAddressBlob.ofString((String) input);
     } else {

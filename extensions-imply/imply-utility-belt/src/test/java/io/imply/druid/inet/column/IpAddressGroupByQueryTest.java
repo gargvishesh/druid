@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.expression.IpAddressExpressions;
+import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -22,6 +23,9 @@ import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.filter.BoundDimFilter;
+import org.apache.druid.query.filter.OrDimFilter;
+import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
@@ -42,6 +46,7 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @RunWith(Parameterized.class)
 public class IpAddressGroupByQueryTest
@@ -68,6 +73,14 @@ public class IpAddressGroupByQueryTest
     );
   }
 
+  public Map<String, Object> getContext()
+  {
+    return ImmutableMap.of(
+        QueryContexts.VECTORIZE_KEY, vectorize.toString(),
+        QueryContexts.VECTORIZE_VIRTUAL_COLUMNS_KEY, "true"
+    );
+  }
+
   @Parameterized.Parameters(name = "config = {0}, vectorize = {1}")
   public static Collection<?> constructorFeeder()
   {
@@ -85,13 +98,13 @@ public class IpAddressGroupByQueryTest
   {
     // this is pretty wack, but just documenting the cuurrent behavior
     GroupByQuery groupQuery = GroupByQuery.builder()
-                                              .setDataSource("test_datasource")
-                                              .setGranularity(Granularities.ALL)
-                                              .setInterval(Intervals.ETERNITY)
-                                              .setDimensions(DefaultDimensionSpec.of("ipv4"))
-                                              .setAggregatorSpecs(new CountAggregatorFactory("count"))
-                                              .setContext(ImmutableMap.of(QueryContexts.VECTORIZE_KEY, vectorize.toString()))
-                                              .build();
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("ipv4"))
+                                          .setAggregatorSpecs(new CountAggregatorFactory("count"))
+                                          .setContext(getContext())
+                                          .build();
 
     List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
 
@@ -160,7 +173,7 @@ public class IpAddressGroupByQueryTest
                                               )
                                           )
                                           .setAggregatorSpecs(new CountAggregatorFactory("count"))
-                                          .setContext(ImmutableMap.of(QueryContexts.VECTORIZE_KEY, vectorize.toString()))
+                                          .setContext(getContext())
                                           .build();
 
     List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
@@ -192,8 +205,7 @@ public class IpAddressGroupByQueryTest
       expectedException.expectMessage(
           "GroupBy v1 only supports dimensions with an outputType of STRING."
       );
-    }
-    else {
+    } else {
       expectedException.expect(IAE.class);
       expectedException.expectMessage("invalid type: COMPLEX<ipAddress>");
     }
@@ -203,7 +215,7 @@ public class IpAddressGroupByQueryTest
                                           .setInterval(Intervals.ETERNITY)
                                           .setDimensions(new DefaultDimensionSpec("ipv4", "ipv4", IpAddressModule.TYPE))
                                           .setAggregatorSpecs(new CountAggregatorFactory("count"))
-                                          .setContext(ImmutableMap.of(QueryContexts.VECTORIZE_KEY, vectorize.toString()))
+                                          .setContext(getContext())
                                           .build();
 
     List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
@@ -211,6 +223,184 @@ public class IpAddressGroupByQueryTest
     helper.runQueryOnSegmentsObjs(segs, groupQuery).toList();
 
     Assert.fail();
+  }
+
+  @Test
+  public void testGroupByStringifyVirtualColumn() throws Exception
+  {
+    GroupByQuery groupQuery = GroupByQuery.builder()
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("v0"))
+                                          .setVirtualColumns(
+                                              new IpAddressFormatVirtualColumn(
+                                                  "v0",
+                                                  "ipv4",
+                                                  true,
+                                                  false
+                                              )
+                                          )
+                                          .setAggregatorSpecs(new CountAggregatorFactory("count"))
+                                          .setContext(getContext())
+                                          .build();
+
+    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+
+    List<ResultRow> results = seq.toList();
+
+    verifyResults(
+        groupQuery.getResultRowSignature(),
+        results,
+        ImmutableList.of(
+            new Object[]{null, 1L},
+            new Object[]{"1.2.3.4", 2L},
+            new Object[]{"10.10.10.11", 2L},
+            new Object[]{"100.200.123.12", 2L},
+            new Object[]{"22.22.23.24", 2L},
+            new Object[]{"5.6.7.8", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByStringifyVirtualColumnSelectorFilter() throws Exception
+  {
+    GroupByQuery groupQuery = GroupByQuery.builder()
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("v0"))
+                                          .setVirtualColumns(
+                                              new IpAddressFormatVirtualColumn(
+                                                  "v0",
+                                                  "ipv4",
+                                                  true,
+                                                  false
+                                              )
+                                          )
+                                          .setDimFilter(
+                                              new OrDimFilter(
+                                                  new SelectorDimFilter(
+                                                      "v0",
+                                                      "1.2.3.4",
+                                                      null
+                                                  ),
+                                                  new SelectorDimFilter(
+                                                      "v0",
+                                                      "100.200.123.12",
+                                                      null
+                                                  )
+                                              )
+                                          )
+                                          .setAggregatorSpecs(new CountAggregatorFactory("count"))
+                                          .setContext(getContext())
+                                          .build();
+
+    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+
+    List<ResultRow> results = seq.toList();
+
+    verifyResults(
+        groupQuery.getResultRowSignature(),
+        results,
+        ImmutableList.of(
+            new Object[]{"1.2.3.4", 2L},
+            new Object[]{"100.200.123.12", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByStringifyVirtualColumnBoundFilter() throws Exception
+  {
+    GroupByQuery groupQuery = GroupByQuery.builder()
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("v0"))
+                                          .setVirtualColumns(
+                                              new IpAddressFormatVirtualColumn(
+                                                  "v0",
+                                                  "ipv4",
+                                                  true,
+                                                  false
+                                              )
+                                          )
+                                          .setDimFilter(
+                                              new BoundDimFilter(
+                                                  "v0",
+                                                  "10.10.10.10",
+                                                  "25.35.45.55",
+                                                  true,
+                                                  true,
+                                                  null,
+                                                  null,
+                                                  null
+                                              )
+                                          )
+                                          .setAggregatorSpecs(new CountAggregatorFactory("count"))
+                                          .setContext(getContext())
+                                          .build();
+
+    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+
+    List<ResultRow> results = seq.toList();
+
+    verifyResults(
+        groupQuery.getResultRowSignature(),
+        results,
+        ImmutableList.of(
+            new Object[]{"10.10.10.11", 2L},
+            new Object[]{"22.22.23.24", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByStringifyVirtualColumnForcev6Compact() throws Exception
+  {
+    GroupByQuery groupQuery = GroupByQuery.builder()
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("v0"))
+                                          .setVirtualColumns(
+                                              new IpAddressFormatVirtualColumn(
+                                                  "v0",
+                                                  "ipv4",
+                                                  true,
+                                                  true
+                                              )
+                                          )
+                                          .setAggregatorSpecs(new CountAggregatorFactory("count"))
+                                          .setContext(getContext())
+                                          .build();
+
+    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+
+    List<ResultRow> results = seq.toList();
+
+    verifyResults(
+        groupQuery.getResultRowSignature(),
+        results,
+        ImmutableList.of(
+            new Object[]{null, 1L},
+            new Object[]{"::ffff:102:304", 2L},
+            new Object[]{"::ffff:1616:1718", 2L},
+            new Object[]{"::ffff:506:708", 1L},
+            new Object[]{"::ffff:64c8:7b0c", 2L},
+            new Object[]{"::ffff:a0a:a0b", 2L}
+        )
+    );
   }
 
   private static void verifyResults(RowSignature rowSignature, List<ResultRow> results, List<Object[]> expected)

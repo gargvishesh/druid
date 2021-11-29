@@ -17,7 +17,7 @@ import com.google.common.collect.Iterables;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
 import io.imply.druid.inet.expression.IpAddressExpressions;
-import io.imply.druid.inet.expression.sql.IpAddressSqlOperatorConversions;
+import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -30,8 +30,10 @@ import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
+import org.apache.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
@@ -43,6 +45,9 @@ import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.aggregation.ApproxCountDistinctSqlAggregator;
+import org.apache.druid.sql.calcite.aggregation.builtin.BuiltinApproxCountDistinctSqlAggregator;
+import org.apache.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
@@ -62,7 +67,9 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   private static final String DATA_SOURCE = "iptest";
 
   private static final DruidOperatorTable OPERATOR_TABLE = new DruidOperatorTable(
-      ImmutableSet.of(),
+      ImmutableSet.of(
+          new CountSqlAggregator(new ApproxCountDistinctSqlAggregator(new BuiltinApproxCountDistinctSqlAggregator()))
+      ),
       ImmutableSet.of(
           new IpAddressSqlOperatorConversions.ParseOperatorConversion(),
           new IpAddressSqlOperatorConversions.TryParseOperatorConversion(),
@@ -248,9 +255,9 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
         + "IP_STRINGIFY(ipv4), "
         + "IP_STRINGIFY(ipv6), "
         + "IP_STRINGIFY(ipvmix), "
-        + "IP_STRINGIFY(ipv4, 0), "
-        + "IP_STRINGIFY(ipv6, 0), "
-        + "IP_STRINGIFY(ipvmix, 0), "
+        + "IP_STRINGIFY(ipv4, false), "
+        + "IP_STRINGIFY(ipv6, false), "
+        + "IP_STRINGIFY(ipvmix, false), "
         + "IP_STRINGIFY(IP_PREFIX(ipv4, 16)), "
         + "IP_STRINGIFY(IP_PREFIX(ipv6, 16)), "
         + "IP_STRINGIFY(IP_PREFIX(ipvmix, 16)), "
@@ -263,15 +270,30 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new ExpressionVirtualColumn("v0", "ip_stringify(\"ipv4\")", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v1", "ip_stringify(\"ipv6\")", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v2", "ip_stringify(\"ipvmix\")", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v3", "ip_stringify(\"ipv4\",0)", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v4", "ip_stringify(\"ipv6\",0)", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v5", "ip_stringify(\"ipvmix\",0)", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v6", "ip_stringify(ip_prefix(\"ipv4\",16))", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v7", "ip_stringify(ip_prefix(\"ipv6\",16))", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v8", "ip_stringify(ip_prefix(\"ipvmix\",16))", ColumnType.STRING, macroTable)
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false),
+                            new IpAddressFormatVirtualColumn("v1", "ipv6", true, false),
+                            new IpAddressFormatVirtualColumn("v2", "ipvmix", true, false),
+                            new IpAddressFormatVirtualColumn("v3", "ipv4", false, false),
+                            new IpAddressFormatVirtualColumn("v4", "ipv6", false, false),
+                            new IpAddressFormatVirtualColumn("v5", "ipvmix", false, false),
+                            new ExpressionVirtualColumn(
+                                "v6",
+                                "ip_stringify(ip_prefix(\"ipv4\",16))",
+                                ColumnType.STRING,
+                                macroTable
+                            ),
+                            new ExpressionVirtualColumn(
+                                "v7",
+                                "ip_stringify(ip_prefix(\"ipv6\",16))",
+                                ColumnType.STRING,
+                                macroTable
+                            ),
+                            new ExpressionVirtualColumn(
+                                "v8",
+                                "ip_stringify(ip_prefix(\"ipvmix\",16))",
+                                ColumnType.STRING,
+                                macroTable
+                            )
                         )
                         .setDimensions(
                             dimensions(
@@ -287,7 +309,16 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                             )
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
-                        .setPostAggregatorSpecs(ImmutableList.of(new ExpressionPostAggregator("p0", "ip_parse('1.2.3.4')", null, macroTable)))
+                        .setPostAggregatorSpecs(
+                            ImmutableList.of(
+                                new ExpressionPostAggregator(
+                                    "p0",
+                                    "ip_parse('1.2.3.4')",
+                                    null,
+                                    macroTable
+                                )
+                            )
+                        )
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -376,7 +407,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new ExpressionVirtualColumn("v0", "ip_stringify(\"ipv4\")", ColumnType.STRING, macroTable)
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
                         )
                         .setDimensions(
                             dimensions(
@@ -396,6 +427,113 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
             new Object[]{
                 "172.14.158.239",
                 2L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByFormatSelectorFilter() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "IP_STRINGIFY(ipv4), "
+        + "SUM(cnt) "
+        + "FROM druid.iptest WHERE IP_STRINGIFY(ipv4) = '172.14.164.200' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(selector("v0", "172.14.164.200", null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "172.14.164.200",
+                2L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByFormatBoundFilter() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "IP_STRINGIFY(ipv4), "
+        + "SUM(cnt) "
+        + "FROM druid.iptest WHERE IP_STRINGIFY(ipv4) < '172.14.164.255' AND IP_STRINGIFY(ipv4) > '172.14.158.235' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "172.14.158.235", "172.14.164.255", true, true, null, null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "172.14.158.239",
+                2L
+            },
+            new Object[]{
+                "172.14.164.200",
+                2L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testTimeseriesStringifyVirtualColumn() throws Exception
+  {
+    testQuery(
+        "SELECT COUNT(DISTINCT IP_STRINGIFY(ipv4)) FROM druid.iptest",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                  )
+                  .aggregators(
+                      new CardinalityAggregatorFactory(
+                          "a0",
+                          null,
+                          ImmutableList.of(DefaultDimensionSpec.of("v0")),
+                          false,
+                          true
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                5L
             }
         )
     );

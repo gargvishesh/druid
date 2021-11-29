@@ -43,7 +43,7 @@ public class IpAddressTestUtils
 {
   public static final ObjectMapper JSON_MAPPER;
 
-  static  {
+  static {
     JSON_MAPPER = TestHelper.makeJsonMapper();
     JSON_MAPPER.registerModules(new IpAddressModule().getJacksonModules());
   }
