@@ -67,7 +67,7 @@ public class IpAddressGroupByQueryTest
     this.config = config;
     this.vectorize = QueryContexts.Vectorize.fromString(vectorize);
     this.helper = AggregationTestHelper.createGroupByQueryAggregationTestHelper(
-        new IpAddressModule().getJacksonModules(),
+        IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE.getJacksonModules(),
         config,
         tempFolder
     );
