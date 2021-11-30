@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import io.imply.druid.inet.IpAddressModule;
+import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.druid.data.input.impl.StringInputRowParser;
@@ -29,6 +30,7 @@ import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,12 +44,16 @@ import java.util.List;
 public class IpAddressTestUtils
 {
   public static final ObjectMapper JSON_MAPPER;
+  public static final IpAddressModule LICENSED_IP_ADDRESS_MODULE;
 
   static {
+    LICENSED_IP_ADDRESS_MODULE = new IpAddressModule();
+    ImplyLicenseManager manager = Mockito.mock(ImplyLicenseManager.class);
+    Mockito.doReturn(true).when(manager).isFeatureEnabled(IpAddressModule.FEATURE_NAME);
+    LICENSED_IP_ADDRESS_MODULE.setImplyLicenseManager(manager);
     JSON_MAPPER = TestHelper.makeJsonMapper();
-    JSON_MAPPER.registerModules(new IpAddressModule().getJacksonModules());
+    JSON_MAPPER.registerModules(LICENSED_IP_ADDRESS_MODULE.getJacksonModules());
   }
-
 
   public static List<Segment> createSegments(
       AggregationTestHelper helper,

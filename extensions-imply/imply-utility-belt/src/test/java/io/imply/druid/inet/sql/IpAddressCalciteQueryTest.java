@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
+import io.imply.druid.inet.column.IpAddressTestUtils;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.data.input.InputRow;
@@ -188,7 +189,10 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   @Override
   public Iterable<? extends Module> getJacksonModules()
   {
-    return Iterables.concat(super.getJacksonModules(), new IpAddressModule().getJacksonModules());
+    return Iterables.concat(
+        super.getJacksonModules(),
+        IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE.getJacksonModules()
+    );
   }
 
   @Override

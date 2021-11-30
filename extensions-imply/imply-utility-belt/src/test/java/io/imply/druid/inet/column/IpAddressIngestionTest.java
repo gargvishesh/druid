@@ -44,7 +44,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   public IpAddressIngestionTest()
   {
     IpAddressModule.registerHandlersAndSerde();
-    List<? extends Module> mods = new IpAddressModule().getJacksonModules();
+    List<? extends Module> mods = IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE.getJacksonModules();
     this.helper = AggregationTestHelper.createScanQueryAggregationTestHelper(
         mods,
         tempFolder
