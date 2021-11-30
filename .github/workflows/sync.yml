@@ -25,6 +25,10 @@ jobs:
         if: ${{ failure() }}
         run: |
           echo "FILE=$(git diff --name-only --diff-filter=U |head -1)"  >> $GITHUB_ENV
+          echo "ALL_FILES=$(git diff --name-only --diff-filter=U)"  >> $GITHUB_ENV
+      - name: Details of first file causing conflict
+        if: ${{ failure() }}
+        run: |
           echo "IMPLY_COMMIT=$(git log master -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
           echo "IMPLY_COMMITER=$(git log master -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
           echo "APACHE_COMMIT=$(git log upstream/master -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
@@ -35,7 +39,8 @@ jobs:
         env:
           SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
-          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. `${{ env.FILE }}` caused the conflict and was last updated in `imply/druid` by ${{ env.IMPLY_COMMITER }} with commit [${{ env.IMPLY_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.IMPLY_COMMIT }}) and in `apache/druid` by ${{ env.APACHE_COMMITER }} with commit [${{ env.APACHE_COMMIT }}](https://github.com/apache/druid/commit/${{ env.APACHE_COMMIT }}).  See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
+          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. `${{ env.ALL_FILES }}` caused the conflict. `${{ env.FILE }}` and was last updated in `imply/druid` by ${{ env.IMPLY_COMMITER }} with commit [${{ env.IMPLY_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.IMPLY_COMMIT }}) and in `apache/druid` by ${{ env.APACHE_COMMITER }} with commit [${{ env.APACHE_COMMIT }}](https://github.com/apache/druid/commit/${{ env.APACHE_COMMIT }}). Please resolve conflicts of all the files. See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
           SLACK_TITLE: "[FAILED] Update implydata/druid master from apache/druid master"
           SLACK_COLOR: "danger"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          
