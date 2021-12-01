@@ -73,7 +73,6 @@ public class RetriableS3OutputStreamTest
 
   private S3SqlAsyncResultManagerConfig config;
   private long maxResultsSize;
-  private long maxTotalResultsSize;
   private long chunkSize;
 
   @Before
@@ -99,12 +98,6 @@ public class RetriableS3OutputStreamTest
       public long getMaxResultsSize()
       {
         return maxResultsSize;
-      }
-
-      @Override
-      public long getMaxTotalResultsSize()
-      {
-        return maxTotalResultsSize;
       }
 
       @Override
@@ -157,7 +150,6 @@ public class RetriableS3OutputStreamTest
   @Test
   public void testWriteAndHappy() throws IOException
   {
-    maxTotalResultsSize = 1000;
     maxResultsSize = 1000;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
@@ -180,7 +172,6 @@ public class RetriableS3OutputStreamTest
   @Test
   public void testWriteSizeLargerThanConfiguredMaxChunkSizeShouldSucceed() throws IOException
   {
-    maxTotalResultsSize = 1000;
     maxResultsSize = 1000;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES * 3);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
@@ -203,7 +194,6 @@ public class RetriableS3OutputStreamTest
   @Test
   public void testHitResultsSizeLimit() throws IOException
   {
-    maxTotalResultsSize = 1000;
     maxResultsSize = 50;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
@@ -233,43 +223,10 @@ public class RetriableS3OutputStreamTest
   }
 
   @Test
-  public void testHitTotalResultsSizeLimit() throws IOException
-  {
-    maxTotalResultsSize = 50;
-    maxResultsSize = 1000;
-    ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
-        config,
-        metadataManager,
-        s3,
-        queryDetails
-    )) {
-      for (int i = 0; i < 14; i++) {
-        bb.clear();
-        bb.putInt(i);
-        out.write(bb.array());
-      }
-
-      Assert.assertThrows(
-          "Exceeded max result store capacity [50]",
-          IOException.class,
-          () -> {
-            bb.clear();
-            bb.putInt(14);
-            out.write(bb.array());
-          }
-      );
-    }
-
-    s3.assertAborted();
-  }
-
-  @Test
   public void testSuccessToUploadAfterRetry() throws IOException
   {
     final TestAmazonS3 s3 = new TestAmazonS3(1);
 
-    maxTotalResultsSize = 1000;
     maxResultsSize = 1000;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
@@ -294,7 +251,6 @@ public class RetriableS3OutputStreamTest
   {
     final TestAmazonS3 s3 = new TestAmazonS3(3);
 
-    maxTotalResultsSize = 1000;
     maxResultsSize = 1000;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
