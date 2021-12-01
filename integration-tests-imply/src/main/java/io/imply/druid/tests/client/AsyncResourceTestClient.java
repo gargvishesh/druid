@@ -167,6 +167,6 @@ public class AsyncResourceTestClient
   {
     // The limit configs are set in integration-tests-imply/docker/environment-configs/common-async-download
     // The hardcoded values below must be keep in sync with the configs in the configuration file mentioned above.
-    return new AsyncQueryPoolConfig(10, 15, 3);
+    return new AsyncQueryPoolConfig(10, 3);
   }
 }

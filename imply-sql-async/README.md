@@ -103,7 +103,7 @@ These duties support the following properties:
 |config|description|required|default|
 | --- | --- | --- | --- |
 |`druid.query.async.cleanup.timeToRetain`| Retention period of query states and result files. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
-|`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
+|`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. If a broker has gone offline for longer than this duration, the coordiantor will mark query states `UNDETERMINED` for the queries that were running in the offline broker. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT1M |
 |`druid.query.async.cleanup.pollPeriod`| Duty group run period. Must be a form of `PT{n}S` to set this to `n` seconds. | no | PT30S |
 
 #### Configuring coordinator duties
@@ -118,9 +118,8 @@ whether the broker has gone offline for longer than `timeToWaitAfterBrokerGone` 
 
 |config|description|required|default|
 | --- | --- | --- | --- |
-|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently in each Broker. The Broker queues any queries that exceed the active limit. | no | 1 |
-|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the Broker queue. The Broker rejects any queries that exceed the limit. | no | 20 |
-|`druid.query.async.maxAsyncQueries`| Max number of queries a Druid cluster can track, including actively running queries, queued queries, complete queries, and failed queries. Druid rejects any queries that exceed the limit. For example if you have 10 actively running queries, 15 queued queries, 20 complete queries, and 5 failed queries, with `maxAsyncQueries` setting to 50, Druid rejects the next query instead of adding it as the 16th queued query.<br/><br/>This property should be replicated in all brokers.| no | 50 |
+|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently in each Broker. The Broker queues any queries that exceed the active limit. | no | 10% of number of physical cores in the broker |
+|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the Broker queue. The Broker rejects any queries that exceed the limit. | no | `max(10, maxConcurrentQueries * 3)` |
 
 
 ## APIs
@@ -243,8 +242,6 @@ API will still return details for the query.
 - `async/result/tracked/bytes`: Total results query size tracked by Druid.
 - `async/sqlQuery/running/count`: number of running queries.
 - `async/sqlQuery/queued/count`: number of queued queries.
-- `async/sqlQuery/tracked/max`: max number of queries tracked by Druid. Must be the same
-  as `druid.query.async.maxAsyncQueries`.
 - `async/sqlQuery/running/max`: max number of running queries. Must be the same as `druid.query.async.maxConcurrentQueries`.
 - `async/sqlQuery/queued/max`: max number of queued queries. Must be the same as `druid.query.async.maxQueriesToQueue`.
 

@@ -128,22 +128,6 @@ public class SqlAsyncQueryPool
   {
     // TODO(gianm): Document precondition: lifecycle must be in AUTHORIZED state. Validate, too?
     assert lifecycle.getAuthenticationResult() != null;
-    // Check if we are under retention number of queries limit. Reject query if we are over the limit
-    int currentQueryCount = metadataManager.getAllAsyncResultIds().size();
-    if (currentQueryCount >= asyncQueryPoolConfig.getMaxAsyncQueries()) {
-      String errorMessage = StringUtils.format(
-          "Too many async queries. Total async query limit of %s exceeded. Please try your query again later.",
-          asyncQueryPoolConfig.getMaxAsyncQueries()
-      );
-      QueryCapacityExceededException e = new QueryCapacityExceededException(
-          QueryCapacityExceededException.ERROR_CODE,
-          errorMessage,
-          QueryCapacityExceededException.class.getName(),
-          null
-      );
-      LOG.makeAlert(e, "Total async query limit exceeded").addData("asyncResultId", asyncResultId).emit();
-      throw e;
-    }
 
     final long timeout = getTimeout(sqlQuery.getContext());
     if (!hasTimeout(timeout)) {
