@@ -68,7 +68,6 @@ The `druid-s3-extensions` must be loaded to use s3 result storage.
 |`druid.query.async.storage.s3.prefix`| S3 prefix to store query results. Do not share the same path with other objects. The auto cleanup coordinatory duty will delete all objects under the same path if it thinks they are expired. | yes | |
 |`druid.query.async.storage.s3.tempDir`| Directory path in local disk to store query results temporarily. | yes | |
 |`druid.query.async.storage.s3.maxResultsSize`| Max size of each result file. It should be between 5MiB and 5TiB. Supports human-readable format. | no | 100MiB |
-|`druid.query.async.storage.s3.maxTotalResultsSize`| Max total size of all query result files. Supports human-readable format. | no | 5GiB |
 |`druid.query.async.storage.s3.chunkSize`| This property is intended only to support rare cases. This property defines the size of each chunk to temporarily store in `druid.query.async.storage.s3.tempDir`.  Druid computes the chunk size automatically when this property is not set. The chunk size must be between 5MiB and 5GiB. | no | null |
 |`druid.query.async.storage.s3.maxTriesOnTransientErrors`| This property is intended only to support rare cases. This property defines the max number times to attempt s3 API calls to avoid failures due to transient errors. | no | 10 |
 
@@ -80,7 +79,6 @@ druid.query.async.storage.s3.bucket=your_bucket
 druid.query.async.storage.s3.prefix=your_prefix
 druid.query.async.storage.s3.tempDir=/path/to/your/temp/dir
 druid.query.async.storage.s3.maxResultsSize=1GiB
-druid.query.async.storage.s3.maxTotalResultsSize=10GiB
 ```
 
 
@@ -92,7 +90,7 @@ druid.query.async.storage.s3.maxTotalResultsSize=10GiB
 When result file upload fails, Druid will abort the upload to clean up partially uploaded files. However, if the abort
 fails after a couple of retries, those partially uploaded files can remain in your s3 bucket. To handle them, it is recommended to set
 a lifecycle rule using `AbortIncompleteMultipartUpload` for your s3 bucket and prefix with `DaysAfterInitiation`.
-A recommended value for `DaysAfterInitiation` is 2 * query timeout.
+A recommended value for `DaysAfterInitiation` is 1 day.
 
 ### Query state and result file management
 
@@ -103,7 +101,7 @@ These duties support the following properties:
 |config|description|required|default|
 | --- | --- | --- | --- |
 |`druid.query.async.cleanup.timeToRetain`| Retention period of query states and result files. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
-|`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
+|`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. If a broker has gone offline for longer than this duration, the coordiantor will mark query states `UNDETERMINED` for the queries that were running in the offline broker. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT1M |
 |`druid.query.async.cleanup.pollPeriod`| Duty group run period. Must be a form of `PT{n}S` to set this to `n` seconds. | no | PT30S |
 
 #### Configuring coordinator duties
@@ -118,9 +116,8 @@ whether the broker has gone offline for longer than `timeToWaitAfterBrokerGone` 
 
 |config|description|required|default|
 | --- | --- | --- | --- |
-|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently in each Broker. The Broker queues any queries that exceed the active limit. | no | 1 |
-|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the Broker queue. The Broker rejects any queries that exceed the limit. | no | 20 |
-|`druid.query.async.maxAsyncQueries`| Max number of queries a Druid cluster can track, including actively running queries, queued queries, complete queries, and failed queries. Druid rejects any queries that exceed the limit. For example if you have 10 actively running queries, 15 queued queries, 20 complete queries, and 5 failed queries, with `maxAsyncQueries` setting to 50, Druid rejects the next query instead of adding it as the 16th queued query.<br/><br/>This property should be replicated in all brokers.| no | 50 |
+|`druid.query.async.maxConcurrentQueries`| Max number of active queries that can run concurrently in each Broker. The Broker queues any queries that exceed the active limit. | no | 10% of number of physical cores in the broker |
+|`druid.query.async.maxQueriesToQueue`| Max number of queries to store in the Broker queue. The Broker rejects any queries that exceed the limit. | no | `max(10, maxConcurrentQueries * 3)` |
 
 
 ## APIs
@@ -243,8 +240,6 @@ API will still return details for the query.
 - `async/result/tracked/bytes`: Total results query size tracked by Druid.
 - `async/sqlQuery/running/count`: number of running queries.
 - `async/sqlQuery/queued/count`: number of queued queries.
-- `async/sqlQuery/tracked/max`: max number of queries tracked by Druid. Must be the same
-  as `druid.query.async.maxAsyncQueries`.
 - `async/sqlQuery/running/max`: max number of running queries. Must be the same as `druid.query.async.maxConcurrentQueries`.
 - `async/sqlQuery/queued/max`: max number of queued queries. Must be the same as `druid.query.async.maxQueriesToQueue`.
 
@@ -265,3 +260,4 @@ API will still return details for the query.
   In this case, you must manually clean up the queries left in invalid states.
 - Even when the broker shuts down gracefully, it currently doesn't wait for running queries in it to complete before
   it completely shuts down. Instead, it simply marks them `FAILED`. This can fail your queries during rolling updates.
+- There is no limit on deep storage usage of query result files. It is recommended to set a quota in deep storage if required.

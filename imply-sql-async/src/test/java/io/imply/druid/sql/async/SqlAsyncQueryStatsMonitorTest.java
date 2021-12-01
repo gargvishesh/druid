@@ -44,7 +44,7 @@ public class SqlAsyncQueryStatsMonitorTest
         mockAsyncQueryLimitsConfig
     );
     sqlAsyncQueryStatsMonitor.doMonitor(mockServiceEmitter);
-    Mockito.verify(mockServiceEmitter, Mockito.times(5)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
+    Mockito.verify(mockServiceEmitter, Mockito.times(4)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
     Mockito.verifyNoMoreInteractions(mockServiceEmitter);
   }
 }

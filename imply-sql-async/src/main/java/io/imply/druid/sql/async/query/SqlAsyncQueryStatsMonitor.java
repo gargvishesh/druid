@@ -55,11 +55,6 @@ public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
     emitter.emit(
         new ServiceMetricEvent.Builder()
             .setDimension(DruidMetrics.SERVER, brokerId)
-            .build("async/sqlQuery/tracked/max", asyncQueryLimitsConfig.getMaxAsyncQueries())
-    );
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.SERVER, brokerId)
             .build("async/sqlQuery/running/max", asyncQueryLimitsConfig.getMaxConcurrentQueries())
     );
     emitter.emit(

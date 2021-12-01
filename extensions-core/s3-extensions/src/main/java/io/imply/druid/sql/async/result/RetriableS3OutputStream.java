@@ -245,9 +245,6 @@ class RetriableS3OutputStream extends OutputStream
       final Chunk chunk = currentChunk;
       try {
         resultsSize += chunk.length();
-        if (metadataManager.totalCompleteQueryResultsSize() + resultsSize > config.getMaxTotalResultsSize()) {
-          throw new IOE("Exceeded max result store capacity [%s]", config.getMaxTotalResultsSize());
-        }
         if (resultsSize > config.getMaxResultsSize()) {
           throw new IOE("Exceeded max results size [%s]", config.getMaxResultsSize());
         }

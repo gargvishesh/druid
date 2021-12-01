@@ -57,13 +57,6 @@ public class S3SqlAsyncResultManagerConfig
   private HumanReadableBytes maxResultsSize = new HumanReadableBytes("100MiB");
 
   /**
-   * Max size of all query results stored in s3.
-   * This limit counts only the queries that are marked in {@link io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager}.
-   */
-  @JsonProperty
-  private HumanReadableBytes maxTotalResultsSize = new HumanReadableBytes("5GiB");
-
-  /**
    * Max number of tries for each upload.
    */
   @JsonProperty
@@ -93,11 +86,6 @@ public class S3SqlAsyncResultManagerConfig
   public long getMaxResultsSize()
   {
     return maxResultsSize.getBytes();
-  }
-
-  public long getMaxTotalResultsSize()
-  {
-    return maxTotalResultsSize.getBytes();
   }
 
   public int getMaxTriesOnTransientError()

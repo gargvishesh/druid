@@ -67,7 +67,6 @@ import java.util.UUID;
 public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 {
   private static final int MAX_CONCURRENT_QUERIES = 2;
-  private static final int MAX_ASYNC_QUERIES = 6;
   private static final int MAX_QUERIES_TO_QUEUE = 2;
   private static final String BROKER_ID = "brokerId123";
 
@@ -127,7 +126,6 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     );
     AsyncQueryPoolConfig asyncQueryPoolConfig = new AsyncQueryPoolConfig(
         MAX_CONCURRENT_QUERIES,
-        MAX_ASYNC_QUERIES,
         MAX_QUERIES_TO_QUEUE
     );
     SqlAsyncLifecycleManager sqlAsyncLifecycleManager = new SqlAsyncLifecycleManager(new SqlLifecycleManager());
@@ -338,51 +336,6 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     Assert.assertEquals(MAX_CONCURRENT_QUERIES, sqlAsyncQueryPoolStats.getQueryRunningCount());
     Assert.assertEquals(MAX_QUERIES_TO_QUEUE, sqlAsyncQueryPoolStats.getQueryQueuedCount());
     // Now submit one more so that we will exceed the queue limit
-    Response submitResponse = resource.doPost(
-        new SqlQuery(
-            "select sleep(2), 10",
-            ResultFormat.OBJECTLINES,
-            true,
-            false,
-            false,
-            null,
-            null
-        ),
-        req
-    );
-    Assert.assertEquals(QueryCapacityExceededException.STATUS_CODE, submitResponse.getStatus());
-  }
-
-  @Test(timeout = 5000)
-  public void testRetentionNumberOfQueriesLimit() throws Exception
-  {
-    // Submit MAX_ASYNC_QUERIES number of queries
-    for (int i = 0; i < MAX_ASYNC_QUERIES; i++) {
-      Response submitResponse = resource.doPost(
-          new SqlQuery(
-              "select 10",
-              ResultFormat.OBJECTLINES,
-              true,
-              false,
-              false,
-              null,
-              null
-          ),
-          req
-      );
-      Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
-      Assert.assertSame(SqlAsyncQueryDetailsApiResponse.class, submitResponse.getEntity().getClass());
-      SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
-      Assert.assertEquals(State.INITIALIZED, response.getState());
-      response = waitUntilState(response.getAsyncResultId(), State.COMPLETE);
-      Assert.assertNull(response.getError());
-    }
-    // Sleep for a bit since it takes some time for worker thread in Executor to release lock after task is done
-    Thread.sleep(1000);
-    SqlAsyncQueryPool.BestEffortStatsSnapshot sqlAsyncQueryPoolStats = queryPool.getBestEffortStatsSnapshot();
-    Assert.assertEquals(0, sqlAsyncQueryPoolStats.getQueryRunningCount());
-    Assert.assertEquals(0, sqlAsyncQueryPoolStats.getQueryQueuedCount());
-    // Now submit one more so that we will exceed the retention limit
     Response submitResponse = resource.doPost(
         new SqlQuery(
             "select sleep(2), 10",
