@@ -20,6 +20,7 @@
 package org.apache.druid.cli;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Module;
@@ -39,9 +40,8 @@ import org.apache.druid.client.selector.CustomTierSelectorStrategyConfig;
 import org.apache.druid.client.selector.ServerSelectorStrategy;
 import org.apache.druid.client.selector.TierSelectorStrategy;
 import org.apache.druid.curator.ZkEnablementConfig;
-import org.apache.druid.discovery.DataNodeService;
-import org.apache.druid.discovery.LookupNodeService;
 import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.guice.BrokerServiceModule;
 import org.apache.druid.guice.CacheModule;
 import org.apache.druid.guice.DruidProcessingModule;
 import org.apache.druid.guice.Jerseys;
@@ -78,6 +78,7 @@ import org.eclipse.jetty.server.Server;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 @Command(
     name = "broker",
@@ -101,6 +102,12 @@ public class CliBroker extends ServerRunnable
   }
 
   @Override
+  protected Set<NodeRole> getNodeRoles(Properties properties)
+  {
+    return ImmutableSet.of(NodeRole.BROKER);
+  }
+
+  @Override
   protected List<? extends Module> getModules()
   {
     return ImmutableList.of(
@@ -109,6 +116,7 @@ public class CliBroker extends ServerRunnable
         new QueryRunnerFactoryModule(),
         new SegmentWranglerModule(),
         new JoinableFactoryModule(),
+        new BrokerServiceModule(),
         binder -> {
           binder.bindConstant().annotatedWith(Names.named("serviceName")).to(
               TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME
@@ -157,21 +165,9 @@ public class CliBroker extends ServerRunnable
             LifecycleModule.register(binder, ZkCoordinator.class);
           }
 
-          bindNodeRoleAndAnnouncer(
+          bindAnnouncer(
               binder,
-              DiscoverySideEffectsProvider
-                  .builder(NodeRole.BROKER)
-                  .serviceClasses(
-                      ImmutableList.of(
-                          DataNodeService.class,
-                          LookupNodeService.class,
-                          // BEGIN: Imply-specific service
-                          BrokerIdService.class
-                          // END: Imply-specific service
-                      )
-                  )
-                  .useLegacyAnnouncer(true)
-                  .build()
+              DiscoverySideEffectsProvider.withLegacyAnnouncer()
           );
 
           Jerseys.addResource(binder, SelfDiscoveryResource.class);
