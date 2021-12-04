@@ -28,7 +28,6 @@ import com.google.inject.name.Names;
 import io.airlift.airline.Command;
 import io.imply.druid.sql.async.BrokerIdServiceModule;
 import io.imply.druid.sql.async.SqlAsyncModule;
-import io.imply.druid.sql.async.discovery.BrokerIdService;
 import org.apache.druid.client.BrokerInternalQueryConfig;
 import org.apache.druid.client.BrokerSegmentWatcherConfig;
 import org.apache.druid.client.BrokerServerView;
