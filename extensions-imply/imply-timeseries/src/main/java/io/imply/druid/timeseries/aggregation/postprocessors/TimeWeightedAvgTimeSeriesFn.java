@@ -108,8 +108,8 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
 
         if (currentTimestamp != currentBucketStart) {
           double currentBucketStartDataPoint = interpolator.interpolate(prevTimestamp, prevDataPoint, currentTimestamp, currentDataPoint, currentBucketStart);
-          currentBucketTimeWeightedSum += interpolator.computeIntegral(currentBucketStart, currentBucketStartDataPoint, currentTimestamp, currentDataPoint);
-          currentBucketTimeWeightedCount += currentTimestamp - currentBucketStart;
+          currentBucketTimeWeightedSum = interpolator.computeIntegral(currentBucketStart, currentBucketStartDataPoint, currentTimestamp, currentDataPoint);
+          currentBucketTimeWeightedCount = currentTimestamp - currentBucketStart;
         } else {
           currentBucketTimeWeightedSum = 0;
           currentBucketTimeWeightedCount = 0;

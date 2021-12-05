@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import org.apache.druid.java.util.common.RE;
@@ -25,6 +26,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
@@ -209,7 +211,10 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    throw new UnsupportedOperationException();
+    if (timeColumn == null || dataColumn == null) {
+      return ImmutableList.of();
+    }
+    return ImmutableList.of(timeColumn, dataColumn);
   }
 
   @Override
@@ -228,5 +233,41 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   public int getMaxIntermediateSize()
   {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    final BaseTimeSeriesAggregatorFactory that = (BaseTimeSeriesAggregatorFactory) o;
+    return maxEntries == that.maxEntries &&
+           Objects.equals(name, that.name) &&
+           Objects.equals(timeColumn, that.timeColumn) &&
+           Objects.equals(dataColumn, that.dataColumn) &&
+           Objects.equals(timeseriesColumn, that.timeseriesColumn) &&
+           Objects.equals(postProcessing, that.postProcessing) &&
+           Objects.equals(timeBucketMillis, that.timeBucketMillis) &&
+           Objects.equals(window, that.window);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(
+        name,
+        dataColumn,
+        timeColumn,
+        timeseriesColumn,
+        postProcessing,
+        timeBucketMillis,
+        window,
+        maxEntries
+    );
   }
 }
