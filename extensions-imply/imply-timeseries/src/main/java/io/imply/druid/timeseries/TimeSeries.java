@@ -181,13 +181,13 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   /**
    * Merge the data present in the derived object to form a single TS. It can include a mix of data points and pre-built series.
    */
-  abstract void build();
+  public abstract void build();
 
   /**
    * Converts an intermediate TS to a final time series. This can trigger a build followed by the final computation.
    * @return converted final simple time series
    */
-  abstract SimpleTimeSeries computeSimple();
+  public abstract SimpleTimeSeries computeSimple();
 
   abstract int size();
 

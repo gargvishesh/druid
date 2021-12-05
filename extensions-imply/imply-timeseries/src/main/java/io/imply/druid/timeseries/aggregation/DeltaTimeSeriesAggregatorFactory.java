@@ -76,7 +76,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
     if (window == null) {
       throw new IAE("Must have a valid, non-null window");
     }
-    int finalMaxEntries = (int) Math.ceil(window.toDurationMillis() * 1D / timeBucketMillis);
+    int finalMaxEntries = Math.toIntExact((long) Math.ceil(window.toDurationMillis() * 1D / timeBucketMillis));
     if (window.getStartMillis() % timeBucketMillis != 0) {
       finalMaxEntries++;
     }
