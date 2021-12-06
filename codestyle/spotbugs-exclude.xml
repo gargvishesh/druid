@@ -46,6 +46,24 @@
         </And>
     </Match>
 
+    <!-- BEGIN: Imply-specific exclusions -->
+    <!-- Spotbugs doesn't like the MAGIC array -->
+    <Match>
+        <And>
+            <Bug pattern="MS_MUTABLE_ARRAY" />
+            <Class name="io.imply.druid.talaria.frame.file.FrameFileWriter" />
+        </And>
+    </Match>
+
+    <!-- Spotbugs doesn't like awaiting a latch without checking return value -->
+    <Match>
+        <And>
+            <Bug pattern="RV_RETURN_VALUE_IGNORED" />
+            <Class name="io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher" />
+        </And>
+    </Match>
+    <!-- END: Imply-specific exclusion -->
+
     <Bug pattern="AT_OPERATION_SEQUENCE_ON_CONCURRENT_ABSTRACTION"/>
     <Bug pattern="BC_UNCONFIRMED_CAST"/>
     <Bug pattern="BIT_SIGNED_CHECK_HIGH_BIT"/>
