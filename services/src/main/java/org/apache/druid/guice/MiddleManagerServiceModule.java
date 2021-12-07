@@ -17,33 +17,26 @@
  * under the License.
  */
 
-package org.apache.druid.client;
+package org.apache.druid.guice;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Predicates;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.druid.server.initialization.ZkPathsConfig;
+import com.google.inject.multibindings.ProvidesIntoSet;
+import com.google.inject.name.Named;
+import org.apache.druid.discovery.DruidService;
+import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.discovery.WorkerNodeService;
 
-import javax.validation.constraints.NotNull;
-
-public class FilteredSingleServerInventoryViewProvider implements FilteredServerInventoryViewProvider
+public class MiddleManagerServiceModule extends AbstractDruidServiceModule
 {
-  @JacksonInject
-  @NotNull
-  private ZkPathsConfig zkPaths = null;
-
-  @JacksonInject
-  @NotNull
-  private CuratorFramework curator = null;
-
-  @JacksonInject
-  @NotNull
-  private ObjectMapper jsonMapper = null;
+  @ProvidesIntoSet
+  @Named(NodeRole.MIDDLE_MANAGER_JSON_NAME)
+  public Class<? extends DruidService> getWorkerNodeService()
+  {
+    return WorkerNodeService.class;
+  }
 
   @Override
-  public SingleServerInventoryView get()
+  protected NodeRole getNodeRoleKey()
   {
-    return new SingleServerInventoryView(zkPaths, curator, jsonMapper, Predicates.alwaysFalse());
+    return NodeRole.MIDDLE_MANAGER;
   }
 }

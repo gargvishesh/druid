@@ -17,19 +17,24 @@
  * under the License.
  */
 
-package org.apache.druid.client;
+package org.apache.druid.guice.annotations;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.inject.Provider;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
+ * An annotation to specify node types that each {@link com.google.inject.Module} can be loaded on.
+ * In other words, you can specify particular node types for each module using this annotation,
+ * so that those modules can be loaded on only those particular node types.
+ * The {@link #roles()} should be the {@link org.apache.druid.discovery.NodeRole#jsonName}.
+ *
+ * A module is loaded in every node if this annotation is missing.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = BatchServerInventoryViewProvider.class)
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "batch", value = BatchServerInventoryViewProvider.class),
-    @JsonSubTypes.Type(name = "http", value = HttpServerInventoryViewProvider.class),
-})
-public interface ServerInventoryViewProvider extends Provider<ServerInventoryView>
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LoadScope
 {
+  String[] roles();
 }
