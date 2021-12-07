@@ -624,6 +624,7 @@ public abstract class ResponseContext
     putValue(Keys.TIMEOUT_AT, time);
   }
 
+  @SuppressWarnings("unused")
   public void putQueryFailDeadlineMs(long deadlineMs)
   {
     putValue(Keys.QUERY_FAIL_DEADLINE_MILLIS, deadlineMs);
