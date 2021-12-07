@@ -27,6 +27,7 @@ import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.metadata.input.InputSourceModule;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.run.QueryMakerFactory;
@@ -85,7 +86,12 @@ public class TalariaSqlModule implements DruidModule
   @Talaria
   public QueryMakerFactory buildTalariaQueryMakerFactory(final Injector injector)
   {
-    if (TalariaModules.getNodeRoles(injector).contains(NodeRole.BROKER)) {
+    if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
+      // This provider will not be used if none of the other Talaria stuff is bound, so this exception will
+      // not actually be reached in production. But include it here anyway, to make it clear that it is only
+      // expected to be used in concert with the rest of the extension.
+      throw new ISE("Not used");
+    } else if (TalariaModules.getNodeRoles(injector).contains(NodeRole.BROKER)) {
       return injector.getInstance(ImplyQueryMakerFactory.class);
     } else {
       return new NoopQueryMakerFactory();

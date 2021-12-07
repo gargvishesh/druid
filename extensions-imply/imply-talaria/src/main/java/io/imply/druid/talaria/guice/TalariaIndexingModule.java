@@ -57,6 +57,7 @@ import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.DruidProcessingConfig;
 
 import java.util.Collections;
@@ -155,6 +156,13 @@ public class TalariaIndexingModule implements DruidModule
   @LazySingleton
   public Bouncer makeBouncer(final DruidProcessingConfig processingConfig)
   {
+    if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
+      // This provider will not be used if none of the other Talaria stuff is bound, so this exception will
+      // not actually be reached in production. But include it here anyway, to make it clear that it is only
+      // expected to be used in concert with the rest of the extension.
+      throw new ISE("Not used");
+    }
+
     // TODO(gianm): do bouncer size = 1 on Peons?
     return new Bouncer(processingConfig.getNumThreads());
   }
