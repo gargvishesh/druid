@@ -1,0 +1,225 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Icon, Menu, MenuItem } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
+import { Popover2 } from '@blueprintjs/popover2';
+import classNames from 'classnames';
+import { SqlTableRef } from 'druid-query-toolkit';
+import * as JSONBig from 'json-bigint-native';
+import React, { useState } from 'react';
+
+import { Loader } from '../../../components';
+import { useInterval, useQueryManager } from '../../../hooks';
+import { Api } from '../../../singletons';
+import { downloadHref, formatDuration, queryDruidSql } from '../../../utils';
+import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
+import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
+import { useWorkStateStore } from '../work-state-store';
+
+import './work-panel.scss';
+
+const REPORT_DATASOURCE = '__you_have_been_visited_by_talaria';
+
+function statusToColor(status: TaskStatus): string {
+  switch (status) {
+    case 'RUNNING':
+      return '#2167d5';
+    case 'WAITING':
+      return '#d5631a';
+    case 'PENDING':
+      return '#ffbf00';
+    case 'SUCCESS':
+      return '#57d500';
+    case 'FAILED':
+      return '#d5100a';
+    default:
+      return '#0a1500';
+  }
+}
+
+type TaskStatus = 'RUNNING' | 'WAITING' | 'PENDING' | 'SUCCESS' | 'FAILED';
+
+interface WorkEntry {
+  taskStatus: TaskStatus;
+  taskId: string;
+  datasource: string;
+  createdTime: string;
+  duration: number;
+  errorMessage?: string;
+}
+
+export interface WorkPanelProps {
+  onStats(taskId: string): void;
+  onRunQuery(query: string): void;
+}
+
+export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
+  const { onStats, onRunQuery } = props;
+
+  const [loadValue, setLoadValue] = useState<
+    { title: string; work: () => Promise<string> } | undefined
+  >();
+
+  const [resultsTaskId, setResultsTaskId] = useState<string | undefined>();
+
+  const workStateVersion = useWorkStateStore(state => state.version);
+
+  const [workQueryState, queryManager] = useQueryManager<number, WorkEntry[]>({
+    query: workStateVersion,
+    processQuery: async _ => {
+      const tasks = await queryDruidSql<WorkEntry>({
+        query: `SELECT
+  "status" AS "taskStatus",
+  "task_id" AS "taskId",
+  "datasource",
+  "created_time" AS "createdTime",
+  "duration",
+  "error_msg" AS "errorMessage"
+FROM sys.tasks
+WHERE "type" = 'talaria0'
+ORDER BY "created_time" DESC
+LIMIT 100`,
+      });
+
+      return tasks;
+    },
+  });
+
+  useInterval(() => {
+    queryManager.rerunLastQuery(true);
+  }, 30000);
+
+  const workEntries = workQueryState.getSomeData();
+  return (
+    <div className="work-panel">
+      <div className="title">Work history</div>
+      {workEntries ? (
+        <div className="work-entries">
+          {workEntries.map(w => {
+            const menu = (
+              <Menu>
+                <MenuItem
+                  text="Show stats"
+                  onClick={() => {
+                    onStats(w.taskId);
+                  }}
+                />
+                <MenuItem
+                  text="Show SQL query"
+                  onClick={() => {
+                    setLoadValue({
+                      title: 'SQL query',
+                      work: async () => {
+                        const payloadResp = await Api.instance.get(
+                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
+                        );
+                        return payloadResp.data.payload.sqlQuery;
+                      },
+                    });
+                  }}
+                />
+                <MenuItem
+                  text="Show native query"
+                  onClick={() => {
+                    setLoadValue({
+                      title: 'Native query',
+                      work: async () => {
+                        const payloadResp = await Api.instance.get(
+                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
+                        );
+                        return JSONBig.stringify(payloadResp.data.payload.spec.query, undefined, 2);
+                      },
+                    });
+                  }}
+                />
+                {w.taskStatus === 'SUCCESS' &&
+                  (w.datasource === REPORT_DATASOURCE ? (
+                    <MenuItem text="Show results" onClick={() => setResultsTaskId(w.taskId)} />
+                  ) : (
+                    <MenuItem
+                      text={`SELECT * FROM ${SqlTableRef.create(w.datasource)}`}
+                      onClick={() =>
+                        onRunQuery(`SELECT * FROM ${SqlTableRef.create(w.datasource)}`)
+                      }
+                    />
+                  ))}
+                <MenuItem
+                  text="Download report"
+                  onClick={() => {
+                    downloadHref({
+                      href: `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}/reports`,
+                      filename: `${w.taskId}_report.json`,
+                    });
+                  }}
+                />
+              </Menu>
+            );
+
+            return (
+              <Popover2 className="work-entry" key={w.taskId} position="left" content={menu}>
+                <div title={w.errorMessage}>
+                  <div className="line1">
+                    <div className="status-dot" style={{ color: statusToColor(w.taskStatus) }}>
+                      &#x25cf;
+                    </div>
+                    <div className="timing">
+                      {w.createdTime.replace('T', ' ').replace(/\.\d\d\dZ$/, '') +
+                        ' (' +
+                        (w.duration >= 0 ? formatDuration(w.duration) : 'n/a') +
+                        ')'}
+                    </div>
+                  </div>
+                  <div className="line2">
+                    <Icon
+                      className="output-icon"
+                      icon={
+                        w.datasource === REPORT_DATASOURCE
+                          ? IconNames.APPLICATION
+                          : IconNames.CLOUD_UPLOAD
+                      }
+                    />
+                    <div
+                      className={classNames('output-datasource', {
+                        query: w.datasource === REPORT_DATASOURCE,
+                      })}
+                    >
+                      {w.datasource === REPORT_DATASOURCE ? 'data in report' : w.datasource}
+                    </div>
+                  </div>
+                </div>
+              </Popover2>
+            );
+          })}
+        </div>
+      ) : workQueryState.isLoading() ? (
+        <Loader />
+      ) : undefined}
+      {loadValue && (
+        <ShowAsyncValueDialog
+          title={loadValue.title}
+          loadValue={loadValue.work}
+          onClose={() => setLoadValue(undefined)}
+        />
+      )}
+      {resultsTaskId && (
+        <TalariaResultsDialog taskId={resultsTaskId} onClose={() => setResultsTaskId(undefined)} />
+      )}
+    </div>
+  );
+});

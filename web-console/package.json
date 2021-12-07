@@ -97,7 +97,8 @@
     "react-splitter-layout": "^4.0.0",
     "react-table": "~6.10.3",
     "regenerator-runtime": "^0.13.7",
-    "tslib": "^2.3.1"
+    "tslib": "^2.3.1",
+    "zustand": "^3.6.5"
   },
   "devDependencies": {
     "@awesome-code-style/eslint-config": "^3.2.0",

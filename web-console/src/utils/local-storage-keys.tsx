@@ -39,6 +39,16 @@ export const LocalStorageKeys = {
   LOOKUPS_REFRESH_RATE: 'lookups-refresh-rate' as const,
   QUERY_HISTORY: 'query-history' as const,
   LIVE_QUERY_MODE: 'live-query-mode' as const,
+
+  // BEGIN: Imply-added code for Talaria execution
+  TALARIA_SHOW: 'talaria-show' as const,
+  TALARIA_QUERIES: 'talaria-queries' as const,
+  TALARIA_CONTEXT: 'talaria-context' as const,
+  TALARIA_TAB_PANE_SIZE: 'talaria-tab-pane-size' as const,
+  TALARIA_HISTORY: 'talaria-history2' as const,
+  TALARIA_LIVE_MODE: 'talaria-live-mode' as const,
+  TALARIA_WORK_HISTORY: 'talaria-work-history' as const,
+  // END: Imply-modified code for Talaria execution
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
 
