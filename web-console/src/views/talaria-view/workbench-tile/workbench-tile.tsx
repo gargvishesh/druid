@@ -43,6 +43,7 @@ import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { InsertSuccess } from '../insert-success/insert-success';
+import { useMetadataStateStore } from '../metadata-state-store';
 import { QueryOutput2 } from '../query-output2/query-output2';
 import { RunPreviewButton } from '../run-preview-button/run-preview-button';
 import { StageProgress } from '../stage-progress/stage-progress';
@@ -157,6 +158,16 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [querySummaryState.loading]);
 
+  const querySummary = querySummaryState.data;
+
+  const incrementMetadataVersion = useMetadataStateStore(state => state.increment);
+  useEffect(() => {
+    if (querySummary?.isSuccessfulInsert()) {
+      incrementMetadataVersion();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(querySummary?.isSuccessfulInsert())]);
+
   function moveToPosition(position: RowColumn) {
     const currentQueryInput = queryInputRef.current;
     if (!currentQueryInput) return;
@@ -171,7 +182,6 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
   }
 
   const emptyQuery = query.isEmptyQuery();
-  const querySummary = querySummaryState.data;
 
   const runeMode = query.isJsonLike();
   const collapsed = query.getCollapsed();

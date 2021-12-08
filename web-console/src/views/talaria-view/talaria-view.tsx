@@ -46,6 +46,7 @@ import {
 
 import { getDemoQueries } from './demo-queries';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
+import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
 import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
@@ -139,14 +140,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   }
 
   componentDidMount(): void {
-    // const { initQuery } = this.props;
-    // const { liveQueryMode } = this.state;
-
     this.metadataQueryManager.runQuery(null);
-
-    // if (liveQueryMode !== 'off' && initQuery) {
-    //   this.handleRun();
-    // }
   }
 
   componentWillUnmount(): void {
@@ -227,19 +221,6 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
       />
     );
   }
-
-  // private renderLiveQueryModeSelector() {
-  //   const { liveQueryMode, query } = this.state;
-  //   if (query.isJsonLike()) return;
-  //
-  //   return (
-  //     <LiveQueryModeSelector
-  //       liveQueryMode={liveQueryMode}
-  //       onLiveQueryModeChange={this.handleLiveQueryModeChange}
-  //       autoLiveQueryModeShouldRun={this.autoLiveQueryModeShouldRun()}
-  //     />
-  //   );
-  // }
 
   private renderToolbarMoreMenu() {
     const { showWorkHistory } = this.state;
@@ -432,46 +413,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
   private readonly handleSqlQueryChange = (sqlQuery: SqlQuery, preferablyRun?: boolean): void => {
     this.handleQueryStringChange(sqlQuery.toString(), preferablyRun);
-
-    // // Possibly move the cursor of the QueryInput to the empty literal position
-    // const emptyLiteralPosition = findEmptyLiteralPosition(query);
-    // if (emptyLiteralPosition) {
-    //   // Introduce a delay to let the new text appear
-    //   setTimeout(() => {
-    //     this.moveToPosition(emptyLiteralPosition);
-    //   }, 10);
-    // }
   };
-
-  // private readonly handleLiveQueryModeChange = (liveQueryMode: LiveQueryMode) => {
-  //   this.setState({ liveQueryMode });
-  //   localStorageSetJson(LocalStorageKeys.TALARIA_LIVE_MODE, liveQueryMode);
-  // };
-
-  // private readonly handleWrapQueryLimitToggle = () => {
-  //   this.setState(({ query }) => ({ query: query.toggleUnlimited() }));
-  // };
-
-  // private autoLiveQueryModeShouldRun() {
-  //   const { queryResultState } = this.state;
-  //   return (
-  //     !queryResultState.data ||
-  //     !queryResultState.data.queryDuration ||
-  //     queryResultState.data.queryDuration < 10000
-  //   );
-  // }
-
-  // private readonly handleExplain = () => {
-  //   const { query, context } = this.state.query.getEffectiveQueryAndContext();
-  //
-  //   this.setState({
-  //     explainDialogQuery: {
-  //       queryString: typeof query === 'string' ? query : JSONBig.stringify(query),
-  //       queryContext: context,
-  //       wrapQueryLimit: undefined,
-  //     },
-  //   });
-  // };
 
   private readonly getParsedQuery = () => {
     return this.getCurrentQuery().getParsedQuery();
@@ -518,6 +460,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
         {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
+        <MetadataChangeDetector onChange={() => this.metadataQueryManager.runQuery(null)} />
       </div>
     );
   }

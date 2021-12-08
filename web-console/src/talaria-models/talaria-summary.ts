@@ -294,7 +294,9 @@ export class TalariaSummary {
   }
 
   public isSuccessfulInsert(): boolean {
-    return Boolean(this.getInsertDataSource() && this.status === 'SUCCESS');
+    return Boolean(
+      this.isFullyComplete() && this.getInsertDataSource() && this.status === 'SUCCESS',
+    );
   }
 
   public getErrorMessage(): string | undefined {
