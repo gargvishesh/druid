@@ -181,6 +181,7 @@
         <module>extensions-imply/indexed-table-loader</module>
         <module>extensions-imply/imply-druid-security</module>
         <module>extensions-imply/imply-view-manager</module>
+        <module>extensions-imply/imply-talaria</module>
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>

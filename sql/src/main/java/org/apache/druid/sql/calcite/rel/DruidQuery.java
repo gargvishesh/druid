@@ -19,6 +19,7 @@
 
 package org.apache.druid.sql.calcite.rel;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -67,6 +68,7 @@ import org.apache.druid.query.topn.TopNMetricSpec;
 import org.apache.druid.query.topn.TopNQuery;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.VirtualColumns;
+import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -107,6 +109,10 @@ import java.util.stream.Collectors;
  */
 public class DruidQuery
 {
+  // BEGIN: Imply-added code for Talaria execution
+  public static final String CTX_TALARIA_SCAN_SIGNATURE = "talariaSignature";
+  // END: Imply-added code for Talaria execution
+
   private final DataSource dataSource;
   private final PlannerContext plannerContext;
 
@@ -127,6 +133,10 @@ public class DruidQuery
   private final RelDataType outputRowType;
   private final VirtualColumnRegistry virtualColumnRegistry;
 
+  // BEGIN: Imply-added code for Talaria execution
+  private final RowSignature sourceRowSignature;
+  // END: Imply-added code for Talaria execution
+
   private DruidQuery(
       final DataSource dataSource,
       final PlannerContext plannerContext,
@@ -145,6 +155,11 @@ public class DruidQuery
     this.selectProjection = selectProjection;
     this.grouping = grouping;
     this.sorting = sorting;
+
+    // BEGIN: Imply-added code for Talaria execution
+    this.sourceRowSignature = sourceRowSignature;
+    // END: Imply-added code for Talaria execution
+
     this.outputRowSignature = computeOutputRowSignature(sourceRowSignature, selectProjection, grouping, sorting);
     this.outputRowType = Preconditions.checkNotNull(outputRowType, "outputRowType");
     this.virtualColumnRegistry = Preconditions.checkNotNull(virtualColumnRegistry, "virtualColumnRegistry");
@@ -1163,10 +1178,14 @@ public class DruidQuery
     final SortedSet<String> scanColumns = new TreeSet<>(outputRowSignature.getColumnNames());
     orderByColumns.forEach(column -> scanColumns.add(column.getColumnName()));
 
+    // BEGIN: Imply-modified code for Talaria execution
+    final VirtualColumns virtualColumns = getVirtualColumns(true);
+    final ImmutableList<String> scanColumnsList = ImmutableList.copyOf(scanColumns);
+
     return new ScanQuery(
         newDataSource,
         filtration.getQuerySegmentSpec(),
-        getVirtualColumns(true),
+        virtualColumns,
         ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST,
         0,
         scanOffset,
@@ -1174,9 +1193,61 @@ public class DruidQuery
         null,
         orderByColumns,
         filtration.getDimFilter(),
-        ImmutableList.copyOf(scanColumns),
+        scanColumnsList,
         false,
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        ImmutableSortedMap.copyOf(
+            withScanSignatureIfNeeded(
+                virtualColumns,
+                scanColumnsList,
+                queryFeatureInspector,
+                plannerContext.getQueryContext()
+            )
+        )
     );
+    // END: Imply-modified code for Talaria execution
   }
+
+  // BEGIN: Imply-added code for Talaria execution
+  /**
+   * Returns a copy of "queryContext" with {@link #CTX_TALARIA_SCAN_SIGNATURE} added if this query is running
+   * under a Talaria executor.
+   */
+  private Map<String, Object> withScanSignatureIfNeeded(
+      final VirtualColumns virtualColumns,
+      final List<String> scanColumns,
+      final QueryFeatureInspector queryFeatureInspector,
+      final Map<String, Object> queryContext
+  )
+  {
+    if (queryFeatureInspector.getClass().getName().equals("io.imply.druid.talaria.sql.TalariaQueryMaker")) {
+      // Compute the signature of the columns that we are selecting.
+      final RowSignature.Builder scanSignatureBuilder = RowSignature.builder();
+
+      for (final String columnName : scanColumns) {
+        final ColumnCapabilities capabilities =
+            virtualColumns.getColumnCapabilitiesWithFallback(sourceRowSignature, columnName);
+
+        if (capabilities == null) {
+          // No type for this column. This is a planner bug.
+          throw new ISE("No type for column [%s]", columnName);
+        }
+
+        scanSignatureBuilder.add(columnName, capabilities.toColumnType());
+      }
+
+      final RowSignature signature = scanSignatureBuilder.build();
+
+      try {
+        final Map<String, Object> newMap = new HashMap<>(queryContext);
+        newMap.put(CTX_TALARIA_SCAN_SIGNATURE, plannerContext.getJsonMapper().writeValueAsString(signature));
+        return newMap;
+      }
+      catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return queryContext;
+    }
+  }
+  // END: Imply-added code for Talaria execution
 }
