@@ -48,6 +48,7 @@ import { getDemoQueries } from './demo-queries';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
+import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
 import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
 import { TalariaTabCache } from './talaria-tab-cache';
@@ -79,6 +80,7 @@ export interface TalariaViewState {
 
   editContextDialogOpen: boolean;
   historyDialogOpen: boolean;
+  renamingTab?: TabEntry;
 
   showWorkHistory: boolean;
 }
@@ -222,6 +224,27 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
     );
   }
 
+  private renderTabRenameDialog() {
+    const { renamingTab } = this.state;
+    if (!renamingTab) return;
+
+    return (
+      <TabRenameDialog
+        tabName={renamingTab.tabName}
+        onSave={newTabName => {
+          const { tabEntries } = this.state;
+          if (!renamingTab) return;
+          this.handleQueriesChange(
+            tabEntries.map(tabEntry =>
+              tabEntry.id === renamingTab.id ? { ...renamingTab, tabName: newTabName } : tabEntry,
+            ),
+          );
+        }}
+        onClose={() => this.setState({ renamingTab: undefined })}
+      />
+    );
+  }
+
   private renderToolbarMoreMenu() {
     const { showWorkHistory } = this.state;
     const query = this.getCurrentQuery();
@@ -297,6 +320,11 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                 <Popover2
                   content={
                     <Menu>
+                      <MenuItem
+                        icon={IconNames.EDIT}
+                        text="Rename tab"
+                        onClick={() => this.setState({ renamingTab: tabEntry })}
+                      />
                       <MenuItem
                         icon={IconNames.DUPLICATE}
                         text="Duplicate tab"
@@ -460,6 +488,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
         {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
+        {this.renderTabRenameDialog()}
         <MetadataChangeDetector onChange={() => this.metadataQueryManager.runQuery(null)} />
       </div>
     );
