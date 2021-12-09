@@ -121,8 +121,7 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
         const taskId = getTaskIdFromQueryResults(result);
         if (!taskId) {
           onQueryChange(props.query.changeLastQueryInfo(undefined));
-          // return result;
-          throw new Error('direct result not supported');
+          return TalariaSummary.fromResult(result);
         }
 
         TalariaHistory.attachTaskId(q, taskId);
@@ -261,8 +260,8 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
           <div className="query-control-bar">
             <RunPreviewButton
               query={query}
+              onQueryChange={onQueryChange}
               onRun={emptyQuery ? undefined : handleRun}
-              onExplain={undefined}
               onExport={handleExport}
               loading={querySummaryState.loading}
               small

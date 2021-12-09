@@ -35,13 +35,13 @@ import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
 import {
   formatSignature,
-  getContextFromSqlQuery,
   getDruidErrorMessage,
   queryDruidSql,
   QueryExplanation,
   QueryWithContext,
   trimSemicolon,
 } from '../../../utils';
+import { isEmptyContext } from '../../../utils/query-context';
 
 import './explain-dialog.scss';
 
@@ -69,13 +69,17 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
     processQuery: async (queryWithContext: QueryWithContext) => {
       const { queryString, queryContext, wrapQueryLimit } = queryWithContext;
 
-      const context = {
-        sqlOuterLimit: typeof wrapQueryLimit === 'number' ? wrapQueryLimit + 1 : undefined,
-        ...queryContext,
-        ...getContextFromSqlQuery(queryString),
-        ...(mandatoryQueryContext || {}),
-        useNativeQueryExplain: true,
-      };
+      let context: Record<string, any> | undefined;
+      if (!isEmptyContext(queryContext) || wrapQueryLimit || mandatoryQueryContext) {
+        context = {
+          ...queryContext,
+          ...(mandatoryQueryContext || {}),
+          useNativeQueryExplain: true,
+        };
+        if (typeof wrapQueryLimit !== 'undefined') {
+          context.sqlOuterLimit = wrapQueryLimit + 1;
+        }
+      }
 
       let result: any[] | undefined;
       try {

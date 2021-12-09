@@ -158,6 +158,15 @@ export class TalariaSummary {
     });
   }
 
+  static fromResult(result: QueryResult): TalariaSummary {
+    return new TalariaSummary({
+      taskId: result.sqlQueryId || result.queryId || 'direct_result',
+      summarySource: 'init',
+      status: 'SUCCESS',
+      result,
+    });
+  }
+
   public readonly taskId: string;
   public readonly summarySource: TalariaSummarySource;
   public readonly sqlQuery?: string;

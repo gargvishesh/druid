@@ -125,8 +125,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         const taskId = getTaskIdFromQueryResults(result);
         if (!taskId) {
           onQueryChange(props.query.changeLastQueryInfo(undefined));
-          // return result;
-          throw new Error('direct result not supported');
+          return TalariaSummary.fromResult(result);
         }
 
         TalariaHistory.attachTaskId(q, taskId);
@@ -266,7 +265,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               query={query}
               onQueryChange={onQueryChange}
               onRun={emptyQuery ? undefined : handleRun}
-              onExplain={undefined}
               onExport={handleExport}
               loading={querySummaryState.loading}
             />

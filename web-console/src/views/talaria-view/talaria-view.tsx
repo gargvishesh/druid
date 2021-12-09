@@ -35,10 +35,8 @@ import {
   queryDruidSql,
   QueryManager,
   QueryState,
-  QueryWithContext,
 } from '../../utils';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
-import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 import {
   LIVE_QUERY_MODES,
   LiveQueryMode,
@@ -69,8 +67,6 @@ export interface TalariaViewState {
   liveQueryMode: LiveQueryMode;
 
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
-
-  explainDialogQuery?: QueryWithContext;
 
   initExternalConfig: boolean;
   talariaStatsTaskId?: string;
@@ -177,21 +173,6 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
       <TalariaStatsDialog
         taskId={talariaStatsTaskId}
         onClose={() => this.setState({ talariaStatsTaskId: undefined })}
-      />
-    );
-  }
-
-  private renderExplainDialog() {
-    const { mandatoryQueryContext } = this.props;
-    const { explainDialogQuery } = this.state;
-    if (!explainDialogQuery) return;
-
-    return (
-      <ExplainDialog
-        queryWithContext={explainDialogQuery}
-        mandatoryQueryContext={mandatoryQueryContext}
-        setQueryString={this.handleQueryStringChange}
-        onClose={() => this.setState({ explainDialogQuery: undefined })}
       />
     );
   }
@@ -485,7 +466,6 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
           />
         )}
         {this.renderStatsDialog()}
-        {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
         {this.renderTabRenameDialog()}

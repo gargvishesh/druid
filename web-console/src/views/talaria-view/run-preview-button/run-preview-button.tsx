@@ -29,13 +29,13 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
 import { getLink } from '../../../links';
 import { TalariaQuery } from '../../../talaria-models';
-import { deepDelete, deepSet, pluralIfNeeded } from '../../../utils';
+import { deepDelete, deepSet, pluralIfNeeded, QueryWithContext } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
   getUseCache,
@@ -43,6 +43,7 @@ import {
   setUseApproximateCountDistinct,
   setUseCache,
 } from '../../../utils/query-context';
+import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
 
 import './run-preview-button.scss';
 
@@ -66,17 +67,17 @@ export function changeParallelism(
 
 export interface RunPreviewButtonProps {
   query: TalariaQuery;
-  onQueryChange?(query: TalariaQuery): void;
+  onQueryChange(query: TalariaQuery): void;
   loading: boolean;
   small?: boolean;
   onRun: ((actuallyIngest: boolean) => void) | undefined;
-  onExplain: (() => void) | undefined;
   onExport: (() => void) | undefined;
 }
 
 export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunPreviewButtonProps) {
-  const { query, onQueryChange, onRun, loading, small, onExplain, onExport } = props;
+  const { query, onQueryChange, onRun, loading, small, onExport } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
+  const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const runeMode = query.isJsonLike();
   const insertMode = query.isInsertQuery();
@@ -86,12 +87,23 @@ export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunP
   const useCache = getUseCache(queryContext);
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
 
-  const handleRun = React.useCallback(() => {
+  const handleRun = useCallback(() => {
     if (!onRun) return;
     onRun(true);
   }, [onRun]);
 
-  const hotkeys = React.useMemo(() => {
+  const handleExplain = useCallback(() => {
+    const queryAndContext = query.getEffectiveQueryAndContext();
+    if (typeof queryAndContext.query !== 'string') return;
+    setExplainDialogQuery({
+      queryString: queryAndContext.query,
+      queryContext: queryAndContext.context,
+      wrapQueryLimit: undefined,
+    });
+  }, [query]);
+
+  const hotkeys = useMemo(() => {
+    if (small) return [];
     return [
       {
         allowInInput: true,
@@ -107,10 +119,10 @@ export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunP
         group: 'Query',
         combo: 'mod + e',
         label: 'Explain the current query',
-        onKeyDown: onExplain,
+        onKeyDown: handleExplain,
       },
     ];
-  }, [handleRun, onExplain]);
+  }, [small, handleRun, handleExplain]);
 
   useHotkeys(hotkeys);
 
@@ -121,9 +133,7 @@ export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunP
         key={String(p)}
         icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
         text={p ? String(p) : 'auto'}
-        onClick={() =>
-          onQueryChange?.(query.changeQueryContext(changeParallelism(queryContext, p)))
-        }
+        onClick={() => onQueryChange(query.changeQueryContext(changeParallelism(queryContext, p)))}
       />
     );
   }
@@ -156,8 +166,8 @@ export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunP
         content={
           <Menu>
             <MenuItem icon={IconNames.DOWNLOAD} text="Export" onClick={onExport} />
-            {!runeMode && onExplain && (
-              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
+            {!runeMode && (
+              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={handleExplain} />
             )}
             {onQueryChange && (
               <>
@@ -243,6 +253,14 @@ export const RunPreviewButton = React.memo(function RunPreviewButton(props: RunP
           onClose={() => {
             setEditContextDialogOpen(false);
           }}
+        />
+      )}
+      {explainDialogQuery && (
+        <ExplainDialog
+          queryWithContext={explainDialogQuery}
+          mandatoryQueryContext={{}}
+          setQueryString={queryString => onQueryChange(query.changeQueryString(queryString))}
+          onClose={() => setExplainDialogQuery(undefined)}
         />
       )}
     </ButtonGroup>
