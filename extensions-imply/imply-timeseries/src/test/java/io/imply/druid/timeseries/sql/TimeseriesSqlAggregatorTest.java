@@ -9,7 +9,10 @@
 
 package io.imply.druid.timeseries.sql;
 
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -113,6 +116,15 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
     );
   }
 
+  @Override
+  public ObjectMapper createQueryJsonMapper()
+  {
+    ObjectMapper objectMapper = super.createQueryJsonMapper();
+    objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+    objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+    return objectMapper;
+  }
+
   @Test
   public void testTimeseriesAggs() throws Exception
   {
@@ -208,37 +220,37 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
-        ImmutableList.of(new Object[]{"{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
-                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
+        ImmutableList.of(new Object[]{"{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                                           + "\"dataPoints\":[1.0,2.0,3.0],"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"," // this result is wrong due to a bug
-                                          + "\"bucketStarts\":[946684800000,946771200000,946857600000]," // which leads to non-finalization of aggregations
-                                          + "\"sumPoints\":[1.0,2.0,3.0],"
+                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}}," // this result is wrong due to a bug,
+                                          + "\"bucketStarts\":[946684800000,946771200000,946857600000]," // which leads to non-finalization of aggregations,
                                           + "\"countPoints\":[1,1,1],"
+                                          + "\"sumPoints\":[1.0,2.0,3.0],"
                                           + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                                          + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
+                                          + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
                                           + "\"timestamps\":[946684800000,946684800000,946771200000,946771200000,946857600000,946857600000],"
-                                          + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
-                                          + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
-                                          + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                                           + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.5],"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
                                           + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                                           + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
-                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                                          + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                                           + "\"dataPoints\":[1.5,2.5,3.5],"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}",
-                                      "{\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\","
                                           + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                                           + "\"dataPoints\":[0.0,0.0,0.0],"
-                                          + "\"bounds\":{\"start\":{\"timestamp\":null,\"data\":null},\"end\":{\"timestamp\":null,\"data\":null}}}"})
+                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}"})
     );
   }
 }
