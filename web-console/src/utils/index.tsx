@@ -33,3 +33,7 @@ export * from './query-manager';
 export * from './query-state';
 export * from './sanitizers';
 export * from './table-helpers';
+
+// BEGIN: Imply-added code for Talaria execution
+export * from './imply';
+// END: Imply-modified code for Talaria execution
