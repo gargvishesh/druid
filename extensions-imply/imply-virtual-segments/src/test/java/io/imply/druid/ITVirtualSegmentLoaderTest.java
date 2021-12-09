@@ -69,6 +69,7 @@ import org.apache.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -156,6 +157,8 @@ public class ITVirtualSegmentLoaderTest
     }
   }
 
+  // Disable till https://implydata.atlassian.net/browse/IMPLY-13843 is resolved.
+  @Ignore
   @Test(expected = TimeoutException.class)
   public void testScheduleDownloadWithNoQuery()
       throws InterruptedException, ExecutionException, TimeoutException, IOException
