@@ -31,7 +31,7 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
+import React, { MouseEvent, useState } from 'react';
 
 import {
   AboutDialog,
@@ -39,7 +39,9 @@ import {
   DoctorDialog,
   OverlordDynamicConfigDialog,
 } from '../../dialogs';
+import { usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
+import { Api, AppToaster } from '../../singletons';
 import {
   Capabilities,
   localStorageGetJson,
@@ -62,9 +64,16 @@ export type HeaderActiveTab =
   | 'segments'
   | 'services'
   | 'query'
+  | 'talaria'
+  | 'talaria-loader'
   | 'lookups';
 
-const DruidLogo = React.memo(function DruidLogo() {
+interface DruidLogoProps {
+  next?: boolean;
+}
+
+const DruidLogo = React.memo(function DruidLogo(props: DruidLogoProps) {
+  const { next } = props;
   return (
     <div className="druid-logo">
       <svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150">
@@ -78,6 +87,7 @@ const DruidLogo = React.memo(function DruidLogo() {
           fill="#29F1FB"
           d="M54.1037631,105.568142 C55.5843204,105.568142 56.7862871,106.770109 56.7862871,108.250666 C56.7862871,109.670606 55.6828448,110.832632 54.2873709,110.927002 L54.1037631,110.93319 L44.7431529,110.93319 C43.2621086,110.93319 42.0606289,109.732343 42.0606289,108.250666 C42.0606289,106.831798 43.1645185,105.668789 44.5596011,105.574335 L44.7431529,105.568142 L54.1037631,105.568142 Z M80.5473262,37.9558829 C89.1859432,37.9558829 97.0867824,41.0139956 102.787585,46.5723187 C108.470488,52.111019 111.599181,59.7464375 111.599181,68.0649304 C111.599181,78.7425504 107.885984,89.2443007 101.403307,96.8883217 C93.7352545,105.927101 82.6344158,110.77283 69.2938069,110.929278 L68.6249155,110.93319 L64.3638142,110.93319 C62.8816507,110.93319 61.6812902,109.732829 61.6812902,108.250666 C61.6812902,106.831332 62.7841517,105.668751 64.1801338,105.574333 L64.3638142,105.568142 L68.6249155,105.568142 C89.7034951,105.568142 106.234132,91.3135182 106.234132,68.0649304 C106.234132,53.860462 95.665496,43.5292472 80.9931909,43.3240433 L80.5473262,43.3209309 L42.6182238,43.3209309 C41.1371794,43.3209309 39.9356997,42.1200836 39.9356997,40.6384069 C39.9356997,39.2184668 41.039142,38.0564411 42.434616,37.9620708 L42.6182238,37.9558829 L80.5473262,37.9558829 Z M77.2017272,54.5569925 C86.9455413,54.5569925 94.3186718,61.6497377 94.3186718,71.0443285 C94.3186718,77.1775842 92.1634613,82.9077004 88.2454257,87.1766787 C84.0616821,91.7363808 78.3289129,94.2021471 71.6634654,94.3255988 L71.1353194,94.3304742 L29.3434394,94.3304742 C27.8625661,94.3304742 26.6625216,93.1297974 26.6625216,91.6479502 C26.6625216,90.2290828 27.7649361,89.0675488 29.1598957,88.9732176 L29.3434394,88.9670323 L71.1353194,88.9670323 C81.9015616,88.9670323 88.9552299,81.0313689 88.9552299,71.0443285 C88.9552299,64.7002897 84.1999396,60.0808199 77.5474963,59.9260502 L77.2017272,59.9220405 L35.4355455,59.9220405 C33.9546722,59.9220405 32.7546277,58.7213637 32.7546277,57.2395165 C32.7546277,55.8204854 33.8571986,54.6576264 35.2520214,54.5631851 L35.4355455,54.5569925 L77.2017272,54.5569925 Z M25.2638324,54.4879283 C26.7455091,54.4879283 27.9463564,55.6894079 27.9463564,57.1704523 C27.9463564,58.5908589 26.8439419,59.752457 25.4475687,59.8467909 L25.2638324,59.8529763 L15.2190047,59.8529763 C13.7368413,59.8529763 12.5364807,58.6526157 12.5364807,57.1704523 C12.5364807,55.7511181 13.6393422,54.5885369 15.0353243,54.4941193 L15.2190047,54.4879283 L25.2638324,54.4879283 Z"
         />
+        {next && <text className="dot-next">.next</text>}
       </svg>
     </div>
   );
@@ -209,6 +219,9 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     false,
   );
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
+  const [showTalaria, setShowTalaria] = useState<any>(
+    localStorageGetJson(LocalStorageKeys.TALARIA_SHOW),
+  );
   const loadDataPrimary = false;
 
   const helpMenu = (
@@ -303,11 +316,64 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
+  // BEGIN: Imply-added code for Talaria execution
+  const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
+    if (!e.altKey) return;
+    e.preventDefault();
+    const nextShowTalaria = e.shiftKey ? (showTalaria ? false : 'loader') : !showTalaria;
+
+    if (nextShowTalaria) {
+      // Check extension
+      let status: any;
+      try {
+        status = (await Api.instance.get(`/status`)).data;
+      } catch (e) {
+        AppToaster.show({
+          message: 'Could not get status',
+          intent: Intent.DANGER,
+        });
+        return;
+      }
+
+      if (!Array.isArray(status.modules)) {
+        AppToaster.show({
+          message: 'Invalid status response',
+          intent: Intent.DANGER,
+        });
+        return;
+      }
+
+      if (
+        !status.modules.some((module: any) =>
+          String(module.name).startsWith('io.imply.druid.talaria'),
+        )
+      ) {
+        AppToaster.show({
+          message: 'Module is not loaded',
+          intent: Intent.DANGER,
+        });
+        return;
+      }
+    }
+
+    setShowTalaria(!nextShowTalaria);
+    localStorageSetJson(LocalStorageKeys.TALARIA_SHOW, nextShowTalaria);
+    AppToaster.show({
+      message: nextShowTalaria
+        ? 'It is dangerous to go alone! Take this.'
+        : 'Talaria bids you farewell',
+      intent: Intent.SUCCESS,
+      timeout: 3000,
+    });
+    location.hash = showTalaria ? '#' : '#talaria';
+  });
+  // END: Imply-modified code for Talaria execution
+
   return (
     <Navbar className="header-bar">
       <NavbarGroup align={Alignment.LEFT}>
-        <a href="#">
-          <DruidLogo />
+        <a href="#" onClick={handleLogoClick}>
+          <DruidLogo next={showTalaria} />
         </a>
 
         <NavbarDivider />
@@ -364,6 +430,28 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           href="#query"
           disabled={!capabilities.hasQuerying()}
         />
+        {/* BEGIN: Imply-added code for Talaria execution */}
+        {showTalaria && (
+          <AnchorButton
+            minimal
+            active={active === 'talaria'}
+            icon={IconNames.APPLICATION}
+            text="Talaria"
+            href="#talaria"
+            disabled={!capabilities.hasQuerying()}
+          />
+        )}
+        {showTalaria === 'loader' && (
+          <AnchorButton
+            minimal
+            active={active === 'talaria-loader'}
+            icon={IconNames.CLOUD_UPLOAD}
+            text="Talaria loader"
+            href="#talaria-loader"
+            disabled={!capabilities.hasQuerying()}
+          />
+        )}
+        {/* END: Imply-modified code for Talaria execution */}
       </NavbarGroup>
       <NavbarGroup align={Alignment.RIGHT}>
         <RestrictedMode capabilities={capabilities} />

@@ -20,6 +20,7 @@ import { HotkeysProvider, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import React from 'react';
+import { RouteComponentProps } from 'react-router';
 import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
@@ -35,6 +36,8 @@ import {
   SegmentsView,
   ServicesView,
 } from './views';
+import { TalariaLoadDataView } from './views/talaria-view/talaria-load-data-view';
+import { TalariaView } from './views/talaria-view/talaria-view';
 
 import './console-application.scss';
 
@@ -208,6 +211,27 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
+  // BEGIN: Imply-added code for Talaria execution
+  private readonly wrappedTalariaView = (p: RouteComponentProps<any>) => {
+    const { defaultQueryContext, mandatoryQueryContext } = this.props;
+
+    return this.wrapInViewContainer(
+      'talaria',
+      <TalariaView
+        tabId={p.match.params.tabId}
+        initQuery={this.initQuery}
+        defaultQueryContext={defaultQueryContext}
+        mandatoryQueryContext={mandatoryQueryContext}
+      />,
+      'thin',
+    );
+  };
+
+  private readonly wrappedTalariaLoadDataView = () => {
+    return this.wrapInViewContainer('talaria-loader', <TalariaLoadDataView />, 'narrow-pad');
+  };
+  // END: Imply-modified code for Talaria execution
+
   private readonly wrappedDatasourcesView = () => {
     const { capabilities } = this.state;
     return this.wrapInViewContainer(
@@ -291,6 +315,11 @@ export class ConsoleApplication extends React.PureComponent<
               <Route path="/services" component={this.wrappedServicesView} />
 
               <Route path="/query" component={this.wrappedQueryView} />
+
+              {/* BEGIN: Imply-added code for Talaria execution */}
+              <Route path={['/talaria/:tabId', '/talaria']} component={this.wrappedTalariaView} />
+              <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
+              {/* END: Imply-modified code for Talaria execution */}
 
               <Route path="/lookups" component={this.wrappedLookupsView} />
               <Route component={this.wrappedHomeView} />

@@ -56,6 +56,10 @@ exports.SQL_KEYWORDS = [
   'VALUES',
 ];
 
+// BEGIN: Imply-added code for Talaria execution
+exports.SQL_KEYWORDS.push('INSERT', 'INTO');
+// END: Imply-modified code for Talaria execution
+
 exports.SQL_EXPRESSION_PARTS = [
   'FILTER',
   'END',

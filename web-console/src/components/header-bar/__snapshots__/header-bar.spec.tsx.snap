@@ -9,6 +9,7 @@ exports[`header bar matches snapshot 1`] = `
   >
     <a
       href="#"
+      onClick={[Function]}
     >
       <Memo(DruidLogo) />
     </a>
