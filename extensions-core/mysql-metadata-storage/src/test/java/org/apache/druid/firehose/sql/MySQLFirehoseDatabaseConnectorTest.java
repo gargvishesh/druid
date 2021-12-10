@@ -357,7 +357,7 @@ public class MySQLFirehoseDatabaseConnectorTest
     MySQLFirehoseDatabaseConnector connector = new MySQLFirehoseDatabaseConnector(
         connectorConfig,
         null,
-        accessConfig
+        accessConfig,
         mySQLConnectorDriverConfig
     );
     // this needs to be called in Imply because we default to not checking the allowed properties
