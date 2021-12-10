@@ -913,7 +913,8 @@ public class TalariaControllerTask extends AbstractTask implements ChatHandler
               previousSegmentId,
               false,
               NumberedPartialShardSpec.instance(),
-              LockGranularity.TIME_CHUNK
+              LockGranularity.TIME_CHUNK,
+              null
           )
       );
 
