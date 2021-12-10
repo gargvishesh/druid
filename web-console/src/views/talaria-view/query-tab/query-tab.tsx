@@ -41,6 +41,7 @@ import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
 import { ExportDialog } from '../export-dialog/export-dialog';
+import { HelperQuery } from '../helper-query/helper-query';
 import { InsertSuccess } from '../insert-success/insert-success';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { QueryOutput2 } from '../query-output2/query-output2';
@@ -57,7 +58,6 @@ import {
   talariaBackgroundStatusCheck,
 } from '../talaria-utils';
 import { useWorkStateStore } from '../work-state-store';
-import { WorkbenchTile } from '../workbench-tile/workbench-tile';
 
 import './query-tab.scss';
 
@@ -91,7 +91,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   });
 
   const handleSecondaryPaneSizeChange = useCallback((secondaryPaneSize: number) => {
-    localStorageSet(LocalStorageKeys.QUERY_VIEW_PANE_SIZE, String(secondaryPaneSize));
+    localStorageSet(LocalStorageKeys.TALARIA_TAB_PANE_SIZE, String(secondaryPaneSize));
   }, []);
 
   const queryInputRef = useRef<TalariaQueryInput | null>(null);
@@ -204,38 +204,57 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         secondaryMinSize={30}
         onSecondaryPaneSizeChange={handleSecondaryPaneSizeChange}
       >
-        <div className="query-section">
-          {queryPrefixes.map((queryPrefix, i) => (
-            <WorkbenchTile
-              key={queryPrefix.getId()}
-              query={queryPrefix}
-              mandatoryQueryContext={mandatoryQueryContext}
-              columnMetadata={columnMetadata}
-              onQueryChange={newQuery => {
-                onQueryChange(query.applyUpdate(newQuery, i));
-              }}
-              onDelete={() => {
-                onQueryChange(query.remove(i));
-              }}
-              onStats={onStats}
-            />
-          ))}
-          <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
-            <div className="main-query-top-bar">
-              <Button
-                icon={IconNames.ARROW_UP}
-                text="Use as WITH query"
-                minimal
-                small
-                onClick={() => {
-                  onQueryChange(query.addBlank());
+        <div className="top-section">
+          <div className="query-section">
+            {queryPrefixes.map((queryPrefix, i) => (
+              <HelperQuery
+                key={queryPrefix.getId()}
+                query={queryPrefix}
+                mandatoryQueryContext={mandatoryQueryContext}
+                columnMetadata={columnMetadata}
+                onQueryChange={newQuery => {
+                  onQueryChange(query.applyUpdate(newQuery, i));
                 }}
+                onDelete={() => {
+                  onQueryChange(query.remove(i));
+                }}
+                onStats={onStats}
+              />
+            ))}
+            <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
+              <TalariaQueryInput
+                ref={queryInputRef}
+                autoHeight={Boolean(queryPrefixes.length)}
+                minRows={10}
+                queryString={query.getQueryString()}
+                onQueryStringChange={handleQueryStringChange}
+                runeMode={runeMode}
+                columnMetadata={
+                  columnMetadata ? columnMetadata.concat(query.getInlineMetadata()) : undefined
+                }
               />
               <ButtonGroup className="corner">
+                <Button
+                  icon={IconNames.ARROW_UP}
+                  title="Save as helper query"
+                  minimal
+                  small
+                  onClick={() => {
+                    onQueryChange(query.addBlank());
+                  }}
+                />
                 <Popover2
                   content={
                     <Menu>
                       <MenuItem
+                        icon={IconNames.ARROW_UP}
+                        text="Save as helper query"
+                        onClick={() => {
+                          onQueryChange(query.addBlank());
+                        }}
+                      />
+                      <MenuItem
+                        icon={IconNames.DUPLICATE}
                         text="Duplicate"
                         onClick={() => onQueryChange(query.duplicateLast())}
                       />
@@ -246,21 +265,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 </Popover2>
               </ButtonGroup>
             </div>
-            <TalariaQueryInput
-              ref={queryInputRef}
-              autoHeight
-              minRows={10}
-              queryString={query.getQueryString()}
-              onQueryStringChange={handleQueryStringChange}
-              runeMode={runeMode}
-              columnMetadata={
-                columnMetadata ? columnMetadata.concat(query.getInlineMetadata()) : undefined
-              }
-            />
           </div>
-        </div>
-        <div className="output-section">
-          <div className="output-top-bar">
+          <div className="run-bar">
             <RunPreviewButton
               query={query}
               onQueryChange={onQueryChange}
@@ -290,69 +296,69 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               />
             )}
           </div>
-          <div className="output-pane">
-            {querySummaryState.isInit() && (
-              <div className="init-placeholder">
-                {emptyQuery ? (
-                  <p>
-                    Enter a query and click <Code>Run</Code>
-                  </p>
-                ) : (
-                  <p>
-                    Click <Code>Run</Code> to execute the query
-                  </p>
-                )}
-              </div>
-            )}
-            {querySummary &&
-              (querySummary.result ? (
-                <QueryOutput2
-                  runeMode={runeMode}
-                  queryResult={querySummary.result}
-                  onExport={handleExport}
-                  onQueryAction={handleQueryAction}
-                />
-              ) : querySummary.isSuccessfulInsert() ? (
-                <InsertSuccess
-                  insertSummary={querySummary}
-                  onStats={() => onStats(statsTaskId!)}
-                  onQueryChange={handleQueryStringChange}
-                />
-              ) : querySummary.error ? (
-                <div className="stats-container">
-                  <TalariaQueryError taskError={querySummary.error} />
-                  {querySummary.stages && (
-                    <TalariaStats stages={querySummary.stages} error={querySummary.error} />
-                  )}
-                </div>
+        </div>
+        <div className="output-section">
+          {querySummaryState.isInit() && (
+            <div className="init-placeholder">
+              {emptyQuery ? (
+                <p>
+                  Enter a query and click <Code>Run</Code>
+                </p>
               ) : (
-                <div>Unknown query summary state</div>
-              ))}
-            {querySummaryState.error && (
-              <QueryError
-                error={querySummaryState.error}
-                moveCursorTo={position => {
-                  moveToPosition(position);
-                }}
-                queryString={query.getQueryString()}
-                onQueryStringChange={handleQueryStringChange}
+                <p>
+                  Click <Code>Run</Code> to execute the query
+                </p>
+              )}
+            </div>
+          )}
+          {querySummary &&
+            (querySummary.result ? (
+              <QueryOutput2
+                runeMode={runeMode}
+                queryResult={querySummary.result}
+                onExport={handleExport}
+                onQueryAction={handleQueryAction}
               />
-            )}
-            {querySummaryState.intermediate && (
+            ) : querySummary.isSuccessfulInsert() ? (
+              <InsertSuccess
+                insertSummary={querySummary}
+                onStats={() => onStats(statsTaskId!)}
+                onQueryChange={handleQueryStringChange}
+              />
+            ) : querySummary.error ? (
               <div className="stats-container">
-                <StageProgress
-                  reattach={querySummaryState.intermediate.isReattach()}
-                  stages={querySummaryState.intermediate.stages}
-                  onCancel={() => queryManager.cancelCurrent()}
-                  onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
-                  showLiveReports={showLiveReports}
-                />
-                {querySummaryState.intermediate.stages && showLiveReports && (
-                  <TalariaStats stages={querySummaryState.intermediate.stages} />
+                <TalariaQueryError taskError={querySummary.error} />
+                {querySummary.stages && (
+                  <TalariaStats stages={querySummary.stages} error={querySummary.error} />
                 )}
               </div>
-            )}
-          </div>
+            ) : (
+              <div>Unknown query summary state</div>
+            ))}
+          {querySummaryState.error && (
+            <QueryError
+              error={querySummaryState.error}
+              moveCursorTo={position => {
+                moveToPosition(position);
+              }}
+              queryString={query.getQueryString()}
+              onQueryStringChange={handleQueryStringChange}
+            />
+          )}
+          {querySummaryState.intermediate && (
+            <div className="stats-container">
+              <StageProgress
+                reattach={querySummaryState.intermediate.isReattach()}
+                stages={querySummaryState.intermediate.stages}
+                onCancel={() => queryManager.cancelCurrent()}
+                onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
+                showLiveReports={showLiveReports}
+              />
+              {querySummaryState.intermediate.stages && showLiveReports && (
+                <TalariaStats stages={querySummaryState.intermediate.stages} />
+              )}
+            </div>
+          )}
         </div>
       </SplitterLayout>
       {exportDialogQuery && (

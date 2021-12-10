@@ -214,7 +214,7 @@ export class TalariaQueryPart {
     let flatQuery: SqlQuery;
     try {
       // We need to do our own parsing here because this.parseQuery necessarily must be a SqlQuery
-      // object and we might have a SqlWithQuery here.
+      // object, and we might have a SqlWithQuery here.
       flatQuery = (SqlExpression.parse(this.queryString) as SqlWithQuery).flattenWith();
     } catch {
       return [this];
@@ -230,12 +230,7 @@ export class TalariaQueryPart {
       return [this];
     }
 
-    const lastPart = TalariaQueryPart.fromQuery(
-      flatQuery.changeWithParts(undefined),
-      this.queryName,
-    );
-
-    return newParts.concat(lastPart);
+    return newParts.concat(this.changeQueryString(flatQuery.changeWithParts(undefined).toString()));
   }
 
   public toWithPart(): string {
