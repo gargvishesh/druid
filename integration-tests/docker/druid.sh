@@ -101,7 +101,7 @@ setupData()
     export AWS_REGION=us-east-1
   fi
 
-  if [ "$MYSQL_DRIVER_CLASSNAME" != "com.mysql.jdbc.Driver" ] ; then
+  if [ "$MYSQL_DRIVER_CLASSNAME" != "org.mariadb.jdbc.Driver" ] ; then
     setKey $DRUID_SERVICE druid.metadata.mysql.driver.driverClassName $MYSQL_DRIVER_CLASSNAME
   fi
 
