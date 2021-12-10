@@ -53,6 +53,31 @@ export class TalariaQuery {
     });
   }
 
+  static fromEffectiveQueryAndContext(queryString: string, context: QueryContext): TalariaQuery {
+    const inlineContext = getContextFromSqlQuery(queryString);
+
+    const noSqlOuterLimit = typeof context['sqlOuterLimit'] === 'undefined';
+    const cleanContext = { ...context };
+    for (const k in inlineContext) {
+      if (cleanContext[k] === inlineContext[k]) {
+        delete cleanContext[k];
+      }
+    }
+    delete cleanContext['sqlQueryId'];
+    delete cleanContext['sqlOuterLimit'];
+    delete cleanContext['talaria'];
+
+    let retQuery = TalariaQuery.blank()
+      .changeQueryString(queryString)
+      .changeQueryContext(cleanContext);
+
+    if (noSqlOuterLimit && !retQuery.getInsertDatasource()) {
+      retQuery = retQuery.changeUnlimited(true);
+    }
+
+    return retQuery;
+  }
+
   static getInsertIntoLine(sqlString: string): string | undefined {
     return /(?:^|\n)\s*(INSERT\s+INTO[^\n]+)(?:\n|SELECT)/im.exec(sqlString)?.[1];
   }

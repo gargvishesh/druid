@@ -57,16 +57,31 @@ $work-panel-width: 250px;
       white-space: nowrap;
       overflow: hidden;
 
-      .active {
-        @include card-like;
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-        border-bottom: 2px solid #a1a6ba;
+      .tab-button {
+        &.active {
+          @include card-like;
+          border-bottom-left-radius: 0;
+          border-bottom-right-radius: 0;
+          border-bottom: 2px solid #a1a6ba;
+        }
+
+        .tab-extra {
+          opacity: 0;
+        }
+
+        &.active,
+        &:hover {
+          .tab-extra {
+            opacity: 1;
+          }
+        }
       }
 
       .add-tab {
         display: inline-block;
         vertical-align: top;
+        padding: 6px 14px;
+        margin-left: 4px;
       }
 
       .toolbar {

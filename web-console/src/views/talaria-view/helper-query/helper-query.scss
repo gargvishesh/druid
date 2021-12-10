@@ -18,13 +18,13 @@
 
 @import '../../../variables';
 
-.workbench-tile {
+.helper-query {
   position: relative;
   @include card-like;
 
   .query-top-bar {
     position: relative;
-    height: 30px;
+    height: 36px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -32,8 +32,9 @@
 
     .corner {
       position: absolute;
-      top: 3px;
-      right: 1px;
+      top: 50%;
+      right: 4px;
+      transform: translate(0, -50%);
       @include card-background;
     }
   }
@@ -46,7 +47,7 @@
   .query-control-bar {
     position: relative;
     width: 100%;
-    height: 24px;
+    height: 30px;
     display: flex;
     gap: 10px;
     align-items: center;

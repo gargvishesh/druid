@@ -32,40 +32,60 @@
     }
   }
 
-  .query-section {
+  .top-section {
     position: absolute;
     width: 100%;
     top: 0;
     bottom: 7px;
-    overflow: auto;
 
-    .workbench-tile {
-      margin-bottom: 3px;
-    }
+    .query-section {
+      position: absolute;
+      width: 100%;
+      top: 0;
+      bottom: 38px;
+      overflow: auto;
 
-    .main-query {
-      @include card-like;
-      min-height: 100%;
-
-      &.multi {
-        min-height: calc(100% - 15px);
+      .helper-query {
+        margin-top: 6px;
       }
 
-      .main-query-top-bar {
+      .main-query {
         position: relative;
-        height: 30px;
-        padding-top: 3px;
+        @include card-like;
+        min-height: 100%;
+        overflow: hidden;
+
+        &.single {
+          height: 100%;
+
+          .talaria-query-input {
+            height: 100%;
+          }
+        }
+
+        &.multi {
+          min-height: calc(100% - 18px);
+          margin-top: 6px;
+        }
 
         .corner {
           position: absolute;
-          top: 3px;
-          right: 1px;
+          top: 0;
+          right: 0;
+          @include card-background;
+          z-index: 1;
+          padding: 5px 6px;
         }
       }
+    }
 
-      .talaria-query-input {
-        border-top: 1px solid rgba($dark-gray1, 0.5);
-      }
+    .run-bar {
+      position: absolute;
+      width: 100%;
+      bottom: 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
   }
 
@@ -76,55 +96,42 @@
     bottom: 0;
     @include card-like;
 
-    .output-top-bar {
-      display: flex;
-      gap: 10px;
-      align-items: center;
+    > * {
+      position: absolute;
+      width: 100%;
+      height: 100%;
     }
 
-    .output-pane {
-      position: absolute;
-      top: 40px;
-      bottom: 0;
-      width: 100%;
+    .init-placeholder {
+      text-align: center;
 
-      > * {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-      }
-
-      .init-placeholder {
-        text-align: center;
-
-        p {
-          position: relative;
-          top: 38%;
-          font-size: 15px;
-        }
-      }
-
-      .stats-container {
+      p {
         position: relative;
+        top: 38%;
+        font-size: 15px;
+      }
+    }
 
-        .stage-progress {
-          position: absolute;
-          left: 15px;
-          right: 15px;
-          top: 15px;
-        }
+    .stats-container {
+      position: relative;
 
-        .query-error {
-          height: 160px;
-        }
+      .stage-progress {
+        position: absolute;
+        left: 15px;
+        right: 15px;
+        top: 15px;
+      }
 
-        .talaria-stats {
-          position: absolute;
-          top: 160px;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-        }
+      .query-error {
+        height: 160px;
+      }
+
+      .talaria-stats {
+        position: absolute;
+        top: 160px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
       }
     }
   }

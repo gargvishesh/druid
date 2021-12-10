@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Icon, Menu, MenuItem } from '@blueprintjs/core';
+import { Icon, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -26,7 +26,8 @@ import React, { useState } from 'react';
 
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
-import { Api } from '../../../singletons';
+import { Api, AppToaster } from '../../../singletons';
+import { TalariaQuery } from '../../../talaria-models';
 import { downloadHref, formatDuration, queryDruidSql } from '../../../utils';
 import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
 import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
@@ -67,10 +68,11 @@ interface WorkEntry {
 export interface WorkPanelProps {
   onStats(taskId: string): void;
   onRunQuery(query: string): void;
+  onNewTab(talariaQuery: TalariaQuery, tabName: string): void;
 }
 
 export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
-  const { onStats, onRunQuery } = props;
+  const { onStats, onRunQuery, onNewTab } = props;
 
   const [loadValue, setLoadValue] = useState<
     { title: string; work: () => Promise<string> } | undefined
@@ -83,7 +85,7 @@ export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
   const [workQueryState, queryManager] = useQueryManager<number, WorkEntry[]>({
     query: workStateVersion,
     processQuery: async _ => {
-      const tasks = await queryDruidSql<WorkEntry>({
+      return await queryDruidSql<WorkEntry>({
         query: `SELECT
   "status" AS "taskStatus",
   "task_id" AS "taskId",
@@ -96,14 +98,14 @@ WHERE "type" = 'talaria0'
 ORDER BY "created_time" DESC
 LIMIT 100`,
       });
-
-      return tasks;
     },
   });
 
   useInterval(() => {
     queryManager.rerunLastQuery(true);
   }, 30000);
+
+  const incrementWorkVersion = useWorkStateStore(state => state.increment);
 
   const workEntries = workQueryState.getSomeData();
   return (
@@ -114,6 +116,32 @@ LIMIT 100`,
           {workEntries.map(w => {
             const menu = (
               <Menu>
+                <MenuItem
+                  text="Attach in new tab"
+                  onClick={async () => {
+                    try {
+                      const payloadResp = await Api.instance.get(
+                        `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
+                      );
+                      const payload = payloadResp.data.payload;
+                      onNewTab(
+                        TalariaQuery.fromEffectiveQueryAndContext(
+                          payload.sqlQuery,
+                          payload.sqlQueryContext,
+                        )
+                          .explodeQuery()
+                          .changeLastQueryInfo({ taskId: w.taskId }),
+                        'Attached',
+                      );
+                    } catch {
+                      AppToaster.show({
+                        message: 'Could not get payload',
+                        intent: Intent.DANGER,
+                      });
+                    }
+                  }}
+                />
+                <MenuDivider />
                 <MenuItem
                   text="Show stats"
                   onClick={() => {
@@ -168,6 +196,33 @@ LIMIT 100`,
                     });
                   }}
                 />
+                {w.taskStatus === 'RUNNING' && (
+                  <>
+                    <MenuDivider />
+                    <MenuItem
+                      text="Cancel task"
+                      intent={Intent.DANGER}
+                      onClick={async () => {
+                        try {
+                          await Api.instance.post(
+                            `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}/shutdown`,
+                            {},
+                          );
+                          AppToaster.show({
+                            message: 'Task canceled',
+                            intent: Intent.SUCCESS,
+                          });
+                          incrementWorkVersion();
+                        } catch {
+                          AppToaster.show({
+                            message: 'Could not cancel task',
+                            intent: Intent.DANGER,
+                          });
+                        }
+                      }}
+                    />
+                  </>
+                )}
               </Menu>
             );
 

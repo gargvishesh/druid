@@ -59,11 +59,11 @@ import {
 } from '../talaria-utils';
 import { useWorkStateStore } from '../work-state-store';
 
-import './workbench-tile.scss';
+import './helper-query.scss';
 
 const queryRunner = new QueryRunner();
 
-export interface WorkbenchTileProps {
+export interface HelperQueryProps {
   query: TalariaQuery;
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
@@ -72,7 +72,7 @@ export interface WorkbenchTileProps {
   onStats(taskId: string): void;
 }
 
-export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchTileProps) {
+export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryProps) {
   const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onDelete, onStats } = props;
   const [exportDialogQuery, setExportDialogQuery] = useState<TalariaQuery | undefined>();
 
@@ -196,12 +196,11 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
   }
 
   return (
-    <div className="workbench-tile">
+    <div className="helper-query">
       <div className="query-top-bar">
         <Button
           icon={collapsed ? IconNames.CARET_RIGHT : IconNames.CARET_DOWN}
           minimal
-          small
           onClick={() => onQueryChange(query.changeCollapsed(!collapsed))}
         />
         {insertDatasource ? (
@@ -228,7 +227,11 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
           <Popover2
             content={
               <Menu>
-                <MenuItem text="Duplicate" onClick={() => onQueryChange(query.duplicateLast())} />
+                <MenuItem
+                  icon={IconNames.DUPLICATE}
+                  text="Duplicate"
+                  onClick={() => onQueryChange(query.duplicateLast())}
+                />
               </Menu>
             }
           >
@@ -308,8 +311,8 @@ export const WorkbenchTile = React.memo(function WorkbenchTile(props: WorkbenchT
                 ) : querySummary.error ? (
                   <div className="stats-container">
                     <TalariaQueryError taskError={querySummary.error} />
-                    {querySummaryState && (
-                      <TalariaStats stages={querySummaryState as any} error={undefined} />
+                    {querySummary.stages && (
+                      <TalariaStats stages={querySummary.stages} error={querySummary.error} />
                     )}
                   </div>
                 ) : (
