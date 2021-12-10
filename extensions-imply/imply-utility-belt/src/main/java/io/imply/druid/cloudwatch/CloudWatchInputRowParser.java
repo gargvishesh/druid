@@ -112,7 +112,7 @@ public class CloudWatchInputRowParser implements ByteBufferInputRowParser
       return rows;
     }
     catch (IOException e) {
-      throw new ParseException(e, "Could not decode message");
+      throw new ParseException(null, "Could not decode message");
     }
   }
 

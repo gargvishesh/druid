@@ -46,7 +46,7 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
     }
     // blob should not be null if we get to here, a null is a parse exception
     if (blob == null && reportParseExceptions) {
-      throw new ParseException("Cannot parse [%s] as an IP address", input);
+      throw new ParseException(input.toString(), "Cannot parse [%s] as an IP address", input);
     }
     return blob;
   }
