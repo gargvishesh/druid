@@ -112,18 +112,25 @@ async function updateSummaryWithDatasourceExistsIfNeeded(
     return currentSummary;
   }
 
-  // get the segments
-  const tableCheck = await queryDruidSql({
-    query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ${SqlLiteral.create(
+  // // Get the table to see if it exists
+  // const tableCheck = await queryDruidSql({
+  //   query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ${SqlLiteral.create(
+  //     currentSummary.destination.dataSource,
+  //   )}`,
+  // });
+  //
+  // if (!tableCheck.length) return currentSummary;
+  // return currentSummary.markDestinationDatasourceExists();
+
+  // Get the segments to see if it is available
+  const segmentCheck = await queryDruidSql({
+    query: `SELECT segment_id FROM sys.segments WHERE datasource = ${SqlLiteral.create(
       currentSummary.destination.dataSource,
-    )}`,
+    )} AND is_published = 1 AND is_overshadowed = 0 AND is_available = 0 LIMIT 1`,
   });
-  if (tableCheck.length) {
-    // Set exists
-    return currentSummary.markDestinationDatasourceExists();
-  } else {
-    return currentSummary;
-  }
+
+  if (segmentCheck.length) return currentSummary;
+  return currentSummary.markDestinationDatasourceExists();
 }
 
 export function getTaskIdFromQueryResults(queryResult: QueryResult): string | undefined {

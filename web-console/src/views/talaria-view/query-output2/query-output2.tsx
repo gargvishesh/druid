@@ -29,6 +29,7 @@ import {
   SqlLiteral,
   SqlQuery,
   SqlRef,
+  SqlStar,
   trimString,
 } from 'druid-query-toolkit';
 import React, { useEffect, useState } from 'react';
@@ -63,12 +64,14 @@ function getExpressionIfAlias(query: SqlQuery, selectIndex: number): string {
 
   if (query.isRealOutputColumnAtSelectIndex(selectIndex)) {
     if (ex instanceof SqlAlias) {
-      return String(ex.expression.prettify());
+      return String(ex.expression.prettify({ keywordCasing: 'preserve' }));
     } else {
       return '';
     }
+  } else if (ex instanceof SqlStar) {
+    return '';
   } else {
-    return ex ? String(ex.prettify()) : '';
+    return ex ? String(ex.prettify({ keywordCasing: 'preserve' })) : '';
   }
 }
 

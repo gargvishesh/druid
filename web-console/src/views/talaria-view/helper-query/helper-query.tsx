@@ -22,7 +22,9 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
 import React, { useEffect, useRef, useState } from 'react';
 
+import { Loader } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
+import { Api } from '../../../singletons';
 import { TalariaHistory } from '../../../singletons/talaria-history';
 import {
   fitExternalConfigPattern,
@@ -45,13 +47,13 @@ import { ExportDialog } from '../export-dialog/export-dialog';
 import { InsertSuccess } from '../insert-success/insert-success';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { QueryOutput2 } from '../query-output2/query-output2';
-import { RunPreviewButton } from '../run-preview-button/run-preview-button';
+import { RunMoreButton } from '../run-more-button/run-more-button';
 import { StageProgress } from '../stage-progress/stage-progress';
 import { TalariaExtraInfo } from '../talaria-extra-info/talaria-extra-info';
 import { TalariaQueryError } from '../talaria-query-error/talaria-query-error';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
+import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
-import { TalariaTabCache } from '../talaria-tab-cache';
 import {
   getTaskIdFromQueryResults,
   killTaskOnCancel,
@@ -99,11 +101,27 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     TalariaSummary,
     DruidError
   >({
-    initQuery: TalariaTabCache.getState(id) ? undefined : query.getLastQueryInfo(),
-    initState: TalariaTabCache.getState(id),
+    initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryInfo(),
+    initState: TalariaQueryStateCache.getState(id),
     processQuery: async (q: TalariaQuery | LastQueryInfo, cancelToken) => {
       if (q instanceof TalariaQuery) {
-        const { query, context, prefixLines } = q.getEffectiveQueryAndContext();
+        const {
+          query,
+          context,
+          prefixLines,
+          isSql,
+          cancelQueryId,
+        } = q.getEffectiveQueryAndContext();
+
+        if (cancelQueryId) {
+          void cancelToken.promise
+            .then(() => {
+              return Api.instance.delete(
+                `/druid/v2${isSql ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
+              );
+            })
+            .catch(() => {});
+        }
 
         const queryContext = { ...context, ...(mandatoryQueryContext || {}) };
         let result: QueryResult;
@@ -118,23 +136,31 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
           throw new DruidError(e, prefixLines);
         }
 
-        const taskId = getTaskIdFromQueryResults(result);
-        if (!taskId) {
+        if (queryContext.talaria) {
+          const taskId = getTaskIdFromQueryResults(result);
+          if (!taskId) {
+            throw new Error(`Unexpected result returned from a Talaria query`);
+          }
+
+          TalariaHistory.attachTaskId(q, taskId);
+          killTaskOnCancel(taskId, cancelToken, true);
+          onQueryChange(
+            props.query.changeLastQueryInfo({
+              taskId,
+            }),
+          );
+
+          return new IntermediateQueryState(
+            TalariaSummary.init(
+              taskId,
+              typeof query === 'string' ? query : undefined,
+              queryContext,
+            ),
+          );
+        } else {
           onQueryChange(props.query.changeLastQueryInfo(undefined));
           return TalariaSummary.fromResult(result);
         }
-
-        TalariaHistory.attachTaskId(q, taskId);
-        killTaskOnCancel(taskId, cancelToken, true);
-        onQueryChange(
-          props.query.changeLastQueryInfo({
-            taskId,
-          }),
-        );
-
-        return new IntermediateQueryState(
-          TalariaSummary.init(taskId, typeof query === 'string' ? query : undefined, queryContext),
-        );
       } else {
         const { taskId } = q;
         killTaskOnCancel(taskId, cancelToken, true);
@@ -146,7 +172,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
 
   useEffect(() => {
     if (querySummaryState.data || querySummaryState.error) {
-      TalariaTabCache.storeState(id, querySummaryState);
+      TalariaQueryStateCache.storeState(id, querySummaryState);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [querySummaryState.data, querySummaryState.error]);
@@ -173,14 +199,12 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     currentQueryInput.goToPosition(position);
   }
 
-  function handleRun(actuallyIngest = false) {
+  function handleRun(preview = true) {
     if (query.isJsonLike() && !query.validRune()) return;
 
     TalariaHistory.addQueryToHistory(query);
-    queryManager.runQuery(actuallyIngest ? query : query.removeInsert());
+    queryManager.runQuery(preview ? query.removeInsert() : query);
   }
-
-  const emptyQuery = query.isEmptyQuery();
 
   const runeMode = query.isJsonLike();
   const collapsed = query.getCollapsed();
@@ -216,7 +240,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                 onChange={(e: any) => {
                   onQueryChange(query.changeQueryName(e.target.value));
                 }}
-                small
               />
             )}
             <span className="as-label">AS</span>
@@ -235,14 +258,13 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               </Menu>
             }
           >
-            <Button icon={IconNames.MORE} minimal small />
+            <Button icon={IconNames.MORE} minimal />
           </Popover2>
           <Button
             icon={IconNames.CROSS}
             minimal
-            small
             onClick={() => {
-              TalariaTabCache.deleteState(id);
+              TalariaQueryStateCache.deleteState(id);
               onDelete();
             }}
           />
@@ -259,17 +281,18 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             columnMetadata={
               columnMetadata ? columnMetadata.concat(query.getInlineMetadata()) : undefined
             }
+            editorStateId={query.getId()}
           />
           <div className="query-control-bar">
-            <RunPreviewButton
+            <RunMoreButton
               query={query}
               onQueryChange={onQueryChange}
-              onRun={emptyQuery ? undefined : handleRun}
+              onRun={handleRun}
               onExport={handleExport}
               loading={querySummaryState.loading}
               small
             />
-            {querySummaryState.intermediate && !querySummaryState.intermediate.isReattach() && (
+            {querySummaryState.isLoading() && !querySummaryState.intermediate?.isReattach() && (
               <QueryTimer />
             )}
             {querySummary?.result && (
@@ -287,6 +310,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                 onClick={() => {
                   queryManager.reset();
                   onQueryChange(props.query.changeLastQueryInfo(undefined));
+                  TalariaQueryStateCache.deleteState(id);
                 }}
               />
             )}
@@ -328,15 +352,23 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   onQueryStringChange={handleQueryStringChange}
                 />
               )}
-              {querySummaryState.intermediate && (
-                <div className="stats-container">
-                  <StageProgress
-                    reattach={querySummaryState.intermediate.isReattach()}
-                    stages={querySummaryState.intermediate.stages}
-                    onCancel={() => queryManager.cancelCurrent()}
+              {querySummaryState.isLoading() &&
+                (querySummaryState.intermediate ? (
+                  <div className="stats-container">
+                    <StageProgress
+                      reattach={querySummaryState.intermediate.isReattach()}
+                      stages={querySummaryState.intermediate.stages}
+                      onCancel={() => queryManager.cancelCurrent()}
+                    />
+                  </div>
+                ) : (
+                  <Loader
+                    cancelText="Cancel query"
+                    onCancel={() => {
+                      queryManager.cancelCurrent();
+                    }}
                   />
-                </div>
-              )}
+                ))}
             </div>
           )}
         </>

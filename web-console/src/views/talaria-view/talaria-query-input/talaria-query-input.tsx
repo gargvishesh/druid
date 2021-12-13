@@ -30,6 +30,7 @@ import {
   SQL_KEYWORDS,
 } from '../../../../lib/keywords';
 import { SQL_DATA_TYPES, SQL_FUNCTIONS } from '../../../../lib/sql-docs';
+import { AceEditorStateCache } from '../../../singletons/ace-editor-state-cache';
 import { ColumnMetadata, RowColumn, uniq } from '../../../utils';
 
 import './talaria-query-input.scss';
@@ -60,6 +61,7 @@ export interface TalariaQueryInputProps {
   columnMetadata?: readonly ColumnMetadata[];
   currentSchema?: string;
   currentTable?: string;
+  editorStateId?: string;
 }
 
 export interface TalariaQueryInputState {
@@ -216,6 +218,13 @@ export class TalariaQueryInput extends React.PureComponent<
     }
   }
 
+  componentWillUnmount() {
+    const { editorStateId } = this.props;
+    if (editorStateId && this.aceEditor) {
+      AceEditorStateCache.saveState(editorStateId, this.aceEditor);
+    }
+  }
+
   private readonly handleAceContainerResize = (entries: ResizeEntry[]) => {
     if (entries.length !== 1) return;
     this.setState({ editorHeight: entries[0].contentRect.height });
@@ -240,7 +249,15 @@ export class TalariaQueryInput extends React.PureComponent<
   }
 
   renderAce() {
-    const { queryString, runeMode, autoHeight, minRows, showGutter, placeholder } = this.props;
+    const {
+      queryString,
+      runeMode,
+      autoHeight,
+      minRows,
+      showGutter,
+      placeholder,
+      editorStateId,
+    } = this.props;
     const { editorHeight } = this.state;
 
     let height: number;
@@ -272,12 +289,18 @@ export class TalariaQueryInput extends React.PureComponent<
           enableLiveAutocompletion: !runeMode,
           showLineNumbers: true,
           tabSize: 2,
+          newLineMode: 'unix' as any, // This type is specified incorrectly in AceEditor
         }}
         style={{}}
         placeholder={placeholder || 'SELECT * FROM ...'}
-        onLoad={(editor: any) => {
+        onLoad={(editor: Ace.Editor) => {
           editor.renderer.setPadding(10);
-          editor.renderer.setScrollMargin(10);
+          editor.renderer.setScrollMargin(10, 10, 0, 0);
+
+          if (editorStateId) {
+            AceEditorStateCache.applyState(editorStateId, editor);
+          }
+
           this.aceEditor = editor;
         }}
       />

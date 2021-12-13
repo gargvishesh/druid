@@ -16,33 +16,11 @@
  * limitations under the License.
  */
 
-import Hjson from 'hjson';
+.run-more-button {
+  display: flex;
+  gap: 5px;
 
-import { QueryContext } from '../query-context';
-
-export function getContextFromSqlQuery(sql: string): QueryContext {
-  const context: QueryContext = {};
-  const lines = sql.split(/\r?\n/);
-  for (const line of lines) {
-    const m = /--:context\s*(.+)$/.exec(line);
-    if (!m) continue;
-
-    let lineContext: unknown;
-    try {
-      lineContext = Hjson.parse(m[1]);
-    } catch {
-      continue;
-    }
-
-    if (lineContext != null && typeof lineContext === 'object' && !Array.isArray(lineContext)) {
-      Object.assign(context, lineContext);
-    } else if (typeof lineContext === 'string') {
-      if (lineContext.startsWith('!')) {
-        context[lineContext.substr(1)] = false;
-      } else {
-        context[lineContext] = true;
-      }
-    }
+  .rune-button {
+    background-color: #2ca89e !important;
   }
-  return context;
 }

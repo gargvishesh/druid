@@ -18,6 +18,7 @@
 
 import { SqlQuery } from 'druid-query-toolkit';
 import Hjson from 'hjson';
+import { v4 as uuidv4 } from 'uuid';
 
 import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-spec';
 import { ColumnMetadata, getContextFromSqlQuery } from '../utils';
@@ -241,22 +242,44 @@ export class TalariaQuery {
     );
   }
 
+  public isTalariaEngineNeeded(): boolean {
+    return this.queryParts.some(part => part.isTalariaEngineNeeded());
+  }
+
   public getEffectiveQueryAndContext(): {
     query: string | Record<string, any>;
     context: QueryContext;
     prefixLines?: number;
+    isSql: boolean;
+    cancelQueryId?: string;
   } {
     const { queryParts, queryContext, unlimited } = this;
     if (!queryParts.length) throw new Error(`should not get here`);
 
     const lastQueryPart = this.getLastPart();
     if (lastQueryPart.isJsonLike()) {
+      const query = Hjson.parse(lastQueryPart.queryString);
+      const isSql = typeof query.query === 'string';
+
+      let context: QueryContext = queryContext;
+      if (typeof context.talaria === 'undefined' && this.isTalariaEngineNeeded()) {
+        context = { ...context, talaria: true };
+      }
+
+      const queryIdKey = isSql ? 'sqlQueryId' : 'queryId';
+      // Look for the queryId in the JSON itself (if native) or in the context object.
+      let cancelQueryId = (isSql ? undefined : query.context?.queryId) || context[queryIdKey];
+      if (!cancelQueryId) {
+        // If the queryId (sqlQueryId) is not explicitly set on the context generate one so it is possible to cancel the query.
+        cancelQueryId = uuidv4();
+        context = { ...context, [queryIdKey]: cancelQueryId };
+      }
+
       return {
-        query: Hjson.parse(lastQueryPart.queryString),
-        context: {
-          ...queryContext,
-          talaria: true,
-        },
+        query,
+        context,
+        isSql,
+        cancelQueryId,
       };
     }
 
@@ -292,15 +315,29 @@ export class TalariaQuery {
       delete inlineContext.talariaSegmentGranularity;
     }
 
+    let context: QueryContext = {
+      sqlOuterLimit: unlimited || insertQuery ? undefined : 1001,
+      ...queryContext,
+      ...inlineContext,
+    };
+
+    if (typeof context.talaria === 'undefined' && this.isTalariaEngineNeeded()) {
+      context = { ...context, talaria: true };
+    }
+
+    let cancelQueryId = context.sqlQueryId;
+    if (!context.talaria && !cancelQueryId) {
+      // If the queryId (sqlQueryId) is not explicitly set on the context generate one so it is possible to cancel the query.
+      cancelQueryId = uuidv4();
+      context = { ...context, sqlQueryId: cancelQueryId };
+    }
+
     return {
       query: sqlQuery,
-      context: {
-        sqlOuterLimit: unlimited || insertQuery ? undefined : 1001,
-        ...queryContext,
-        ...inlineContext,
-        talaria: true,
-      },
+      context,
       prefixLines,
+      isSql: true,
+      cancelQueryId,
     };
   }
 
@@ -320,6 +357,10 @@ export class TalariaQuery {
 
   public applyUpdate(newQuery: TalariaQuery, index: number): TalariaQuery {
     return newQuery.changeQueryParts(newQuery.queryParts.concat(this.queryParts.slice(index + 1)));
+  }
+
+  public duplicate(): TalariaQuery {
+    return this.changeQueryParts(this.queryParts.map(part => part.duplicate()));
   }
 
   public duplicateLast(): TalariaQuery {

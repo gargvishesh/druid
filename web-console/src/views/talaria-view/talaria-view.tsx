@@ -16,7 +16,15 @@
  * limitations under the License.
  */
 
-import { AnchorButton, Button, ButtonGroup, Intent, Menu, MenuItem } from '@blueprintjs/core';
+import {
+  AnchorButton,
+  Button,
+  ButtonGroup,
+  Intent,
+  Menu,
+  MenuDivider,
+  MenuItem,
+} from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -24,13 +32,17 @@ import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
 import { MenuCheckbox } from '../../components';
+import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
-import { generate6HexId, TalariaQuery } from '../../talaria-models';
+import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
+import { generate8HexId, TalariaQuery } from '../../talaria-models';
 import {
   ColumnMetadata,
   deepSet,
+  localStorageGet,
   localStorageGetJson,
   LocalStorageKeys,
+  localStorageSet,
   localStorageSetJson,
   queryDruidSql,
   QueryManager,
@@ -48,12 +60,18 @@ import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
 import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
 import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
+import { TalariaQueryStateCache } from './talaria-query-state-cache';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
-import { TalariaTabCache } from './talaria-tab-cache';
 import { TabEntry } from './talaria-utils';
 import { WorkPanel } from './work-panel/work-panel';
 
 import './talaria-view.scss';
+
+function cleanupTabEntry(tabEntry: TabEntry): void {
+  const discardedIds = tabEntry.query.getIds();
+  TalariaQueryStateCache.deleteStates(discardedIds);
+  AceEditorStateCache.deleteStates(discardedIds);
+}
 
 export interface TalariaViewProps {
   tabId: string | undefined;
@@ -95,17 +113,33 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
     const showWorkHistory = Boolean(localStorageGetJson(LocalStorageKeys.TALARIA_WORK_HISTORY));
 
+    const tabEntries =
+      Array.isArray(possibleTabEntries) && possibleTabEntries.length
+        ? possibleTabEntries.map(q => ({ ...q, query: new TalariaQuery(q.query) }))
+        : [];
+
+    const { initQuery } = props;
+    if (initQuery) {
+      // Put it in the front so that it is the opened tab
+      tabEntries.unshift({
+        id: generate8HexId(),
+        tabName: 'Opened query',
+        query: TalariaQuery.blank()
+          .changeQueryString(initQuery)
+          .changeQueryContext(props.defaultQueryContext || {}),
+      });
+    }
+
+    if (!tabEntries.length) {
+      tabEntries.push({
+        id: generate8HexId(),
+        tabName: 'Tab 1',
+        query: TalariaQuery.blank().changeQueryContext(props.defaultQueryContext || {}),
+      });
+    }
+
     this.state = {
-      tabEntries:
-        Array.isArray(possibleTabEntries) && possibleTabEntries.length
-          ? possibleTabEntries.map(q => ({ ...q, query: new TalariaQuery(q.query) }))
-          : [
-              {
-                id: generate6HexId(),
-                tabName: 'First tab',
-                query: TalariaQuery.blank().changeQueryContext(props.defaultQueryContext || {}),
-              },
-            ],
+      tabEntries,
       liveQueryMode,
 
       columnMetadataState: QueryState.INIT,
@@ -151,9 +185,15 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
     });
   };
 
-  private getCurrentTabEntry() {
+  private getTabId(): string | undefined {
     const { tabId } = this.props;
+    if (tabId) return tabId;
+    return localStorageGet(LocalStorageKeys.TALARIA_LAST_TAB);
+  }
+
+  private getCurrentTabEntry() {
     const { tabEntries } = this.state;
+    const tabId = this.getTabId();
     return tabEntries.find(({ id }) => id === tabId) || tabEntries[0];
   }
 
@@ -211,7 +251,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
     return (
       <TabRenameDialog
-        tabName={renamingTab.tabName}
+        initialTabName={renamingTab.tabName}
         onSave={newTabName => {
           const { tabEntries } = this.state;
           if (!renamingTab) return;
@@ -255,6 +295,13 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
             localStorageSetJson(LocalStorageKeys.TALARIA_WORK_HISTORY, !showWorkHistory);
           }}
         />
+        <MenuDivider />
+        <MenuItem
+          icon={IconNames.HELP}
+          text="DruidSQL documentation"
+          href={getLink('DOCS_SQL')}
+          target="_blank"
+        />
       </Menu>
     );
   }
@@ -297,7 +344,14 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
             const disabled = tabEntries.length <= 1;
             return (
               <ButtonGroup key={i} minimal className={classNames('tab-button', { active })}>
-                <AnchorButton text={tabEntry.tabName} href={`#talaria/${currentId}`} />
+                <AnchorButton
+                  text={tabEntry.tabName}
+                  href={`#query-next/${currentId}`}
+                  onClick={() => {
+                    localStorageSet(LocalStorageKeys.TALARIA_LAST_TAB, currentId);
+                  }}
+                  onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
+                />
                 <Popover2
                   className="tab-extra"
                   position="bottom"
@@ -312,16 +366,16 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                         icon={IconNames.DUPLICATE}
                         text="Duplicate tab"
                         onClick={() => {
-                          const id = generate6HexId();
+                          const id = generate8HexId();
                           const newTabEntry: TabEntry = {
                             id,
-                            tabName: `Tab ${id.substr(0, 4)}`,
-                            query: tabEntry.query,
+                            tabName: tabEntry.tabName + ' (copy)',
+                            query: tabEntry.query.duplicate(),
                           };
                           this.handleQueriesChange(
                             tabEntries.slice(0, i + 1).concat(newTabEntry, tabEntries.slice(i + 1)),
                             () => {
-                              location.hash = `#talaria/${newTabEntry.id}`;
+                              location.hash = `#query-next/${newTabEntry.id}`;
                             },
                           );
                         }}
@@ -332,12 +386,12 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                         intent={Intent.DANGER}
                         disabled={disabled}
                         onClick={() => {
-                          TalariaTabCache.deleteStates(tabEntry.query.getIds());
+                          cleanupTabEntry(tabEntry);
                           this.handleQueriesChange(
                             tabEntries.filter(({ id }) => id !== currentId),
                             () => {
                               if (!active) return;
-                              location.hash = `#talaria/${tabEntries[i - 1].id}`;
+                              location.hash = `#query-next/${tabEntries[Math.max(0, i - 1)].id}`;
                             },
                           );
                         }}
@@ -350,13 +404,13 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                         onClick={() => {
                           tabEntries.forEach(tabEntry => {
                             if (tabEntry.id === currentId) return;
-                            TalariaTabCache.deleteStates(tabEntry.query.getIds());
+                            cleanupTabEntry(tabEntry);
                           });
                           this.handleQueriesChange(
                             tabEntries.filter(({ id }) => id === currentId),
                             () => {
                               if (!active) return;
-                              location.hash = `#talaria/${tabEntry.id}`;
+                              location.hash = `#query-next/${tabEntry.id}`;
                             },
                           );
                         }}
@@ -377,8 +431,8 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
               this.handleNewTab(TalariaQuery.blank());
             }}
           />
-          {this.renderToolbar()}
         </div>
+        {this.renderToolbar()}
         <QueryTab
           key={currentTabEntry.id}
           query={currentTabEntry.query}
@@ -397,8 +451,8 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   };
 
   private readonly handleQueryChange = (newQuery: TalariaQuery, _preferablyRun?: boolean) => {
-    const { tabId } = this.props;
     const { tabEntries } = this.state;
+    const tabId = this.getTabId();
     const tabIndex = Math.max(
       tabEntries.findIndex(({ id }) => id === tabId),
       0,
@@ -424,14 +478,14 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
   private readonly handleNewTab = (talariaQuery: TalariaQuery, tabName?: string) => {
     const { tabEntries } = this.state;
-    const id = generate6HexId();
+    const id = generate8HexId();
     const newTabEntry: TabEntry = {
       id,
       tabName: tabName || `Tab ${tabEntries.length + 1}`,
       query: talariaQuery,
     };
     this.handleQueriesChange(tabEntries.concat(newTabEntry), () => {
-      location.hash = `#talaria/${newTabEntry.id}`;
+      location.hash = `#query-next/${newTabEntry.id}`;
     });
   };
 

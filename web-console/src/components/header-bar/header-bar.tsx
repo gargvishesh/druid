@@ -64,7 +64,7 @@ export type HeaderActiveTab =
   | 'segments'
   | 'services'
   | 'query'
-  | 'talaria'
+  | 'query-next'
   | 'talaria-loader'
   | 'lookups';
 
@@ -365,7 +365,8 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       intent: Intent.SUCCESS,
       timeout: 3000,
     });
-    location.hash = showTalaria ? '#' : '#talaria';
+    location.hash = nextShowTalaria ? '#query-next' : '#';
+    if (!nextShowTalaria) location.reload();
   });
   // END: Imply-modified code for Talaria execution
 
@@ -422,25 +423,26 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         />
 
         <NavbarDivider />
-        <AnchorButton
-          minimal
-          active={active === 'query'}
-          icon={IconNames.APPLICATION}
-          text="Query"
-          href="#query"
-          disabled={!capabilities.hasQuerying()}
-        />
-        {/* BEGIN: Imply-added code for Talaria execution */}
-        {showTalaria && (
+        {showTalaria ? (
           <AnchorButton
             minimal
-            active={active === 'talaria'}
+            active={active === 'query-next'}
             icon={IconNames.APPLICATION}
-            text="Talaria"
-            href="#talaria"
+            text="Query"
+            href="#query-next"
+            disabled={!capabilities.hasQuerying()}
+          />
+        ) : (
+          <AnchorButton
+            minimal
+            active={active === 'query'}
+            icon={IconNames.APPLICATION}
+            text="Query"
+            href="#query"
             disabled={!capabilities.hasQuerying()}
           />
         )}
+        {/* BEGIN: Imply-added code for Talaria execution */}
         {showTalaria === 'loader' && (
           <AnchorButton
             minimal

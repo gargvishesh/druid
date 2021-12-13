@@ -51,6 +51,7 @@ import {
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   summarizeExternalConfig,
+  TalariaQueryPart,
   TalariaSummary,
 } from '../../../talaria-models';
 import {
@@ -188,11 +189,11 @@ function getTimeSuggestions(queryResult: QueryResult, parsedQuery: SqlQuery): Ti
       return {
         label: (
           <>
-            {`Parse `}
+            {`Use `}
             <Tag minimal round>
               {c.name}
             </Tag>
-            {` as '${possibleDruidFormat}'`}
+            {` parsed as '${possibleDruidFormat}'`}
           </>
         ),
         queryAction: q =>
@@ -286,7 +287,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         result = await queryRunner.runQuery({
           query: previewQueryString,
           extraQueryContext: {
-            talaria: previewQueryString.includes('extern('),
+            talaria: TalariaQueryPart.isTalariaEngineNeeded(previewQueryString),
             sqlOuterLimit: 50,
           },
           cancelToken,
@@ -618,6 +619,11 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 setColumnSearch(e.target.value);
               }}
             />
+          </div>
+        )}
+        {effectiveMode === 'sql' && (
+          <div className="control-line bottom-right">
+            <Button text="Open query in Talaria view" rightIcon={IconNames.ARROW_TOP_RIGHT} />
           </div>
         )}
       </div>
