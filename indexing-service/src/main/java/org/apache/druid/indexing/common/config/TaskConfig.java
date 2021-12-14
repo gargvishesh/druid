@@ -124,7 +124,7 @@ public class TaskConfig
       @JsonProperty("gracefulShutdownTimeout") Period gracefulShutdownTimeout,
       @JsonProperty("directoryLockTimeout") Period directoryLockTimeout,
       @JsonProperty("shuffleDataLocations") List<StorageLocationConfig> shuffleDataLocations,
-      @JsonProperty("ignoreTimestampSpecForDruidInputSource") Boolean ignoreTimestampSpecForDruidInputSource,
+      @JsonProperty("ignoreTimestampSpecForDruidInputSource") boolean ignoreTimestampSpecForDruidInputSource,
       @JsonProperty("batchMemoryMappedIndex") boolean batchMemoryMappedIndex, // deprecated, only set to true to fall back to older behavior
       @JsonProperty("batchProcessingMode") String batchProcessingMode
   )
@@ -151,8 +151,8 @@ public class TaskConfig
     } else {
       this.shuffleDataLocations = shuffleDataLocations;
     }
-    this.ignoreTimestampSpecForDruidInputSource = ignoreTimestampSpecForDruidInputSource == null
-                                                  ? true : ignoreTimestampSpecForDruidInputSource;
+    this.ignoreTimestampSpecForDruidInputSource = ignoreTimestampSpecForDruidInputSource;
+
     this.batchMemoryMappedIndex = batchMemoryMappedIndex;
     // Conflict resolution. Assume that if batchMemoryMappedIndex is set (since false is the default) that
     // the user changed it intentionally to use legacy, in this case oveeride batchProcessingMode and also
