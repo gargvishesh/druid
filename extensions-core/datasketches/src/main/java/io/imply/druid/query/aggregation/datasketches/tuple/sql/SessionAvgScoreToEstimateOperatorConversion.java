@@ -26,16 +26,16 @@ import org.apache.druid.sql.calcite.planner.PlannerContext;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SampledAvgScoreToEstimateOperatorConversion extends DirectOperatorConversion
+public class SessionAvgScoreToEstimateOperatorConversion extends DirectOperatorConversion
 {
-  private static final String FUNCTION_NAME = "SAMPLED_AVG_SCORE_ESTIMATE";
+  private static final String FUNCTION_NAME = "SESSION_AVG_SCORE_ESTIMATE";
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
       .operandTypes(SqlTypeFamily.ANY)
       .returnTypeInference(ReturnTypes.DOUBLE)
       .build();
 
-  public SampledAvgScoreToEstimateOperatorConversion()
+  public SessionAvgScoreToEstimateOperatorConversion()
   {
     super(SQL_FUNCTION, FUNCTION_NAME);
   }

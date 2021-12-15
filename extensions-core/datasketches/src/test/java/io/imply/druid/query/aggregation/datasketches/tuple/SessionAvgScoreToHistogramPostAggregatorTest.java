@@ -36,7 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-public class SampledAvgScoreToHistogramPostAggregatorTest
+public class SessionAvgScoreToHistogramPostAggregatorTest
 {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -44,15 +44,15 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
   @Test
   public void testSerde() throws JsonProcessingException
   {
-    PostAggregator there = new SampledAvgScoreToHistogramPostAggregator(
+    PostAggregator there = new SessionAvgScoreToHistogramPostAggregator(
         "post",
         new FieldAccessPostAggregator("field1", "sketch"),
         new double[]{0.25, 0.75}
     );
     DefaultObjectMapper mapper = new DefaultObjectMapper();
-    SampledAvgScoreToHistogramPostAggregator andBackAgain = mapper.readValue(
+    SessionAvgScoreToHistogramPostAggregator andBackAgain = mapper.readValue(
         mapper.writeValueAsString(there),
-        SampledAvgScoreToHistogramPostAggregator.class
+        SessionAvgScoreToHistogramPostAggregator.class
     );
 
     Assert.assertEquals(there, andBackAgain);
@@ -62,14 +62,14 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
   @Test
   public void testToString()
   {
-    final PostAggregator postAgg = new SampledAvgScoreToHistogramPostAggregator(
+    final PostAggregator postAgg = new SessionAvgScoreToHistogramPostAggregator(
         "post",
         new FieldAccessPostAggregator("field1", "sketch"),
         new double[]{0.25, 0.75}
     );
 
     Assert.assertEquals(
-        "SampledAvgScoreToHistogramPostAggregator{name='post', field=FieldAccessPostAggregator{name='field1', fieldName='sketch'}, splitPoints=[0.25, 0.75]}",
+        "SessionAvgScoreToHistogramPostAggregator{name='post', field=FieldAccessPostAggregator{name='field1', fieldName='sketch'}, splitPoints=[0.25, 0.75]}",
         postAgg.toString()
     );
   }
@@ -79,7 +79,7 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
   {
     expectedException.expect(IAE.class);
     expectedException.expectMessage("Comparing histograms is not supported");
-    final PostAggregator postAgg = new SampledAvgScoreToHistogramPostAggregator(
+    final PostAggregator postAgg = new SessionAvgScoreToHistogramPostAggregator(
         "post",
         new FieldAccessPostAggregator("field1", "sketch"),
         new double[]{0.25, 0.75}
@@ -104,7 +104,7 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
     final Map<String, Object> fields = new HashMap<>();
     fields.put("sketch", agg.get());
 
-    final PostAggregator postAgg = new SampledAvgScoreToHistogramPostAggregator(
+    final PostAggregator postAgg = new SessionAvgScoreToHistogramPostAggregator(
         "histogram",
         new FieldAccessPostAggregator("field", "sketch"),
         new double[] {3.5}
@@ -127,7 +127,7 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
     final Map<String, Object> fields = new HashMap<>();
     fields.put("sketch", sketch);
 
-    final PostAggregator postAgg = new SampledAvgScoreToHistogramPostAggregator(
+    final PostAggregator postAgg = new SessionAvgScoreToHistogramPostAggregator(
         "histogram",
         new FieldAccessPostAggregator("field", "sketch"),
         new double[] {3.5} // splits distribution into two bins of equal mass
@@ -149,10 +149,10 @@ public class SampledAvgScoreToHistogramPostAggregatorTest
               .intervals("2000/3000")
               .granularity(Granularities.HOUR)
               .aggregators(
-                  new SampledAvgScoreAggregatorFactory("sketch", "col", "score", 128)
+                  new SessionAvgScoreAggregatorFactory("sketch", "col", "score", 128, false)
               )
               .postAggregators(
-                  new SampledAvgScoreToHistogramPostAggregator(
+                  new SessionAvgScoreToHistogramPostAggregator(
                       "a",
                       new FieldAccessPostAggregator("field", "sketch"),
                       new double[] {3.5}

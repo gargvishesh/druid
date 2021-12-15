@@ -10,7 +10,7 @@
 package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.query.aggregation.datasketches.tuple.SampledAvgScoreAggregatorFactory;
+import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
@@ -40,10 +40,10 @@ import org.apache.druid.sql.calcite.rel.VirtualColumnRegistry;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SampledAvgScoreObjectSqlAggregator implements SqlAggregator
+public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
 {
-  private static final SqlAggFunction FUNCTION_INSTANCE = new SampledAvgScoreSqlAggFunction();
-  private static final String NAME = "SAMPLED_AVG_SCORE";
+  private static final SqlAggFunction FUNCTION_INSTANCE = new SessionAvgScoreSqlAggFunction();
+  private static final String NAME = "SESSION_AVG_SCORE";
 
   @Override
   public SqlAggFunction calciteFunction()
@@ -65,23 +65,23 @@ public class SampledAvgScoreObjectSqlAggregator implements SqlAggregator
       boolean finalizeAggregations
   )
   {
-    String sampleColumnName, scoreColumnName;
+    String sessionColumnName, scoreColumnName;
 
-    // fetch sample column name
+    // fetch session column name
     RexNode node = Expressions.fromFieldAccess(rowSignature, project, aggregateCall.getArgList().get(0));
-    DruidExpression sampleColumn = Expressions.toDruidExpression(plannerContext, rowSignature, node);
-    if (sampleColumn == null) {
+    DruidExpression sessionColumn = Expressions.toDruidExpression(plannerContext, rowSignature, node);
+    if (sessionColumn == null) {
       return null;
     }
-    if (sampleColumn.isDirectColumnAccess()) {
-      sampleColumnName = sampleColumn.getDirectColumn();
+    if (sessionColumn.isDirectColumnAccess()) {
+      sessionColumnName = sessionColumn.getDirectColumn();
     } else {
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
-          sampleColumn,
+          sessionColumn,
           node.getType()
       );
-      sampleColumnName = virtualColumn.getOutputName();
+      sessionColumnName = virtualColumn.getOutputName();
     }
 
     // fetch score column name
@@ -109,40 +109,70 @@ public class SampledAvgScoreObjectSqlAggregator implements SqlAggregator
     }
 
     // check if target sample size is provided
-    int targetSamples;
+    int targetSamples = SessionAvgScoreAggregatorFactory.DEFAULT_TARGET_SAMPLES;
+    boolean zeroFiltering = false;
     if (aggregateCall.getArgList().size() == 3) {
+      final RexNode targetSamplesOrZeroFilteringArg = Expressions.fromFieldAccess(
+          rowSignature,
+          project,
+          aggregateCall.getArgList().get(2)
+      );
+
+      if (!targetSamplesOrZeroFilteringArg.isA(SqlKind.LITERAL)) {
+        // target samples must be a literal in order to plan.
+        return null;
+      }
+
+      if (SqlTypeName.BOOLEAN_TYPES.contains(targetSamplesOrZeroFilteringArg.getType().getSqlTypeName())) {
+        zeroFiltering = ((Boolean) RexLiteral.value(targetSamplesOrZeroFilteringArg));
+      } else if (SqlTypeName.NUMERIC_TYPES.contains(targetSamplesOrZeroFilteringArg.getType().getSqlTypeName())) {
+        targetSamples = ((Number) RexLiteral.value(targetSamplesOrZeroFilteringArg)).intValue();
+      } else {
+        return null;
+      }
+    }
+
+    if (aggregateCall.getArgList().size() == 4) {
       final RexNode targetSamplesArg = Expressions.fromFieldAccess(
           rowSignature,
           project,
           aggregateCall.getArgList().get(2)
       );
 
-      if (!targetSamplesArg.isA(SqlKind.LITERAL)) {
+      final RexNode zeroFilteringArg = Expressions.fromFieldAccess(
+          rowSignature,
+          project,
+          aggregateCall.getArgList().get(3)
+      );
+
+      if (!targetSamplesArg.isA(SqlKind.LITERAL) || !zeroFilteringArg.isA(SqlKind.LITERAL)) {
         // target samples must be a literal in order to plan.
         return null;
       }
 
+      zeroFiltering = ((Boolean) RexLiteral.value(zeroFilteringArg));
       targetSamples = ((Number) RexLiteral.value(targetSamplesArg)).intValue();
-    } else {
-      targetSamples = SampledAvgScoreAggregatorFactory.DEFAULT_TARGET_SAMPLES;
     }
 
     // create the factory
-    AggregatorFactory aggregatorFactory = SampledAvgScoreAggregatorFactory.getAvgSessionScoresAggregatorFactory(
+    AggregatorFactory aggregatorFactory = SessionAvgScoreAggregatorFactory.getAvgSessionScoresAggregatorFactory(
         StringUtils.format("%s:agg", name),
-        sampleColumnName,
+        sessionColumnName,
         scoreColumnName,
-        targetSamples);
+        targetSamples,
+        zeroFiltering);
 
     return Aggregation.create(ImmutableList.of(aggregatorFactory), null);
   }
 
-  private static class SampledAvgScoreSqlAggFunction extends SqlAggFunction
+  private static class SessionAvgScoreSqlAggFunction extends SqlAggFunction
   {
-    private static final String SIGNATURE1 = "'" + NAME + "'(sampleColumn, scoreColumn)";
-    private static final String SIGNATURE2 = "'" + NAME + "'(sampleColumn, scoreColumn, targetSamples)";
+    private static final String SIGNATURE1 = "'" + NAME + "'(sessionColumn, scoreColumn)";
+    private static final String SIGNATURE2 = "'" + NAME + "'(sessionColumn, scoreColumn, targetSamples)";
+    private static final String SIGNATURE3 = "'" + NAME + "'(sessionColumn, scoreColumn, zeroFiltering)";
+    private static final String SIGNATURE4 = "'" + NAME + "'(sessionColumn, scoreColumn, targetSamples, zeroFiltering)";
 
-    SampledAvgScoreSqlAggFunction()
+    SessionAvgScoreSqlAggFunction()
     {
       super(
           NAME,
@@ -157,6 +187,14 @@ public class SampledAvgScoreObjectSqlAggregator implements SqlAggregator
               OperandTypes.and(
                   OperandTypes.sequence(SIGNATURE2, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.POSITIVE_INTEGER_LITERAL),
                   OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.EXACT_NUMERIC)
+              ),
+              OperandTypes.and(
+                  OperandTypes.sequence(SIGNATURE3, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.BOOLEAN),
+                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.BOOLEAN)
+              ),
+              OperandTypes.and(
+                  OperandTypes.sequence(SIGNATURE4, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.POSITIVE_INTEGER_LITERAL, OperandTypes.BOOLEAN),
+                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.EXACT_NUMERIC, SqlTypeFamily.BOOLEAN)
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,

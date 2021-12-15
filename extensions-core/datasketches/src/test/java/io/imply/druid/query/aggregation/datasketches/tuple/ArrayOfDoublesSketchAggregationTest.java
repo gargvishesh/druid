@@ -70,7 +70,7 @@ public class ArrayOfDoublesSketchAggregationTest
   }
 
   @Test
-  public void testSampledAvgScoreAtQueryTime() throws Exception
+  public void testSessionAvgScoreAtQueryTime() throws Exception
   {
     Sequence<ResultRow> seq = helper.createIndexAndRunQueryOnSegment(
         new File(this.getClass()
@@ -112,10 +112,10 @@ public class ArrayOfDoublesSketchAggregationTest
             "  \"granularity\": \"ALL\",",
             "  \"dimensions\": [],",
             "  \"aggregations\": [",
-            "   {\"type\": \"sampledAvgScore\", \"name\": \"sampledAvgScore\", \"sampleColumn\": \"product\", \"scoreColumn\" : \"value2\"}",
+            "   {\"type\": \"sessionAvgScore\", \"name\": \"sessionAvgScore\", \"sessionColumn\": \"product\", \"scoreColumn\" : \"value2\"}",
             "  ],",
             "  \"postAggregations\": [",
-            "    {\"type\": \"sampledAvgScoreHistogram\", \"name\": \"histogram\", \"splitPoints\": [2], \"field\": {\"type\": \"fieldAccess\", \"fieldName\": \"sampledAvgScore\"}}",
+            "    {\"type\": \"sessionAvgScoreHistogram\", \"name\": \"histogram\", \"splitPoints\": [2], \"field\": {\"type\": \"fieldAccess\", \"fieldName\": \"sessionAvgScore\"}}",
             "  ],",
             "  \"intervals\": [\"2015-01-01T00:00:00.000Z/2015-01-31T00:00:00.000Z\"]",
             "}"
@@ -124,7 +124,7 @@ public class ArrayOfDoublesSketchAggregationTest
     List<ResultRow> results = seq.toList();
     Assert.assertEquals(1, results.size());
     ResultRow row = results.get(0);
-    Assert.assertEquals("sampledAvgScore", 9.0, (double) row.get(0), 0);
-    Assert.assertArrayEquals("sampledAvgScoreHistogram", new long[]{0, 9}, (long[]) row.get(1));
+    Assert.assertEquals("sessionAvgScore", 9.0, (double) row.get(0), 0);
+    Assert.assertArrayEquals("sessionAvgScoreHistogram", new long[]{0, 9}, (long[]) row.get(1));
   }
 }
