@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesSketch;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
+import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
@@ -38,48 +39,55 @@ import java.util.List;
 import java.util.Objects;
 
 @EverythingIsNonnullByDefault
-public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggregatorFactory
+public class SessionAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggregatorFactory
 {
   public static final Integer DEFAULT_TARGET_SAMPLES = 1 << 16;
-  private final String sampleColumn;
+  private final String sessionColumn;
   private final String scoreColumn;
+  private final boolean zeroFiltering;
 
-  public SampledAvgScoreAggregatorFactory(
+  public SessionAvgScoreAggregatorFactory(
       String name,
-      String sampleColumn,
+      String sessionColumn,
       String scoreColumn,
-      Integer sampleSize
+      Integer sampleSize,
+      boolean zeroFiltering
   )
   {
     super(name,
-          sampleColumn,
+          sessionColumn,
           sampleSize,
           ImmutableList.of(scoreColumn, "count"),
           2);
-    this.sampleColumn = sampleColumn;
+    this.sessionColumn = sessionColumn;
     this.scoreColumn = scoreColumn;
+    this.zeroFiltering = zeroFiltering;
   }
 
   @JsonCreator
-  public static SampledAvgScoreAggregatorFactory getAvgSessionScoresAggregatorFactory(
+  public static SessionAvgScoreAggregatorFactory getAvgSessionScoresAggregatorFactory(
       @JsonProperty("name") final String name,
-      @JsonProperty("sampleColumn") final String sampleColumn,
+      @JsonProperty("sessionColumn") final String sessionColumn,
       @JsonProperty("scoreColumn") final String scoreColumn,
-      @JsonProperty("targetSamples") @Nullable final Integer targetSamples
+      @JsonProperty("targetSamples") @Nullable final Integer targetSamples,
+      @JsonProperty("zeroFiltering") @Nullable final Boolean zeroFiltering
   )
   {
-    if (sampleColumn == null || scoreColumn == null) {
-      throw new IAE("Must have a valid, non-null sampleColumn and scoreColumn");
+    if (sessionColumn == null || scoreColumn == null) {
+      throw new IAE("Must have a valid, non-null sessionColumn and scoreColumn");
     }
     int normalizedSampleSize = DEFAULT_TARGET_SAMPLES;
     if (targetSamples != null) {
       normalizedSampleSize = Math.max(1, Integer.highestOneBit(targetSamples - 1) << 1); // nearest power of 2 >= targetSamples
     }
 
-    return new SampledAvgScoreAggregatorFactory(name,
-                                                sampleColumn,
+    boolean zeroFilteringArg = GuavaUtils.firstNonNull(zeroFiltering, false);
+
+    return new SessionAvgScoreAggregatorFactory(name,
+                                                sessionColumn,
                                                 scoreColumn,
-                                                normalizedSampleSize);
+                                                normalizedSampleSize,
+                                                zeroFilteringArg);
   }
 
   @Override
@@ -92,8 +100,9 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
       return new NoopArrayOfDoublesSketchAggregator(getNumberOfValues());
     }
     final List<BaseDoubleColumnValueSelector> valueSelectors = new ArrayList<>();
-    valueSelectors.add(metricFactory.makeColumnValueSelector(getScoreColumn()));
-    valueSelectors.add(new OneDoubleColumnValueSelector());
+    BaseDoubleColumnValueSelector scoreSelector = metricFactory.makeColumnValueSelector(getScoreColumn());
+    valueSelectors.add(scoreSelector);
+    valueSelectors.add(new OneDoubleColumnValueSelector(scoreSelector, zeroFiltering));
     return new ArrayOfDoublesSketchBuildAggregator(keySelector, valueSelectors, getNominalEntries());
   }
 
@@ -107,8 +116,9 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
       return new NoopArrayOfDoublesSketchBufferAggregator(getNumberOfValues());
     }
     final List<BaseDoubleColumnValueSelector> valueSelectors = new ArrayList<>();
-    valueSelectors.add(metricFactory.makeColumnValueSelector(getScoreColumn()));
-    valueSelectors.add(new OneDoubleColumnValueSelector());
+    BaseDoubleColumnValueSelector scoreSelector = metricFactory.makeColumnValueSelector(getScoreColumn());
+    valueSelectors.add(scoreSelector);
+    valueSelectors.add(new OneDoubleColumnValueSelector(scoreSelector, zeroFiltering));
     return new ArrayOfDoublesSketchBuildBufferAggregator(
         keySelector,
         valueSelectors,
@@ -131,14 +141,14 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
   @Override
   public List<String> requiredFields()
   {
-    return ImmutableList.of(sampleColumn, scoreColumn);
+    return ImmutableList.of(sessionColumn, scoreColumn);
   }
 
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
     throw new UOE(StringUtils.format("GroupByStrategyV1 is not supported for %s aggregator",
-                                     ImplyArrayOfDoublesSketchModule.SAMPLED_AVG_SCORE
+                                     ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE
     ));
   }
 
@@ -150,9 +160,9 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
   }
 
   @JsonProperty
-  public String getSampleColumn()
+  public String getSessionColumn()
   {
-    return sampleColumn;
+    return sessionColumn;
   }
 
   @JsonProperty
@@ -167,13 +177,19 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
     return super.getNominalEntries();
   }
 
+  @JsonProperty
+  public boolean isZeroFiltering()
+  {
+    return zeroFiltering;
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     // using id=-2 to avoid conflict with new aggregators and avoid change in AggrregatorUtil; hack and not a trend
     final CacheKeyBuilder builder = new CacheKeyBuilder((byte) -2)
         .appendString(getName())
-        .appendString(getSampleColumn())
+        .appendString(getSessionColumn())
         .appendString(getScoreColumn())
         .appendInt(getTargetSamples());
     return builder.build();
@@ -184,9 +200,10 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
   {
     return this.getClass().getSimpleName() + "{"
            + "name=" + getName()
-           + ", sessionIdColumn=" + getSampleColumn()
-           + ", sessionScoreColumn=" + getScoreColumn()
+           + ", sessionColumn=" + getSessionColumn()
+           + ", scoreColumn=" + getScoreColumn()
            + ", targetSamples=" + getTargetSamples()
+           + ", zeroFiltering=" + isZeroFiltering()
            + "}";
   }
 
@@ -199,11 +216,12 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SampledAvgScoreAggregatorFactory that = (SampledAvgScoreAggregatorFactory) o;
+    SessionAvgScoreAggregatorFactory that = (SessionAvgScoreAggregatorFactory) o;
     return Objects.equals(getName(), that.getName()) &&
-           Objects.equals(getSampleColumn(), that.getSampleColumn()) &&
+           Objects.equals(getSessionColumn(), that.getSessionColumn()) &&
            Objects.equals(getScoreColumn(), that.getScoreColumn()) &&
            this.getTargetSamples() == that.getTargetSamples() &&
+           this.isZeroFiltering() == that.isZeroFiltering() &&
            super.equals(o);
   }
 
@@ -211,15 +229,25 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
   public int hashCode()
   {
     return Objects.hash(getName(),
-                        getSampleColumn(),
+                        getSessionColumn(),
                         getScoreColumn(),
                         getTargetSamples(),
+                        isZeroFiltering(),
                         super.hashCode());
   }
 
   private static class OneDoubleColumnValueSelector
       implements BaseDoubleColumnValueSelector
   {
+    private final BaseDoubleColumnValueSelector scoreSelector;
+    private final boolean zeroFiltering;
+
+    public OneDoubleColumnValueSelector(BaseDoubleColumnValueSelector scoreSelector, boolean zeroFiltering)
+    {
+      this.scoreSelector = scoreSelector;
+      this.zeroFiltering = zeroFiltering;
+    }
+
     @Override
     public void inspectRuntimeShape(RuntimeShapeInspector inspector)
     {
@@ -229,6 +257,10 @@ public class SampledAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
     @Override
     public double getDouble()
     {
+      if (zeroFiltering && !scoreSelector.isNull() && scoreSelector.getDouble() == 0) {
+        return 0;
+      }
+
       return 1;
     }
 

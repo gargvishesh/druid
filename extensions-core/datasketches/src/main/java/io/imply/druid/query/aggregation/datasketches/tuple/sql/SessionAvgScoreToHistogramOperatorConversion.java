@@ -9,13 +9,13 @@
 
 package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
-import io.imply.druid.query.aggregation.datasketches.tuple.SampledAvgScoreToHistogramPostAggregator;
+import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramPostAggregator;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.datasketches.quantiles.sql.DoublesSketchListArgBaseOperatorConversion;
 
-public class SampledAvgScoreToHistogramOperatorConversion extends DoublesSketchListArgBaseOperatorConversion
+public class SessionAvgScoreToHistogramOperatorConversion extends DoublesSketchListArgBaseOperatorConversion
 {
-  private static final String FUNCTION_NAME = "SAMPLED_AVG_SCORE_HISTOGRAM";
+  private static final String FUNCTION_NAME = "SESSION_AVG_SCORE_HISTOGRAM";
 
   @Override
   public String getFunctionName()
@@ -26,6 +26,6 @@ public class SampledAvgScoreToHistogramOperatorConversion extends DoublesSketchL
   @Override
   public PostAggregator makePostAgg(String name, PostAggregator field, double[] args)
   {
-    return new SampledAvgScoreToHistogramPostAggregator(name, field, args);
+    return new SessionAvgScoreToHistogramPostAggregator(name, field, args);
   }
 }

@@ -29,12 +29,12 @@ import org.apache.druid.segment.column.RowSignature;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class SampledAvgScoreAggregatorFactoryTest
+public class SessionAvgScoreAggregatorFactoryTest
 {
   @Test
   public void makeAggregateCombiner()
   {
-    AggregatorFactory aggregatorFactory = new SampledAvgScoreAggregatorFactory("", "", "", null);
+    AggregatorFactory aggregatorFactory = new SessionAvgScoreAggregatorFactory("", "", "", null, false);
     AggregatorFactory combiningFactory = aggregatorFactory.getCombiningFactory();
     AggregateCombiner<ArrayOfDoublesSketch> combiner = combiningFactory.makeAggregateCombiner();
 
@@ -58,8 +58,8 @@ public class SampledAvgScoreAggregatorFactoryTest
   @Test
   public void testEquals()
   {
-    EqualsVerifier.forClass(SampledAvgScoreAggregatorFactory.class)
-                  .withNonnullFields("name", "fieldName", "sampleColumn", "scoreColumn")
+    EqualsVerifier.forClass(SessionAvgScoreAggregatorFactory.class)
+                  .withNonnullFields("name", "fieldName", "sessionColumn", "scoreColumn", "zeroFiltering")
                   .usingGetClass()
                   .verify();
   }
@@ -74,16 +74,17 @@ public class SampledAvgScoreAggregatorFactoryTest
               .granularity(Granularities.HOUR)
               .aggregators(
                   new CountAggregatorFactory("count"),
-                  new SampledAvgScoreAggregatorFactory(
-                      ImplyArrayOfDoublesSketchModule.SAMPLED_AVG_SCORE,
-                      "sampleCol",
+                  new SessionAvgScoreAggregatorFactory(
+                      ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE,
+                      "sessionCol",
                       "scoreCol",
-                      null
+                      null,
+                      false
                   )
               )
               .postAggregators(
-                  new FieldAccessPostAggregator("a", ImplyArrayOfDoublesSketchModule.SAMPLED_AVG_SCORE),
-                  new FinalizingFieldAccessPostAggregator("b", ImplyArrayOfDoublesSketchModule.SAMPLED_AVG_SCORE)
+                  new FieldAccessPostAggregator("a", ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE),
+                  new FinalizingFieldAccessPostAggregator("b", ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE)
               )
               .build();
 
@@ -91,7 +92,7 @@ public class SampledAvgScoreAggregatorFactoryTest
         RowSignature.builder()
                     .addTimeColumn()
                     .add("count", ColumnType.LONG)
-                    .add(ImplyArrayOfDoublesSketchModule.SAMPLED_AVG_SCORE, null)
+                    .add(ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE, null)
                     .add("a", ArrayOfDoublesSketchModule.BUILD_TYPE)
                     .add("b", ColumnType.DOUBLE)
                     .build(),
