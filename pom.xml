@@ -1939,6 +1939,7 @@
                                 <exclude>**/dependency-reduced-pom.xml</exclude>
                                 <exclude>.editorconfig</exclude>
                                 <exclude>**/hadoop.indexer.libs.version</exclude>
+                                <exclude>docs/talaria/**</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
