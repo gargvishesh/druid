@@ -225,7 +225,10 @@ When you run a query with Talaria, the following happens:
 
 ### Issue a query
 
-> This API is subject to change in future releases.
+> Talaria Query APIs are experimental and are in a work-in-progress state for the
+> alpha. They will change in future releases and backwards compatibility will not
+> be maintained. We recommend using the [web console](#web-console) if you do not
+> need a programmatic interface.
 
 To run a Druid query with Talaria, use the standard
 [Druid SQL API](https://druid.apache.org/docs/latest/querying/sql.html)
@@ -305,7 +308,10 @@ can be used to interact with this controller task.
 
 ### Retrieve query report
 
-> This API is subject to change in future releases.
+> Talaria Query APIs are experimental and are in a work-in-progress state for the
+> alpha. They will change in future releases and backwards compatibility will not
+> be maintained. We recommend using the [web console](#web-console) if you do not
+> need a programmatic interface.
 
 Druid queries that run with Talaria are executed using indexing service tasks.
 Druid's task report API provides detailed information about these queries,
@@ -495,7 +501,10 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 
 ### Retrieve query status
 
-> This API is subject to change in future releases.
+> Talaria Query APIs are experimental and are in a work-in-progress state for the
+> alpha. They will change in future releases and backwards compatibility will not
+> be maintained. We recommend using the [web console](#web-console) if you do not
+> need a programmatic interface.
 
 Druid queries that run with Talaria are executed using indexing service tasks.
 Druid's task status API provides information about the status of these queries.
@@ -587,7 +596,8 @@ data.
 
 ### INSERT INTO ... SELECT
 
-> INSERT syntax is subject to change in future releases.
+> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
 
 With Talaria, Druid can use the results of a query to create a new datasource
 or to append or replace data in an existing datasource. In Druid, these operations
@@ -628,7 +638,8 @@ For more examples, refer to the [Example queries](#example-queries) section.
 
 ### Segment granularity and partitioning
 
-> INSERT syntax is subject to change in future releases.
+> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
 
 Time-based partitioning is determined by the `talariaSegmentGranularity`
 context parameter. Secondary partitioning is determined by the query\'s
@@ -653,7 +664,8 @@ and secondary partitioning by channel.
 
 ### Rollup
 
-> INSERT syntax is subject to change in future releases.
+> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
 
 Rollup is determined by the query's GROUP BY clause. The expressions in
 the GROUP BY clause will become dimensions. Any aggregation functions
