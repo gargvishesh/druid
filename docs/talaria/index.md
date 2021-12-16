@@ -79,7 +79,7 @@ druid.coordinator.balancer.strategy=cost
 druid.server.http.numThreads=2000
 druid.global.http.numConnections=1000
 
--- Required for Java 11
+# Required for Java 11
 jvm.config.dsmmap=--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
 druid.indexer.runner.javaOptsArray=["--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"]
 ```
