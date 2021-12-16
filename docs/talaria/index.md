@@ -54,8 +54,8 @@ experience.
 
 **Common**
 
-Add the following text to the Common property overrides. You will need a
-license string that includes the `talaria` feature.
+In the Common property overrides, add an Imply license string that includes
+the `talaria` feature.
 
 ```
 imply.license=<license string>
@@ -140,9 +140,10 @@ The context comment (line 1) passes an ingestion configuration parameter
 along with the query, specifying day-based segment granularity. The
 data is inserted into the `wikipedia` table.
 
-> Note: context comments are available only in the web console. When using
-> the API, context comments will be ignored, and context parameters must
-> be provided separately from the query string.
+> Context comments are available only in the web console. When using
+> the API, context comments will be ignored, and
+> [context parameters](https://druid.apache.org/docs/latest/querying/query-context.html)
+> must be provided separately from the query string.
 
 The data is now queryable. Run the following query to analyze the data
 in the ingested table, producing a list of top channels.
@@ -182,9 +183,8 @@ asynchronous queries that can exchange data between stages.
 
 At this time, queries execute using indexing service tasks, even for
 regular SELECT (non-INSERT) queries. At least two task slots per query
-are occupied while a query is running. In future releases, we expect to
-introduce a mechanism for running queries with Talaria outside of the
-indexing service.
+are occupied while a query is running. This behavior is subject to
+change in future releases.
 
 Key concepts for Talaria-based query execution:
 
@@ -195,7 +195,7 @@ Key concepts for Talaria-based query execution:
   query. There may be more than one worker task per query. Internally,
   the tasks process items in parallel using their processing pools.
   (i.e., up to `druid.processing.numThreads` of execution parallelism
-  within a worker task.)
+  within a worker task).
 
 - **Stage**: a stage of query execution that is parallelized across
   worker tasks. Workers exchange data with each other between stages.
@@ -280,7 +280,7 @@ can use two additional features:
 The Talaria engine accepts additional Druid SQL
 [context parameters](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
 
-> Note: context comments like `--:context talariaSegmentGranularity: day`
+> Context comments like `--:context talariaSegmentGranularity: day`
 > are available only in the web console. When using the API, context comments
 > will be ignored, and context parameters must be provided in the `context`
 > section of the JSON object.
@@ -552,7 +552,8 @@ curl -H'Content-Type: application/json' \
 
 ## EXTERN
 
-> EXTERN syntax is subject to change in future releases.
+> EXTERN syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
 
 Talaria queries can access external data through the `EXTERN` table
 function. It can appear in the form `TABLE(EXTERN(...))` anywhere a
