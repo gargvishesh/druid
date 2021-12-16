@@ -7,8 +7,6 @@
 # of the license agreement you entered into with Imply.
 #
 
-druid_query_async_sql_enabled=true
-
 druid_query_async_storage_type=local
 druid_query_async_storage_local_directory=/shared/storage/async-results
 

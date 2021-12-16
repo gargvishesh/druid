@@ -109,6 +109,10 @@ setupData()
   elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ] && [ "$DRUID_SERVICE" = "historical" ]; then
     setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-virtual-segments\",\"druid-s3-extensions\"]
     export AWS_REGION=us-east-1
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "async-download" ]; then
+    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-sql-async\"]
+  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "imply-s3" ]; then
+    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-sql-async\",\"druid-s3-extensions\"]
   else
     if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
       setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"imply-keycloak\"]

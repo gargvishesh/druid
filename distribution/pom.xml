@@ -259,6 +259,8 @@
                                         <argument>io.imply:imply-virtual-segments</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-timeseries</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-sql-async</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>
@@ -693,6 +695,8 @@
                                         <argument>io.imply:imply-virtual-segments</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-external-druid-schema</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-sql-async</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>

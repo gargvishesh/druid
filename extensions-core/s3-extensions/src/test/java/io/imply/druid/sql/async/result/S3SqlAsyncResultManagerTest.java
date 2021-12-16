@@ -25,7 +25,6 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.sql.async.InMemorySqlAsyncMetadataManager;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
@@ -78,8 +77,7 @@ public class S3SqlAsyncResultManagerTest
           {
             return "no-sync";
           }
-        },
-        new InMemorySqlAsyncMetadataManager()
+        }
     );
     EasyMock.reset(S3_CLIENT);
     expectListObjects(URI.create("s3://async-test/no-sync"), EXPECTED_URIS, CONTENT);

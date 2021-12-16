@@ -32,3 +32,8 @@ mv $SHARED_DIR/docker/lib/imply-druid-security-* $SHARED_DIR/docker/extensions/i
 # move imply-virtual-segments to extension
 mkdir -p $SHARED_DIR/docker/extensions/imply-virtual-segments
 mv $SHARED_DIR/docker/lib/imply-virtual-segments-* $SHARED_DIR/docker/extensions/imply-virtual-segments
+
+# move imply-sql-async to extension
+mkdir -p $SHARED_DIR/docker/extensions/imply-sql-async
+# copy only extension libs not imply-sql-async-core
+mv $SHARED_DIR/docker/lib/imply-sql-async-2022* $SHARED_DIR/docker/extensions/imply-sql-async

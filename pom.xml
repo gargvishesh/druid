@@ -136,7 +136,7 @@
         <module>processing</module>
         <module>server</module>
         <module>sql</module>
-        <module>imply-sql-async</module>
+        <module>imply-sql-async-core</module>
         <module>services</module>
         <module>integration-tests</module>
         <module>benchmarks</module>
@@ -188,6 +188,7 @@
         <module>extensions-imply/imply-virtual-segments</module>
         <module>extensions-imply/imply-external-druid-schema</module>
         <module>extensions-imply/imply-timeseries</module>
+        <module>extensions-imply/imply-sql-async</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>

@@ -12,7 +12,6 @@ package io.imply.druid.tests.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -163,10 +162,17 @@ public class AsyncResourceTestClient
     return true;
   }
 
-  public AsyncQueryPoolConfig getAsyncQueryPoolConfig()
+  public int getMaxConcurrentQueries()
   {
     // The limit configs are set in integration-tests-imply/docker/environment-configs/common-async-download
     // The hardcoded values below must be keep in sync with the configs in the configuration file mentioned above.
-    return new AsyncQueryPoolConfig(10, 3);
+    return 10;
+  }
+
+  public int getMaxQueriesToQueue()
+  {
+    // The limit configs are set in integration-tests-imply/docker/environment-configs/common-async-download
+    // The hardcoded values below must be keep in sync with the configs in the configuration file mentioned above.
+    return 3;
   }
 }

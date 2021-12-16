@@ -24,8 +24,6 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.SqlAsyncModule;
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
@@ -42,29 +40,30 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * SqlAsyncResultManager implementation for s3.
+ * This class can be removed once the s3 extension provides low-level APIs such as RetriableS3OutputStream.
+ */
 public class S3SqlAsyncResultManager implements SqlAsyncResultManager
 {
   private final ImplyServerSideEncryptingAmazonS3 s3Client;
   private final S3SqlAsyncResultManagerConfig config;
-  private final SqlAsyncMetadataManager metadataManager;
 
   @Inject
   public S3SqlAsyncResultManager(
       ImplyServerSideEncryptingAmazonS3 s3Client,
-      S3SqlAsyncResultManagerConfig config,
-      SqlAsyncMetadataManager metadataManager
+      S3SqlAsyncResultManagerConfig config
   ) throws IOException
   {
     if (Strings.isNullOrEmpty(config.getBucket())) {
-      throw new ISE("Property '%s.s3.bucket' is required", SqlAsyncModule.BASE_STORAGE_CONFIG_KEY);
+      throw new ISE("Property '%s.s3.bucket' is required", "druid.query.async.storage");
     }
     if (Strings.isNullOrEmpty(config.getPrefix())) {
-      throw new ISE("Property '%s.s3.prefix' is required", SqlAsyncModule.BASE_STORAGE_CONFIG_KEY);
+      throw new ISE("Property '%s.s3.prefix' is required", "druid.query.async.storage");
     }
 
     this.s3Client = s3Client;
     this.config = config;
-    this.metadataManager = metadataManager;
 
     if (config.getTempDir() != null) {
       FileUtils.mkdirp(config.getTempDir());
@@ -74,7 +73,7 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public OutputStream writeResults(SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    return RetriableS3OutputStream.create(config, metadataManager, s3Client, queryDetails);
+    return RetriableS3OutputStream.create(config, s3Client, queryDetails);
   }
 
   @Override

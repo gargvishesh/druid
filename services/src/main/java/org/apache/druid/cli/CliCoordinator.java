@@ -34,8 +34,6 @@ import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import io.airlift.airline.Command;
-import io.imply.druid.sql.async.BrokerIdServiceModule;
-import io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.druid.audit.AuditManager;
 import org.apache.druid.client.CoordinatorSegmentWatcherConfig;
@@ -373,11 +371,6 @@ public class CliCoordinator extends ServerRunnable
       // the injector to get confused due to having multiple bindings for the same classes.
       modules.add(new LookupSerdeModule());
     }
-
-    // BEGIN: Imply-specific module
-    modules.add(new SqlAsyncCleanupModule());
-    modules.add(new BrokerIdServiceModule());
-    // END: Imply-specific module
 
     return modules;
   }

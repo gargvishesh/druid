@@ -26,8 +26,6 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
 import io.airlift.airline.Command;
-import io.imply.druid.sql.async.BrokerIdServiceModule;
-import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.client.BrokerInternalQueryConfig;
 import org.apache.druid.client.BrokerSegmentWatcherConfig;
 import org.apache.druid.client.BrokerServerView;
@@ -173,11 +171,7 @@ public class CliBroker extends ServerRunnable
           LifecycleModule.registerKey(binder, Key.get(SelfDiscoveryResource.class));
         },
         new LookupModule(),
-        new SqlModule(),
-        // BEGIN: Imply-specific module
-        new SqlAsyncModule(),
-        new BrokerIdServiceModule()
-        // END: Imply-specific module
+        new SqlModule()
     );
   }
 }

@@ -30,8 +30,6 @@ import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
-import io.imply.druid.sql.async.InMemorySqlAsyncMetadataManager;
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.java.util.common.IOE;
@@ -63,7 +61,6 @@ public class RetriableS3OutputStreamTest
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private final SqlAsyncMetadataManager metadataManager = new InMemorySqlAsyncMetadataManager();
   private final TestAmazonS3 s3 = new TestAmazonS3(0);
   private final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
       "resultId",
@@ -118,7 +115,7 @@ public class RetriableS3OutputStreamTest
     expectedException.expectMessage(
         "chunkSize[9000000] is too small for maxResultsSize[100000000000]. chunkSize should be at least [10000000]"
     );
-    RetriableS3OutputStream.create(config, metadataManager, s3, queryDetails);
+    RetriableS3OutputStream.create(config, s3, queryDetails);
   }
 
   @Test
@@ -131,7 +128,7 @@ public class RetriableS3OutputStreamTest
     expectedException.expectMessage(
         "chunkSize[27487790] is too small for maxResultsSize[274877906944]. chunkSize should be at least [27487791]"
     );
-    RetriableS3OutputStream.create(config, metadataManager, s3, queryDetails);
+    RetriableS3OutputStream.create(config, s3, queryDetails);
   }
 
   @Test
@@ -144,7 +141,7 @@ public class RetriableS3OutputStreamTest
     expectedException.expectMessage(
         "chunkSize[5368709121] should be smaller than [5368709120]"
     );
-    RetriableS3OutputStream.create(config, metadataManager, s3, queryDetails);
+    RetriableS3OutputStream.create(config, s3, queryDetails);
   }
 
   @Test
@@ -154,7 +151,6 @@ public class RetriableS3OutputStreamTest
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
-        metadataManager,
         s3,
         queryDetails
     )) {
@@ -176,7 +172,6 @@ public class RetriableS3OutputStreamTest
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES * 3);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
-        metadataManager,
         s3,
         queryDetails
     )) {
@@ -198,7 +193,6 @@ public class RetriableS3OutputStreamTest
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
-        metadataManager,
         s3,
         queryDetails
     )) {
@@ -231,7 +225,6 @@ public class RetriableS3OutputStreamTest
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
-        metadataManager,
         s3,
         queryDetails
     )) {
@@ -255,7 +248,6 @@ public class RetriableS3OutputStreamTest
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
-        metadataManager,
         s3,
         queryDetails
     )) {
