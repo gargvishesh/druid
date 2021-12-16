@@ -70,11 +70,6 @@
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.imply</groupId>
-            <artifactId>imply-sql-async</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>airline</artifactId>
         </dependency>

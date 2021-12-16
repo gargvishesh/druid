@@ -10,7 +10,6 @@
 package io.imply.druid.tests.async;
 
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.tests.ImplyTestNGGroup;
@@ -52,15 +51,14 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
           null,
           null
       );
-      AsyncQueryPoolConfig asyncQueryPoolConfig = asyncResourceTestClient.getAsyncQueryPoolConfig();
-      int maxQueryCanSubmit = asyncQueryPoolConfig.getMaxQueriesToQueue() + asyncQueryPoolConfig.getMaxConcurrentQueries();
+      int maxQueryCanSubmit = asyncResourceTestClient.getMaxQueriesToQueue() + asyncResourceTestClient.getMaxConcurrentQueries();
       for (int i = 0; i < maxQueryCanSubmit; i++) {
         SqlAsyncQueryDetailsApiResponse response = asyncResourceTestClient.submitAsyncQuery(query);
         Assert.assertEquals(response.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
         asyncResultIds.add(response.getAsyncResultId());
       }
       // The first asyncQueryLimitsConfig.getMaxConcurrentQueries() query submitted will be RUNNING
-      for (int i = 0; i < asyncQueryPoolConfig.getMaxConcurrentQueries(); i++) {
+      for (int i = 0; i < asyncResourceTestClient.getMaxConcurrentQueries(); i++) {
         final String asyncResultId = asyncResultIds.get(i);
         ITRetryUtil.retryUntilTrue(
             () -> {
@@ -71,7 +69,7 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
         );
       }
       // The remaining query submitted will still be in INITIALIZED state (queued)
-      for (int i = asyncQueryPoolConfig.getMaxConcurrentQueries(); i < maxQueryCanSubmit; i++) {
+      for (int i = asyncResourceTestClient.getMaxConcurrentQueries(); i < maxQueryCanSubmit; i++) {
         SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultIds.get(i));
         Assert.assertEquals(statusResponse.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
       }

@@ -26,7 +26,6 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import io.airlift.airline.Command;
-import io.imply.druid.sql.async.BrokerIdServiceModule;
 import org.apache.druid.curator.discovery.DiscoveryModule;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.Jerseys;
@@ -128,10 +127,7 @@ public class CliRouter extends ServerRunnable
           Jerseys.addResource(binder, SelfDiscoveryResource.class);
           LifecycleModule.registerKey(binder, Key.get(SelfDiscoveryResource.class));
         },
-        new LookupSerdeModule(),
-        // BEGIN: Imply-specific module
-        new BrokerIdServiceModule()
-        // END: Imply-specific module
+        new LookupSerdeModule()
     );
   }
 }

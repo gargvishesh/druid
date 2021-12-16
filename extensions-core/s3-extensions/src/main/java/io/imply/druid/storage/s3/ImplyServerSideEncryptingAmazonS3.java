@@ -31,6 +31,9 @@ import com.amazonaws.services.s3.model.UploadPartResult;
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 import org.apache.druid.storage.s3.ServerSideEncryption;
 
+/**
+ *  This class should be merged into ServerSideEncryptingAmazonS3.
+ */
 public class ImplyServerSideEncryptingAmazonS3 extends ServerSideEncryptingAmazonS3
 {
   private final AmazonS3 amazonS3;

@@ -21,9 +21,7 @@ package io.imply.druid.sql.async.result;
 
 import com.fasterxml.jackson.databind.Module;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Key;
-import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
@@ -33,13 +31,9 @@ import org.apache.druid.storage.s3.S3StorageDruidModule;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 
 public class S3SqlAsyncResultStorageModule implements DruidModule
 {
-  @Inject
-  private Properties props;
-
   @Override
   public List<? extends Module> getJacksonModules()
   {
@@ -49,18 +43,15 @@ public class S3SqlAsyncResultStorageModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (SqlAsyncModule.isEnabled(props)) {
-      SqlAsyncModule.bindAsyncMetadataManager(binder);
-      JsonConfigProvider.bind(
-          binder,
-          StringUtils.format("%s.s3", SqlAsyncModule.BASE_STORAGE_CONFIG_KEY),
-          S3SqlAsyncResultManagerConfig.class
-      );
+    JsonConfigProvider.bind(
+        binder,
+        StringUtils.format("%s.s3", "druid.query.async.storage"),
+        S3SqlAsyncResultManagerConfig.class
+    );
 
-      PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
-              .addBinding(S3StorageDruidModule.SCHEME)
-              .to(S3SqlAsyncResultManager.class)
-              .in(LazySingleton.class);
-    }
+    PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
+            .addBinding(S3StorageDruidModule.SCHEME)
+            .to(S3SqlAsyncResultManager.class)
+            .in(LazySingleton.class);
   }
 }

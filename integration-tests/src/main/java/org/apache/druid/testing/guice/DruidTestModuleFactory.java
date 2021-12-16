@@ -22,7 +22,6 @@ package org.apache.druid.testing.guice;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import io.imply.druid.sql.async.BrokerIdServiceModule;
 import org.apache.druid.guice.GuiceInjectors;
 import org.apache.druid.guice.IndexingServiceFirehoseModule;
 import org.apache.druid.guice.IndexingServiceInputSourceModule;
@@ -51,10 +50,7 @@ public class DruidTestModuleFactory implements IModuleFactory
     return ImmutableList.of(
         new DruidTestModule(),
         new IndexingServiceFirehoseModule(),
-        new IndexingServiceInputSourceModule(),
-        // BEGIN: imply-specific module. We should get rid of this once we make async downloads an extension
-        new BrokerIdServiceModule()
-        // END: imply-specific module
+        new IndexingServiceInputSourceModule()
     );
   }
 

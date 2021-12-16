@@ -70,8 +70,14 @@
     </dependency>
     <dependency>
       <groupId>io.imply</groupId>
+      <artifactId>imply-sql-async-core</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.imply</groupId>
       <artifactId>imply-sql-async</artifactId>
       <version>${project.parent.version}</version>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>

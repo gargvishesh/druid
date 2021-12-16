@@ -33,7 +33,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 import com.google.common.io.CountingOutputStream;
 import io.imply.druid.sql.async.SqlAsyncUtil;
-import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
@@ -59,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A retriable output stream for s3. How it works is,
- * <p>
+ *
  * 1) When new data is written, it first creates a chunk in local disk.
  * 2) New data is written to the local chunk until it is full.
  * 3) When the chunk is full, it uploads the chunk to s3 using the multipart upload API.
@@ -68,11 +67,14 @@ import java.util.concurrent.TimeUnit;
  * 4) Once the upload succeeds, it creates a new chunk and continue.
  * 5) When the stream is closed, it uploads the last chunk and finalize the multipart upload.
  * {@link #close()} can be blocked until upload is done.
- * <p>
+ *
  * For compression format support, this output stream supports compression formats if they are <i>concatenatable</i>,
  * such as ZIP or GZIP.
- * <p>
+ *
  * This class is not thread-safe.
+ *
+ * This class can be moved to the s3 extension as a low-level API,
+ * whereas it currently provides only high-level APIs such as S3DataSegmentPuller.
  */
 class RetriableS3OutputStream extends OutputStream
 {
@@ -84,7 +86,6 @@ class RetriableS3OutputStream extends OutputStream
   private static final int S3_MULTIPART_UPLOAD_MAX_NUM_PARTS = 10_000;
 
   private final S3SqlAsyncResultManagerConfig config;
-  private final SqlAsyncMetadataManager metadataManager;
   private final ImplyServerSideEncryptingAmazonS3 s3;
   private final String s3Key;
   private final String uploadId;
@@ -116,12 +117,11 @@ class RetriableS3OutputStream extends OutputStream
 
   static RetriableS3OutputStream create(
       S3SqlAsyncResultManagerConfig config,
-      SqlAsyncMetadataManager metadataManager,
       ImplyServerSideEncryptingAmazonS3 s3,
       SqlAsyncQueryDetails queryDetails
   ) throws IOException
   {
-    final RetriableS3OutputStream stream = new RetriableS3OutputStream(config, metadataManager, s3, queryDetails);
+    final RetriableS3OutputStream stream = new RetriableS3OutputStream(config, s3, queryDetails);
     validateChunkSize(config.getMaxResultsSize(), stream.chunkSize);
     return stream;
   }
@@ -129,23 +129,20 @@ class RetriableS3OutputStream extends OutputStream
   @VisibleForTesting
   static RetriableS3OutputStream createWithoutChunkSizeValidation(
       S3SqlAsyncResultManagerConfig config,
-      SqlAsyncMetadataManager metadataManager,
       ImplyServerSideEncryptingAmazonS3 s3,
       SqlAsyncQueryDetails queryDetails
   ) throws IOException
   {
-    return new RetriableS3OutputStream(config, metadataManager, s3, queryDetails);
+    return new RetriableS3OutputStream(config, s3, queryDetails);
   }
 
   private RetriableS3OutputStream(
       S3SqlAsyncResultManagerConfig config,
-      SqlAsyncMetadataManager metadataManager,
       ImplyServerSideEncryptingAmazonS3 s3,
       SqlAsyncQueryDetails queryDetails
   ) throws IOException
   {
     this.config = config;
-    this.metadataManager = metadataManager;
     this.s3 = s3;
     this.s3Key = getS3KeyForQuery(config.getPrefix(), queryDetails.getAsyncResultId());
 
