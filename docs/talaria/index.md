@@ -216,7 +216,7 @@ When you run a query with Talaria, the following happens:
 
 4.  The worker tasks execute the query.
 
-5.  If the query is a SELECT query, the worker tasks sent the results
+5.  If the query is a SELECT query, the worker tasks send the results
     back to the controller task, which writes them into its task report.
     If the query is an INSERT query, the worker tasks generate and
     publish new Druid segments to the provided datasource.
@@ -749,9 +749,9 @@ entry to show: results, query stats, query (SQL and native), and download
 the report. Work history panel can be shown/hidden from the toolbar (6).
 
 8. The query helpers let you define notebook-style queries that can be
-reference from the main query as if they were defined as WITH clauses.
-You can refer to this extern by name anywhere in the SQL query where
-you could use a table.
+referenced from the main query as if they were defined as WITH clauses.
+You can refer to this external source by name anywhere in the SQL query
+where you could use a table.
 
 9. The query controls let you add the current query as a helper query.
 
@@ -841,7 +841,7 @@ ORDER BY
 
 ### INSERT for reindexing an existing datasource
 
-This query rolls up data from w000 and inserts the result w002.
+This query rolls up data from w000 and inserts the result into w002.
 
 ```sql
 --:context talariaSegmentGranularity: hour
