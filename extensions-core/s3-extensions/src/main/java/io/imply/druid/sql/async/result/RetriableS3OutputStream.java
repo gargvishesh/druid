@@ -43,7 +43,6 @@ import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.storage.s3.S3Utils;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 import java.io.Closeable;
 import java.io.File;
@@ -98,9 +97,9 @@ class RetriableS3OutputStream extends OutputStream
   // metric
   private final Stopwatch pushStopwatch;
 
-  @MonotonicNonNull
   private Chunk currentChunk;
   private int nextChunkId = 1; // multipart upload requires partNumber to be in the range between 1 and 10000
+  private int numChunksPushed;
   /**
    * Total size of all chunks. This size is updated whenever the chunk is ready for push,
    * not when {@link #write(byte[], int, int)} is called. This is because
@@ -155,6 +154,8 @@ class RetriableS3OutputStream extends OutputStream
     this.chunkSize = config.getChunkSize() == null ? computeChunkSize(config) : config.getChunkSize();
     this.pushStopwatch = Stopwatch.createUnstarted();
     this.pushStopwatch.reset();
+
+    this.currentChunk = new Chunk(nextChunkId, new File(chunkStorePath, String.valueOf(nextChunkId++)));
   }
 
   private static long computeChunkSize(S3SqlAsyncResultManagerConfig config)
@@ -219,15 +220,20 @@ class RetriableS3OutputStream extends OutputStream
     }
 
     try {
-      // If the chunk will be greater than the max chunk size, then push the current chunk and start a new chunk.
-      // For the edge case of an empty chunk which would grow to bigger than the configured max chunk size, this
-      // writes to the current chunk and will attempt to push the chunk on the next upload.
-      if (currentChunk == null || (currentChunk.length() + len >= chunkSize) && (currentChunk.length() != 0)) {
-        pushCurrentChunk();
-        currentChunk = new Chunk(nextChunkId, new File(chunkStorePath, String.valueOf(nextChunkId++)));
-      }
+      int offsetToWrite = off;
+      int remainingBytesToWrite = len;
 
-      currentChunk.outputStream.write(b, off, len);
+      while (remainingBytesToWrite > 0) {
+        final int writtenBytes = writeToCurrentChunk(b, offsetToWrite, remainingBytesToWrite);
+
+        if (currentChunk.length() >= chunkSize) {
+          pushCurrentChunk();
+          currentChunk = new Chunk(nextChunkId, new File(chunkStorePath, String.valueOf(nextChunkId++)));
+        }
+
+        offsetToWrite += writtenBytes;
+        remainingBytesToWrite -= writtenBytes;
+      }
     }
     catch (RuntimeException | IOException e) {
       error = true;
@@ -235,12 +241,19 @@ class RetriableS3OutputStream extends OutputStream
     }
   }
 
+  private int writeToCurrentChunk(byte[] b, int off, int len) throws IOException
+  {
+    final int lenToWrite = Math.min(len, Math.toIntExact(chunkSize - currentChunk.length()));
+    currentChunk.outputStream.write(b, off, lenToWrite);
+    return lenToWrite;
+  }
+
   private void pushCurrentChunk() throws IOException
   {
-    if (currentChunk != null) {
-      currentChunk.close();
-      final Chunk chunk = currentChunk;
-      try {
+    currentChunk.close();
+    final Chunk chunk = currentChunk;
+    try {
+      if (chunk.length() > 0) {
         resultsSize += chunk.length();
         if (resultsSize > config.getMaxResultsSize()) {
           throw new IOE("Exceeded max results size [%s]", config.getMaxResultsSize());
@@ -249,11 +262,12 @@ class RetriableS3OutputStream extends OutputStream
         pushStopwatch.start();
         pushResults.add(push(chunk));
         pushStopwatch.stop();
+        numChunksPushed++;
       }
-      finally {
-        if (!chunk.delete()) {
-          LOG.warn("Failed to delete chunk [%s]", chunk.getAbsolutePath());
-        }
+    }
+    finally {
+      if (!chunk.delete()) {
+        LOG.warn("Failed to delete chunk [%s]", chunk.getAbsolutePath());
       }
     }
   }
@@ -308,12 +322,12 @@ class RetriableS3OutputStream extends OutputStream
     closed = true;
     Closer closer = Closer.create();
 
+    // Closeables are closed in LIFO order
     closer.register(() -> {
       // This should be emitted as a metric
       LOG.info("Total push time: [%s] ms", pushStopwatch.elapsed(TimeUnit.MILLISECONDS));
     });
 
-    // Closeables are closed in LIFO order
     closer.register(() -> org.apache.commons.io.FileUtils.forceDelete(chunkStorePath));
 
     closer.register(() -> {
@@ -351,7 +365,7 @@ class RetriableS3OutputStream extends OutputStream
 
   private boolean isAllPushSucceeded()
   {
-    return !error && !pushResults.isEmpty() && nextChunkId - 1 == pushResults.size();
+    return !error && !pushResults.isEmpty() && numChunksPushed == pushResults.size();
   }
 
   private static class Chunk implements Closeable
