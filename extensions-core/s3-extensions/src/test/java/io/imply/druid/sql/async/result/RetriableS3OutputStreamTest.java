@@ -148,6 +148,7 @@ public class RetriableS3OutputStreamTest
   public void testWriteAndHappy() throws IOException
   {
     maxResultsSize = 1000;
+    chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
@@ -160,15 +161,16 @@ public class RetriableS3OutputStreamTest
         out.write(bb.array());
       }
     }
-    // each chunk will be 8 bytes, so there should be 13 chunks.
-    Assert.assertEquals(13, s3.partRequests.size());
-    s3.assertCompleted();
+    // each chunk is 10 bytes, so there should be 10 chunks.
+    Assert.assertEquals(10, s3.partRequests.size());
+    s3.assertCompleted(chunkSize, Integer.BYTES * 25);
   }
 
   @Test
   public void testWriteSizeLargerThanConfiguredMaxChunkSizeShouldSucceed() throws IOException
   {
     maxResultsSize = 1000;
+    chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES * 3);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
@@ -181,9 +183,28 @@ public class RetriableS3OutputStreamTest
       bb.putInt(3);
       out.write(bb.array());
     }
-    // each chunk will be 8 bytes, so there should be 13 chunks.
-    Assert.assertEquals(1, s3.partRequests.size());
-    s3.assertCompleted();
+    // each chunk 10 bytes, so there should be 2 chunks.
+    Assert.assertEquals(2, s3.partRequests.size());
+    s3.assertCompleted(chunkSize, Integer.BYTES * 3);
+  }
+
+  @Test
+  public void testWriteSmallBufferShouldSucceed() throws IOException
+  {
+    maxResultsSize = 1000;
+    chunkSize = 128;
+    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+        config,
+        s3,
+        queryDetails
+    )) {
+      for (int i = 0; i < 600; i++) {
+        out.write(i);
+      }
+    }
+    // each chunk 128 bytes, so there should be 5 chunks.
+    Assert.assertEquals(5, s3.partRequests.size());
+    s3.assertCompleted(chunkSize, 600);
   }
 
   @Test
@@ -222,6 +243,7 @@ public class RetriableS3OutputStreamTest
     final TestAmazonS3 s3 = new TestAmazonS3(1);
 
     maxResultsSize = 1000;
+    chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
     try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
         config,
@@ -234,9 +256,9 @@ public class RetriableS3OutputStreamTest
         out.write(bb.array());
       }
     }
-    // each chunk will be 8 bytes, so there should be 13 chunks.
-    Assert.assertEquals(13, s3.partRequests.size());
-    s3.assertCompleted();
+    // each chunk is 10 bytes, so there should be 10 chunks.
+    Assert.assertEquals(10, s3.partRequests.size());
+    s3.assertCompleted(chunkSize, Integer.BYTES * 25);
   }
 
   @Test
@@ -321,15 +343,18 @@ public class RetriableS3OutputStreamTest
       return new CompleteMultipartUploadResult();
     }
 
-    private void assertCompleted()
+    private void assertCompleted(long chunkSize, long expectedFileSize)
     {
       Assert.assertNotNull(completeRequest);
       Assert.assertFalse(aborted);
 
-      int prevPartId = 0;
-      for (UploadPartRequest request : partRequests) {
-        Assert.assertEquals(prevPartId + 1, request.getPartNumber());
-        prevPartId++;
+      for (int i = 0; i < partRequests.size(); i++) {
+        Assert.assertEquals(i + 1, partRequests.get(i).getPartNumber());
+        if (i < partRequests.size() - 1) {
+          Assert.assertEquals(chunkSize, partRequests.get(i).getPartSize());
+        } else {
+          Assert.assertTrue(chunkSize >= partRequests.get(i).getPartSize());
+        }
       }
       final List<PartETag> eTags = completeRequest.getPartETags();
       Assert.assertEquals(partRequests.size(), eTags.size());
@@ -340,6 +365,10 @@ public class RetriableS3OutputStreamTest
       Assert.assertEquals(
           partRequests.stream().map(UploadPartRequest::getPartNumber).collect(Collectors.toList()),
           eTags.stream().map(tag -> Integer.parseInt(tag.getETag())).collect(Collectors.toList())
+      );
+      Assert.assertEquals(
+          expectedFileSize,
+          partRequests.stream().mapToLong(UploadPartRequest::getPartSize).sum()
       );
     }
 
