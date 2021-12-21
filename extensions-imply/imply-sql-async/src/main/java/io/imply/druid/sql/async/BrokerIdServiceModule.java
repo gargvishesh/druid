@@ -28,7 +28,7 @@ import org.apache.druid.initialization.DruidModule;
 import java.util.List;
 import java.util.Set;
 
-@LoadScope(roles = {NodeRole.BROKER_JSON_NAME, NodeRole.ROUTER_JSON_NAME})
+@LoadScope(roles = {NodeRole.BROKER_JSON_NAME, NodeRole.ROUTER_JSON_NAME, NodeRole.COORDINATOR_JSON_NAME})
 public class BrokerIdServiceModule implements DruidModule
 {
   private Set<NodeRole> nodeRoles;

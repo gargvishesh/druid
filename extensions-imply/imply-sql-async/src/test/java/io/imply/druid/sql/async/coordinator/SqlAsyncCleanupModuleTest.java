@@ -17,7 +17,7 @@ import com.google.common.base.Suppliers;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.TypeLiteral;
-import io.imply.druid.sql.async.SqlAsyncCommonModule;
+import io.imply.druid.sql.async.SqlAsyncMetadataModule;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryMetadata;
 import io.imply.druid.sql.async.coordinator.duty.KillAsyncQueryResultWithoutMetadata;
 import io.imply.druid.sql.async.coordinator.duty.UpdateStaleQueryState;
@@ -158,7 +158,7 @@ public class SqlAsyncCleanupModuleTest
                 .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
           binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
         },
-        new SqlAsyncCommonModule(),
+        new SqlAsyncMetadataModule(),
         cleanupModule
     );
     ObjectMapper objectMapper = injector.getInstance(ObjectMapper.class);

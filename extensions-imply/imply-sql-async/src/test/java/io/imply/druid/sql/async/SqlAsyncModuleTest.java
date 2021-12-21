@@ -16,6 +16,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
+import io.imply.druid.sql.async.guice.SqlAsyncCoreModule;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.LocalSqlAsyncResultManager;
@@ -52,7 +53,7 @@ public class SqlAsyncModuleTest
     properties.setProperty(SqlModule.PROPERTY_SQL_ENABLE, "true");
     properties.setProperty(SqlModule.PROPERTY_SQL_ENABLE_JSON_OVER_HTTP, "true");
     properties.setProperty(
-        SqlAsyncCommonModule.STORAGE_TYPE_CONFIG_KEY,
+        SqlAsyncMetadataModule.STORAGE_TYPE_CONFIG_KEY,
         LocalSqlAsyncResultManager.LOCAL_RESULT_MANAGER_TYPE
     );
     properties.setProperty(
@@ -124,7 +125,8 @@ public class SqlAsyncModuleTest
                 .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
           binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
         },
-        new SqlAsyncCommonModule(),
+        new SqlAsyncMetadataModule(),
+        new SqlAsyncCoreModule(),
         new SqlAsyncModule()
     );
   }

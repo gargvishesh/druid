@@ -34,6 +34,7 @@ import com.google.inject.Provides;
 import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import io.airlift.airline.Command;
+import io.imply.druid.sql.async.guice.SqlAsyncCoreModule;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.druid.audit.AuditManager;
 import org.apache.druid.client.CoordinatorSegmentWatcherConfig;
@@ -169,6 +170,7 @@ public class CliCoordinator extends ServerRunnable
     List<Module> modules = new ArrayList<>();
 
     modules.add(JettyHttpClientModule.global());
+    modules.add(new SqlAsyncCoreModule());
 
     modules.add(
         new Module()
