@@ -31,6 +31,12 @@
     </parent>
 
     <dependencies>
+        <dependency>
+            <groupId>io.imply</groupId>
+            <artifactId>imply-sql-async-core</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
         <!-- include druid-core to prevent older versions of dependencies
         from being pulled in by airline and dependencies of druid-server -->
         <dependency>

@@ -11,8 +11,8 @@ package io.imply.druid.sql.async.result;
 
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
-import io.imply.druid.sql.async.SqlAsyncCommonModule;
 import io.imply.druid.sql.async.SqlAsyncUtil;
+import io.imply.druid.sql.async.guice.SqlAsyncCoreModule;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
@@ -33,16 +33,13 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 
-/**
- * TODO(gianm): Make not in-memory...
- */
 @ManageLifecycle
 public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
 {
   public static final String LOCAL_RESULT_MANAGER_TYPE = "local";
   public static final String BASE_LOCAL_STORAGE_CONFIG_KEY = String.join(
       ".",
-      SqlAsyncCommonModule.BASE_STORAGE_CONFIG_KEY,
+      SqlAsyncCoreModule.BASE_STORAGE_CONFIG_KEY,
       LOCAL_RESULT_MANAGER_TYPE
   );
   public static final String LOCAL_STORAGE_DIRECTORY_CONFIG_KEY = String.join(

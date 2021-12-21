@@ -6,6 +6,6 @@
 # of the license agreement you entered into with Imply.
 
 io.imply.druid.sql.async.SqlAsyncModule
-io.imply.druid.sql.async.SqlAsyncCommonModule
+io.imply.druid.sql.async.SqlAsyncMetadataModule
 io.imply.druid.sql.async.coordinator.SqlAsyncCleanupModule
 io.imply.druid.sql.async.BrokerIdServiceModule

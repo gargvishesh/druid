@@ -20,6 +20,7 @@
 package io.imply.druid.sql.async.result;
 
 import com.fasterxml.jackson.databind.Module;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import org.apache.druid.guice.JsonConfigProvider;
@@ -29,7 +30,6 @@ import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 
-import java.util.Collections;
 import java.util.List;
 
 public class S3SqlAsyncResultStorageModule implements DruidModule
@@ -37,7 +37,7 @@ public class S3SqlAsyncResultStorageModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return Collections.emptyList();
+    return ImmutableList.of();
   }
 
   @Override
