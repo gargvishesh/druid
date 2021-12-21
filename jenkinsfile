@@ -1709,7 +1709,8 @@ pipeline {
                                         NETTY_UPSTREAM_COMMITISH=${NETTY_UPSTREAM_COMMITISH:-"netty-$NETTY_UPSTREAM_VERSION"}
                                         NETTY_UPSTREAM_DIR="$TMP_DIR/$NETTY_UPSTREAM_NAME.git"
 
-                                        DERBYTOOLS_VERSION="10.11.1.1"
+                                        # Matching the version from pom.xml
+                                        DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
                                         HADOOP_VERSION="2.8.5"
@@ -1775,7 +1776,7 @@ pipeline {
                                         DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
                                         curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
 
-                                        if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "10a124a8962c6f8ea70a368d711ce6883889ca34" ]
+                                        if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "338d5a54b4089c80414fe0ecb3899d521da69b26" ]
                                         then
                                           echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
                                           exit 1
