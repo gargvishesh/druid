@@ -44,6 +44,6 @@ set -e
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username stateonlyuser --new-password helloworld
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername stateonlyuser --cclientid some-druid-cluster --rolename stateOnlyRole
 
-curl https://repo.qa.imply.io:443/artifactory/tgz-local/keycloak-not-before-policies-api/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.tar.gz -o /tmp/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.tar.gz
+curl https://repo.cnc.imply.io:443/artifactory/tgz-local/keycloak-not-before-policies-api/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.tar.gz -o /tmp/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.tar.gz
 tar -xzvf /tmp/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.tar.gz -C /tmp
 cp /tmp/keycloak-not-before-policies-api-$KEYCLOAK_NOT_BEFORE_API_VERSION.jar /opt/jboss/keycloak/standalone/deployments
