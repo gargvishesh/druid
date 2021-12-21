@@ -16,7 +16,7 @@
 
 `jenkinsfile` contains definition of CI pipeline running on QA-jenkins
 
-Here is link to Druid project on jenkins server: https://ci.qa.imply.io/job/imply-druid/job/druid/
+Here is link to Druid project on jenkins server: https://ci.cnc.imply.io/job/imply-druid/job/druid/
 
 ## How it works
 

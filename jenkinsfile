@@ -534,7 +534,7 @@ pipeline {
         MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
         MAVEN_SKIP_TESTS = "-Pskip-tests"
         DOCKER_IP = "127.0.0.1"
-        APACHE_ARCHIVE_MIRROR_HOST = "https://repo.qa.imply.io/artifactory/archive-apache-org-remote"
+        APACHE_ARCHIVE_MIRROR_HOST = "https://repo.cnc.imply.io/artifactory/archive-apache-org-remote"
         COMPOSE_HTTP_TIMEOUT = "600"
 
         ACTIVE_DEV_BRANCH_REGEX = '^monthly$'
@@ -545,11 +545,11 @@ pipeline {
         IMAGE_JDK11 = "docker/druid-ci-jdk11:1620827975"
         IMAGE_JDK15 = "docker/druid-ci-jdk15:1625878101"
         DOCKER_TAG = "${BUILD_TAG}".replaceAll(~/[^A-Za-z0-9_-]/,'_')
-        RT_REGISTRY_URL = "https://repo.qa.imply.io/artifactory"
+        RT_REGISTRY_URL = "https://repo.cnc.imply.io/artifactory"
         RT_REGISTRY_CREDS = "repo.qa.imply.io"
         RT_SERVER_ID = "repo-qa-imply-io"
-        RT_DOCKER_REPOSITORY_PREFIX = "repo.qa.imply.io"
-        DOCKER_REGISTRY_MIRROR = "https://registry-mirror.qa.imply.io:443"
+        RT_DOCKER_REPOSITORY_PREFIX = "repo.cnc.imply.io"
+        DOCKER_REGISTRY_MIRROR = "https://repo.cnc.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
         EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
         EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
