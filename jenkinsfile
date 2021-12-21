@@ -554,7 +554,7 @@ pipeline {
         EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
         EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
         EXPECTED_SHA1_RUN_ZK = "ee4c4f10bb721a69738d49c4835d81456992e295"
-       
+
     }
 
     stages {
@@ -1391,7 +1391,7 @@ pipeline {
                     steps { coreIntegrationTests() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
-                
+
                 stage("(Compile=openjdk8, Run=openjdk8) perfect rollup parallel batch index integration test with deep storage as intermediate store") {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=shuffle-deep-store';
@@ -1715,8 +1715,7 @@ pipeline {
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
                                         HADOOP_VERSION="2.8.5"
 
-                                        # This should match the version used in druid
-                                        MYSQL_CONNECTOR_VERSION="5.1.48"
+                                        MARIADB_CONNECTOR_VERSION="2.7.3"
 
                                         # Install our patched version of Netty.
                                         git clone -b "$NETTY_UPSTREAM_COMMITISH" --single-branch --depth 1 "$NETTY_UPSTREAM_REPO" "$NETTY_UPSTREAM_DIR"
@@ -1736,7 +1735,6 @@ pipeline {
                                         mvn clean install \
                                             -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
                                             -Dhadoop.compile.version="$HADOOP_VERSION" \
-                                            -Dmysql.version="$MYSQL_CONNECTOR_VERSION" \
                                             -Danimal.sniffer.skip=true \
                                             -Dcheckstyle.skip=true \
                                             -Denforcer.skip=true \
@@ -1758,14 +1756,14 @@ pipeline {
                                         tar -C "$TMP_DIR" -xzf "$WORKSPACE"/distribution/target/apache-druid-*-bin.tar.gz
                                         mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
 
-                                        # Fetch the MySQL JDBC driver from Maven Central
-                                        MYSQL_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
-                                        mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
-                                        curl -o "$MYSQL_CONNECTOR_LOCATION" --retry 10 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${MYSQL_CONNECTOR_VERSION}/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.jar"
+                                        # Fetch the MariaDB Client from mariadb.com
+                                        MARIADB_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
+                                        #mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
+                                        curl -o "$MARIADB_CONNECTOR_LOCATION" --retry 10 "https://downloads.mariadb.com/Connectors/java/connector-java-${MARIADB_CONNECTOR_VERSION}/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
 
-                                        if [ "$(sha1sum "$MYSQL_CONNECTOR_LOCATION" | awk '{print $1}')" != "9140be77aafa5050bf4bb936d560cbacb5a6b5c1" ]
+                                        if [ "$(sha1sum "$MARIADB_CONNECTOR_LOCATION" | awk '{print $1}')" != "4a2edc05bd882ad19371d2615c2635dccf8d74f0" ]
                                         then
-                                          echo "$MYSQL_CONNECTOR_LOCATION: checksum mismatch" >&2
+                                          echo "$MARIADB_CONNECTOR_LOCATION: checksum mismatch" >&2
                                           exit 1
                                         fi
 
@@ -1811,14 +1809,14 @@ pipeline {
                                           }
                                         }
                                         EOT
-                                        
+
                                         function verify_checksum() {
                                             local file="$1"
                                             local checksum="$2"
                                             if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
                                                 1>&2 cat << EOF
                                                     $file has changed in the druid repo! Look at the changes and incorporate them in the
-                                                    script if needed. Then update the expected sha1 in this script. Also update the imply 
+                                                    script if needed. Then update the expected sha1 in this script. Also update the imply
                                                     startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
                                                 EOF
                                                 exit 1
