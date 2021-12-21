@@ -11,11 +11,8 @@ package io.imply.security;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
-import org.apache.druid.server.security.Action;
-import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ResourceAction;
-import org.apache.druid.server.security.ResourceType;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +22,8 @@ public class ImplyToken
   private final String user;
   private final long expiry;
   private final List<ResourceAction> permissions;
+
+  private static final List<ResourceAction> ALLOW_ALL_RESOURCE_ACTIONS = AuthorizationUtils.makeSuperUserPermissions();
 
   @JsonCreator
   public ImplyToken(
@@ -89,45 +88,6 @@ public class ImplyToken
 
   public static ImplyToken generateInternalClientToken(long expiry)
   {
-    ResourceAction datasourceR = new ResourceAction(
-        new Resource(".*", ResourceType.DATASOURCE),
-        Action.READ
-    );
-
-    ResourceAction datasourceW = new ResourceAction(
-        new Resource(".*", ResourceType.DATASOURCE),
-        Action.WRITE
-    );
-
-    ResourceAction configR = new ResourceAction(
-        new Resource(".*", ResourceType.CONFIG),
-        Action.READ
-    );
-
-    ResourceAction configW = new ResourceAction(
-        new Resource(".*", ResourceType.CONFIG),
-        Action.WRITE
-    );
-
-    ResourceAction stateR = new ResourceAction(
-        new Resource(".*", ResourceType.STATE),
-        Action.READ
-    );
-
-    ResourceAction stateW = new ResourceAction(
-        new Resource(".*", ResourceType.STATE),
-        Action.WRITE
-    );
-
-    List<ResourceAction> resourceActions = Lists.newArrayList(
-        datasourceR,
-        datasourceW,
-        configR,
-        configW,
-        stateR,
-        stateW
-    );
-
-    return new ImplyToken("druid_internal", expiry, resourceActions, null);
+    return new ImplyToken("druid_internal", expiry, ALLOW_ALL_RESOURCE_ACTIONS, null);
   }
 }
