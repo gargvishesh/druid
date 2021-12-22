@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
+import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesSketch;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesSketchIterator;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
@@ -83,9 +84,10 @@ public class SessionAvgScoreToHistogramFilteringPostAggregator implements PostAg
   @Override
   public byte[] getCacheKey()
   {
-    CacheKeyBuilder builder = new CacheKeyBuilder((byte) -3)
+    CacheKeyBuilder builder = new CacheKeyBuilder(ImplyAggregationUtil.SESSION_AVG_SCORE_TO_HISTOGRAM_FILTERING_CACHE_ID)
         .appendCacheable(field)
-        .appendDoubleArray(splitPoints);
+        .appendDoubleArray(splitPoints)
+        .appendString(Arrays.toString(filterBuckets)); // no method for int[], so workaround for proprietary changes
     return builder.build();
   }
 
