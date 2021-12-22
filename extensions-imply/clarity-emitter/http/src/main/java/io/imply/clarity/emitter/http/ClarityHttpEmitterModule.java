@@ -11,6 +11,7 @@ package io.imply.clarity.emitter.http;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.inject.Binder;
@@ -28,6 +29,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.core.Emitter;
 import org.apache.druid.java.util.http.client.HttpClientConfig;
 import org.apache.druid.java.util.http.client.HttpClientInit;
+import org.apache.druid.utils.JvmUtils;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -72,14 +74,35 @@ public class ClarityHttpEmitterModule implements DruidModule
   )
   {
     final ClarityHttpEmitterConfig config = configSupplier.get();
+    HttpClientConfig httpClientConfig = getHttpClientConfig(configSupplier.get(), sslConfig.get());
+    return new ClarityHttpEmitter(
+        config,
+        ClarityNodeDetails.fromInjector(injector, config),
+        HttpClientInit.createClient(httpClientConfig, lifecycle),
+        jsonMapper
+    );
+  }
+
+  @VisibleForTesting
+  public static HttpClientConfig getHttpClientConfig(
+      ClarityHttpEmitterConfig config,
+      ClarityHttpEmitterSSLClientConfig sslConfig
+  )
+  {
     final HttpClientConfig.Builder builder = HttpClientConfig
         .builder()
         .withNumConnections(1)
         .withReadTimeout(config.getReadTimeout().toStandardDuration())
         .withHttpProxyConfig(config.getProxyConfig());
 
+    if (config.getWorkerCount() != null) {
+      builder.withWorkerCount(config.getWorkerCount());
+    } else {
+      builder.withWorkerCount(getDefaultWorkerCount());
+    }
+
     final SSLContext context;
-    if (sslConfig.get().getTrustStorePath() == null) {
+    if (sslConfig.getTrustStorePath() == null) {
       try {
         context = SSLContext.getDefault();
       }
@@ -87,19 +110,19 @@ public class ClarityHttpEmitterModule implements DruidModule
         throw Throwables.propagate(e);
       }
     } else {
-      context = getSSLContext(sslConfig.get());
+      context = getSSLContext(sslConfig);
     }
     builder.withSslContext(context);
-
-    return new ClarityHttpEmitter(
-        config,
-        ClarityNodeDetails.fromInjector(injector, config),
-        HttpClientInit.createClient(builder.build(), lifecycle),
-        jsonMapper
-    );
+    return builder.build();
   }
 
-  private SSLContext getSSLContext(ClarityHttpEmitterSSLClientConfig config)
+  @VisibleForTesting
+  public static int getDefaultWorkerCount()
+  {
+    return Math.min(10, JvmUtils.getRuntimeInfo().getAvailableProcessors() * 2);
+  }
+
+  private static SSLContext getSSLContext(ClarityHttpEmitterSSLClientConfig config)
   {
     log.info("Creating SslContext for https client using config [%s]", config);
 

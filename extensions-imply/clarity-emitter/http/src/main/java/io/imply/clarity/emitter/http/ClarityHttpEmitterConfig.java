@@ -115,6 +115,9 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
 
   @JsonProperty
   private Map<String, Object> context = null;
+  
+  @JsonProperty
+  private Integer workerCount;
 
   private ClarityHttpEmitterConfig()
   {
@@ -142,7 +145,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       Set<String> sampledNodeTypes,
       Set<String> customQueryDimensions,
       HttpClientProxyConfig proxyConfig,
-      Map<String, Object> context
+      Map<String, Object> context,
+      Integer workerCount
   )
   {
     this.flushMillis = (flushMillis != null ? flushMillis : DEFAULT_FLUSH_MILLIS);
@@ -171,6 +175,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
                                   : DEFAULT_CUSTOM_QUERY_DIMENSIONS);
     this.proxyConfig = proxyConfig;
     this.context = context;
+    this.workerCount = workerCount;
   }
 
   public long getFlushMillis()
@@ -288,6 +293,11 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     return context;
   }
 
+  public Integer getWorkerCount()
+  {
+    return workerCount;
+  }
+
   @Override
   public String toString()
   {
@@ -313,6 +323,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
            ", customQueryDimensions=" + customQueryDimensions +
            ", proxyConfig=" + proxyConfig +
            ", context=" + context +
+           ", workerCount=" + workerCount +
            '}';
   }
 
@@ -344,6 +355,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     private Set<String> customQueryDimensions;
     private HttpClientProxyConfig proxyConfig;
     private Map<String, Object> context;
+    private Integer workerCount;
 
     public Builder(String recipientBaseUrl)
     {
@@ -470,6 +482,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       return this;
     }
 
+    public Builder withWorkerCount(Integer workerCount)
+    {
+      this.workerCount = workerCount;
+      return this;
+    }
+
     public ClarityHttpEmitterConfig build()
     {
       return new ClarityHttpEmitterConfig(
@@ -493,7 +511,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
           sampledNodeTypes,
           customQueryDimensions,
           proxyConfig,
-          context
+          context,
+          workerCount
       );
     }
   }

@@ -261,6 +261,8 @@
                                         <argument>io.imply:imply-timeseries</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-sql-async</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-nested-data</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>

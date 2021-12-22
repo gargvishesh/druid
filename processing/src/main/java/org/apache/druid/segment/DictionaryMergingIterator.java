@@ -124,6 +124,11 @@ public class DictionaryMergingIterator<T extends Comparable<T>> implements Close
     return value;
   }
 
+  public int getCounter()
+  {
+    return counter;
+  }
+
   protected PeekingIterator<T> transformIndexedIterator(Indexed<T> indexed)
   {
     return Iterators.peekingIterator(
