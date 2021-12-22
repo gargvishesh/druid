@@ -1,0 +1,72 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
+package io.imply.druid.nested.expressions;
+
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.math.expr.Expr;
+import org.apache.druid.math.expr.ExprEval;
+import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.ExpressionType;
+import org.apache.druid.math.expr.InputBindings;
+import org.apache.druid.math.expr.Parser;
+import org.apache.druid.testing.InitializedNullHandlingTest;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.util.Map;
+
+public class NestedDataExpressionsTest extends InitializedNullHandlingTest
+{
+  private static final ExprMacroTable MACRO_TABLE = new ExprMacroTable(
+      ImmutableList.of(
+          new NestedDataExpressions.StructExprMacro()
+      )
+  );
+  private static final Map<String, Object> NEST = ImmutableMap.of(
+      "x", 100L,
+      "y", 200L,
+      "z", 300L
+  );
+
+  private static final Map<String, Object> NESTER = ImmutableMap.of(
+      "x", ImmutableList.of("a", "b", "c"),
+      "y", ImmutableMap.of("a", "hello", "b", "world")
+  );
+
+  Expr.ObjectBinding inputBindings = InputBindings.withTypedSuppliers(
+      new ImmutableMap.Builder<String, Pair<ExpressionType, Supplier<Object>>>()
+          .put("nest", new Pair<>(NestedDataExpressions.TYPE, () -> NEST))
+          .put("nester", new Pair<>(NestedDataExpressions.TYPE, () -> NESTER))
+          .put("string", new Pair<>(ExpressionType.STRING, () -> "abcdef"))
+          .put("long", new Pair<>(ExpressionType.LONG, () -> 1234L))
+          .put("double", new Pair<>(ExpressionType.DOUBLE, () -> 1.234))
+          .put("nullString", new Pair<>(ExpressionType.STRING, () -> null))
+          .put("nullLong", new Pair<>(ExpressionType.LONG, () -> null))
+          .put("nullDouble", new Pair<>(ExpressionType.DOUBLE, () -> null))
+          .build()
+  );
+
+  @Test
+  public void testStructExpression()
+  {
+    Expr expr = Parser.parse("struct('x',100,'y',200,'z',300)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertEquals(NEST, eval.value());
+
+    expr = Parser.parse("struct('x',array('a','b','c'),'y',struct('a','hello','b','world'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    // decompose because of array equals
+    Assert.assertArrayEquals(new Object[]{"a", "b", "c"}, (Object[]) ((Map) eval.value()).get("x"));
+    Assert.assertEquals(ImmutableMap.of("a", "hello", "b", "world"), ((Map) eval.value()).get("y"));
+  }
+}

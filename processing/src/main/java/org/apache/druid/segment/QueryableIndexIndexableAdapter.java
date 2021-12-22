@@ -68,6 +68,11 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
     this.metadata = input.getMetadata();
   }
 
+  public QueryableIndex getQueryableIndex()
+  {
+    return input;
+  }
+
   @Override
   public Interval getDataInterval()
   {
