@@ -24,6 +24,7 @@ import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketc
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.query.timeseries.TimeseriesQueryQueryToolChest;
+import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.junit.Assert;
@@ -99,7 +100,7 @@ public class SessionAvgScoreToHistogramPostAggregatorTest
   @Test
   public void emptySketch()
   {
-    final Aggregator agg = new ArrayOfDoublesSketchBuildAggregator(null, Collections.singletonList(null), 16);
+    final Aggregator agg = new ArrayOfDoublesSketchBuildAggregator(DimensionSelector.constant(null), Collections.singletonList(null), 16);
 
     final Map<String, Object> fields = new HashMap<>();
     fields.put("sketch", agg.get());

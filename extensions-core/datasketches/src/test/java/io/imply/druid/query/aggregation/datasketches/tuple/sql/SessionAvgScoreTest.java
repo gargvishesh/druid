@@ -333,7 +333,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   public void testSessionFilteringVirtualColumn() throws Exception
   {
     ImplySessionFilteringVirtualColumn virtualColumn = new ImplySessionFilteringVirtualColumn("v0", "dim1");
-    virtualColumn.getFilterValues().set(new HashSet<>(ImmutableList.of("7326100087833347728", "9017698800759320817", "703442578091529045")));
+    virtualColumn.getFilterValues().set(new HashSet<>(ImmutableList.of(7326100087833347728L, 9017698800759320817L, 703442578091529045L)));
     testQuery(
         "SELECT\n"
         + "  dim1\n"

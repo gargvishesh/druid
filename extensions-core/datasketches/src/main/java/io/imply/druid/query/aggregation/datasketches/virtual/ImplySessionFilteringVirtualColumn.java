@@ -12,12 +12,14 @@ package io.imply.druid.query.aggregation.datasketches.virtual;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
+import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelector;
@@ -48,7 +50,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
 {
   private final String name;
   private final String field;
-  private final AtomicReference<Set<String>> filterValues;
+  private final AtomicReference<Set<Long>> filterValues;
 
   @JsonCreator
   public ImplySessionFilteringVirtualColumn(@JsonProperty("name") String name, @JsonProperty("field") String field)
@@ -72,7 +74,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
     return field;
   }
 
-  public AtomicReference<Set<String>> getFilterValues()
+  public AtomicReference<Set<Long>> getFilterValues()
   {
     return filterValues;
   }
@@ -80,7 +82,9 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    throw new UnsupportedOperationException("Session filtering doesn't support caching");
+    return new CacheKeyBuilder(ImplyAggregationUtil.SESSION_FILTERING_VIRTUAL_COLUMN_CACHE_ID)
+        .appendString(field)
+        .build();
   }
 
 
@@ -206,8 +210,9 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
     @Override
     public ImmutableBitmap getBitmap(int idx)
     {
-      if (filterValues.get() == null) {
-        delegate.getBitmapFactory().makeEmptyImmutableBitmap();
+      Set<Long> theVals = filterValues.get();
+      if (theVals == null) {
+        return delegate.getBitmapFactory().makeEmptyImmutableBitmap();
       }
       if (idx == 1) {
         BitmapFactory bitmapFactory = delegate.getBitmapFactory();
@@ -216,10 +221,8 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
           String dimVal = delegate.getValue(i);
           if (dimVal != null &&
               !dimVal.isEmpty() &&
-              filterValues.get().contains(
-                  String.valueOf(
-                      MurmurHash3.hash(
-                          dimVal.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1)
+              theVals.contains(
+                  MurmurHash3.hash(dimVal.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1
               )
           ) {
             bitmaps.add(delegate.getBitmap(i));
@@ -254,7 +257,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
         byteBuffer.position(0);
         LongBuffer longBuffer = byteBuffer.asLongBuffer();
         longBuffer.get(hashes);
-        filterValues.set(Arrays.stream(hashes).mapToObj(String::valueOf).collect(Collectors.toSet()));
+        filterValues.set(Arrays.stream(hashes).boxed().collect(Collectors.toSet()));
       }
       return 1;
     }
