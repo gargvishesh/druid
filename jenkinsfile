@@ -1708,13 +1708,6 @@ pipeline {
                                             fi
                                         fi
 
-                                        NETTY_UPSTREAM_NAME="netty"
-                                        NETTY_UPSTREAM_ORG=${NETTY_UPSTREAM_ORG:-"implydata"}
-                                        NETTY_UPSTREAM_REPO="https://github.com/$NETTY_UPSTREAM_ORG/$NETTY_UPSTREAM_NAME.git"
-                                        NETTY_UPSTREAM_VERSION=${NETTY_UPSTREAM_VERSION:-"3.10.6.Final-iap2"}
-                                        NETTY_UPSTREAM_COMMITISH=${NETTY_UPSTREAM_COMMITISH:-"netty-$NETTY_UPSTREAM_VERSION"}
-                                        NETTY_UPSTREAM_DIR="$TMP_DIR/$NETTY_UPSTREAM_NAME.git"
-
                                         # Matching the version from pom.xml
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
@@ -1722,11 +1715,6 @@ pipeline {
                                         HADOOP_VERSION="2.8.5"
 
                                         MARIADB_CONNECTOR_VERSION="2.7.3"
-
-                                        # Install our patched version of Netty.
-                                        git clone -b "$NETTY_UPSTREAM_COMMITISH" --single-branch --depth 1 "$NETTY_UPSTREAM_REPO" "$NETTY_UPSTREAM_DIR"
-                                        (cd "$NETTY_UPSTREAM_DIR" && git checkout "$NETTY_UPSTREAM_COMMITISH")
-                                        (cd "$NETTY_UPSTREAM_DIR" && mvn install -DskipTests)
 
                                         cd $WORKSPACE
 
@@ -1739,7 +1727,6 @@ pipeline {
                                         echo "Compiling Druid with current Java version set. Java version=$current_java_version"
 
                                         mvn clean install \
-                                            -Dnetty3.version="$NETTY_UPSTREAM_VERSION" \
                                             -Dhadoop.compile.version="$HADOOP_VERSION" \
                                             -Danimal.sniffer.skip=true \
                                             -Dcheckstyle.skip=true \
