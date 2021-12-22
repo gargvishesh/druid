@@ -38,6 +38,7 @@ All the keys below should be prefixed by `druid.emitter.clarity.`, i.e. `druid.e
 |`customQueryDimensions`|List<String>|Context dimensions that will be extracted and emitted. When emitted, they will be prepended with the string `context:`.|`[]`|no|
 |`metricsFactoryChoice`|Boolean|If true, registers Clarity's custom query metrics modules as options rather than defaults. Useful if you are defining your own query metrics factories through your own extensions.|false|no|
 |`context`|Map<String, Object>|The keys in this map will be added as additional dimensions to all metrics. They will not override other keys if there's a collision.|null|no|
+|`workerCount`|Integer|Number of HTTP client worker threads.|minimum of 10 or 2 times the number of processors|no|
 
 ### HTTPS Context Configuration
 

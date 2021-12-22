@@ -80,6 +80,7 @@ public class ClarityHttpEmitterConfigTest
         config.getSampledNodeTypes()
     );
     Assert.assertNull(config.getContext());
+    Assert.assertNull(config.getWorkerCount());
   }
 
   @Test
@@ -105,6 +106,7 @@ public class ClarityHttpEmitterConfigTest
     props.setProperty("clarity.sampledMetrics", "[\"arf\"]");
     props.setProperty("clarity.sampledNodeTypes", "[\"woof\"]");
     props.setProperty("clarity.context", "{\"accountId\": \"123-456-7890\"}");
+    props.setProperty("clarity.workerCount", "24");
 
     final ClarityHttpEmitterConfig config = configurator.configurate(
         props,
@@ -131,5 +133,6 @@ public class ClarityHttpEmitterConfigTest
     Assert.assertEquals(ImmutableSet.of("arf"), config.getSampledMetrics());
     Assert.assertEquals(ImmutableSet.of("woof"), config.getSampledNodeTypes());
     Assert.assertEquals(ImmutableMap.of("accountId", (Object) "123-456-7890"), config.getContext());
+    Assert.assertEquals((Integer) 24, config.getWorkerCount());
   }
 }
