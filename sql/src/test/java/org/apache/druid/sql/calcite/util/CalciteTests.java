@@ -1173,7 +1173,7 @@ public class CalciteTests
       final QueryRunnerFactoryConglomerate conglomerate,
       final SpecificSegmentsQuerySegmentWalker walker,
       final PlannerConfig plannerConfig,
-      final ViewManager viewManager,
+      @Nullable final ViewManager viewManager,
       final DruidSchemaManager druidSchemaManager,
       final AuthorizerMapper authorizerMapper
   )
