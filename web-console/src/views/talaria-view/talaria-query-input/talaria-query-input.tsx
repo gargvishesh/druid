@@ -18,7 +18,7 @@
 
 import { ResizeEntry } from '@blueprintjs/core';
 import { ResizeSensor2 } from '@blueprintjs/popover2';
-import ace, { Editor } from 'brace';
+import ace, { Ace } from 'ace-builds';
 import escape from 'lodash.escape';
 import React from 'react';
 import AceEditor from 'react-ace';
@@ -33,8 +33,15 @@ import { SQL_DATA_TYPES, SQL_FUNCTIONS } from '../../../../lib/sql-docs';
 import { ColumnMetadata, RowColumn, uniq } from '../../../utils';
 
 import './talaria-query-input.scss';
+import Completion = Ace.Completion;
 
-const langTools = ace.acequire('ace/ext/language_tools');
+const langTools = ace.require('ace/ext/language_tools');
+
+const COMPLETER = {
+  insertMatch: (editor: any, data: Completion) => {
+    editor.completer.insertMatch({ value: data.name });
+  },
+};
 
 export interface TalariaQueryInputProps {
   queryString: string;
@@ -63,7 +70,7 @@ export class TalariaQueryInput extends React.PureComponent<
   TalariaQueryInputProps,
   TalariaQueryInputState
 > {
-  private aceEditor: Editor | undefined;
+  private aceEditor: Ace.Editor | undefined;
 
   static replaceDefaultAutoCompleter(): void {
     if (!langTools) return;
@@ -102,19 +109,17 @@ export class TalariaQueryInput extends React.PureComponent<
   static addFunctionAutoCompleter(): void {
     if (!langTools) return;
 
-    const functionList: any[] = SQL_FUNCTIONS.map(([name, args, description]) => {
-      return {
-        value: name,
-        score: 80,
+    const functionList: any[] = Object.keys(SQL_FUNCTIONS).flatMap(name => {
+      const versions = SQL_FUNCTIONS[name];
+      return versions.map(([args, description]) => ({
+        name: name,
+        value: versions.length > 1 ? `${name}(${args})` : name,
+        score: 1100, // Use a high score to appear over the 'local' suggestions that have a score of 1000
         meta: 'function',
         syntax: `${name}(${args})`,
         description,
-        completer: {
-          insertMatch: (editor: any, data: any) => {
-            editor.completer.insertMatch({ value: data.caption });
-          },
-        },
-      };
+        completer: COMPLETER,
+      }));
     });
 
     langTools.addCompleter({
@@ -131,9 +136,9 @@ export class TalariaQueryInput extends React.PureComponent<
 
   static makeDocHtml(item: any) {
     return `
-<div class="doc-name">${escape(item.caption)}</div>
-<div class="doc-syntax">${item.syntax}</div>
-<div class="doc-description">${escape(item.description)}</div>`;
+<div class="doc-name">${item.name}</div>
+<div class="doc-syntax">${escape(item.syntax)}</div>
+<div class="doc-description">${item.description}</div>`;
   }
 
   static getDerivedStateFromProps(props: TalariaQueryInputProps, state: TalariaQueryInputState) {
@@ -243,6 +248,7 @@ export class TalariaQueryInput extends React.PureComponent<
       <AceEditor
         mode={runeMode ? 'hjson' : 'dsql'}
         theme="solarized_dark"
+        className="no-background placeholder-padding"
         name="ace-editor"
         onChange={this.handleChange}
         focus
