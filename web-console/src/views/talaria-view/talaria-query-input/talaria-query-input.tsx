@@ -43,6 +43,12 @@ const COMPLETER = {
   },
 };
 
+interface ItemDescription {
+  name: string;
+  syntax: string;
+  description: string;
+}
+
 export interface TalariaQueryInputProps {
   queryString: string;
   onQueryStringChange(newQueryString: string): void;
@@ -134,7 +140,7 @@ export class TalariaQueryInput extends React.PureComponent<
     });
   }
 
-  static makeDocHtml(item: any) {
+  static makeDocHtml(item: ItemDescription) {
     return `
 <div class="doc-name">${item.name}</div>
 <div class="doc-syntax">${escape(item.syntax)}</div>

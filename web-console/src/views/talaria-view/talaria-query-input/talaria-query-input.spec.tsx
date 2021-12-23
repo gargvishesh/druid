@@ -39,7 +39,7 @@ describe('TalariaQueryInput', () => {
   it('correctly formats helper HTML', () => {
     expect(
       TalariaQueryInput.makeDocHtml({
-        caption: 'COUNT',
+        name: 'COUNT',
         syntax: 'COUNT(*)',
         description: 'Counts the number of things',
       }),
