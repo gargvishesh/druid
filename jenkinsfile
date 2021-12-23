@@ -865,7 +865,7 @@ pipeline {
                             -v ${WORKSPACE}:/project \
                             -v ${HOME}/.m2/repository:/home/inspect/.m2/repository \
                             -v ${WORKSPACE}/inspection-results:/home/inspect/inspection-results \
-                            ccaominh/intellij-inspect:1.0.0 \
+                            repo.cnc.imply.io/docker/ccaominh/intellij-inspect:1.0.0 \
                             /project/pom.xml \
                             /project/.idea/inspectionProfiles/Druid.xml \
                             --levels ERROR \
