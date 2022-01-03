@@ -95,7 +95,7 @@ A recommended value for `DaysAfterInitiation` is 1 day.
 ### Query state and result file management
 
 Async downloads uses two coordinator duties to clean up expired query states and result files: `killAsyncQueryMetadata`, `killAsyncQueryResultWithoutMetadata`, and `updateStaleQueryState`.
-When you turn on async downloads, Druid enables these duties automatically.
+When you turn on async downloads, Druid enables these duties automatically. For long downloads to prevent cleanup of results that take longer than the time to retain the counter for time to retain will be refreshed periodically during the download.
 These duties support the following properties:
 
 |config|description|required|default|
@@ -103,6 +103,7 @@ These duties support the following properties:
 |`druid.query.async.cleanup.timeToRetain`| Retention period of query states and result files. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT60S |
 |`druid.query.async.cleanup.timeToWaitAfterBrokerGone`| Duration to wait after a missing broker is detected by coordinator. If a broker has gone offline for longer than this duration, the coordiantor will mark query states `UNDETERMINED` for the queries that were running in the offline broker. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT1M |
 |`druid.query.async.cleanup.pollPeriod`| Duty group run period. Must be a form of `PT{n}S` to set this to `n` seconds. | no | PT30S |
+|`druid.query.async.readRefreshTime`| How often to reset timeToRetain counter while an async query result is read. Prevents premature cleanup of the query result files while the result file is being downloaded. Value must be greater than or equal to 1s. Supports the [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) duration format. | no | PT10S |
 
 #### Configuring coordinator duties
 

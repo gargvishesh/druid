@@ -11,7 +11,7 @@ package io.imply.druid.sql.async.query;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import io.imply.druid.sql.async.AsyncQueryPoolConfig;
+import io.imply.druid.sql.async.AsyncQueryConfig;
 import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
@@ -22,13 +22,13 @@ public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
 {
   private final String brokerId;
   private final SqlAsyncQueryPool sqlAsyncQueryPool;
-  private final AsyncQueryPoolConfig asyncQueryLimitsConfig;
+  private final AsyncQueryConfig asyncQueryLimitsConfig;
 
   @Inject
   public SqlAsyncQueryStatsMonitor(
       @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
       SqlAsyncQueryPool sqlAsyncQueryPool,
-      AsyncQueryPoolConfig asyncQueryLimitsConfig
+      AsyncQueryConfig asyncQueryLimitsConfig
   )
   {
     this.brokerId = brokerId;

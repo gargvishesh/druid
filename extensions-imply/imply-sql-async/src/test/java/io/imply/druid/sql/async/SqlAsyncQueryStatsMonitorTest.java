@@ -27,7 +27,7 @@ public class SqlAsyncQueryStatsMonitorTest
   private SqlAsyncQueryPool mockSqlAsyncQueryPool;
 
   @Mock
-  private AsyncQueryPoolConfig mockAsyncQueryLimitsConfig;
+  private AsyncQueryConfig mockAsyncQueryLimitsConfig;
 
   @Mock
   private ServiceEmitter mockServiceEmitter;

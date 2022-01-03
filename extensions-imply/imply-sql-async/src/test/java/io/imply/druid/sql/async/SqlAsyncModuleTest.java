@@ -33,6 +33,7 @@ import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.query.DefaultQueryConfig;
 import org.apache.druid.sql.guice.SqlModule;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,10 +61,13 @@ public class SqlAsyncModuleTest
         LocalSqlAsyncResultManager.LOCAL_STORAGE_DIRECTORY_CONFIG_KEY,
         "test"
     );
+    properties.setProperty("druid.query.async.readRefreshTime", "PT33S");
     Injector injector = makeInjector(properties);
     Assert.assertNotNull(injector.getInstance(SqlAsyncMetadataManager.class));
     Assert.assertNotNull(injector.getInstance(SqlAsyncResultManager.class));
     Assert.assertNotNull(injector.getInstance(SqlAsyncQueryPool.class));
+    AsyncQueryConfig asyncQueryConfig = injector.getInstance(AsyncQueryConfig.class);
+    Assert.assertEquals(Duration.standardSeconds(33L), asyncQueryConfig.getReadRefreshTime());
   }
 
   @Test
@@ -119,9 +123,9 @@ public class SqlAsyncModuleTest
           binder.bind(Validator.class).toInstance(Validation.buildDefaultValidatorFactory().getValidator());
           binder.bind(JsonConfigurator.class).in(LazySingleton.class);
           binder.bind(Properties.class).toInstance(props);
-          binder.bind(new TypeLiteral<Supplier<DefaultQueryConfig>>(){})
+          binder.bind(new TypeLiteral<Supplier<DefaultQueryConfig>>() {})
                 .toInstance(Suppliers.ofInstance(new DefaultQueryConfig(null)));
-          binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>(){})
+          binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>() {})
                 .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
           binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
         },

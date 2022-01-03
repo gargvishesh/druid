@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class SqlAsyncMetadataManagerImplTest
@@ -199,6 +200,22 @@ public class SqlAsyncMetadataManagerImplTest
       metadataManager.addNewQuery(queryDetails);
     }
     Assert.assertEquals(40L, metadataManager.totalCompleteQueryResultsSize(ImmutableList.of("id1", "id3")));
+  }
+
+
+  @Test
+  public void testTouchAsyncQuerySuccessfullyUpdatesQueryMetadata()
+      throws AsyncQueryAlreadyExistsException, InterruptedException, AsyncQueryDoesNotExistException
+  {
+    SqlAsyncQueryDetails running = SqlAsyncQueryDetails.createNew("id1", "identity", ResultFormat.CSV).toRunning();
+    metadataManager.addNewQuery(running);
+    Optional<SqlAsyncQueryDetailsAndMetadata> detailsOpt = metadataManager.getQueryDetailsAndMetadata(running.getAsyncResultId());
+    long lastUpateTime = detailsOpt.get().getMetadata().getLastUpdatedTime();
+    Thread.sleep(10L);
+    metadataManager.touchQueryLastUpdateTime(running.getAsyncResultId());
+    Optional<SqlAsyncQueryDetailsAndMetadata> newDetailsOpt = metadataManager.getQueryDetailsAndMetadata(running.getAsyncResultId());
+    long newLastUpateTime = newDetailsOpt.get().getMetadata().getLastUpdatedTime();
+    Assert.assertNotEquals(lastUpateTime, newLastUpateTime);
   }
 
   static void assertQueryState(

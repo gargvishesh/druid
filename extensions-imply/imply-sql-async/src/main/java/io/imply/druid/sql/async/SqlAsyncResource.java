@@ -14,10 +14,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
+import io.imply.druid.sql.async.result.AsyncQueryResettingFilterInputStream;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import io.imply.druid.sql.async.result.SqlAsyncResults;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -50,6 +52,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,6 +73,8 @@ public class SqlAsyncResource
   private final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
   private final AuthorizerMapper authorizerMapper;
   private final ObjectMapper jsonMapper;
+  private final Clock clock;
+  private final AsyncQueryConfig asyncQueryReadRefreshConfig;
 
   @Inject
   public SqlAsyncResource(
@@ -80,7 +85,9 @@ public class SqlAsyncResource
       final SqlLifecycleFactory sqlLifecycleFactory,
       final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
       final AuthorizerMapper authorizerMapper,
-      @Json final ObjectMapper jsonMapper
+      @Json final ObjectMapper jsonMapper,
+      final AsyncQueryConfig asyncQueryReadRefreshConfig,
+      final Clock clock
   )
   {
     this.brokerId = brokerId;
@@ -91,6 +98,8 @@ public class SqlAsyncResource
     this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
     this.authorizerMapper = authorizerMapper;
     this.jsonMapper = jsonMapper;
+    this.asyncQueryReadRefreshConfig = asyncQueryReadRefreshConfig;
+    this.clock = clock;
   }
 
   @POST
@@ -189,7 +198,7 @@ public class SqlAsyncResource
   public Response doGetResults(
       @PathParam("id") final String asyncResultId,
       @Context final HttpServletRequest req
-  ) throws IOException
+  ) throws IOException, AsyncQueryDoesNotExistException
   {
     final Optional<SqlAsyncQueryDetails> queryDetails = metadataManager.getQueryDetails(asyncResultId);
 
@@ -201,10 +210,29 @@ public class SqlAsyncResource
     }
 
     if (queryDetails.get().getState() == SqlAsyncQueryDetails.State.COMPLETE) {
+      // touch query lastupdate time here to ensure it isn't cleaned up while reading it in the beginning
+      metadataManager.touchQueryLastUpdateTime(asyncResultId);
       final Optional<SqlAsyncResults> results = resultManager.readResults(queryDetails.get());
-
       if (results.isPresent()) {
-        return Response.ok(results.get())
+        return Response.ok(new SqlAsyncResults(
+                           new AsyncQueryResettingFilterInputStream(
+                               results.get().getInputStream(),
+                               () -> {
+                                 try {
+                                   metadataManager.touchQueryLastUpdateTime(asyncResultId);
+                                 }
+                                 catch (AsyncQueryDoesNotExistException e) {
+                                   log.error(
+                                       "Unable to touch last update time for asyncResultId %s because that ID is not found in the metadata store.",
+                                       asyncResultId
+                                   );
+                                 }
+                               },
+                               asyncQueryReadRefreshConfig.getReadRefreshTime().getMillis(),
+                               clock
+                           ),
+                           results.get().getSize()
+                       ))
                        .type(queryDetails.get().getResultFormat().contentType())
                        .header("Content-Disposition", "attachment")
                        .build();
