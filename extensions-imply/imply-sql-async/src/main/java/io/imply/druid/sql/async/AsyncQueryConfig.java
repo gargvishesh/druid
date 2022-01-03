@@ -11,15 +11,18 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import org.apache.druid.utils.JvmUtils;
+import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.Min;
 
-public class AsyncQueryPoolConfig
+public class AsyncQueryConfig
 {
   private static final String MAX_CONCURRENT_QUERIES_KEY = "maxConcurrentQueries";
   private static final String MAX_QUERIES_TO_QUEUE_KEY = "maxQueriesToQueue";
+  private static final String READ_REFRESH_TIME = "readRefreshTime";
 
   @JsonProperty
   @Min(1)
@@ -29,10 +32,14 @@ public class AsyncQueryPoolConfig
   @Min(1)
   private int maxQueriesToQueue;
 
+  @JsonProperty
+  private Duration readRefreshTime;
+
   @JsonCreator
-  public AsyncQueryPoolConfig(
+  public AsyncQueryConfig(
       @JsonProperty(MAX_CONCURRENT_QUERIES_KEY) @Nullable Integer maxConcurrentQueries,
-      @JsonProperty(MAX_QUERIES_TO_QUEUE_KEY) @Nullable Integer maxQueriesToQueue
+      @JsonProperty(MAX_QUERIES_TO_QUEUE_KEY) @Nullable Integer maxQueriesToQueue,
+      @JsonProperty(READ_REFRESH_TIME) @Nullable Duration readRefreshTime
   )
   {
     this.maxConcurrentQueries = maxConcurrentQueries == null
@@ -41,6 +48,15 @@ public class AsyncQueryPoolConfig
     this.maxQueriesToQueue = maxQueriesToQueue == null
                              ? computeDefaultMaxQueriesToQueue(this.maxConcurrentQueries)
                              : maxQueriesToQueue;
+    this.readRefreshTime = readRefreshTime == null
+                                     ? Duration.standardSeconds(10L)
+                                     : readRefreshTime;
+    Preconditions.checkArgument(
+        (this.readRefreshTime.isEqual(Duration.standardSeconds(1L))
+         || this.readRefreshTime.isLongerThan(Duration.standardSeconds(1L))),
+        "must have a duration greater than or equal to a 1s duration"
+    );
+
   }
 
   private int computeDefaultMaxConcurrentQueries()
@@ -63,5 +79,10 @@ public class AsyncQueryPoolConfig
   public int getMaxQueriesToQueue()
   {
     return maxQueriesToQueue;
+  }
+
+  public Duration getReadRefreshTime()
+  {
+    return readRefreshTime;
   }
 }

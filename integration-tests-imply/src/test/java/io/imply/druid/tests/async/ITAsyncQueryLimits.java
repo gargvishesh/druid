@@ -83,16 +83,8 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
       }
     }
     finally {
-      // Wait for all the query to be completed and cleanup
       for (String asyncResultId : asyncResultIds) {
-        //TODO: Use the cancel API instead of waiting for cleanup
-        ITRetryUtil.retryUntilTrue(
-            () -> {
-              SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
-              return statusResponse == null;
-            },
-            "Wating for async cleanup coordinator duty to complete"
-        );
+        asyncResourceTestClient.cancel(asyncResultId);
       }
     }
   }

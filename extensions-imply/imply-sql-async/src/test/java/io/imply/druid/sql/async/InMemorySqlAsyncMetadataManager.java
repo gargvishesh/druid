@@ -127,4 +127,19 @@ public class InMemorySqlAsyncMetadataManager implements SqlAsyncMetadataManager
                     .sum();
     }
   }
+
+  @Override
+  public void touchQueryLastUpdateTime(String asyncResultId) throws AsyncQueryDoesNotExistException
+  {
+    synchronized (lock) {
+      SqlAsyncQueryDetailsAndMetadata detailsAndMetadata = queries.get(asyncResultId);
+      if (detailsAndMetadata == null) {
+        throw new AsyncQueryDoesNotExistException(asyncResultId);
+      }
+      queries.put(asyncResultId, new SqlAsyncQueryDetailsAndMetadata(
+          detailsAndMetadata.getSqlAsyncQueryDetails(),
+          new SqlAsyncQueryMetadata(System.currentTimeMillis())
+      ));
+    }
+  }
 }

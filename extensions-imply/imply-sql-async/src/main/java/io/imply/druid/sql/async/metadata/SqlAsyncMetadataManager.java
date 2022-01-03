@@ -42,4 +42,13 @@ public interface SqlAsyncMetadataManager
   long totalCompleteQueryResultsSize();
 
   long totalCompleteQueryResultsSize(Collection<String> asyncResultIds);
+
+  /**
+   * Updates the lastUpdateTime for the query in the metadata.
+   *
+   * @param asyncResultId the id of the async query result
+   *
+   * @throws AsyncQueryDoesNotExistException when the query does not exist for the given ID.
+   */
+  void touchQueryLastUpdateTime(String asyncResultId) throws AsyncQueryDoesNotExistException;
 }

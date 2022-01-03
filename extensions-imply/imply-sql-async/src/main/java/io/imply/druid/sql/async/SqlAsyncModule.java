@@ -42,6 +42,7 @@ import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.server.metrics.MetricsModule;
 import org.apache.druid.sql.guice.SqlModule;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -81,6 +82,8 @@ public class SqlAsyncModule implements DruidModule
     LifecycleModule.register(binder, SqlAsyncResource.class);
 
     binder.bind(SqlAsyncQueryPool.class).toProvider(SqlAsyncQueryPoolProvider.class).in(LazySingleton.class);
+    //this is to enable better testing by allowing control over clocks in tests
+    binder.bind(Clock.class).toInstance(Clock.systemUTC());
     binder.bind(SqlAsyncQueryStatsMonitor.class).in(LazySingleton.class);
     MetricsModule.register(binder, SqlAsyncQueryStatsMonitor.class);
   }
@@ -94,7 +97,7 @@ public class SqlAsyncModule implements DruidModule
   public static class SqlAsyncQueryPoolProvider implements Provider<SqlAsyncQueryPool>
   {
     private final String brokerId;
-    private final AsyncQueryPoolConfig asyncQueryPoolConfig;
+    private final AsyncQueryConfig asyncQueryConfig;
     private final SqlAsyncMetadataManager metadataManager;
     private final SqlAsyncResultManager resultManager;
     private final ObjectMapper jsonMapper;
@@ -105,16 +108,15 @@ public class SqlAsyncModule implements DruidModule
     public SqlAsyncQueryPoolProvider(
         @Named(ASYNC_BROKER_ID) final String brokerId,
         final @Json ObjectMapper jsonMapper,
-        final AsyncQueryPoolConfig asyncQueryPoolConfig,
+        final AsyncQueryConfig asyncQueryConfig,
         final SqlAsyncMetadataManager metadataManager,
         final SqlAsyncResultManager resultManager,
-        final AsyncQueryPoolConfig asyncQueryLimitsConfig,
         final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
         final Lifecycle lifecycle
     )
     {
       this.brokerId = brokerId;
-      this.asyncQueryPoolConfig = asyncQueryPoolConfig;
+      this.asyncQueryConfig = asyncQueryConfig;
       this.metadataManager = metadataManager;
       this.resultManager = resultManager;
       this.jsonMapper = jsonMapper;
@@ -126,27 +128,26 @@ public class SqlAsyncModule implements DruidModule
     public SqlAsyncQueryPool get()
     {
       final ThreadPoolExecutor exec = new ThreadPoolExecutor(
-          asyncQueryPoolConfig.getMaxConcurrentQueries(),
+          asyncQueryConfig.getMaxConcurrentQueries(),
           // The maximum number of concurrent query allowed is control by setting maximumPoolSize of the
           // ThreadPoolExecutor. This basically control how many query can be executing at the same time.
-          asyncQueryPoolConfig.getMaxConcurrentQueries(),
+          asyncQueryConfig.getMaxConcurrentQueries(),
           0L,
           TimeUnit.MILLISECONDS,
           // The queue limit is control by setting the size of the queue use for holding tasks before they are executed
-          new LinkedBlockingQueue<>(asyncQueryPoolConfig.getMaxQueriesToQueue()),
+          new LinkedBlockingQueue<>(asyncQueryConfig.getMaxQueriesToQueue()),
           Execs.makeThreadFactory("sql-async-pool-%d", null),
           new RejectedExecutionHandler()
           {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor)
             {
-              throw new QueryCapacityExceededException(asyncQueryPoolConfig.getMaxQueriesToQueue());
+              throw new QueryCapacityExceededException(asyncQueryConfig.getMaxQueriesToQueue());
             }
           }
       );
       SqlAsyncQueryPool sqlAsyncQueryPool = new SqlAsyncQueryPool(
           brokerId,
-          asyncQueryPoolConfig,
           exec,
           metadataManager,
           resultManager,
@@ -157,8 +158,8 @@ public class SqlAsyncModule implements DruidModule
       lifecycle.addManagedInstance(sqlAsyncQueryPool);
       LOG.debug(
           "Created SqlAsyncQueryPool with maxConcurrentQueries[%d] and maxQueriesToQueue[%d]",
-          asyncQueryPoolConfig.getMaxConcurrentQueries(),
-          asyncQueryPoolConfig.getMaxQueriesToQueue()
+          asyncQueryConfig.getMaxConcurrentQueries(),
+          asyncQueryConfig.getMaxQueriesToQueue()
       );
       return sqlAsyncQueryPool;
     }
@@ -201,6 +202,6 @@ public class SqlAsyncModule implements DruidModule
 
   public static void bindAsyncLimitsConfig(Binder binder)
   {
-    JsonConfigProvider.bind(binder, BASE_ASYNC_CONFIG_KEY, AsyncQueryPoolConfig.class);
+    JsonConfigProvider.bind(binder, BASE_ASYNC_CONFIG_KEY, AsyncQueryConfig.class);
   }
 }

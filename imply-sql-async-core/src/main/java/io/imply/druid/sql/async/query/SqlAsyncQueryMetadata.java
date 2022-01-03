@@ -12,9 +12,12 @@ package io.imply.druid.sql.async.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Deprecated only used to maintain backwards compatability.
+ */
 public class SqlAsyncQueryMetadata
 {
-  // The time in milliseconds from epoch when Sql Async Query was last updated.
+  // The time in milliseconds from epoch when Sql Async Query was last accessed or updated.
 
   private final long lastUpdatedTime;
 

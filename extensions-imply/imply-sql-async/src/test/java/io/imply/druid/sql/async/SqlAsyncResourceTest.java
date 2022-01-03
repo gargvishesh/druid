@@ -11,9 +11,11 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
+import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManagerImpl;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataStorageTableConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
+import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.LocalSqlAsyncResultManager;
@@ -45,22 +47,27 @@ import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.File;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -69,6 +76,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private static final int MAX_CONCURRENT_QUERIES = 2;
   private static final int MAX_QUERIES_TO_QUEUE = 2;
   private static final String BROKER_ID = "brokerId123";
+  private static final long ASYNC_LAST_UPDATE_TIME_TRIGGER = 2;
+  private static final long CLOCK_START_TIME = 100L;
 
   @Rule
   public final DerbyConnectorRule connectorRule = new DerbyConnectorRule();
@@ -79,6 +88,10 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private SqlAsyncQueryPool queryPool;
   private SqlAsyncResource resource;
   private HttpServletRequest req;
+  private SqlAsyncMetadataManagerImpl metadataManager;
+
+  @Mock
+  private Clock clock;
 
   @Override
   public DruidOperatorTable createOperatorTable()
@@ -106,12 +119,13 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     EmittingLogger.registerEmitter(new NoopServiceEmitter());
     final File resultStorage = temporaryFolder.newFolder();
-    final SqlAsyncMetadataManagerImpl metadataManager = new SqlAsyncMetadataManagerImpl(
+    metadataManager = new SqlAsyncMetadataManagerImpl(
         jsonMapper,
         MetadataStorageConnectorConfig::new,
         tableConfig,
         connectorRule.getConnector()
     );
+    Mockito.when(clock.millis()).thenReturn(CLOCK_START_TIME);
     metadataManager.initialize();
     final Lifecycle lifecycle = new Lifecycle();
     final SqlAsyncResultManager resultManager = new LocalSqlAsyncResultManager(
@@ -124,18 +138,18 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
           }
         }
     );
-    AsyncQueryPoolConfig asyncQueryPoolConfig = new AsyncQueryPoolConfig(
+    AsyncQueryConfig asyncQueryConfig = new TestableAsyncQueryConfig(
         MAX_CONCURRENT_QUERIES,
-        MAX_QUERIES_TO_QUEUE
+        MAX_QUERIES_TO_QUEUE,
+        Duration.millis(ASYNC_LAST_UPDATE_TIME_TRIGGER)
     );
     SqlAsyncLifecycleManager sqlAsyncLifecycleManager = new SqlAsyncLifecycleManager(new SqlLifecycleManager());
     SqlAsyncModule.SqlAsyncQueryPoolProvider poolProvider = new SqlAsyncModule.SqlAsyncQueryPoolProvider(
         BROKER_ID,
         jsonMapper,
-        asyncQueryPoolConfig,
+        asyncQueryConfig,
         metadataManager,
         resultManager,
-        asyncQueryPoolConfig,
         sqlAsyncLifecycleManager,
         lifecycle
     );
@@ -155,7 +169,9 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         sqlLifecycleFactory,
         sqlAsyncLifecycleManager,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
-        jsonMapper
+        jsonMapper,
+        asyncQueryConfig,
+        clock
     );
     req = mockAuthenticatedRequest("userID");
   }
@@ -224,7 +240,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGetResults() throws IOException
+  public void testGetResults() throws IOException, AsyncQueryDoesNotExistException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -261,7 +277,104 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGetResultsUnknownQuery() throws IOException
+  public void testGetResultsAndEnsureLastUpdateTimeIsAffected()
+      throws IOException, InterruptedException, AsyncQueryDoesNotExistException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select dim1, sum(m1) from foo group by 1",
+            ResultFormat.CSV,
+            true,
+            false,
+            false,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+
+    Response resultsResponse = resource.doGetResults(response.getAsyncResultId(), req);
+    Optional<SqlAsyncQueryDetailsAndMetadata> metadataResultsOpt = metadataManager.getQueryDetailsAndMetadata(response.getAsyncResultId());
+    long beforeReadLastUpdateTime = metadataResultsOpt.get().getMetadata().getLastUpdatedTime();
+    Thread.sleep(1);
+    SqlAsyncResults results = (SqlAsyncResults) resultsResponse.getEntity();
+    Assert.assertEquals(55, results.getSize());
+
+    long currentTime = CLOCK_START_TIME;
+    byte[] buf = new byte[(int) results.getSize()];
+    for (int ii = 0; ii < results.getSize(); ii++) {
+      Mockito.when(clock.millis()).thenReturn(currentTime += ASYNC_LAST_UPDATE_TIME_TRIGGER);
+      buf[ii] = (byte) results.getInputStream().read();
+    }
+    metadataResultsOpt = metadataManager.getQueryDetailsAndMetadata(response.getAsyncResultId());
+    long postReadLastUpdateTime = metadataResultsOpt.get().getMetadata().getLastUpdatedTime();
+    Assert.assertTrue(postReadLastUpdateTime > beforeReadLastUpdateTime);
+    Assert.assertEquals(
+        "dim1,EXPR$1\n"
+        + ",1.0\n"
+        + "1,4.0\n"
+        + "10.1,2.0\n"
+        + "2,3.0\n"
+        + "abc,6.0\n"
+        + "def,5.0\n"
+        + "\n",
+        StringUtils.fromUtf8(buf)
+    );
+  }
+
+  @Test
+  public void testGetResultsAndEnsureLastUpdateTimeIsNotAffectedIfTimeStandsStill()
+      throws IOException, InterruptedException, AsyncQueryDoesNotExistException
+  {
+    Response submitResponse = resource.doPost(
+        new SqlQuery(
+            "select dim1, sum(m1) from foo group by 1",
+            ResultFormat.CSV,
+            true,
+            false,
+            false,
+            null,
+            null
+        ),
+        req
+    );
+    Assert.assertEquals(Status.ACCEPTED.getStatusCode(), submitResponse.getStatus());
+    SqlAsyncQueryDetailsApiResponse response = (SqlAsyncQueryDetailsApiResponse) submitResponse.getEntity();
+    waitUntilState(response.getAsyncResultId(), State.COMPLETE);
+
+    Response resultsResponse = resource.doGetResults(response.getAsyncResultId(), req);
+    Optional<SqlAsyncQueryDetailsAndMetadata> metadataResultsOpt = metadataManager.getQueryDetailsAndMetadata(response.getAsyncResultId());
+    long beforeReadLastUpdateTime = metadataResultsOpt.get().getMetadata().getLastUpdatedTime();
+    Thread.sleep(1);
+    SqlAsyncResults results = (SqlAsyncResults) resultsResponse.getEntity();
+    Assert.assertEquals(55, results.getSize());
+
+    byte[] buf = new byte[(int) results.getSize()];
+    for (int ii = 0; ii < results.getSize(); ii++) {
+      Mockito.when(clock.millis()).thenReturn(CLOCK_START_TIME);
+      buf[ii] = (byte) results.getInputStream().read();
+    }
+    metadataResultsOpt = metadataManager.getQueryDetailsAndMetadata(response.getAsyncResultId());
+    long postReadLastUpdateTime = metadataResultsOpt.get().getMetadata().getLastUpdatedTime();
+    Assert.assertEquals(beforeReadLastUpdateTime, postReadLastUpdateTime);
+    Assert.assertEquals(
+        "dim1,EXPR$1\n"
+        + ",1.0\n"
+        + "1,4.0\n"
+        + "10.1,2.0\n"
+        + "2,3.0\n"
+        + "abc,6.0\n"
+        + "def,5.0\n"
+        + "\n",
+        StringUtils.fromUtf8(buf)
+    );
+  }
+
+  @Test
+  public void testGetResultsUnknownQuery() throws IOException, AsyncQueryDoesNotExistException
   {
     Response statusResponse = resource.doGetResults("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
@@ -418,7 +531,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testDeleteCompletedQuery() throws IOException
+  public void testDeleteCompletedQuery() throws IOException, AsyncQueryDoesNotExistException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -466,7 +579,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testForbidden() throws IOException
+  public void testForbidden() throws IOException, AsyncQueryDoesNotExistException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -523,5 +636,27 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   private static HttpServletRequest makeRandomUserRequest()
   {
     return mockAuthenticatedRequest(UUID.randomUUID().toString());
+  }
+
+  // This class is used to get around the minimums used in the actual AsyncQueryConfig class
+  private static class TestableAsyncQueryConfig extends AsyncQueryConfig
+  {
+    private final Duration readRefreshTime;
+
+    public TestableAsyncQueryConfig(
+        @Nullable Integer maxConcurrentQueries,
+        @Nullable Integer maxQueriesToQueue,
+        @Nullable Duration readRefreshTime
+    )
+    {
+      super(maxConcurrentQueries, maxQueriesToQueue, Duration.standardSeconds(1L));
+      this.readRefreshTime = readRefreshTime;
+    }
+
+    @Override
+    public Duration getReadRefreshTime()
+    {
+      return readRefreshTime;
+    }
   }
 }

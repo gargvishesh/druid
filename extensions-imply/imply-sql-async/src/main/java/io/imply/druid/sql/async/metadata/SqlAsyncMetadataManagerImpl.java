@@ -226,6 +226,40 @@ public class SqlAsyncMetadataManagerImpl implements SqlAsyncMetadataManager
     return connector.retryWithHandle(handle -> computeResultLengthSumWithHandle(handle, sb.toString()));
   }
 
+  @Override
+  public void touchQueryLastUpdateTime(String asyncResultId) throws AsyncQueryDoesNotExistException
+  {
+    final QueryDetailsUpdateResult result = connector.retryTransaction(
+        (handle, status) -> {
+          final SqlAsyncQueryDetails actual = getQueryDetailsWithHandle(handle, asyncResultId);
+          if (actual == null) {
+            return QueryDetailsUpdateResult.NOT_FOUND;
+          } else {
+            if (!updateQueryLastUpdateTimeWithHandle(handle, actual)) {
+              throw new RetryTransactionException(
+                  "Aborting transaction due to mismatch between current and expected states. "
+                  + "Will retry shortly if there is an attempt left"
+              );
+            } else {
+              return QueryDetailsUpdateResult.SUCCESS;
+            }
+          }
+        },
+        3,
+        MAX_TRIES_ON_TRANSIENT_ERRORS
+    );
+
+    switch (result) {
+      case NOT_FOUND:
+        throw new AsyncQueryDoesNotExistException(asyncResultId);
+      case SUCCESS:
+      case CANNOT_UPDATE:
+        break;
+      default:
+        throw new RE("Unknown result type [%s]", result);
+    }
+  }
+
   private boolean existsQueryDetailsWithHandle(Handle handle, String asyncResultId)
   {
     final String sql = StringUtils.format(
@@ -310,6 +344,42 @@ public class SqlAsyncMetadataManagerImpl implements SqlAsyncMetadataManager
         )
         .bind("to_sha1", sha1(serializedTo))
         .bind("from_sha1", sha1(jsonMapper.writeValueAsBytes(from)))
+        .execute();
+
+    return updated == 1;
+  }
+
+  /**
+   * Updates {@link SqlAsyncQueryMetadata#lastUpdatedTime} in metadata store.
+   *
+   * There can be a race condition between this method and {@link #updateQueryDetailsWithHandle}
+   * when the Coordinator calls updateQueryDetailsWithHandle() while a Broker is calling this method.
+   * Concurrent updates on the metadata store is coordinated using the compare-and-swap mechanism
+   * based on {@code state_payload_sha1}, whereas this method does not update {@code state_payload_sha1}.
+   * As a result, both methods will silently succeed if they are called at the same time.
+   *
+   * This method is currently only used for updating lastUpdatedTime during downloads for complete queries.
+   * Because updateQueryDetailsWithHandle() can no longer be called once the query completes, the race
+   * must not happen. However, if we want to call them at the same time for any reason in the future,
+   * we should consider this race condition.
+   */
+  private boolean updateQueryLastUpdateTimeWithHandle(
+      Handle handle,
+      SqlAsyncQueryDetails toBeUpdated
+  ) throws JsonProcessingException
+  {
+    final String sql = StringUtils.format(
+        "UPDATE %s SET metadata_payload = :metadata_payload WHERE id = :id AND state_payload_sha1 = :from_sha1",
+        tableConfig.getSqlAsyncQueriesTable()
+    );
+    final int updated = handle
+        .createStatement(sql)
+        .bind("id", toBeUpdated.getAsyncResultId())
+        .bind(
+            "metadata_payload",
+            jsonMapper.writeValueAsBytes(new SqlAsyncQueryMetadata(DateTimes.nowUtc().getMillis()))
+        )
+        .bind("from_sha1", sha1(jsonMapper.writeValueAsBytes(toBeUpdated)))
         .execute();
 
     return updated == 1;

@@ -12,7 +12,6 @@ package io.imply.druid.sql.async.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.io.CountingOutputStream;
-import io.imply.druid.sql.async.AsyncQueryPoolConfig;
 import io.imply.druid.sql.async.SqlAsyncLifecycleManager;
 import io.imply.druid.sql.async.SqlAsyncUtil;
 import io.imply.druid.sql.async.exception.AsyncQueryAlreadyExistsException;
@@ -49,7 +48,6 @@ public class SqlAsyncQueryPool
   private static final EmittingLogger LOG = new EmittingLogger(SqlAsyncQueryPool.class);
 
   private final String brokerId;
-  private final AsyncQueryPoolConfig asyncQueryPoolConfig;
   private final ThreadPoolExecutor exec;
   private final SqlAsyncMetadataManager metadataManager;
   private final SqlAsyncResultManager resultManager;
@@ -58,7 +56,6 @@ public class SqlAsyncQueryPool
 
   public SqlAsyncQueryPool(
       final String brokerId,
-      final AsyncQueryPoolConfig asyncQueryPoolConfig,
       final ThreadPoolExecutor exec,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
@@ -67,7 +64,6 @@ public class SqlAsyncQueryPool
   )
   {
     this.brokerId = brokerId;
-    this.asyncQueryPoolConfig = asyncQueryPoolConfig;
     this.exec = exec;
     this.metadataManager = metadataManager;
     this.resultManager = resultManager;
