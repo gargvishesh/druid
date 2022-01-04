@@ -29,6 +29,7 @@ public class ClarityMetricsUtils
       "implyViewTitle",
       "implyFeature",
       "implyDataCube",
+      "druidFeature",
       "implyUser",
       "implyUserEmail"
   );

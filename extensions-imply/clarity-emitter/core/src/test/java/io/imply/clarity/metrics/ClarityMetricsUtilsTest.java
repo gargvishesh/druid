@@ -41,6 +41,7 @@ public class ClarityMetricsUtilsTest
     context.put("implyViewTitle", "truesight");
     context.put("implyFeature", "coolFeature");
     context.put("implyDataCube", "hypercube");
+    context.put("druidFeature", "coolDruidFeature");
     context.put("implyUser", "implier");
     context.put("implyUserEmail", "implier@imply.io");
 
@@ -50,6 +51,7 @@ public class ClarityMetricsUtilsTest
     expectedNonAnonymizedMap.put("implyViewTitle", "truesight");
     expectedNonAnonymizedMap.put("implyFeature", "coolFeature");
     expectedNonAnonymizedMap.put("implyDataCube", "hypercube");
+    expectedNonAnonymizedMap.put("druidFeature", "coolDruidFeature");
     expectedNonAnonymizedMap.put("implyUser", "implier");
     expectedNonAnonymizedMap.put("implyUserEmail", "implier@imply.io");
 
@@ -84,6 +86,7 @@ public class ClarityMetricsUtilsTest
     context.put("implyViewTitle", "truesight");
     context.put("implyFeature", "coolFeature");
     context.put("implyDataCube", "hypercube");
+    context.put("druidFeature", "coolDruidFeature");
     context.put("implyUser", "implier");
     context.put("implyUserEmail", "implier@imply.io");
 
@@ -93,6 +96,7 @@ public class ClarityMetricsUtilsTest
     expectedAnonymizedMap.put("implyViewTitle", "truesight");
     expectedAnonymizedMap.put("implyFeature", "coolFeature");
     expectedAnonymizedMap.put("implyDataCube", "hypercube");
+    expectedAnonymizedMap.put("druidFeature", "coolDruidFeature");
     expectedAnonymizedMap.put("implyUser", "998b903e421ca066f9aaead5e252f7421835d76e042945c58957240955db434f");
     expectedAnonymizedMap.put("implyUserEmail", "613e0a0334596486e8f40999f8624ad42cf4de67dfac614af635459f1bd3fae2");
 

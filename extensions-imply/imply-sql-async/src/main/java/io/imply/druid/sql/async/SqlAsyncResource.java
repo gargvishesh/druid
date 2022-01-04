@@ -12,6 +12,7 @@ package io.imply.druid.sql.async;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
@@ -27,6 +28,7 @@ import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.BadQueryException;
+import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
@@ -75,6 +77,9 @@ public class SqlAsyncResource
   private final ObjectMapper jsonMapper;
   private final Clock clock;
   private final AsyncQueryConfig asyncQueryReadRefreshConfig;
+  private static final String FEATURE_NAME = "druidFeature";
+  private static final String FEATURE_VALUE = "async-downloads";
+
 
   @Inject
   public SqlAsyncResource(
@@ -112,14 +117,19 @@ public class SqlAsyncResource
   {
     final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
     final String remoteAddr = req.getRemoteAddr();
-    final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
+    //Update query to add FEATURE_NAME and FEATURE_VALUE in context
+    final SqlQuery updatedSqlQuery = sqlQuery.withQueryContext(BaseQuery.computeOverriddenContext(ImmutableMap.of(
+        FEATURE_NAME,
+        FEATURE_VALUE), sqlQuery.getContext()));
+
+    final String sqlQueryId = lifecycle.initialize(updatedSqlQuery.getQuery(), updatedSqlQuery.getContext());
     final String asyncResultId = SqlAsyncUtil.createAsyncResultId(brokerId, sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {
-      lifecycle.setParameters(sqlQuery.getParameterList());
+      lifecycle.setParameters(updatedSqlQuery.getParameterList());
       lifecycle.validateAndAuthorize(req);
-      final SqlAsyncQueryDetails queryDetails = queryPool.execute(asyncResultId, sqlQuery, lifecycle, remoteAddr);
+      final SqlAsyncQueryDetails queryDetails = queryPool.execute(asyncResultId, updatedSqlQuery, lifecycle, remoteAddr);
       return Response.status(Response.Status.ACCEPTED).entity(queryDetails.toApiResponse()).build();
     }
     catch (QueryCapacityExceededException cap) {
@@ -154,7 +164,7 @@ public class SqlAsyncResource
       throw e;
     }
     catch (Exception e) {
-      log.warn(e, "Failed to handle query: %s", sqlQuery);
+      log.warn(e, "Failed to handle query: %s", updatedSqlQuery);
       lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
 
       final Exception exceptionToReport;
