@@ -61,12 +61,6 @@ the `talaria` feature.
 imply.license=<license string>
 ```
 
-**Broker**
-
-```bash
-druid.sql.executor.type=imply
-```
-
 **Coordinator**
 
 ```bash
@@ -82,6 +76,12 @@ druid.global.http.numConnections=1000
 # Required for Java 11
 jvm.config.dsmmap=--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
 druid.indexer.runner.javaOptsArray=["--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"]
+```
+
+**Broker**
+
+```bash
+druid.sql.executor.type=imply
 ```
 
 ## Quickstart
@@ -289,8 +289,8 @@ The Talaria engine accepts additional Druid SQL
 |----|-----------|----|
 | talaria| True to execute using Talaria, false to execute using Druid's native query engine| false|
 | talariaNumTasks| (SELECT and INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
-| talariaSegmentGranularity | (INSERT only)<br /><br />Segment granularity to use when generating segments.<br /><br />Your query must have an ORDER BY that matches the time granularity. See the “INSERT” section above for examples.<br /><br />At some point this will be replaced by a “PARTITION BY” keyword.| all|
-|talariaReplaceTimeChunks | (INSERT only)<br /><br />If set, tells Druid to replace any data that exists in certain time chunks during ingestion. This can either be the word “all” or a comma-separated list of intervals in ISO8601 format, like 2000-01-01/P1D,2001-02-01/P1D. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to all then the results of the query will replace all existing data.<br /><br />If all ORDER BY columns are singly-valued strings, then Druid will generate “range” shard specs. Otherwise, Druid will generate “numbered” shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| talariaSegmentGranularity | (INSERT only)<br /><br />Segment granularity to use when generating segments.<br /><br />Your query must have an ORDER BY that matches the time granularity. See the "INSERT" section above for examples.<br /><br />At some point this will be replaced by a "PARTITION BY" keyword.| all|
+|talariaReplaceTimeChunks | (INSERT only)<br /><br />If set, tells Druid to replace any data that exists in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like 2000-01-01/P1D,2001-02-01/P1D. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to all then the results of the query will replace all existing data.<br /><br />When `talariaReplaceTimeChunks` is set, and all ORDER BY columns are singly-valued strings, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default.| 150000 |
 
@@ -693,7 +693,6 @@ supported for INSERT.
 |longSum|`SUM`|
 |longMin|`MIN`|
 |longMax|`MAX`|
-|hyperUnique|`APPROX_COUNT_DISTINCT_BUILTIN_RAW`|
 
 Currently, multi-value dimensions are not ingested as expected when
 rollup is enabled, because the GROUP BY operator unnests them instead of
@@ -825,8 +824,7 @@ SELECT
   page,
   COUNT(*) AS cnt,
   SUM(added) AS sum_added,
-  SUM(deleted) AS sum_deleted,
-  APPROX_COUNT_DISTINCT_BUILTIN_RAW("user") as unique_user
+  SUM(deleted) AS sum_deleted
 FROM TABLE(
     EXTERN(
       '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
@@ -1069,20 +1067,32 @@ LIMIT 1000
 
 ## Known issues
 
-Issues with SELECT queries.
+**Issues with general query execution.**
+
+- Fault tolerance is not yet implemented. If any task fails, the
+  entire query fails. (14718)
+
+- Canceling the controller task sometimes leads to the error code
+  "UnknownError" instead of "Canceled". (14722)
+
+- The [Query report API](#retrieve-query-report) may return
+  `500 Server Error` or `404 Not Found` when the controller task is in
+  process of starting up or shutting down. (15001)
+
+**Issues with SELECT queries.**
 
 - SELECT query results are funneled through the controller task
   so they can be written to the [query report](#retrieve-query-report).
   This is a bottleneck for queries with large resultsets. In the future,
   we will provide a mechanism for writing query results to multiple
-  files in parallel.
+  files in parallel. (14728)
 
 - TIMESTAMP types are formatted as numbers rather than ISO8601 timestamp
-  strings, which differs from Druid's standard result format.
+  strings, which differs from Druid's standard result format. (14995)
 
 - BOOLEAN types are formatted as numbers like `1` and `0` rather
   than `true` or `false`, which differs from Druid's standard result
-  format.
+  format. (14995)
 
 - TopN is not implemented. The context parameter
   `useApproximateTopN` is ignored and always treated as if it
@@ -1090,71 +1100,96 @@ Issues with SELECT queries.
   always run using the groupBy engine. There is no loss of
   functionality, but there may be a performance impact, since
   these queries will run using an exact algorithm instead of an
-  approximate one.
+  approximate one. (14998)
 
 - GROUPING SETS is not implemented. Queries that use GROUPING SETS
-  will fail.
+  will fail. (14999)
 
-- OFFSET is not implemented. Queries that use OFFSET will fail.
+- OFFSET is not implemented. Queries that use OFFSET will fail. (15000)
 
-Issues with INSERT queries.
+- Only one SELECT query can run at a time on a given cluster. (15001)
 
-- INSERT with column lists, like
-  `INSERT INTO tbl (a, b, c) SELECT ...`, is not implemented.
+- When querying system tables in `INFORMATION_SCHEMA` or `sys`, the
+  SQL API ignores the `talaria` parameter, and treats it as if it
+  were false. These queries always run with the standard Druid
+  query engine. (15002)
+
+**Issues with INSERT queries.**
 
 - INSERT queries acquire an exclusive lock on the entire target
   datasource while a job is running, even if a finer-grained lock
-  would have sufficed.
-
-- Not all aggregators are available during INSERT. See
-  [Rollup](#rollup) for a list of aggregators that are currently
-  available.
+  would have sufficed. This means that Talaria-based ingestion
+  cannot occur concurrently with other forms of ingestion. (15003)
 
 - The [schemaless dimensions](https://druid.apache.org/docs/latest/ingestion/ingestion-spec.html#inclusions-and-exclusions)
   feature is not available. All columns and their types must be
-  specified explicitly.
+  specified explicitly. (15004)
 
-- Multi-value dimensions are not ingested as expected when using
-  GROUP BY. The GROUP BY operator unnests them instead of
+- [Segment metadata queries](https://druid.apache.org/docs/latest/querying/segmentmetadataquery.html)
+  on datasources ingested with Talaria will return values for `rollup`,
+  `queryGranularity`, `timestampSpec`, and `aggregators` that are not
+  usable for introspection. In particular, Pivot will not be able to
+  automatically create data cubes that properly reflect the rollup
+  configurations of these datasources. Proper data cubes can still be
+  created manually. (15006, 15007, 15008)
+
+- INSERT with column lists, like
+  `INSERT INTO tbl (a, b, c) SELECT ...`, is not implemented. However,
+  it is not necessary for your SELECT query to specify all columns that
+  exist in the target datasource. (15009)
+
+- When using GROUP BY, not all aggregation functions are implemented
+  for INSERT. See the [Rollup section](#rollup) for a list of aggregators
+  that are currently available in conjuction with INSERT. (15010)
+
+- When using GROUP BY, multi-value dimensions are not ingested as
+  expected. The GROUP BY operator unnests them instead of
   leaving them as arrays. This is [standard
   behavior](https://druid.apache.org/docs/latest/querying/sql.html#multi-value-strings)
   for GROUP BY in Druid queries, but is generally not desirable
   behavior for ingestion. In the future, we will provide an
   alternate syntax that instructs the query to leave arrays alone
-  instead of unnesting them.
+  instead of unnesting them. (13376)
 
-- Splitting of large partitions is not currently implemented for
-  INSERT with GROUP BY. If a single partition key appears in a
+- When using GROUP BY, Druid's compaction functionality is not able to further
+  roll up the generated segments. This applies to autocompaction as well as
+  manually issued `compact` tasks. Individual queries executed with Talaria
+  always guarantee perfect rollup for their output, so this only matters if you
+  are performing a sequence of INSERT queries that each append data to the same
+  time chunk. If necessary, you can compact such data using another SQL query
+  instead of a `compact` task. (15006)
+
+- When using GROUP BY, splitting of large partitions is not currently
+  implemented. If a single partition key appears in a
   very large number of rows, an oversized segment will be created.
   You can mitigate this by adding additional columns to your
   partition key. Note that partition splitting _does_ work properly
-  when performing INSERT without GROUP BY.
+  when performing INSERT without GROUP BY. (15015)
 
-Issues with missing guardrails.
+**Issues with EXTERN.**
+
+- EXTERN does not accept `druid` or `sql` input sources. (15016, 15018)
+
+**Issues with missing guardrails.**
 
 - Maximum number of input files. No guardrail today means the
-  controller can potentially run out of memory tracking them all.
+  controller can potentially run out of memory tracking them all. (15020)
 
 - Maximum number of tasks participating in a shuffle. No guardrail
   today means the mesh of shuffle connections between worker tasks may
-  be too dense, which causes query execution to stall.
+  be too dense, which causes query execution to stall. (15021)
 
 - Maximum amount of local disk space to use for temporary data. No
   guardrail today means worker tasks may exhaust all available
-  disk space.
+  disk space. (15022)
 
 - Maximum size of right-hand-side tables in a JOIN. The Talaria
   engine's JOIN operator is implemented as a broadcast hash join,
   similar to Druid's builtin execution engine. No guardrail today
   means large right-hand-side tables can cause worker tasks to run
-  out of memory.
+  out of memory. (15024)
 
-Issues with reliability.
-
-- Fault tolerance is not yet implemented. If any task fails, the
-  entire query fails.
-
-Issues with the web console.
+**Issues with the web console.**
 
 - After an INSERT query completes, the duration label describing
   query runtime is always zero.
