@@ -17,7 +17,6 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import io.imply.druid.license.ImplyLicenseManager;
-import io.imply.druid.talaria.sql.BuiltinApproxCountDistinctRawSqlAggregator;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.NoopQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaExternalOperatorConversion;
@@ -75,9 +74,6 @@ public class TalariaSqlModule implements DruidModule
             .addBinding(ImplyQueryMakerFactory.TYPE)
             .to(Key.get(QueryMakerFactory.class, Talaria.class))
             .in(LazySingleton.class);
-
-    // Set up raw versions of aggregators.
-    SqlBindings.addAggregator(binder, BuiltinApproxCountDistinctRawSqlAggregator.class);
 
     binder.bind(IndexingServiceClient.class).to(HttpIndexingServiceClient.class).in(LazySingleton.class);
   }

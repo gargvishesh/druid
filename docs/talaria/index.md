@@ -288,9 +288,10 @@ The Talaria engine accepts additional Druid SQL
 |Parameter|Description|Default value|
 |----|-----------|----|
 | talaria| True to execute using Talaria, false to execute using Druid's native query engine| false|
-| talariaNumTasks| (SELECT and INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
+| talariaNumTasks| (SELECT or INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
+| talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If true, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaSegmentGranularity | (INSERT only)<br /><br />Segment granularity to use when generating segments.<br /><br />Your query must have an ORDER BY that matches the time granularity. See the "INSERT" section above for examples.<br /><br />At some point this will be replaced by a "PARTITION BY" keyword.| all|
-|talariaReplaceTimeChunks | (INSERT only)<br /><br />If set, tells Druid to replace any data that exists in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like 2000-01-01/P1D,2001-02-01/P1D. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to all then the results of the query will replace all existing data.<br /><br />When `talariaReplaceTimeChunks` is set, and all ORDER BY columns are singly-valued strings, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />If all ORDER BY columns are singly-valued strings, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default.| 150000 |
 
@@ -489,7 +490,6 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 |  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `talariaSegmentGranularity` set to something other than `all`.  |  &bull;&nbsp;dataSource  |
 |  InsertCannotOrderByDescending  |  An INSERT query contained an ORDER BY expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
 |  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<br /> <br />&bull;&nbsp;Shrink `talariaReplaceTimeChunks` to match the query results.<br /> <br />&bull;&nbsp;Expand talariaReplaceTimeChunks to fully contain the existing segment.  | &bull;&nbsp;segmentId: the existing segment  |
-|  InsertMissingComplexAggregator  |  An INSERT query contained a complex type that was not generated by an aggregator.<br /> <br />Currently, Druid's segment generation code can only write complex types if they are the result of an aggregation.  |  &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType  |
 |  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a Talaria query.<br /> <br />This can happen if the query uses features that Talaria does not yet support, like OFFSET or GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
@@ -672,27 +672,9 @@ Rollup is determined by the query's GROUP BY clause. The expressions in
 the GROUP BY clause will become dimensions. Any aggregation functions
 will become metrics.
 
-To store complex metrics, like sketches, you must use a version of the
-aggregation function that returns an actual sketch. Using the "standard"
-version of the function will store the finalized estimate rather than a
-sketch.
-
-The following table lists which SQL function to use for which native
-aggregator type. Aggregators that are not listed are not currently
-supported for INSERT.
-
-|Native aggregator type|SQL aggregation function|
-|----------------------|------------------------|
-|count|`COUNT`|
-|doubleSum|`SUM`|
-|doubleMin|`MIN`|
-|doubleMax|`MAX`|
-|floatSum|`SUM`|
-|floatMin|`MIN`|
-|floatMax|`MAX`|
-|longSum|`SUM`|
-|longMin|`MIN`|
-|longMax|`MAX`|
+To store complex metrics in their native form, set
+`talariaFinalizeAggregations: false` in your INSERT query context. Without
+this parameter, Druid will store the finalized result rather than a sketch.
 
 Currently, multi-value dimensions are not ingested as expected when
 rollup is enabled, because the GROUP BY operator unnests them instead of
@@ -812,6 +794,7 @@ ORDER BY
 
 ```sql
 --:context talariaSegmentGranularity: day
+--:context talariaFinalizeAggregations: false
 
 INSERT INTO w001
 SELECT
@@ -824,7 +807,8 @@ SELECT
   page,
   COUNT(*) AS cnt,
   SUM(added) AS sum_added,
-  SUM(deleted) AS sum_deleted
+  SUM(deleted) AS sum_deleted,
+  APPROX_COUNT_DISTINCT_BUILTIN("user") as unique_user -- Stored as sketch due to talariaFinalizeAggregations: false
 FROM TABLE(
     EXTERN(
       '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
