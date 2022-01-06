@@ -28,7 +28,7 @@ import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { Api, AppToaster } from '../../../singletons';
 import { TalariaQuery } from '../../../talaria-models';
-import { downloadHref, formatDuration, queryDruidSql } from '../../../utils';
+import { formatDuration, queryDruidSql } from '../../../utils';
 import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
 import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
 import { useWorkStateStore } from '../work-state-store';
@@ -130,7 +130,7 @@ LIMIT 100`,
                           payload.sqlQueryContext,
                         )
                           .explodeQuery()
-                          .changeLastQueryInfo({ taskId: w.taskId }),
+                          .changeLastQueryId(w.taskId),
                         'Attached',
                       );
                     } catch {
@@ -187,15 +187,6 @@ LIMIT 100`,
                       }
                     />
                   ))}
-                <MenuItem
-                  text="Download report"
-                  onClick={() => {
-                    downloadHref({
-                      href: `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}/reports`,
-                      filename: `${w.taskId}_report.json`,
-                    });
-                  }}
-                />
                 {w.taskStatus === 'RUNNING' && (
                   <>
                     <MenuDivider />
@@ -273,7 +264,7 @@ LIMIT 100`,
         />
       )}
       {resultsTaskId && (
-        <TalariaResultsDialog taskId={resultsTaskId} onClose={() => setResultsTaskId(undefined)} />
+        <TalariaResultsDialog id={resultsTaskId} onClose={() => setResultsTaskId(undefined)} />
       )}
     </div>
   );

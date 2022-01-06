@@ -18,7 +18,7 @@
 
 import { Button, Tag } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
+import { SqlQuery } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import { useLocalStorageState, useQueryManager } from '../../hooks';
@@ -28,7 +28,7 @@ import {
   ingestQueryPatternToQuery,
   TalariaSummary,
 } from '../../talaria-models';
-import { DruidError, IntermediateQueryState } from '../../utils';
+import { getContextFromSqlQuery, IntermediateQueryState } from '../../utils';
 
 import { InitStep } from './external-config-dialog/init-step/init-step';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
@@ -37,14 +37,12 @@ import { SchemaStep } from './schema-step/schema-step';
 import { StageProgress } from './stage-progress/stage-progress';
 import { TalariaStats } from './talaria-stats/talaria-stats';
 import {
-  getTaskIdFromQueryResults,
-  killTaskOnCancel,
+  cancelAsyncQueryOnCancel,
+  submitAsyncQuery,
   talariaBackgroundStatusCheck,
 } from './talaria-utils';
 
 import './talaria-load-data-view.scss';
-
-const queryRunner = new QueryRunner();
 
 export interface TalariaLoadDataViewProps {}
 
@@ -66,27 +64,17 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();
       if (!insertDatasource) throw new Error(`Must have insert datasource`);
 
-      let result: QueryResult;
-      try {
-        result = await queryRunner.runQuery({
-          query: queryString,
-          extraQueryContext: {
-            talaria: true,
-          },
-          cancelToken,
-        });
-      } catch (e) {
-        throw new DruidError(e);
-      }
+      const summary = await submitAsyncQuery({
+        query: queryString,
+        context: {
+          ...getContextFromSqlQuery(queryString),
+          talaria: true,
+        },
+        cancelToken,
+      });
 
-      const taskId = getTaskIdFromQueryResults(result);
-      if (!taskId) {
-        throw new Error('Unexpected result, could not determine taskId');
-      }
-
-      killTaskOnCancel(taskId, cancelToken);
-
-      return new IntermediateQueryState(TalariaSummary.init(taskId));
+      cancelAsyncQueryOnCancel(summary.id, cancelToken);
+      return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
   });

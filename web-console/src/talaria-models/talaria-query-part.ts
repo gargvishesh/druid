@@ -45,16 +45,12 @@ function sqlTypeFromDruid(druidType: string): string {
 
 // -----------------------------
 
-export interface LastQueryInfo {
-  taskId: string;
-}
-
 export interface TalariaQueryPartValue {
   id: string;
   queryName?: string;
   queryString: string;
   collapsed?: boolean;
-  lastQueryInfo?: LastQueryInfo;
+  lastQueryId?: string;
 }
 
 export class TalariaQueryPart {
@@ -86,7 +82,7 @@ export class TalariaQueryPart {
   public readonly queryName?: string;
   public readonly queryString: string;
   public readonly collapsed: boolean;
-  public readonly lastQueryInfo?: LastQueryInfo;
+  public readonly lastQueryId?: string;
 
   public readonly parsedQuery?: SqlQuery;
 
@@ -95,7 +91,7 @@ export class TalariaQueryPart {
     this.queryName = value.queryName;
     this.queryString = value.queryString;
     this.collapsed = Boolean(value.collapsed);
-    this.lastQueryInfo = value.lastQueryInfo;
+    this.lastQueryId = value.lastQueryId;
 
     try {
       this.parsedQuery = SqlQuery.parse(this.queryString);
@@ -108,7 +104,7 @@ export class TalariaQueryPart {
       queryName: this.queryName,
       queryString: this.queryString,
       collapsed: this.collapsed,
-      lastQueryInfo: this.lastQueryInfo,
+      lastQueryId: this.lastQueryId,
     };
   }
 
@@ -128,8 +124,8 @@ export class TalariaQueryPart {
     return new TalariaQueryPart({ ...this.valueOf(), collapsed });
   }
 
-  public changeLastQueryInfo(lastQueryInfo: LastQueryInfo | undefined): TalariaQueryPart {
-    return new TalariaQueryPart({ ...this.valueOf(), lastQueryInfo });
+  public changeLastQueryId(lastQueryId: string | undefined): TalariaQueryPart {
+    return new TalariaQueryPart({ ...this.valueOf(), lastQueryId });
   }
 
   public clear(): TalariaQueryPart {
@@ -247,6 +243,6 @@ export class TalariaQueryPart {
   }
 
   public duplicate(): TalariaQueryPart {
-    return this.changeId(generate8HexId()).changeLastQueryInfo(undefined);
+    return this.changeId(generate8HexId()).changeLastQueryId(undefined);
   }
 }

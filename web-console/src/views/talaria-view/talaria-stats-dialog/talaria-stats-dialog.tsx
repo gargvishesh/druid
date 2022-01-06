@@ -36,7 +36,7 @@ export const TalariaStatsDialog = React.memo(function TalariaStatsDialog(
   return (
     <Dialog className="talaria-stats-dialog" isOpen onClose={onClose} title="Talaria stats">
       <div className={Classes.DIALOG_BODY}>
-        <TalariaStatsLoader taskId={taskId} />
+        <TalariaStatsLoader id={taskId} />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>

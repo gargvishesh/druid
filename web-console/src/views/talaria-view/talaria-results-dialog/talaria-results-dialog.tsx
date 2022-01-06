@@ -23,34 +23,27 @@ import React from 'react';
 import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
 import { QueryOutput2 } from '../query-output2/query-output2';
-import { getTalariaSummary } from '../talaria-utils';
+import { getAsyncResult } from '../talaria-utils';
 
 import './talaria-results-dialog.scss';
 
 const FN = () => {};
 
 export interface TalariaResultsDialogProps {
-  taskId: string;
+  id: string;
   onClose: () => void;
 }
 
 export const TalariaResultsDialog = React.memo(function TalariaResultsDialog(
   props: TalariaResultsDialogProps,
 ) {
-  const { taskId, onClose } = props;
+  const { id, onClose } = props;
 
   const [queryResultState] = useQueryManager<string, QueryResult>({
-    processQuery: async (taskId: string) => {
-      const report = await getTalariaSummary(taskId);
-      if (!report) throw new Error(`could not get report`);
-
-      if (report.result) {
-        return report.result;
-      } else {
-        throw new Error(`No results on report.`);
-      }
+    processQuery: async (id: string) => {
+      return await getAsyncResult(id);
     },
-    initQuery: taskId,
+    initQuery: id,
   });
 
   return (

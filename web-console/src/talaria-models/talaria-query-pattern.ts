@@ -33,10 +33,12 @@ import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-sp
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
 import { TIME_COLUMN } from '../druid-models/timestamp-spec';
-import { deepDelete, getContextFromSqlQuery } from '../utils';
-import { isEmptyContext, QueryContext } from '../utils/query-context';
+import { getContextFromSqlQuery } from '../utils';
 
 export const TALARIA_MAX_COLUMNS = 2000;
+
+const TALARIA_SEGMENT_GRANULARITY = 'talariaSegmentGranularity';
+const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
 
 export interface ExternalConfig {
   inputSource: InputSource;
@@ -155,7 +157,7 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
 export function externalConfigToIngestQueryPattern(config: ExternalConfig): IngestQueryPattern {
   const hasTimeColumn = false; // ToDo
   return {
-    context: hasTimeColumn ? { talariaSegmentGranularity: 'day' } : {},
+    segmentGranularity: hasTimeColumn ? 'day' : undefined,
     insertTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
     mainExternalName: 'ext',
     mainExternalConfig: config,
@@ -168,7 +170,7 @@ export function externalConfigToIngestQueryPattern(config: ExternalConfig): Inge
 // --------------------------------------------
 
 export interface IngestQueryPattern {
-  context: QueryContext;
+  segmentGranularity?: string;
   insertTableName: string;
   mainExternalName: string;
   mainExternalConfig: ExternalConfig;
@@ -195,7 +197,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     );
   }
 
-  let context = getContextFromSqlQuery(query.toString());
+  const context = getContextFromSqlQuery(query.toString());
 
   const insertTableName = query.getInsertIntoTable()?.getTable();
   if (!insertTableName) {
@@ -229,15 +231,9 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
 
   dimensions.forEach(verifyHasOutputName);
 
-  // Make sure to adjust talariaSegmentGranularity in the context to the presence of a time column
+  let segmentGranularity: string | undefined;
   if (dimensions.some(d => d.getOutputName() === TIME_COLUMN)) {
-    if (!context.talariaSegmentGranularity) {
-      context = { ...context, talariaSegmentGranularity: 'day' };
-    }
-  } else {
-    if (context.talariaSegmentGranularity) {
-      context = deepDelete(context, 'talariaSegmentGranularity');
-    }
+    segmentGranularity = context[TALARIA_SEGMENT_GRANULARITY] || 'day';
   }
 
   const partitions = query.getOrderByExpressions().map(orderByExpression => {
@@ -255,7 +251,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   });
 
   return {
-    context,
+    segmentGranularity,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
@@ -271,7 +267,7 @@ export function ingestQueryPatternToQuery(
   preview?: boolean,
 ): SqlQuery {
   const {
-    context,
+    segmentGranularity,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
@@ -289,9 +285,17 @@ export function ingestQueryPatternToQuery(
       ? '_tmp_loader_cache_20210101_010102'
       : undefined;
 
+  const initialContextLines: string[] = [];
+  if (segmentGranularity && !preview) {
+    initialContextLines.push(`--:context ${TALARIA_SEGMENT_GRANULARITY}: ${segmentGranularity}`);
+  }
+  if (metrics) {
+    initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
+  }
+
   return SqlQuery.from(SqlTableRef.create(mainExternalName))
-    .applyIf(!isEmptyContext(context) && !preview, q =>
-      q.changeSpace('initial', `--:context ${JSONBig.stringify(context)}\n`),
+    .applyIf(initialContextLines.length, q =>
+      q.changeSpace('initial', initialContextLines.join('\n') + '\n'),
     )
     .applyIf(!preview, q => q.changeInsertIntoTable(insertTableName))
     .changeWithParts([
