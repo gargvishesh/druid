@@ -292,14 +292,24 @@ public class TalariaControllerTask extends AbstractTask implements ChatHandler
   @Override
   public boolean isReady(TaskActionClient taskActionClient) throws Exception
   {
-    if (isIngestion(querySpec)) {
-      // TODO(gianm): Don't require lock on ETERNITY
-      return taskActionClient.submit(
-          new TimeChunkLockTryAcquireAction(TaskLockType.EXCLUSIVE, Intervals.ETERNITY)
-      ) != null;
-    } else {
-      return true;
+    // If we're in replace mode, acquire locks for all intervals before declaring the task ready.
+    if (isIngestion(querySpec) && ((DataSourceTalariaDestination) querySpec.getDestination()).isReplaceTimeChunks()) {
+      final List<Interval> intervals =
+          ((DataSourceTalariaDestination) querySpec.getDestination()).getReplaceTimeChunks();
+
+      for (final Interval interval : intervals) {
+        final TaskLock taskLock =
+            taskActionClient.submit(new TimeChunkLockTryAcquireAction(TaskLockType.EXCLUSIVE, interval));
+
+        if (taskLock == null) {
+          return false;
+        } else if (taskLock.isRevoked()) {
+          throw new ISE(StringUtils.format("Lock for interval [%s] was revoked", interval));
+        }
+      }
     }
+
+    return true;
   }
 
   @Override
@@ -914,7 +924,7 @@ public class TalariaControllerTask extends AbstractTask implements ChatHandler
               false,
               NumberedPartialShardSpec.instance(),
               LockGranularity.TIME_CHUNK,
-              null
+              TaskLockType.SHARED
           )
       );
 
@@ -933,7 +943,6 @@ public class TalariaControllerTask extends AbstractTask implements ChatHandler
 
     return retVal;
   }
-
 
   /**
    * Used by {@link #generateSegmentIdsWithShardSpecs}.
