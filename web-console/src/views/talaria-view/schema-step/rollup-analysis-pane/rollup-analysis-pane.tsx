@@ -29,7 +29,7 @@ import {
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { TalariaSummary } from '../../../../talaria-models';
+import { TalariaQueryPart, TalariaSummary } from '../../../../talaria-models';
 import {
   DruidError,
   filterMap,
@@ -192,7 +192,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         result = await queryRunner.runQuery({
           query: queryString,
           extraQueryContext: {
-            talaria: queryString.includes('extern('),
+            talaria: TalariaQueryPart.isTalariaEngineNeeded(queryString),
           },
           cancelToken,
         });

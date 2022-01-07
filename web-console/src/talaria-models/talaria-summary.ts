@@ -21,7 +21,7 @@ import { Column, QueryResult, SqlQuery } from 'druid-query-toolkit';
 import { deepGet, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
-import { StageDefinition } from './talaria-stage';
+import { getStartTime, StageDefinition } from './talaria-stage';
 
 interface TalariaResultsPayload {
   results: any[][];
@@ -57,6 +57,7 @@ export interface TalariaSummaryValue {
   sqlQuery?: string;
   queryContext?: QueryContext;
   status?: TalariaSummaryStatus;
+  startTime?: Date;
   stages?: StageDefinition[];
   destination?: TalariaDestination;
   result?: QueryResult;
@@ -126,6 +127,7 @@ export class TalariaSummary {
       taskId,
       summarySource: 'report',
       status: TalariaSummary.normalizeStatus(status),
+      startTime: getStartTime(stages),
       stages,
       destination: results ? { type: 'taskReport' } : undefined,
       result: results ? TalariaSummary.resultsPayloadToQueryResult(results, taskId) : undefined,
@@ -150,10 +152,14 @@ export class TalariaSummary {
       }
     }
 
+    let startTime: Date | undefined = new Date(deepGet(statusPayload, 'createdTime'));
+    if (isNaN(startTime.valueOf())) startTime = undefined;
+
     return new TalariaSummary({
       taskId,
       summarySource: 'status',
       status: status === 'WAITING' ? 'PENDING' : status, // Treat WAITING as PENDING since they are all the same for the UI
+      startTime,
       error,
     });
   }
@@ -172,6 +178,7 @@ export class TalariaSummary {
   public readonly sqlQuery?: string;
   public readonly queryContext?: QueryContext;
   public readonly status?: TalariaSummaryStatus;
+  public readonly startTime?: Date;
   public readonly stages?: StageDefinition[];
   public readonly destination?: TalariaDestination;
   public readonly result?: QueryResult;
@@ -183,6 +190,7 @@ export class TalariaSummary {
     this.sqlQuery = value.sqlQuery;
     this.queryContext = value.queryContext;
     this.status = value.status;
+    this.startTime = value.startTime;
     this.stages = value.stages;
     this.destination = value.destination;
     this.result = value.result;
@@ -196,6 +204,7 @@ export class TalariaSummary {
       sqlQuery: this.sqlQuery,
       queryContext: this.queryContext,
       status: this.status,
+      startTime: this.startTime,
       stages: this.stages,
       destination: this.destination,
       result: this.result,

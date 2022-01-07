@@ -21,23 +21,45 @@ import { sane } from 'druid-query-toolkit';
 import { getContextFromSqlQuery } from './druid-query-context';
 
 describe('getContextFromSqlQuery', () => {
-  it('works', () => {
+  it('works in normal case', () => {
     const sql = sane`
-        --:context granularity: month
-        SELECT page FROM wikipedia WHERE channel = '#ar.wikipedia' --:context { x: 1, y: 2 }
-        --:context useCache
-        --:context !populateCache
-        --:context ["a", "b"]
-      `;
+      --:context granularity: month
+      SELECT page FROM wikipedia WHERE channel = '#ar.wikipedia' --:context { x: 1, y: 2 }
+      --:context useCache
+      --:context !populateCache
+      --:context ["a", "b"]
+    `;
 
     expect(getContextFromSqlQuery(sql)).toMatchInlineSnapshot(`
-        Object {
-          "granularity": "month",
-          "populateCache": false,
-          "useCache": true,
-          "x": 1,
-          "y": 2,
-        }
-      `);
+      Object {
+        "granularity": "month",
+        "populateCache": false,
+        "useCache": true,
+        "x": 1,
+        "y": 2,
+      }
+    `);
+  });
+
+  it('works with \\r\\n', () => {
+    const sql = sane`
+      --:context granularity: month
+      SELECT page FROM wikipedia WHERE channel = '#ar.wikipedia' --:context { x: 1, y: 2 }
+      --:context useCache
+      --:context !populateCache
+      --:context ["a", "b"]
+    `
+      .split('\n')
+      .join('\r\n');
+
+    expect(getContextFromSqlQuery(sql)).toMatchInlineSnapshot(`
+      Object {
+        "granularity": "month",
+        "populateCache": false,
+        "useCache": true,
+        "x": 1,
+        "y": 2,
+      }
+    `);
   });
 });

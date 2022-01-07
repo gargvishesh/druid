@@ -87,7 +87,7 @@ export function summarizeExternalConfig(externalConfig: ExternalConfig): string 
 
 export function externalConfigToTableExpression(config: ExternalConfig): SqlExpression {
   return SqlExpression.parse(`TABLE(
-  extern(
+  EXTERN(
     ${SqlLiteral.create(JSONBig.stringify(config.inputSource))},
     ${SqlLiteral.create(JSONBig.stringify(config.inputFormat))},
     ${SqlLiteral.create(JSONBig.stringify(config.columns))}

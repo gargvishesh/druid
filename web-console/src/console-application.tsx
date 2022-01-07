@@ -25,7 +25,7 @@ import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
 import { AppToaster } from './singletons';
-import { Capabilities, QueryManager } from './utils';
+import { Capabilities, localStorageGetJson, LocalStorageKeys, QueryManager } from './utils';
 import {
   DatasourcesView,
   HomeView,
@@ -158,7 +158,9 @@ export class ConsoleApplication extends React.PureComponent<
 
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
-    window.location.hash = 'query';
+    window.location.hash = localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
+      ? 'query-next'
+      : 'query';
     this.resetInitialsWithDelay();
   };
 
@@ -212,11 +214,11 @@ export class ConsoleApplication extends React.PureComponent<
   };
 
   // BEGIN: Imply-added code for Talaria execution
-  private readonly wrappedTalariaView = (p: RouteComponentProps<any>) => {
+  private readonly wrappedQueryNextView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
 
     return this.wrapInViewContainer(
-      'talaria',
+      'query-next',
       <TalariaView
         tabId={p.match.params.tabId}
         initQuery={this.initQuery}
@@ -317,7 +319,10 @@ export class ConsoleApplication extends React.PureComponent<
               <Route path="/query" component={this.wrappedQueryView} />
 
               {/* BEGIN: Imply-added code for Talaria execution */}
-              <Route path={['/talaria/:tabId', '/talaria']} component={this.wrappedTalariaView} />
+              <Route
+                path={['/query-next/:tabId', '/query-next']}
+                component={this.wrappedQueryNextView}
+              />
               <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
               {/* END: Imply-modified code for Talaria execution */}
 
