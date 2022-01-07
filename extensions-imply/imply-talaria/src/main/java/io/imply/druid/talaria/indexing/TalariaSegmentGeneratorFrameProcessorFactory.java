@@ -252,7 +252,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       @Override
       public int getMaxRowsInMemory()
       {
-        return tuningConfig.getMaxRowsInMemory() / maxOutstandingProcessors;
+        return Math.max(1, tuningConfig.getMaxRowsInMemory() / maxOutstandingProcessors);
       }
 
       @Override
@@ -262,7 +262,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
             (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_INDEX_MEMORY_PERCENT);
 
         // Indexing memory is divided amongst concurrently-running processors.
-        return memoryForIncrementalIndex / maxOutstandingProcessors;
+        return Math.max(1, memoryForIncrementalIndex / maxOutstandingProcessors);
       }
 
       @Override
@@ -342,7 +342,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
         final long totalMaxColumnsToMerge = memoryForColumns / ROUGH_MEMORY_PER_COLUMN;
 
         // Column merging memory is divided amongst concurrently-running processors.
-        return Ints.checkedCast(totalMaxColumnsToMerge / maxOutstandingProcessors);
+        return Math.max(2, Ints.checkedCast(totalMaxColumnsToMerge / maxOutstandingProcessors));
       }
     };
   }
