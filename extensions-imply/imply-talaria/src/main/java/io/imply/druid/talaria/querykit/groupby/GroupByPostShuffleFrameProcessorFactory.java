@@ -12,9 +12,10 @@ package io.imply.druid.talaria.querykit.groupby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
+import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
@@ -61,11 +62,11 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy,
+      FrameProcessorFactory.ProviderThingy providerThingy,
       int maxOutstandingProcessors
   ) throws IOException
   {
-    final GroupByStrategySelector strategySelector = providerThingy.groupByStrategySelector();
+    final GroupByStrategySelector strategySelector = providerThingy.provide(GroupByStrategySelector.class);
 
     final List<OutputChannel> outputChannels = new ArrayList<>();
     for (final StagePartition partition : inputChannels.getStagePartitions()) {
@@ -88,7 +89,7 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
                 outputChannels.get(i).getWritableChannel(),
                 inputChannels.getFrameReader(stagePartition),
                 signature,
-                providerThingy.memoryAllocator()
+                providerThingy.provide(MemoryAllocator.class)
             );
           }
           catch (IOException e) {

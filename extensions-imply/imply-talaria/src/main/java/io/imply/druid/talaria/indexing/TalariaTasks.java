@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.exec;
+package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;

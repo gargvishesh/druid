@@ -15,7 +15,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.talaria.frame.channel.ReadableConcatFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
@@ -62,7 +61,7 @@ public class LimitFrameProcessorFactory extends BaseFrameProcessorFactory
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy,
+      ProviderThingy providerThingy,
       int maxOutstandingProcessors
   ) throws IOException
   {

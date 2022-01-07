@@ -126,7 +126,6 @@ public class TalariaExternalSinkFrameProcessor implements FrameProcessor<URI>
           final ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
 
           //noinspection rawtypes
-          @SuppressWarnings("rawtypes")
           final List<BaseObjectColumnValueSelector> selectors =
               columnMappings.getMappings()
                             .stream()
@@ -148,9 +147,7 @@ public class TalariaExternalSinkFrameProcessor implements FrameProcessor<URI>
     );
   }
 
-  private void writeRow(
-      @SuppressWarnings("rawtypes") final List<BaseObjectColumnValueSelector> selectors
-  ) throws IOException
+  private void writeRow(final List<BaseObjectColumnValueSelector> selectors) throws IOException
   {
     jsonGenerator.writeStartObject();
 

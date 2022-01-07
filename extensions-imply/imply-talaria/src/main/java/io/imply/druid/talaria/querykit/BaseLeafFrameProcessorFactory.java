@@ -17,8 +17,8 @@ import io.imply.druid.talaria.frame.channel.ReadableConcatFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
+import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
@@ -68,7 +68,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy,
+      FrameProcessorFactory.ProviderThingy providerThingy,
       int maxOutstandingProcessors
   ) throws IOException
   {
@@ -86,15 +86,15 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     final List<OutputChannel> outputChannels = new ArrayList<>(maxOutstandingProcessors);
 
     for (int i = 0; i < maxOutstandingProcessors; i++) {
-      allocatorQueueRef.get().add(providerThingy.memoryAllocator());
+      allocatorQueueRef.get().add(providerThingy.provide(MemoryAllocator.class));
       final OutputChannel outputChannel =
           outputChannelFactory.openChannel(FrameWithPartition.NO_PARTITION, false);
       outputChannels.add(outputChannel);
       channelQueueRef.get().add(outputChannel.getWritableChannel());
     }
 
-    final DataSegmentProvider dataSegmentProvider = providerThingy.dataSegmentProvider();
-    final File temporaryDirectory = new File(providerThingy.tempDir(), "input-source-" + UUID.randomUUID());
+    final DataSegmentProvider dataSegmentProvider = providerThingy.provide(DataSegmentProvider.class);
+    final File temporaryDirectory = new File(providerThingy.provide(File.class), "input-source-" + UUID.randomUUID());
 
     final Sequence<QueryWorkerInput> processorBaseInputs =
         Sequences.simple(
@@ -204,7 +204,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       ResourceHolder<MemoryAllocator> allocatorSupplier,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy
+      FrameProcessorFactory.ProviderThingy providerThingy
   );
 
   private static <T> ResourceHolder<T> makeLazyResourceHolder(

@@ -124,7 +124,7 @@ public class ControllerStageKernel
       final List<List<ReadablePartitions>> splits = new ArrayList<>();
 
       // Populate "splits" with nulls.
-      for (@SuppressWarnings("unused") final ControllerStageKernel ignored : inputTrackers) {
+      for (final ControllerStageKernel ignored : inputTrackers) {
         splits.add(null);
       }
 
@@ -304,7 +304,6 @@ public class ControllerStageKernel
     }
   }
 
-  @SuppressWarnings("unchecked")
   public void setResultsCompleteForWorker(final int workerNumber, final Object resultObject)
   {
     if (workerNumber < 0 || workerNumber >= workerCount) {

@@ -174,7 +174,6 @@ public class TalariaSegmentGeneratorFrameProcessor implements FrameProcessor<Dat
           final ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
 
           //noinspection rawtypes
-          @SuppressWarnings("rawtypes")
           final List<BaseObjectColumnValueSelector> selectors =
               frameReader.signature()
                          .getColumnNames()

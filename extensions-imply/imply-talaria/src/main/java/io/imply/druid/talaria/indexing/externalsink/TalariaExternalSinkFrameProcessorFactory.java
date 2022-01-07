@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
@@ -65,12 +64,12 @@ public class TalariaExternalSinkFrameProcessorFactory
       final OutputChannelFactory outputChannelFactory,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy,
+      final ProviderThingy providerThingy,
       final int maxOutstandingProcessors
   )
   {
-    final TalariaExternalSink externalSink = providerThingy.externalSink();
-    final ObjectMapper jsonMapper = providerThingy.jsonMapper();
+    final TalariaExternalSink externalSink = providerThingy.provide(TalariaExternalSink.class);
+    final ObjectMapper jsonMapper = providerThingy.provide(ObjectMapper.class);
 
     final Sequence<Integer> inputSequence =
         Sequences.simple(() -> IntStream.range(0, inputChannels.getStagePartitions().size()).iterator());

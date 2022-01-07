@@ -12,7 +12,6 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
@@ -28,8 +27,7 @@ public class TalariaCountersSnapshot
   private final List<WorkerCounters> workerCounters;
 
   @JsonCreator
-  @VisibleForTesting
-  public TalariaCountersSnapshot(final List<WorkerCounters> workerCounters)
+  TalariaCountersSnapshot(final List<WorkerCounters> workerCounters)
   {
     this.workerCounters = Preconditions.checkNotNull(workerCounters, "workerCounters");
   }

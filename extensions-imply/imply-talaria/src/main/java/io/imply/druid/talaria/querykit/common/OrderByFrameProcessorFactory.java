@@ -13,7 +13,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
@@ -52,7 +51,7 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy,
+      ProviderThingy providerThingy,
       int maxOutstandingProcessors
   ) throws IOException
   {

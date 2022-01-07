@@ -17,7 +17,7 @@ import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
+import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.QueryWorkerInput;
@@ -25,7 +25,9 @@ import io.imply.druid.talaria.querykit.QueryWorkerInputSpec;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.query.groupby.GroupByQuery;
+import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 
 import java.util.List;
@@ -68,7 +70,7 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
       final ResourceHolder<MemoryAllocator> allocator,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy
+      final FrameProcessorFactory.ProviderThingy providerThingy
   )
   {
     return new GroupByPreShuffleFrameProcessor(
@@ -76,8 +78,8 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
         baseInput,
         sideChannels,
         sideChannelReaders,
-        providerThingy.groupByStrategySelector(),
-        new JoinableFactoryWrapper(providerThingy.joinableFactory()),
+        providerThingy.provide(GroupByStrategySelector.class),
+        new JoinableFactoryWrapper(providerThingy.provide(JoinableFactory.class)),
         signature,
         clusterBy,
         outputChannel,

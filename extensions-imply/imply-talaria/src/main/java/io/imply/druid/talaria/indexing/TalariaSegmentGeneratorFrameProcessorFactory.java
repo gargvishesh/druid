@@ -17,7 +17,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
@@ -25,6 +24,7 @@ import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.StagePartition;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
+import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Sequence;
@@ -105,11 +105,12 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       final OutputChannelFactory outputChannelFactory,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy,
+      final ProviderThingy providerThingy,
       final int maxOutstandingProcessors
   )
   {
-    final RowIngestionMeters meters = providerThingy.rowIngestionMeters();
+    final TaskToolbox toolbox = providerThingy.provide(TaskToolbox.class);
+    final RowIngestionMeters meters = providerThingy.provide(RowIngestionMeters.class);
 
     final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
         meters,
@@ -127,7 +128,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
           final SegmentIdWithShardSpec segmentIdWithShardSpec = segmentIdsWithShardSpecs.get(i);
           final String idString = StringUtils.format("%s:%s", stagePartition, workerNumber);
           final File persistDirectory = new File(
-              providerThingy.persistDir(),
+              toolbox.getPersistDir(),
               segmentIdWithShardSpec.asSegmentId().toString()
           );
 
@@ -144,10 +145,10 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
                       maxOutstandingProcessors
                   ),
                   new FireDepartmentMetrics() /* TODO(gianm): Don't throw away */,
-                  providerThingy.segmentPusher(),
-                  providerThingy.jsonMapper(),
-                  providerThingy.indexIO(),
-                  providerThingy.indexMerger(),
+                  toolbox.getSegmentPusher(),
+                  toolbox.getJsonMapper(),
+                  toolbox.getIndexIO(),
+                  toolbox.getIndexMergerV9(),
                   meters,
                   parseExceptionHandler
               );
