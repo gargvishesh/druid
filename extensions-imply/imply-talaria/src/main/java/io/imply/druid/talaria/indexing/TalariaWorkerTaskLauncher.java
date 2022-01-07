@@ -12,12 +12,12 @@ package io.imply.druid.talaria.indexing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.imply.druid.talaria.exec.LeaderContext;
+import io.imply.druid.talaria.exec.WorkerManagerClient;
 import io.imply.druid.talaria.util.FutureUtils;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
-import org.apache.druid.indexing.common.task.ClientBasedTaskInfoProvider;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -47,12 +46,12 @@ public class TalariaWorkerTaskLauncher
 
   private final String controllerTaskId;
   private final String dataSource;
-  private final IndexingServiceClient serviceClient;
+  private final LeaderContext context;
   private final int numTasks;
   private final ExecutorService exec;
 
   // Mutable state meant to be accessible by threads outside the main loop.
-  private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
+  // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
   private final SettableFuture<TalariaTaskList> startFuture = SettableFuture.create();
   private final SettableFuture<TaskState> stopFuture = SettableFuture.create();
   private final AtomicBoolean started = new AtomicBoolean();
@@ -65,13 +64,13 @@ public class TalariaWorkerTaskLauncher
   public TalariaWorkerTaskLauncher(
       final String controllerTaskId,
       final String dataSource,
-      final IndexingServiceClient serviceClient,
+      final LeaderContext context,
       final int numTasks
   )
   {
     this.controllerTaskId = controllerTaskId;
     this.dataSource = dataSource;
-    this.serviceClient = serviceClient;
+    this.context = context;
     this.exec = Execs.singleThreaded("talaria-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
     this.numTasks = numTasks;
   }
@@ -205,7 +204,7 @@ public class TalariaWorkerTaskLauncher
       );
 
       tasks.put(task.getId(), null);
-      serviceClient.runTask(task.getId(), task);
+      context.workerManager().run(task.getId(), task);
     }
 
     return true;
@@ -217,13 +216,13 @@ public class TalariaWorkerTaskLauncher
    */
   private boolean waitForTasksToLaunch() throws InterruptedException
   {
-    final ClientBasedTaskInfoProvider taskInfoProvider = new ClientBasedTaskInfoProvider(serviceClient);
+    WorkerManagerClient workerManager = context.workerManager();
     final long waitStartTime = System.currentTimeMillis();
 
     while (!stopped.get()) {
       final long loopStartTime = System.currentTimeMillis();
 
-      final Map<String, TaskStatus> statuses = serviceClient.getTaskStatuses(tasks.keySet());
+      final Map<String, TaskStatus> statuses = workerManager.statuses(tasks.keySet());
       statuses.forEach((k, v) -> tasks.put(k, v.getStatusCode()));
 
       if (statuses.values().stream().anyMatch(status -> status.getStatusCode().isFailure())) {
@@ -242,7 +241,7 @@ public class TalariaWorkerTaskLauncher
         final boolean taskIsRunningWithLocationOrFinished =
             taskState != null
             && !taskState.isComplete()
-            && !TaskLocation.unknown().equals(taskInfoProvider.getTaskLocation(taskId));
+            && !TaskLocation.unknown().equals(workerManager.location(taskId));
 
         if (!taskIsRunningWithLocationOrFinished) {
           allTasksAreRunningWithLocationOrFinished = false;
@@ -290,7 +289,7 @@ public class TalariaWorkerTaskLauncher
       }
 
       if (!taskStatusesNeeded.isEmpty()) {
-        final Map<String, TaskStatus> statuses = serviceClient.getTaskStatuses(taskStatusesNeeded);
+        final Map<String, TaskStatus> statuses = context.workerManager().statuses(taskStatusesNeeded);
         statuses.forEach((k, v) -> tasks.put(k, v.getStatusCode()));
       }
 
@@ -319,7 +318,7 @@ public class TalariaWorkerTaskLauncher
   {
     for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
       if (!taskEntry.getValue().isComplete()) {
-        serviceClient.cancelTask(taskEntry.getKey());
+        context.workerManager().cancel(taskEntry.getKey());
       }
     }
   }
