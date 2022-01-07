@@ -18,6 +18,8 @@
 
 @import '../../../variables';
 
+$vertical-gap: 6px;
+
 .query-tab {
   position: relative;
 
@@ -36,17 +38,17 @@
     position: absolute;
     width: 100%;
     top: 0;
-    bottom: 7px;
+    bottom: $vertical-gap;
 
     .query-section {
       position: absolute;
       width: 100%;
       top: 0;
-      bottom: 38px;
+      bottom: 30px + $vertical-gap;
       overflow: auto;
 
       .helper-query {
-        margin-top: 6px;
+        margin-top: $vertical-gap;
       }
 
       .main-query {
@@ -65,7 +67,7 @@
 
         &.multi {
           min-height: calc(100% - 18px);
-          margin-top: 6px;
+          margin-top: $vertical-gap;
         }
 
         .corner {
@@ -74,7 +76,7 @@
           right: 0;
           @include card-background;
           z-index: 1;
-          padding: 5px 6px;
+          padding: 3px;
         }
       }
     }
@@ -92,7 +94,7 @@
   .output-section {
     position: absolute;
     width: 100%;
-    top: 7px;
+    top: $vertical-gap;
     bottom: 0;
     @include card-like;
 

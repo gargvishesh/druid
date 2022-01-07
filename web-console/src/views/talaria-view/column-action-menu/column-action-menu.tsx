@@ -81,7 +81,7 @@ export function ColumnActionMenu(props: ColumnActionMenuProps) {
     );
   }
 
-  if (column.isTimeColumn()) {
+  if (column.sqlType === 'TIMESTAMP') {
     menuItems.push(
       <TimeFloorMenuItem
         key="time_floor"
@@ -91,21 +91,24 @@ export function ColumnActionMenu(props: ColumnActionMenuProps) {
         }}
       />,
     );
-  } else if (column.sqlType === 'TIMESTAMP') {
-    menuItems.push(
-      <MenuItem
-        key="declare_time"
-        icon={IconNames.TIME}
-        text="Use as the primary time column"
-        onClick={() => {
-          onQueryAction(q =>
-            q
-              .removeSelectIndex(headerIndex)
-              .addSelect(expression.as(TIME_COLUMN), { insertIndex: 0 }),
-          );
-        }}
-      />,
-    );
+
+    if (!column.isTimeColumn()) {
+      menuItems.push(
+        <MenuItem
+          key="declare_time"
+          icon={IconNames.TIME}
+          text="Use as the primary time column"
+          onClick={() => {
+            onQueryAction(q =>
+              q.removeSelectIndex(headerIndex).addSelect(expression.as(TIME_COLUMN), {
+                insertIndex: 0,
+                addToGroupBy: q.hasGroupBy() ? 'start' : undefined,
+              }),
+            );
+          }}
+        />,
+      );
+    }
   } else {
     // Not a time column -------------------------------------------
     const values = queryResult.rows.map(row => row[headerIndex]);
@@ -121,12 +124,23 @@ export function ColumnActionMenu(props: ColumnActionMenuProps) {
         <MenuItem
           key="parse_time"
           icon={IconNames.TIME}
-          text={`Time parse as '${possibleDruidFormat}' and use as the primary time column`}
+          text={`Parse as '${possibleDruidFormat}'`}
+          onClick={() => {
+            const outputName = expression?.getOutputName();
+            if (!outputName) return;
+            onQueryAction(q => q.changeSelect(headerIndex, newSelectExpression.as(outputName)));
+          }}
+        />,
+        <MenuItem
+          key="parse_time_and_make_primary"
+          icon={IconNames.TIME}
+          text={`Parse as '${possibleDruidFormat}' and use as the primary time column`}
           onClick={() => {
             onQueryAction(q =>
-              q
-                .removeSelectIndex(headerIndex)
-                .addSelect(newSelectExpression.as(TIME_COLUMN), { insertIndex: 0 }),
+              q.removeSelectIndex(headerIndex).addSelect(newSelectExpression.as(TIME_COLUMN), {
+                insertIndex: 0,
+                addToGroupBy: q.hasGroupBy() ? 'start' : undefined,
+              }),
             );
           }}
         />,
