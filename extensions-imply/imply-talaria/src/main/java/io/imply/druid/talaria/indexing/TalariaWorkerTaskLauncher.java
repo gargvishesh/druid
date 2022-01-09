@@ -131,11 +131,6 @@ public class TalariaWorkerTaskLauncher
     return stopFuture.isDone();
   }
 
-  public TaskState awaitFinish()
-  {
-    return FutureUtils.getUnchecked(stopFuture);
-  }
-
   private void mainLoop()
   {
     try {
