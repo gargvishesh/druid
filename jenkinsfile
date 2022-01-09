@@ -549,7 +549,7 @@ pipeline {
         RT_REGISTRY_CREDS = "repo.qa.imply.io"
         RT_SERVER_ID = "repo-qa-imply-io"
         RT_DOCKER_REPOSITORY_PREFIX = "repo.cnc.imply.io"
-        DOCKER_REGISTRY_MIRROR = "https://repo.cnc.imply.io:443"
+        DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
         EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
         EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
