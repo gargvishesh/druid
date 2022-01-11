@@ -52,12 +52,12 @@ if !($DRUID_INTEGRATION_TEST_SKIP_BUILD_DOCKER); then
 fi
 popd
 
+. $(dirname "$0")/script/docker_compose_args.sh
+
 if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
-  bash ${IMPLYTESTDIR}/stop_cluster.sh
-  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query" ]
-  then
-    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.query.yml up -d
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]
+  OVERRIDE_ENV=$DIR/docker/environment-configs/empty-config bash ${IMPLYTESTDIR}/stop_cluster.sh
+
+  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]
   then
     docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-setup.yml up -d
 
@@ -72,28 +72,25 @@ if !($DRUID_INTEGRATION_TEST_SKIP_RUN_DOCKER); then
     [ $counter -lt 11 ]
 
     docker exec -e KEYCLOAK_NOT_BEFORE_API_VERSION=$KEYCLOAK_NOT_BEFORE_API_VERSION imply-keycloak /bin/bash -c '/tmp/setup.sh'
+  fi
 
-    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.keycloak-security-cluster.yml up -d
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "ldap-security" ]
+  ARGS=$(getComposeArgs)
+
+  if [ "$ARGS" = "fall-back-to-asf-script" ]
   then
-    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.ldap-security.yml up -d
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "async-download" ]
-    then
-      docker-compose -f $IMPLYTESTDIR/docker/docker-compose.async-download.yml up -d
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ]
-  then
-    docker-compose -f $IMPLYTESTDIR/docker/docker-compose.virtual-segments.yml up -d
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "imply-s3" ]
-  then
-    if [ -z "$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH" ]
-    then
-      echo "Test group $DRUID_INTEGRATION_TEST_GROUP requires override config file. Stopping test..."
-      exit 1
-    fi
-    echo "\$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH is set with value ${DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH}"
     bash ${DIR}/script/docker_run_cluster.sh
   else
-    bash ${DIR}/script/docker_run_cluster.sh
+    if [ -z "$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH" ]
+    then
+      # Start Druid cluster
+      echo "Starting cluster with empty config"
+      OVERRIDE_ENV=$DIR/docker/environment-configs/empty-config docker-compose $ARGS up -d
+    else
+      # run druid cluster with override config
+      echo "Starting cluster with a config file at $DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH"
+      echo "OVERRIDE_ENV=$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH docker-compose $ARGS up -d"
+      OVERRIDE_ENV=$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH docker-compose $ARGS up -d
+    fi
   fi
 fi
 

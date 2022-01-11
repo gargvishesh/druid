@@ -50,7 +50,7 @@ fi
 # cleanup if virtual-segments group
 if [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ]
 then
-  docker-compose -f docker/docker-compose.virtual-segments.yml down
+  OVERRIDE_ENV=$DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH docker-compose -f docker/docker-compose.virtual-segments.yml down
 fi
 
 # bring down using the same compose args we started with

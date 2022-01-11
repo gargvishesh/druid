@@ -65,6 +65,7 @@
       <groupId>io.imply</groupId>
       <artifactId>imply-view-manager</artifactId>
       <version>${project.parent.version}</version>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>io.imply</groupId>
@@ -291,6 +292,7 @@
                     <ZK_VERSION>${zookeeper.version}</ZK_VERSION>
                     <HADOOP_VERSION>${hadoop.compile.version}</HADOOP_VERSION>
                     <KEYCLOAK_NOT_BEFORE_API_VERSION>2021.07.0-SNAPSHOT</KEYCLOAK_NOT_BEFORE_API_VERSION>
+                    <DRUID_VERSION>${parent.version}</DRUID_VERSION>
                   </environmentVariables>
                   <executable>${project.basedir}/build_run_cluster.sh</executable>
                 </configuration>
@@ -307,7 +309,9 @@
                     <DRUID_INTEGRATION_TEST_GROUP>${groups}</DRUID_INTEGRATION_TEST_GROUP>
                     <DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH>${override.config.path}
                     </DRUID_INTEGRATION_TEST_OVERRIDE_CONFIG_PATH>
+                    <OVERRIDE_ENV>${override.config.path}</OVERRIDE_ENV>
                     <DRUID_INTEGRATION_TEST_INDEXER>${it.indexer}</DRUID_INTEGRATION_TEST_INDEXER>
+                    <DRUID_VERSION>${parent.version}</DRUID_VERSION>
                   </environmentVariables>
                   <executable>${project.basedir}/stop_cluster.sh</executable>
                 </configuration>
