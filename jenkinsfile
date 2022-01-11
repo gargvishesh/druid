@@ -934,6 +934,10 @@ pipeline {
                 }
 
                 stage('web-console end-to-end test') {
+                    when {
+                        expression { env.BRANCH_NAME != 'monthly' }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
