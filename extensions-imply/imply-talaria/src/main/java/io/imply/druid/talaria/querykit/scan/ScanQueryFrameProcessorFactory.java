@@ -17,7 +17,7 @@ import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
+import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.QueryWorkerInput;
@@ -26,7 +26,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 
 import javax.annotation.Nullable;
@@ -78,7 +77,7 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
       final ResourceHolder<MemoryAllocator> allocator,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameProcessorFactory.ProviderThingy providerThingy
+      final FrameContext providerThingy
   )
   {
     return new ScanQueryFrameProcessor(
@@ -88,7 +87,7 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
         baseInput,
         sideChannels,
         sideChannelReaders,
-        new JoinableFactoryWrapper(providerThingy.provide(JoinableFactory.class)),
+        new JoinableFactoryWrapper(providerThingy.joinableFactory()),
         outputChannel,
         allocator,
         runningCountForLimit

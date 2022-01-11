@@ -42,7 +42,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
    *                                 {@link io.imply.druid.talaria.frame.write.FrameWriter#sort} before writing. It is not
    *                                 necessary to do any sorting of data across frames; it is only required that each
    *                                 individual frame is internally sorted.
-   * @param providerThingy           TODO(gianm): total hack
+   * @param providerThingy           Context which provides services needed by frame processors
    * @param maxOutstandingProcessors maximum number of processors that will be active at once
    *
    * @return a processor iterator, which may be computed lazily; and a list of output channels.
@@ -54,7 +54,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      ProviderThingy providerThingy,
+      FrameContext providerThingy,
       int maxOutstandingProcessors
   ) throws IOException;
 
@@ -70,12 +70,4 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
 
   @SuppressWarnings("rawtypes")
   ExtraInfoHolder makeExtraInfoHolder(@Nullable ExtraInfoType extra);
-
-  /**
-   * TODO(gianm): SO, so, goofy.
-   */
-  interface ProviderThingy
-  {
-    <T> T provide(Class<T> clazz);
-  }
 }
