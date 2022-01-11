@@ -19,16 +19,24 @@
 import { Button, Classes, Dialog, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
+import { useGlobalEventListener } from '../../../hooks';
+
 interface TabRenameDialogProps {
-  tabName: string;
+  initialTabName: string;
   onSave(newTabName: string): void;
   onClose(): void;
 }
 
 export const TabRenameDialog = React.memo(function TabRenameDialog(props: TabRenameDialogProps) {
-  const { tabName, onSave, onClose } = props;
+  const { initialTabName, onSave, onClose } = props;
 
-  const [newTabName, setNewTabName] = useState<string>(tabName || '');
+  const [newTabName, setNewTabName] = useState<string>(initialTabName || '');
+
+  useGlobalEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    onSave(newTabName);
+    onClose();
+  });
 
   return (
     <Dialog

@@ -22,7 +22,7 @@ import { QueryContext } from '../query-context';
 
 export function getContextFromSqlQuery(sql: string): QueryContext {
   const context: QueryContext = {};
-  const lines = sql.split('\n');
+  const lines = sql.split(/\r?\n/);
   for (const line of lines) {
     const m = /--:context\s*(.+)$/.exec(line);
     if (!m) continue;

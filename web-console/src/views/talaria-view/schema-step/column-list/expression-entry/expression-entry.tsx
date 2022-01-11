@@ -95,7 +95,10 @@ export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryPr
         </div>
         {!(expression instanceof SqlRef) && (
           <div className="expression">
-            {expression.getUnderlyingExpression().prettify().toString()}
+            {expression
+              .getUnderlyingExpression()
+              .prettify({ keywordCasing: 'preserve' })
+              .toString()}
           </div>
         )}
       </div>

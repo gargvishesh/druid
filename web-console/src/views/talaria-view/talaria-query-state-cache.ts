@@ -16,8 +16,33 @@
  * limitations under the License.
  */
 
-.run-preview-button {
-  .rune-button {
-    background-color: #2ca89e !important;
+import { TalariaSummary } from '../../talaria-models';
+import { DruidError, QueryState } from '../../utils';
+
+export class TalariaQueryStateCache {
+  private static readonly cache: Record<
+    string,
+    QueryState<TalariaSummary, DruidError, TalariaSummary>
+  > = {};
+
+  static storeState(
+    id: string,
+    report: QueryState<TalariaSummary, DruidError, TalariaSummary>,
+  ): void {
+    TalariaQueryStateCache.cache[id] = report;
+  }
+
+  static getState(id: string): QueryState<TalariaSummary, DruidError, TalariaSummary> | undefined {
+    return TalariaQueryStateCache.cache[id];
+  }
+
+  static deleteState(id: string): void {
+    delete TalariaQueryStateCache.cache[id];
+  }
+
+  static deleteStates(ids: string[]): void {
+    for (const id of ids) {
+      delete TalariaQueryStateCache.cache[id];
+    }
   }
 }

@@ -27,6 +27,30 @@ const writefile = 'lib/sql-docs.js';
 const MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS = 150;
 const MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES = 14;
 
+// BEGIN: Imply-added code for Talaria execution
+const IMPLY_FUNCTION_DOCS = {
+  TABLE: [
+    [
+      'expr',
+      convertMarkdownToHtml(
+        'Creates an inline table object. The first argument is expected to be an `EXTERN` function.',
+      ),
+    ],
+  ],
+  EXTERN: [
+    [
+      'inputSource, inputFormat, rowSignature',
+      convertMarkdownToHtml(
+        `The EXTERN function takes three parameters:
+1. \`inputSource\` - any Druid input source, as a JSON-encoded string.
+2. \`inputFormat\` - any Druid input format, as a JSON-encoded string.
+3. \`rowSignature\` - as a JSON-encoded array of column descriptors. Each column descriptor must have a name and a type. The type can be \`string\`, \`long\`, \`double\`, or \`float\`. This row signature will be used to map the external data into the SQL layer.`,
+      ),
+    ],
+  ],
+};
+// END: Imply-modified code for Talaria execution
+
 function hasHtmlTags(str) {
   return /<(a|br|span|div|p|code)\/?>/.test(str);
 }
@@ -100,6 +124,11 @@ const readDoc = async () => {
       `Did not find enough data type entries did the structure of '${readfile}' change? (found ${numDataTypes} but expected at least ${MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES})`,
     );
   }
+
+  // BEGIN: Imply-added code for Talaria execution
+  console.log(`Adding ${Object.keys(IMPLY_FUNCTION_DOCS).length} Imply only functions`);
+  Object.assign(functionDocs, IMPLY_FUNCTION_DOCS);
+  // END: Imply-modified code for Talaria execution
 
   const content = `/*
  * Licensed to the Apache Software Foundation (ASF) under one

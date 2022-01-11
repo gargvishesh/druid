@@ -22,7 +22,7 @@ import * as JSONBig from 'json-bigint-native';
 
 import { ColumnMetadata, compact, filterMap } from '../utils';
 
-import { generate6HexId } from './talaria-general';
+import { generate8HexId } from './talaria-general';
 import { fitExternalConfigPattern } from './talaria-query-pattern';
 
 function sqlTypeFromDruid(druidType: string): string {
@@ -60,7 +60,7 @@ export interface TalariaQueryPartValue {
 export class TalariaQueryPart {
   static blank() {
     return new TalariaQueryPart({
-      id: generate6HexId(),
+      id: generate8HexId(),
       queryString: '',
     });
   }
@@ -71,11 +71,15 @@ export class TalariaQueryPart {
 
   static fromQueryString(queryString: string, queryName?: string, collapsed?: boolean) {
     return new TalariaQueryPart({
-      id: generate6HexId(),
+      id: generate8HexId(),
       queryName,
       queryString,
       collapsed,
     });
+  }
+
+  static isTalariaEngineNeeded(queryString: string): boolean {
+    return /EXTERN\s*\(/im.test(queryString) || /INSERT\s+INTO/im.test(queryString);
   }
 
   public readonly id: string;
@@ -210,6 +214,10 @@ export class TalariaQueryPart {
     return [];
   }
 
+  public isTalariaEngineNeeded(): boolean {
+    return TalariaQueryPart.isTalariaEngineNeeded(this.queryString);
+  }
+
   public explodeQueryPart(): TalariaQueryPart[] {
     let flatQuery: SqlQuery;
     try {
@@ -239,11 +247,6 @@ export class TalariaQueryPart {
   }
 
   public duplicate(): TalariaQueryPart {
-    const { queryName } = this;
-    let dup = this.changeId(generate6HexId());
-    if (queryName) {
-      dup = dup.changeQueryName(queryName + '_copy');
-    }
-    return dup;
+    return this.changeId(generate8HexId()).changeLastQueryInfo(undefined);
   }
 }

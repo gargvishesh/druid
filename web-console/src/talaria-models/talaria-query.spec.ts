@@ -25,12 +25,12 @@ describe('TalariaQuery', () => {
     it('works when INSERT INTO is first', () => {
       const sql = sane`
         INSERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `;
 
       expect(TalariaQuery.commentOutInsertInto(sql)).toEqual(sane`
         --SERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `);
     });
 
@@ -38,13 +38,13 @@ describe('TalariaQuery', () => {
       const sql = sane`
         --:context talariaSegmentGranularity: month
         INSERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `;
 
       expect(TalariaQuery.commentOutInsertInto(sql)).toEqual(sane`
         --:context talariaSegmentGranularity: month
         --SERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `);
     });
 
@@ -52,13 +52,13 @@ describe('TalariaQuery', () => {
       const sql = sane`
         --:context talariaSegmentGranularity: month
             INSERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `;
 
       expect(TalariaQuery.commentOutInsertInto(sql)).toEqual(sane`
         --:context talariaSegmentGranularity: month
             --SERT INTO trips2
-        SELECT * FROM TABLE(extern(''))
+        SELECT * FROM TABLE(EXTERN(''))
       `);
     });
   });
@@ -72,7 +72,7 @@ describe('TalariaQuery', () => {
           TIME_PARSE(pickup_datetime) AS __time,
           *
         FROM TABLE(
-            extern(
+            EXTERN(
               '{"type": "local", ...}',
               '{"type":"csv", ...}',
               '[{ "name": "cab_type", "type": "string" }, ...]'

@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @JsonTypeName(PassthroughAggregatorFactory.TYPE)
 @EverythingIsNonnullByDefault
@@ -149,5 +150,33 @@ public class PassthroughAggregatorFactory extends AggregatorFactory
   public ColumnType getResultType()
   {
     return ColumnType.ofComplex(complexTypeName);
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    PassthroughAggregatorFactory that = (PassthroughAggregatorFactory) o;
+    return columnName.equals(that.columnName) && complexTypeName.equals(that.complexTypeName);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(columnName, complexTypeName);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "PassthroughAggregatorFactory{" +
+           "columnName='" + columnName + '\'' +
+           ", complexTypeName='" + complexTypeName + '\'' +
+           '}';
   }
 }

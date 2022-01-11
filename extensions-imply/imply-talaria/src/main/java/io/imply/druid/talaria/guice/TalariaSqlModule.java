@@ -33,6 +33,7 @@ import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.run.QueryMakerFactory;
 import org.apache.druid.sql.guice.SqlBindings;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -52,11 +53,17 @@ public class TalariaSqlModule implements DruidModule
       return Collections.emptyList();
     }
 
-    return Collections.singletonList(
+    final List<Module> modules = new ArrayList<>();
+
+    modules.add(
         new SimpleModule(getClass().getSimpleName()).registerSubtypes(
             ExternalDataSource.class
         )
     );
+
+    // We want this module to bring InputSourceModule along for the ride.
+    modules.addAll(new InputSourceModule().getJacksonModules());
+    return modules;
   }
 
   @Override
@@ -66,8 +73,10 @@ public class TalariaSqlModule implements DruidModule
       return;
     }
 
-    // Set up the EXTERN macro.
+    // We want this module to bring InputSourceModule along for the ride.
     binder.install(new InputSourceModule());
+
+    // Set up the EXTERN macro.
     SqlBindings.addOperatorConversion(binder, TalariaExternalOperatorConversion.class);
 
     // Set up the ImplyQueryMakerFactory.

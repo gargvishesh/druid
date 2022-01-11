@@ -1109,6 +1109,12 @@ LIMIT 1000
 
 - Only one SELECT query can run at a time on a given cluster. (15001)
 
+- The numeric flavors of the EARLIEST and LATEST aggregators do not work
+  properly. Attempting to use the numeric flavors of these aggregators will
+  lead to an error like
+  `java.lang.ClassCastException: class java.lang.Double cannot be cast to class org.apache.druid.collections.SerializablePair`.
+  The string flavors, however, do work properly. (15040)
+
 - When querying system tables in `INFORMATION_SCHEMA` or `sys`, the
   SQL API ignores the `talaria` parameter, and treats it as if it
   were false. These queries always run with the standard Druid

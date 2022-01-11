@@ -48,12 +48,12 @@ $work-panel-width: 250px;
     height: 100%;
     left: $column-tree-width + $thin-padding;
     right: $work-panel-width + $thin-padding;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
 
     .query-tabs {
-      position: relative;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 215px;
       white-space: nowrap;
       overflow: hidden;
 
@@ -83,12 +83,12 @@ $work-panel-width: 250px;
         padding: 6px 14px;
         margin-left: 4px;
       }
+    }
 
-      .toolbar {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
+    .toolbar {
+      position: absolute;
+      top: 0;
+      right: 0;
     }
 
     .query-tab {

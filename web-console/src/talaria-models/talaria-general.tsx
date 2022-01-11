@@ -23,8 +23,8 @@ import { InputSource } from '../druid-models/input-source';
 import { getLink } from '../links';
 import { deepGet, deepSet, typeIs } from '../utils';
 
-export function generate6HexId(): string {
-  return (Math.random() * 1e10).toString(16).replace('.', '').substr(0, 6);
+export function generate8HexId(): string {
+  return (Math.random() * 1e10).toString(16).replace('.', '').substr(0, 8);
 }
 
 export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
@@ -396,6 +396,25 @@ export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
             Google Cloud Storage Objects
           </ExternalLink>
           .
+        </p>
+        <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+
+  // sql
+  {
+    name: 'database.type',
+    label: 'Database type',
+    type: 'string',
+    suggestions: ['mysql', 'postgresql'],
+    defined: typeIs('sql'),
+    required: true,
+    info: (
+      <>
+        <p>
+          The full Google Cloud Storage URI of your file. To ingest from multiple URIs, use commas
+          to separate each individual URI.
         </p>
         <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
       </>

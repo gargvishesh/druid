@@ -16,33 +16,33 @@
  * limitations under the License.
  */
 
-import { TalariaSummary } from '../../talaria-models';
-import { DruidError, QueryState } from '../../utils';
+import { Ace } from 'ace-builds';
 
-export class TalariaTabCache {
-  private static readonly cache: Record<
-    string,
-    QueryState<TalariaSummary, DruidError, TalariaSummary>
-  > = {};
+interface EditorState {
+  undoManager: Ace.UndoManager;
+}
 
-  static storeState(
-    id: string,
-    report: QueryState<TalariaSummary, DruidError, TalariaSummary>,
-  ): void {
-    TalariaTabCache.cache[id] = report;
+export class AceEditorStateCache {
+  static states: Record<string, EditorState> = {};
+
+  static saveState(id: string, editor: Ace.Editor): void {
+    const session = editor.getSession();
+    const undoManager: any = session.getUndoManager();
+    AceEditorStateCache.states[id] = {
+      undoManager,
+    };
   }
 
-  static getState(id: string): QueryState<TalariaSummary, DruidError, TalariaSummary> | undefined {
-    return TalariaTabCache.cache[id];
-  }
-
-  static deleteState(id: string): void {
-    delete TalariaTabCache.cache[id];
+  static applyState(id: string, editor: Ace.Editor): void {
+    const state = AceEditorStateCache.states[id];
+    if (!state) return;
+    const session = editor.getSession();
+    session.setUndoManager(state.undoManager);
   }
 
   static deleteStates(ids: string[]): void {
     for (const id of ids) {
-      delete TalariaTabCache.cache[id];
+      delete AceEditorStateCache.states[id];
     }
   }
 }

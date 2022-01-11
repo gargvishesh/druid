@@ -43,7 +43,7 @@ export const LocalStorageKeys = {
   // BEGIN: Imply-added code for Talaria execution
   TALARIA_SHOW: 'talaria-show' as const,
   TALARIA_QUERIES: 'talaria-queries' as const,
-  TALARIA_CONTEXT: 'talaria-context' as const,
+  TALARIA_LAST_TAB: 'talaria-last-tab' as const,
   TALARIA_TAB_PANE_SIZE: 'talaria-tab-pane-size' as const,
   TALARIA_HISTORY: 'talaria-history2' as const,
   TALARIA_LIVE_MODE: 'talaria-live-mode' as const,

@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.indexing;
+package io.imply.druid.talaria.exec;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -65,19 +65,19 @@ public class SuperSorterParametersTest
     );
   }
 
-  private static TalariaWorkerTask.SuperSorterParameters parameters(int numProcessors, int channelsPerProcessor)
+  private static WorkerImpl.SuperSorterParameters parameters(int numProcessors, int channelsPerProcessor)
   {
-    return new TalariaWorkerTask.SuperSorterParameters(numProcessors, channelsPerProcessor);
+    return new WorkerImpl.SuperSorterParameters(numProcessors, channelsPerProcessor);
   }
 
-  private static TalariaWorkerTask.SuperSorterParameters compute(
+  private static WorkerImpl.SuperSorterParameters compute(
       final long maxMemory,
       final int numWorkersInJvm,
       final int maxProcessors,
       final int maxSuperSorterProcessors
   )
   {
-    return TalariaWorkerTask.SuperSorterParameters.compute(
+    return WorkerImpl.SuperSorterParameters.compute(
         maxMemory,
         numWorkersInJvm,
         maxProcessors,

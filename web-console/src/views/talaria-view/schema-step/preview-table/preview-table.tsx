@@ -20,7 +20,14 @@ import { Icon, Menu, MenuItem } from '@blueprintjs/core';
 import { IconName, IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
-import { QueryResult, SqlAlias, SqlExpression, SqlLiteral, SqlQuery } from 'druid-query-toolkit';
+import {
+  QueryResult,
+  SqlAlias,
+  SqlExpression,
+  SqlLiteral,
+  SqlQuery,
+  SqlStar,
+} from 'druid-query-toolkit';
 import React, { useState } from 'react';
 import ReactTable from 'react-table';
 
@@ -52,12 +59,14 @@ function getExpressionIfAlias(query: SqlQuery, selectIndex: number): string {
 
   if (query.isRealOutputColumnAtSelectIndex(selectIndex)) {
     if (ex instanceof SqlAlias) {
-      return String(ex.expression.prettify());
+      return String(ex.expression.prettify({ keywordCasing: 'preserve' }));
     } else {
       return '';
     }
+  } else if (ex instanceof SqlStar) {
+    return '';
   } else {
-    return ex ? String(ex.prettify()) : '';
+    return ex ? String(ex.prettify({ keywordCasing: 'preserve' })) : '';
   }
 }
 
