@@ -97,6 +97,7 @@ import org.apache.druid.indexer.TaskState;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.indexing.common.TaskLock;
+import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.actions.LockListAction;
 import org.apache.druid.indexing.common.actions.MarkSegmentsAsUnusedAction;
@@ -146,7 +147,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -726,7 +726,7 @@ public class LeaderImpl implements Leader
               false,
               NumberedPartialShardSpec.instance(),
               LockGranularity.TIME_CHUNK,
-              null
+              TaskLockType.SHARED
           )
       );
 
@@ -1310,12 +1310,13 @@ public class LeaderImpl implements Leader
     final List<ClusterByColumn> clusterByColumns = clusterBy.getColumns();
     final List<String> shardColumns = new ArrayList<>();
     final boolean boosted = isClusterByBoosted(clusterBy);
+    final int numShardColumns = clusterByColumns.size() - clusterBy.getBucketByCount() - (boosted ? 1 : 0);
 
-    if (clusterByColumns.isEmpty() || (boosted && clusterByColumns.size() == 1)) {
+    if (numShardColumns == 0) {
       return Collections.emptyList();
     }
 
-    for (int i = clusterBy.getBucketByCount(); i < clusterByColumns.size(); i++) {
+    for (int i = clusterBy.getBucketByCount(); i < clusterBy.getBucketByCount() + numShardColumns; i++) {
       final ClusterByColumn column = clusterByColumns.get(i);
       final List<String> outputColumns = columnMappings.getOutputColumnsForQueryColumn(column.columnName());
 
