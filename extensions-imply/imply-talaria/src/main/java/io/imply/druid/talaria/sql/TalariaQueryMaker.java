@@ -16,23 +16,30 @@ import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.granularity.GranularityType;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.jackson.JacksonUtils;
+import org.apache.druid.query.QueryContexts;
+import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.DruidQuery;
+import org.apache.druid.sql.calcite.rel.Grouping;
 import org.apache.druid.sql.calcite.run.QueryFeature;
 import org.apache.druid.sql.calcite.run.QueryMaker;
+import org.apache.druid.sql.calcite.table.RowSignatures;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -50,6 +57,7 @@ public class TalariaQueryMaker implements QueryMaker
   private static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
   private static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
   private static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";
+  private static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
   private static final String DESTINATION_REPORT = "taskReport";
@@ -146,15 +154,13 @@ public class TalariaQueryMaker implements QueryMaker
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_ROWS_IN_MEMORY);
 
-    DimensionHandlerUtils.convertObjectToLong(
-        plannerContext.getQueryContext().get(CTX_ROWS_IN_MEMORY)
-    );
+    final boolean finalizeAggregations = isFinalizeAggregations(plannerContext);
 
     final List<Interval> replaceTimeChunks =
         Optional.ofNullable(plannerContext.getQueryContext().get(CTX_REPLACE_TIME_CHUNKS))
                 .map(
                     s -> {
-                      if ("all".equals(s)) {
+                      if (s instanceof String && "all".equals(StringUtils.toLowerCase((String) s))) {
                         return Intervals.ONLY_ETERNITY;
                       } else {
                         final String[] parts = ((String) s).split("\\s*,\\s*");
@@ -169,6 +175,10 @@ public class TalariaQueryMaker implements QueryMaker
                     }
                 )
                 .orElse(null);
+
+    // For assistance computing return types if !finalizeAggregations.
+    final Map<String, ColumnType> aggregationIntermediateTypeMap =
+        finalizeAggregations ? null /* Not needed */ : buildAggregationIntermediateTypeMap(druidQuery);
 
     final DynamicPartitionsSpec partitionsSpec = new DynamicPartitionsSpec(Ints.checkedCast(rowsPerSegment), null);
 
@@ -188,9 +198,16 @@ public class TalariaQueryMaker implements QueryMaker
         timeColumnName = queryColumn;
       }
 
-      sqlTypeNames.add(
-          druidQuery.getOutputRowType().getFieldList().get(entry.getKey()).getType().getSqlTypeName().getName()
-      );
+      final SqlTypeName sqlTypeName;
+
+      if (!finalizeAggregations && aggregationIntermediateTypeMap.containsKey(queryColumn)) {
+        final ColumnType druidType = aggregationIntermediateTypeMap.get(queryColumn);
+        sqlTypeName = new RowSignatures.ComplexSqlType(SqlTypeName.OTHER, druidType, true).getSqlTypeName();
+      } else {
+        sqlTypeName = druidQuery.getOutputRowType().getFieldList().get(entry.getKey()).getType().getSqlTypeName();
+      }
+
+      sqlTypeNames.add(sqlTypeName.getName());
       columnMappings.add(ImmutableMap.of("queryColumn", queryColumn, "outputColumn", outputColumns));
     }
 
@@ -231,11 +248,15 @@ public class TalariaQueryMaker implements QueryMaker
                       .build();
     }
 
-    // Add time column to context, if it exists.
-    final Map<String, Object> timeColumnContext = new HashMap<>();
+    final Map<String, Object> nativeQueryContextOverrides = new HashMap<>();
+
+    // Add time column to native query context, if it exists.
     if (timeColumnName != null) {
-      timeColumnContext.put(QueryKitUtils.CTX_TIME_COLUMN_NAME, timeColumnName);
+      nativeQueryContextOverrides.put(QueryKitUtils.CTX_TIME_COLUMN_NAME, timeColumnName);
     }
+
+    // Add appropriate finalization to native query context.
+    nativeQueryContextOverrides.put(QueryContexts.FINALIZE_KEY, finalizeAggregations);
 
     //noinspection unchecked
     final Map<String, Object> querySpec =
@@ -243,7 +264,7 @@ public class TalariaQueryMaker implements QueryMaker
                     .put(
                         "query",
                         jsonMapper.convertValue(
-                            druidQuery.getQuery().withOverriddenContext(timeColumnContext),
+                            druidQuery.getQuery().withOverriddenContext(nativeQueryContextOverrides),
                             Object.class
                         )
                     )
@@ -265,5 +286,27 @@ public class TalariaQueryMaker implements QueryMaker
     indexingServiceClient.runTask(taskId, taskSpec);
 
     return Sequences.simple(Collections.singletonList(new Object[]{taskId}));
+  }
+
+  static boolean isFinalizeAggregations(final PlannerContext plannerContext)
+  {
+    return Numbers.parseBoolean(plannerContext.getQueryContext().getOrDefault(CTX_FINALIZE_AGGREGATIONS, true));
+  }
+
+  private static Map<String, ColumnType> buildAggregationIntermediateTypeMap(final DruidQuery druidQuery)
+  {
+    final Grouping grouping = druidQuery.getGrouping();
+
+    if (grouping == null) {
+      return Collections.emptyMap();
+    }
+
+    final Map<String, ColumnType> retVal = new HashMap<>();
+
+    for (final AggregatorFactory aggregatorFactory : grouping.getAggregatorFactories()) {
+      retVal.put(aggregatorFactory.getName(), aggregatorFactory.getIntermediateType());
+    }
+
+    return retVal;
   }
 }
