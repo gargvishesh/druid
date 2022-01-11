@@ -20,6 +20,7 @@ import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.indexing.common.TaskLock;
 import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
@@ -28,10 +29,11 @@ import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
 import org.apache.druid.indexing.common.task.Tasks;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
-import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.StringUtils;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Map;
 
@@ -126,14 +128,24 @@ public class TalariaControllerTask extends AbstractTask
   @Override
   public boolean isReady(TaskActionClient taskActionClient) throws Exception
   {
-    if (isIngestion(querySpec)) {
-      // TODO(gianm): Don't require lock on ETERNITY
-      return taskActionClient.submit(
-          new TimeChunkLockTryAcquireAction(TaskLockType.EXCLUSIVE, Intervals.ETERNITY)
-      ) != null;
-    } else {
-      return true;
+    // If we're in replace mode, acquire locks for all intervals before declaring the task ready.
+    if (isIngestion(querySpec) && ((DataSourceTalariaDestination) querySpec.getDestination()).isReplaceTimeChunks()) {
+      final List<Interval> intervals =
+          ((DataSourceTalariaDestination) querySpec.getDestination()).getReplaceTimeChunks();
+
+      for (final Interval interval : intervals) {
+        final TaskLock taskLock =
+            taskActionClient.submit(new TimeChunkLockTryAcquireAction(TaskLockType.EXCLUSIVE, interval));
+
+        if (taskLock == null) {
+          return false;
+        } else if (taskLock.isRevoked()) {
+          throw new ISE(StringUtils.format("Lock for interval [%s] was revoked", interval));
+        }
+      }
     }
+
+    return true;
   }
 
   @Override

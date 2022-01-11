@@ -97,6 +97,7 @@ import org.apache.druid.indexer.TaskState;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.LockGranularity;
 import org.apache.druid.indexing.common.TaskLock;
+import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.actions.LockListAction;
 import org.apache.druid.indexing.common.actions.MarkSegmentsAsUnusedAction;
@@ -726,7 +727,7 @@ public class LeaderImpl implements Leader
               false,
               NumberedPartialShardSpec.instance(),
               LockGranularity.TIME_CHUNK,
-              null
+              TaskLockType.SHARED
           )
       );
 

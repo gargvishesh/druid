@@ -1122,11 +1122,6 @@ LIMIT 1000
 
 **Issues with INSERT queries.**
 
-- INSERT queries acquire an exclusive lock on the entire target
-  datasource while a job is running, even if a finer-grained lock
-  would have sufficed. This means that Talaria-based ingestion
-  cannot occur concurrently with other forms of ingestion. (15003)
-
 - The [schemaless dimensions](https://druid.apache.org/docs/latest/ingestion/ingestion-spec.html#inclusions-and-exclusions)
   feature is not available. All columns and their types must be
   specified explicitly. (15004)
