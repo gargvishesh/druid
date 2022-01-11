@@ -94,42 +94,24 @@ setupData()
   # In particular, they requires segments to be download from a pre-existing s3 bucket.
   # This is done by using the loadSpec put into metadatastore and s3 credientials set below.
   if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query" ] || [ "$DRUID_INTEGRATION_TEST_GROUP" = "query-retry" ] || [ "$DRUID_INTEGRATION_TEST_GROUP" = "high-availability" ] || [ "$DRUID_INTEGRATION_TEST_GROUP" = "security" ] || [ "$DRUID_INTEGRATION_TEST_GROUP" = "ldap-security" ] || [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
-    # touch is needed because OverlayFS's copy-up operation breaks POSIX standards. See https://github.com/docker/for-linux/issues/72.
-    find /var/lib/mysql -type f -exec touch {} \; && service mysql start \
-      && cat /test-data/${DRUID_INTEGRATION_TEST_GROUP}-sample-data.sql | mysql -u root druid && /etc/init.d/mysql stop
-    # below s3 credentials needed to access the pre-existing s3 bucket
-    setKey $DRUID_SERVICE druid.s3.accessKey AKIAT2GGLKKJQCMG64V4
-    setKey $DRUID_SERVICE druid.s3.secretKey HwcqHFaxC7bXMO7K6NdCwAdvq0tcPtHJP3snZ2tR
-    # The region of the sample data s3 blobs needed for these test groups
-    export AWS_REGION=us-east-1
+        # touch is needed because OverlayFS's copy-up operation breaks POSIX standards. See https://github.com/docker/for-linux/issues/72.
+        find /var/lib/mysql -type f -exec touch {} \; && service mysql start \
+          && cat /test-data/${DRUID_INTEGRATION_TEST_GROUP}-sample-data.sql | mysql -u root druid \
+          && /etc/init.d/mysql stop
   fi
 
-  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "query-retry" ]; then
-    setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"druid-integration-tests\"]
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "virtual-segments" ] && [ "$DRUID_SERVICE" = "historical" ]; then
-    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-virtual-segments\",\"druid-s3-extensions\"]
-    export AWS_REGION=us-east-1
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "async-download" ]; then
-    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-sql-async\"]
-  elif [ "$DRUID_INTEGRATION_TEST_GROUP" = "imply-s3" ]; then
-    setKey $DRUID_SERVICE druid.extensions.loadList [\"imply-sql-async\",\"druid-s3-extensions\"]
-  else
-    if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
-      setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\",\"imply-keycloak\"]
-      ########################################
-      setKey $DRUID_SERVICE "druid.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
-      setKey $DRUID_SERVICE "druid.keycloak.bearer-only" "true"
-      setKey $DRUID_SERVICE "druid.keycloak.ssl-required" "NONE"
-      setKey $DRUID_SERVICE "druid.keycloak.verify-token-audience" "true"
-      setKey $DRUID_SERVICE "druid.keycloak.use-resource-role-mappings" "true"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.ssl-required" "NONE"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.credentials" "{\"secret\" : \"secret\"}"
-      setKey $DRUID_SERVICE "druid.escalator.keycloak.verify-token-audience" "true"
-    else
-      setKey $DRUID_SERVICE druid.extensions.loadList [\"druid-s3-extensions\"]
-      export AWS_REGION=us-east-1
-    fi
+  if [ "$DRUID_INTEGRATION_TEST_GROUP" = "keycloak-security" ]; then
+    # Setting some configs for keycloak. Note that these configs are special that have hyphens in their names
+    # which are not allowed in some shells.
+    # Any regular configs that do not have hyphens should be in environment-configs/test-groups/keycloak-security.
+    setKey $DRUID_SERVICE "druid.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
+    setKey $DRUID_SERVICE "druid.keycloak.bearer-only" "true"
+    setKey $DRUID_SERVICE "druid.keycloak.ssl-required" "NONE"
+    setKey $DRUID_SERVICE "druid.keycloak.verify-token-audience" "true"
+    setKey $DRUID_SERVICE "druid.keycloak.use-resource-role-mappings" "true"
+    setKey $DRUID_SERVICE "druid.escalator.keycloak.auth-server-url" "http://imply-keycloak:8080/auth"
+    setKey $DRUID_SERVICE "druid.escalator.keycloak.ssl-required" "NONE"
+    setKey $DRUID_SERVICE "druid.escalator.keycloak.verify-token-audience" "true"
   fi
 
   # The SqlInputSource tests in the "input-source" test group require data to be setup in MySQL before running the tests.

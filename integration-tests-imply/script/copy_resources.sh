@@ -11,29 +11,13 @@
 set -e
 
 echo "copying extra imply dependencies"
-mvn -B dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=$SHARED_DIR/docker/lib
 
-# this copies everything over again, so remove extensions that were moved
-rm $SHARED_DIR/docker/lib/druid-s3-extensions-*
-rm $SHARED_DIR/docker/lib/druid-azure-extensions-*
-rm $SHARED_DIR/docker/lib/druid-google-extensions-*
-rm $SHARED_DIR/docker/lib/druid-hdfs-storage-*
-rm $SHARED_DIR/docker/lib/druid-kinesis-indexing-service-*
-
-# move imply keycloak to extension
-mkdir -p $SHARED_DIR/docker/extensions/imply-keycloak
-mv $SHARED_DIR/docker/lib/imply-keycloak-* $SHARED_DIR/docker/extensions/imply-keycloak
-mv $SHARED_DIR/docker/lib/jboss-jaxrs-* $SHARED_DIR/docker/extensions/imply-keycloak
-
-# move imply-druid-security to extension
-mkdir -p $SHARED_DIR/docker/extensions/imply-druid-security
-mv $SHARED_DIR/docker/lib/imply-druid-security-* $SHARED_DIR/docker/extensions/imply-druid-security
-
-# move imply-virtual-segments to extension
-mkdir -p $SHARED_DIR/docker/extensions/imply-virtual-segments
-mv $SHARED_DIR/docker/lib/imply-virtual-segments-* $SHARED_DIR/docker/extensions/imply-virtual-segments
-
-# move imply-sql-async to extension
-mkdir -p $SHARED_DIR/docker/extensions/imply-sql-async
-# copy only extension libs not imply-sql-async-core
-mv $SHARED_DIR/docker/lib/imply-sql-async-2022* $SHARED_DIR/docker/extensions/imply-sql-async
+java -cp "$SHARED_DIR/docker/lib/*" \
+   -Ddruid.extensions.directory=$SHARED_DIR/docker/extensions \
+   org.apache.druid.cli.Main tools pull-deps \
+   -c io.imply:imply-keycloak:$DRUID_VERSION \
+   -c org.apache.druid.extensions:imply-druid-security:$DRUID_VERSION \
+   -c io.imply:imply-virtual-segments:$DRUID_VERSION \
+   -c io.imply:imply-sql-async:$DRUID_VERSION \
+   -c io.imply:imply-view-manager:$DRUID_VERSION \
+   -c io.imply:indexed-table-loader:$DRUID_VERSION
