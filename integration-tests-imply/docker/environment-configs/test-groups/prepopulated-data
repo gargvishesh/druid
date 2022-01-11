@@ -1,0 +1,17 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+AWS_REGION=us-east-1
+
+druid_extensions_loadList=["mysql-metadata-storage","druid-s3-extensions","druid-basic-security","simple-client-sslcontext","druid-testing-tools","druid-lookups-cached-global","druid-histogram","druid-datasketches","druid-integration-tests","imply-view-manager","indexed-table-loader"]
+
+# Setting s3 credentials and region to use pre-populated data for testing.
+druid_s3_accessKey=AKIAT2GGLKKJQCMG64V4
+druid_s3_secretKey=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
+druid_sql_viewmanager_type=imply

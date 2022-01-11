@@ -1,0 +1,57 @@
+#
+# Copyright (c) Imply Data, Inc. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Imply Data, Inc. You shall not disclose such Confidential
+# Information and shall use it only in accordance with the terms
+# of the license agreement you entered into with Imply.
+#
+
+AWS_REGION=us-east-1
+
+druid_extensions_loadList=["mysql-metadata-storage","druid-basic-security","simple-client-sslcontext","druid-testing-tools","druid-lookups-cached-global","druid-histogram","druid-datasketches","imply-keycloak","druid-s3-extensions"]
+
+druid_auth_authenticator_ImplyKeycloakAuthenticator_authenticatorName=ImplyKeycloakAuthenticator
+druid_auth_authenticator_ImplyKeycloakAuthenticator_authorizerName=ImplyKeycloakAuthorizer
+druid_auth_authenticator_ImplyKeycloakAuthenticator_type=imply-keycloak
+
+druid_auth_authenticatorChain=["ImplyKeycloakAuthenticator", "basic"]
+druid_auth_authorizer_ImplyKeycloakAuthorizer_type=imply-keycloak
+druid_auth_authorizer_basic_type=basic
+druid_auth_authorizers=["ImplyKeycloakAuthorizer", "basic"]
+
+# common keycloak
+druid_auth_keycloak_common_pollingPeriod=10000
+
+# external client
+druid_keycloak_realm=druid
+druid_keycloak_resource=some-druid-cluster
+
+# Internal communications
+druid_escalator_type=imply-keycloak
+druid_escalator_authorizerName=ImplyKeycloakAuthorizer
+druid_escalator_keycloak_realm=druid
+druid_escalator_keycloak_resource=some-druid-cluster-internal
+druid_escalator_keycloak_credentials={"secret" : "secret"}
+
+# TODO: Remove when cache layer implemented
+druid_metadata_storage_type=mysql
+druid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid
+druid_metadata_storage_connector_user=druid
+druid_metadata_storage_connector_password=diurd
+
+druid_sql_planner_authorizeSystemTablesDirectly=true
+
+# These are defined in druid.sh as some linux shells do not allow hyphens in variable names
+#druid_keycloak_auth-server-url=http://imply-keycloak:8080/auth
+#druid_keycloak_bearer-only=true
+#druid_keycloak_ssl-required=NONE
+#druid_keycloak_verify-token-audience=true
+#druid_keycloak_use-resource-role-mappings=true
+#druid_escalator_keycloak_auth-server-url=http://imply-keycloak:8080/auth
+#druid_escalator_keycloak_ssl-required=NONE
+#druid_escalator_keycloak_verify-token-audience=true
+
+# Setting s3 credentials and region to use pre-populated data for testing.
+druid_s3_accessKey=AKIAT2GGLKKJQCMG64V4
+druid_s3_secretKey=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

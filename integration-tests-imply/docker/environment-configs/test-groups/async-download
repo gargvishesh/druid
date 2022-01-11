@@ -7,6 +7,8 @@
 # of the license agreement you entered into with Imply.
 #
 
+druid_extensions_loadList=["mysql-metadata-storage","druid-basic-security","simple-client-sslcontext","druid-testing-tools","druid-lookups-cached-global","druid-histogram","druid-datasketches","imply-sql-async"]
+
 druid_query_async_storage_type=local
 druid_query_async_storage_local_directory=/shared/storage/async-results
 

@@ -169,6 +169,7 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
                     -Dit.indexer=middleManager \
                     ${jvmRuntimeOpt} \
                     -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/prepopulated-data \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
                 label: "imply query integration tests with ${jvmRuntimeOpt}"
@@ -190,6 +191,7 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
                     \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=keycloak-security \
                     -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/keycloak-security \
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
@@ -212,6 +214,7 @@ def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
                     \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=virtual-segments \
                     -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/virtual-segments \
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
@@ -234,6 +237,7 @@ def implyAsyncDownloadIntegrationTests(jvmRuntimeOpt) {
                     \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
                     -Dgroups=async-download \
                     -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/async-download \
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
@@ -253,7 +257,7 @@ def implyS3Tests(jvmRuntimeOpt) {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             def cloudpath = UUID.randomUUID().toString()
             writeFile   file: "jenkins/s3-config",
-                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\",\"imply-sql-async\"]\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results\ndruid_metadata_storage_type=mysql\ndruid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid\ndruid_metadata_storage_connector_user=druid\ndruid_metadata_storage_connector_password=diurd"
+                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"imply-sql-async\",\"druid-s3-extensions\"]\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results\ndruid_metadata_storage_type=mysql\ndruid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid\ndruid_metadata_storage_connector_user=druid\ndruid_metadata_storage_connector_password=diurd"
             retry(2) {
                 try {
                     sh script: """
@@ -283,7 +287,13 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             def cloudpath = UUID.randomUUID().toString()
             writeFile   file: "jenkins/s3-config",
-                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-s3-extensions\",\"druid-hdfs-storage\"]"
+                        text: "druid_storage_type=s3\n" +
+                        "druid_storage_bucket=druid-qa\n" +
+                        "druid_storage_baseKey=${cloudpath}\n" +
+                        "druid_s3_accessKey=${AWS_ACCESS_KEY_ID}\n" +
+                        "druid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\n" +
+                        "AWS_REGION=us-east-1\n" +
+                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-s3-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
             retry(2) {
                 try {
                     sh script: """
@@ -322,7 +332,7 @@ def kinesisDeepStorageTests(jvmRuntimeOpt) {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId:  'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
             lock('awsResource') {
                 writeFile   file: "jenkins/kinesis-config",
-                            text: "druid_kinesis_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_kinesis_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"druid-kinesis-indexing-service\"]"
+                            text: "druid_kinesis_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_kinesis_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-kinesis-indexing-service\"]"
                 retry(2) {
                     try {
                         sh script: """
@@ -353,7 +363,11 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
         withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
             def containerName = UUID.randomUUID().toString()
             writeFile   file: "jenkins/azure-config",
-                        text: "druid_storage_type=azure\ndruid_azure_account=${AZURE_ACCOUNT}\ndruid_azure_key=${AZURE_KEY}\ndruid_azure_container=${containerName}\ndruid_extensions_loadList=[\"druid-azure-extensions\",\"druid-hdfs-storage\"]"
+                        text: "druid_storage_type=azure\n" +
+                        "druid_azure_account=${AZURE_ACCOUNT}\n" +
+                        "druid_azure_key=${AZURE_KEY}\n" +
+                        "druid_azure_container=${containerName}\n" +
+                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-azure-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
             retry(2) {
                 try {
                     sh script: """
@@ -403,7 +417,7 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
             def cloudpath = "gcs-test-${UUID.randomUUID().toString()}/"
             def bucket = "imply-qa-testing"
             writeFile   file: "jenkins/gcs-config",
-                        text: "druid_storage_type=google\ndruid_google_bucket=${bucket}\ndruid_google_prefix=${cloudpath}\ndruid_extensions_loadList=[\"druid-google-extensions\",\"druid-hdfs-storage\"]\nGOOGLE_APPLICATION_CREDENTIALS=/shared/docker/credentials/creds.json"
+                        text: "druid_storage_type=google\ndruid_google_bucket=${bucket}\ndruid_google_prefix=${cloudpath}\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-google-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]\nGOOGLE_APPLICATION_CREDENTIALS=/shared/docker/credentials/creds.json"
             retry(3) {
                 try {
                     sh script: """
@@ -445,7 +459,7 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
     writeFile   file:   "jenkins/hdfs-config",
                 text:   "druid_storage_type=hdfs\n" +
                         "druid_storage_storageDirectory=/druid/segments\n" +
-                        "druid_extensions_loadList=[\"druid-hdfs-storage\"]\n" +
+                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]\n" +
                         "druid_indexer_logs_type=hdfs\n" +
                         "druid_indexer_logs_directory=/druid/indexing-logs"
     script {
@@ -480,6 +494,48 @@ def coreIntegrationTests() {
                 sh script: '''
                     ${MVN} verify -pl integration-tests -P integration-tests \
                     ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    ${MAVEN_SKIP}
+                ''',
+                label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def coreIntegrationTestsWithPrepopulatedData() {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/prepopulated-data \
+                    ${MAVEN_SKIP}
+                ''',
+                label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def coreIntegrationTestsWithShuffleDeepStorage() {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/shuffle-deep-store \
                     ${MAVEN_SKIP}
                 ''',
                 label: 'core integration tests'
@@ -818,21 +874,21 @@ pipeline {
                             MAVEN_OPTS='-Xmx3000m' ${MVN} ${MAVEN_SKIP} dependency:analyze -DoutputXML=true -DignoreNonCompile=true -DfailOnWarning=true -Phadoop3 || { echo "
 
                             The dependency analysis has found a dependency that is either:
-                            
+
                             1) Used and undeclared: These are available as a transitive dependency but should be explicitly
                             added to the POM to ensure the dependency version. The XML to add the dependencies to the POM is
                             shown above.
-                            
+
                             2) Unused and declared: These are not needed and removing them from the POM will speed up the build
                             and reduce the artifact size. The dependencies to remove are shown above.
-                            
+
                             If there are false positive dependency analysis warnings, they can be suppressed:
                             https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html#usedDependencies
                             https://maven.apache.org/plugins/maven-dependency-plugin/examples/exclude-dependencies-from-dependency-analysis.html
-                            
+
                             For more information, refer to:
                             https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html
-                            
+
                             " && false; }
                         """
                     }
@@ -1282,7 +1338,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=11';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1296,7 +1352,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=query-error'; JVM_RUNTIME = '-Djvm.runtime=11';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1400,7 +1456,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=shuffle-deep-store';
                         JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithShuffleDeepStorage() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1408,7 +1464,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=shuffle-deep-store';
                         JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'indexer'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithShuffleDeepStorage() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1488,7 +1544,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=query'; JVM_RUNTIME = '-Djvm.runtime=8';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1496,7 +1552,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=query-error'; JVM_RUNTIME = '-Djvm.runtime=8';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1504,7 +1560,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=query-retry'; JVM_RUNTIME = '-Djvm.runtime=8';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1512,7 +1568,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=security'; JVM_RUNTIME = '-Djvm.runtime=8';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1590,7 +1646,7 @@ pipeline {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment { TESTNG_GROUPS = '-Dgroups=high-availability'; JVM_RUNTIME = '-Djvm.runtime=8';
                         USE_INDEXER = 'middleManager'; }
-                    steps { coreIntegrationTests() }
+                    steps { coreIntegrationTestsWithPrepopulatedData() }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1902,3 +1958,4 @@ pipeline {
         }
     }
 }
+
