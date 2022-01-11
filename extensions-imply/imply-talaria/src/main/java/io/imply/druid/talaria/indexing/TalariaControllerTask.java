@@ -20,6 +20,7 @@ import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.indexing.common.TaskLock;
 import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
@@ -28,10 +29,11 @@ import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
 import org.apache.druid.indexing.common.task.Tasks;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
-import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.StringUtils;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Map;
 
