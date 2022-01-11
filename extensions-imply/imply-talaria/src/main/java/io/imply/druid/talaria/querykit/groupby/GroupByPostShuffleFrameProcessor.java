@@ -255,15 +255,18 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
 
   private static Consumer<ResultRow> makeFinalizeFn(final GroupByQuery query)
   {
-    // Always finalize.
-    final int startIndex = query.getResultRowAggregatorStart();
-    final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
+    if (GroupByQueryKit.isFinalize(query)) {
+      final int startIndex = query.getResultRowAggregatorStart();
+      final List<AggregatorFactory> aggregators = query.getAggregatorSpecs();
 
-    return row -> {
-      for (int i = 0; i < aggregators.size(); i++) {
-        row.set(startIndex + i, aggregators.get(i).finalizeComputation(row.get(startIndex + i)));
-      }
-    };
+      return row -> {
+        for (int i = 0; i < aggregators.size(); i++) {
+          row.set(startIndex + i, aggregators.get(i).finalizeComputation(row.get(startIndex + i)));
+        }
+      };
+    } else {
+      return row -> {};
+    }
   }
 
   @Nullable

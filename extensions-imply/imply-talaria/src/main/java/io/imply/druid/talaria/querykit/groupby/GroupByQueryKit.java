@@ -28,6 +28,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.having.AlwaysHavingSpec;
@@ -186,9 +187,16 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
 
   static RowSignature computeSignaturePostAggregation(final GroupByQuery query)
   {
+    final RowSignature.Finalization finalization =
+        isFinalize(query) ? RowSignature.Finalization.YES : RowSignature.Finalization.NO;
+    return query.getResultRowSignature(finalization);
+  }
+
+  static boolean isFinalize(final GroupByQuery query)
+  {
     // TODO(gianm): This is a discrepancy between native and talaria execution: native by default finalizes outer
-    //   queries only; talaria finalizes all queries, including subqueries.
-    return query.getResultRowSignature(RowSignature.Finalization.YES);
+    //   queries only; talaria by default finalizes all queries, including subqueries.
+    return QueryContexts.isFinalize(query, true);
   }
 
   static ClusterBy computeClusterByPreAggregation(final GroupByQuery query)
