@@ -11,17 +11,22 @@ package io.imply.druid.sql.async.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.common.base.Preconditions;
 import org.apache.druid.query.QueryException;
 import org.apache.druid.sql.http.ResultFormat;
 
 import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 /**
  * Like {@link SqlAsyncQueryDetails}, but used for API responses. Has less information.
  */
+// Require the error to be first, when present, to match other error responses.
+@JsonPropertyOrder({"error", "asyncResultId", "state"})
 public class SqlAsyncQueryDetailsApiResponse
 {
   private final String asyncResultId;
@@ -31,6 +36,8 @@ public class SqlAsyncQueryDetailsApiResponse
   private final long resultLength;
   @Nullable
   private final QueryException error;
+  @Nullable
+  private final String engine;
 
   @JsonCreator
   public SqlAsyncQueryDetailsApiResponse(
@@ -38,7 +45,8 @@ public class SqlAsyncQueryDetailsApiResponse
       @JsonProperty("state") final SqlAsyncQueryDetails.State state,
       @JsonProperty("resultFormat") @Nullable final ResultFormat resultFormat,
       @JsonProperty("resultLength") final long resultLength,
-      @JsonProperty("error") @Nullable final QueryException error
+      @JsonProperty("error") @Nullable final QueryException error,
+      @JsonProperty("engine") @Nullable final String engine
   )
   {
     this.asyncResultId = Preconditions.checkNotNull(asyncResultId, "asyncResultId");
@@ -46,6 +54,7 @@ public class SqlAsyncQueryDetailsApiResponse
     this.resultFormat = resultFormat;
     this.resultLength = resultLength;
     this.error = error;
+    this.engine = engine;
   }
 
   @JsonProperty
@@ -83,6 +92,14 @@ public class SqlAsyncQueryDetailsApiResponse
     return error;
   }
 
+  @Nullable
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public String getEngine()
+  {
+    return engine;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -97,13 +114,14 @@ public class SqlAsyncQueryDetailsApiResponse
            && Objects.equals(asyncResultId, response.asyncResultId)
            && state == response.state
            && resultFormat == response.resultFormat
-           && Objects.equals(error, response.error);
+           && Objects.equals(error, response.error)
+           && Objects.equals(engine, response.engine);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(asyncResultId, state, resultFormat, resultLength, error);
+    return Objects.hash(asyncResultId, state, resultFormat, resultLength, error, engine);
   }
 
   @Override
@@ -115,6 +133,7 @@ public class SqlAsyncQueryDetailsApiResponse
            ", resultLength=" + resultLength +
            ", resultFormat=" + resultFormat +
            ", error=" + error +
+           ", engine='" + engine + '\'' +
            '}';
   }
 }

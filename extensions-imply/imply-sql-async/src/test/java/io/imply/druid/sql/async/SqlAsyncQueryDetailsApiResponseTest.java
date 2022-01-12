@@ -40,6 +40,7 @@ public class SqlAsyncQueryDetailsApiResponseTest
         State.RUNNING,
         ResultFormat.OBJECT,
         80,
+        null,
         null
     );
     Assert.assertEquals(
@@ -62,21 +63,24 @@ public class SqlAsyncQueryDetailsApiResponseTest
             QueryTimeoutException.ERROR_MESSAGE,
             QueryTimeoutException.class.getName(),
             "testHost"
-        )
+        ),
+        "testEngine"
     );
+    String actual = objectWriter.writeValueAsString(failedResponse);
     Assert.assertEquals(
         "{\n"
-        + "  \"asyncResultId\" : \"testId\",\n"
-        + "  \"state\" : \"FAILED\",\n"
-        + "  \"resultFormat\" : \"object\",\n"
         + "  \"error\" : {\n"
         + "    \"error\" : \"Query timeout\",\n"
         + "    \"errorMessage\" : \"Query Timed Out!\",\n"
         + "    \"errorClass\" : \"org.apache.druid.query.QueryTimeoutException\",\n"
         + "    \"host\" : \"testHost\"\n"
-        + "  }\n"
+        + "  },\n"
+        + "  \"asyncResultId\" : \"testId\",\n"
+        + "  \"state\" : \"FAILED\",\n"
+        + "  \"resultFormat\" : \"object\",\n"
+        + "  \"engine\" : \"testEngine\"\n"
         + "}",
-        objectWriter.writeValueAsString(failedResponse)
+        actual
     );
   }
 }

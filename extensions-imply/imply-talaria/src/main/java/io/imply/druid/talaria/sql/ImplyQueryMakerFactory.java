@@ -39,6 +39,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+// Note: This package and class name is hard-coded into
+// AsyncQueryResource: if the names change, change that
+// class as well.
 public class ImplyQueryMakerFactory implements QueryMakerFactory
 {
   public static final String TYPE = "imply";

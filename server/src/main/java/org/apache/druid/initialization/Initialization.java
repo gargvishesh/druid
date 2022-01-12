@@ -199,6 +199,7 @@ public class Initialization
           ServiceLoader.load(serviceClass, loader).forEach(impl -> tryAdd(impl, "local file system"));
         }
         catch (Exception e) {
+          log.error(e, "Failed to load extension [%s]", serviceClass.getName());
           throw new RuntimeException(e);
         }
       }
@@ -519,7 +520,13 @@ public class Initialization
       Set<NodeRole> rolesPredicate = Arrays.stream(loadScope.roles())
                                            .map(NodeRole::fromJsonName)
                                            .collect(Collectors.toSet());
-      return rolesPredicate.stream().anyMatch(nodeRoles::contains);
+      boolean shouldLoad = rolesPredicate.stream().anyMatch(nodeRoles::contains);
+      if (!shouldLoad) {
+        log.info(
+            "Not loading module [%s] - no matching LoadScope",
+            object.getClass().getName());
+      }
+      return shouldLoad;
     }
 
     private boolean checkModuleClass(Class<?> moduleClass)

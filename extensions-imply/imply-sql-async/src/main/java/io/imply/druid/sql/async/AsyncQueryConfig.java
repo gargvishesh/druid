@@ -56,7 +56,6 @@ public class AsyncQueryConfig
          || this.readRefreshTime.isLongerThan(Duration.standardSeconds(1L))),
         "must have a duration greater than or equal to a 1s duration"
     );
-
   }
 
   private int computeDefaultMaxConcurrentQueries()

@@ -148,16 +148,21 @@ public class SqlAsyncQueryDetails
     return error;
   }
 
-  public SqlAsyncQueryDetails toRunning()
+  public SqlAsyncQueryDetails toState(State newState)
   {
     return new SqlAsyncQueryDetails(
         asyncResultId,
-        State.RUNNING,
+        newState,
         identity,
         resultFormat,
         resultLength,
         error
     );
+  }
+
+  public SqlAsyncQueryDetails toRunning()
+  {
+    return toState(State.RUNNING);
   }
 
   public SqlAsyncQueryDetails toComplete(final long newResultLength)
@@ -171,7 +176,6 @@ public class SqlAsyncQueryDetails
         error
     );
   }
-
 
   public SqlAsyncQueryDetails toError(@Nullable final Throwable e)
   {
@@ -190,14 +194,15 @@ public class SqlAsyncQueryDetails
     );
   }
 
-  public SqlAsyncQueryDetailsApiResponse toApiResponse()
+  public SqlAsyncQueryDetailsApiResponse toApiResponse(String engine)
   {
     return new SqlAsyncQueryDetailsApiResponse(
         asyncResultId,
         state,
         state == State.COMPLETE ? resultFormat : null,
         resultLength,
-        error
+        error,
+        engine
     );
   }
 

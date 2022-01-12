@@ -549,6 +549,73 @@ curl -H'Content-Type: application/json' \
 |status.statusCode|RUNNING, SUCCESS, or FAILED.|
 |status.location|The server that is running this task, if known.|
 
+## Async API
+
+Imply 2022.01 adds a second way to run Talaria queries: using the Async SQL
+Query Download extension. See the README for that feature for an overview.
+Talaria works mostly the same as described in the README, with several 
+differences described here.
+
+The Async Query API is the preferred API for Talaria in the future. Using
+the Async Query API will help ensure that your application is isolated from
+changes as Talaria evolves.
+
+To use the Async Query API, you must enable both the Talaria and Async API
+extensions.
+
+### Submit a Query
+
+Use the `POST /druid/v2/sql/async/` endpoint to submit a query. Set the
+`talaria` context field as described in the "Issue a Query" section
+above. Notice that, in the Async Query API, the query ID is given by a
+JSON field called `asyncResultId` rather than the field called `TASK`
+as described in earlier sections.
+
+Poll the `GET /druid/v2/sql/async/{asyncResultId}/status` endpoint 
+to wait for the query to complete as indicated by a `state` field equal
+to `COMPLETE` or `FAILED`.
+
+### Obtain Results
+
+If the query succeeds, and is a `SELECT` query, use
+`GET /druid/v2/sql/async/{asyncResultId}/results` to obtain the
+result data.
+
+The present version of Talaria always returns query results in the
+`array` format, with all headers enabled. This means that Talaria ignores
+any `resultFormat` option you might provide in the `SqlQuery` request.
+
+### Query Details
+
+For all queries (`INSERT` or `SELECT`, successful or failed), use a new
+endpoint to obtain the query report:
+
+`GET /druid/v2/sql/async/{asyncResultId}`
+
+The result is the same as the report described in the "Retrieve query report"
+Section above, except that the data results are omitted for `SELECT` queries.
+(Use the `results` endpoint for the data.)
+
+### Cancel a Query
+
+The `DELETE /druid/v2/sql/async/{asyncResultId}` endpoint cancels a
+Talaria query. Unlike for Broker-based Async queries, this endpoint
+does not delete the actual query results or the completion report.
+
+### Query Timeout
+
+The Async API is designed for short-lived queries that are downloaded
+immediately upon completion. As a result, Imply will remove the query
+results after a brief time: 30 seconds by default. For Talaria, you 
+may prefer to increase the timeout setting, 
+`druid.query.async.cleanup.timeToRetain`, to a larger
+value such as `PT300s` for a five-minute timeout. See the README mentioned
+above for details.
+
+If the query results time out within the Async system, you can still obtain the
+report from the Overlord as described in the "Retrieve query report" section
+above. The Async Query ID is the same as the Overlord task ID.
+
 
 ## EXTERN
 

@@ -11,7 +11,6 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
-import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManagerImpl;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataStorageTableConfig;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
@@ -39,6 +38,7 @@ import org.apache.druid.query.sql.SleepOperatorConversion;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.SqlLifecycleManager;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
@@ -171,7 +171,9 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         jsonMapper,
         asyncQueryConfig,
-        clock
+        clock,
+        null, // Talaria only
+        null  // Talaria only
     );
     req = mockAuthenticatedRequest("userID");
   }
@@ -184,7 +186,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSubmitQuery() throws IOException
+  public void testSubmitQuery()
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -205,7 +207,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testGetStatus() throws IOException
+  public void testGetStatus()
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -240,7 +242,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGetResults() throws IOException, AsyncQueryDoesNotExistException
+  public void testGetResults() throws IOException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -278,7 +280,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 
   @Test
   public void testGetResultsAndEnsureLastUpdateTimeIsAffected()
-      throws IOException, InterruptedException, AsyncQueryDoesNotExistException
+      throws IOException, InterruptedException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -327,7 +329,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 
   @Test
   public void testGetResultsAndEnsureLastUpdateTimeIsNotAffectedIfTimeStandsStill()
-      throws IOException, InterruptedException, AsyncQueryDoesNotExistException
+      throws IOException, InterruptedException
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -374,14 +376,14 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGetResultsUnknownQuery() throws IOException, AsyncQueryDoesNotExistException
+  public void testGetResultsUnknownQuery()
   {
     Response statusResponse = resource.doGetResults("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
   }
 
   @Test(timeout = 5000)
-  public void testConcurrentAsyncQueryLimit() throws Exception
+  public void testConcurrentAsyncQueryLimit()
   {
     List<String> queryIds = new ArrayList<>();
     // Submit MAX_CONCURRENT_QUERIES + 1 number of queries
@@ -424,7 +426,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testQueueLimit() throws Exception
+  public void testQueueLimit()
   {
     // Submit MAX_CONCURRENT_QUERIES + MAX_QUERIES_TO_QUEUE number of queries
     for (int i = 0; i < MAX_CONCURRENT_QUERIES + MAX_QUERIES_TO_QUEUE; i++) {
@@ -465,7 +467,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testQueryPoolShutdown() throws Exception
+  public void testQueryPoolShutdown() throws IOException
   {
     List<String> queryIds = new ArrayList<>();
 
@@ -500,7 +502,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testDeleteRunningQuery() throws IOException
+  public void testDeleteRunningQuery()
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -531,7 +533,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testDeleteCompletedQuery() throws IOException, AsyncQueryDoesNotExistException
+  public void testDeleteCompletedQuery()
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -579,7 +581,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   }
 
   @Test(timeout = 5000)
-  public void testForbidden() throws IOException, AsyncQueryDoesNotExistException
+  public void testForbidden()
   {
     Response submitResponse = resource.doPost(
         new SqlQuery(
@@ -599,18 +601,27 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     waitUntilState(response.getAsyncResultId(), State.COMPLETE);
 
     HttpServletRequest secondUser = makeRandomUserRequest();
-    Assert.assertEquals(
-        Status.FORBIDDEN.getStatusCode(),
-        resource.doGetStatus(response.getAsyncResultId(), secondUser).getStatus()
-    );
-    Assert.assertEquals(
-        Status.FORBIDDEN.getStatusCode(),
-        resource.doGetResults(response.getAsyncResultId(), secondUser).getStatus()
-    );
-    Assert.assertEquals(
-        Status.FORBIDDEN.getStatusCode(),
-        resource.deleteQuery(response.getAsyncResultId(), secondUser).getStatus()
-    );
+    try {
+      resource.doGetStatus(response.getAsyncResultId(), secondUser);
+      Assert.fail();
+    }
+    catch (ForbiddenException e) {
+      // expected
+    }
+    try {
+      resource.doGetResults(response.getAsyncResultId(), secondUser);
+      Assert.fail();
+    }
+    catch (ForbiddenException e) {
+      // expected
+    }
+    try {
+      resource.deleteQuery(response.getAsyncResultId(), secondUser);
+      Assert.fail();
+    }
+    catch (ForbiddenException e) {
+      // expected
+    }
   }
 
   private SqlAsyncQueryDetailsApiResponse waitUntilState(String asyncResultId, State state)
