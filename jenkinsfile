@@ -614,6 +614,17 @@ pipeline {
     }
 
     stages {
+        stage('Check Labels') {
+            steps {
+                script {
+                    if (env.CHANGE_ID && pullRequest.labels.contains("Don't Build")) {
+                        currentBuild.result = 'ABORTED'
+                        error("Tagged Don't Build")
+                    }
+                }
+            }
+        }
+
         stage('Maven install') {
             when {
                 expression { !params.SKIP_ALL_JENKINS_TESTS }
@@ -1806,6 +1817,7 @@ pipeline {
                                         # Stage Druid
                                         export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
                                         mkdir -p "$STAGING_DIR/dist"
+                                        mkdir -p "$TMP_DIR"
                                         tar -C "$TMP_DIR" -xzf "$WORKSPACE"/distribution/target/apache-druid-*-bin.tar.gz
                                         mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
 
