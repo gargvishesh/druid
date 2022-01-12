@@ -464,12 +464,16 @@ public class LeaderImpl implements Leader
             log.info("Query [%s] generating %d segments.", queryDef.getQueryId(), partitionBoundaries.size());
           }
 
+          final boolean mayHaveMultiValuedClusterByFields =
+              !shuffleStageKernel.getStageDefinition().mustGatherResultKeyStatistics()
+              || shuffleStageKernel.collectorEncounteredAnyMultiValueField();
+
           segmentsToGenerate = generateSegmentIdsWithShardSpecs(
               (DataSourceTalariaDestination) task.getQuerySpec().getDestination(),
               shuffleStageKernel.getStageDefinition().getSignature(),
               shuffleStageKernel.getStageDefinition().getShuffleSpec().get().getClusterBy(),
               partitionBoundaries,
-              shuffleStageKernel.collectorEncounteredAnyMultiValueField()
+              mayHaveMultiValuedClusterByFields
           );
         }
 
@@ -681,7 +685,7 @@ public class LeaderImpl implements Leader
       final RowSignature signature,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitionBoundaries,
-      final boolean clusterByEncounteredMultiValuedFields
+      final boolean mayHaveMultiValuedClusterByFields
   ) throws IOException
   {
     if (destination.isReplaceTimeChunks()) {
@@ -690,7 +694,7 @@ public class LeaderImpl implements Leader
           signature,
           clusterBy,
           partitionBoundaries,
-          clusterByEncounteredMultiValuedFields
+          mayHaveMultiValuedClusterByFields
       );
     } else {
       return generateSegmentIdsWithShardSpecsForAppend(destination, partitionBoundaries);
@@ -754,14 +758,14 @@ public class LeaderImpl implements Leader
       final RowSignature signature,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitionBoundaries,
-      final boolean clusterByEncounteredMultiValuedFields
+      final boolean mayHaveMultiValuedClusterByFields
   ) throws IOException
   {
     final SegmentIdWithShardSpec[] retVal = new SegmentIdWithShardSpec[partitionBoundaries.size()];
     final Granularity segmentGranularity = destination.getSegmentGranularity();
     final List<String> shardColumns;
 
-    if (clusterByEncounteredMultiValuedFields) {
+    if (mayHaveMultiValuedClusterByFields) {
       // DimensionRangeShardSpec cannot handle multi-valued fields.
       shardColumns = Collections.emptyList();
     } else {

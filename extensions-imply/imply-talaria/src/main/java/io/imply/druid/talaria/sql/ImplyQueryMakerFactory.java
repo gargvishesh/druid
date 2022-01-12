@@ -39,6 +39,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+// Note: This package and class name is hard-coded into
+// AsyncQueryResource: if the names change, change that
+// class as well.
 public class ImplyQueryMakerFactory implements QueryMakerFactory
 {
   public static final String TYPE = "imply";
@@ -138,10 +141,6 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
   {
     validateNoDuplicateAliases(fieldMappings);
 
-    // Validate that the query does not have LIMIT or OFFSET. It prevents gathering result key statistics, which
-    // INSERT execution logic depends on.
-    validateNoLimitOrOffset(rootRel);
-
     // Find the __time field.
     int timeFieldIndex = -1;
 
@@ -180,6 +179,13 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
     }
 
     final boolean hasSegmentGranularity = !Granularities.ALL.equals(segmentGranularity);
+
+    if (hasSegmentGranularity) {
+      // Validate that the query does not have LIMIT or OFFSET. It prevents gathering result key statistics, which
+      // INSERT execution logic depends on. (In QueryKit, LIMIT disables statistics generation and funnels everything
+      // through a single partition.)
+      validateNoLimitOrOffset(rootRel);
+    }
 
     if (hasSegmentGranularity && timeFieldIndex < 0) {
       throw new ValidationException(
@@ -224,9 +230,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
     }
 
     if (sort != null && (sort.fetch != null || sort.offset != null)) {
-      // Found an outer LIMIT or OFFSET, which is not allowed because it would prevent us from properly
-      // bucketing. (In QueryKit, LIMIT disables statistics generation and funnels everything through a
-      // single partition.)
+      // Found an outer LIMIT or OFFSET.
       throw new ValidationException("INSERT queries cannot end with LIMIT or OFFSET.");
     }
   }
