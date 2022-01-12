@@ -33,7 +33,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
-import { TalariaQuery } from '../../../talaria-models';
+import { DruidEngine, TalariaQuery } from '../../../talaria-models';
 import { deepDelete, deepSet, pluralIfNeeded, QueryWithContext } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
@@ -48,32 +48,31 @@ import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
 
 import './run-more-button.scss';
 
-export function getTalariaEngine(context: QueryContext): boolean | undefined {
-  const { talaria } = context;
-  return typeof talaria === 'boolean' ? talaria : undefined;
-}
-
-export function changeTalariaEngine(
-  context: QueryContext,
-  talaria: boolean | undefined,
-): QueryContext {
-  return typeof talaria === 'boolean'
-    ? deepSet(context, 'talaria', talaria)
-    : deepDelete(context, 'talaria');
-}
-
-export function getParallelism(context: QueryContext): number | undefined {
+function getParallelism(context: QueryContext): number | undefined {
   const { talariaNumTasks } = context;
   return typeof talariaNumTasks === 'number' ? talariaNumTasks : undefined;
 }
 
-export function changeParallelism(
-  context: QueryContext,
-  parallelism: number | undefined,
-): QueryContext {
+function changeParallelism(context: QueryContext, parallelism: number | undefined): QueryContext {
   return typeof parallelism === 'number'
     ? deepSet(context, 'talariaNumTasks', parallelism)
     : deepDelete(context, 'talariaNumTasks');
+}
+
+function getTalariaFinalizeAggregations(context: QueryContext): boolean {
+  const { talariaFinalizeAggregations } = context;
+  return typeof talariaFinalizeAggregations === 'boolean' ? talariaFinalizeAggregations : true;
+}
+
+function setTalariaFinalizeAggregations(
+  context: QueryContext,
+  talariaFinalizeAggregations: boolean,
+): QueryContext {
+  if (talariaFinalizeAggregations) {
+    return deepDelete(context, 'talariaFinalizeAggregations');
+  } else {
+    return deepSet(context, 'talariaFinalizeAggregations', false);
+  }
 }
 
 export interface RunMoreButtonProps {
@@ -96,11 +95,17 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
   const queryContext = query.queryContext;
   const numContextKeys = Object.keys(queryContext).length;
 
-  const useCache = getUseCache(queryContext);
+  const talariaFinalizeAggregations = getTalariaFinalizeAggregations(queryContext);
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
   const useApproximateTopN = getUseApproximateTopN(queryContext);
+  const useCache = getUseCache(queryContext);
 
   const handleRun = useCallback(() => {
+    if (!onRun) return;
+    onRun(false);
+  }, [onRun]);
+
+  const handlePreview = useCallback(() => {
     if (!onRun) return;
     onRun(true);
   }, [onRun]);
@@ -123,8 +128,16 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
         global: true,
         group: 'Query',
         combo: 'mod + enter',
-        label: 'Runs the current query',
+        label: 'Run the current query',
         onKeyDown: handleRun,
+      },
+      {
+        allowInInput: true,
+        global: true,
+        group: 'Query',
+        combo: 'mod + shift + enter',
+        label: 'Preview the current query',
+        onKeyDown: handlePreview,
       },
       {
         allowInInput: true,
@@ -135,7 +148,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
         onKeyDown: handleExplain,
       },
     ];
-  }, [small, handleRun, handleExplain]);
+  }, [small, handleRun, handlePreview, handleExplain]);
 
   useHotkeys(hotkeys);
 
@@ -151,16 +164,14 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
     );
   }
 
-  const talariaEngine = getTalariaEngine(queryContext);
-  function renderTalariaEngineMenuItem(t: boolean | undefined) {
+  const queryEngine = query.engine;
+  function renderQueryEngineMenuItem(e: DruidEngine | undefined) {
     return (
       <MenuItem
-        key={String(t)}
-        icon={t === talariaEngine ? IconNames.TICK : IconNames.BLANK}
-        text={typeof t === 'undefined' ? 'auto' : String(t)}
-        onClick={() =>
-          onQueryChange(query.changeQueryContext(changeTalariaEngine(queryContext, t)))
-        }
+        key={String(e)}
+        icon={e === queryEngine ? IconNames.TICK : IconNames.BLANK}
+        text={typeof e === 'undefined' ? 'auto' : e}
+        onClick={() => onQueryChange(query.changeEngine(e))}
       />
     );
   }
@@ -188,6 +199,18 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
               )}
               {onQueryChange && (
                 <>
+                  <MenuItem
+                    icon={IconNames.MANY_TO_MANY}
+                    text="Query engine"
+                    label={query.engine || `${query.getEffectiveEngine()} (auto)`}
+                  >
+                    <Menu>
+                      {([undefined, 'broker', 'async', 'talaria'] as (
+                        | DruidEngine
+                        | undefined
+                      )[]).map(renderQueryEngineMenuItem)}
+                    </Menu>
+                  </MenuItem>
                   <MenuDivider />
                   <MenuItem
                     icon={IconNames.PROPERTIES}
@@ -195,13 +218,6 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                     onClick={() => setEditContextDialogOpen(true)}
                     label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
                   />
-                  <MenuItem
-                    icon={IconNames.MANY_TO_MANY}
-                    text="Use Talaria engine"
-                    label={String(getTalariaEngine(queryContext) || 'auto')}
-                  >
-                    <Menu>{[undefined, true, false].map(renderTalariaEngineMenuItem)}</Menu>
-                  </MenuItem>
                   <MenuItem
                     icon={IconNames.TWO_COLUMNS}
                     text="Talaria parallelism"
@@ -218,6 +234,20 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                       </MenuItem>
                     </Menu>
                   </MenuItem>
+                  <MenuCheckbox
+                    checked={talariaFinalizeAggregations}
+                    text="Finalize aggregations"
+                    onChange={() => {
+                      onQueryChange(
+                        query.changeQueryContext(
+                          setTalariaFinalizeAggregations(
+                            queryContext,
+                            !talariaFinalizeAggregations,
+                          ),
+                        ),
+                      );
+                    }}
+                  />
                   <MenuCheckbox
                     checked={useApproximateCountDistinct}
                     text="Use approximate COUNT(DISTINCT)"

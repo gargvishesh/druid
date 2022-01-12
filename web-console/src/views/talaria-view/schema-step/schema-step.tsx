@@ -31,14 +31,7 @@ import {
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
-import {
-  QueryResult,
-  QueryRunner,
-  SqlExpression,
-  SqlFunction,
-  SqlQuery,
-  SqlRef,
-} from 'druid-query-toolkit';
+import { QueryResult, SqlExpression, SqlFunction, SqlQuery, SqlRef } from 'druid-query-toolkit';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { Loader } from '../../../components';
@@ -51,14 +44,13 @@ import {
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   summarizeExternalConfig,
-  TalariaQueryPart,
   TalariaSummary,
 } from '../../../talaria-models';
 import {
   caseInsensitiveContains,
   change,
-  DruidError,
   filterMap,
+  getContextFromSqlQuery,
   IntermediateQueryState,
   oneOf,
   QueryAction,
@@ -70,8 +62,8 @@ import { ExternalConfigDialog } from '../external-config-dialog/external-config-
 import { timeFormatToSql } from '../sql-utils';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import {
-  getTaskIdFromQueryResults,
-  killTaskOnCancel,
+  cancelAsyncQueryOnCancel,
+  submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
 } from '../talaria-utils';
 
@@ -80,8 +72,6 @@ import { PreviewTable } from './preview-table/preview-table';
 import { RollupAnalysisPane } from './rollup-analysis-pane/rollup-analysis-pane';
 
 import './schema-step.scss';
-
-const queryRunner = new QueryRunner();
 
 export function changeByString<T>(xs: readonly T[], from: T, to: T): T[] {
   const fromString = String(from);
@@ -282,28 +272,18 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, TalariaSummary>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      let result: QueryResult;
-      try {
-        result = await queryRunner.runQuery({
-          query: previewQueryString,
-          extraQueryContext: {
-            talaria: TalariaQueryPart.isTalariaEngineNeeded(previewQueryString),
-            sqlOuterLimit: 50,
-          },
-          cancelToken,
-        });
-      } catch (e) {
-        throw new DruidError(e);
-      }
+      const summary = await submitAsyncQuery({
+        query: previewQueryString,
+        context: {
+          ...getContextFromSqlQuery(previewQueryString),
+          talaria: true,
+          sqlOuterLimit: 50,
+        },
+        cancelToken,
+      });
 
-      const taskId = getTaskIdFromQueryResults(result);
-      if (!taskId) {
-        return result;
-      }
-
-      killTaskOnCancel(taskId, cancelToken);
-
-      return new IntermediateQueryState(TalariaSummary.init(taskId, previewQueryString));
+      cancelAsyncQueryOnCancel(summary.id, cancelToken);
+      return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
@@ -316,7 +296,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       )
     : [];
 
-  const segmentGranularity = ingestQueryPattern?.context.talariaSegmentGranularity;
+  const segmentGranularity = ingestQueryPattern?.segmentGranularity;
 
   const timeSuggestions =
     previewResultState.data && parsedQuery
@@ -435,10 +415,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                             if (!ingestQueryPattern) return;
                             updatePattern({
                               ...ingestQueryPattern,
-                              context: {
-                                ...ingestQueryPattern.context,
-                                talariaSegmentGranularity: g,
-                              },
+                              segmentGranularity: g,
                             });
                           }}
                         />

@@ -26,15 +26,19 @@ import {
   ProgressBar,
 } from '@blueprintjs/core';
 import { CancelToken } from 'axios';
-import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
+import { SqlQuery } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { Api } from '../../../singletons';
 import { TalariaQuery, TalariaSummary } from '../../../talaria-models';
-import { downloadHref, DruidError, IntermediateQueryState } from '../../../utils';
-import { getTalariaSummary, getTaskIdFromQueryResults, killTaskOnCancel } from '../talaria-utils';
+import { IntermediateQueryState } from '../../../utils';
+import {
+  cancelAsyncQueryOnCancel,
+  downloadResults,
+  submitAsyncQuery,
+  talariaBackgroundStatusCheck,
+} from '../talaria-utils';
 
 import './export-dialog.scss';
 
@@ -77,8 +81,6 @@ export const ASYNC_DOWNLOAD_FIELDS: Field<AsyncDownloadParams>[] = [
   },
 ];
 
-const queryRunner = new QueryRunner();
-
 interface ExportDialogProps {
   talariaQuery: TalariaQuery;
   onClose: () => void;
@@ -107,64 +109,50 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
     TalariaSummary
   >({
     processQuery: async (_asyncDownloadParams, cancelToken) => {
-      const downloadQuery = talariaQuery.changeUnlimited(true).removeInsert();
+      const downloadQuery = talariaQuery
+        .changeUnlimited(true)
+        .removeInsert()
+        .changeEngine('talaria');
 
-      const { query, context, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
+      const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
+      if (!isSql) throw new Error('must be SQL for export');
 
-      let result: QueryResult;
-      try {
-        result = await queryRunner.runQuery({
-          query,
-          extraQueryContext: {
-            ...context,
-            talariaDestination: asyncDownloadParams.local ? undefined : 'external',
-          },
-          cancelToken,
-        });
-      } catch (e) {
-        throw new DruidError(e, prefixLines);
-      }
+      const summary = await submitAsyncQuery({
+        query,
+        context: {
+          ...context,
+          talariaDestination: asyncDownloadParams.local ? undefined : 'external',
+        },
+        prefixLines,
+        cancelToken,
+      });
+      cancelAsyncQueryOnCancel(summary.id, cancelToken);
 
-      const taskId = getTaskIdFromQueryResults(result);
-      if (!taskId) {
-        throw new Error('Unexpected result, could not determine taskId');
-      }
-
-      killTaskOnCancel(taskId, cancelToken);
-
-      return new IntermediateQueryState(TalariaSummary.init(taskId));
+      return new IntermediateQueryState(summary.changeDestination({ type: 'download' }));
     },
     backgroundStatusCheck: async (
       currentSummary: TalariaSummary,
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {
-      let updatedSummary = currentSummary;
+      const res = await talariaBackgroundStatusCheck(
+        currentSummary,
+        asyncDownloadParams,
+        cancelToken,
+      );
+      if (res instanceof IntermediateQueryState) return res;
 
-      if (updatedSummary.isWaitingForTask()) {
-        const newSummary = await getTalariaSummary(currentSummary.taskId, cancelToken);
-        updatedSummary = updatedSummary.updateWith(newSummary);
+      if (asyncDownloadParams.local) {
+        downloadResults(
+          res.id,
+          addExtensionIfNeeded(
+            asyncDownloadParams.filename!,
+            resultFormatToExtension(asyncDownloadParams.resultFormat!),
+          ),
+        );
       }
 
-      if (updatedSummary.isWaitingForTask()) {
-        return new IntermediateQueryState(updatedSummary);
-      } else {
-        if (updatedSummary.error) {
-          throw new Error(updatedSummary.getErrorMessage() || 'unexpected issue');
-        }
-
-        if (asyncDownloadParams.local) {
-          downloadHref({
-            href: `/druid/indexer/v1/task/${Api.encodePath(updatedSummary.taskId)}/reports`,
-            filename: addExtensionIfNeeded(
-              asyncDownloadParams.filename!,
-              resultFormatToExtension(asyncDownloadParams.resultFormat!),
-            ),
-          });
-        }
-
-        return updatedSummary;
-      }
+      return res;
     },
   });
 
@@ -202,7 +190,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       <div>
         <ProgressBar />
         <p>Preparing results...</p>
-        <p>TaskID: {downloadState.intermediate?.taskId}</p>
+        <p>Query ID: {downloadState.intermediate?.id}</p>
       </div>
     );
   } else if (downloadState.isError()) {

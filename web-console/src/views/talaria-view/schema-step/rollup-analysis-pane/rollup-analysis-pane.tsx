@@ -19,19 +19,12 @@
 import { Button, Callout, Intent, Menu, Tag } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { CancelToken } from 'axios';
-import {
-  QueryResult,
-  QueryRunner,
-  SqlExpression,
-  SqlFunction,
-  SqlQuery,
-} from 'druid-query-toolkit';
+import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-toolkit';
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { TalariaQueryPart, TalariaSummary } from '../../../../talaria-models';
+import { TalariaSummary } from '../../../../talaria-models';
 import {
-  DruidError,
   filterMap,
   formatPercentClapped,
   IntermediateQueryState,
@@ -39,9 +32,9 @@ import {
 } from '../../../../utils';
 import { ColumnActionMenu } from '../../column-action-menu/column-action-menu';
 import {
-  getTaskIdFromQueryResults,
-  killTaskOnCancel,
-  updateSummaryWithReportIfNeeded,
+  cancelAsyncQueryOnCancel,
+  submitAsyncQuery,
+  talariaBackgroundStatusCheck,
 } from '../../talaria-utils';
 
 import './rollup-analysis-pane.scss';
@@ -58,8 +51,6 @@ function expressionCastToString(ex: SqlExpression): SqlExpression {
 function countDistinct(ex: SqlExpression): SqlExpression {
   return SqlFunction.simple('APPROX_COUNT_DISTINCT_DS_HLL', [ex]);
 }
-
-const queryRunner = new QueryRunner();
 
 function within(a: number, b: number, percent: number): boolean {
   return Math.abs(a - b) / Math.abs(Math.min(a, b)) < percent;
@@ -185,45 +176,31 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         .changeOrderByClause(undefined)
         .toString();
 
-      console.log('analyze:', queryString);
+      // console.log('analyze:', queryString);
 
-      let result: QueryResult;
-      try {
-        result = await queryRunner.runQuery({
-          query: queryString,
-          extraQueryContext: {
-            talaria: TalariaQueryPart.isTalariaEngineNeeded(queryString),
-          },
-          cancelToken,
-        });
-      } catch (e) {
-        throw new DruidError(e);
-      }
+      const summary = await submitAsyncQuery({
+        query: queryString,
+        context: {
+          talaria: true,
+        },
+        cancelToken,
+      });
 
-      const taskId = getTaskIdFromQueryResults(result);
-      if (!taskId) {
-        return queryResultToAnalysis(analyzeQuery, result);
-      }
-
-      killTaskOnCancel(taskId, cancelToken);
-
-      return new IntermediateQueryState(TalariaSummary.init(taskId));
+      cancelAsyncQueryOnCancel(summary.id, cancelToken);
+      return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: async (
       currentSummary: TalariaSummary,
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {
-      const updatedSummary = await updateSummaryWithReportIfNeeded(currentSummary, cancelToken);
+      const res = await talariaBackgroundStatusCheck(currentSummary, analyzeQuery, cancelToken);
+      if (res instanceof IntermediateQueryState) return res;
 
-      if (updatedSummary.isWaitingForTask()) {
-        return new IntermediateQueryState(updatedSummary);
+      if (res.result) {
+        return queryResultToAnalysis(analyzeQuery, res.result);
       } else {
-        if (updatedSummary.result) {
-          return queryResultToAnalysis(analyzeQuery, updatedSummary.result);
-        } else {
-          throw new Error(updatedSummary.getErrorMessage() || 'unexpected destination');
-        }
+        throw new Error(res.getErrorMessage() || 'unexpected destination');
       }
     },
   });

@@ -32,6 +32,7 @@ import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
 import { MenuCheckbox } from '../../components';
+import { SpecDialog } from '../../dialogs';
 import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
@@ -62,7 +63,7 @@ import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
 import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
 import { TalariaQueryStateCache } from './talaria-query-state-cache';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
-import { TabEntry } from './talaria-utils';
+import { convertSpecToSql, TabEntry } from './talaria-utils';
 import { WorkPanel } from './work-panel/work-panel';
 
 import './talaria-view.scss';
@@ -94,6 +95,7 @@ export interface TalariaViewState {
 
   editContextDialogOpen: boolean;
   historyDialogOpen: boolean;
+  specDialogOpen: boolean;
   renamingTab?: TabEntry;
 
   showWorkHistory: boolean;
@@ -146,6 +148,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
       editContextDialogOpen: false,
       historyDialogOpen: false,
+      specDialogOpen: false,
       initExternalConfig: false,
 
       showWorkHistory,
@@ -266,6 +269,36 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
     );
   }
 
+  private renderSpecDialog() {
+    const { specDialogOpen } = this.state;
+    if (!specDialogOpen) return;
+
+    return (
+      <SpecDialog
+        onSubmit={spec => {
+          let sql: string;
+          try {
+            sql = convertSpecToSql(spec as any);
+          } catch (e) {
+            AppToaster.show({
+              message: `Could not convert spec: ${e.message}`,
+              intent: Intent.DANGER,
+            });
+            return;
+          }
+
+          AppToaster.show({
+            message: `Spec converted, please double check`,
+            intent: Intent.SUCCESS,
+          });
+          this.handleQueryStringChange(sql);
+        }}
+        onClose={() => this.setState({ specDialogOpen: false })}
+        title="Ingestion spec to convert"
+      />
+    );
+  }
+
   private renderToolbarMoreMenu() {
     const { showWorkHistory } = this.state;
     const query = this.getCurrentQuery();
@@ -286,6 +319,11 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
           icon={IconNames.HISTORY}
           text="Query history"
           onClick={() => this.setState({ historyDialogOpen: true })}
+        />
+        <MenuItem
+          icon={IconNames.TEXT_HIGHLIGHT}
+          text="Convert ingestion spec to SQL"
+          onClick={() => this.setState({ specDialogOpen: true })}
         />
         <MenuCheckbox
           checked={showWorkHistory}
@@ -531,6 +569,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
         {this.renderTabRenameDialog()}
+        {this.renderSpecDialog()}
         <MetadataChangeDetector onChange={() => this.metadataQueryManager.runQuery(null)} />
       </div>
     );

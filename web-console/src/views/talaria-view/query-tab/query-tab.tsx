@@ -28,7 +28,7 @@ import { Loader } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { TalariaHistory } from '../../../singletons/talaria-history';
-import { LastQueryInfo, TalariaQuery, TalariaSummary } from '../../../talaria-models';
+import { TalariaQuery, TalariaSummary } from '../../../talaria-models';
 import {
   ColumnMetadata,
   DruidError,
@@ -55,8 +55,8 @@ import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
 import {
-  getTaskIdFromQueryResults,
-  killTaskOnCancel,
+  cancelAsyncQueryOnCancel,
+  submitAsyncQuery,
   talariaBackgroundStatusCheck,
 } from '../talaria-utils';
 import { useWorkStateStore } from '../work-state-store';
@@ -100,75 +100,60 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
 
   const id = query.getId();
   const [querySummaryState, queryManager] = useQueryManager<
-    TalariaQuery | LastQueryInfo,
+    TalariaQuery | string,
     TalariaSummary,
     TalariaSummary,
     DruidError
   >({
-    initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryInfo(),
+    initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryId(),
     initState: TalariaQueryStateCache.getState(id),
-    processQuery: async (q: TalariaQuery | LastQueryInfo, cancelToken) => {
+    processQuery: async (q: TalariaQuery | string, cancelToken) => {
       if (q instanceof TalariaQuery) {
         const {
           query,
           context,
           prefixLines,
+          isAsync,
           isSql,
           cancelQueryId,
         } = q.getEffectiveQueryAndContext();
 
-        if (cancelQueryId) {
-          void cancelToken.promise
-            .then(() => {
-              return Api.instance.delete(
-                `/druid/v2${isSql ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
-              );
-            })
-            .catch(() => {});
-        }
-
-        const queryContext = { ...context, ...(mandatoryQueryContext || {}) };
-        let result: QueryResult;
-        try {
-          result = await queryRunner.runQuery({
-            query,
-            extraQueryContext: queryContext,
-            cancelToken,
-          });
-        } catch (e) {
-          onQueryChange(props.query.changeLastQueryInfo(undefined));
-          throw new DruidError(e, prefixLines);
-        }
-
-        if (queryContext.talaria) {
-          const taskId = getTaskIdFromQueryResults(result);
-          if (!taskId) {
-            throw new Error(`Unexpected result returned from a Talaria query`);
+        if (isAsync) {
+          if (!isSql) throw new Error('must be SQL to be async');
+          const summary = await submitAsyncQuery({ query, context, prefixLines, cancelToken });
+          cancelAsyncQueryOnCancel(summary.id, cancelToken);
+          onQueryChange(props.query.changeLastQueryId(summary.id));
+          return new IntermediateQueryState(summary);
+        } else {
+          if (cancelQueryId) {
+            void cancelToken.promise
+              .then(() => {
+                return Api.instance.delete(
+                  `/druid/v2${isSql ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
+                );
+              })
+              .catch(() => {});
           }
 
-          TalariaHistory.attachTaskId(q, taskId);
-          killTaskOnCancel(taskId, cancelToken, true);
-          onQueryChange(
-            props.query.changeLastQueryInfo({
-              taskId,
-            }),
-          );
+          const queryContext = { ...context, ...(mandatoryQueryContext || {}) };
+          let result: QueryResult;
+          try {
+            result = await queryRunner.runQuery({
+              query,
+              extraQueryContext: queryContext,
+              cancelToken,
+            });
+          } catch (e) {
+            onQueryChange(props.query.changeLastQueryId(undefined));
+            throw new DruidError(e, prefixLines);
+          }
 
-          return new IntermediateQueryState(
-            TalariaSummary.init(
-              taskId,
-              typeof query === 'string' ? query : undefined,
-              queryContext,
-            ),
-          );
-        } else {
-          onQueryChange(props.query.changeLastQueryInfo(undefined));
+          onQueryChange(props.query.changeLastQueryId(undefined));
           return TalariaSummary.fromResult(result);
         }
       } else {
-        const { taskId } = q;
-        killTaskOnCancel(taskId, cancelToken, true);
-        return new IntermediateQueryState(TalariaSummary.reattach(taskId), 0);
+        cancelAsyncQueryOnCancel(q, cancelToken, true);
+        return new IntermediateQueryState(TalariaSummary.reattach(q), 0);
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
@@ -212,7 +197,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
 
   const runeMode = query.isJsonLike();
 
-  const statsTaskId: string | undefined = querySummary?.taskId;
+  const statsTaskId: string | undefined = querySummary?.id;
 
   const queryPrefixes = query.getPrefixQueries();
 
@@ -314,7 +299,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 minimal
                 onClick={() => {
                   queryManager.reset();
-                  onQueryChange(props.query.changeLastQueryInfo(undefined));
+                  onQueryChange(props.query.changeLastQueryId(undefined));
                   TalariaQueryStateCache.deleteState(id);
                 }}
               />

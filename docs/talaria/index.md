@@ -1241,7 +1241,3 @@ LIMIT 1000
   means large right-hand-side tables can cause worker tasks to run
   out of memory. (15024)
 
-**Issues with the web console.**
-
-- After an INSERT query completes, the duration label describing
-  query runtime is always zero.

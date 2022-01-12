@@ -23,7 +23,7 @@ import { fitIngestQueryPattern, ingestQueryPatternToQuery } from './talaria-quer
 describe('talaria-query-pattern', () => {
   it('IngestQueryPattern works', () => {
     const query = SqlQuery.parse(sane`
-      --:context {"talariaSegmentGranularity":"hour"}
+      --:context talariaSegmentGranularity: hour
       INSERT INTO "kttm-2019"
       WITH ext AS (SELECT *
       FROM TABLE(
@@ -44,7 +44,7 @@ describe('talaria-query-pattern', () => {
     `);
 
     const insertQueryPattern = fitIngestQueryPattern(query);
-    expect(insertQueryPattern.context).toEqual({ talariaSegmentGranularity: 'hour' });
+    expect(insertQueryPattern.segmentGranularity).toEqual('hour');
 
     const query2 = ingestQueryPatternToQuery(insertQueryPattern);
 
