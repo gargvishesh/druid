@@ -76,7 +76,7 @@ export const TalariaHistoryDialog = React.memo(function TalariaHistoryDialog(
           />
         </div>
         <TextArea className="query-string" readOnly value={record.query.getQueryString()} />
-        {showStats && record.taskId && <TalariaStatsLoader taskId={record.taskId} />}
+        {showStats && record.taskId && <TalariaStatsLoader id={record.taskId} />}
       </div>
     );
   }

@@ -23,22 +23,22 @@ import { useInterval, useQueryManager } from '../../../hooks';
 import { TalariaSummary } from '../../../talaria-models';
 import { oneOf } from '../../../utils';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
-import { getTalariaSummary } from '../talaria-utils';
+import { getTalariaDetailSummary } from '../talaria-utils';
 
 export interface TalariaStatsLoaderProps {
-  taskId: string;
+  id: string;
 }
 
 export const TalariaStatsLoader = React.memo(function TalariaStatsLoader(
   props: TalariaStatsLoaderProps,
 ) {
-  const { taskId } = props;
+  const { id } = props;
 
   const [reportState, queryManager] = useQueryManager<string, TalariaSummary>({
     processQuery: (taskId: string) => {
-      return getTalariaSummary(taskId);
+      return getTalariaDetailSummary(taskId);
     },
-    initQuery: taskId,
+    initQuery: id,
   });
 
   useInterval(() => {

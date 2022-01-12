@@ -18,7 +18,7 @@
 
 import { Button, Icon, Intent, TextArea } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import { QueryResult, QueryRunner } from 'druid-query-toolkit';
+import { QueryResult } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import { AutoForm, CenterMessage, Loader } from '../../../../components';
@@ -34,16 +34,14 @@ import {
   INPUT_SOURCE_FIELDS,
   TalariaSummary,
 } from '../../../../talaria-models';
-import { deepSet, DruidError, IntermediateQueryState } from '../../../../utils';
+import { deepSet, IntermediateQueryState } from '../../../../utils';
 import {
-  getTaskIdFromQueryResults,
-  killTaskOnCancel,
+  cancelAsyncQueryOnCancel,
+  submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
 } from '../../talaria-utils';
 
 import './input-source-step.scss';
-
-const queryRunner = new QueryRunner();
 
 export interface InputSourceStepProps {
   initInputSource: Partial<InputSource>;
@@ -69,27 +67,16 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         columns: [{ name: 'raw', type: 'string' }],
       })} LIMIT 100`;
 
-      let result: QueryResult;
-      try {
-        result = await queryRunner.runQuery({
-          query,
-          extraQueryContext: {
-            talaria: true,
-          },
-          cancelToken,
-        });
-      } catch (e) {
-        throw new DruidError(e);
-      }
+      const summary = await submitAsyncQuery({
+        query,
+        context: {
+          talaria: true,
+        },
+        cancelToken,
+      });
 
-      const taskId = getTaskIdFromQueryResults(result);
-      if (!taskId) {
-        throw new Error('Unexpected result, could not determine taskId');
-      }
-
-      killTaskOnCancel(taskId, cancelToken);
-
-      return new IntermediateQueryState(TalariaSummary.init(taskId));
+      cancelAsyncQueryOnCancel(summary.id, cancelToken);
+      return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });

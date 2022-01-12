@@ -202,10 +202,30 @@ export function ColumnActionMenu(props: ColumnActionMenuProps) {
               </>
             )}
             <MenuItem
-              text="Convert to APPROX_COUNT_DISTINCT_BUILTIN_RAW(...)"
+              text="Convert to APPROX_COUNT_DISTINCT_DS_HLL(...)"
               onClick={() => {
                 convertToAggregate([
-                  SqlFunction.simple('APPROX_COUNT_DISTINCT_BUILTIN_RAW', [
+                  SqlFunction.simple('APPROX_COUNT_DISTINCT_DS_HLL', [
+                    underlyingSelectExpression,
+                  ]).as(`unique_${header}`),
+                ]);
+              }}
+            />
+            <MenuItem
+              text="Convert to APPROX_COUNT_DISTINCT_DS_THETA(...)"
+              onClick={() => {
+                convertToAggregate([
+                  SqlFunction.simple('APPROX_COUNT_DISTINCT_DS_THETA', [
+                    underlyingSelectExpression,
+                  ]).as(`unique_${header}`),
+                ]);
+              }}
+            />
+            <MenuItem
+              text="Convert to APPROX_COUNT_DISTINCT_BUILTIN(...)"
+              onClick={() => {
+                convertToAggregate([
+                  SqlFunction.simple('APPROX_COUNT_DISTINCT_BUILTIN', [
                     underlyingSelectExpression,
                   ]).as(`unique_${header}`),
                 ]);

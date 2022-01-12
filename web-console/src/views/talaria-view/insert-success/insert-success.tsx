@@ -40,11 +40,12 @@ export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSucc
   const rows = getTotalCountForStage(lastStage, 'input', 'rows');
   const table = SqlTableRef.create(dataSource);
 
+  const duration = insertSummary.getDuration();
   return (
     <div className="insert-success">
       <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${dataSource}.`}</p>
       <p>
-        {`Insert took ${formatDuration(insertSummary.getDuration())}. `}
+        {duration ? `Insert query took ${formatDuration(duration)}. ` : `Insert query completed. `}
         <span className="action" onClick={onStats}>
           Show stats
         </span>

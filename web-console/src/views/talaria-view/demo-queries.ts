@@ -20,14 +20,16 @@ import { TalariaQuery } from '../../talaria-models';
 
 import { TabEntry } from './talaria-utils';
 
+const BASE_QUERY = TalariaQuery.blank().changeQueryContext({ talariaNumTasks: 2 });
+
 export function getDemoQueries(): TabEntry[] {
   return [
     {
       id: 'demo1',
       tabName: 'Demo 1',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
-INSERT INTO "kttm_simple_v2"
+INSERT INTO "kttm_simple"
 SELECT *
 FROM TABLE(
   EXTERN(
@@ -42,9 +44,11 @@ FROM TABLE(
     {
       id: 'demo2',
       tabName: 'Demo 2',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
-INSERT INTO "kttm_rollup_v2" --:context talariaSegmentGranularity: hour
+--:context talariaSegmentGranularity: hour
+--:context talariaFinalizeAggregations: false
+INSERT INTO "kttm_rollup"
 
 WITH kttm_data AS (
 SELECT * FROM TABLE(
@@ -81,7 +85,7 @@ SELECT
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
-  APPROX_COUNT_DISTINCT_BUILTIN_RAW(event_type) AS unique_event_types
+  APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_data
 WHERE os = 'iOS'
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
@@ -92,9 +96,11 @@ ORDER BY session -- Secondary partitioning
     {
       id: 'demo3',
       tabName: 'Demo 3',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
-INSERT INTO "kttm_etl_v2" --:context talariaSegmentGranularity: hour
+--:context talariaSegmentGranularity: hour
+--:context talariaFinalizeAggregations: false
+INSERT INTO "kttm_etl"
 WITH
 kttm_data AS (
 SELECT * FROM TABLE(
@@ -143,7 +149,7 @@ SELECT
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
-  APPROX_COUNT_DISTINCT_BUILTIN_RAW(event_type) AS unique_event_types
+  APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_data
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
 WHERE os = 'iOS'
@@ -155,9 +161,11 @@ ORDER BY session -- Secondary partitioning
     {
       id: 'demo4a',
       tabName: 'Demo 4a',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
-INSERT INTO "kttm_reingest_v2" --:context talariaSegmentGranularity: hour
+--:context talariaSegmentGranularity: hour
+--:context talariaFinalizeAggregations: false
+INSERT INTO "kttm_reingest"
 WITH
 country_lookup AS (
 SELECT * FROM TABLE(
@@ -198,9 +206,9 @@ SELECT
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
-  APPROX_COUNT_DISTINCT_BUILTIN_RAW(event_type) AS unique_event_types
-FROM kttm_simple_v2
-LEFT JOIN country_lookup ON country_lookup.Country = kttm_simple_v2.country
+  APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
+FROM kttm_simple
+LEFT JOIN country_lookup ON country_lookup.Country = kttm_simple.country
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
 ORDER BY session -- Secondary partitioning
 `.trim(),
@@ -209,11 +217,12 @@ ORDER BY session -- Secondary partitioning
     {
       id: 'demo4b',
       tabName: 'Demo 4b',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
-INSERT INTO kttm_simple_v2 --:context talariaReplaceTimeChunks: all
+--:context talariaReplaceTimeChunks: all
+INSERT INTO kttm_simple
 SELECT *
-FROM kttm_simple_v2
+FROM kttm_simple
 WHERE NOT(country = 'New Zealand')
 `.trim(),
       ),
@@ -221,7 +230,7 @@ WHERE NOT(country = 'New Zealand')
     {
       id: 'demo5',
       tabName: 'Demo 5',
-      query: TalariaQuery.blank().changeQueryString(
+      query: BASE_QUERY.duplicate().changeQueryString(
         `
 WITH
 kttm_data AS (
@@ -255,17 +264,17 @@ LIMIT 10
     {
       id: 'demo6',
       tabName: 'Demo 6',
-      query: TalariaQuery.blank()
+      query: BASE_QUERY.duplicate()
         .changeQueryString(
           `
 SELECT *
-FROM "kttm_simple_v2"
+FROM "kttm_simple"
 ORDER BY
   session ASC,
   number ASC
 `.trim(),
         )
-        .changeQueryContext({ talaria: true }),
+        .changeEngine('talaria'),
     },
   ];
 }

@@ -24,7 +24,7 @@ import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-sp
 import { ColumnMetadata, getContextFromSqlQuery } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
-import { LastQueryInfo, TalariaQueryPart } from './talaria-query-part';
+import { TalariaQueryPart } from './talaria-query-part';
 import {
   ExternalConfig,
   externalConfigToInitQuery,
@@ -36,11 +36,14 @@ export interface InsertIntoConfig {
   readonly segmentGranularity: string;
 }
 
+export type DruidEngine = 'broker' | 'async' | 'talaria';
+
 // -----------------------------
 
 export interface TalariaQueryValue {
   queryParts: TalariaQueryPart[];
   queryContext: QueryContext;
+  engine?: DruidEngine;
   unlimited?: boolean;
 }
 
@@ -92,6 +95,7 @@ export class TalariaQuery {
 
   public readonly queryParts: TalariaQueryPart[];
   public readonly queryContext: QueryContext;
+  public readonly engine?: DruidEngine;
   public readonly unlimited?: boolean;
 
   constructor(value: TalariaQueryValue) {
@@ -104,6 +108,7 @@ export class TalariaQuery {
     }
     this.queryParts = queryParts;
     this.queryContext = value.queryContext;
+    this.engine = value.engine;
     if (value.unlimited) this.unlimited = true;
   }
 
@@ -111,6 +116,7 @@ export class TalariaQuery {
     return {
       queryParts: this.queryParts,
       queryContext: this.queryContext,
+      engine: this.engine,
       unlimited: this.unlimited,
     };
   }
@@ -123,8 +129,23 @@ export class TalariaQuery {
     return new TalariaQuery({ ...this.valueOf(), queryContext });
   }
 
+  public changeEngine(engine: DruidEngine | undefined): TalariaQuery {
+    return new TalariaQuery({ ...this.valueOf(), engine });
+  }
+
   public changeUnlimited(unlimited: boolean): TalariaQuery {
     return new TalariaQuery({ ...this.valueOf(), unlimited });
+  }
+
+  public isTalariaEngineNeeded(): boolean {
+    return this.queryParts.some(part => part.isTalariaEngineNeeded());
+  }
+
+  public getEffectiveEngine(): DruidEngine {
+    const { engine, queryContext } = this;
+    if (engine) return engine;
+    if (queryContext.talaria) return 'talaria';
+    return this.isTalariaEngineNeeded() ? 'talaria' : 'broker';
   }
 
   private getLastPart(): TalariaQueryPart {
@@ -152,8 +173,8 @@ export class TalariaQuery {
     return this.getLastPart().collapsed;
   }
 
-  public getLastQueryInfo(): LastQueryInfo | undefined {
-    return this.getLastPart().lastQueryInfo;
+  public getLastQueryId(): string | undefined {
+    return this.getLastPart().lastQueryId;
   }
 
   public getParsedQuery(): SqlQuery | undefined {
@@ -197,8 +218,8 @@ export class TalariaQuery {
     return this.changeLastQueryPart(this.getLastPart().changeCollapsed(collapsed));
   }
 
-  public changeLastQueryInfo(lastQueryInfo: LastQueryInfo | undefined): TalariaQuery {
-    return this.changeLastQueryPart(this.getLastPart().changeLastQueryInfo(lastQueryInfo));
+  public changeLastQueryId(lastQueryId: string | undefined): TalariaQuery {
+    return this.changeLastQueryPart(this.getLastPart().changeLastQueryId(lastQueryId));
   }
 
   public clear(): TalariaQuery {
@@ -242,19 +263,17 @@ export class TalariaQuery {
     );
   }
 
-  public isTalariaEngineNeeded(): boolean {
-    return this.queryParts.some(part => part.isTalariaEngineNeeded());
-  }
-
   public getEffectiveQueryAndContext(): {
     query: string | Record<string, any>;
     context: QueryContext;
     prefixLines?: number;
+    isAsync: boolean;
     isSql: boolean;
     cancelQueryId?: string;
   } {
     const { queryParts, queryContext, unlimited } = this;
     if (!queryParts.length) throw new Error(`should not get here`);
+    const engine = this.getEffectiveEngine();
 
     const lastQueryPart = this.getLastPart();
     if (lastQueryPart.isJsonLike()) {
@@ -262,7 +281,7 @@ export class TalariaQuery {
       const isSql = typeof query.query === 'string';
 
       let context: QueryContext = queryContext;
-      if (typeof context.talaria === 'undefined' && this.isTalariaEngineNeeded()) {
+      if (engine === 'talaria') {
         context = { ...context, talaria: true };
       }
 
@@ -278,6 +297,7 @@ export class TalariaQuery {
       return {
         query,
         context,
+        isAsync: engine !== 'async',
         isSql,
         cancelQueryId,
       };
@@ -321,7 +341,7 @@ export class TalariaQuery {
       ...inlineContext,
     };
 
-    if (typeof context.talaria === 'undefined' && this.isTalariaEngineNeeded()) {
+    if (engine === 'talaria') {
       context = { ...context, talaria: true };
     }
 
@@ -336,6 +356,7 @@ export class TalariaQuery {
       query: sqlQuery,
       context,
       prefixLines,
+      isAsync: engine !== 'broker',
       isSql: true,
       cancelQueryId,
     };
@@ -377,7 +398,7 @@ export class TalariaQuery {
         last
           .changeQueryName(last.queryName || 'q')
           .changeCollapsed(true)
-          .changeLastQueryInfo(undefined),
+          .changeLastQueryId(undefined),
         TalariaQueryPart.blank(),
       ),
     );
