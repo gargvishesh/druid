@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.expressions.MurmurHashExprMacros;
+import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprMacro;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.AdTechInventorySqlAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.MurmurHashOperatorConversions;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreObjectSqlAggregator;
@@ -59,6 +60,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
       configureSessionAvgScore(binder);
       ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3Macro.class);
       ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3_64Macro.class);
+      ExpressionModule.addExprMacro(binder, SessionizeExprMacro.class);
     }
 
     if (implyLicenseManager.isFeatureEnabled(AD_TECH_AGGREGATORS_FEATURE_NAME) ||

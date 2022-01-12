@@ -11,10 +11,12 @@ package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.expressions.MurmurHashExprMacros;
+import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprMacro;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreAggregatorFactory;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramFilteringPostAggregator;
@@ -23,6 +25,9 @@ import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteri
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.QueryContexts;
+import org.apache.druid.query.QueryDataSource;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
@@ -38,9 +43,11 @@ import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
+import org.apache.druid.segment.join.JoinType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
@@ -70,6 +77,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
     macros = new ArrayList<>(macros);
     macros.add(new MurmurHashExprMacros.Murmur3Macro());
     macros.add(new MurmurHashExprMacros.Murmur3_64Macro());
+    macros.add(new SessionizeExprMacro());
   }
 
   @Override
@@ -350,6 +358,70 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
                   .legacy(false)
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"1"},
+            new Object[]{"def"},
+            new Object[]{"abc"}
+        )
+    );
+  }
+
+  @Test
+  public void testSessionFilteringVirtualColumnInJoin() throws Exception
+  {
+    cannotVectorize();
+
+    ImmutableMap.Builder<String, Object> queryContextBuilder = ImmutableMap.builder();
+    queryContextBuilder.putAll(QUERY_CONTEXT_DEFAULT);
+    queryContextBuilder.put(QueryContexts.REWRITE_JOIN_TO_FILTER_ENABLE_KEY, true);
+
+    ImplySessionFilteringVirtualColumn virtualColumn = new ImplySessionFilteringVirtualColumn("v0", "dim1");
+    virtualColumn.getFilterValues().set(new HashSet<>(ImmutableList.of(7326100087833347728L, 9017698800759320817L, 703442578091529045L)));
+    testQuery(
+        "SELECT\n"
+        + "  dim1\n"
+        + " FROM foo\n"
+        + " WHERE sessionize(dim1) IN (SELECT SESSION_AVG_SCORE_HISTOGRAM_FILTERING(SESSION_AVG_SCORE(dim1, m1), ARRAY[3.5], ARRAY[1]) from foo)",
+        queryContextBuilder.build(),
+        Collections.singletonList(
+            newScanQueryBuilder()
+                .dataSource(
+                    join(
+                        new TableDataSource(CalciteTests.DATASOURCE1),
+                        new QueryDataSource(
+                            Druids.newTimeseriesQueryBuilder()
+                                  .dataSource(CalciteTests.DATASOURCE1)
+                                  .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
+                                  .granularity(Granularities.ALL)
+                                  .aggregators(
+                                      ImmutableList.of(new SessionAvgScoreAggregatorFactory("a0:agg",
+                                                                                            "dim1",
+                                                                                            "m1",
+                                                                                            SessionAvgScoreAggregatorFactory.DEFAULT_TARGET_SAMPLES,
+                                                                                            false))
+                                  )
+                                  .postAggregators(
+                                      new SessionAvgScoreToHistogramFilteringPostAggregator(
+                                          "p1",
+                                          new FieldAccessPostAggregator("p0", "a0:agg"),
+                                          new double[]{3.5},
+                                          new int[]{1}
+                                      )
+                                  )
+                                  .context(queryContextBuilder.build())
+                                  .build()
+                        ),
+                        "j0.",
+                        equalsCondition(DruidExpression.fromColumn("v0"), DruidExpression.fromColumn("j0.p1")),
+                        JoinType.INNER
+                    )
+                )
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .virtualColumns(virtualColumn)
+                .columns("dim1")
+                .context(queryContextBuilder.build())
+                .build()
         ),
         ImmutableList.of(
             new Object[]{"1"},
