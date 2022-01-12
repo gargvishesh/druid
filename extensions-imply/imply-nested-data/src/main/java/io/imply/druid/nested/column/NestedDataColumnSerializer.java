@@ -115,9 +115,12 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   @Override
   public void open() throws IOException
   {
-    fieldsDictionaryWriter = createGenericIndexedWriter(GenericIndexed.STRING_STRATEGY);
-    dictionaryWriter = createGenericIndexedWriter(GenericIndexed.STRING_STRATEGY);
-    rawWriter = createGenericIndexedWriter(NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy());
+    fieldsDictionaryWriter = createGenericIndexedWriter(GenericIndexed.STRING_STRATEGY, segmentWriteOutMedium);
+    dictionaryWriter = createGenericIndexedWriter(GenericIndexed.STRING_STRATEGY, segmentWriteOutMedium);
+    rawWriter = createGenericIndexedWriter(
+        NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy(),
+        segmentWriteOutMedium
+    );
     nullBitmapWriter = new ByteBufferWriter<>(
         segmentWriteOutMedium,
         indexSpec.getBitmapSerdeFactory().getObjectStrategy()
@@ -180,9 +183,6 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   {
     if (!closedForWrite) {
       closedForWrite = true;
-      for (String field : fields) {
-        fieldWriters.get(field).closeWriter(field);
-      }
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       IndexMerger.SERIALIZER_UTILS.writeString(
           baos,
@@ -235,24 +235,36 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       nullBitmapWriter.writeTo(channel, smoosher);
     }
 
+    // close the SmooshedWriter since we are done here, so we don't write to a temporary file per sub-column
+    // In the future, it would be best if the writeTo() itself didn't take a channel but was expected to actually
+    // open its own channels on the FileSmoosher object itself.  Or some other thing that give this Serializer
+    // total control over when resources are opened up and when they are closed.  Until then, we are stuck
+    // with a very tight coupling of this code with how the external "driver" is working.
+    if (channel instanceof SmooshedWriter) {
+      channel.close();
+    }
     for (String field : fields) {
       fieldWriters.get(field).writeTo(field, smoosher);
     }
     log.info("Column [%s] serialized successfully with [%d] nested columns.", name, fields.size());
   }
 
-  private <T> GenericIndexedWriter<T> createGenericIndexedWriter(ObjectStrategy<T> objectStrategy) throws IOException
+  private <T> GenericIndexedWriter<T> createGenericIndexedWriter(
+      ObjectStrategy<T> objectStrategy,
+      SegmentWriteOutMedium writeOutMedium
+  ) throws IOException
   {
-    GenericIndexedWriter<T> writer = new GenericIndexedWriter<>(segmentWriteOutMedium, name, objectStrategy);
+    GenericIndexedWriter<T> writer = new GenericIndexedWriter<>(writeOutMedium, name, objectStrategy);
     writer.open();
     return writer;
   }
 
   private <T> GenericIndexedWriter<T> createUnsortedGenericIndexedWriter(
-      ObjectStrategy<T> objectStrategy
+      ObjectStrategy<T> objectStrategy,
+      SegmentWriteOutMedium writeOutMedium
   ) throws IOException
   {
-    GenericIndexedWriter<T> writer = createGenericIndexedWriter(objectStrategy);
+    GenericIndexedWriter<T> writer = createGenericIndexedWriter(objectStrategy, writeOutMedium);
     writer.setObjectsNotSorted();
     return writer;
   }
@@ -267,17 +279,17 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     private final IntSortedSet dictionary = new IntAVLTreeSet();
     private final Int2ObjectMap<MutableBitmap> bitmaps = new Int2ObjectAVLTreeMap<>();
     private final ObjectStrategy<Integer> intStrategy = NestedFieldStringDictionaryEncodedColumn.makeDictionaryStrategy(
-        ByteOrder.nativeOrder());
+        ByteOrder.nativeOrder()
+    );
 
     private GenericIndexedWriter<Integer> intermediateValueWriter;
-    private Serializer fieldSerializer;
     // maybe someday we allow no bitmap indexes or multi-value columns
     private int flags = DictionaryEncodedColumnPartSerde.NO_FLAGS;
     private DictionaryEncodedColumnPartSerde.VERSION version = null;
 
     void open() throws IOException
     {
-      intermediateValueWriter = createUnsortedGenericIndexedWriter(intStrategy);
+      intermediateValueWriter = createUnsortedGenericIndexedWriter(intStrategy, segmentWriteOutMedium);
     }
 
     void addValue(String value) throws IOException
@@ -295,10 +307,14 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       intermediateValueWriter.write(id);
     }
 
-    void closeWriter(String field) throws IOException
+    void writeTo(String field, FileSmoosher smoosher) throws IOException
     {
+      final SegmentWriteOutMedium tmpWriteoutMedium = segmentWriteOutMedium.makeChildWriteOutMedium();
       // create dictionary writer
-      final GenericIndexedWriter<Integer> sortedDictionaryWriter = createGenericIndexedWriter(intStrategy);
+      final GenericIndexedWriter<Integer> sortedDictionaryWriter = createGenericIndexedWriter(
+          intStrategy,
+          tmpWriteoutMedium
+      );
       for (int s : dictionary) {
         sortedDictionaryWriter.write(s);
       }
@@ -309,13 +325,13 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
         this.version = DictionaryEncodedColumnPartSerde.VERSION.COMPRESSED;
         encodedValueSerializer = CompressedVSizeColumnarIntsSerializer.create(
             field,
-            segmentWriteOutMedium,
+            tmpWriteoutMedium,
             name,
             lookup.size(),
             indexSpec.getDimensionCompression()
         );
       } else {
-        encodedValueSerializer = new VSizeColumnarIntsSerializer(segmentWriteOutMedium, dictionary.size());
+        encodedValueSerializer = new VSizeColumnarIntsSerializer(tmpWriteoutMedium, dictionary.size());
         this.version = DictionaryEncodedColumnPartSerde.VERSION.UNCOMPRESSED_SINGLE_VALUE;
       }
       encodedValueSerializer.open();
@@ -330,15 +346,17 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       }
 
       // create immutable bitmaps, write in same order as dictionary
-      final GenericIndexedWriter<ImmutableBitmap> bitmapsWriter = createUnsortedGenericIndexedWriter(indexSpec.getBitmapSerdeFactory()
-                                                                                                              .getObjectStrategy());
+      final GenericIndexedWriter<ImmutableBitmap> bitmapsWriter = createUnsortedGenericIndexedWriter(
+          indexSpec.getBitmapSerdeFactory().getObjectStrategy(),
+          tmpWriteoutMedium
+      );
       for (int value : dictionary) {
         bitmapsWriter.write(indexSpec.getBitmapSerdeFactory()
                                      .getBitmapFactory()
                                      .makeImmutableBitmap(bitmaps.get(value)));
       }
 
-      fieldSerializer = new Serializer()
+      final Serializer fieldSerializer = new Serializer()
       {
         @Override
         public long getSerializedSize() throws IOException
@@ -358,15 +376,14 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
           bitmapsWriter.writeTo(channel, smoosher);
         }
       };
-    }
-
-    void writeTo(String field, FileSmoosher smoosher) throws IOException
-    {
       final String fieldName = getFieldFileName(field, name);
       final long size = fieldSerializer.getSerializedSize();
-      log.info("Column [%s] serializing [%s] field of size [%d].", name, field, size);
+      log.debug("Column [%s] serializing [%s] field of size [%d].", name, field, size);
       try (SmooshedWriter smooshChannel = smoosher.addWithSmooshedWriter(fieldName, size)) {
         fieldSerializer.writeTo(smooshChannel, smoosher);
+      }
+      finally {
+        tmpWriteoutMedium.close();
       }
     }
   }

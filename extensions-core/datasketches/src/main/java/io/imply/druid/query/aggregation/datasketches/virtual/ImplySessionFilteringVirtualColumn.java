@@ -173,7 +173,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
   @Override
   public String toString()
   {
-    return "ImplySketchFilteringVirtualColumn{" +
+    return "ImplySessionFilteringVirtualColumn{" +
            "name='" + name + '\'' +
            ", field='" + field + '\'' +
            ", values=" + filterValues +
