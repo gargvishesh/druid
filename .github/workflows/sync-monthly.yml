@@ -30,8 +30,7 @@ jobs:
       - name: get fix version
         if: ${{ success() }}
         run: |
-          mvn help:evaluate -Dexpression=project.version -X -DforceStdout
-          echo "FIX_VERSION=2022.01"  >> $GITHUB_ENV
+          echo "FIX_VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec | cut -d'.' -f1,2)" >> $GITHUB_ENV
       - name: create jira tickets for apache/druid PR merged
         if: ${{ success() }}
         env:
