@@ -56,6 +56,7 @@
       <groupId>io.imply</groupId>
       <artifactId>imply-sql-async-core</artifactId>
       <version>${project.parent.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
