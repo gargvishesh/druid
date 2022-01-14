@@ -109,7 +109,7 @@ function stageHasPostReading(stage: StageDefinition): boolean {
 }
 
 export function getStartTime(stages: StageDefinition[] | undefined): Date | undefined {
-  if (!Array.isArray(stages)) return;
+  if (!Array.isArray(stages) || !stages.length) return;
   const startTime = stages[0].startTime;
   if (typeof startTime !== 'string') return;
   const date = new Date(startTime);
