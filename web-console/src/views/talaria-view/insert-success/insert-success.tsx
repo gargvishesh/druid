@@ -19,13 +19,13 @@
 import { SqlTableRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { getTotalCountForStage, TalariaSummary } from '../../../talaria-models';
+import { getTotalCountForStage, QueryExecution } from '../../../talaria-models';
 import { formatDuration, pluralIfNeeded } from '../../../utils';
 
 import './insert-success.scss';
 
 export interface InsertSuccessProps {
-  insertSummary: TalariaSummary;
+  insertSummary: QueryExecution;
   onStats(): void;
   onQueryChange(queryString: string): void;
 }

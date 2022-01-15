@@ -28,7 +28,7 @@ import { Loader } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { TalariaHistory } from '../../../singletons/talaria-history';
-import { TalariaQuery, TalariaSummary } from '../../../talaria-models';
+import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import {
   ColumnMetadata,
   DruidError,
@@ -101,8 +101,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   const id = query.getId();
   const [querySummaryState, queryManager] = useQueryManager<
     TalariaQuery | string,
-    TalariaSummary,
-    TalariaSummary,
+    QueryExecution,
+    QueryExecution,
     DruidError
   >({
     initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryId(),
@@ -149,11 +149,11 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           }
 
           onQueryChange(props.query.changeLastQueryId(undefined));
-          return TalariaSummary.fromResult(result);
+          return QueryExecution.fromResult(result);
         }
       } else {
         cancelAsyncQueryOnCancel(q, cancelToken, true);
-        return new IntermediateQueryState(TalariaSummary.reattach(q), 0);
+        return new IntermediateQueryState(QueryExecution.reattach(q), 0);
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,

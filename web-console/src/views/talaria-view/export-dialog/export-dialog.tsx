@@ -31,7 +31,7 @@ import React, { useState } from 'react';
 
 import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { TalariaQuery, TalariaSummary } from '../../../talaria-models';
+import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
 import {
   cancelAsyncQueryOnCancel,
@@ -105,8 +105,8 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
 
   const [downloadState, downloadQueryManager] = useQueryManager<
     AsyncDownloadParams,
-    TalariaSummary,
-    TalariaSummary
+    QueryExecution,
+    QueryExecution
   >({
     processQuery: async (_asyncDownloadParams, cancelToken) => {
       const downloadQuery = talariaQuery
@@ -131,7 +131,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       return new IntermediateQueryState(summary.changeDestination({ type: 'download' }));
     },
     backgroundStatusCheck: async (
-      currentSummary: TalariaSummary,
+      currentSummary: QueryExecution,
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {

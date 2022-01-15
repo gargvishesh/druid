@@ -26,7 +26,7 @@ import {
   ExternalConfig,
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
-  TalariaSummary,
+  QueryExecution,
 } from '../../talaria-models';
 import { getContextFromSqlQuery, IntermediateQueryState } from '../../utils';
 
@@ -57,8 +57,8 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
 
   const [insertResultState, insertQueryManager] = useQueryManager<
     string,
-    TalariaSummary,
-    TalariaSummary
+    QueryExecution,
+    QueryExecution
   >({
     processQuery: async (queryString: string, cancelToken) => {
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();

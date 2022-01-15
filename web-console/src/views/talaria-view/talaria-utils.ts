@@ -29,7 +29,7 @@ import {
   Transform,
 } from '../../druid-models';
 import { Api } from '../../singletons';
-import { TalariaQuery, TalariaSummary } from '../../talaria-models';
+import { QueryExecution, TalariaQuery } from '../../talaria-models';
 import {
   deepGet,
   downloadHref,
@@ -48,7 +48,7 @@ export interface SubmitAsyncQueryOptions {
   cancelToken?: CancelToken;
 }
 
-export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promise<TalariaSummary> {
+export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promise<QueryExecution> {
   const { query, context, prefixLines, cancelToken } = options;
 
   let sqlQuery: string;
@@ -84,27 +84,27 @@ export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promis
     throw new DruidError(druidError, prefixLines);
   }
 
-  return TalariaSummary.fromAsyncStatus(asyncResp.data, sqlQuery, context);
+  return QueryExecution.fromAsyncStatus(asyncResp.data, sqlQuery, context);
 }
 
 export async function getTalariaDetailSummary(
   id: string,
   cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
+): Promise<QueryExecution> {
   const resp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}`, {
     cancelToken,
   });
 
-  return TalariaSummary.fromDetail(resp.data);
+  return QueryExecution.fromAsyncDetail(resp.data);
 }
 
 export async function updateSummaryWithAsyncIfNeeded(
-  currentSummary: TalariaSummary,
+  currentSummary: QueryExecution,
   cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
+): Promise<QueryExecution> {
   if (!currentSummary.isWaitingForQuery()) return currentSummary;
 
-  let newSummary: TalariaSummary;
+  let newSummary: QueryExecution;
   try {
     newSummary = await getTalariaDetailSummary(currentSummary.id);
   } catch {
@@ -113,16 +113,16 @@ export async function updateSummaryWithAsyncIfNeeded(
       { cancelToken },
     );
 
-    newSummary = TalariaSummary.fromAsyncStatus(resp.data);
+    newSummary = QueryExecution.fromAsyncStatus(resp.data);
   }
 
   return currentSummary.updateWith(newSummary);
 }
 
 async function updateSummaryWithResultsIfNeeded(
-  currentSummary: TalariaSummary,
+  currentSummary: QueryExecution,
   cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
+): Promise<QueryExecution> {
   if (
     currentSummary.status !== 'SUCCESS' ||
     currentSummary.result ||
@@ -137,9 +137,9 @@ async function updateSummaryWithResultsIfNeeded(
 }
 
 async function updateSummaryWithDatasourceExistsIfNeeded(
-  currentSummary: TalariaSummary,
+  currentSummary: QueryExecution,
   _cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
+): Promise<QueryExecution> {
   if (
     !(currentSummary.destination?.type === 'dataSource' && !currentSummary.destination.exists) ||
     currentSummary.status !== 'SUCCESS'
@@ -203,7 +203,7 @@ export function downloadResults(id: string, filename: string): void {
 }
 
 export async function talariaBackgroundStatusCheck(
-  currentSummary: TalariaSummary,
+  currentSummary: QueryExecution,
   _query: any,
   cancelToken: CancelToken,
 ) {
@@ -220,7 +220,7 @@ export async function talariaBackgroundStatusCheck(
 }
 
 export async function talariaBackgroundResultStatusCheck(
-  currentSummary: TalariaSummary,
+  currentSummary: QueryExecution,
   query: any,
   cancelToken: CancelToken,
 ) {

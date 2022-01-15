@@ -43,8 +43,8 @@ import {
   fitIngestQueryPattern,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
+  QueryExecution,
   summarizeExternalConfig,
-  TalariaSummary,
 } from '../../../talaria-models';
 import {
   caseInsensitiveContains,
@@ -269,7 +269,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       : undefined,
   );
 
-  const [previewResultState] = useQueryManager<string, QueryResult, TalariaSummary>({
+  const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
       const summary = await submitAsyncQuery({

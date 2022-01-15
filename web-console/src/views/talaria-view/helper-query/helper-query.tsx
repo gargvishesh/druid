@@ -28,9 +28,9 @@ import { Api } from '../../../singletons';
 import { TalariaHistory } from '../../../singletons/talaria-history';
 import {
   fitExternalConfigPattern,
+  QueryExecution,
   summarizeExternalConfig,
   TalariaQuery,
-  TalariaSummary,
 } from '../../../talaria-models';
 import {
   ColumnMetadata,
@@ -96,8 +96,8 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   const id = query.getId();
   const [querySummaryState, queryManager] = useQueryManager<
     TalariaQuery | string,
-    TalariaSummary,
-    TalariaSummary,
+    QueryExecution,
+    QueryExecution,
     DruidError
   >({
     initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryId(),
@@ -144,11 +144,11 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
           }
 
           onQueryChange(props.query.changeLastQueryId(undefined));
-          return TalariaSummary.fromResult(result);
+          return QueryExecution.fromResult(result);
         }
       } else {
         cancelAsyncQueryOnCancel(q, cancelToken, true);
-        return new IntermediateQueryState(TalariaSummary.reattach(q), 0);
+        return new IntermediateQueryState(QueryExecution.reattach(q), 0);
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,

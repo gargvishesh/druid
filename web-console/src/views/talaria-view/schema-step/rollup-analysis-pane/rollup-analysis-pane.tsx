@@ -23,7 +23,7 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-t
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { TalariaSummary } from '../../../../talaria-models';
+import { QueryExecution } from '../../../../talaria-models';
 import {
   filterMap,
   formatPercentClapped,
@@ -150,7 +150,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
   const [analyzeQueryState, analyzeQueryManager] = useQueryManager<
     AnalyzeQuery,
     AnalyzeResult,
-    TalariaSummary
+    QueryExecution
   >({
     processQuery: async (analyzeQuery: AnalyzeQuery, cancelToken) => {
       const { expressions, deep } = analyzeQuery;
@@ -190,7 +190,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: async (
-      currentSummary: TalariaSummary,
+      currentSummary: QueryExecution,
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {

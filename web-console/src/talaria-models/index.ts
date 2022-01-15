@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
+export * from './query-execution';
 export * from './talaria-general';
 export * from './talaria-query';
 export * from './talaria-query-part';
 export * from './talaria-query-pattern';
 export * from './talaria-stage';
-export * from './talaria-summary';

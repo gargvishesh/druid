@@ -32,7 +32,7 @@ import { useQueryManager } from '../../../../hooks';
 import {
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
-  TalariaSummary,
+  QueryExecution,
 } from '../../../../talaria-models';
 import { deepSet, IntermediateQueryState } from '../../../../utils';
 import {
@@ -58,7 +58,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
   );
   const inlineMode = inputSource?.type === 'inline';
 
-  const [connectResultState] = useQueryManager<InputSource, QueryResult, TalariaSummary>({
+  const [connectResultState] = useQueryManager<InputSource, QueryResult, QueryExecution>({
     query: inputSourceToSample,
     processQuery: async (inputSource: InputSource, cancelToken) => {
       const query = `SELECT raw FROM ${externalConfigToTableExpression({
