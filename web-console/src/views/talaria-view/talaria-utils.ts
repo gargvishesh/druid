@@ -269,7 +269,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   const lines: string[] = [];
 
-  const rollup = deepGet(spec, 'spec.dataSchema.granularitySpec.rollup');
+  const rollup = deepGet(spec, 'spec.dataSchema.granularitySpec.rollup') ?? true;
 
   const timestampSpec: TimestampSpec = deepGet(spec, 'spec.dataSchema.timestampSpec');
   if (!timestampSpec) throw new Error(`spec.dataSchema.timestampSpec is not defined`);

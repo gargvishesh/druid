@@ -163,7 +163,6 @@ describe('talaria-utils', () => {
             granularitySpec: {
               segmentGranularity: 'hour',
               queryGranularity: 'hour',
-              rollup: true,
             },
             dataSource: 'wikipedia_rollup',
             timestampSpec: {
