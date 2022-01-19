@@ -121,7 +121,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
           const summary = await submitAsyncQuery({ query, context, prefixLines, cancelToken });
-          cancelAsyncQueryOnCancel(summary.id, cancelToken);
+          cancelAsyncQueryOnCancel(summary.id, cancelToken, true);
           onQueryChange(props.query.changeLastQueryId(summary.id));
           return new IntermediateQueryState(summary);
         } else {
