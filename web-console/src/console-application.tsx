@@ -25,6 +25,7 @@ import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
 import { AppToaster } from './singletons';
+import { TALARIA_ENABLED } from './singletons/talaria-enabled';
 import { Capabilities, localStorageGetJson, LocalStorageKeys, QueryManager } from './utils';
 import {
   DatasourcesView,
@@ -158,9 +159,10 @@ export class ConsoleApplication extends React.PureComponent<
 
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
-    window.location.hash = localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
-      ? 'query-next'
-      : 'query';
+    window.location.hash =
+      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
+        ? 'query-next'
+        : 'query';
     this.resetInitialsWithDelay();
   };
 
@@ -216,6 +218,7 @@ export class ConsoleApplication extends React.PureComponent<
   // BEGIN: Imply-added code for Talaria execution
   private readonly wrappedQueryNextView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
+    if (!TALARIA_ENABLED) return null;
 
     return this.wrapInViewContainer(
       'query-next',
@@ -319,11 +322,15 @@ export class ConsoleApplication extends React.PureComponent<
               <Route path="/query" component={this.wrappedQueryView} />
 
               {/* BEGIN: Imply-added code for Talaria execution */}
-              <Route
-                path={['/query-next/:tabId', '/query-next']}
-                component={this.wrappedQueryNextView}
-              />
-              <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
+              {TALARIA_ENABLED && (
+                <Route
+                  path={['/query-next/:tabId', '/query-next']}
+                  component={this.wrappedQueryNextView}
+                />
+              )}
+              {TALARIA_ENABLED && (
+                <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
+              )}
               {/* END: Imply-modified code for Talaria execution */}
 
               <Route path="/lookups" component={this.wrappedLookupsView} />
