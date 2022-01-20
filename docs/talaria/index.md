@@ -38,7 +38,7 @@ To try out the Talaria engine in Imply Cloud, launch a cluster with the followin
 
 **Imply version**
 
-2021.01 or later.
+2022.01 or later.
 
 Note: Talaria is only available for STS versions of Imply at this time. It is not available in 2021.01 LTS.
 
