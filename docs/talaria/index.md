@@ -1299,10 +1299,14 @@ LIMIT 1000
 - Introduced async query API based on the [`imply-sql-async`](/latest/druid/querying/imply-sql-async-api/#submit-a-query)
   extension. (15014)
 - Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
-  aggregation results.
+  aggregation results. (15010)
 - Implemented fine-grained locking for INSERT. INSERT queries obtain minimally-sized locks rather than locking
   the entire target datasource. (15003)
-- Added support for the "sql" input source. (15016)
+- Added tabs and an engine selector to the "Query" view of the web console, which allows Talaria-based queries to be
+  issued from this view. Removed the dedicated "Talaria" view.
+- Added an ingestion spec conversion tool to the web console. It performs a best-effort conversion of a native batch
+  ingestion spec into a Talaria-based SQL query. It does not guarantee perfect fidelity, so we recommend that you
+  review the generated SQL query before running it.
 - Fixed a bug where INSERT queries using LIMIT with `talariaSegmentGranularity` set to "all" would fail. Now, these
   queries write a single segment to the target datasource. (15051)
 - Fixed a bug where some INSERT queries using `talariaReplaceTimeChunks` would produce "numbered" shard specs instead
