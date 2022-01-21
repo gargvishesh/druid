@@ -239,6 +239,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     Response statusResponse = resource.doGetStatus("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+    Assert.assertNull(statusResponse.getEntity());
   }
 
   @Test
@@ -380,6 +381,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   {
     Response statusResponse = resource.doGetResults("unknownQuery", req);
     Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+    Assert.assertNull(statusResponse.getEntity());
   }
 
   @Test(timeout = 5000)
@@ -577,7 +579,9 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
   @Test(timeout = 5000)
   public void testDeleteUnkownQuery()
   {
-    Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), resource.deleteQuery("unknownQuery", req).getStatus());
+    Response statusResponse = resource.deleteQuery("unknownQuery", req);
+    Assert.assertEquals(Status.NOT_FOUND.getStatusCode(), statusResponse.getStatus());
+    Assert.assertNull(statusResponse.getEntity());
   }
 
   @Test(timeout = 5000)

@@ -305,7 +305,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   {
     try {
       if (authorize(id, req) == null) {
-        return notFound(id);
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       TaskStatusResponse taskResponse = context.overlordClient.getTaskStatus(id);
       SqlAsyncQueryDetails.State state;
@@ -351,7 +351,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
     try {
       Map<String, Object> taskInfo = authorize(id, req);
       if (taskInfo == null) {
-        return notFound(id);
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       Map<String, Object> report = context.overlordClient.getTaskReport(id);
       removeResults(report);
@@ -374,7 +374,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   {
     try {
       if (authorize(id, req) == null) {
-        return notFound(id);
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       Map<String, Object> report = context.overlordClient.getTaskReport(id);
       List<Object> results = getResults(report);
@@ -403,7 +403,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   {
     try {
       if (authorize(id, req) == null) {
-        return notFound(id);
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       context.overlordClient.cancelTask(id);
       return Response
@@ -502,5 +502,16 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
       rows.addAll(data);
     }
     return rows;
+  }
+
+  private Response genericError(Response.Status status, String code, String msg, String id)
+  {
+    // Note: Async uses a different error format than the rest of Druid: there is
+    // no error key and message. Can't change this fact as the non-standard format
+    // is already documented.
+    return Response
+        .status(status)
+        .entity(getErrorMap(id, msg))
+        .build();
   }
 }
