@@ -250,7 +250,7 @@ When you run a query with Talaria, the following happens:
 
 #### Request
 
-Submit queries using the [`POST /druid/v2/sql/async/`](../querying/sql-async-download-api/#submit-a-query) API provided by
+Submit queries using the [`POST /druid/v2/sql/async/`](../querying/imply-sql-async-api/#submit-a-query) API provided by
 the `imply-sql-async` extension, with `talaria: true` set as a
 [context parameter](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
 
@@ -259,7 +259,7 @@ Currently, Talaria-based queries ignore the provided values of `resultFormat`, `
 `sqlTypesHeader` is true.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](../querying/sql-async-download-api/#submit-a-query).
+[`imply-sql-async` documentation](../querying/imply-sql-async-api/#submit-a-query).
 
 **HTTP**
 
@@ -340,11 +340,11 @@ The Talaria engine accepts additional Druid SQL
 > Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
-Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](../querying/sql-async-download-api/#get-query-status) API
+Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](../querying/imply-sql-async-api/#get-query-status) API
 provided by the `imply-sql-async` extension.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](../querying/sql-async-download-api/#get-query-status).
+[`imply-sql-async` documentation](../querying/imply-sql-async-api/#get-query-status).
 
 #### Request
 
@@ -376,11 +376,11 @@ curl -u 'user:password' \
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
 If the query succeeds, and is a `SELECT` query, obtain the results using the
-[`GET /druid/v2/sql/async/{asyncResultId}/results`](../querying/sql-async-download-api/#get-query-results) API
+[`GET /druid/v2/sql/async/{asyncResultId}/results`](../querying/imply-sql-async-api/#get-query-results) API
 provided by the `imply-sql-async` extension.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](../querying/sql-async-download-api/#get-query-results).
+[`imply-sql-async` documentation](../querying/imply-sql-async-api/#get-query-results).
 
 #### Request
 
@@ -411,14 +411,14 @@ Currently, Talaria-based queries ignore the provided values of `resultFormat`, `
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
 Cancel a query using the
-[`DELETE /druid/v2/sql/async/{asyncResultId}`](../querying/sql-async-download-api/#cancel-a-query) API
+[`DELETE /druid/v2/sql/async/{asyncResultId}`](../querying/imply-sql-async-api/#cancel-a-query) API
 provided by the `imply-sql-async` extension.
 
 When a Talaria-based query is canceled, the query results and metadata are not removed. This differs
 from Broker-based async queries, where query results and metadata are removed when a query is canceled.
 
 See below for an example request. For more details, refer to the
-[`imply-sql-async` documentation](../querying/sql-async-download-api/#cancel-a-query).
+[`imply-sql-async` documentation](../querying/imply-sql-async-api/#cancel-a-query).
 
 ### Get query details
 
@@ -702,7 +702,7 @@ FROM TABLE(
 
 To run an INSERT query:
 
-1. Activate the Talaria engine by setting `talaria: true` as a [context parameter](#issue-a-query).
+1. Activate the Talaria engine by setting `talaria: true` as a [context parameter](#submit-a-query).
 2. Add `INSERT INTO <dataSource>` at the start of your query.
 3. If you want to replace data in an existing datasource, additionally set the `talariaReplaceTimeChunks` context parameter.
 
@@ -1165,9 +1165,17 @@ LIMIT 1000
 - Canceling the controller task sometimes leads to the error code
   "UnknownError" instead of "Canceled". (14722)
 
-- The [Query report API](#retrieve-query-report) may return
+- The [Query details API](#get-query-details) may return
   `500 Server Error` or `404 Not Found` when the controller task is in
   process of starting up or shutting down. (15001)
+
+- In certain cases where the number of partitions is large, queries can
+  fail with a stack trace that includes
+  `org.apache.datasketches.SketchesArgumentException: K must be >= 2 and <= 32768 and a power of 2`.
+  This can happen even if the number of partitions is not in excess of the
+  [TooManyPartitions limit](#limits). This is most common on INSERT queries
+  that ingest a large number of time chunks. If you encounter this issue,
+  consider using a coarser `talariaSegmentGranularity`. (14764)
 
 **Issues with SELECT queries.**
 
@@ -1288,7 +1296,7 @@ LIMIT 1000
 
 **2022.01** <a href="#2022.01" name="2022.01">#</a>
 
-- Introduced async query API based on the [`imply-sql-async`](../querying/sql-async-download-api/#submit-a-query)
+- Introduced async query API based on the [`imply-sql-async`](../querying/imply-sql-async-api/#submit-a-query)
   extension. (15014)
 - Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
   aggregation results.
