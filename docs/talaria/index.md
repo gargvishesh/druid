@@ -7,9 +7,10 @@ title: Talaria
 > subject to change or removal at any time. Alpha features are provided
 > "as is" and are not subject to Imply SLAs.
 
-Talaria extends Druid's query engine to support ingestion via SQL
-**INSERT** and large result sets. It is named after Mercury's winged
-sandals, representing shuffle of data between servers.
+Talaria is a query engine for Druid that supports larger, heavier-weight
+queries, supports querying external data, and also supports ingestion
+via SQL **INSERT**. It is named after Mercury's winged sandals, representing
+shuffle of data between servers.
 
 The Talaria engine hooks into the existing data processing routines
 from Druid's standard query engine, so it has all the same query
@@ -33,32 +34,45 @@ With Talaria, Druid can:
 
 ## Setup
 
-Talaria is available as an extension for Imply 2021.12 and later. To set it up
-in Imply Cloud, launch a cluster with the following settings.
+To try out the Talaria engine in Imply Cloud, launch a cluster with the following settings.
 
 **Imply version**
 
-2021.12 or later.
+2022.01 or later.
+
+Note: Talaria is only available for STS versions of Imply at this time. It is not available in 2022.01 LTS.
 
 **Custom extensions**
 
-Add an entry with "Name" `imply-talaria`. Leave "S3 path or url" blank.
+Add two entries:
+
+1. Name `imply-talaria`, and "S3 path or url" blank.
+2. Name `imply-sql-async`, and "S3 path or url" blank.
 
 **Feature flags**
 
 These feature flags are not required, but are recommended for the best
 experience.
 
-- Use Indexers instead of Middle Managers
-- HTTP-based task management
+- *Use Indexers instead of Middle Managers.* We recommended enabling this option if you are creating a cluster primarily
+for trying out Talaria-based queries. Indexers have a lower task launching overhead than Middle Managers, and are able
+to provide a larger shared thread pool, which improves the speed of Talaria-based queries. However, if you are mixing
+Talaria-based queries with classic batch or streaming ingestion, we recommend disabling this option to ensure minimal
+disruption to non-Talaria-based workloads.
+- *HTTP-based task management.* This is recommended in all cases.
 
 **Common**
 
 In the Common property overrides, add an Imply license string that includes
-the `talaria` feature.
+the `talaria` feature, and configure the `imply-sql-async` extension.
 
 ```
 imply.license=<license string>
+
+# Configure imply-sql-async extension.
+# Note: this setup only works for Talaria; if you need regular async queries you must use storage type "s3".
+druid.query.async.storage.type=local
+druid.query.async.storage.local.directory=/mnt/tmp/async-query
 ```
 
 **Coordinator**
@@ -91,9 +105,12 @@ get a cluster started. Once you've done that, the best way to start running
 queries with Talaria is with the Talaria-enhanced query view in the Druid
 web console.
 
-To get started with this view, first select **Manage data** in Imply Cloud to
-open the Druid console. Then, select **Talaria** from the top menu. If you don't
-see this option, try alt- or option-clicking the Druid logo first.
+To get started with this view:
+
+1. Select **Manage data** in Imply Cloud to open the Druid console.
+2. Select **Query** from the top menu.
+3. Click the dots "..." next to *Run* and select **talaria** from the **Query engine** menu. If you don't see this
+menu, try alt- or option-clicking the Druid logo first.
 
 Notice that the SQL editing field appears in a tab. If you like, you can
 open multiple tabs to run queries simultaneously.
@@ -114,8 +131,7 @@ FROM TABLE(
 LIMIT 100
 ```
 
-Just like the regular **Query** view, SELECT query results are displayed inline.
-But Talaria enhances Druid so we can now query external data using the
+Talaria enhances Druid so we can now query external data using the
 [`EXTERN`](#extern) function.
 
 To ingest the query results into a table, run the following query.
@@ -221,29 +237,34 @@ When you run a query with Talaria, the following happens:
     If the query is an INSERT query, the worker tasks generate and
     publish new Druid segments to the provided datasource.
 
+6.  For Talaria-based queries, async query APIs such as [status](#get-query-status),
+    [results](#get-query-results), and [details](#get-query-details) work by
+    fetching task status and task reports under the hood.
+
 ## Query API
 
-### Issue a query
+### Submit a query
 
-> Talaria Query APIs are experimental and are in a work-in-progress state for the
-> alpha. They will change in future releases and backwards compatibility will not
-> be maintained. We recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
-
-To run a Druid query with Talaria, use the standard
-[Druid SQL API](https://druid.apache.org/docs/latest/querying/sql.html)
-and set `talaria: true` as a [context parameter](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
-
-Here's an example of an
-[HTTP POST](https://druid.apache.org/docs/latest/querying/sql.html#http-post)
-query that uses Talaria:
+> Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
+> We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
 #### Request
+
+Submit queries using the [`POST /druid/v2/sql/async/`](/latest/druid/querying/imply-sql-async-api/#submit-a-query) API provided by
+the `imply-sql-async` extension, with `talaria: true` set as a
+[context parameter](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
+
+Currently, Talaria-based queries ignore the provided values of `resultFormat`, `header`, `typesHeader`, and
+`sqlTypesHeader`. They always behave as if `resultFormat` is "array", `header` is true, `typesHeader` is true, and
+`sqlTypesHeader` is true.
+
+See below for an example request and response. For more details, refer to the
+[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#submit-a-query).
 
 **HTTP**
 
 ```
-POST /druid/v2/sql/
+POST /druid/v2/sql/async/
 ```
 
 ```json
@@ -259,7 +280,7 @@ POST /druid/v2/sql/
 
 ```
 curl -XPOST -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/ \
+  https://IMPLY-ENDPOINT/druid/v2/sql/async/ \
   -u 'user:password' \
   --data-binary '{"query":"SELECT 1 + 1","context":{"talaria":true}}'
 ```
@@ -293,64 +314,154 @@ The Talaria engine accepts additional Druid SQL
 | talariaSegmentGranularity | (INSERT only)<br /><br />Segment granularity to use when generating segments.<br /><br />Your query must have an ORDER BY that matches the time granularity. See the "INSERT" section above for examples.<br /><br />At some point this will be replaced by a "PARTITION BY" keyword.| all|
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all ORDER BY columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
-| talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default.| 150000 |
 
 #### Response
 
+```json
+{
+  "asyncResultId": "talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb",
+  "state": "RUNNING",
+  "resultFormat": "array",
+  "engine": "Talaria-Indexer"
+}
 ```
-[{"TASK":"talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb"}]
+
+**Response fields**
+
+|Field|Description|
+|-----|-----------|
+|asyncResultId|Controller task ID.<br /><br />Druid's standard [task APIs](https://druid.apache.org/docs/latest/operations/api-reference.html#overlord) can be used to interact with this controller task.|
+|state|Initial state for the query, which is "RUNNING".|
+|resultFormat|Always "array", regardless of what was specified in your original query, because Talaria-based queries currently only support the "array" result format.|
+|engine|String "Talaria-Indexer" if this query was run with Talaria.|
+
+### Get query status
+
+> Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
+> We recommend using the [web console](#web-console) if you do not need a programmatic interface.
+
+Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](/latest/druid/querying/imply-sql-async-api/#get-query-status) API
+provided by the `imply-sql-async` extension.
+
+See below for an example request and response. For more details, refer to the
+[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#get-query-status).
+
+#### Request
+
+```
+GET /druid/v2/sql/async/{asyncResultId}/status
 ```
 
-When Druid runs queries with Talaria, they execute asynchronously. SQL
-commands return immediately with an indexing service task ID that represents
-the controller task for that query. Druid's standard
-[task APIs](https://druid.apache.org/docs/latest/operations/api-reference.html#overlord)
-can be used to interact with this controller task.
+**curl**
 
-### Retrieve query report
+```
+curl -u 'user:password' \
+  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID/status
+```
 
-> Talaria Query APIs are experimental and are in a work-in-progress state for the
-> alpha. They will change in future releases and backwards compatibility will not
-> be maintained. We recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
+#### Response
 
-Druid queries that run with Talaria are executed using indexing service tasks.
-Druid's task report API provides detailed information about these queries,
-including:
+```json
+{
+  "asyncResultId": "talaria-sql-bc9aa8b8-05fc-4223-ad07-3edfb427c709",
+  "state": "COMPLETE",
+  "resultFormat": "array",
+  "engine": "Talaria-Indexer"
+}
+```
+
+### Get query results
+
+> Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
+> We recommend using the [web console](#web-console) if you do not need a programmatic interface.
+
+If the query succeeds, and is a `SELECT` query, obtain the results using the
+[`GET /druid/v2/sql/async/{asyncResultId}/results`](/latest/druid/querying/imply-sql-async-api/#get-query-results) API
+provided by the `imply-sql-async` extension.
+
+See below for an example request and response. For more details, refer to the
+[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#get-query-results).
+
+#### Request
+
+```
+GET /druid/v2/sql/async/{asyncResultId}/results
+```
+
+**curl**
+
+```
+curl -u 'user:password' \
+  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID/results
+```
+
+#### Response
+
+```json
+[["EXPR$0"],["LONG"],["INTEGER"],[2]]
+```
+
+Currently, Talaria-based queries ignore the provided values of `resultFormat`, `header`, `typesHeader`, and
+`sqlTypesHeader`. They always behave as if `resultFormat` is "array", `header` is true, `typesHeader` is true, and
+`sqlTypesHeader` is true.
+
+### Cancel a query
+
+> Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
+> We recommend using the [web console](#web-console) if you do not need a programmatic interface.
+
+Cancel a query using the
+[`DELETE /druid/v2/sql/async/{asyncResultId}`](/latest/druid/querying/imply-sql-async-api/#cancel-a-query) API
+provided by the `imply-sql-async` extension.
+
+When a Talaria-based query is canceled, the query results and metadata are not removed. This differs
+from Broker-based async queries, where query results and metadata are removed when a query is canceled.
+
+See below for an example request. For more details, refer to the
+[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#cancel-a-query).
+
+### Get query details
+
+> Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
+> We recommend using the [web console](#web-console) if you do not need a programmatic interface.
+
+Detailed information about query execution is available for Talaria-based
+queries, including:
 
 - Status (running, successful exit, failure).
 - Stages of query execution, along with their current progress.
-- Results of SELECT queries.
 - Any errors encountered.
 
-This API may return `500 Server Error` or `404 Not Found` when
-tasks are in the process of starting up or shutting down. If you encounter
-this error for a task that you expect should have a report available, either
-try again later or check the [Status API](#retrieve-query-status) to see if the
-task has failed before it was able to write a report.
+Query details are physically stored in the task report for the controller
+task.
 
-It is possible for the status in the report to differ from the status
-reported by the [Status API](#retrieve-query-status). This happens because
-the report is written by the controller task itself, but the final
-status is recorded by Druid's task execution framework. For example, it
-is possible for the report to say `SUCCESS` but the actual task to have
-`FAILED`, if there is a failure in cleanup after the report has been
-written.
+The details API may return `500 Server Error` or `404 Not Found` when
+tasks are in the process of starting up or shutting down. If you encounter
+this error for a task that you expect should have details available, either
+try again later or check the [Status API](#get-query-status) to see if the
+task has failed before it was able to write its report.
+
+It is possible for the query status in the details API to differ from the
+query status in the [Status API](#get-query-status). This can happen because
+the details are sourced from the task report, which is written by the
+controller task itself, but the final status is sourced from Druid's task
+execution framework. For example, it is possible for the details to say
+`SUCCESS`, but the actual task to say `FAILED`, if there is a failure in
+cleanup after the report has been written.
 
 #### Request
 
 **HTTP**
 
 ```
-GET /druid/indexer/v1/task/{taskId}/reports
+GET /druid/v2/sql/async/{asyncResultId}
 ```
 
 **curl**
 
 ```
-curl -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/indexer/v1/task/{taskId}/reports \
-  -u 'user:password'
+curl -u 'user:password' \
+  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID
 ```
 
 #### Response
@@ -367,8 +478,7 @@ curl -H'Content-Type: application/json' \
     "taskId": "talaria-sql-f5f6d28c-654c-4c9e-ac38-af67f3407352",
     "payload": {
       "signature": [{"name": "EXPR$0", "type": "LONG"}],
-      "sqlTypeNames": ["INTEGER"],
-      "results": [[2]]
+      "sqlTypeNames": ["INTEGER"]
     }
   },
   "talariaStages": {
@@ -417,6 +527,10 @@ curl -H'Content-Type: application/json' \
         }
       ]
     }
+  },
+  "talariaTask": {
+    "task": "talaria-sql-f5f6d28c-654c-4c9e-ac38-af67f3407352",
+    "payload": { ... }
   }
 }
 ```
@@ -442,7 +556,11 @@ curl -H'Content-Type: application/json' \
       }
     }
   },
-  "talariaStages": { ... }
+  "talariaStages": { ... },
+  "talariaTask": {
+    "task": "talaria-sql-f5f6d28c-654c-4c9e-ac38-af67f3407352",
+    "payload": { ... }
+  }
 }
 ```
 
@@ -464,7 +582,6 @@ curl -H'Content-Type: application/json' \
 |talariaResults.taskId|Controller task ID.|
 |talariaResults.payload.signature|Row signature of query results. The `type` fields are [native Druid types](https://druid.apache.org/docs/latest/querying/sql.html#data-types).|
 |talariaResults.payload.sqlTypeNames|SQL type names of query results. This is an array of the same length as talariaResults.payload.signature. The types are [SQL types](https://druid.apache.org/docs/latest/querying/sql.html#data-types) rather than native Druid types.|
-|talariaResults.payload.results|Query results, as an array of arrays. Each array is the same length as talariaResults.payload.signature.|
 |talariaStages|Query stage details container.|
 |talariaStages.taskId|Controller task ID.|
 |talariaStages.payload.stages|Array of query stages.|
@@ -476,6 +593,8 @@ curl -H'Content-Type: application/json' \
 |talariaStages.payload.stages[].partitionCount|Number of output partitions generated by this stage. Only present if the stage has started and has computed its number of output partitions. May be less than the actual number of output partitions if the stage is not yet in phase RESULTS_COMPLETE.|
 |talariaStages.payload.stages[].startTime|Start time of this stage. Only present if the stage has started.|
 |talariaStages.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
+|talariaTask.task|Controller task ID.|
+|talariaTask.payload|Controller task payload.|
 
 **Error codes** <a href="#errors" name="errors">#</a>
 
@@ -483,13 +602,13 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
-|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /> User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API. <br /><br />Restart or failure of the server process that was running the controller task.|    |
+|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
 |  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
-|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br />&bull;&nbsp;Attempting to mix different granularities in the same intervals of the same datasource.<br /> <br />&bull;&nbsp;Prior ingestions that used non-extendable shard specs.  |   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
+|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
 |  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `talariaSegmentGranularity` set to something other than `all`.  |  &bull;&nbsp;dataSource  |
 |  InsertCannotOrderByDescending  |  An INSERT query contained an ORDER BY expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
-|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<br /> <br />&bull;&nbsp;Shrink `talariaReplaceTimeChunks` to match the query results.<br /> <br />&bull;&nbsp;Expand talariaReplaceTimeChunks to fully contain the existing segment.  | &bull;&nbsp;segmentId: the existing segment  |
+|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
 |  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a Talaria query.<br /> <br />This can happen if the query uses features that Talaria does not yet support, like OFFSET or GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
@@ -498,124 +617,18 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 | TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
 | UnknownError   |  All other errors.  |    |
 
-
-### Retrieve query status
-
-> Talaria Query APIs are experimental and are in a work-in-progress state for the
-> alpha. They will change in future releases and backwards compatibility will not
-> be maintained. We recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
-
-Druid queries that run with Talaria are executed using indexing service tasks.
-Druid's task status API provides information about the status of these queries.
-
 #### Request
 
-**HTTP**
-
 ```
-GET /druid/indexer/v1/task/{taskId}/status
+DELETE /druid/v2/sql/async/{asyncResultId}
 ```
 
 **curl**
 
 ```
-curl -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/indexer/v1/task/{taskId}/status \
-  -u 'user:password'
+curl -XDELETE -u 'user:password' \
+  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID
 ```
-
-#### Response
-
-```json
-{
-  "task": "talaria-sql-252fe8c4-185c-44fd-9592-005d6c6afb19",
-  "status": {
-    "statusCode": "SUCCESS",
-    "location": {
-      "host": "indexer01.druid.example.com",
-      "port": -1,
-      "tlsPort": 8100
-    }
-  }
-}
-```
-
-**Response fields**
-
-|Field|Description|
-|-----|-----------|
-|task|Controller task ID.|
-|status.statusCode|RUNNING, SUCCESS, or FAILED.|
-|status.location|The server that is running this task, if known.|
-
-## Async API
-
-Imply 2022.01 adds a second way to run Talaria queries: using the Async SQL
-Query Download extension. See the README for that feature for an overview.
-Talaria works mostly the same as described in the README, with several 
-differences described here.
-
-The Async Query API is the preferred API for Talaria in the future. Using
-the Async Query API will help ensure that your application is isolated from
-changes as Talaria evolves.
-
-To use the Async Query API, you must enable both the Talaria and Async API
-extensions.
-
-### Submit a Query
-
-Use the `POST /druid/v2/sql/async/` endpoint to submit a query. Set the
-`talaria` context field as described in the "Issue a Query" section
-above. Notice that, in the Async Query API, the query ID is given by a
-JSON field called `asyncResultId` rather than the field called `TASK`
-as described in earlier sections.
-
-Poll the `GET /druid/v2/sql/async/{asyncResultId}/status` endpoint 
-to wait for the query to complete as indicated by a `state` field equal
-to `COMPLETE` or `FAILED`.
-
-### Obtain Results
-
-If the query succeeds, and is a `SELECT` query, use
-`GET /druid/v2/sql/async/{asyncResultId}/results` to obtain the
-result data.
-
-The present version of Talaria always returns query results in the
-`array` format, with all headers enabled. This means that Talaria ignores
-any `resultFormat` option you might provide in the `SqlQuery` request.
-
-### Query Details
-
-For all queries (`INSERT` or `SELECT`, successful or failed), use a new
-endpoint to obtain the query report:
-
-`GET /druid/v2/sql/async/{asyncResultId}`
-
-The result is the same as the report described in the "Retrieve query report"
-Section above, except that the data results are omitted for `SELECT` queries.
-(Use the `results` endpoint for the data.)
-
-### Cancel a Query
-
-The `DELETE /druid/v2/sql/async/{asyncResultId}` endpoint cancels a
-Talaria query. Unlike for Broker-based Async queries, this endpoint
-does not delete the actual query results or the completion report.
-
-### Query Timeout
-
-The Async API is designed for short-lived queries that are downloaded
-immediately upon completion. As a result, Imply will remove the query
-results after a brief time: 30 seconds by default. For Talaria, you 
-may prefer to increase the timeout setting, 
-`druid.query.async.cleanup.timeToRetain`, to a larger
-value such as `PT300s` for a five-minute timeout. See the README mentioned
-above for details.
-
-If the query results time out within the Async system, you can still obtain the
-report from the Overlord as described in the "Retrieve query report" section
-above. The Async Query ID is the same as the Overlord task ID.
-
 
 ## EXTERN
 
@@ -689,7 +702,7 @@ FROM TABLE(
 
 To run an INSERT query:
 
-1. Activate the Talaria engine by setting `talaria: true` as a [context parameter](#issue-a-query).
+1. Activate the Talaria engine by setting `talaria: true` as a [context parameter](#submit-a-query).
 2. Add `INSERT INTO <dataSource>` at the start of your query.
 3. If you want to replace data in an existing datasource, additionally set the `talariaReplaceTimeChunks` context parameter.
 
@@ -739,9 +752,35 @@ Rollup is determined by the query's GROUP BY clause. The expressions in
 the GROUP BY clause will become dimensions. Any aggregation functions
 will become metrics.
 
-To store complex metrics in their native form, set
-`talariaFinalizeAggregations: false` in your INSERT query context. Without
-this parameter, Druid will store the finalized result rather than a sketch.
+#### Ingest-time aggregations
+
+When performing rollup using aggregations, it is important to use aggregators
+that return _nonfinalized_ state. This allows you to perform further rollups
+at query time. To achieve this, set `talariaFinalizeAggregations: false` in your
+INSERT query context and refer to the following table for any additional
+modifications needed.
+
+|Query-time aggregation|Notes|
+|----------------------|-----|
+|SUM|Use unchanged at ingest time.|
+|MIN|Use unchanged at ingest time.|
+|MAX|Use unchanged at ingest time.|
+|AVG|Use `SUM` and `COUNT` at ingest time. Switch to quotient of `SUM` at query time.|
+|COUNT|Use unchanged at ingest time, but switch to `SUM` at query time.|
+|COUNT(DISTINCT expr)|If approximate, use `APPROX_COUNT_DISTINCT` at ingest time.<br /><br />If exact, you cannot use an ingest-time aggregation. Instead, `expr` must be stored as-is. Add it to the `SELECT` and `GROUP BY` lists.|
+|EARLIEST(expr)<br /><br />(numeric form)|Not supported.|
+|EARLIEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|LATEST(expr)<br /><br />(numeric form)|Not supported.|
+|LATEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_BUILTIN|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_HLL|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_THETA|Use unchanged at ingest time.|
+|APPROX_QUANTILE|Not supported. Deprecated; we recommend using `APPROX_QUANTILE_DS` instead.|
+|APPROX_QUANTILE_DS|Use `DS_QUANTILES_SKETCH` at ingest time. Continue using `APPROX_QUANTILE_DS` at query time.|
+|APPROX_QUANTILE_FIXED_BUCKETS|Not supported.|
+
+#### Multi-value dimensions
 
 Currently, multi-value dimensions are not ingested as expected when
 rollup is enabled, because the GROUP BY operator unnests them instead of
@@ -1126,17 +1165,29 @@ LIMIT 1000
 - Canceling the controller task sometimes leads to the error code
   "UnknownError" instead of "Canceled". (14722)
 
-- The [Query report API](#retrieve-query-report) may return
+- The [Query details API](#get-query-details) may return
   `500 Server Error` or `404 Not Found` when the controller task is in
   process of starting up or shutting down. (15001)
+
+- In certain cases where the number of partitions is large, queries can
+  fail with a stack trace that includes
+  `org.apache.datasketches.SketchesArgumentException: K must be >= 2 and <= 32768 and a power of 2`.
+  This can happen even if the number of partitions is not in excess of the
+  [TooManyPartitions limit](#limits). This is most common on INSERT queries
+  that ingest a large number of time chunks. If you encounter this issue,
+  consider using a coarser `talariaSegmentGranularity`. (14764)
 
 **Issues with SELECT queries.**
 
 - SELECT query results are funneled through the controller task
-  so they can be written to the [query report](#retrieve-query-report).
+  so they can be written to the [query report](#get-query-details).
   This is a bottleneck for queries with large resultsets. In the future,
   we will provide a mechanism for writing query results to multiple
   files in parallel. (14728)
+
+- SELECT query results are materialized in memory on the Broker when
+  using the [query results](#get-query-results) API. Large result sets
+  can cause the Broker to run out of memory. (15963)
 
 - TIMESTAMP types are formatted as numbers rather than ISO8601 timestamp
   strings, which differs from Druid's standard result format. (14995)
@@ -1241,3 +1292,26 @@ LIMIT 1000
   means large right-hand-side tables can cause worker tasks to run
   out of memory. (15024)
 
+## Release notes
+
+**2022.01** <a href="#2022.01" name="2022.01">#</a>
+
+- Introduced async query API based on the [`imply-sql-async`](/latest/druid/querying/imply-sql-async-api/#submit-a-query)
+  extension. (15014)
+- Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
+  aggregation results. (15010)
+- Implemented fine-grained locking for INSERT. INSERT queries obtain minimally-sized locks rather than locking
+  the entire target datasource. (15003)
+- Added tabs and an engine selector to the "Query" view of the web console, which allows Talaria-based queries to be
+  issued from this view. Removed the dedicated "Talaria" view.
+- Added an ingestion spec conversion tool to the web console. It performs a best-effort conversion of a native batch
+  ingestion spec into a Talaria-based SQL query. It does not guarantee perfect fidelity, so we recommend that you
+  review the generated SQL query before running it.
+- Fixed a bug where INSERT queries using LIMIT with `talariaSegmentGranularity` set to "all" would fail. Now, these
+  queries write a single segment to the target datasource. (15051)
+- Fixed a bug where some INSERT queries using `talariaReplaceTimeChunks` would produce "numbered" shard specs instead
+  of "range" shard specs as documented. (14768)
+
+**2021.12** <a href="#2021.12" name="2021.12">#</a>
+
+- Initial release.
