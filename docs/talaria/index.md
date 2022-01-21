@@ -602,13 +602,13 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
-|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /> User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API. <br /><br />Restart or failure of the server process that was running the controller task.|    |
+|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
 |  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
-|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br />&bull;&nbsp;Attempting to mix different granularities in the same intervals of the same datasource.<br /> <br />&bull;&nbsp;Prior ingestions that used non-extendable shard specs.  |   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
+|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
 |  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `talariaSegmentGranularity` set to something other than `all`.  |  &bull;&nbsp;dataSource  |
 |  InsertCannotOrderByDescending  |  An INSERT query contained an ORDER BY expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
-|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<br /> <br />&bull;&nbsp;Shrink `talariaReplaceTimeChunks` to match the query results.<br /> <br />&bull;&nbsp;Expand talariaReplaceTimeChunks to fully contain the existing segment.  | &bull;&nbsp;segmentId: the existing segment  |
+|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
 |  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a Talaria query.<br /> <br />This can happen if the query uses features that Talaria does not yet support, like OFFSET or GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
@@ -776,7 +776,7 @@ modifications needed.
 |APPROX_COUNT_DISTINCT_BUILTIN|Use unchanged at ingest time.|
 |APPROX_COUNT_DISTINCT_DS_HLL|Use unchanged at ingest time.|
 |APPROX_COUNT_DISTINCT_DS_THETA|Use unchanged at ingest time.|
-|APPROX_QUANTILE|Not supported.|
+|APPROX_QUANTILE|Not supported. Deprecated; we recommend using `APPROX_QUANTILE_DS` instead.|
 |APPROX_QUANTILE_DS|Use `DS_QUANTILES_SKETCH` at ingest time. Continue using `APPROX_QUANTILE_DS` at query time.|
 |APPROX_QUANTILE_FIXED_BUCKETS|Not supported.|
 
@@ -1284,3 +1284,22 @@ LIMIT 1000
   means large right-hand-side tables can cause worker tasks to run
   out of memory. (15024)
 
+## Release notes
+
+**2022.01** <a href="#2022.01" name="2022.01">#</a>
+
+- Introduced async query API based on the [`imply-sql-async`](../querying/sql-async-download-api/#submit-a-query)
+  extension. (15014)
+- Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
+  aggregation results.
+- Implemented fine-grained locking for INSERT. INSERT queries obtain minimally-sized locks rather than locking
+  the entire target datasource. (15003)
+- Added support for the "sql" input source. (15016)
+- Fixed a bug where INSERT queries using LIMIT with `talariaSegmentGranularity` set to "all" would fail. Now, these
+  queries write a single segment to the target datasource. (15051)
+- Fixed a bug where some INSERT queries using `talariaReplaceTimeChunks` would produce "numbered" shard specs instead
+  of "range" shard specs as documented. (14768)
+
+**2021.12** <a href="#2021.12" name="2021.12">#</a>
+
+- Initial release.
