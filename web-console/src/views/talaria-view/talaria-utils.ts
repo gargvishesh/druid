@@ -24,6 +24,7 @@ import {
   DimensionSpec,
   inflateDimensionSpec,
   IngestionSpec,
+  MetricSpec,
   TimestampSpec,
   Transform,
 } from '../../druid-models';
@@ -118,26 +119,6 @@ export async function updateSummaryWithAsyncIfNeeded(
   return currentSummary.updateWith(newSummary);
 }
 
-async function updateSummaryWithPayloadIfNeeded(
-  currentSummary: TalariaSummary,
-  cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
-  if (!currentSummary.needsInfoFromPayload()) return currentSummary;
-
-  let payloadResp: AxiosResponse;
-
-  try {
-    payloadResp = await Api.instance.get(
-      `/druid/indexer/v1/task/${Api.encodePath(currentSummary.id)}`,
-      { cancelToken },
-    );
-  } catch {
-    return currentSummary;
-  }
-
-  return currentSummary.updateFromPayload(payloadResp.data);
-}
-
 async function updateSummaryWithResultsIfNeeded(
   currentSummary: TalariaSummary,
   cancelToken?: CancelToken,
@@ -227,7 +208,6 @@ export async function talariaBackgroundStatusCheck(
   cancelToken: CancelToken,
 ) {
   currentSummary = await updateSummaryWithAsyncIfNeeded(currentSummary, cancelToken);
-  currentSummary = await updateSummaryWithPayloadIfNeeded(currentSummary, cancelToken);
 
   if (currentSummary.isWaitingForQuery()) return new IntermediateQueryState(currentSummary);
 
@@ -365,12 +345,6 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   }
   lines.push(`--:context talariaSegmentGranularity: ${segmentGranularity.toLowerCase()}`);
 
-  const partitionsSpec = deepGet(spec, 'spec.tuningConfig.partitionsSpec') || {};
-  const rowsPerSegment = partitionsSpec.maxRowsPerSegment || partitionsSpec.targetRowsPerSegment;
-  if (rowsPerSegment) {
-    lines.push(`--:context talariaRowsPerSegment: ${rowsPerSegment}`);
-  }
-
   if (rollup) {
     lines.push(`--:context talariaFinalizeAggregations: false`);
   }
@@ -413,17 +387,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   );
 
   const aggExpressions = Array.isArray(metricsSpec)
-    ? metricsSpec.map(metricSpec => {
-        const aggSql = AGG_MAP[metricSpec.type];
-        if (aggSql) {
-          return `  ${aggSql.replace(
-            '?',
-            String(SqlRef.columnWithQuotes(metricSpec.fieldName || 'x')),
-          )} AS ${RefName.create(metricSpec.name || 'x', true)}`;
-        } else {
-          return `  -- Could not convert ${JSONBig.stringify(metricSpec)}`;
-        }
-      })
+    ? metricsSpec.map(metricSpec => '  ' + metricSpecToSelect(metricSpec))
     : [];
 
   lines.push(dimensionExpressions.concat(aggExpressions).join(',\n'));
@@ -443,6 +407,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     lines.push(`GROUP BY ${dimensionExpressions.map((_, i) => i + 1).join(', ')}`);
   }
 
+  const partitionsSpec = deepGet(spec, 'spec.tuningConfig.partitionsSpec') || {};
   const partitionDimensions =
     partitionsSpec.partitionDimensions ||
     (partitionsSpec.partitionDimension ? [partitionsSpec.partitionDimension] : undefined);
@@ -492,7 +457,7 @@ const QUERY_GRANULARITY_MAP: Record<string, string> = {
 };
 
 function metricSpecTypeToDataType(metricSpecType: string): string {
-  const m = /^(long|float|double)/.exec(String(metricSpecType));
+  const m = /^(long|float|double|string)/.exec(String(metricSpecType));
   if (m) return m[1];
 
   switch (metricSpecType) {
@@ -509,16 +474,88 @@ function metricSpecTypeToDataType(metricSpecType: string): string {
   return 'double';
 }
 
-const AGG_MAP: Record<string, string> = {
-  count: 'COUNT(*)',
-  longSum: 'SUM(?)',
-  floatSum: 'SUM(?)',
-  doubleSum: 'SUM(?)',
-  longMin: 'MIN(?)',
-  floatMin: 'MIN(?)',
-  doubleMin: 'MIN(?)',
-  longMax: 'MAX(?)',
-  floatMax: 'MAX(?)',
-  doubleMax: 'MAX(?)',
-  // ToDo: add sketches
-};
+function metricSpecToSelect(metricSpec: MetricSpec): string {
+  const name = metricSpec.name;
+  const expression = metricSpecToSqlExpression(metricSpec);
+  if (!name || !expression) {
+    return `-- could not convert metric: ${JSONBig.stringify(metricSpec)}`;
+  }
+
+  return `${expression} AS ${RefName.create(name, true)}`;
+}
+
+function metricSpecToSqlExpression(metricSpec: MetricSpec): string | undefined {
+  if (metricSpec.type === 'count') {
+    return `COUNT(*)`; // count is special as it does not have a fieldName
+  }
+
+  if (!metricSpec.fieldName) return;
+  const ref = SqlRef.columnWithQuotes(metricSpec.fieldName);
+
+  switch (metricSpec.type) {
+    case 'longSum':
+    case 'floatSum':
+    case 'doubleSum':
+      return `SUM(${ref})`;
+
+    case 'longMin':
+    case 'floatMin':
+    case 'doubleMin':
+      return `MIN(${ref})`;
+
+    case 'longMax':
+    case 'floatMax':
+    case 'doubleMax':
+      return `MAX(${ref})`;
+
+    case 'doubleFirst':
+    case 'floatFirst':
+    case 'longFirst':
+      return `EARLIEST(${ref})`;
+
+    case 'stringFirst':
+      return `EARLIEST(${ref}, ${SqlLiteral.create(metricSpec.maxStringBytes || 128)})`;
+
+    case 'doubleLast':
+    case 'floatLast':
+    case 'longLast':
+      return `LATEST(${ref})`;
+
+    case 'stringLast':
+      return `LATEST(${ref}, ${SqlLiteral.create(metricSpec.maxStringBytes || 128)})`;
+
+    case 'thetaSketch':
+      return `APPROX_COUNT_DISTINCT_DS_THETA(${ref}${extraArgs([metricSpec.size, 16384])})`;
+
+    case 'HLLSketchBuild':
+    case 'HLLSketchMerge':
+      return `APPROX_COUNT_DISTINCT_DS_HLL(${ref}${extraArgs(
+        [metricSpec.lgK, 12],
+        [metricSpec.tgtHllType, 'HLL_4'],
+      )})`;
+
+    case 'quantilesDoublesSketch':
+      // For consistency with the above this should be APPROX_QUANTILE_DS but that requires a post agg so it does not work quite right.
+      return `DS_QUANTILES_SKETCH(${ref}${extraArgs([metricSpec.k, 128])})`;
+
+    case 'hyperUnique':
+      return `APPROX_COUNT_DISTINCT_BUILTIN(${ref})`;
+
+    default:
+      // The following things are (knowingly) not supported:
+      // tDigestSketch, momentSketch, fixedBucketsHistogram
+      return;
+  }
+}
+
+function extraArgs(...thingAndDefaults: [any, any?][]): string {
+  while (
+    thingAndDefaults.length &&
+    typeof thingAndDefaults[thingAndDefaults.length - 1][0] === 'undefined'
+  ) {
+    thingAndDefaults.pop();
+  }
+
+  if (!thingAndDefaults.length) return '';
+  return ', ' + thingAndDefaults.map(([x, def]) => SqlLiteral.create(x ?? def)).join(', ');
+}
