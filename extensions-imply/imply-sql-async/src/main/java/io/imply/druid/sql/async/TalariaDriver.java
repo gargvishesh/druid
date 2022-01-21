@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
@@ -17,10 +18,12 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.common.exception.SanitizableException;
 import org.apache.druid.java.util.common.Numbers;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.java.util.http.client.response.StringFullResponseHolder;
 import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryException;
@@ -28,11 +31,15 @@ import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
+import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
@@ -41,9 +48,9 @@ import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,20 +62,26 @@ import java.util.regex.Pattern;
  * storage. At present, only the "array" result format is
  * supported, without type or column information.
  * <p>
- * Security is provided via a hybrid approach. On query submit, we use the
+ * Security is provided in two ways. On query submit, we use the
  * standard query security path. Talaria runs the query in the indexer, and only
  * the remote Talaria engine has the information about user, data source, etc.
  * For subsequent API calls (status, details, results, cancel),  all we have in
- * this API is the user identity and query ID. To enforce security, we piggy-back
- * on top of the Broker Async engine's metadata store: we add an "async query details"
- * record to the metadata, and use the Broker engine's authorization mechanism.
- * Clunky and slow, but prevents security holes.
+ * this API is the user identity and query ID. To enforce security, we first ask
+ * pass the user identity along with the SQL query context. On each subsequent
+ * call, we first get the task info from the Overlord, which returns the identity.
+ * We verify identity, and only then issue the requested API. This is
+ * a bit of extra work, but the best we can do short-term.
+ * <p>
+ * This means that the Talaria path <i>does not</i> use the Broker engine's
+ * metadata store. That avoids any issues of keeping the metadata store in
+ * sync with the Overlord.
  */
 public class TalariaDriver extends AbstractAsyncQueryDriver
 {
   private static final Logger log = new Logger(TalariaDriver.class);
 
   public static final String ENGINE_NAME = "Talaria-Indexer";
+  public static final String ASYNC_IDENTITY = "__asyncIdentity__";
 
   public TalariaDriver(AsyncQueryContext context)
   {
@@ -77,7 +90,9 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
 
   @SuppressWarnings("resource")
   @Override
-  public Response submit(SqlQuery sqlQuery, HttpServletRequest req)
+  public Response submit(
+      final SqlQuery sqlQuery,
+      final HttpServletRequest req)
   {
     // This check should never fail or the delegating driver
     // did something wrong.
@@ -89,12 +104,21 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
           null);
     }
 
+    // The lifeycle authorizes, but we need the user identity now.
+    final AuthenticationResult authResult = AuthorizationUtils.authenticationResultFromRequest(req);
+    final Map<String, Object> queryContext = sqlQuery.getContext();
+
+    // We know there must be a context or this wouldn't be a Talaria query.
+    final Map<String, Object> newContext = new HashMap<>(queryContext);
+    newContext.put(ASYNC_IDENTITY, authResult.getIdentity());
+    final SqlQuery rewrittenQuery = sqlQuery.withQueryContext(newContext);
+
     // A Talaria query looks like a regular query, but returns the Task ID
     // as its only output.
     final SqlLifecycle lifecycle = context.sqlLifecycleFactory.factorize();
-    final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
+    final String sqlQueryId = lifecycle.initialize(rewrittenQuery.getQuery(), rewrittenQuery.getContext());
     try {
-      lifecycle.setParameters(sqlQuery.getParameterList());
+      lifecycle.setParameters(rewrittenQuery.getParameterList());
       lifecycle.validateAndAuthorize(req);
       lifecycle.plan();
       final Sequence<Object[]> sequence = lifecycle.execute();
@@ -118,15 +142,15 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
               "Talaria failed to return a query ID",
                null);
         }
-        final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
-            id,
-            lifecycle.getAuthenticationResult().getIdentity(),
-            ResultFormat.ARRAY
-        ).toRunning();
-        context.metadataManager.addNewQuery(queryDetails);
         return Response
             .status(Response.Status.ACCEPTED)
-            .entity(queryDetails.toApiResponse(ENGINE_NAME))
+            .entity(new SqlAsyncQueryDetailsApiResponse(
+                id,
+                SqlAsyncQueryDetails.State.RUNNING,
+                ResultFormat.ARRAY,
+                0,
+                null,
+                ENGINE_NAME))
             .build();
       }
       finally {
@@ -205,48 +229,114 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
         .build();
   }
 
-  private SqlAsyncQueryDetails updateState(SqlAsyncQueryDetails queryDetails, HttpServletRequest req) throws Exception
+  /**
+   * The payload is encoded using a Talaria class which is not visible here.
+   * Using the getTaskPayload() call results in a class which this code cannot
+   * understand. So, reading the payload as generic objects, which turns out to
+   * be useful in other ways.
+   * <p>
+   * Hack method to read a task payload when the JSON subtype is not
+   * know to the classes in this process. Occurs when an extension
+   * writes the payload, but that extension is not visible to the
+   * user of this API.
+   */
+  private Map<String, Object> getUntypedTaskPayload(String taskId)
   {
-    authorizeForQuery(queryDetails, req);
-    TaskStatusResponse taskResponse = context.overlordClient.getTaskStatus(queryDetails.getAsyncResultId());
-    SqlAsyncQueryDetails.State state;
-    switch (taskResponse.getStatus().getStatusCode()) {
-      case FAILED:
-        state = SqlAsyncQueryDetails.State.FAILED;
-        break;
-      case RUNNING:
-        state = SqlAsyncQueryDetails.State.RUNNING;
-        break;
-      case SUCCESS:
-        state = SqlAsyncQueryDetails.State.COMPLETE;
-        break;
-      default:
-        state = SqlAsyncQueryDetails.State.UNDETERMINED;
-        break;
-    }
-    if (state != queryDetails.getState()) {
-      queryDetails = queryDetails.toState(state);
+    try {
+      final StringFullResponseHolder responseHolder = context.druidLeaderClient.go(
+          context.druidLeaderClient.makeRequest(
+              HttpMethod.GET,
+              StringUtils.format("/druid/indexer/v1/task/%s", StringUtils.urlEncode(taskId))
+          )
+      );
 
-      // No real reason to update the state: we'll never read it
-      // directly...
-      context.metadataManager.updateQueryDetails(queryDetails);
+      // Don't try to deserialize if something went wrong. We'll
+      // just use a null response as "it didn't work out.")
+      if (!responseHolder.getStatus().equals(HttpResponseStatus.OK)) {
+        return null;
+      }
+      return context.jsonMapper.readValue(
+          responseHolder.getContent(),
+          new TypeReference<Map<String, Object>>()
+          {
+          }
+      );
     }
-    return queryDetails;
+    catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected Map<String, Object> authorize(String id, HttpServletRequest req)
+  {
+    Map<String, Object> taskInfo = getUntypedTaskPayload(id);
+    if (taskInfo == null) {
+      return null;
+    }
+
+    // Now, decode the object to find the user identity we stashed away earlier.
+    // If we don't find the entry, it means this is not actually a Talaria task,
+    // so the we reject the request for that reason alone.
+    Map<String, Object> payload = getMap(taskInfo, "payload");
+    if (payload == null) {
+      throw new ForbiddenException("Async query");
+    }
+    Map<String, Object> queryContext = getMap(payload, "sqlQueryContext");
+    if (queryContext == null) {
+      throw new ForbiddenException("Async query");
+    }
+    Object identityObj = queryContext.get(ASYNC_IDENTITY);
+    if (identityObj == null || !(identityObj instanceof String)) {
+      throw new ForbiddenException("Async query");
+    }
+
+    final AuthenticationResult authenticationResult = AuthorizationUtils.authenticationResultFromRequest(req);
+    String identity = (String) identityObj;
+    if (!identity.equals(authenticationResult.getIdentity())) {
+      throw new ForbiddenException("Async query");
+    }
+    queryContext.remove(ASYNC_IDENTITY);
+    AuthorizationUtils.authorizeAllResourceActions(req, Collections.emptyList(), context.authorizerMapper);
+    return taskInfo;
   }
 
   @Override
   public Response status(String id, HttpServletRequest req)
   {
-    final Optional<SqlAsyncQueryDetails> optQueryDetails = context.metadataManager.getQueryDetails(id);
-    if (!optQueryDetails.isPresent()) {
-      return notFound(id);
-    }
     try {
-      SqlAsyncQueryDetails queryDetails = updateState(optQueryDetails.get(), req);
+      if (authorize(id, req) == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
+      TaskStatusResponse taskResponse = context.overlordClient.getTaskStatus(id);
+      SqlAsyncQueryDetails.State state;
+      switch (taskResponse.getStatus().getStatusCode()) {
+        case FAILED:
+          state = SqlAsyncQueryDetails.State.FAILED;
+          break;
+        case RUNNING:
+          state = SqlAsyncQueryDetails.State.RUNNING;
+          break;
+        case SUCCESS:
+          state = SqlAsyncQueryDetails.State.COMPLETE;
+          break;
+        default:
+          state = SqlAsyncQueryDetails.State.UNDETERMINED;
+          break;
+      }
+      SqlAsyncQueryDetailsApiResponse asyncResponse = new SqlAsyncQueryDetailsApiResponse(
+          id,
+          state,
+          ResultFormat.ARRAY,
+          0,
+          null,
+          ENGINE_NAME);
       return Response
           .ok()
-          .entity(queryDetails.toApiResponse(ENGINE_NAME))
+          .entity(asyncResponse)
           .build();
+    }
+    catch (ForbiddenException e) {
+      throw e;
     }
     catch (Exception e) {
       return commErrorResponse(id, e);
@@ -258,19 +348,21 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   {
     // Details are engine-dependent. No SqlAsyncQueryDetailsApiResponse
     // wrapper. No update of status.
-    final Optional<SqlAsyncQueryDetails> optQueryDetails = context.metadataManager.getQueryDetails(id);
-    if (!optQueryDetails.isPresent()) {
-      return notFound(id);
-    }
-    SqlAsyncQueryDetails queryDetails = optQueryDetails.get();
-    authorizeForQuery(queryDetails, req);
     try {
+      Map<String, Object> taskInfo = authorize(id, req);
+      if (taskInfo == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
       Map<String, Object> report = context.overlordClient.getTaskReport(id);
       removeResults(report);
+      report.put("talariaTask", taskInfo);
       return Response
           .ok()
           .entity(report)
           .build();
+    }
+    catch (ForbiddenException e) {
+      throw e;
     }
     catch (Exception e) {
       return commErrorResponse(id, e);
@@ -280,28 +372,9 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   @Override
   public Response results(String id, HttpServletRequest req)
   {
-    final Optional<SqlAsyncQueryDetails> optQueryDetails = context.metadataManager.getQueryDetails(id);
-    if (!optQueryDetails.isPresent()) {
-      return notFound(id);
-    }
     try {
-      SqlAsyncQueryDetails queryDetails = updateState(optQueryDetails.get(), req);
-      switch (queryDetails.getState()) {
-        case COMPLETE:
-          break;
-        case INITIALIZED:
-        case RUNNING:
-          return genericError(
-              Response.Status.NOT_FOUND,
-              "Still running",
-              "Query has not yet completed. Poll status until completion.",
-              id);
-        default:
-          return genericError(
-              Response.Status.NOT_FOUND,
-              "Not found",
-              "Query failed. Check details for reason.",
-              id);
+      if (authorize(id, req) == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       Map<String, Object> report = context.overlordClient.getTaskReport(id);
       List<Object> results = getResults(report);
@@ -317,6 +390,9 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
           .entity(results)
           .build();
     }
+    catch (ForbiddenException e) {
+      throw e;
+    }
     catch (Exception e) {
       return commErrorResponse(id, e);
     }
@@ -325,20 +401,19 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   @Override
   public Response delete(String id, HttpServletRequest req)
   {
-    final Optional<SqlAsyncQueryDetails> optQueryDetails = context.metadataManager.getQueryDetails(id);
-    if (!optQueryDetails.isPresent()) {
-      return notFound(id);
-    }
-    SqlAsyncQueryDetails queryDetails = optQueryDetails.get();
-    authorizeForQuery(queryDetails, req);
     try {
+      if (authorize(id, req) == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
       context.overlordClient.cancelTask(id);
-      context.metadataManager.removeQueryDetails(queryDetails);
       return Response
           .status(Response.Status.ACCEPTED)
           .entity(ImmutableMap.of(
               ASYNC_RESULT_KEY, id))
           .build();
+    }
+    catch (ForbiddenException e) {
+      throw e;
     }
     catch (Exception e) {
       return commErrorResponse(id, e);
@@ -427,5 +502,16 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
       rows.addAll(data);
     }
     return rows;
+  }
+
+  private Response genericError(Response.Status status, String code, String msg, String id)
+  {
+    // Note: Async uses a different error format than the rest of Druid: there is
+    // no error key and message. Can't change this fact as the non-standard format
+    // is already documented.
+    return Response
+        .status(status)
+        .entity(getErrorMap(id, msg))
+        .build();
   }
 }

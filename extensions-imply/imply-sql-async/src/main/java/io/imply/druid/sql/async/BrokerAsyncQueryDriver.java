@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.async;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.sql.async.exception.AsyncQueryDoesNotExistException;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
@@ -23,6 +24,8 @@ import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
+import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlPlanningException;
@@ -33,6 +36,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -139,7 +143,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     final Optional<SqlAsyncQueryDetails> queryDetails = context.metadataManager.getQueryDetails(asyncResultId);
 
     if (!queryDetails.isPresent()) {
-      return notFound(asyncResultId);
+      return Response.status(Response.Status.NOT_FOUND).build();
     }
     authorizeForQuery(queryDetails.get(), req);
     return Response.ok(queryDetails.get().toApiResponse(ENGINE_NAME)).build();
@@ -161,7 +165,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     final Optional<SqlAsyncQueryDetails> queryDetails = context.metadataManager.getQueryDetails(asyncResultId);
 
     if (!queryDetails.isPresent()) {
-      return notFound(asyncResultId);
+      return Response.status(Response.Status.NOT_FOUND).build();
     }
     authorizeForQuery(queryDetails.get(), req);
 
@@ -179,7 +183,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       context.metadataManager.touchQueryLastUpdateTime(asyncResultId);
       final Optional<SqlAsyncResults> results = context.resultManager.readResults(queryDetails.get());
       if (!results.isPresent()) {
-        return notFound(asyncResultId);
+        return Response.status(Response.Status.NOT_FOUND).build();
       }
       return Response
           .ok(new SqlAsyncResults(
@@ -206,7 +210,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
            .build();
     }
     catch (AsyncQueryDoesNotExistException e) {
-      return notFound(asyncResultId);
+      return Response.status(Response.Status.NOT_FOUND).build();
     }
     catch (IOException e) {
       return Response
@@ -267,11 +271,10 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
                            : "")
       );
 
-      return genericError(
-          Response.Status.INTERNAL_SERVER_ERROR,
-          "Delete failed",
-          e.getMessage(),
-          asyncResultId);
+      return Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(getErrorMap(asyncResultId, e.getMessage()))
+          .build();
     }
   }
 
@@ -288,5 +291,15 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     return Response.status(status)
                    .entity(errorDetails)
                    .build();
+  }
+
+  private void authorizeForQuery(SqlAsyncQueryDetails queryDetails, HttpServletRequest req)
+  {
+    AuthorizationUtils.authorizeAllResourceActions(req, Collections.emptyList(), context.authorizerMapper);
+    final AuthenticationResult authenticationResult = AuthorizationUtils.authenticationResultFromRequest(req);
+    if (Strings.isNullOrEmpty(queryDetails.getIdentity())
+           || !queryDetails.getIdentity().equals(authenticationResult.getIdentity())) {
+      throw new ForbiddenException("Async query");
+    }
   }
 }

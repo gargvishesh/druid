@@ -105,7 +105,6 @@ describe('talaria-utils', () => {
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaReplaceTimeChunks: all
       --:context talariaSegmentGranularity: hour
-      --:context talariaRowsPerSegment: 150000
       INSERT INTO wikipedia
       WITH "external_data" AS (SELECT * FROM TABLE(
         EXTERN(
@@ -175,7 +174,6 @@ describe('talaria-utils', () => {
                 'channel',
                 'flags',
                 'isUnpatrolled',
-                'page',
                 'comment',
                 'isNew',
                 'isMinor',
@@ -220,6 +218,11 @@ describe('talaria-utils', () => {
                 type: 'longSum',
                 fieldName: 'deleted',
               },
+              {
+                name: 'page_theta',
+                type: 'thetaSketch',
+                fieldName: 'page',
+              },
             ],
           },
           tuningConfig: {
@@ -241,7 +244,7 @@ describe('talaria-utils', () => {
         EXTERN(
           '{"type":"http","uris":["https://druid.apache.org/data/wikipedia.json.gz"]}',
           '{"type":"json"}',
-          '[{"name":"timestamp","type":"string"},{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"comment","type":"string"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"string"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"},{"name":"added","type":"long"},{"name":"commentLength","type":"long"},{"name":"delta","type":"long"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"}]'
+          '[{"name":"timestamp","type":"string"},{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"comment","type":"string"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"string"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"},{"name":"added","type":"long"},{"name":"commentLength","type":"long"},{"name":"delta","type":"long"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"page","type":"string"}]'
         )
       ))
       SELECT
@@ -250,7 +253,6 @@ describe('talaria-utils', () => {
         "channel",
         "flags",
         "isUnpatrolled",
-        "page",
         "comment",
         "isNew",
         "isMinor",
@@ -268,9 +270,10 @@ describe('talaria-utils', () => {
         SUM("commentLength") AS "sum_commentLength",
         SUM("delta") AS "sum_delta",
         SUM("deltaBucket") AS "sum_deltaBucket",
-        SUM("deleted") AS "sum_deleted"
+        SUM("deleted") AS "sum_deleted",
+        APPROX_COUNT_DISTINCT_DS_THETA("page") AS "page_theta"
       FROM "external_data"
-      GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+      GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
     `);
   });
 });

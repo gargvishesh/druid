@@ -16,6 +16,5 @@
  * limitations under the License.
  */
 
-export function durationSanitizer(str: string): string {
-  return str.toUpperCase().replace(/[^0-9PYMWDTHS.,]/g, '');
-}
+// Set this to `false` to cripple all Talaria code in the console
+export const TALARIA_ENABLED = true;

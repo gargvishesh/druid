@@ -42,6 +42,7 @@ import {
 import { usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
 import { Api, AppToaster } from '../../singletons';
+import { TALARIA_ENABLED } from '../../singletons/talaria-enabled';
 import {
   Capabilities,
   localStorageGetJson,
@@ -219,10 +220,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     false,
   );
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
-  const [showTalaria, setShowTalaria] = useState<any>(
-    localStorageGetJson(LocalStorageKeys.TALARIA_SHOW),
-  );
   const loadDataPrimary = false;
+
+  // BEGIN: Imply-added code for Talaria execution
+  const [showTalaria, setShowTalaria] = useState<any>(
+    TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW),
+  );
+  // END: Imply-added code for Talaria execution
 
   const helpMenu = (
     <Menu>
@@ -318,7 +322,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
 
   // BEGIN: Imply-added code for Talaria execution
   const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
-    if (!e.altKey) return;
+    if (!TALARIA_ENABLED || !e.altKey) return;
     e.preventDefault();
     const nextShowTalaria = e.shiftKey ? (showTalaria ? false : 'loader') : !showTalaria;
 

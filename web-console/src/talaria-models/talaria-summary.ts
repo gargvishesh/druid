@@ -150,14 +150,24 @@ export class TalariaSummary {
     }
 
     const stages = deepGet(report, 'talariaStages.payload.stages') || [];
-    return new TalariaSummary({
+    let res = new TalariaSummary({
       id,
       source: 'detail',
       status: TalariaSummary.normalizeStatus(status),
       startTime: getStartTime(stages),
       stages,
       error,
+      destination: deepGet(report, 'talariaTask.payload.spec.destination'),
     });
+
+    if (deepGet(report, 'talariaTask.payload.sqlQuery')) {
+      res = res.changeSqlQuery(
+        deepGet(report, 'talariaTask.payload.sqlQuery'),
+        deepGet(report, 'talariaTask.payload.sqlQueryContext'),
+      );
+    }
+
+    return res;
   }
 
   static fromStatus(statusPayload: any): TalariaSummary {
@@ -297,17 +307,6 @@ export class TalariaSummary {
         },
       },
     });
-  }
-
-  public needsInfoFromPayload(): boolean {
-    return Boolean(!this.destination || !this.sqlQuery);
-  }
-
-  public updateFromPayload(payload: any): TalariaSummary {
-    return this.changeDestination(deepGet(payload, 'payload.spec.destination')).changeSqlQuery(
-      deepGet(payload, 'payload.sqlQuery'),
-      deepGet(payload, 'payload.sqlQueryContext'),
-    );
   }
 
   public markDestinationDatasourceExists(): TalariaSummary {
