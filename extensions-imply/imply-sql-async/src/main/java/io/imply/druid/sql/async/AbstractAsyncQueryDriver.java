@@ -9,18 +9,8 @@
 
 package io.imply.druid.sql.async;
 
-import com.google.common.base.Strings;
-import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
-import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
-import org.apache.druid.query.QueryInterruptedException;
-import org.apache.druid.server.security.AuthenticationResult;
-import org.apache.druid.server.security.AuthorizationUtils;
-import org.apache.druid.server.security.ForbiddenException;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Response;
-
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Common functionality shared between the Broker an Talaria-in-Indexer
@@ -37,44 +27,11 @@ public abstract class AbstractAsyncQueryDriver implements AsyncQueryDriver
     this.engine = engine;
   }
 
-  protected void authorizeForQuery(SqlAsyncQueryDetails queryDetails, HttpServletRequest req)
+  protected Map<String, String> getErrorMap(String asyncResultId, String errorMessage)
   {
-    AuthorizationUtils.authorizeAllResourceActions(req, Collections.emptyList(), context.authorizerMapper);
-    final AuthenticationResult authenticationResult = AuthorizationUtils.authenticationResultFromRequest(req);
-    if (Strings.isNullOrEmpty(queryDetails.getIdentity())
-           || !queryDetails.getIdentity().equals(authenticationResult.getIdentity())) {
-      throw new ForbiddenException("Async query");
-    }
-  }
-
-  protected Response notFound(String id)
-  {
-    return genericError(
-        Response.Status.NOT_FOUND,
-        "Not found",
-        "No such query ID.",
-        id);
-  }
-
-  /**
-   * Return an error using the SqlAsyncQueryDetailsApiResponse structure.
-   */
-  protected Response genericError(Response.Status status, String code, String msg, String id)
-  {
-    SqlAsyncQueryDetailsApiResponse apiResponse = new SqlAsyncQueryDetailsApiResponse(
-        id,
-        SqlAsyncQueryDetails.State.UNDETERMINED,
-        null,
-        0,
-        new QueryInterruptedException(
-            code,
-            msg,
-            null,
-            null),
-        engine);
-    return Response
-        .status(status)
-        .entity(apiResponse)
-        .build();
+    Map<String, String> response = new HashMap<>();
+    response.put(ASYNC_RESULT_KEY, asyncResultId);
+    response.put(ERROR_KEY, errorMessage);
+    return response;
   }
 }
