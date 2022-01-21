@@ -15,7 +15,9 @@ import com.google.inject.name.Named;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
+import org.apache.druid.client.indexing.IndexingService;
 import org.apache.druid.client.indexing.IndexingServiceClient;
+import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -39,6 +41,7 @@ public class AsyncQueryContext
   final AsyncQueryConfig asyncQueryReadRefreshConfig;
   final ServerConfig serverConfig;
   @Nullable final IndexingServiceClient overlordClient;
+  DruidLeaderClient druidLeaderClient;
 
   @Inject
   public AsyncQueryContext(
@@ -53,7 +56,8 @@ public class AsyncQueryContext
       final AsyncQueryConfig asyncQueryReadRefreshConfig,
       final Clock clock,
       final ServerConfig serverConfig,
-      final IndexingServiceClient overlordClient
+      final IndexingServiceClient overlordClient,
+      @IndexingService DruidLeaderClient druidLeaderClient
   )
   {
     this.brokerId = brokerId;
@@ -68,5 +72,6 @@ public class AsyncQueryContext
     this.clock = clock;
     this.serverConfig = serverConfig;
     this.overlordClient = overlordClient;
+    this.druidLeaderClient = druidLeaderClient;
   }
 }
