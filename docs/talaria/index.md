@@ -1180,7 +1180,7 @@ LIMIT 1000
 **Issues with SELECT queries.**
 
 - SELECT query results are funneled through the controller task
-  so they can be written to the [query report](#retrieve-query-report).
+  so they can be written to the [query report](#get-query-details).
   This is a bottleneck for queries with large resultsets. In the future,
   we will provide a mechanism for writing query results to multiple
   files in parallel. (14728)
