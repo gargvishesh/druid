@@ -20,6 +20,7 @@ import { Icon, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
+import copy from 'copy-to-clipboard';
 import { SqlTableRef } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
@@ -139,6 +140,16 @@ LIMIT 100`,
                         intent: Intent.DANGER,
                       });
                     }
+                  }}
+                />
+                <MenuItem
+                  text="Copy ID"
+                  onClick={() => {
+                    copy(w.taskId, { format: 'text/plain' });
+                    AppToaster.show({
+                      message: `${w.taskId} copied to clipboard`,
+                      intent: Intent.SUCCESS,
+                    });
                   }}
                 />
                 <MenuDivider />

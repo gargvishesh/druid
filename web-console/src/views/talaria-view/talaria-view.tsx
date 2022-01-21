@@ -189,8 +189,9 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   };
 
   private getTabId(): string | undefined {
-    const { tabId } = this.props;
+    const { tabId, initQuery } = this.props;
     if (tabId) return tabId;
+    if (initQuery) return; // If initialized from a query go to the first tab, forget about the last opened tab
     return localStorageGet(LocalStorageKeys.TALARIA_LAST_TAB);
   }
 
