@@ -65,7 +65,7 @@ export function TalariaDetailedStats(props: TalariaDetailedStatsProps) {
       >
         <div className="label">{`${labelPrefix}${e.index + 1}${inProgress ? '*' : ''}`}</div>
         <BracedText text={formatRows(e.rows)} braces={rowBraces} /> &nbsp;{' '}
-        <BracedText text={formatSize(e.bytes)} braces={byteBraces} />
+        {e.bytes > 0 && <BracedText text={formatSize(e.bytes)} braces={byteBraces} />}
       </div>
     );
   }
