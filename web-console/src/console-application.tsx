@@ -234,7 +234,7 @@ export class ConsoleApplication extends React.PureComponent<
 
   private readonly wrappedTalariaLoadDataView = () => {
     return this.wrapInViewContainer(
-      'talaria-loader',
+      'loader-next',
       <TalariaLoadDataView goToQuery={this.goToQuery} />,
       'narrow-pad',
     );
@@ -333,7 +333,7 @@ export class ConsoleApplication extends React.PureComponent<
                 />
               )}
               {TALARIA_ENABLED && (
-                <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
+                <Route path="/loader-next" component={this.wrappedTalariaLoadDataView} />
               )}
               {/* END: Imply-modified code for Talaria execution */}
 
