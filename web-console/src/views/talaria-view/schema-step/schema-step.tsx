@@ -200,12 +200,13 @@ type Mode = 'table' | 'list' | 'sql';
 export interface SchemaStepProps {
   queryString: string;
   onQueryStringChange(queryString: string): void;
+  goToQuery: () => void;
   onBack(): void;
   onDone(): void;
 }
 
 export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
-  const { queryString, onQueryStringChange, onBack, onDone } = props;
+  const { queryString, onQueryStringChange, goToQuery, onBack, onDone } = props;
   const [mode, setMode] = useState<Mode>('table');
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
@@ -600,7 +601,9 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         )}
         {effectiveMode === 'sql' && (
           <div className="control-line bottom-right">
-            <Button text="Open query in Talaria view" rightIcon={IconNames.ARROW_TOP_RIGHT} />
+            <Button rightIcon={IconNames.ARROW_TOP_RIGHT} onClick={goToQuery}>
+              Open in <strong>Query</strong> view
+            </Button>
           </div>
         )}
       </div>

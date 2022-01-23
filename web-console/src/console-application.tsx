@@ -233,7 +233,11 @@ export class ConsoleApplication extends React.PureComponent<
   };
 
   private readonly wrappedTalariaLoadDataView = () => {
-    return this.wrapInViewContainer('talaria-loader', <TalariaLoadDataView />, 'narrow-pad');
+    return this.wrapInViewContainer(
+      'talaria-loader',
+      <TalariaLoadDataView goToQuery={this.goToQuery} />,
+      'narrow-pad',
+    );
   };
   // END: Imply-modified code for Talaria execution
 

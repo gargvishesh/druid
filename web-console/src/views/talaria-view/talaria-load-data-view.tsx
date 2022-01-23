@@ -44,11 +44,14 @@ import {
 
 import './talaria-load-data-view.scss';
 
-export interface TalariaLoadDataViewProps {}
+export interface TalariaLoadDataViewProps {
+  goToQuery: (initSql: string) => void;
+}
 
 export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
-  _props: TalariaLoadDataViewProps,
+  props: TalariaLoadDataViewProps,
 ) {
+  const { goToQuery } = props;
   const [externalConfigStep, setExternalConfigStep] = useState<Partial<ExternalConfig>>({});
   const [queryString, setQueryString] = useLocalStorageState<string>('loader-query', '');
   const [showLiveReports, setShowLiveReports] = useState(false);
@@ -87,6 +90,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
             <SchemaStep
               queryString={queryString}
               onQueryStringChange={setQueryString}
+              goToQuery={() => goToQuery(queryString)}
               onBack={() => setQueryString('')}
               onDone={() => {
                 console.log('Ingesting:', queryString);
