@@ -244,6 +244,7 @@ export interface TabEntry {
 
 // Spec conversion
 
+const EXTERN_NAME = SqlTableRef.create('ioConfigExtern');
 export function convertSpecToSql(spec: IngestionSpec): string {
   if (spec.type !== 'index_parallel') throw new Error('only index_parallel is supported');
 
@@ -353,7 +354,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   if (typeof dataSource !== 'string') throw new Error(`spec.dataSchema.dataSource is not a string`);
   lines.push(`INSERT INTO ${SqlTableRef.create(dataSource)}`);
 
-  lines.push(`WITH "external_data" AS (SELECT * FROM TABLE(`);
+  lines.push(`WITH ${EXTERN_NAME} AS (SELECT * FROM TABLE(`);
   lines.push(`  EXTERN(`);
 
   const inputSource = deepGet(spec, 'spec.ioConfig.inputSource');
@@ -377,7 +378,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     lines.push(`  -- The spec contained transforms that could not be automatically converted.`);
   }
 
-  const dimensionExpressions = [`  ${timeExpression} AS __time`].concat(
+  const dimensionExpressions = [`  ${timeExpression} AS __time,`].concat(
     dimensions.flatMap((dimension: DimensionSpec) => {
       const dimensionName = dimension.name;
       const relevantTransform = transforms.find(t => t.name === dimensionName);
@@ -399,7 +400,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     .replace(/,(\s+--)/, '$1');
 
   lines.push(selectExpressions.join('\n'));
-  lines.push(`FROM "external_data"`);
+  lines.push(`FROM ${EXTERN_NAME}`);
 
   const filter = deepGet(spec, 'spec.dataSchema.transformSpec.filter');
   if (filter) {
