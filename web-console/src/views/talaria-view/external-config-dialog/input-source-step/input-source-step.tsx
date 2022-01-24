@@ -57,14 +57,12 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
   const [connectResultState] = useQueryManager<InputSource, QueryResult, QueryExecution>({
     query: inputSourceToSample,
     processQuery: async (inputSource: InputSource, cancelToken) => {
-      const query = `SELECT raw FROM ${externalConfigToTableExpression({
-        inputSource,
-        inputFormat: { type: 'regex', pattern: '([\\s\\S]*)', columns: ['raw'] },
-        columns: [{ name: 'raw', type: 'string' }],
-      })} LIMIT 100`;
-
       const execution = await submitAsyncQuery({
-        query,
+        query: `SELECT raw FROM ${externalConfigToTableExpression({
+          inputSource,
+          inputFormat: { type: 'regex', pattern: '([\\s\\S]*)', columns: ['raw'] },
+          columns: [{ name: 'raw', type: 'string' }],
+        })} LIMIT 100`,
         context: {
           talaria: true,
         },
