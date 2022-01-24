@@ -33,12 +33,7 @@ import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
 import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
-import {
-  cancelAsyncQueryOnCancel,
-  downloadResults,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from '../talaria-utils';
+import { downloadResults, submitAsyncQuery, talariaBackgroundStatusCheck } from '../talaria-utils';
 
 import './export-dialog.scss';
 
@@ -117,7 +112,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
       if (!isSql) throw new Error('must be SQL for export');
 
-      const summary = await submitAsyncQuery({
+      const execution = await submitAsyncQuery({
         query,
         context: {
           ...context,
@@ -126,9 +121,8 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
         prefixLines,
         cancelToken,
       });
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
 
-      return new IntermediateQueryState(summary.changeDestination({ type: 'download' }));
+      return new IntermediateQueryState(execution.changeDestination({ type: 'download' }));
     },
     backgroundStatusCheck: async (
       currentSummary: QueryExecution,

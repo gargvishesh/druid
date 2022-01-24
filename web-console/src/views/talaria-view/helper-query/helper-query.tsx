@@ -117,10 +117,15 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
 
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
-          const summary = await submitAsyncQuery({ query, context, prefixLines, cancelToken });
-          cancelAsyncQueryOnCancel(summary.id, cancelToken, true);
-          onQueryChange(props.query.changeLastQueryId(summary.id));
-          return new IntermediateQueryState(summary);
+          const execution = await submitAsyncQuery({
+            query,
+            context,
+            prefixLines,
+            cancelToken,
+            preserveOnTermination: true,
+          });
+          onQueryChange(props.query.changeLastQueryId(execution.id));
+          return new IntermediateQueryState(execution);
         } else {
           if (cancelQueryId) {
             void cancelToken.promise
@@ -326,7 +331,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                     )}
                   </div>
                 ) : (
-                  <div>Unknown query summary state</div>
+                  <div>Unknown query execution state</div>
                 ))}
               {querySummaryState.error && (
                 <QueryError

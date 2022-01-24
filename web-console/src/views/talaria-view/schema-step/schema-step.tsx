@@ -61,11 +61,7 @@ import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-e
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
-} from '../talaria-utils';
+import { submitAsyncQuery, talariaBackgroundResultStatusCheck } from '../talaria-utils';
 
 import { ColumnList } from './column-list/column-list';
 import { PreviewTable } from './preview-table/preview-table';
@@ -273,7 +269,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      const summary = await submitAsyncQuery({
+      const execution = await submitAsyncQuery({
         query: previewQueryString,
         context: {
           ...getContextFromSqlQuery(previewQueryString),
@@ -283,8 +279,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         cancelToken,
       });
 
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
+      return new IntermediateQueryState(execution);
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });

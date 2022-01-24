@@ -35,11 +35,7 @@ import {
   QueryExecution,
 } from '../../../../talaria-models';
 import { deepSet, IntermediateQueryState } from '../../../../utils';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
-} from '../../talaria-utils';
+import { submitAsyncQuery, talariaBackgroundResultStatusCheck } from '../../talaria-utils';
 
 import './input-source-step.scss';
 
@@ -67,7 +63,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         columns: [{ name: 'raw', type: 'string' }],
       })} LIMIT 100`;
 
-      const summary = await submitAsyncQuery({
+      const execution = await submitAsyncQuery({
         query,
         context: {
           talaria: true,
@@ -75,8 +71,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         cancelToken,
       });
 
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
+      return new IntermediateQueryState(execution);
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });

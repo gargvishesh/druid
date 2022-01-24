@@ -46,10 +46,11 @@ export interface SubmitAsyncQueryOptions {
   context: QueryContext;
   prefixLines?: number;
   cancelToken?: CancelToken;
+  preserveOnTermination?: boolean;
 }
 
 export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promise<QueryExecution> {
-  const { query, context, prefixLines, cancelToken } = options;
+  const { query, context, prefixLines, cancelToken, preserveOnTermination } = options;
 
   let sqlQuery: string;
   let jsonQuery: Record<string, any>;
@@ -84,7 +85,12 @@ export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promis
     throw new DruidError(druidError, prefixLines);
   }
 
-  return QueryExecution.fromAsyncStatus(asyncResp.data, sqlQuery, context);
+  const execution = QueryExecution.fromAsyncStatus(asyncResp.data, sqlQuery, context);
+  if (cancelToken) {
+    cancelAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
+  }
+
+  return execution;
 }
 
 export async function getTalariaDetailSummary(

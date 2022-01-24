@@ -36,11 +36,7 @@ import { InputSourceStep } from './external-config-dialog/input-source-step/inpu
 import { SchemaStep } from './schema-step/schema-step';
 import { StageProgress } from './stage-progress/stage-progress';
 import { TalariaStats } from './talaria-stats/talaria-stats';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from './talaria-utils';
+import { submitAsyncQuery, talariaBackgroundStatusCheck } from './talaria-utils';
 
 import './talaria-load-data-view.scss';
 
@@ -67,7 +63,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();
       if (!insertDatasource) throw new Error(`Must have insert datasource`);
 
-      const summary = await submitAsyncQuery({
+      const execution = await submitAsyncQuery({
         query: queryString,
         context: {
           ...getContextFromSqlQuery(queryString),
@@ -76,8 +72,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
         cancelToken,
       });
 
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
+      return new IntermediateQueryState(execution);
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
   });
