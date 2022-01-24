@@ -109,6 +109,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     initState: TalariaQueryStateCache.getState(id),
     processQuery: async (q: TalariaQuery | string, cancelToken) => {
       if (q instanceof TalariaQuery) {
+        TalariaQueryStateCache.deleteState(id);
+
         const {
           query,
           context,

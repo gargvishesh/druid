@@ -104,6 +104,8 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     initState: TalariaQueryStateCache.getState(id),
     processQuery: async (q: TalariaQuery | string, cancelToken) => {
       if (q instanceof TalariaQuery) {
+        TalariaQueryStateCache.deleteState(id);
+
         const {
           query,
           context,
