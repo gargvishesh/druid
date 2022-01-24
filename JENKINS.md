@@ -20,6 +20,9 @@ Here is link to Druid project on jenkins server: https://ci.cnc.imply.io/job/imp
 
 ## How it works
 
+Before beginning a build, the function `cancelPreviousBuilds()` is called to kill off any currently running builds for this same job.
+Note that each branch of the repository gets its own job, so builds for other branches won't be affected.
+
 The pipeline definition consists of consequent stages: `Maven install` and `Checks`
 
 `Maven install` stage performs building artifacts and uploading them to docker registry as docker images
