@@ -370,28 +370,35 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   lines.push(`SELECT`);
 
-  const transforms: Transform[] | undefined = deepGet(
-    spec,
-    'spec.dataSchema.transformSpec.transforms',
-  );
-  if (Array.isArray(transforms) && transforms.length) {
-    lines.push(
-      `-- The spec contained transforms that could not be automatically converted: ${JSONBig.stringify(
-        transforms,
-      )}`,
-    );
+  const transforms: Transform[] = deepGet(spec, 'spec.dataSchema.transformSpec.transforms') || [];
+  if (!Array.isArray(transforms))
+    throw new Error(`spec.dataSchema.transformSpec.transforms is not an array`);
+  if (transforms.length) {
+    lines.push(`  -- The spec contained transforms that could not be automatically converted.`);
   }
 
   const dimensionExpressions = [`  ${timeExpression} AS __time`].concat(
-    dimensions.map((dimension: DimensionSpec) => `  ${SqlRef.columnWithQuotes(dimension.name)}`),
+    dimensions.flatMap((dimension: DimensionSpec) => {
+      const dimensionName = dimension.name;
+      const relevantTransform = transforms.find(t => t.name === dimensionName);
+      return `  ${SqlRef.columnWithQuotes(dimensionName)},${
+        relevantTransform ? ` -- Relevant transform: ${JSONBig.stringify(relevantTransform)}` : ''
+      }`;
+    }),
   );
 
-  const aggExpressions = Array.isArray(metricsSpec)
-    ? metricsSpec.map(metricSpec => '  ' + metricSpecToSelect(metricSpec))
-    : [];
+  const selectExpressions = dimensionExpressions.concat(
+    Array.isArray(metricsSpec)
+      ? metricsSpec.map(metricSpec => `  ${metricSpecToSelect(metricSpec)},`)
+      : [],
+  );
 
-  lines.push(dimensionExpressions.concat(aggExpressions).join(',\n'));
+  // Remove trailing comma from last expression
+  selectExpressions[selectExpressions.length - 1] = selectExpressions[selectExpressions.length - 1]
+    .replace(/,$/, '')
+    .replace(/,(\s+--)/, '$1');
 
+  lines.push(selectExpressions.join('\n'));
   lines.push(`FROM "external_data"`);
 
   const filter = deepGet(spec, 'spec.dataSchema.transformSpec.filter');
