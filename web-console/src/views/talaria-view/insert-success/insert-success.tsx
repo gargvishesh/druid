@@ -33,17 +33,17 @@ export interface InsertSuccessProps {
 export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSuccessProps) {
   const { insertQueryExecution, onStats, onQueryChange } = props;
 
-  const dataSource = insertQueryExecution.getInsertDataSource();
-  if (!dataSource || !insertQueryExecution.stages) return null;
+  const datasource = insertQueryExecution.getInsertDatasource();
+  if (!datasource || !insertQueryExecution.stages) return null;
 
   const lastStage = insertQueryExecution.stages[insertQueryExecution.stages.length - 1];
   const rows = getTotalCountForStage(lastStage, 'input', 'rows');
-  const table = SqlTableRef.create(dataSource);
+  const table = SqlTableRef.create(datasource);
 
   const duration = insertQueryExecution.getDuration();
   return (
     <div className="insert-success">
-      <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${dataSource}.`}</p>
+      <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${datasource}.`}</p>
       <p>
         {duration ? `Insert query took ${formatDuration(duration)}. ` : `Insert query completed. `}
         <span className="action" onClick={onStats}>

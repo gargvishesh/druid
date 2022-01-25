@@ -294,7 +294,7 @@ export class QueryExecution {
     return 0;
   }
 
-  public getInsertDataSource(): string | undefined {
+  public getInsertDatasource(): string | undefined {
     const { destination } = this;
     if (destination?.type !== 'dataSource') return;
     return destination.dataSource;
@@ -302,7 +302,7 @@ export class QueryExecution {
 
   public isSuccessfulInsert(): boolean {
     return Boolean(
-      this.isFullyComplete() && this.getInsertDataSource() && this.status === 'SUCCESS',
+      this.isFullyComplete() && this.getInsertDatasource() && this.status === 'SUCCESS',
     );
   }
 

@@ -143,12 +143,12 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       )}
       {insertResultState.data && (
         <div className="done-step">
-          <p>Done loading data into {insertResultState.data.getInsertDataSource()}</p>
+          <p>Done loading data into {insertResultState.data.getInsertDatasource()}</p>
           <p>
             <Button icon={IconNames.APPLICATION}>
               {'Query '}
               <Tag minimal round>
-                {insertResultState.data.getInsertDataSource()}
+                {insertResultState.data.getInsertDatasource()}
               </Tag>
             </Button>
           </p>
