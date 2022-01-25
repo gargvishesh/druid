@@ -19,6 +19,7 @@ import io.imply.druid.autoscaling.client.ImplyManagerServiceClient;
 import org.apache.druid.indexing.overlord.autoscaling.AutoScaler;
 import org.apache.druid.indexing.overlord.autoscaling.AutoScalingData;
 import org.apache.druid.indexing.overlord.autoscaling.SimpleWorkerProvisioningConfig;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
  * This module permits the autoscaling of the workers in Imply Manager
@@ -192,6 +194,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     }
 
     ArrayList<String> ids = new ArrayList<>();
+    StringJoiner sj = new StringJoiner(", ", "[", "]");
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
       Map<String, String> ipToIdMap = new HashMap<>();
@@ -202,11 +205,14 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
       }
       for (String ip : ips) {
         if (ipToIdMap.containsKey(ip)) {
-          ids.add(ipToIdMap.get(ip));
+          String id = ipToIdMap.get(ip);
+          sj.add(StringUtils.format("location: %s -> host: %s", ip, id));
+          ids.add(id);
         } else {
           log.warn("Cannot find instance for ip: %s", ip);
         }
       }
+      log.info("Resolved following IPs -> IDs: %s", sj);
       return ids;
     }
     catch (Exception e) {
@@ -228,6 +234,7 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
     }
 
     ArrayList<String> ips = new ArrayList<>();
+    StringJoiner sj = new StringJoiner(", ", "[", "]");
     try {
       List<Instance> response = implyManagerServiceClient.listInstances(envConfig);
       Map<String, String> idToIp = new HashMap<>();
@@ -238,11 +245,14 @@ public class ImplyManagerAutoScaler implements AutoScaler<ImplyManagerEnvironmen
       }
       for (String id : nodeIds) {
         if (idToIp.containsKey(id)) {
-          ips.add(idToIp.get(id));
+          String ip = idToIp.get(id);
+          sj.add(StringUtils.format("host: %s -> location: %s", id, ip));
+          ips.add(ip);
         } else {
           log.warn("Cannot find instance for id: %s", id);
         }
       }
+      log.info("Resolved following IDs -> IPs: %s", sj);
       return ips;
     }
     catch (Exception e) {
