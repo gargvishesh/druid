@@ -1,9 +1,9 @@
 ---
-id: talaria
+id: index
 title: Talaria
 ---
 
-> Talaria is an alpha feature. All functionality documented on this page is
+> Talaria is an alpha feature available in Imply 2021.12 later. All functionality documented on this page is
 > subject to change or removal at any time. Alpha features are provided
 > "as is" and are not subject to Imply SLAs.
 
