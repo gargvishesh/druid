@@ -446,7 +446,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
             minimal
             active={active === 'loader-next'}
             icon={IconNames.CLOUD_UPLOAD}
-            text="Talaria loader"
+            text="Loader.next"
             href="#loader-next"
             disabled={!capabilities.hasQuerying()}
           />
