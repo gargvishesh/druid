@@ -52,12 +52,10 @@ type ExecutionDestination =
   | { type: 'external' }
   | { type: 'download' };
 
-export type TalariaSummarySource = 'init' | 'reattach' | 'detail' | 'status';
 export type TalariaSummaryStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
 
 export interface QueryExecutionValue {
   id: string;
-  source: TalariaSummarySource;
   sqlQuery?: string;
   queryContext?: QueryContext;
   status?: TalariaSummaryStatus;
@@ -106,15 +104,6 @@ export class QueryExecution {
     }
   }
 
-  static init(id: string, sqlQuery?: string, queryContext?: QueryContext): QueryExecution {
-    return new QueryExecution({
-      id,
-      source: 'init',
-      sqlQuery,
-      queryContext,
-    });
-  }
-
   static fromAsyncStatus(
     asyncResult: any,
     sqlQuery?: string,
@@ -122,7 +111,6 @@ export class QueryExecution {
   ): QueryExecution {
     return new QueryExecution({
       id: asyncResult.asyncResultId,
-      source: 'status',
       status: QueryExecution.normalizeAsyncStatus(asyncResult.state),
       sqlQuery,
       queryContext,
@@ -135,13 +123,6 @@ export class QueryExecution {
               type: 'taskReport',
             }
           : undefined,
-    });
-  }
-
-  static reattach(id: string): QueryExecution {
-    return new QueryExecution({
-      id,
-      source: 'reattach',
     });
   }
 
@@ -161,7 +142,6 @@ export class QueryExecution {
     const stages = deepGet(report, 'talariaStages.payload.stages') || [];
     let res = new QueryExecution({
       id,
-      source: 'detail',
       status: QueryExecution.normalizeTaskStatus(status),
       startTime: getStartTime(stages),
       stages,
@@ -182,14 +162,12 @@ export class QueryExecution {
   static fromResult(result: QueryResult): QueryExecution {
     return new QueryExecution({
       id: result.sqlQueryId || result.queryId || 'direct_result',
-      source: 'init',
       status: 'SUCCESS',
       result,
     });
   }
 
   public readonly id: string;
-  public readonly source: TalariaSummarySource;
   public readonly sqlQuery?: string;
   public readonly queryContext?: QueryContext;
   public readonly status?: TalariaSummaryStatus;
@@ -202,7 +180,6 @@ export class QueryExecution {
 
   constructor(value: QueryExecutionValue) {
     this.id = value.id;
-    this.source = value.source;
     this.sqlQuery = value.sqlQuery;
     this.queryContext = value.queryContext;
     this.status = value.status;
@@ -217,7 +194,6 @@ export class QueryExecution {
   valueOf(): QueryExecutionValue {
     return {
       id: this.id,
-      source: this.source,
       sqlQuery: this.sqlQuery,
       queryContext: this.queryContext,
       status: this.status,
@@ -228,13 +204,6 @@ export class QueryExecution {
       result: this.result,
       error: this.error,
     };
-  }
-
-  public changeSummarySource(source: TalariaSummarySource): QueryExecution {
-    return new QueryExecution({
-      ...this.valueOf(),
-      source,
-    });
   }
 
   public changeSqlQuery(sqlQuery: string, queryContext?: QueryContext): QueryExecution {
@@ -303,10 +272,6 @@ export class QueryExecution {
         exists: true,
       },
     });
-  }
-
-  public isReattach(): boolean {
-    return this.source === 'reattach';
   }
 
   public isWaitingForQuery(): boolean {

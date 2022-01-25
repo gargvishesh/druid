@@ -44,13 +44,25 @@ import { QueryContext } from '../../utils/query-context';
 export interface SubmitAsyncQueryOptions {
   query: string | Record<string, any>;
   context: QueryContext;
+  skipResults?: boolean;
   prefixLines?: number;
   cancelToken?: CancelToken;
   preserveOnTermination?: boolean;
+  onSubmitted?: (id: string) => void;
 }
 
-export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promise<QueryExecution> {
-  const { query, context, prefixLines, cancelToken, preserveOnTermination } = options;
+export async function submitAsyncQuery(
+  options: SubmitAsyncQueryOptions,
+): Promise<QueryExecution | IntermediateQueryState<QueryExecution>> {
+  const {
+    query,
+    context,
+    skipResults,
+    prefixLines,
+    cancelToken,
+    preserveOnTermination,
+    onSubmitted,
+  } = options;
 
   let sqlQuery: string;
   let jsonQuery: Record<string, any>;
@@ -85,12 +97,48 @@ export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promis
     throw new DruidError(druidError, prefixLines);
   }
 
-  const execution = QueryExecution.fromAsyncStatus(asyncResp.data, sqlQuery, context);
+  let execution = QueryExecution.fromAsyncStatus(asyncResp.data, sqlQuery, context);
+
+  if (onSubmitted) {
+    onSubmitted(execution.id);
+  }
+
+  if (skipResults) {
+    execution = execution.changeDestination({ type: 'download' });
+  }
+
+  if (execution.isFullyComplete()) {
+    return await updateSummaryWithResultsIfNeeded(execution, cancelToken);
+  }
+
   if (cancelToken) {
     cancelAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
   }
 
-  return execution;
+  return new IntermediateQueryState(execution);
+}
+
+export interface ReattachAsyncQueryOptions {
+  id: string;
+  cancelToken?: CancelToken;
+  preserveOnTermination?: boolean;
+}
+
+export async function reattachAsyncQuery(
+  option: ReattachAsyncQueryOptions,
+): Promise<QueryExecution | IntermediateQueryState<QueryExecution>> {
+  const { id, cancelToken, preserveOnTermination } = option;
+  const execution = await getTalariaDetailSummary(id);
+
+  if (execution.isFullyComplete()) {
+    return await updateSummaryWithResultsIfNeeded(execution, cancelToken);
+  }
+
+  if (cancelToken) {
+    cancelAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
+  }
+
+  return new IntermediateQueryState(execution);
 }
 
 export async function getTalariaDetailSummary(
@@ -212,7 +260,7 @@ export async function talariaBackgroundStatusCheck(
   currentSummary: QueryExecution,
   _query: any,
   cancelToken: CancelToken,
-) {
+): Promise<QueryExecution | IntermediateQueryState<QueryExecution>> {
   currentSummary = await updateSummaryWithAsyncIfNeeded(currentSummary, cancelToken);
 
   if (currentSummary.isWaitingForQuery()) return new IntermediateQueryState(currentSummary);
@@ -225,19 +273,24 @@ export async function talariaBackgroundStatusCheck(
   return currentSummary;
 }
 
+export function extractResults(
+  execution: QueryExecution | IntermediateQueryState<QueryExecution>,
+): QueryResult | IntermediateQueryState<QueryExecution> {
+  if (execution instanceof IntermediateQueryState) return execution;
+
+  if (execution.result) {
+    return execution.result;
+  } else {
+    throw new Error(execution.getErrorMessage() || 'unexpected destination');
+  }
+}
+
 export async function talariaBackgroundResultStatusCheck(
   currentSummary: QueryExecution,
   query: any,
   cancelToken: CancelToken,
-) {
-  const updatedSummary = await talariaBackgroundStatusCheck(currentSummary, query, cancelToken);
-  if (updatedSummary instanceof IntermediateQueryState) return updatedSummary;
-
-  if (updatedSummary.result) {
-    return updatedSummary.result;
-  } else {
-    throw new Error(updatedSummary.getErrorMessage() || 'unexpected destination');
-  }
+): Promise<QueryResult | IntermediateQueryState<QueryExecution>> {
+  return extractResults(await talariaBackgroundStatusCheck(currentSummary, query, cancelToken));
 }
 
 // Tabs

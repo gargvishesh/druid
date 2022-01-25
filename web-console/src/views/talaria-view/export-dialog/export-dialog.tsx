@@ -112,17 +112,16 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
       if (!isSql) throw new Error('must be SQL for export');
 
-      const execution = await submitAsyncQuery({
+      return await submitAsyncQuery({
         query,
         context: {
           ...context,
           talariaDestination: asyncDownloadParams.local ? undefined : 'external',
         },
+        skipResults: true,
         prefixLines,
         cancelToken,
       });
-
-      return new IntermediateQueryState(execution.changeDestination({ type: 'download' }));
     },
     backgroundStatusCheck: async (
       currentSummary: QueryExecution,

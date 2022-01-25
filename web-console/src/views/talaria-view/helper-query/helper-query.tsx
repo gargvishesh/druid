@@ -32,13 +32,7 @@ import {
   summarizeExternalConfig,
   TalariaQuery,
 } from '../../../talaria-models';
-import {
-  ColumnMetadata,
-  DruidError,
-  IntermediateQueryState,
-  QueryAction,
-  RowColumn,
-} from '../../../utils';
+import { ColumnMetadata, DruidError, QueryAction, RowColumn } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
@@ -54,7 +48,7 @@ import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
 import {
-  cancelAsyncQueryOnCancel,
+  reattachAsyncQuery,
   submitAsyncQuery,
   talariaBackgroundStatusCheck,
 } from '../talaria-utils';
@@ -117,15 +111,16 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
 
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
-          const execution = await submitAsyncQuery({
+          return await submitAsyncQuery({
             query,
             context,
             prefixLines,
             cancelToken,
             preserveOnTermination: true,
+            onSubmitted: id => {
+              onQueryChange(props.query.changeLastQueryId(id));
+            },
           });
-          onQueryChange(props.query.changeLastQueryId(execution.id));
-          return new IntermediateQueryState(execution);
         } else {
           if (cancelQueryId) {
             void cancelToken.promise
@@ -154,8 +149,11 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
           return QueryExecution.fromResult(result);
         }
       } else {
-        cancelAsyncQueryOnCancel(q, cancelToken, true);
-        return new IntermediateQueryState(QueryExecution.reattach(q), 0);
+        return await reattachAsyncQuery({
+          id: q,
+          cancelToken,
+          preserveOnTermination: true,
+        });
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
@@ -283,9 +281,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               loading={querySummaryState.loading}
               small
             />
-            {querySummaryState.isLoading() && !querySummaryState.intermediate?.isReattach() && (
-              <QueryTimer />
-            )}
+            {querySummaryState.isLoading() && <QueryTimer />}
             {querySummary?.result && (
               <TalariaExtraInfo
                 queryResult={querySummary.result}
@@ -347,7 +343,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                 (querySummaryState.intermediate ? (
                   <div className="stats-container">
                     <StageProgress
-                      reattach={querySummaryState.intermediate.isReattach()}
                       stages={querySummaryState.intermediate.stages}
                       onCancel={() => queryManager.cancelCurrent()}
                     />

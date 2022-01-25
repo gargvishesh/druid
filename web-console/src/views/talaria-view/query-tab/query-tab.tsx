@@ -32,7 +32,6 @@ import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import {
   ColumnMetadata,
   DruidError,
-  IntermediateQueryState,
   localStorageGet,
   LocalStorageKeys,
   localStorageSet,
@@ -55,7 +54,7 @@ import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
 import {
-  cancelAsyncQueryOnCancel,
+  reattachAsyncQuery,
   submitAsyncQuery,
   talariaBackgroundStatusCheck,
 } from '../talaria-utils';
@@ -122,15 +121,16 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
 
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
-          const execution = await submitAsyncQuery({
+          return await submitAsyncQuery({
             query,
             context,
             prefixLines,
             cancelToken,
             preserveOnTermination: true,
+            onSubmitted: id => {
+              onQueryChange(props.query.changeLastQueryId(id));
+            },
           });
-          onQueryChange(props.query.changeLastQueryId(execution.id));
-          return new IntermediateQueryState(execution);
         } else {
           if (cancelQueryId) {
             void cancelToken.promise
@@ -159,8 +159,11 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           return QueryExecution.fromResult(result);
         }
       } else {
-        cancelAsyncQueryOnCancel(q, cancelToken, true);
-        return new IntermediateQueryState(QueryExecution.reattach(q), 0);
+        return await reattachAsyncQuery({
+          id: q,
+          cancelToken,
+          preserveOnTermination: true,
+        });
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
@@ -290,9 +293,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onExport={handleExport}
               loading={querySummaryState.loading}
             />
-            {querySummaryState.isLoading() && !querySummaryState.intermediate?.isReattach() && (
-              <QueryTimer />
-            )}
+            {querySummaryState.isLoading() && <QueryTimer />}
             {querySummary?.result && (
               <TalariaExtraInfo
                 queryResult={querySummary.result}
@@ -365,7 +366,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             (querySummaryState.intermediate ? (
               <div className="stats-container">
                 <StageProgress
-                  reattach={querySummaryState.intermediate.isReattach()}
                   stages={querySummaryState.intermediate.stages}
                   onCancel={() => queryManager.cancelCurrent()}
                   onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}

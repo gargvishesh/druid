@@ -34,8 +34,12 @@ import {
   INPUT_SOURCE_FIELDS,
   QueryExecution,
 } from '../../../../talaria-models';
-import { deepSet, IntermediateQueryState } from '../../../../utils';
-import { submitAsyncQuery, talariaBackgroundResultStatusCheck } from '../../talaria-utils';
+import { deepSet } from '../../../../utils';
+import {
+  extractResults,
+  submitAsyncQuery,
+  talariaBackgroundResultStatusCheck,
+} from '../../talaria-utils';
 
 import './input-source-step.scss';
 
@@ -63,15 +67,15 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         columns: [{ name: 'raw', type: 'string' }],
       });
 
-      const execution = await submitAsyncQuery({
-        query: `SELECT raw FROM ${externExpression} LIMIT 100`,
-        context: {
-          talaria: true,
-        },
-        cancelToken,
-      });
-
-      return new IntermediateQueryState(execution);
+      return extractResults(
+        await submitAsyncQuery({
+          query: `SELECT raw FROM ${externExpression} LIMIT 100`,
+          context: {
+            talaria: true,
+          },
+          cancelToken,
+        }),
+      );
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });

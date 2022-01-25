@@ -174,7 +174,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
 
       // console.log('analyze:', queryString);
 
-      const execution = await submitAsyncQuery({
+      const res = await submitAsyncQuery({
         query: queryString,
         context: {
           talaria: true,
@@ -182,7 +182,13 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         cancelToken,
       });
 
-      return new IntermediateQueryState(execution);
+      if (res instanceof IntermediateQueryState) return res;
+
+      if (res.result) {
+        return queryResultToAnalysis(analyzeQuery, res.result);
+      } else {
+        throw new Error(res.getErrorMessage() || 'unexpected destination');
+      }
     },
     backgroundStatusCheck: async (
       currentSummary: QueryExecution,

@@ -28,7 +28,7 @@ import {
   ingestQueryPatternToQuery,
   QueryExecution,
 } from '../../talaria-models';
-import { getContextFromSqlQuery, IntermediateQueryState } from '../../utils';
+import { getContextFromSqlQuery } from '../../utils';
 
 import { InitStep } from './external-config-dialog/init-step/init-step';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
@@ -63,7 +63,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();
       if (!insertDatasource) throw new Error(`Must have insert datasource`);
 
-      const execution = await submitAsyncQuery({
+      return await submitAsyncQuery({
         query: queryString,
         context: {
           ...getContextFromSqlQuery(queryString),
@@ -71,8 +71,6 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
         },
         cancelToken,
       });
-
-      return new IntermediateQueryState(execution);
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
   });

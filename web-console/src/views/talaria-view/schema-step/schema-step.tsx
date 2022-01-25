@@ -51,7 +51,6 @@ import {
   change,
   filterMap,
   getContextFromSqlQuery,
-  IntermediateQueryState,
   oneOf,
   QueryAction,
   without,
@@ -61,7 +60,11 @@ import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-e
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import { submitAsyncQuery, talariaBackgroundResultStatusCheck } from '../talaria-utils';
+import {
+  extractResults,
+  submitAsyncQuery,
+  talariaBackgroundResultStatusCheck,
+} from '../talaria-utils';
 
 import { ColumnList } from './column-list/column-list';
 import { PreviewTable } from './preview-table/preview-table';
@@ -269,17 +272,17 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      const execution = await submitAsyncQuery({
-        query: previewQueryString,
-        context: {
-          ...getContextFromSqlQuery(previewQueryString),
-          talaria: true,
-          sqlOuterLimit: 50,
-        },
-        cancelToken,
-      });
-
-      return new IntermediateQueryState(execution);
+      return extractResults(
+        await submitAsyncQuery({
+          query: previewQueryString,
+          context: {
+            ...getContextFromSqlQuery(previewQueryString),
+            talaria: true,
+            sqlOuterLimit: 50,
+          },
+          cancelToken,
+        }),
+      );
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
