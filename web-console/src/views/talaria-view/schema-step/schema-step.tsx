@@ -56,15 +56,15 @@ import {
   without,
 } from '../../../utils';
 import { dataTypeToIcon } from '../../query-view/query-utils';
+import {
+  extractQueryResults,
+  submitAsyncQuery,
+  talariaBackgroundResultStatusCheck,
+} from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import {
-  extractResults,
-  submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
-} from '../talaria-utils';
 
 import { ColumnList } from './column-list/column-list';
 import { PreviewTable } from './preview-table/preview-table';
@@ -272,7 +272,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      return extractResults(
+      return extractQueryResults(
         await submitAsyncQuery({
           query: previewQueryString,
           context: {

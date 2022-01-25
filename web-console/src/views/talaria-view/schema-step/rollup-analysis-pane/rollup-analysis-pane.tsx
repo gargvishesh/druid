@@ -31,7 +31,7 @@ import {
   QueryAction,
 } from '../../../../utils';
 import { ColumnActionMenu } from '../../column-action-menu/column-action-menu';
-import { submitAsyncQuery, talariaBackgroundStatusCheck } from '../../talaria-utils';
+import { submitAsyncQuery, talariaBackgroundStatusCheck } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';
 
@@ -191,11 +191,11 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       }
     },
     backgroundStatusCheck: async (
-      currentSummary: QueryExecution,
+      execution: QueryExecution,
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(currentSummary, analyzeQuery, cancelToken);
+      const res = await talariaBackgroundStatusCheck(execution, analyzeQuery, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (res.result) {

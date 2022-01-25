@@ -18,7 +18,7 @@
 
 import { sane } from 'druid-query-toolkit';
 
-import { convertSpecToSql } from './talaria-utils';
+import { convertSpecToSql } from './spec-conversion';
 
 describe('talaria-utils', () => {
   it('converts spec (without rollup)', () => {

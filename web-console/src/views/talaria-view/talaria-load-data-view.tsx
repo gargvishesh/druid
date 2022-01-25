@@ -30,13 +30,13 @@ import {
 } from '../../talaria-models';
 import { getContextFromSqlQuery } from '../../utils';
 
+import { submitAsyncQuery, talariaBackgroundStatusCheck } from './execution-utils';
 import { InitStep } from './external-config-dialog/init-step/init-step';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
 import { StageProgress } from './stage-progress/stage-progress';
 import { TalariaStats } from './talaria-stats/talaria-stats';
-import { submitAsyncQuery, talariaBackgroundStatusCheck } from './talaria-utils';
 
 import './talaria-load-data-view.scss';
 

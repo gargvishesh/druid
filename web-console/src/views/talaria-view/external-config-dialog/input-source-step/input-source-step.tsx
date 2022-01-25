@@ -36,10 +36,10 @@ import {
 } from '../../../../talaria-models';
 import { deepSet } from '../../../../utils';
 import {
-  extractResults,
+  extractQueryResults,
   submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
-} from '../../talaria-utils';
+} from '../../execution-utils';
 
 import './input-source-step.scss';
 
@@ -67,7 +67,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         columns: [{ name: 'raw', type: 'string' }],
       });
 
-      return extractResults(
+      return extractQueryResults(
         await submitAsyncQuery({
           query: `SELECT raw FROM ${externExpression} LIMIT 100`,
           context: {

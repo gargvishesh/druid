@@ -36,6 +36,11 @@ import { ColumnMetadata, DruidError, QueryAction, RowColumn } from '../../../uti
 import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
+import {
+  reattachAsyncQuery,
+  submitAsyncQuery,
+  talariaBackgroundStatusCheck,
+} from '../execution-utils';
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { InsertSuccess } from '../insert-success/insert-success';
 import { useMetadataStateStore } from '../metadata-state-store';
@@ -47,11 +52,6 @@ import { TalariaQueryError } from '../talaria-query-error/talaria-query-error';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
-import {
-  reattachAsyncQuery,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from '../talaria-utils';
 import { useWorkStateStore } from '../work-state-store';
 
 import './helper-query.scss';
@@ -88,7 +88,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   const queryInputRef = useRef<TalariaQueryInput | null>(null);
 
   const id = query.getId();
-  const [querySummaryState, queryManager] = useQueryManager<
+  const [queryExecutionState, queryManager] = useQueryManager<
     TalariaQuery | string,
     QueryExecution,
     QueryExecution,
@@ -160,27 +160,27 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   });
 
   useEffect(() => {
-    if (querySummaryState.data || querySummaryState.error) {
-      TalariaQueryStateCache.storeState(id, querySummaryState);
+    if (queryExecutionState.data || queryExecutionState.error) {
+      TalariaQueryStateCache.storeState(id, queryExecutionState);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [querySummaryState.data, querySummaryState.error]);
+  }, [queryExecutionState.data, queryExecutionState.error]);
 
   const incrementWorkVersion = useWorkStateStore(state => state.increment);
   useEffect(() => {
     incrementWorkVersion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [querySummaryState.loading]);
+  }, [queryExecutionState.loading]);
 
-  const querySummary = querySummaryState.data;
+  const queryExecution = queryExecutionState.data;
 
   const incrementMetadataVersion = useMetadataStateStore(state => state.increment);
   useEffect(() => {
-    if (querySummary?.isSuccessfulInsert()) {
+    if (queryExecution?.isSuccessfulInsert()) {
       incrementMetadataVersion();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(querySummary?.isSuccessfulInsert())]);
+  }, [Boolean(queryExecution?.isSuccessfulInsert())]);
 
   function moveToPosition(position: RowColumn) {
     const currentQueryInput = queryInputRef.current;
@@ -199,7 +199,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   const collapsed = query.getCollapsed();
   const insertDatasource = query.getInsertDatasource();
 
-  const statsTaskId: string | undefined = querySummary?.id;
+  const statsTaskId: string | undefined = queryExecution?.id;
 
   let extraInfo: string | undefined;
   if (collapsed && parsedQuery instanceof SqlQuery) {
@@ -278,17 +278,17 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               onQueryChange={onQueryChange}
               onRun={handleRun}
               onExport={handleExport}
-              loading={querySummaryState.loading}
+              loading={queryExecutionState.loading}
               small
             />
-            {querySummaryState.isLoading() && <QueryTimer />}
-            {querySummary?.result && (
+            {queryExecutionState.isLoading() && <QueryTimer />}
+            {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={querySummary.result}
+                queryResult={queryExecution.result}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}
-            {(querySummary || querySummaryState.error) && (
+            {(queryExecution || queryExecutionState.error) && (
               <Button
                 className="reset"
                 icon={IconNames.CROSS}
@@ -302,36 +302,36 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               />
             )}
           </div>
-          {!querySummaryState.isInit() && (
+          {!queryExecutionState.isInit() && (
             <div className="output-pane">
-              {querySummary &&
-                (querySummary.result ? (
+              {queryExecution &&
+                (queryExecution.result ? (
                   <QueryOutput2
                     runeMode={runeMode}
-                    queryResult={querySummary.result}
+                    queryResult={queryExecution.result}
                     onExport={handleExport}
                     onQueryAction={handleQueryAction}
                     initPageSize={5}
                   />
-                ) : querySummary.isSuccessfulInsert() ? (
+                ) : queryExecution.isSuccessfulInsert() ? (
                   <InsertSuccess
-                    insertSummary={querySummary}
+                    insertQueryExecution={queryExecution}
                     onStats={() => onStats(statsTaskId!)}
                     onQueryChange={handleQueryStringChange}
                   />
-                ) : querySummary.error ? (
+                ) : queryExecution.error ? (
                   <div className="stats-container">
-                    <TalariaQueryError taskError={querySummary.error} />
-                    {querySummary.stages && (
-                      <TalariaStats stages={querySummary.stages} error={querySummary.error} />
+                    <TalariaQueryError taskError={queryExecution.error} />
+                    {queryExecution.stages && (
+                      <TalariaStats stages={queryExecution.stages} error={queryExecution.error} />
                     )}
                   </div>
                 ) : (
                   <div>Unknown query execution state</div>
                 ))}
-              {querySummaryState.error && (
+              {queryExecutionState.error && (
                 <QueryError
-                  error={querySummaryState.error}
+                  error={queryExecutionState.error}
                   moveCursorTo={position => {
                     moveToPosition(position);
                   }}
@@ -339,11 +339,11 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   onQueryStringChange={handleQueryStringChange}
                 />
               )}
-              {querySummaryState.isLoading() &&
-                (querySummaryState.intermediate ? (
+              {queryExecutionState.isLoading() &&
+                (queryExecutionState.intermediate ? (
                   <div className="stats-container">
                     <StageProgress
-                      stages={querySummaryState.intermediate.stages}
+                      stages={queryExecutionState.intermediate.stages}
                       onCancel={() => queryManager.cancelCurrent()}
                     />
                   </div>

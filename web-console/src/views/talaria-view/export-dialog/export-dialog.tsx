@@ -33,7 +33,11 @@ import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
 import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
-import { downloadResults, submitAsyncQuery, talariaBackgroundStatusCheck } from '../talaria-utils';
+import {
+  downloadQueryResults,
+  submitAsyncQuery,
+  talariaBackgroundStatusCheck,
+} from '../execution-utils';
 
 import './export-dialog.scss';
 
@@ -124,19 +128,15 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       });
     },
     backgroundStatusCheck: async (
-      currentSummary: QueryExecution,
+      execution: QueryExecution,
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(
-        currentSummary,
-        asyncDownloadParams,
-        cancelToken,
-      );
+      const res = await talariaBackgroundStatusCheck(execution, asyncDownloadParams, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (asyncDownloadParams.local) {
-        downloadResults(
+        downloadQueryResults(
           res.id,
           addExtensionIfNeeded(
             asyncDownloadParams.filename!,

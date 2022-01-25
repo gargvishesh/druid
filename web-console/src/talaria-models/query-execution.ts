@@ -52,13 +52,13 @@ type ExecutionDestination =
   | { type: 'external' }
   | { type: 'download' };
 
-export type TalariaSummaryStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
+export type QueryExecutionStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
 
 export interface QueryExecutionValue {
   id: string;
   sqlQuery?: string;
   queryContext?: QueryContext;
-  status?: TalariaSummaryStatus;
+  status?: QueryExecutionStatus;
   startTime?: Date;
   duration?: number;
   stages?: StageDefinition[];
@@ -76,7 +76,7 @@ export class QueryExecution {
 
   static normalizeAsyncStatus(
     state: 'INITIALIZED' | 'RUNNING' | 'COMPLETE' | 'FAILED' | 'UNDETERMINED',
-  ): TalariaSummaryStatus {
+  ): QueryExecutionStatus {
     switch (state) {
       case 'COMPLETE':
         return 'SUCCESS';
@@ -93,7 +93,7 @@ export class QueryExecution {
   // Treat WAITING as PENDING since they are all the same as far as the UI is concerned
   static normalizeTaskStatus(
     status: 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS',
-  ): TalariaSummaryStatus {
+  ): QueryExecutionStatus {
     switch (status) {
       case 'SUCCESS':
       case 'FAILED':
@@ -139,7 +139,7 @@ export class QueryExecution {
       error = deepGet(report, 'talariaStatus.payload.errorReport');
     }
 
-    const stages = deepGet(report, 'talariaStages.payload.stages') || [];
+    const stages = deepGet(report, 'talariaStages.payload.stages');
     let res = new QueryExecution({
       id,
       status: QueryExecution.normalizeTaskStatus(status),
@@ -170,7 +170,7 @@ export class QueryExecution {
   public readonly id: string;
   public readonly sqlQuery?: string;
   public readonly queryContext?: QueryContext;
-  public readonly status?: TalariaSummaryStatus;
+  public readonly status?: QueryExecutionStatus;
   public readonly startTime?: Date;
   public readonly duration?: number;
   public readonly stages?: StageDefinition[];

@@ -42,7 +42,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
   return (
     <div className="stage-progress">
       <Label>
-        Running query...
+        {stages ? 'Running query...' : 'Loading...'}
         {onCancel && (
           <>
             {' '}

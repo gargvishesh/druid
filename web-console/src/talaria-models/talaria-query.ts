@@ -36,6 +36,12 @@ export interface InsertIntoConfig {
   readonly segmentGranularity: string;
 }
 
+export interface TabEntry {
+  id: string;
+  tabName: string;
+  query: TalariaQuery;
+}
+
 export type DruidEngine = 'broker' | 'async' | 'talaria';
 
 // -----------------------------

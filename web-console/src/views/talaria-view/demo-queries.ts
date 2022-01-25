@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-import { TalariaQuery } from '../../talaria-models';
-
-import { TabEntry } from './talaria-utils';
+import { TabEntry, TalariaQuery } from '../../talaria-models';
 
 const BASE_QUERY = TalariaQuery.blank().changeQueryContext({ talariaNumTasks: 2 });
 

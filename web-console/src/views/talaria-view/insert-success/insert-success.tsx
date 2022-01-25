@@ -25,22 +25,22 @@ import { formatDuration, pluralIfNeeded } from '../../../utils';
 import './insert-success.scss';
 
 export interface InsertSuccessProps {
-  insertSummary: QueryExecution;
+  insertQueryExecution: QueryExecution;
   onStats(): void;
   onQueryChange(queryString: string): void;
 }
 
 export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSuccessProps) {
-  const { insertSummary, onStats, onQueryChange } = props;
+  const { insertQueryExecution, onStats, onQueryChange } = props;
 
-  const dataSource = insertSummary.getInsertDataSource();
-  if (!dataSource || !insertSummary.stages) return null;
+  const dataSource = insertQueryExecution.getInsertDataSource();
+  if (!dataSource || !insertQueryExecution.stages) return null;
 
-  const lastStage = insertSummary.stages[insertSummary.stages.length - 1];
+  const lastStage = insertQueryExecution.stages[insertQueryExecution.stages.length - 1];
   const rows = getTotalCountForStage(lastStage, 'input', 'rows');
   const table = SqlTableRef.create(dataSource);
 
-  const duration = insertSummary.getDuration();
+  const duration = insertQueryExecution.getDuration();
   return (
     <div className="insert-success">
       <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${dataSource}.`}</p>
