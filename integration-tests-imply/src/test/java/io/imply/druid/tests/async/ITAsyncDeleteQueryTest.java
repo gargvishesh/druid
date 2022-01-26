@@ -19,16 +19,16 @@ import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
+import org.apache.druid.testing.utils.DataLoaderHelper;
 import org.apache.druid.testing.utils.DruidClusterAdminClient;
 import org.apache.druid.testing.utils.ITRetryUtil;
 import org.apache.druid.tests.indexer.AbstractIndexerTest;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
-import java.io.Closeable;
-import java.lang.reflect.Method;
 import java.util.List;
 
 @Test(groups = ImplyTestNGGroup.ASYNC_DOWNLOAD)
@@ -46,57 +46,62 @@ public class ITAsyncDeleteQueryTest extends AbstractIndexerTest
   @Inject
   private AsyncResourceTestClient asyncResourceTestClient;
 
-  private String fullDatasourceName;
+  @Inject
+  private DataLoaderHelper dataLoaderHelper;
 
-  @BeforeMethod
-  public void setFullDatasourceName(Method method)
+  @BeforeClass
+  public void setUp() throws Exception
   {
-    fullDatasourceName = INDEX_DATASOURCE + config.getExtraDatasourceNameSuffix() + "-" + method.getName();
+    loadData(INDEX_TASK, INDEX_DATASOURCE);
+    dataLoaderHelper.waitUntilDatasourceIsReady(INDEX_DATASOURCE);
+  }
+
+  @AfterClass
+  public void tearDown()
+  {
+    unloader(INDEX_DATASOURCE);
   }
 
   @Test
   public void testKillAsyncQuerySanity() throws Exception
   {
-    try (final Closeable ignored = unloader(fullDatasourceName)) {
-      loadData(INDEX_TASK, fullDatasourceName);
-      final SqlQuery query = new SqlQuery(
-          "SELECT count(*) FROM \"" + fullDatasourceName + "\"",
-          ResultFormat.ARRAY,
-          false,
-          false,
-          false,
-          null,
-          null
-      );
-      SqlAsyncQueryDetailsApiResponse response = asyncResourceTestClient.submitAsyncQuery(query);
-      Assert.assertEquals(response.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
-      String asyncResultId = response.getAsyncResultId();
-      ITRetryUtil.retryUntilTrue(
-          () -> {
-            SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
-            return statusResponse.getState() == SqlAsyncQueryDetails.State.COMPLETE;
-          },
-          "Waiting for async task to be completed"
-      );
+    final SqlQuery query = new SqlQuery(
+        "SELECT count(*) FROM \"" + INDEX_DATASOURCE + "\"",
+        ResultFormat.ARRAY,
+        false,
+        false,
+        false,
+        null,
+        null
+    );
+    SqlAsyncQueryDetailsApiResponse response = asyncResourceTestClient.submitAsyncQuery(query);
+    Assert.assertEquals(response.getState(), SqlAsyncQueryDetails.State.INITIALIZED);
+    String asyncResultId = response.getAsyncResultId();
+    ITRetryUtil.retryUntilTrue(
+        () -> {
+          SqlAsyncQueryDetailsApiResponse statusResponse = asyncResourceTestClient.getStatus(asyncResultId);
+          return statusResponse.getState() == SqlAsyncQueryDetails.State.COMPLETE;
+        },
+        "Waiting for async task to be completed"
+    );
 
-      List<List<Object>> results = asyncResourceTestClient.getResults(asyncResultId);
-      // Result should only contain one row
-      Assert.assertEquals(results.size(), 1);
-      Assert.assertTrue(resultFileExists(asyncResultId));
+    List<List<Object>> results = asyncResourceTestClient.getResults(asyncResultId);
+    // Result should only contain one row
+    Assert.assertEquals(results.size(), 1);
+    Assert.assertTrue(resultFileExists(asyncResultId));
 
-      // cancel query
-      Assert.assertTrue(asyncResourceTestClient.cancel(asyncResultId));
+    // cancel query
+    Assert.assertTrue(asyncResourceTestClient.cancel(asyncResultId));
 
-      // status should be not found
-      Assert.assertNull(asyncResourceTestClient.getStatus(asyncResultId));
+    // status should be not found
+    Assert.assertNull(asyncResourceTestClient.getStatus(asyncResultId));
 
-      // result should be null
-      Assert.assertNull(asyncResourceTestClient.getResults(asyncResultId));
-      Assert.assertFalse(resultFileExists(asyncResultId));
+    // result should be null
+    Assert.assertNull(asyncResourceTestClient.getResults(asyncResultId));
+    Assert.assertFalse(resultFileExists(asyncResultId));
 
-      // issue cancel again
-      Assert.assertFalse(asyncResourceTestClient.cancel(asyncResultId));
-    }
+    // issue cancel again
+    Assert.assertFalse(asyncResourceTestClient.cancel(asyncResultId));
   }
 
   private boolean resultFileExists(String asyncResultId) throws Exception
