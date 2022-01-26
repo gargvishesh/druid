@@ -22,7 +22,7 @@ import React, { useState } from 'react';
 
 import { AutoForm, CenterMessage, Loader } from '../../../../components';
 import {
-  getColumnTypeFromHeaderAndRows,
+  guessColumnTypeFromHeaderAndRows,
   INPUT_FORMAT_FIELDS,
   InputFormat,
   InputSource,
@@ -32,9 +32,9 @@ import { useQueryManager } from '../../../../hooks';
 import { ExternalConfigColumn } from '../../../../talaria-models';
 import { deepSet } from '../../../../utils';
 import {
-  HeaderAndRows,
   headerAndRowsFromSampleResponse,
   postToSampler,
+  SampleHeaderAndRows,
   SampleSpec,
 } from '../../../../utils/sampler';
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
@@ -57,7 +57,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
     AutoForm.isValidModel(initInputFormat, INPUT_FORMAT_FIELDS) ? initInputFormat : undefined,
   );
 
-  const [parseQueryState] = useQueryManager<InputFormat, HeaderAndRows>({
+  const [parseQueryState] = useQueryManager<InputFormat, SampleHeaderAndRows>({
     query: inputFormatToSample,
     processQuery: async (inputFormat: InputFormat) => {
       const sampleSpec: SampleSpec = {
@@ -134,7 +134,11 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
               inputFormat as any,
               sampleData.header.map(name => ({
                 name,
-                type: getColumnTypeFromHeaderAndRows(sampleData, name),
+                type: guessColumnTypeFromHeaderAndRows(
+                  sampleData,
+                  name,
+                  initInputFormat.type !== 'json',
+                ),
               })),
             );
           }}
