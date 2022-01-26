@@ -63,7 +63,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
     processQuery: async (inputSource: InputSource, cancelToken) => {
       const query = `SELECT raw FROM ${externalConfigToTableExpression({
         inputSource,
-        inputFormat: { type: 'regex', pattern: '(.*)', columns: ['raw'] },
+        inputFormat: { type: 'regex', pattern: '([\\s\\S]*)', columns: ['raw'] },
         columns: [{ name: 'raw', type: 'string' }],
       })} LIMIT 100`;
 
