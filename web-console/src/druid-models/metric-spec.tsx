@@ -22,9 +22,9 @@ import React from 'react';
 import { ExternalLink, Field } from '../components';
 import { getLink } from '../links';
 import { filterMap, typeIs } from '../utils';
-import { HeaderAndRows } from '../utils/sampler';
+import { SampleHeaderAndRows } from '../utils/sampler';
 
-import { getColumnTypeFromHeaderAndRows } from './ingestion-spec';
+import { guessColumnTypeFromHeaderAndRows } from './ingestion-spec';
 
 export interface MetricSpec {
   readonly type: string;
@@ -345,13 +345,16 @@ export function getMetricSpecOutputType(metricSpec: MetricSpec): string | undefi
 }
 
 export function getMetricSpecs(
-  headerAndRows: HeaderAndRows,
+  headerAndRows: SampleHeaderAndRows,
   typeHints: Record<string, string>,
+  guessNumericStringsAsNumbers: boolean,
 ): MetricSpec[] {
   return [{ name: 'count', type: 'count' }].concat(
     filterMap(headerAndRows.header, h => {
       if (h === '__time') return;
-      const type = typeHints[h] || getColumnTypeFromHeaderAndRows(headerAndRows, h);
+      const type =
+        typeHints[h] ||
+        guessColumnTypeFromHeaderAndRows(headerAndRows, h, guessNumericStringsAsNumbers);
       switch (type) {
         case 'double':
           return { name: `sum_${h}`, type: 'doubleSum', fieldName: h };

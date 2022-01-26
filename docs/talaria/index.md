@@ -158,7 +158,7 @@ data is inserted into the `wikipedia` table.
 
 > Context comments are available only in the web console. When using
 > the API, context comments will be ignored, and
-> [context parameters](https://druid.apache.org/docs/latest/querying/query-context.html)
+> [context parameters](https://docs.imply.io/latest/druid/querying/query-context.html)
 > must be provided separately from the query string.
 
 The data is now queryable. Run the following query to analyze the data
@@ -250,16 +250,16 @@ When you run a query with Talaria, the following happens:
 
 #### Request
 
-Submit queries using the [`POST /druid/v2/sql/async/`](/latest/druid/querying/imply-sql-async-api/#submit-a-query) API provided by
+Submit queries using the [`POST /druid/v2/sql/async/`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query) API provided by
 the `imply-sql-async` extension, with `talaria: true` set as a
-[context parameter](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
+[context parameter](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
 
 Currently, Talaria-based queries ignore the provided values of `resultFormat`, `header`, `typesHeader`, and
 `sqlTypesHeader`. They always behave as if `resultFormat` is "array", `header` is true, `typesHeader` is true, and
 `sqlTypesHeader` is true.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#submit-a-query).
+[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query).
 
 **HTTP**
 
@@ -288,7 +288,7 @@ curl -XPOST -H'Content-Type: application/json' \
 **Query syntax**
 
 The `query` can be any
-[Druid SQL](https://druid.apache.org/docs/latest/querying/sql.html)
+[Druid SQL](https://docs.imply.io/latest/druid/querying/sql.html)
 query, subject to the limitations mentioned in the [Known issues](#known-issues)
 section. In addition to standard Druid SQL syntax, queries that run with Talaria
 can use two additional features:
@@ -299,7 +299,7 @@ can use two additional features:
 **Context parameters**
 
 The Talaria engine accepts additional Druid SQL
-[context parameters](https://druid.apache.org/docs/latest/querying/sql.html#connection-context).
+[context parameters](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
 
 > Context comments like `--:context talariaSegmentGranularity: day`
 > are available only in the web console. When using the API, context comments
@@ -330,7 +330,7 @@ The Talaria engine accepts additional Druid SQL
 
 |Field|Description|
 |-----|-----------|
-|asyncResultId|Controller task ID.<br /><br />Druid's standard [task APIs](https://druid.apache.org/docs/latest/operations/api-reference.html#overlord) can be used to interact with this controller task.|
+|asyncResultId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
 |state|Initial state for the query, which is "RUNNING".|
 |resultFormat|Always "array", regardless of what was specified in your original query, because Talaria-based queries currently only support the "array" result format.|
 |engine|String "Talaria-Indexer" if this query was run with Talaria.|
@@ -340,11 +340,11 @@ The Talaria engine accepts additional Druid SQL
 > Talaria-based query APIs are in a work-in-progress state for the alpha. They may change in future releases.
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
-Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](/latest/druid/querying/imply-sql-async-api/#get-query-status) API
+Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-status) API
 provided by the `imply-sql-async` extension.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#get-query-status).
+[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-status).
 
 #### Request
 
@@ -376,11 +376,11 @@ curl -u 'user:password' \
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
 If the query succeeds, and is a `SELECT` query, obtain the results using the
-[`GET /druid/v2/sql/async/{asyncResultId}/results`](/latest/druid/querying/imply-sql-async-api/#get-query-results) API
+[`GET /druid/v2/sql/async/{asyncResultId}/results`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-results) API
 provided by the `imply-sql-async` extension.
 
 See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#get-query-results).
+[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-results).
 
 #### Request
 
@@ -411,14 +411,14 @@ Currently, Talaria-based queries ignore the provided values of `resultFormat`, `
 > We recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
 Cancel a query using the
-[`DELETE /druid/v2/sql/async/{asyncResultId}`](/latest/druid/querying/imply-sql-async-api/#cancel-a-query) API
+[`DELETE /druid/v2/sql/async/{asyncResultId}`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#cancel-a-query) API
 provided by the `imply-sql-async` extension.
 
 When a Talaria-based query is canceled, the query results and metadata are not removed. This differs
 from Broker-based async queries, where query results and metadata are removed when a query is canceled.
 
 See below for an example request. For more details, refer to the
-[`imply-sql-async` documentation](/latest/druid/querying/imply-sql-async-api/#cancel-a-query).
+[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#cancel-a-query).
 
 ### Get query details
 
@@ -580,8 +580,8 @@ curl -u 'user:password' \
 |talariaStatus.payload.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
 |talariaResults|Query result container. Only present for SELECT queries that have successfully completed.
 |talariaResults.taskId|Controller task ID.|
-|talariaResults.payload.signature|Row signature of query results. The `type` fields are [native Druid types](https://druid.apache.org/docs/latest/querying/sql.html#data-types).|
-|talariaResults.payload.sqlTypeNames|SQL type names of query results. This is an array of the same length as talariaResults.payload.signature. The types are [SQL types](https://druid.apache.org/docs/latest/querying/sql.html#data-types) rather than native Druid types.|
+|talariaResults.payload.signature|Row signature of query results. The `type` fields are [native Druid types](https://docs.imply.io/latest/druid/querying/sql.html#data-types).|
+|talariaResults.payload.sqlTypeNames|SQL type names of query results. This is an array of the same length as talariaResults.payload.signature. The types are [SQL types](https://docs.imply.io/latest/druid/querying/sql.html#data-types) rather than native Druid types.|
 |talariaStages|Query stage details container.|
 |talariaStages.taskId|Controller task ID.|
 |talariaStages.payload.stages|Array of query stages.|
@@ -657,11 +657,11 @@ LIMIT 100
 The `EXTERN` function takes three parameters:
 
 1.  Any [Druid input
-source](https://druid.apache.org/docs/latest/ingestion/native-batch.html#input-sources),
+source](https://docs.imply.io/latest/druid/ingestion/native-batch.html#input-sources),
     as a JSON-encoded string.
 
 2.  Any [Druid input
-    format](https://druid.apache.org/docs/latest/ingestion/data-formats.html#input-format),
+    format](https://docs.imply.io/latest/druid/ingestion/data-formats.html#input-format),
     as a JSON-encoded string.
 
 3.  A row signature, as a JSON-encoded array of column descriptors. Each
@@ -785,7 +785,7 @@ modifications needed.
 Currently, multi-value dimensions are not ingested as expected when
 rollup is enabled, because the GROUP BY operator unnests them instead of
 leaving them as arrays. This is [standard
-behavior](https://druid.apache.org/docs/latest/querying/sql.html#multi-value-strings)
+behavior](https://docs.imply.io/latest/druid/querying/sql.html#multi-value-strings)
 for GROUP BY in Druid queries, but is generally not desirable behavior for
 ingestion. In the future, we will provide an alternate syntax that instructs
 the query to leave arrays alone instead of unnesting them.
@@ -1224,11 +1224,11 @@ LIMIT 1000
 
 **Issues with INSERT queries.**
 
-- The [schemaless dimensions](https://druid.apache.org/docs/latest/ingestion/ingestion-spec.html#inclusions-and-exclusions)
+- The [schemaless dimensions](https://docs.imply.io/latest/druid/ingestion/ingestion-spec.html#inclusions-and-exclusions)
   feature is not available. All columns and their types must be
   specified explicitly. (15004)
 
-- [Segment metadata queries](https://druid.apache.org/docs/latest/querying/segmentmetadataquery.html)
+- [Segment metadata queries](https://docs.imply.io/latest/druid/querying/segmentmetadataquery.html)
   on datasources ingested with Talaria will return values for `rollup`,
   `queryGranularity`, `timestampSpec`, and `aggregators` that are not
   usable for introspection. In particular, Pivot will not be able to
@@ -1248,7 +1248,7 @@ LIMIT 1000
 - When using GROUP BY, multi-value dimensions are not ingested as
   expected. The GROUP BY operator unnests them instead of
   leaving them as arrays. This is [standard
-  behavior](https://druid.apache.org/docs/latest/querying/sql.html#multi-value-strings)
+  behavior](https://docs.imply.io/latest/druid/querying/sql.html#multi-value-strings)
   for GROUP BY in Druid queries, but is generally not desirable
   behavior for ingestion. In the future, we will provide an
   alternate syntax that instructs the query to leave arrays alone
@@ -1296,7 +1296,7 @@ LIMIT 1000
 
 **2022.01** <a href="#2022.01" name="2022.01">#</a>
 
-- Introduced async query API based on the [`imply-sql-async`](/latest/druid/querying/imply-sql-async-api/#submit-a-query)
+- Introduced async query API based on the [`imply-sql-async`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query)
   extension. (15014)
 - Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
   aggregation results. (15010)
