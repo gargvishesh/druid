@@ -43,12 +43,6 @@
         fill: $druid-brand2;
       }
 
-      .dot-next {
-        transform: translate(210px, 120px);
-        fill: $druid-brand2;
-        font-size: 30px;
-      }
-
       .bp3-dark & {
         .letter {
           fill: $white;
@@ -56,10 +50,6 @@
 
         .swirl {
           fill: $druid-brand;
-        }
-
-        .dot-next {
-          fill: $white;
         }
       }
     }
