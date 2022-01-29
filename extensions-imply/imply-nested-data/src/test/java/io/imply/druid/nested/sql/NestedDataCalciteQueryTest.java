@@ -197,7 +197,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   {
     testQuery(
         "SELECT "
-        + "GET_PATH(nest, 'x'), "
+        + "GET_PATH(nest, '.x'), "
         + "SUM(cnt) "
         + "FROM druid.nested GROUP BY 1",
         ImmutableList.of(
@@ -206,7 +206,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest.x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".x", "v0")
                         )
                         .setDimensions(
                             dimensions(
@@ -226,24 +226,28 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
 
 
   @Test
-  public void testGroupByJsonPath() throws Exception
+  public void testGroupByJsonPaths() throws Exception
   {
     testQuery(
         "SELECT "
-        + "JSON_GET_PATH(nest, 'x'), "
+        + "JSON_GET_PATH(nest, '.x'), "
+        + "JSON_GET_PATH(nest, '.\"x\"'), "
+        + "JSON_GET_PATH(nest, '.[\"x\"]'), "
         + "SUM(cnt) "
-        + "FROM druid.nested GROUP BY 1",
+        + "FROM druid.nested GROUP BY 1, 2, 3",
         ImmutableList.of(
             GroupByQuery.builder()
                         .setDataSource(DATA_SOURCE)
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest.x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".\"x\"", "v0")
                         )
                         .setDimensions(
                             dimensions(
-                                new DefaultDimensionSpec("v0", "d0")
+                                new DefaultDimensionSpec("v0", "d0"),
+                                new DefaultDimensionSpec("v0", "d1"),
+                                new DefaultDimensionSpec("v0", "d2")
                             )
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
@@ -251,8 +255,8 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), 4L},
-            new Object[]{"100", 2L}
+            new Object[]{NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", "100", "100", 2L}
         )
     );
   }
@@ -262,16 +266,16 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   {
     testQuery(
         "SELECT "
-        + "GET_PATH(nest, 'x'), "
+        + "GET_PATH(nest, '.x'), "
         + "SUM(cnt) "
-        + "FROM druid.nested WHERE GET_PATH(nest, 'x') = '100' GROUP BY 1",
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') = '100' GROUP BY 1",
         ImmutableList.of(
             GroupByQuery.builder()
                         .setDataSource(DATA_SOURCE)
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest.x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".x", "v0")
                         )
                         .setDimensions(
                             dimensions(

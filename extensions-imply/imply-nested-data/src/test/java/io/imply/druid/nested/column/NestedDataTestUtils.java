@@ -181,6 +181,7 @@ public class NestedDataTestUtils
     IncrementalIndex index = AggregationTestHelper.createIncrementalIndex(
         iter,
         parser,
+        parser.getParseSpec().getDimensionsSpec().getDimensions(),
         aggregatorSpecs.toArray(new AggregatorFactory[0]),
         0,
         granularity,

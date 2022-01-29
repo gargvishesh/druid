@@ -10,12 +10,14 @@
 package io.imply.druid.nested.column;
 
 import com.fasterxml.jackson.databind.Module;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.nested.NestedDataModule;
 import io.imply.druid.nested.virtual.NestedFieldVirtualColumn;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
@@ -35,6 +37,7 @@ import java.util.List;
 
 public class NestedDataIngestionTest extends InitializedNullHandlingTest
 {
+  private static final Logger LOG = new Logger(NestedDataColumnSerializer.class);
   private final AggregationTestHelper helper;
 
   @Rule
@@ -61,9 +64,9 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
                                                  )
                                              )
                                              .virtualColumns(
-                                                 new NestedFieldVirtualColumn("nest.x", "x"),
-                                                 new NestedFieldVirtualColumn("nester.x[0]", "x_0"),
-                                                 new NestedFieldVirtualColumn("nester.y.c[1]", "y_c_1")
+                                                 new NestedFieldVirtualColumn("nest", ".x", "x"),
+                                                 new NestedFieldVirtualColumn("nester", ".x.[0]", "x_0"),
+                                                 new NestedFieldVirtualColumn("nester", ".y.c.[1]", "y_c_1")
                                              )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
@@ -76,6 +79,42 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(8, ((List) results.get(0).getEvents()).size());
+    logResults(results);
+  }
+
+  @Test
+  public void testIngestAndScanSegmentsRealtime() throws Exception
+  {
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .virtualColumns(
+                                                 new NestedFieldVirtualColumn("nest", ".x", "x"),
+                                                 new NestedFieldVirtualColumn("nester", ".x.[0]", "x_0"),
+                                                 new NestedFieldVirtualColumn("nester", ".y.c.[1]", "y_c_1")
+                                             )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
+    List<Segment> realtimeSegs = ImmutableList.of(
+        NestedDataTestUtils.createDefaultHourlyIncrementalIndex()
+    );
+    List<Segment> segs = NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(realtimeSegs, scanQuery);
+    final Sequence<ScanResultValue> seq2 = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> resultsRealtime = seq.toList();
+    List<ScanResultValue> resultsSegments = seq2.toList();
+    Assert.assertEquals(1, resultsRealtime.size());
+    Assert.assertEquals(resultsRealtime.size(), resultsSegments.size());
+    Assert.assertEquals(resultsSegments.get(0).getEvents(), resultsRealtime.get(0).getEvents());
   }
 
   @Test
@@ -89,9 +128,9 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
                                                  )
                                              )
                                              .virtualColumns(
-                                                 new NestedFieldVirtualColumn("nest.x", "x"),
-                                                 new NestedFieldVirtualColumn("nester.x[0]", "x_0"),
-                                                 new NestedFieldVirtualColumn("nester.y.c[1]", "y_c_1")
+                                                 new NestedFieldVirtualColumn("nest", ".x", "x"),
+                                                 new NestedFieldVirtualColumn("nester", ".x.[0]", "x_0"),
+                                                 new NestedFieldVirtualColumn("nester", ".y.c.[1]", "y_c_1")
                                              )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
@@ -104,6 +143,7 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(8, ((List) results.get(0).getEvents()).size());
+    logResults(results);
   }
 
   @Test
@@ -132,6 +172,7 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(8, ((List) results.get(0).getEvents()).size());
+    logResults(results);
   }
 
   @Test
@@ -145,7 +186,7 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
                                                  )
                                              )
                                              .virtualColumns(
-                                                 new NestedFieldVirtualColumn("nest.x", "x")
+                                                 new NestedFieldVirtualColumn("nest", ".x", "x")
                                              )
                                              .filters(
                                                  new SelectorDimFilter("x", "200", null)
@@ -161,5 +202,15 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(1, ((List) results.get(0).getEvents()).size());
+    logResults(results);
+  }
+
+  private static void logResults(List<ScanResultValue> results)
+  {
+    StringBuilder bob = new StringBuilder();
+    for (Object event : (List) results.get(0).getEvents()) {
+      bob.append("[").append(event).append("]").append("\n");
+    }
+    LOG.info("results:\n%s", bob);
   }
 }

@@ -12,10 +12,13 @@ package io.imply.druid.nested.virtual;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.nested.column.NestedDataComplexColumn;
+import io.imply.druid.nested.column.PathFinder;
+import io.imply.druid.nested.column.StructuredData;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
+import org.apache.druid.segment.BaseSingleValueDimensionSelector;
 import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -44,16 +47,34 @@ import java.util.Objects;
 public class NestedFieldVirtualColumn implements VirtualColumn
 {
   private final String columnName;
+  private final String path;
   private final String outputName;
+  private final List<PathFinder.PathPartFinder> parts;
 
   @JsonCreator
   public NestedFieldVirtualColumn(
       @JsonProperty("columnName") String columnName,
+      @JsonProperty("path") String path,
       @JsonProperty("outputName") String outputName
   )
   {
     this.columnName = columnName;
     this.outputName = outputName;
+    this.parts = PathFinder.parseJqPath(path);
+    this.path = PathFinder.toNormalizedJqPath(parts);
+  }
+
+  public NestedFieldVirtualColumn(
+      String columnName,
+      String outputName,
+      List<PathFinder.PathPartFinder> parts,
+      String normalizedPath
+  )
+  {
+    this.columnName = columnName;
+    this.outputName = outputName;
+    this.parts = parts;
+    this.path = normalizedPath;
   }
 
   @Override
@@ -61,6 +82,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   {
     return new CacheKeyBuilder(VirtualColumnCacheHelper.CACHE_TYPE_ID_USER_DEFINED).appendString("nested-field")
                                                                                    .appendString(columnName)
+                                                                                   .appendString(path)
                                                                                    .build();
   }
 
@@ -77,13 +99,40 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     return columnName;
   }
 
+  @JsonProperty
+  public String getPath()
+  {
+    return path;
+  }
+
   @Override
   public DimensionSelector makeDimensionSelector(
       DimensionSpec dimensionSpec,
       ColumnSelectorFactory factory
   )
   {
-    throw new UnsupportedOperationException();
+    ColumnValueSelector valueSelector = makeColumnValueSelector(dimensionSpec.getOutputName(), factory);
+
+    class FieldDimensionSelector extends BaseSingleValueDimensionSelector
+    {
+      @Override
+      public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+      {
+        inspector.visit("valueSelector", valueSelector);
+      }
+
+      @Nullable
+      @Override
+      protected String getValue()
+      {
+        Object val = valueSelector.getObject();
+        if (val instanceof String) {
+          return (String) val;
+        }
+        return null;
+      }
+    }
+    return new FieldDimensionSelector();
   }
 
   @Override
@@ -92,7 +141,58 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory
   )
   {
-    throw new UnsupportedOperationException();
+    final ColumnValueSelector baseSelector = factory.makeColumnValueSelector(this.columnName);
+
+    class FieldColumnSelector implements ColumnValueSelector<Object>
+    {
+      @Override
+      public double getDouble()
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public float getFloat()
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public long getLong()
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+      {
+        inspector.visit("baseSelector", baseSelector);
+      }
+
+      @Override
+      public boolean isNull()
+      {
+        return baseSelector.isNull();
+      }
+
+      @Nullable
+      @Override
+      public Object getObject()
+      {
+        StructuredData data = (StructuredData) baseSelector.getObject();
+        return PathFinder.findStringLiteral(
+            data == null ? null : data.getValue(),
+            parts
+        );
+      }
+
+      @Override
+      public Class<?> classOfObject()
+      {
+        return Object.class;
+      }
+    }
+    return new FieldColumnSelector();
   }
 
   @Nullable
@@ -103,13 +203,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableOffset offset
   )
   {
-
-    final Pair<String, String> columnAndPath = VirtualColumns.splitColumnName(this.columnName);
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnAndPath);
+    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnName);
     if (complexColumn == null) {
       return DimensionSelector.constant(null);
     }
-    return complexColumn.makeDimensionSelector(columnAndPath.rhs, offset, dimensionSpec.getExtractionFn());
+    return complexColumn.makeDimensionSelector(path, offset, dimensionSpec.getExtractionFn());
   }
 
 
@@ -121,12 +219,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableOffset offset
   )
   {
-    final Pair<String, String> columnAndPath = VirtualColumns.splitColumnName(this.columnName);
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnAndPath);
+    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, this.columnName);
     if (complexColumn == null) {
       return NilColumnValueSelector.instance();
     }
-    return complexColumn.makeColumnValueSelector(columnAndPath.rhs, offset);
+    return complexColumn.makeColumnValueSelector(path, offset);
   }
 
   @Override
@@ -143,12 +240,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableVectorOffset offset
   )
   {
-    final Pair<String, String> columnAndPath = VirtualColumns.splitColumnName(this.columnName);
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnAndPath);
+    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnName);
     if (complexColumn == null) {
       return NilVectorSelector.create(offset);
     }
-    return complexColumn.makeSingleValueDimensionVectorSelector(columnAndPath.rhs, offset);
+    return complexColumn.makeSingleValueDimensionVectorSelector(path, offset);
   }
 
   @Nullable
@@ -159,12 +255,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableVectorOffset offset
   )
   {
-    final Pair<String, String> columnAndPath = VirtualColumns.splitColumnName(this.columnName);
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnAndPath);
+    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, this.columnName);
     if (complexColumn == null) {
       return NilVectorSelector.create(offset);
     }
-    return complexColumn.makeVectorObjectSelector(columnAndPath.rhs, offset);
+    return complexColumn.makeVectorObjectSelector(path, offset);
   }
 
   @Nullable
@@ -174,12 +269,12 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ColumnSelector selector
   )
   {
-    final Pair<String, String> columnAndPath = VirtualColumns.splitColumnName(this.columnName);
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(selector, columnAndPath);
+    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(selector, this.columnName);
+
     if (complexColumn == null) {
       return null;
     }
-    return complexColumn.makeBitmapIndex(columnAndPath.rhs);
+    return complexColumn.makeBitmapIndex(path);
   }
 
   @Override
@@ -202,7 +297,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Override
   public boolean usesDotNotation()
   {
-    return true;
+    return false;
   }
 
   @Override
@@ -215,22 +310,32 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       return false;
     }
     NestedFieldVirtualColumn that = (NestedFieldVirtualColumn) o;
-    return columnName.equals(that.columnName) && outputName.equals(that.outputName);
+    return columnName.equals(that.columnName) && outputName.equals(that.outputName) && path.equals(that.path);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(columnName, outputName);
+    return Objects.hash(columnName, path, outputName);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "NestedFieldVirtualColumn{" +
+           "columnName='" + columnName + '\'' +
+           ", path='" + path + '\'' +
+           ", outputName='" + outputName + '\'' +
+           '}';
   }
 
   @Nullable
   private NestedDataComplexColumn getNestedDataComplexColumn(
       ColumnSelector columnSelector,
-      Pair<String, String> columnAndPath
+      String columnName
   )
   {
-    ColumnHolder holder = columnSelector.getColumnHolder(columnAndPath.lhs);
+    ColumnHolder holder = columnSelector.getColumnHolder(columnName);
     if (holder == null) {
       return null;
     }

@@ -284,7 +284,7 @@ public class IpAddressExpressions
         final ExprEval literalEval = args.get(1).eval(InputBindings.nilBindings());
         if (!literalEval.type().is(ExprType.STRING)) {
           throw new IAE(
-              "Function[%s] second argmument must be [%s] as input, got [%s]",
+              "Function[%s] second argument must be [%s] as input, got [%s]",
               NAME,
               ExpressionType.STRING.asTypeString(),
               literalEval.type()
@@ -305,7 +305,7 @@ public class IpAddressExpressions
             ExprEval input = args.get(0).eval(bindings);
             if (!TYPE.equals(input.type()) && input.value() != null) {
               throw new IAE(
-                  "Function[%s] first argmument must be [%s] as input, got [%s]",
+                  "Function[%s] first argument must be [%s] as input, got [%s]",
                   name,
                   TYPE.asTypeString(),
                   input.type()
@@ -349,7 +349,7 @@ public class IpAddressExpressions
           ExprEval matchesInput = args.get(1).eval(bindings);
           if (!TYPE.equals(input.type()) && input.value() != null) {
             throw new IAE(
-                "Function[%s] first argmument must be [%s] as input, got [%s]",
+                "Function[%s] first argument must be [%s] as input, got [%s]",
                 name,
                 TYPE.asTypeString(),
                 input.type()
@@ -357,7 +357,7 @@ public class IpAddressExpressions
           }
           if (!matchesInput.type().is(ExprType.STRING)) {
             throw new IAE(
-                "Function[%s] second argmument must be [%s] as input, got [%s]",
+                "Function[%s] second argument must be [%s] as input, got [%s]",
                 name,
                 ExpressionType.STRING.asTypeString(),
                 matchesInput.type()

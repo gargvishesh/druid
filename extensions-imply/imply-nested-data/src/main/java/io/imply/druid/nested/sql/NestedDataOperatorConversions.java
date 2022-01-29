@@ -9,6 +9,7 @@
 
 package io.imply.druid.nested.sql;
 
+import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.virtual.NestedFieldVirtualColumn;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -45,10 +46,7 @@ public class NestedDataOperatorConversions
             OperandTypes.sequence(
                 "(expr,path)",
                 OperandTypes.family(SqlTypeFamily.ANY),
-                OperandTypes.or(
-                    OperandTypes.family(SqlTypeFamily.ANY),
-                    OperandTypes.family(SqlTypeFamily.STRING)
-                )
+                OperandTypes.family(SqlTypeFamily.STRING)
             )
         )
         .returnTypeCascadeNullable(SqlTypeName.VARCHAR)
@@ -85,13 +83,19 @@ public class NestedDataOperatorConversions
       if (!pathExpr.isLiteral()) {
         return null;
       }
-      final String path = pathExpr.eval(InputBindings.nilBindings()).asString();
+      // pre-normalize path so that the same expressions with different jq syntax are collapsed
+      final String path = (String) pathExpr.eval(InputBindings.nilBindings()).value();
+      final List<PathFinder.PathPartFinder> parts = PathFinder.parseJqPath(path);
+      final String normalized = PathFinder.toNormalizedJqPath(parts);
+
       if (druidExpressions.get(0).isSimpleExtraction()) {
         return DruidExpression.forVirtualColumn(
-            "get_path(" + druidExpressions.get(0).getDirectColumn() + "," + path + ")",
+            "get_path(" + druidExpressions.get(0).getDirectColumn() + ",'" + normalized + "')",
             (name, outputType, macroTable) -> new NestedFieldVirtualColumn(
-                druidExpressions.get(0).getDirectColumn() + "." + path,
-                name
+                druidExpressions.get(0).getDirectColumn(),
+                name,
+                parts,
+                normalized
             )
         );
       }
