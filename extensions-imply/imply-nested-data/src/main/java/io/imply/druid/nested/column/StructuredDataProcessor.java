@@ -21,6 +21,10 @@ public abstract class StructuredDataProcessor
 {
   abstract void processLiteralField(String fieldName, Object fieldValue);
 
+  /**
+   * Process fields, returning a list of all "normalized" 'jq' paths to literal fields, consistent with the output of
+   * {@link PathFinder#toNormalizedJqPath(List)}.
+   */
   public List<String> processFields(Object raw)
   {
     Queue<Field> toProcess = new LinkedList<>();
@@ -46,7 +50,7 @@ public abstract class StructuredDataProcessor
   {
     List<String> fields = new LinkedList<>();
     for (Map.Entry<String, ?> entry : map.getMap().entrySet()) {
-      final String fieldName = map.getName().isEmpty() ? entry.getKey() : map.getName() + "." + entry.getKey();
+      final String fieldName = map.getName() + ".\"" + entry.getKey() + "\"";
       if (entry.getValue() instanceof List) {
         List<?> theList = (List<?>) entry.getValue();
         toProcess.add(new ListField(fieldName, theList));
@@ -66,7 +70,7 @@ public abstract class StructuredDataProcessor
     List<String> fields = new LinkedList<>();
     final List<?> theList = list.getList();
     for (int i = 0; i < theList.size(); i++) {
-      final String listFieldName = list.getName() + "[" + i + "]";
+      final String listFieldName = list.getName() + ".[" + i + "]";
       final Object element = theList.get(i);
       if (element instanceof Map) {
         toProcess.add(new MapField(listFieldName, (Map<String, ?>) element));

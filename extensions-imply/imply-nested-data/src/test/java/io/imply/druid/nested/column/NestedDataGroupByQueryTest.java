@@ -24,6 +24,7 @@ import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
+import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 @RunWith(Parameterized.class)
 public class NestedDataGroupByQueryTest
@@ -52,8 +54,14 @@ public class NestedDataGroupByQueryTest
   private final GroupByQueryConfig config;
   private final QueryContexts.Vectorize vectorize;
   private final AggregationTestHelper helper;
+  private final BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> segmentsGenerator;
+  private final String segmentsName;
 
-  public NestedDataGroupByQueryTest(GroupByQueryConfig config, String vectorize)
+  public NestedDataGroupByQueryTest(
+      GroupByQueryConfig config,
+      BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> segmentGenerator,
+      String vectorize
+  )
   {
     NestedDataModule.registerHandlersAndSerde();
     this.config = config;
@@ -63,6 +71,8 @@ public class NestedDataGroupByQueryTest
         config,
         tempFolder
     );
+    this.segmentsGenerator = segmentGenerator;
+    this.segmentsName = segmentGenerator.toString();
   }
 
   public Map<String, Object> getContext()
@@ -73,13 +83,83 @@ public class NestedDataGroupByQueryTest
     );
   }
 
-  @Parameterized.Parameters(name = "config = {0}, vectorize = {1}")
+  @Parameterized.Parameters(name = "config = {0}, segments = {1}, vectorize = {2}")
   public static Collection<?> constructorFeeder()
   {
     final List<Object[]> constructors = new ArrayList<>();
+    final List<BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>> segmentsGenerators = new ArrayList<>();
+    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
+      {
+        try {
+          return ImmutableList.<Segment>builder()
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
+                              .add(NestedDataTestUtils.createDefaultHourlyIncrementalIndex())
+                              .build();
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "mixed";
+      }
+    });
+    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
+      {
+        try {
+          return ImmutableList.of(
+              NestedDataTestUtils.createDefaultHourlyIncrementalIndex(),
+              NestedDataTestUtils.createDefaultHourlyIncrementalIndex()
+          );
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "incremental";
+      }
+    });
+    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
+      {
+        try {
+          return ImmutableList.<Segment>builder()
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
+                              .build();
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "segments";
+      }
+    });
+
     for (GroupByQueryConfig config : GroupByQueryRunnerTest.testConfigs()) {
-      for (String vectorize : new String[]{"false", "true", "force"}) {
-        constructors.add(new Object[]{config, vectorize});
+      for (BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> generatorFn : segmentsGenerators) {
+        for (String vectorize : new String[]{"false", "true", "force"}) {
+          constructors.add(new Object[]{config, generatorFn, vectorize});
+        }
       }
     }
     return constructors;
@@ -87,35 +167,46 @@ public class NestedDataGroupByQueryTest
 
 
   @Test
-  public void testGroupBySomeField() throws Exception
+  public void testGroupBySomeField()
   {
+    if (!"segments".equals(segmentsName)) {
+      if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage(
+            "GroupBy v1 does not support dimension selectors with unknown cardinality."
+        );
+      } else if (vectorize == QueryContexts.Vectorize.FORCE) {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage(
+            "Cannot vectorize!"
+        );
+      }
+    }
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
                                           .setInterval(Intervals.ETERNITY)
                                           .setDimensions(DefaultDimensionSpec.of("v0"))
-                                          .setVirtualColumns(new NestedFieldVirtualColumn("nest.x", "v0"))
+                                          .setVirtualColumns(new NestedFieldVirtualColumn("nest", ".x", "v0"))
                                           .setAggregatorSpecs(new CountAggregatorFactory("count"))
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder);
 
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segmentsGenerator.apply(helper, tempFolder), groupQuery);
 
     List<ResultRow> results = seq.toList();
     verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 4L},
-            new Object[]{"100", 1L},
-            new Object[]{"200", 1L},
-            new Object[]{"300", 2L}
+            new Object[]{null, 8L},
+            new Object[]{"100", 2L},
+            new Object[]{"200", 2L},
+            new Object[]{"300", 4L}
         )
     );
   }
-
 
   private static void verifyResults(RowSignature rowSignature, List<ResultRow> results, List<Object[]> expected)
   {

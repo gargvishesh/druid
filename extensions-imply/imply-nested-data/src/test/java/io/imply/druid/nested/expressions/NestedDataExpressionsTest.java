@@ -29,7 +29,8 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
 {
   private static final ExprMacroTable MACRO_TABLE = new ExprMacroTable(
       ImmutableList.of(
-          new NestedDataExpressions.StructExprMacro()
+          new NestedDataExpressions.StructExprMacro(),
+          new NestedDataExpressions.GetPathExprMacro()
       )
   );
   private static final Map<String, Object> NEST = ImmutableMap.of(
@@ -68,5 +69,37 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
     // decompose because of array equals
     Assert.assertArrayEquals(new Object[]{"a", "b", "c"}, (Object[]) ((Map) eval.value()).get("x"));
     Assert.assertEquals(ImmutableMap.of("a", "hello", "b", "world"), ((Map) eval.value()).get("y"));
+  }
+
+  @Test
+  public void testGetPathExpression()
+  {
+    Expr expr = Parser.parse("get_path(nester, '.x')", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+
+    expr = Parser.parse("get_path(nester, '.x.[1]')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals("b", eval.value());
+
+    expr = Parser.parse("get_path(nester, '.x.[23]')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+
+    expr = Parser.parse("get_path(nester, '.x.[1].b')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+
+    expr = Parser.parse("get_path(nester, '.y.[1]')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+
+    expr = Parser.parse("get_path(nester, '.y.a')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals("hello", eval.value());
+
+    expr = Parser.parse("get_path(nester, '.y.a.b.c.[12]')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
   }
 }

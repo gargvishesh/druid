@@ -12,6 +12,8 @@ package io.imply.druid.nested.expressions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.nested.column.NestedDataComplexTypeSerde;
+import io.imply.druid.nested.column.PathFinder;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -95,9 +97,17 @@ public class NestedDataExpressions
     @Override
     public Expr apply(List<Expr> args)
     {
+      if (!(args.get(1).isLiteral() && args.get(1).getLiteralValue() instanceof String)) {
+        throw new IAE(
+            "Function[%s] second argument [%s] must be a literal [%s] value, got [%s] instead",
+            NAME,
+            args.get(1).stringify(),
+            ExpressionType.STRING
+        );
+      }
+      final List<PathFinder.PathPartFinder> parts = PathFinder.parseJqPath((String) args.get(1).getLiteralValue());
       class GetPathExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
       {
-
         public GetPathExpr(List<Expr> args)
         {
           super(NAME, args);
@@ -106,7 +116,17 @@ public class NestedDataExpressions
         @Override
         public ExprEval eval(ObjectBinding bindings)
         {
-          return ExprEval.of(null);
+          ExprEval input = args.get(0).eval(bindings);
+          if (!TYPE.equals(input.type()) && input.value() != null) {
+            throw new IAE(
+                "Function[%s] first argument [%s] must be type [%s] as input, got [%s]",
+                name,
+                args.get(0).stringify(),
+                TYPE.asTypeString(),
+                input.type().asTypeString()
+            );
+          }
+          return ExprEval.ofType(ExpressionType.STRING, PathFinder.findStringLiteral(input.value(), parts));
         }
 
         @Override
@@ -120,7 +140,8 @@ public class NestedDataExpressions
         @Override
         public ExpressionType getOutputType(InputBindingInspector inspector)
         {
-          return ExpressionType.STRING;
+          // we cannot infer the output type (well we could say it is 'STRING' right now because is all we support...
+          return null;
         }
       }
       return new GetPathExpr(args);
