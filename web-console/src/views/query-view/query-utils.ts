@@ -21,22 +21,25 @@ import { IconNames } from '@blueprintjs/icons';
 
 export function dataTypeToIcon(dataType: string): IconName {
   const typeUpper = dataType.toUpperCase();
-  if (typeUpper.startsWith('COMPLEX')) {
-    return IconNames.ASTERISK;
-  }
 
   switch (typeUpper) {
     case 'TIMESTAMP':
       return IconNames.TIME;
+
     case 'VARCHAR':
     case 'STRING':
       return IconNames.FONT;
+
     case 'BIGINT':
     case 'LONG':
     case 'FLOAT':
     case 'DOUBLE':
       return IconNames.NUMERICAL;
+
+    case 'COMPLEX<JSON>':
+      return IconNames.DIAGRAM_TREE;
+
     default:
-      return IconNames.HELP;
+      return typeUpper.startsWith('COMPLEX') ? IconNames.ASTERISK : IconNames.HELP;
   }
 }

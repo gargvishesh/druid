@@ -48,6 +48,14 @@ const IMPLY_FUNCTION_DOCS = {
       ),
     ],
   ],
+  JSON_GET_PATH: [
+    [
+      'jsonColumn, selectorPath',
+      convertMarkdownToHtml(
+        'Gets the `selectorPath` out of the `jsonColumn`. The `selectorPath` must be expressed as a jq like selector.',
+      ),
+    ],
+  ],
 };
 // END: Imply-modified code for Talaria execution
 
