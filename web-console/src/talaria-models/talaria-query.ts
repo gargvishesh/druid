@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { SqlQuery } from 'druid-query-toolkit';
+import { SqlQuery, SqlTableRef } from 'druid-query-toolkit';
 import Hjson from 'hjson';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -261,8 +261,22 @@ export class TalariaQuery {
   public makePreview(): TalariaQuery {
     if (!this.isInsertQuery()) return this;
 
+    let ret: TalariaQuery = this;
+
     const parsedQuery = this.getParsedQuery();
-    return this.changeQueryString(
+    if (parsedQuery) {
+      const fromExpression = parsedQuery.getFirstFromExpression();
+      if (fromExpression instanceof SqlTableRef) {
+        const firstTable = fromExpression.getTable();
+        ret = ret.changeQueryParts(
+          this.queryParts.map(queryPart =>
+            queryPart.queryName === firstTable ? queryPart.addPreviewLimit() : queryPart,
+          ),
+        );
+      }
+    }
+
+    return ret.changeQueryString(
       parsedQuery
         ? parsedQuery.changeInsertClause(undefined).toString()
         : TalariaQuery.commentOutInsertInto(this.getQueryString()),

@@ -39,6 +39,7 @@ $config-width: 400px;
     right: $config-width + 20px;
     left: 0;
     @include sunk-panel;
+    overflow: auto;
 
     .ingestion-cards {
       display: grid;
@@ -46,15 +47,15 @@ $config-width: 400px;
       grid-template-columns: 1fr 1fr 1fr 1fr;
       padding: 10px;
 
-      @media (max-width: 1200px) {
+      @media (max-width: 1800px) {
         grid-template-columns: 1fr 1fr 1fr;
       }
 
-      @media (max-width: 900px) {
+      @media (max-width: 1240px) {
         grid-template-columns: 1fr 1fr;
       }
 
-      @media (max-width: 600px) {
+      @media (max-width: 900px) {
         grid-template-columns: 1fr;
       }
 
