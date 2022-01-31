@@ -258,7 +258,7 @@ export class TalariaQuery {
     return this.changeQueryParts(queryParts.flatMap(queryPart => queryPart.explodeQueryPart()));
   }
 
-  public removeInsert(): TalariaQuery {
+  public makePreview(): TalariaQuery {
     if (!this.isInsertQuery()) return this;
 
     const parsedQuery = this.getParsedQuery();

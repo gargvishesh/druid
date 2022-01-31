@@ -110,7 +110,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
     processQuery: async (_asyncDownloadParams, cancelToken) => {
       const downloadQuery = talariaQuery
         .changeUnlimited(true)
-        .removeInsert()
+        .makePreview()
         .changeEngine('talaria');
 
       const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();

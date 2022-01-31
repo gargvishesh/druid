@@ -202,7 +202,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     if (query.isJsonLike() && !query.validRune()) return;
 
     TalariaHistory.addQueryToHistory(query);
-    queryManager.runQuery(preview ? query.removeInsert() : query);
+    queryManager.runQuery(preview ? query.makePreview() : query);
   }
 
   const runeMode = query.isJsonLike();

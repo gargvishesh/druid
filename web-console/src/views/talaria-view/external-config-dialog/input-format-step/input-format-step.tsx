@@ -30,7 +30,7 @@ import {
 } from '../../../../druid-models';
 import { useQueryManager } from '../../../../hooks';
 import { ExternalConfigColumn } from '../../../../talaria-models';
-import { deepSet } from '../../../../utils';
+import { deepSet, EMPTY_ARRAY } from '../../../../utils';
 import {
   headerAndRowsFromSampleResponse,
   postToSampler,
@@ -40,6 +40,8 @@ import {
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
 
 import './input-format-step.scss';
+
+const noop = () => {};
 
 export interface InputFormatStepProps {
   inputSource: InputSource;
@@ -105,8 +107,8 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             columnFilter=""
             canFlatten={false}
             flattenedColumnsOnly={false}
-            flattenFields={[]}
-            onFlattenFieldSelect={() => {}}
+            flattenFields={EMPTY_ARRAY}
+            onFlattenFieldSelect={noop}
           />
         )}
       </div>
@@ -115,7 +117,10 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
         <Button
           text="Apply"
           intent={Intent.PRIMARY}
-          disabled={!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)}
+          disabled={
+            !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS) ||
+            inputFormatToSample === inputFormat
+          }
           onClick={() => {
             setInputFormatToSample(inputFormat as any);
           }}

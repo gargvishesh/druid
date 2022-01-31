@@ -192,7 +192,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     if (query.isJsonLike() && !query.validRune()) return;
 
     TalariaHistory.addQueryToHistory(query);
-    queryManager.runQuery(preview ? query.removeInsert() : query);
+    queryManager.runQuery(preview ? query.makePreview() : query);
   }
 
   const runeMode = query.isJsonLike();
