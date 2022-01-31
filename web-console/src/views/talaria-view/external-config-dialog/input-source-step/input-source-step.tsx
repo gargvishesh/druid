@@ -78,13 +78,16 @@ const EXAMPLE_INPUT_SOURCES: ExampleInputSource[] = [
 ];
 
 export interface InputSourceStepProps {
+  initInputSource: Partial<InputSource> | undefined;
   onSet(inputSource: InputSource, inputFormat: InputFormat): void;
 }
 
 export const InputSourceStep = React.memo(function InputSourceStep(props: InputSourceStepProps) {
-  const { onSet } = props;
+  const { initInputSource, onSet } = props;
 
-  const [inputSource, setInputSource] = useState<Partial<InputSource> | string | undefined>();
+  const [inputSource, setInputSource] = useState<Partial<InputSource> | string | undefined>(
+    initInputSource,
+  );
   const exampleInputSource = EXAMPLE_INPUT_SOURCES.find(({ name }) => name === inputSource);
 
   const [connectResultState, connectQueryManager] = useQueryManager<
@@ -95,7 +98,12 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
     processQuery: async (inputSource: InputSource, cancelToken) => {
       const externExpression = externalConfigToTableExpression({
         inputSource,
-        inputFormat: { type: 'regex', pattern: '([\\s\\S]*)', columns: ['raw'] },
+        inputFormat: {
+          type: 'regex',
+          pattern: '([\\s\\S]*)',
+          listDelimiter: '56616469-6de2-9da4-efb8-8f416e6e6965', // Just a UUID to disable the list delimiter, let's hope we do not see this UUID in the data
+          columns: ['raw'],
+        },
         columns: [{ name: 'raw', type: 'string' }],
       });
 
@@ -166,11 +174,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         {typeof inputSource === 'string' ? (
           <>
             <FormGroup label="Select example dataset">
-              <HTMLSelect
-                fill
-                value={inputSource}
-                onChange={e => setInputSource(e.target.value as any)}
-              >
+              <HTMLSelect fill value={inputSource} onChange={e => setInputSource(e.target.value)}>
                 {EXAMPLE_INPUT_SOURCES.map((e, i) => (
                   <option key={i} value={e.name}>
                     {e.name}
@@ -208,7 +212,8 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
                   connectResultState.isLoading()
                 }
                 onClick={() => {
-                  connectQueryManager.runQuery(inputSource as any);
+                  if (!AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS)) return;
+                  connectQueryManager.runQuery(inputSource);
                 }}
               />
             </FormGroup>

@@ -25,6 +25,7 @@ import {
   guessColumnTypeFromHeaderAndRows,
   INPUT_FORMAT_FIELDS,
   InputFormat,
+  inputFormatOutputsNumericStrings,
   InputSource,
   PLACEHOLDER_TIMESTAMP_SPEC,
 } from '../../../../druid-models';
@@ -134,15 +135,15 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
           disabled={!parseQueryState.data}
           onClick={() => {
             const sampleData = parseQueryState.data;
-            if (!sampleData) return;
+            if (!sampleData || !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
             onSet(
-              inputFormat as any,
+              inputFormat,
               sampleData.header.map(name => ({
                 name,
                 type: guessColumnTypeFromHeaderAndRows(
                   sampleData,
                   name,
-                  initInputFormat.type !== 'json',
+                  inputFormatOutputsNumericStrings(inputFormat),
                 ),
               })),
             );

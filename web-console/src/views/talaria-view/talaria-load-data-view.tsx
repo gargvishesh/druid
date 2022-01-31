@@ -107,6 +107,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
             />
           ) : (
             <InputSourceStep
+              initInputSource={inputSource}
               onSet={(inputSource, inputFormat) => {
                 setExternalConfigStep({ inputSource, inputFormat });
               }}

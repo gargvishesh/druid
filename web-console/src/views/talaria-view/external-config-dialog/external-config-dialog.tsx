@@ -66,6 +66,7 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
           />
         ) : (
           <InputSourceStep
+            initInputSource={inputSource}
             onSet={(inputSource, inputFormat) => {
               setExternalConfigStep({ inputSource, inputFormat });
             }}
