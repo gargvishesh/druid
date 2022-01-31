@@ -40,7 +40,7 @@ export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSucc
   const rows = getTotalCountForStage(lastStage, 'input', 'rows');
   const table = SqlTableRef.create(datasource);
 
-  const duration = insertQueryExecution.getDuration();
+  const duration = insertQueryExecution.duration;
   return (
     <div className="insert-success">
       <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${datasource}.`}</p>

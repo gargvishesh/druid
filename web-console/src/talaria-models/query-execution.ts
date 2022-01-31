@@ -21,7 +21,7 @@ import { QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-
 import { deepGet, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
-import { getStartTime, StageDefinition } from './talaria-stage';
+import { StageDefinition } from './talaria-stage';
 
 // Hack around the concept that we might get back a SqlWithQuery and will need to unpack it
 function parseSqlQuery(queryString: string): SqlQuery | undefined {
@@ -140,10 +140,13 @@ export class QueryExecution {
     }
 
     const stages = deepGet(report, 'talariaStages.payload.stages');
+    const queryStartTime = new Date(deepGet(report, 'talariaStatus.payload.queryStartTime'));
+    const queryDuration = deepGet(report, 'talariaStatus.payload.queryDuration');
     let res = new QueryExecution({
       id,
       status: QueryExecution.normalizeTaskStatus(status),
-      startTime: getStartTime(stages),
+      startTime: isNaN(queryStartTime.getTime()) ? undefined : queryStartTime,
+      duration: typeof queryDuration === 'number' ? queryDuration : undefined,
       stages,
       error,
       destination: deepGet(report, 'talariaTask.payload.spec.destination'),
@@ -288,10 +291,6 @@ export class QueryExecution {
     }
 
     return true;
-  }
-
-  public getDuration(): number {
-    return 0;
   }
 
   public getInsertDatasource(): string | undefined {
