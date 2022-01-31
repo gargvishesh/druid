@@ -16,25 +16,34 @@
  * limitations under the License.
  */
 
-import { Button, Icon, Intent, TextArea } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
-import { QueryResult } from 'druid-query-toolkit';
-import React, { useState } from 'react';
-
-import { AutoForm, CenterMessage, Loader } from '../../../../components';
 import {
+  Button,
+  Callout,
+  Card,
+  FormGroup,
+  HTMLSelect,
+  Intent,
+  ProgressBar,
+} from '@blueprintjs/core';
+import classNames from 'classnames';
+import { QueryResult } from 'druid-query-toolkit';
+import React, { useEffect, useState } from 'react';
+
+import { AutoForm } from '../../../../components';
+import {
+  getIngestionImage,
+  getIngestionTitle,
   guessInputFormat,
   InputFormat,
   InputSource,
-  MAX_INLINE_DATA_LENGTH,
 } from '../../../../druid-models';
 import { useQueryManager } from '../../../../hooks';
+import { UrlBaser } from '../../../../singletons';
 import {
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
   QueryExecution,
 } from '../../../../talaria-models';
-import { deepSet } from '../../../../utils';
 import {
   extractQueryResults,
   submitAsyncQuery,
@@ -43,23 +52,46 @@ import {
 
 import './input-source-step.scss';
 
+interface ExampleInputSource {
+  name: string;
+  description: string;
+  inputSource: InputSource;
+}
+
+const EXAMPLE_INPUT_SOURCES: ExampleInputSource[] = [
+  {
+    name: 'Wikipedia',
+    description: 'JSON data representing one day of wikipedia edits',
+    inputSource: {
+      type: 'http',
+      uris: ['https://druid.apache.org/data/wikipedia.json.gz'],
+    },
+  },
+  {
+    name: 'Koalas one day',
+    description: 'JSON data representing one day of events from KoalasToTheMax.com',
+    inputSource: {
+      type: 'http',
+      uris: ['https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz'],
+    },
+  },
+];
+
 export interface InputSourceStepProps {
-  initInputSource: Partial<InputSource>;
   onSet(inputSource: InputSource, inputFormat: InputFormat): void;
-  onBack(): void;
 }
 
 export const InputSourceStep = React.memo(function InputSourceStep(props: InputSourceStepProps) {
-  const { initInputSource, onSet, onBack } = props;
+  const { onSet } = props;
 
-  const [inputSource, setInputSource] = useState<Partial<InputSource>>(initInputSource);
-  const [inputSourceToSample, setInputSourceToSample] = useState<InputSource | undefined>(
-    AutoForm.isValidModel(initInputSource, INPUT_SOURCE_FIELDS) ? initInputSource : undefined,
-  );
-  const inlineMode = inputSource?.type === 'inline';
+  const [inputSource, setInputSource] = useState<Partial<InputSource> | string | undefined>();
+  const exampleInputSource = EXAMPLE_INPUT_SOURCES.find(({ name }) => name === inputSource);
 
-  const [connectResultState] = useQueryManager<InputSource, QueryResult, QueryExecution>({
-    query: inputSourceToSample,
+  const [connectResultState, connectQueryManager] = useQueryManager<
+    InputSource,
+    QueryResult,
+    QueryExecution
+  >({
     processQuery: async (inputSource: InputSource, cancelToken) => {
       const externExpression = externalConfigToTableExpression({
         inputSource,
@@ -80,63 +112,124 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
 
+  useEffect(() => {
+    const sampleData = connectResultState.data;
+    if (!sampleData) return;
+    onSet(
+      exampleInputSource?.inputSource || (inputSource as any),
+      guessInputFormat(sampleData.rows.map((r: any) => r[0])),
+    );
+  }, [connectResultState]);
+
+  const effectiveType = typeof inputSource === 'string' ? 'example' : inputSource?.type;
+  function renderIngestionCard(type: string): JSX.Element | undefined {
+    const selected = type === effectiveType;
+    return (
+      <Card
+        className={classNames({ selected, disabled: false })}
+        interactive
+        elevation={1}
+        onClick={() => {
+          if (selected) {
+            setInputSource(undefined);
+          } else {
+            setInputSource(type === 'example' ? EXAMPLE_INPUT_SOURCES[0].name : { type });
+          }
+        }}
+      >
+        <img
+          src={UrlBaser.base(`/assets/${getIngestionImage(type as any)}.png`)}
+          alt={`Ingestion tile for ${type}`}
+        />
+        <p>
+          {getIngestionTitle(type === 'example' ? 'example' : (`index_parallel:${type}` as any))}
+        </p>
+      </Card>
+    );
+  }
+
   return (
     <div className="input-source-step">
-      <div className="preview">
-        {inlineMode ? (
-          <TextArea
-            className="inline-data"
-            placeholder="Paste your data here"
-            value={inputSource?.data || ''}
-            onChange={(e: any) => {
-              const stringValue = e.target.value.substr(0, MAX_INLINE_DATA_LENGTH);
-              setInputSource(deepSet(inputSource, 'data', stringValue));
-            }}
-          />
-        ) : (
-          <>
-            {connectResultState.isInit() && (
-              <CenterMessage>
-                Please fill out the fields on the right sidebar to get started{' '}
-                <Icon icon={IconNames.ARROW_RIGHT} />
-              </CenterMessage>
-            )}
-            {connectResultState.data && (
-              <TextArea
-                className="raw-lines"
-                readOnly
-                value={connectResultState.data.rows.map((r: any) => r[0]).join('\n')}
-              />
-            )}
-            {connectResultState.isLoading() && <Loader />}
-            {connectResultState.error && (
-              <CenterMessage>{`Error: ${connectResultState.getErrorMessage()}`}</CenterMessage>
-            )}
-          </>
-        )}
+      <div className="main">
+        <div className="ingestion-cards">
+          {renderIngestionCard('s3')}
+          {renderIngestionCard('azure')}
+          {renderIngestionCard('google')}
+          {renderIngestionCard('hdfs')}
+          {renderIngestionCard('http')}
+          {renderIngestionCard('local')}
+          {renderIngestionCard('inline')}
+          {renderIngestionCard('example')}
+        </div>
       </div>
       <div className="config">
-        <AutoForm fields={INPUT_SOURCE_FIELDS} model={inputSource} onChange={setInputSource} />
-        <Button
-          text="Apply"
-          intent={Intent.PRIMARY}
-          onClick={() => {
-            setInputSourceToSample(inputSource as any);
-          }}
-        />
-        <Button className="back" text="Back" icon={IconNames.ARROW_LEFT} onClick={onBack} />
-        <Button
-          className="next"
-          text="Next"
-          rightIcon={IconNames.ARROW_RIGHT}
-          intent={Intent.PRIMARY}
-          disabled={!connectResultState.data}
-          onClick={() => {
-            const sampleData = connectResultState.data;
-            if (!sampleData) return;
-            onSet(inputSource as any, guessInputFormat(sampleData.rows.map((r: any) => r[0])));
-          }}
-        />
+        {typeof inputSource === 'string' ? (
+          <>
+            <FormGroup label="Select example dataset">
+              <HTMLSelect
+                fill
+                value={inputSource}
+                onChange={e => setInputSource(e.target.value as any)}
+              >
+                {EXAMPLE_INPUT_SOURCES.map((e, i) => (
+                  <option key={i} value={e.name}>
+                    {e.name}
+                  </option>
+                ))}
+              </HTMLSelect>
+            </FormGroup>
+            {exampleInputSource && (
+              <>
+                <FormGroup>
+                  <Callout>{exampleInputSource.description}</Callout>
+                </FormGroup>
+                <FormGroup className="control-buttons">
+                  <Button
+                    text={connectResultState.isLoading() ? 'Loading...' : 'Load example'}
+                    intent={Intent.PRIMARY}
+                    disabled={connectResultState.isLoading()}
+                    onClick={() => {
+                      connectQueryManager.runQuery(exampleInputSource.inputSource);
+                    }}
+                  />
+                </FormGroup>
+              </>
+            )}
+          </>
+        ) : inputSource ? (
+          <>
+            <AutoForm fields={INPUT_SOURCE_FIELDS} model={inputSource} onChange={setInputSource} />
+            <FormGroup className="control-buttons">
+              <Button
+                text={connectResultState.isLoading() ? 'Loading...' : 'Apply'}
+                intent={Intent.PRIMARY}
+                disabled={
+                  !AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS) ||
+                  connectResultState.isLoading()
+                }
+                onClick={() => {
+                  connectQueryManager.runQuery(inputSource as any);
+                }}
+              />
+            </FormGroup>
+          </>
+        ) : (
+          <FormGroup>
+            <Callout>
+              <p>Please specify where your raw data is located</p>
+            </Callout>
+          </FormGroup>
+        )}
+        {connectResultState.isLoading() && (
+          <FormGroup>
+            <ProgressBar intent={Intent.PRIMARY} />
+          </FormGroup>
+        )}
+        {connectResultState.error && (
+          <FormGroup>
+            <Callout intent={Intent.DANGER}>{connectResultState.getErrorMessage()}</Callout>
+          </FormGroup>
+        )}
       </div>
     </div>
   );

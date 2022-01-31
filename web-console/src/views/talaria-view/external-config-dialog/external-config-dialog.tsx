@@ -21,7 +21,6 @@ import React, { useState } from 'react';
 
 import { ExternalConfig } from '../../../talaria-models';
 
-import { InitStep } from './init-step/init-step';
 import { InputFormatStep } from './input-format-step/input-format-step';
 import { InputSourceStep } from './input-source-step/input-source-step';
 
@@ -52,23 +51,7 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
       title="Connect external data"
     >
       <div className={Classes.DIALOG_BODY}>
-        {!inputSource ? (
-          <InitStep
-            onSet={inputSource => {
-              setExternalConfigStep({ inputSource });
-            }}
-          />
-        ) : !inputFormat ? (
-          <InputSourceStep
-            initInputSource={inputSource}
-            onSet={(inputSource, inputFormat) => {
-              setExternalConfigStep({ inputSource, inputFormat });
-            }}
-            onBack={() => {
-              setExternalConfigStep({});
-            }}
-          />
-        ) : (
+        {inputFormat && inputSource ? (
           <InputFormatStep
             inputSource={inputSource}
             initInputFormat={inputFormat}
@@ -79,6 +62,12 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
             }}
             onBack={() => {
               setExternalConfigStep({ inputSource });
+            }}
+          />
+        ) : (
+          <InputSourceStep
+            onSet={(inputSource, inputFormat) => {
+              setExternalConfigStep({ inputSource, inputFormat });
             }}
           />
         )}

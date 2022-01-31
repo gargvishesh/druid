@@ -31,7 +31,6 @@ import {
 import { getContextFromSqlQuery } from '../../utils';
 
 import { submitAsyncQuery, talariaBackgroundStatusCheck } from './execution-utils';
-import { InitStep } from './external-config-dialog/init-step/init-step';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
@@ -90,23 +89,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
                 insertQueryManager.runQuery(queryString);
               }}
             />
-          ) : !inputSource ? (
-            <InitStep
-              onSet={inputSource => {
-                setExternalConfigStep({ inputSource });
-              }}
-            />
-          ) : !inputFormat ? (
-            <InputSourceStep
-              initInputSource={inputSource}
-              onSet={(inputSource, inputFormat) => {
-                setExternalConfigStep({ inputSource, inputFormat });
-              }}
-              onBack={() => {
-                setExternalConfigStep({});
-              }}
-            />
-          ) : (
+          ) : inputFormat && inputSource ? (
             <InputFormatStep
               inputSource={inputSource}
               initInputFormat={inputFormat}
@@ -120,6 +103,12 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
               }}
               onBack={() => {
                 setExternalConfigStep({ inputSource });
+              }}
+            />
+          ) : (
+            <InputSourceStep
+              onSet={(inputSource, inputFormat) => {
+                setExternalConfigStep({ inputSource, inputFormat });
               }}
             />
           )}
