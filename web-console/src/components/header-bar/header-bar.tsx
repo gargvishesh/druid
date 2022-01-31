@@ -66,7 +66,7 @@ export type HeaderActiveTab =
   | 'services'
   | 'query'
   | 'query-next'
-  | 'loader-next'
+  | 'loader-v2'
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -444,10 +444,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         {showTalaria === 'loader' && (
           <AnchorButton
             minimal
-            active={active === 'loader-next'}
+            active={active === 'loader-v2'}
             icon={IconNames.CLOUD_UPLOAD}
-            text="Loader.next"
-            href="#loader-next"
+            text="Loader v2"
+            href="#loader-v2"
             disabled={!capabilities.hasQuerying()}
           />
         )}
