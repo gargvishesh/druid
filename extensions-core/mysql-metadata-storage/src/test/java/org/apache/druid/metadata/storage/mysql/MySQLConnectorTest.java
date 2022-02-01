@@ -32,7 +32,14 @@ import java.sql.SQLTransientConnectionException;
 
 public class MySQLConnectorTest
 {
-  private static final MySQLConnectorDriverConfig MYSQL_DRIVER_CONFIG = new MySQLConnectorDriverConfig();
+  private static final MySQLConnectorDriverConfig MYSQL_DRIVER_CONFIG = new MySQLConnectorDriverConfig()
+  {
+    @Override
+    public String getDriverClassName()
+    {
+      return "com.mysql.jdbc.Driver";
+    }
+  };
   private static final MySQLConnectorDriverConfig MARIADB_DRIVER_CONFIG = new MySQLConnectorDriverConfig()
   {
     @Override
