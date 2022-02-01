@@ -210,7 +210,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
   const [externalInEditor, setExternalInEditor] = useState<ExternalConfig | undefined>();
-  const [showAddColumnEditor, setShowAddColumnEditor] = useState(false);
+  const [addColumnType, setAddColumnType] = useState<'dimension' | 'metric' | undefined>();
   const [columnInEditor, setColumnInEditor] = useState<SqlExpression | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
@@ -555,32 +555,47 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               position="bottom"
               content={
                 <Menu>
-                  <MenuItem
-                    icon={IconNames.PLUS}
-                    text="Add custom column"
-                    onClick={() => setShowAddColumnEditor(true)}
-                  />
-                  {unusedColumns.length > 0 && (
+                  {ingestQueryPattern.metrics ? (
                     <>
-                      <MenuDivider />
-                      {unusedColumns.map((column, i) => (
-                        <MenuItem
-                          key={i}
-                          icon={dataTypeToIcon(column.type)}
-                          text={column.name}
-                          onClick={() => {
-                            handleQueryAction(q =>
-                              q.addSelect(
-                                SqlRef.column(column.name),
-                                ingestQueryPattern.metrics
-                                  ? { insertIndex: 'last-grouping', addToGroupBy: 'end' }
-                                  : {},
-                              ),
-                            );
-                          }}
-                        />
-                      ))}
+                      <MenuItem
+                        icon={IconNames.PLUS}
+                        text="Custom dimension"
+                        onClick={() => setAddColumnType('dimension')}
+                      />
+                      <MenuItem
+                        icon={IconNames.PLUS}
+                        text="Custom metric"
+                        onClick={() => setAddColumnType('metric')}
+                      />
                     </>
+                  ) : (
+                    <MenuItem
+                      icon={IconNames.PLUS}
+                      text="Custom column"
+                      onClick={() => setAddColumnType('dimension')}
+                    />
+                  )}
+                  <MenuDivider />
+                  {unusedColumns.length ? (
+                    unusedColumns.map((column, i) => (
+                      <MenuItem
+                        key={i}
+                        icon={dataTypeToIcon(column.type)}
+                        text={column.name}
+                        onClick={() => {
+                          handleQueryAction(q =>
+                            q.addSelect(
+                              SqlRef.column(column.name),
+                              ingestQueryPattern.metrics
+                                ? { insertIndex: 'last-grouping', addToGroupBy: 'end' }
+                                : {},
+                            ),
+                          );
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <MenuItem icon={IconNames.BLANK} text="No column suggestions" disabled />
                   )}
                 </Menu>
               }
@@ -677,17 +692,24 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           onClose={() => setExternalInEditor(undefined)}
         />
       )}
-      {showAddColumnEditor && ingestQueryPattern && (
+      {addColumnType && ingestQueryPattern && (
         <ExpressionEditorDialog
           title="Add column"
           includeOutputName
-          onSave={newExpression =>
-            updatePattern({
-              ...ingestQueryPattern,
-              dimensions: ingestQueryPattern.dimensions.concat(newExpression),
-            })
-          }
-          onClose={() => setShowAddColumnEditor(false)}
+          onSave={newExpression => {
+            if (addColumnType === 'metric' && ingestQueryPattern.metrics) {
+              updatePattern({
+                ...ingestQueryPattern,
+                metrics: ingestQueryPattern.metrics.concat(newExpression),
+              });
+            } else {
+              updatePattern({
+                ...ingestQueryPattern,
+                dimensions: ingestQueryPattern.dimensions.concat(newExpression),
+              });
+            }
+          }}
+          onClose={() => setAddColumnType(undefined)}
         />
       )}
       {columnInEditor && ingestQueryPattern && (
