@@ -19,12 +19,16 @@
 .title-frame {
   position: relative;
 
-  & > .title {
+  & > .titles {
     font-size: 21px;
     line-height: 30px;
     font-weight: 600;
     cursor: default;
     margin: 0;
+
+    .slash {
+      opacity: 0.5;
+    }
   }
 
   & > *:last-child {

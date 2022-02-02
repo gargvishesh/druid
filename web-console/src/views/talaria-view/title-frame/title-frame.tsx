@@ -22,15 +22,18 @@ import './title-frame.scss';
 
 export interface TitleFrameProps {
   title: string;
+  subtitle: string;
   children?: ReactNode;
 }
 
 export const TitleFrame = React.memo(function TitleFrame(props: TitleFrameProps) {
-  const { title, children } = props;
+  const { title, subtitle, children } = props;
 
   return (
     <div className="title-frame">
-      <h1 className="title">{title}</h1>
+      <h1 className="titles">
+        {title} <span className="slash">/</span> {subtitle}
+      </h1>
       {children}
     </div>
   );

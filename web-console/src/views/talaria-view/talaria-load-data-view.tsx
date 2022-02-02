@@ -80,7 +80,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isInit() && (
         <>
           {queryString ? (
-            <TitleFrame title="Load data: configure schema">
+            <TitleFrame title="Load data" subtitle="Configure schema">
               <SchemaStep
                 queryString={queryString}
                 onQueryStringChange={setQueryString}
@@ -93,7 +93,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
               />
             </TitleFrame>
           ) : inputFormat && inputSource ? (
-            <TitleFrame title="Load data: parse">
+            <TitleFrame title="Load data" subtitle="Parse">
               <InputFormatStep
                 inputSource={inputSource}
                 initInputFormat={inputFormat}
@@ -111,7 +111,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
               />
             </TitleFrame>
           ) : (
-            <TitleFrame title="Load data: select input type">
+            <TitleFrame title="Load data" subtitle="Select input type">
               <InputSourceStep
                 initInputSource={inputSource}
                 onSet={(inputSource, inputFormat) => {
