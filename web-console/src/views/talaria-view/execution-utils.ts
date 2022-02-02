@@ -146,19 +146,22 @@ export async function getAsyncExecution(
   id: string,
   cancelToken?: CancelToken,
 ): Promise<QueryExecution> {
-  let execution: QueryExecution;
+  let detailResp: AxiosResponse | undefined;
   try {
-    const resp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}`, {
+    detailResp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}`, {
+      cancelToken,
+    });
+  } catch {}
+
+  let execution: QueryExecution;
+  if (detailResp) {
+    execution = QueryExecution.fromAsyncDetail(detailResp.data);
+  } else {
+    const statusResp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}/status`, {
       cancelToken,
     });
 
-    execution = QueryExecution.fromAsyncDetail(resp.data);
-  } catch {
-    const resp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}/status`, {
-      cancelToken,
-    });
-
-    execution = QueryExecution.fromAsyncStatus(resp.data);
+    execution = QueryExecution.fromAsyncStatus(statusResp.data);
   }
 
   execution = await updateExecutionWithResultsIfNeeded(execution, cancelToken);

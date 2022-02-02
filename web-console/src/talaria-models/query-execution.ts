@@ -109,13 +109,22 @@ export class QueryExecution {
     sqlQuery?: string,
     queryContext?: QueryContext,
   ): QueryExecution {
+    const status = QueryExecution.normalizeAsyncStatus(asyncResult.state);
     return new QueryExecution({
       id: asyncResult.asyncResultId,
-      status: QueryExecution.normalizeAsyncStatus(asyncResult.state),
+      status,
       sqlQuery,
       queryContext,
       error: asyncResult.error
         ? { error: { errorCode: 'AsyncError', errorMessage: JSON.stringify(asyncResult.error) } }
+        : status === 'FAILED'
+        ? {
+            error: {
+              errorCode: 'UnknownError',
+              errorMessage:
+                'Execution failed, there is no detail information, and there is no error in the status response',
+            },
+          }
         : undefined,
       destination:
         asyncResult.engine === 'Broker'
