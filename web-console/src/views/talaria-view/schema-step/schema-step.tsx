@@ -35,6 +35,7 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery, SqlRef } from 'druid
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { Loader } from '../../../components';
+import { AsyncActionDialog } from '../../../dialogs';
 import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models';
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
@@ -53,6 +54,7 @@ import {
   getContextFromSqlQuery,
   oneOf,
   QueryAction,
+  wait,
   without,
 } from '../../../utils';
 import { dataTypeToIcon } from '../../query-view/query-utils';
@@ -214,6 +216,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [columnInEditor, setColumnInEditor] = useState<SqlExpression | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
+  const [showRollupConfirm, setShowRollupConfirm] = useState(false);
   const [showRollupAnalysisPane, setShowRollupAnalysisPane] = useState(false);
 
   const columnFilter = useCallback(
@@ -370,7 +373,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Tag>
             </Button>
           </Popover2>
-          <Button icon={IconNames.COMPRESSED} onClick={toggleRollup} minimal>
+          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
             Rollup &nbsp;
             <Tag minimal round>
               {ingestQueryPattern?.metrics ? 'On' : 'Off'}
@@ -480,13 +483,12 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Button>
             </Popover2>
           )}
-          <InputGroup
-            value={ingestQueryPattern?.insertTableName || ''}
-            onChange={(e: any) => {
-              if (!ingestQueryPattern) return;
-              updatePattern({ ...ingestQueryPattern, insertTableName: e.target.value });
-            }}
-          />
+          <Button minimal>
+            Destination &nbsp;
+            <Tag minimal round>
+              {ingestQueryPattern?.insertTableName || ''}
+            </Tag>
+          </Button>
           <Button
             icon={IconNames.CLOUD_UPLOAD}
             text="Start loading data"
@@ -759,6 +761,26 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           }
           onClose={() => setFilterInEditor(undefined)}
         />
+      )}
+      {showRollupConfirm && ingestQueryPattern && (
+        <AsyncActionDialog
+          action={async () => {
+            await wait(100); // A hack to make it async. Revisit
+            toggleRollup();
+          }}
+          confirmButtonText={`Yes - ${ingestQueryPattern.metrics ? 'disable' : 'enable'} rollup`}
+          successText={`Rollup was ${
+            ingestQueryPattern.metrics ? 'disabled' : 'enabled'
+          }. Schema has been updated.`}
+          failText="Could change rollup"
+          intent={Intent.WARNING}
+          onClose={() => setShowRollupConfirm(false)}
+        >
+          <p>{`Are you sure you want to ${
+            ingestQueryPattern.metrics ? 'disable' : 'enable'
+          } rollup?`}</p>
+          <p>Making this change will reset any work you have done in this section.</p>
+        </AsyncActionDialog>
       )}
     </div>
   );
