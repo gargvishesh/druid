@@ -18,7 +18,6 @@ import io.imply.druid.ArrayBasedIndexedTableDruidModule;
 import io.imply.druid.segment.join.CloseTableFirstReferenceCountingIndexedTable;
 import io.imply.druid.segment.join.IndexedTableManager;
 import it.unimi.dsi.fastutil.ints.IntLists;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.jackson.SegmentizerModule;
 import org.apache.druid.java.util.common.DateTimes;
@@ -39,6 +38,7 @@ import org.apache.druid.segment.join.table.IndexedTable;
 import org.apache.druid.segment.loading.SegmentLoadingException;
 import org.apache.druid.segment.loading.SegmentizerFactory;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.joda.time.Interval;
@@ -54,7 +54,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-public class IndexedTableSegmentizerFactoryTest
+public class IndexedTableSegmentizerFactoryTest extends InitializedNullHandlingTest
 {
   private static final String TABLE_NAME = "test";
   private static final String STRING_COL_1 = "market";
@@ -81,7 +81,6 @@ public class IndexedTableSegmentizerFactoryTest
   @Before
   public void setup() throws IOException
   {
-    NullHandling.initializeForTests();
     final ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerModule(new SegmentizerModule());
     mapper.registerModules(new ArrayBasedIndexedTableDruidModule().getJacksonModules());
