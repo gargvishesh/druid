@@ -36,6 +36,7 @@ import org.apache.druid.segment.loading.MMappedQueryableSegmentizerFactory;
 import org.apache.druid.segment.loading.SegmentLoadingException;
 import org.apache.druid.segment.loading.SegmentizerFactory;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -51,7 +52,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RunWith(MockitoJUnitRunner.class)
-public class ArrayBasedTableTest
+public class ArrayBasedTableTest extends InitializedNullHandlingTest
 {
   private static final String STRING_COL_1 = "market";
   private static final String LONG_COL_1 = "longNumericNull";
@@ -72,7 +73,6 @@ public class ArrayBasedTableTest
   @Before
   public void setup() throws IOException, SegmentLoadingException
   {
-    NullHandling.initializeForTests();
     final ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerModule(new SegmentizerModule());
     mapper.registerModules(new ArrayBasedIndexedTableDruidModule().getJacksonModules());
