@@ -14,7 +14,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.nested.column.NestedDataComplexColumn;
 import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.column.StructuredData;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
@@ -26,12 +25,9 @@ import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
 import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.VirtualColumns;
-import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
-import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.vector.NilVectorSelector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
@@ -203,11 +199,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableOffset offset
   )
   {
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnName);
-    if (complexColumn == null) {
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(columnSelector, columnName);
+    if (column == null) {
       return DimensionSelector.constant(null);
     }
-    return complexColumn.makeDimensionSelector(path, offset, dimensionSpec.getExtractionFn());
+    return column.makeDimensionSelector(path, offset, dimensionSpec.getExtractionFn());
   }
 
 
@@ -219,11 +215,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableOffset offset
   )
   {
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, this.columnName);
-    if (complexColumn == null) {
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(columnSelector, this.columnName);
+    if (column == null) {
       return NilColumnValueSelector.instance();
     }
-    return complexColumn.makeColumnValueSelector(path, offset);
+    return column.makeColumnValueSelector(path, offset);
   }
 
   @Override
@@ -240,11 +236,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableVectorOffset offset
   )
   {
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, columnName);
-    if (complexColumn == null) {
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(columnSelector, columnName);
+    if (column == null) {
       return NilVectorSelector.create(offset);
     }
-    return complexColumn.makeSingleValueDimensionVectorSelector(path, offset);
+    return column.makeSingleValueDimensionVectorSelector(path, offset);
   }
 
   @Nullable
@@ -255,11 +251,11 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ReadableVectorOffset offset
   )
   {
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(columnSelector, this.columnName);
-    if (complexColumn == null) {
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(columnSelector, this.columnName);
+    if (column == null) {
       return NilVectorSelector.create(offset);
     }
-    return complexColumn.makeVectorObjectSelector(path, offset);
+    return column.makeVectorObjectSelector(path, offset);
   }
 
   @Nullable
@@ -269,12 +265,12 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       ColumnSelector selector
   )
   {
-    final NestedDataComplexColumn complexColumn = getNestedDataComplexColumn(selector, this.columnName);
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(selector, this.columnName);
 
-    if (complexColumn == null) {
+    if (column == null) {
       return null;
     }
-    return complexColumn.makeBitmapIndex(path);
+    return column.makeBitmapIndex(path);
   }
 
   @Override
@@ -291,7 +287,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Override
   public List<String> requiredColumns()
   {
-    return Collections.singletonList(VirtualColumns.splitColumnName(columnName).lhs);
+    return Collections.singletonList(columnName);
   }
 
   @Override
@@ -327,22 +323,5 @@ public class NestedFieldVirtualColumn implements VirtualColumn
            ", path='" + path + '\'' +
            ", outputName='" + outputName + '\'' +
            '}';
-  }
-
-  @Nullable
-  private NestedDataComplexColumn getNestedDataComplexColumn(
-      ColumnSelector columnSelector,
-      String columnName
-  )
-  {
-    ColumnHolder holder = columnSelector.getColumnHolder(columnName);
-    if (holder == null) {
-      return null;
-    }
-    BaseColumn theColumn = holder.getColumn();
-    if (!(theColumn instanceof NestedDataComplexColumn)) {
-      throw new IAE("Invalid column type [%s]", theColumn.getClass());
-    }
-    return (NestedDataComplexColumn) theColumn;
   }
 }

@@ -11,6 +11,7 @@ package io.imply.druid.nested.column;
 
 import io.netty.util.SuppressForbidden;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,9 @@ import java.util.Queue;
 @SuppressForbidden(reason = "Lists#newLinkedList")
 public abstract class StructuredDataProcessor
 {
+  public static final String ROOT_LITERAL = ".";
+  private static final List<String> ROOT_LITERAL_FIELDS = Collections.singletonList(ROOT_LITERAL);
+
   abstract void processLiteralField(String fieldName, Object fieldValue);
 
   /**
@@ -32,7 +36,11 @@ public abstract class StructuredDataProcessor
       toProcess.add(new MapField("", (Map<String, ?>) raw));
     } else if (raw instanceof List) {
       toProcess.add(new ListField("", (List<?>) raw));
+    } else {
+      processLiteralField(ROOT_LITERAL, raw);
+      return ROOT_LITERAL_FIELDS;
     }
+
     List<String> fields = new LinkedList<>();
 
     while (!toProcess.isEmpty()) {
