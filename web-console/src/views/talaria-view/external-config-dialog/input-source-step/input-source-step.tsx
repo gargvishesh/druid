@@ -192,7 +192,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
                 </FormGroup>
                 <Button
                   className="next"
-                  text={connectResultState.isLoading() ? 'Loading...' : 'Load example'}
+                  text={connectResultState.isLoading() ? 'Loading...' : 'Use example'}
                   rightIcon={IconNames.ARROW_RIGHT}
                   intent={Intent.PRIMARY}
                   disabled={connectResultState.isLoading()}

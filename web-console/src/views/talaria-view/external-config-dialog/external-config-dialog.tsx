@@ -48,7 +48,7 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
       className="external-config-dialog"
       isOpen
       onClose={onClose}
-      title="Connect external data"
+      title={`Connect external data: ${inputFormat ? 'parse' : 'select input type'}`}
     >
       <div className={Classes.DIALOG_BODY}>
         {inputFormat && inputSource ? (
