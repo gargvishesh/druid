@@ -117,8 +117,10 @@ $config-width: 400px;
     right: 0;
     width: $config-width;
 
-    .control-buttons {
-      text-align: right;
+    .next {
+      position: absolute;
+      right: 0;
+      bottom: 0;
     }
   }
 }

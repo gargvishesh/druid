@@ -32,6 +32,7 @@ import {
   SqlStar,
   trimString,
 } from 'druid-query-toolkit';
+import * as JSONBig from 'json-bigint-native';
 import React, { useEffect, useState } from 'react';
 import ReactTable from 'react-table';
 
@@ -234,8 +235,11 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
       if (column.nativeType === 'COMPLEX<json>') {
         const paths = getJsonPaths(
           filterMap(queryResult.rows, row => {
+            const v = row[headerIndex];
+            // Strangely talaria and broker deal with JSON differently
+            if (v && typeof v === 'object') return v;
             try {
-              return JSON.parse(row[headerIndex]);
+              return JSONBig.parse(v);
             } catch {
               return;
             }

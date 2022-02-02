@@ -16,27 +16,16 @@
  * limitations under the License.
  */
 
-.talaria-load-data-view {
-  height: 100%;
-  width: 100%;
-  position: relative;
-
-  .title-frame,
-  .loading-step,
-  .error-step {
-    width: 100%;
-    height: 100%;
+.title-frame {
+  & > .title {
+    font-size: 1.5em;
   }
 
-  .loading-step {
-    position: relative;
-    padding: 20px;
-
-    .talaria-stats {
-      position: absolute;
-      top: 160px;
-      bottom: 0;
-      width: 100%;
-    }
+  & > *:last-child {
+    position: absolute;
+    top: 45px;
+    bottom: 0;
+    left: 0;
+    right: 0;
   }
 }

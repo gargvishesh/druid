@@ -25,6 +25,7 @@ import {
   Intent,
   ProgressBar,
 } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import { QueryResult } from 'druid-query-toolkit';
 import React, { useEffect, useState } from 'react';
@@ -49,6 +50,8 @@ import {
   submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
 } from '../../execution-utils';
+
+import { InputSourceInfo } from './input-source-info';
 
 import './input-source-step.scss';
 
@@ -187,36 +190,41 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
                 <FormGroup>
                   <Callout>{exampleInputSource.description}</Callout>
                 </FormGroup>
-                <FormGroup className="control-buttons">
-                  <Button
-                    text={connectResultState.isLoading() ? 'Loading...' : 'Load example'}
-                    intent={Intent.PRIMARY}
-                    disabled={connectResultState.isLoading()}
-                    onClick={() => {
-                      connectQueryManager.runQuery(exampleInputSource.inputSource);
-                    }}
-                  />
-                </FormGroup>
+                <Button
+                  className="next"
+                  text={connectResultState.isLoading() ? 'Loading...' : 'Load example'}
+                  rightIcon={IconNames.ARROW_RIGHT}
+                  intent={Intent.PRIMARY}
+                  disabled={connectResultState.isLoading()}
+                  onClick={() => {
+                    connectQueryManager.runQuery(exampleInputSource.inputSource);
+                  }}
+                />
               </>
             )}
           </>
         ) : inputSource ? (
           <>
-            <AutoForm fields={INPUT_SOURCE_FIELDS} model={inputSource} onChange={setInputSource} />
-            <FormGroup className="control-buttons">
-              <Button
-                text={connectResultState.isLoading() ? 'Loading...' : 'Apply'}
-                intent={Intent.PRIMARY}
-                disabled={
-                  !AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS) ||
-                  connectResultState.isLoading()
-                }
-                onClick={() => {
-                  if (!AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS)) return;
-                  connectQueryManager.runQuery(inputSource);
-                }}
-              />
+            <FormGroup>
+              <Callout>
+                <InputSourceInfo inputSource={inputSource} />
+              </Callout>
             </FormGroup>
+            <AutoForm fields={INPUT_SOURCE_FIELDS} model={inputSource} onChange={setInputSource} />
+            <Button
+              className="next"
+              text={connectResultState.isLoading() ? 'Loading...' : 'Connect data'}
+              rightIcon={IconNames.ARROW_RIGHT}
+              intent={Intent.PRIMARY}
+              disabled={
+                !AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS) ||
+                connectResultState.isLoading()
+              }
+              onClick={() => {
+                if (!AutoForm.isValidModel(inputSource, INPUT_SOURCE_FIELDS)) return;
+                connectQueryManager.runQuery(inputSource);
+              }}
+            />
           </>
         ) : (
           <FormGroup>

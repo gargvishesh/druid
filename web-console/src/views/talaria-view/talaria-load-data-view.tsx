@@ -36,6 +36,7 @@ import { InputSourceStep } from './external-config-dialog/input-source-step/inpu
 import { SchemaStep } from './schema-step/schema-step';
 import { StageProgress } from './stage-progress/stage-progress';
 import { TalariaStats } from './talaria-stats/talaria-stats';
+import { TitleFrame } from './title-frame/title-frame';
 
 import './talaria-load-data-view.scss';
 
@@ -79,39 +80,45 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isInit() && (
         <>
           {queryString ? (
-            <SchemaStep
-              queryString={queryString}
-              onQueryStringChange={setQueryString}
-              goToQuery={() => goToQuery(queryString)}
-              onBack={() => setQueryString('')}
-              onDone={() => {
-                console.log('Ingesting:', queryString);
-                insertQueryManager.runQuery(queryString);
-              }}
-            />
+            <TitleFrame title="Load data: configure schema">
+              <SchemaStep
+                queryString={queryString}
+                onQueryStringChange={setQueryString}
+                goToQuery={() => goToQuery(queryString)}
+                onBack={() => setQueryString('')}
+                onDone={() => {
+                  console.log('Ingesting:', queryString);
+                  insertQueryManager.runQuery(queryString);
+                }}
+              />
+            </TitleFrame>
           ) : inputFormat && inputSource ? (
-            <InputFormatStep
-              inputSource={inputSource}
-              initInputFormat={inputFormat}
-              doneButton={false}
-              onSet={(inputFormat, columns) => {
-                setQueryString(
-                  ingestQueryPatternToQuery(
-                    externalConfigToIngestQueryPattern({ inputSource, inputFormat, columns }),
-                  ).toString(),
-                );
-              }}
-              onBack={() => {
-                setExternalConfigStep({ inputSource });
-              }}
-            />
+            <TitleFrame title="Load data: parse">
+              <InputFormatStep
+                inputSource={inputSource}
+                initInputFormat={inputFormat}
+                doneButton={false}
+                onSet={(inputFormat, columns) => {
+                  setQueryString(
+                    ingestQueryPatternToQuery(
+                      externalConfigToIngestQueryPattern({ inputSource, inputFormat, columns }),
+                    ).toString(),
+                  );
+                }}
+                onBack={() => {
+                  setExternalConfigStep({ inputSource });
+                }}
+              />
+            </TitleFrame>
           ) : (
-            <InputSourceStep
-              initInputSource={inputSource}
-              onSet={(inputSource, inputFormat) => {
-                setExternalConfigStep({ inputSource, inputFormat });
-              }}
-            />
+            <TitleFrame title="Load data: select input type">
+              <InputSourceStep
+                initInputSource={inputSource}
+                onSet={(inputSource, inputFormat) => {
+                  setExternalConfigStep({ inputSource, inputFormat });
+                }}
+              />
+            </TitleFrame>
           )}
         </>
       )}

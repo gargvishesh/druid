@@ -16,27 +16,22 @@
  * limitations under the License.
  */
 
-.talaria-load-data-view {
-  height: 100%;
-  width: 100%;
-  position: relative;
+import React, { ReactNode } from 'react';
 
-  .title-frame,
-  .loading-step,
-  .error-step {
-    width: 100%;
-    height: 100%;
-  }
+import './title-frame.scss';
 
-  .loading-step {
-    position: relative;
-    padding: 20px;
-
-    .talaria-stats {
-      position: absolute;
-      top: 160px;
-      bottom: 0;
-      width: 100%;
-    }
-  }
+export interface TitleFrameProps {
+  title: string;
+  children?: ReactNode;
 }
+
+export const TitleFrame = React.memo(function TitleFrame(props: TitleFrameProps) {
+  const { title, children } = props;
+
+  return (
+    <div className="title-frame">
+      <h1 className="title">{title}</h1>
+      {children}
+    </div>
+  );
+});
