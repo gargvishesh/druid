@@ -347,7 +347,19 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         )
       ) {
         AppToaster.show({
-          message: 'Module is not loaded',
+          message: 'Talaria module is not loaded (imply-talaria)',
+          intent: Intent.DANGER,
+        });
+        return;
+      }
+
+      if (
+        !status.modules.some((module: any) =>
+          String(module.name).startsWith('io.imply.druid.sql.async'),
+        )
+      ) {
+        AppToaster.show({
+          message: 'SQL async module is not loaded (imply-sql-async)',
           intent: Intent.DANGER,
         });
         return;
