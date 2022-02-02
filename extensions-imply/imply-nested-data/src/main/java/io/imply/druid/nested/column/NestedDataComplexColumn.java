@@ -12,14 +12,17 @@ package io.imply.druid.nested.column;
 import com.google.api.client.util.Preconditions;
 import com.google.common.base.Supplier;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import org.apache.druid.query.extraction.ExtractionFn;
+import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
+import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
@@ -47,6 +50,28 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class NestedDataComplexColumn implements ComplexColumn
 {
+  @Nullable
+  public static NestedDataComplexColumn fromColumnSelector(
+      ColumnSelector columnSelector,
+      String columnName
+  )
+  {
+    ColumnHolder holder = columnSelector.getColumnHolder(columnName);
+    if (holder == null) {
+      return null;
+    }
+    BaseColumn theColumn = holder.getColumn();
+    if (!(theColumn instanceof NestedDataComplexColumn)) {
+      throw new IAE(
+          "Column [%s] is invalid type, found [%s] instead of [%s]",
+          columnName,
+          theColumn.getClass(),
+          NestedDataComplexColumn.class.getSimpleName()
+      );
+    }
+    return (NestedDataComplexColumn) theColumn;
+  }
+
   private final NestedDataColumnMetadata metadata;
   private final ColumnConfig columnConfig;
   final GenericIndexed<StructuredData> rawColumn;

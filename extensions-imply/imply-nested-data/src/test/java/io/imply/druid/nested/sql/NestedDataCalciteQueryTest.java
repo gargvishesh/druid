@@ -31,10 +31,12 @@ import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
@@ -84,6 +86,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                   .put("t", "2000-01-01")
                   .put("string", "bbb")
                   .put("long", 4L)
+                  .put("nester", "hello")
                   .build(),
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
@@ -107,6 +110,12 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                   .put("nest", ImmutableMap.of("x", 100L, "y", 200L, "z", 300L))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", "hello")))
                   .put("long", 5L)
+                  .build(),
+      ImmutableMap.<String, Object>builder()
+                  .put("t", "2000-01-02")
+                  .put("string", "ddd")
+                  .put("long", 2L)
+                  .put("nester", 2L)
                   .build()
   );
 
@@ -128,8 +137,6 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   private static final List<InputRow> ROWS =
       RAW_ROWS.stream().map(raw -> CalciteTests.createRow(raw, PARSER)).collect(Collectors.toList());
 
-  private ExprMacroTable macroTable;
-
 
   @Override
   public Iterable<? extends Module> getJacksonModules()
@@ -144,7 +151,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
   {
     NestedDataModule.registerHandlersAndSerde();
-    this.macroTable = createMacroTable();
+    ExprMacroTable macroTable = createMacroTable();
     final QueryableIndex index =
         IndexBuilder.create()
                     .tmpDir(temporaryFolder.newFolder())
@@ -218,8 +225,41 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{NullHandling.defaultStringValue(), 5L},
             new Object[]{"100", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByRootPath() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nester, '.'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nester", ".", "v0")
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 5L},
+            new Object[]{"2", 1L},
+            new Object[]{"hello", 1L}
         )
     );
   }
@@ -255,7 +295,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), 4L},
+            new Object[]{NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), 5L},
             new Object[]{"100", "100", "100", 2L}
         )
     );
@@ -292,6 +332,39 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                 "100",
                 2L
             }
+        )
+    );
+  }
+
+  @Test
+  public void testCastAndSumPath() throws Exception
+  {
+    cannotVectorize();
+    // ideally this should be using the native virtual column
+    testQuery(
+        "SELECT "
+        + "SUM(CAST(JSON_GET_PATH(nest, '.x') as BIGINT)) "
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .aggregators(
+                      aggregators(
+                          new LongSumAggregatorFactory(
+                              "a0",
+                              null,
+                              "CAST(get_path(nest,'.\"x\"'), 'LONG')",
+                              TestExprMacroTable.INSTANCE
+                          )
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{200L}
         )
     );
   }

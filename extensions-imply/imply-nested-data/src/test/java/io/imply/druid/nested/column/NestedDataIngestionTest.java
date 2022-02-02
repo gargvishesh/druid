@@ -95,7 +95,8 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
                                              .virtualColumns(
                                                  new NestedFieldVirtualColumn("nest", ".x", "x"),
                                                  new NestedFieldVirtualColumn("nester", ".x.[0]", "x_0"),
-                                                 new NestedFieldVirtualColumn("nester", ".y.c.[1]", "y_c_1")
+                                                 new NestedFieldVirtualColumn("nester", ".y.c.[1]", "y_c_1"),
+                                                 new NestedFieldVirtualColumn("nester", ".", "nester_root")
                                              )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
@@ -112,6 +113,8 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
 
     List<ScanResultValue> resultsRealtime = seq.toList();
     List<ScanResultValue> resultsSegments = seq2.toList();
+    logResults(resultsSegments);
+    logResults(resultsRealtime);
     Assert.assertEquals(1, resultsRealtime.size());
     Assert.assertEquals(resultsRealtime.size(), resultsSegments.size());
     Assert.assertEquals(resultsSegments.get(0).getEvents(), resultsRealtime.get(0).getEvents());

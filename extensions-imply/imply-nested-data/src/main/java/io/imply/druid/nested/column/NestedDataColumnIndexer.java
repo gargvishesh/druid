@@ -11,7 +11,6 @@ package io.imply.druid.nested.column;
 
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.MutableBitmap;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
@@ -27,8 +26,6 @@ import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexRowHolder;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -68,11 +65,8 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
     if (dimValues instanceof StructuredData) {
       return (StructuredData) dimValues;
     }
-    if (dimValues instanceof Map || dimValues instanceof List) {
-      indexerProcessor.processFields(dimValues);
-      return new StructuredData(dimValues);
-    }
-    throw new IAE("Cannot handle [%s]", dimValues.getClass());
+    indexerProcessor.processFields(dimValues);
+    return new StructuredData(dimValues);
   }
 
   @Override

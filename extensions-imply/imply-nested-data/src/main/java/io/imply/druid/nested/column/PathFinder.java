@@ -25,6 +25,9 @@ public class PathFinder
    */
   public static String toNormalizedJqPath(List<PathPartFinder> paths)
   {
+    if (paths.isEmpty()) {
+      return StructuredDataProcessor.ROOT_LITERAL;
+    }
     StringBuilder bob = new StringBuilder();
     for (PathPartFinder partFinder : paths) {
       bob.append(".");

@@ -13,6 +13,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.nested.column.NestedDataComplexTypeSerde;
 import io.imply.druid.nested.column.PathFinder;
+import io.imply.druid.nested.column.StructuredData;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
@@ -125,6 +126,10 @@ public class NestedDataExpressions
                 TYPE.asTypeString(),
                 input.type().asTypeString()
             );
+          }
+          if (input.value() instanceof StructuredData) {
+            StructuredData data = (StructuredData) input.value();
+            return ExprEval.ofType(ExpressionType.STRING, PathFinder.findStringLiteral(data.getValue(), parts));
           }
           return ExprEval.ofType(ExpressionType.STRING, PathFinder.findStringLiteral(input.value(), parts));
         }
