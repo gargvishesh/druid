@@ -20,6 +20,8 @@ import io.imply.druid.fastrack.GeoIpExprMacro;
 import io.imply.druid.fastrack.GeoIpSqlOperator;
 import io.imply.druid.fastrack.UserAgentExprMacro;
 import io.imply.druid.fastrack.UserAgentSqlOperator;
+import io.imply.druid.spatial.GeohashExprMacro;
+import io.imply.druid.spatial.GeohashSqlOperatorConversion;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LifecycleModule;
@@ -48,7 +50,9 @@ public class UtilityBeltModule implements DruidModule
     LifecycleModule.register(binder, GeoIpExprMacro.class);
     ExpressionModule.addExprMacro(binder, UserAgentExprMacro.class);
     ExpressionModule.addExprMacro(binder, GeoIpExprMacro.class);
+    ExpressionModule.addExprMacro(binder, GeohashExprMacro.class);
     SqlBindings.addOperatorConversion(binder, GeoIpSqlOperator.class);
     SqlBindings.addOperatorConversion(binder, UserAgentSqlOperator.class);
+    SqlBindings.addOperatorConversion(binder, GeohashSqlOperatorConversion.class);
   }
 }
