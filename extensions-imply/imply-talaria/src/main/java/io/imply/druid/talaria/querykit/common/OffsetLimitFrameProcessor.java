@@ -24,30 +24,38 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.Cursor;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class LimitFrameProcessor implements FrameProcessor<Long>
+public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
 {
   private final ReadableFrameChannel inputChannel;
   private final WritableFrameChannel outputChannel;
   private final FrameReader frameReader;
+  private final long offset;
   private final long limit;
 
-  long rowsOutput = 0L;
+  long rowsProcessedSoFar = 0L;
 
-  LimitFrameProcessor(
+  OffsetLimitFrameProcessor(
       ReadableFrameChannel inputChannel,
       WritableFrameChannel outputChannel,
       FrameReader frameReader,
+      long offset,
       long limit
   )
   {
     this.inputChannel = inputChannel;
     this.outputChannel = outputChannel;
     this.frameReader = frameReader;
+    this.offset = offset;
     this.limit = limit;
+
+    if (offset < 0 || limit < 0) {
+      throw new ISE("Offset and limit must be nonnegative");
+    }
   }
 
   @Override
@@ -67,18 +75,22 @@ public class LimitFrameProcessor implements FrameProcessor<Long>
   {
     if (readableInputs.isEmpty()) {
       return ReturnOrAwait.awaitAll(1);
-    } else if (inputChannel.isFinished()) {
-      return ReturnOrAwait.returnObject(rowsOutput);
+    } else if (inputChannel.isFinished() || rowsProcessedSoFar == offset + limit) {
+      return ReturnOrAwait.returnObject(rowsProcessedSoFar);
     }
 
     final Frame frame = inputChannel.read().getOrThrow();
-    final Frame truncatedFrame = truncate(frame, frameReader, Math.min(frame.numRows(), limit - rowsOutput));
-    outputChannel.write(new FrameWithPartition(truncatedFrame, FrameWithPartition.NO_PARTITION));
-    rowsOutput += truncatedFrame.numRows();
 
-    if (rowsOutput == limit) {
-      return ReturnOrAwait.returnObject(rowsOutput);
+    final Frame truncatedFrame = chop(frame, frameReader);
+    if (truncatedFrame != null) {
+      outputChannel.write(new FrameWithPartition(truncatedFrame, FrameWithPartition.NO_PARTITION));
+    }
+
+    if (rowsProcessedSoFar == offset + limit) {
+      // This check is not strictly necessary, given the check above, but prevents one extra scheduling round.
+      return ReturnOrAwait.returnObject(rowsProcessedSoFar);
     } else {
+      assert rowsProcessedSoFar < offset + limit;
       return ReturnOrAwait.awaitAll(1);
     }
   }
@@ -89,11 +101,24 @@ public class LimitFrameProcessor implements FrameProcessor<Long>
     FrameProcessors.closeAll(inputChannels(), outputChannels());
   }
 
-  private static Frame truncate(final Frame frame, final FrameReader frameReader, final long numRows)
+  /**
+   * Chops a frame down to a smaller one, potentially on both ends.
+   *
+   * Increments {@link #rowsProcessedSoFar} as it does its work. Either returns the original frame, a chopped frame,
+   * or null if no rows from the current frame should be included.
+   */
+  @Nullable
+  private Frame chop(final Frame frame, final FrameReader frameReader)
   {
-    if (numRows <= 0 || numRows > frame.numRows()) {
-      throw new ISE("Invalid numRows [%d]", numRows);
-    } else if (numRows == frame.numRows()) {
+    final long startRow = Math.max(0, offset - rowsProcessedSoFar);
+    final long endRow = Math.min(frame.numRows(), offset + limit - rowsProcessedSoFar);
+
+    if (startRow >= endRow) {
+      // Offset is past the end of the frame; skip it.
+      rowsProcessedSoFar += frame.numRows();
+      return null;
+    } else if (startRow == 0 && endRow == frame.numRows()) {
+      rowsProcessedSoFar += frame.numRows();
       return frame;
     }
 
@@ -103,18 +128,18 @@ public class LimitFrameProcessor implements FrameProcessor<Long>
     //    we can remove this need if we complexify the logic.
     final HeapMemoryAllocator unlimitedAllocator = HeapMemoryAllocator.unlimited();
 
-    long rowsSoFar = 0;
+    long rowsProcessedSoFarInFrame = 0;
     try (final FrameWriter frameWriter =
              FrameWriter.create(cursor.getColumnSelectorFactory(), unlimitedAllocator, frameReader.signature())) {
-      while (!cursor.isDone() && rowsSoFar < numRows) {
-        if (!frameWriter.addSelection()) {
+      while (!cursor.isDone() && rowsProcessedSoFarInFrame < endRow) {
+        if (rowsProcessedSoFarInFrame >= startRow && !frameWriter.addSelection()) {
           // Don't retry; it can't work because the allocator is unlimited anyway. The individual row must have
           // been too large on its own.
           throw new FrameRowTooLargeException();
         }
 
         cursor.advance();
-        rowsSoFar++;
+        rowsProcessedSoFarInFrame++;
       }
 
       return Frame.wrap(frameWriter.toByteArray());

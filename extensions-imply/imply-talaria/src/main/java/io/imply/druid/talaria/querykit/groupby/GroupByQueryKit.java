@@ -22,7 +22,7 @@ import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.querykit.common.LimitFrameProcessorFactory;
+import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.common.OrderByFrameProcessorFactory;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -90,8 +90,10 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     final ClusterBy clusterByForResults =
         QueryKitUtils.clusterByWithSegmentGranularity(computeClusterByForResults(queryToRun), segmentGranularity);
     final boolean doOrderBy = !clusterByForResults.equals(clusterByPreAggregation);
-    final boolean doLimit = queryToRun.getLimitSpec() instanceof DefaultLimitSpec
-                            && ((DefaultLimitSpec) queryToRun.getLimitSpec()).isLimited();
+    final boolean doLimitOrOffset =
+        queryToRun.getLimitSpec() instanceof DefaultLimitSpec
+        && (((DefaultLimitSpec) queryToRun.getLimitSpec()).isLimited()
+            || ((DefaultLimitSpec) queryToRun.getLimitSpec()).isOffset());
 
     final ShuffleSpecFactory shuffleSpecFactoryForAggregation;
     final ShuffleSpecFactory shuffleSpecFactoryForOrderBy;
@@ -102,9 +104,13 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
       shuffleSpecFactoryForOrderBy = ShuffleSpecFactories.singlePartition();
     } else if (doOrderBy) {
       shuffleSpecFactoryForAggregation = ShuffleSpecFactories.subQueryWithMaxWorkerCount(maxWorkerCount);
-      shuffleSpecFactoryForOrderBy = doLimit ? ShuffleSpecFactories.singlePartition() : resultShuffleSpecFactory;
+      shuffleSpecFactoryForOrderBy = doLimitOrOffset
+                                     ? ShuffleSpecFactories.singlePartition()
+                                     : resultShuffleSpecFactory;
     } else {
-      shuffleSpecFactoryForAggregation = doLimit ? ShuffleSpecFactories.singlePartition() : resultShuffleSpecFactory;
+      shuffleSpecFactoryForAggregation = doLimitOrOffset
+                                         ? ShuffleSpecFactories.singlePartition()
+                                         : resultShuffleSpecFactory;
       shuffleSpecFactoryForOrderBy = null;
     }
 
@@ -126,7 +132,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     queryDefBuilder.add(
         StageDefinition.builder(firstStageNumber + 1)
                        .inputStages(firstStageNumber)
-                       .signature(doOrderBy || doLimit ? signaturePostAggregation : signatureForResults)
+                       .signature(doOrderBy || doLimitOrOffset ? signaturePostAggregation : signatureForResults)
                        .maxWorkerCount(maxWorkerCount)
                        .processorFactory(new GroupByPostShuffleFrameProcessorFactory(queryToRun))
     );
@@ -154,8 +160,8 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
       );
     }
 
-    if (doLimit) {
-      final int limit = ((DefaultLimitSpec) queryToRun.getLimitSpec()).getLimit();
+    if (doLimitOrOffset) {
+      final DefaultLimitSpec limitSpec = (DefaultLimitSpec) queryToRun.getLimitSpec();
 
       queryDefBuilder.add(
           StageDefinition.builder(firstStageNumber + (doOrderBy ? 3 : 2))
@@ -163,7 +169,12 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
                          .signature(signatureForResults)
                          .maxWorkerCount(1)
                          .shuffleSpec(new MaxCountShuffleSpec(ClusterBy.none(), 1, false))
-                         .processorFactory(new LimitFrameProcessorFactory(limit))
+                         .processorFactory(
+                             new OffsetLimitFrameProcessorFactory(
+                                 limitSpec.getOffset(),
+                                 limitSpec.isLimited() ? (long) limitSpec.getLimit() : null
+                             )
+                         )
       );
     }
 
@@ -255,7 +266,6 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
 
     if (query.getLimitSpec() instanceof DefaultLimitSpec) {
       final DefaultLimitSpec defaultLimitSpec = (DefaultLimitSpec) query.getLimitSpec();
-      Preconditions.checkState(!defaultLimitSpec.isOffset(), "Must not have offset");
 
       final RowSignature resultSignature = computeSignaturePostAggregation(query);
       for (final OrderByColumnSpec column : defaultLimitSpec.getColumns()) {
