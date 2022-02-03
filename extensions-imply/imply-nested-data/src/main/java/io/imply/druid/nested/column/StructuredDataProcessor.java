@@ -23,7 +23,7 @@ public abstract class StructuredDataProcessor
   public static final String ROOT_LITERAL = ".";
   private static final List<String> ROOT_LITERAL_FIELDS = Collections.singletonList(ROOT_LITERAL);
 
-  abstract void processLiteralField(String fieldName, Object fieldValue);
+  public abstract void processLiteralField(String fieldName, Object fieldValue);
 
   /**
    * Process fields, returning a list of all "normalized" 'jq' paths to literal fields, consistent with the output of

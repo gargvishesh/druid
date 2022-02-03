@@ -40,7 +40,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
   protected final StructuredDataProcessor indexerProcessor = new StructuredDataProcessor()
   {
     @Override
-    void processLiteralField(String fieldName, Object fieldValue)
+    public void processLiteralField(String fieldName, Object fieldValue)
     {
       FieldIndexer<?> indexer = fieldIndexers.computeIfAbsent(
           fieldName,

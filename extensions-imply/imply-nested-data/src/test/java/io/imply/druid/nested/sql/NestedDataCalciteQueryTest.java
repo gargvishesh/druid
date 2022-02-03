@@ -40,7 +40,9 @@ import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
+import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.aggregation.ApproxCountDistinctSqlAggregator;
@@ -70,7 +72,9 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ),
       ImmutableSet.of(
           new NestedDataOperatorConversions.GetPathOperatorConversion(),
-          new NestedDataOperatorConversions.JsonGetPathAliasOperatorConversion()
+          new NestedDataOperatorConversions.JsonGetPathAliasOperatorConversion(),
+          new NestedDataOperatorConversions.JsonKeysOperatorConversion(),
+          new NestedDataOperatorConversions.JsonPathsOperatorConversion()
       )
   );
 
@@ -137,6 +141,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   private static final List<InputRow> ROWS =
       RAW_ROWS.stream().map(raw -> CalciteTests.createRow(raw, PARSER)).collect(Collectors.toList());
 
+  private ExprMacroTable macroTable;
 
   @Override
   public Iterable<? extends Module> getJacksonModules()
@@ -151,7 +156,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
   {
     NestedDataModule.registerHandlersAndSerde();
-    ExprMacroTable macroTable = createMacroTable();
+    macroTable = createMacroTable();
     final QueryableIndex index =
         IndexBuilder.create()
                     .tmpDir(temporaryFolder.newFolder())
@@ -196,6 +201,8 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
     exprMacros.add(CalciteTests.INJECTOR.getInstance(LookupExprMacro.class));
     exprMacros.add(new NestedDataExpressions.StructExprMacro());
     exprMacros.add(new NestedDataExpressions.GetPathExprMacro());
+    exprMacros.add(new NestedDataExpressions.ListPathsExprMacro());
+    exprMacros.add(new NestedDataExpressions.ListKeysExprMacro());
     return new ExprMacroTable(exprMacros);
   }
 
@@ -365,6 +372,72 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{200L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByRootKeys() throws Exception
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "JSON_KEYS(nester, '.'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new ExpressionVirtualColumn("v0", "list_keys(\"nester\",'.')", ColumnType.STRING_ARRAY, macroTable)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0", ColumnType.STRING_ARRAY)
+                            )
+                        )
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{null, 5L},
+            new Object[]{"[\"array\",\"n\"]", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByAllPaths() throws Exception
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "JSON_PATHS(nester), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new ExpressionVirtualColumn("v0", "list_paths(\"nester\")", ColumnType.STRING_ARRAY, macroTable)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0", ColumnType.STRING_ARRAY)
+                            )
+                        )
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"[\".\"]", 5L},
+            new Object[]{"[\".\\\"array\\\".[0]\",\".\\\"array\\\".[1]\",\".\\\"n\\\".\\\"x\\\"\"]", 2L}
         )
     );
   }
