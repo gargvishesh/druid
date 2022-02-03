@@ -149,7 +149,8 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
                   providerThingy.indexIO(),
                   providerThingy.indexMerger(),
                   meters,
-                  parseExceptionHandler
+                  parseExceptionHandler,
+                  true
               );
 
           final ReadableFrameChannel channel;

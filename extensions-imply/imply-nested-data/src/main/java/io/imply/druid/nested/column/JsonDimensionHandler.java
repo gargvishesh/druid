@@ -19,7 +19,7 @@ public class JsonDimensionHandler extends NestedDataDimensionHandler
   }
 
   @Override
-  public DimensionIndexer<StructuredData, StructuredData, StructuredData> makeIndexer()
+  public DimensionIndexer<StructuredData, StructuredData, StructuredData> makeIndexer(boolean useMaxMemoryEstimates)
   {
     return new JsonColumnIndexer();
   }
