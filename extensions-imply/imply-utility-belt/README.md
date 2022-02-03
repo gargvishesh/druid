@@ -120,6 +120,14 @@ Lookup types supported:
 - `os` - Operating system, like "OS X".
 - `platform` - Platform, like "OS X".
 
+## Spatial functions
+
+Operations on spatial data.
+
+|Function|Description|
+|--------|-----------|
+|st_geohash(lon, lat, maxchars)|Create a [geohash](https://en.wikipedia.org/wiki/Geohash) for the provided longitude and latitude, with length up to maxchars. The maxchars parameter must be a literal between 1 and 12 (inclusive).<br /><br />If longitude is outside of the range -180 (exclusive) to 180 (inclusive), or latitude is outside of the range -90 (exclusive) to 90 (inclusive), returns null. If any inputs are null, returns null.|
+
 ## Currency conversion aggregator
 
 ### Usage
