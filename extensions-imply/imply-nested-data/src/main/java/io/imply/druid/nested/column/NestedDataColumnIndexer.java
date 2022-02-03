@@ -18,6 +18,7 @@ import org.apache.druid.segment.DimensionDictionary;
 import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.DimensionIndexer;
 import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.EncodedKeyComponent;
 import org.apache.druid.segment.ObjectColumnSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
@@ -50,40 +51,30 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
       indexer.processValue(fieldValue);
     }
   };
-
-  @Nullable
+  
   @Override
-  public StructuredData processRowValsToUnsortedEncodedKeyComponent(
+  public EncodedKeyComponent<StructuredData> processRowValsToUnsortedEncodedKeyComponent(
       @Nullable Object dimValues,
       boolean reportParseExceptions
   )
   {
+    final StructuredData data;
     if (dimValues == null) {
       hasNulls = true;
-      return null;
-    }
-    if (dimValues instanceof StructuredData) {
-      return (StructuredData) dimValues;
+      data = null;
+    } else if (dimValues instanceof StructuredData) {
+      data = (StructuredData) dimValues;
+    } else {
+      data = new StructuredData(dimValues);
     }
     indexerProcessor.processFields(dimValues);
-    return new StructuredData(dimValues);
+    return new EncodedKeyComponent<>(data, data == null ? 0 : data.estimateSize());
   }
 
   @Override
   public void setSparseIndexed()
   {
     this.hasNulls = true;
-  }
-
-  @Override
-  public long estimateEncodedKeyComponentSize(StructuredData key)
-  {
-    if (key == null) {
-      return 0;
-    }
-    // oh no... who knows ~16 bytes per top level object, this could be way off if object is nested deeply... or way
-    // overkill if it isn't nested at all
-    return key.estimateSize();
   }
 
   @Override

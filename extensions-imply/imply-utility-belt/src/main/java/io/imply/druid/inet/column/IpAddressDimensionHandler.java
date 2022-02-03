@@ -66,9 +66,9 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
   }
 
   @Override
-  public DimensionIndexer<Integer, Integer, IpAddressBlob> makeIndexer()
+  public DimensionIndexer<Integer, Integer, IpAddressBlob> makeIndexer(boolean useMaxMemoryEstimates)
   {
-    return new IpAddressDictionaryEncodedColumnIndexer(true);
+    return new IpAddressDictionaryEncodedColumnIndexer(true, useMaxMemoryEstimates);
   }
 
   @Override

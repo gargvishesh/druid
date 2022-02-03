@@ -79,6 +79,8 @@ public class StructuredData implements Comparable<StructuredData>
 
   public long estimateSize()
   {
+    // oh no... who knows ~16 bytes per top level object, this could be way off if object is nested deeply... or way
+    // overkill if it isn't nested at all
     if (value instanceof Map) {
       return ((Map) value).size() * (2 * Long.BYTES + 256);
     }

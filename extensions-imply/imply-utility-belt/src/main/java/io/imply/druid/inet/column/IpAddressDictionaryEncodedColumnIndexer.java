@@ -24,6 +24,7 @@ import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.DictionaryEncodedColumnIndexer;
 import org.apache.druid.segment.DimensionDictionary;
 import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.EncodedKeyComponent;
 import org.apache.druid.segment.IdLookup;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
@@ -42,26 +43,27 @@ import java.util.Objects;
 public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedColumnIndexer<Integer, IpAddressBlob>
 {
   private final boolean hasBitmapIndexes;
+  private final boolean useMaxMemoryEstimates;
 
-  public IpAddressDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes)
+  public IpAddressDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes, boolean useMaxMemoryEstimates)
   {
     this.hasBitmapIndexes = hasBitmapIndexes;
+    this.useMaxMemoryEstimates = useMaxMemoryEstimates;
   }
 
   @Nullable
   @Override
-  public Integer processRowValsToUnsortedEncodedKeyComponent(
+  public EncodedKeyComponent<Integer> processRowValsToUnsortedEncodedKeyComponent(
       @Nullable Object dimValues,
       boolean reportParseExceptions
   )
   {
-    return dimLookup.add(IpAddressBlob.parse(dimValues, reportParseExceptions));
-  }
-
-  @Override
-  public long estimateEncodedKeyComponentSize(Integer key)
-  {
-    return Integer.BYTES;
+    final long oldDictSizeInBytes = useMaxMemoryEstimates ? 0 : dimLookup.sizeInBytes();
+    final int id = dimLookup.add(IpAddressBlob.parse(dimValues, reportParseExceptions));
+    final long estimate = useMaxMemoryEstimates
+                          ? Integer.BYTES
+                          : Integer.BYTES + dimLookup.sizeInBytes() - oldDictSizeInBytes;
+    return new EncodedKeyComponent<>(id, estimate);
   }
 
   @Override

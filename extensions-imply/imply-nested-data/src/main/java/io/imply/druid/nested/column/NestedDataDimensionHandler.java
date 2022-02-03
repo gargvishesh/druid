@@ -57,7 +57,7 @@ public class NestedDataDimensionHandler implements DimensionHandler<StructuredDa
   }
 
   @Override
-  public DimensionIndexer<StructuredData, StructuredData, StructuredData> makeIndexer()
+  public DimensionIndexer<StructuredData, StructuredData, StructuredData> makeIndexer(boolean useMaxMemoryEstimates)
   {
     return new NestedDataColumnIndexer();
   }
