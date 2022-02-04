@@ -194,6 +194,9 @@ public class LeaderImpl implements Leader
   // For live reports. stage number -> runtime interval. Endpoint is eternity's end if the stage is still running.
   private final ConcurrentHashMap<Integer, Interval> stageRuntimesForLiveReports = new ConcurrentHashMap<>();
 
+  // For live reports. The time at which the query started
+  private volatile DateTime queryStartTime = null;
+
   private volatile DruidNode selfDruidNode;
   private volatile TalariaWorkerTaskLauncher workerTaskLauncher;
   private volatile WorkerClient netClient;
@@ -266,6 +269,7 @@ public class LeaderImpl implements Leader
     final TalariaErrorReport errorForReport;
 
     try {
+      this.queryStartTime = DateTimes.nowUtc();
       queryDef = initializeState(closer);
 
       final Pair<ControllerQueryKernel, ListenableFuture<TaskState>> queryRunResult =
@@ -336,7 +340,15 @@ public class LeaderImpl implements Leader
         }
       }
 
-      reports.add(makeStatusTaskReport(id(), taskStateForReport, errorForReport));
+      reports.add(
+          makeStatusTaskReport(
+              id(),
+              taskStateForReport,
+              errorForReport,
+              queryStartTime,
+              new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
+          )
+      );
 
       context.writeReports(
           id(),
@@ -669,7 +681,13 @@ public class LeaderImpl implements Leader
             stageRuntimesForLiveReports,
             snapshot
         ),
-        makeStatusTaskReport(id(), TaskState.RUNNING, null)
+        makeStatusTaskReport(
+            id(),
+            TaskState.RUNNING,
+            null,
+            queryStartTime,
+            queryStartTime == null ? -1L : new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
+        )
     );
   }
 
@@ -1505,12 +1523,14 @@ public class LeaderImpl implements Leader
   private static TalariaStatusTaskReport makeStatusTaskReport(
       final String taskId,
       final TaskState taskState,
-      @Nullable final TalariaErrorReport errorReport
+      @Nullable final TalariaErrorReport errorReport,
+      @Nullable final DateTime queryStartTime,
+      final long queryDuration
   )
   {
     return new TalariaStatusTaskReport(
         taskId,
-        new TalariaStatusTaskReportPayload(taskState, errorReport)
+        new TalariaStatusTaskReportPayload(taskState, errorReport, queryStartTime, queryDuration)
     );
   }
 
