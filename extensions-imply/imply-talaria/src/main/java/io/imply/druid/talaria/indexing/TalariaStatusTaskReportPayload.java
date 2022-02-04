@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import org.apache.druid.indexer.TaskState;
+import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 
@@ -25,14 +26,24 @@ public class TalariaStatusTaskReportPayload
   @Nullable
   private final TalariaErrorReport errorReport;
 
+  @Nullable
+  private final DateTime startTime;
+
+  private final long durationMs;
+
+
   @JsonCreator
   public TalariaStatusTaskReportPayload(
       @JsonProperty("status") TaskState status,
-      @JsonProperty("error") @Nullable TalariaErrorReport errorReport
+      @JsonProperty("error") @Nullable TalariaErrorReport errorReport,
+      @JsonProperty("startTime") @Nullable DateTime startTime,
+      @JsonProperty("durationMs") long durationMs
   )
   {
     this.status = Preconditions.checkNotNull(status, "status");
     this.errorReport = errorReport;
+    this.startTime = Preconditions.checkNotNull(startTime, "startTime");
+    this.durationMs = durationMs;
   }
 
   @JsonProperty
@@ -47,5 +58,19 @@ public class TalariaStatusTaskReportPayload
   public TalariaErrorReport getErrorReport()
   {
     return errorReport;
+  }
+
+  @Nullable
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public DateTime getStartTime()
+  {
+    return startTime;
+  }
+
+  @JsonProperty
+  public long getDurationMs()
+  {
+    return durationMs;
   }
 }

@@ -571,6 +571,8 @@ curl -u 'user:password' \
 |talariaStatus|Query status container.|
 |talariaStatus.taskId|Controller task ID.|
 |talariaStatus.payload.status|RUNNING, SUCCESS, or FAILED.|
+|talariaStatus.payload.startTime|Start time of the query in ISO format. Only present if the query has started running.|
+|talariaStatus.payload.durationMs|Milliseconds elapsed after the query has started running. -1 denotes that the query hasn't started running yet.|
 |talariaStatus.payload.errorReport.taskId|Task ID that reported the error. May be the controller task or a worker task.|
 |talariaStatus.payload.errorReport.host|The hostname and port of the task that reported the error, if known.|
 |talariaStatus.payload.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
