@@ -44,6 +44,7 @@ FROM TABLE(
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+--:context talariaReplaceTimeChunks: all
 --:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_rollup"
@@ -96,6 +97,7 @@ ORDER BY session -- Secondary partitioning
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+--:context talariaReplaceTimeChunks: all
 --:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_etl"
@@ -161,6 +163,7 @@ ORDER BY session -- Secondary partitioning
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+--:context talariaReplaceTimeChunks: all
 --:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_reingest"
