@@ -180,12 +180,10 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
 
     final boolean hasSegmentGranularity = !Granularities.ALL.equals(segmentGranularity);
 
-    if (hasSegmentGranularity) {
-      // Validate that the query does not have LIMIT or OFFSET. It prevents gathering result key statistics, which
-      // INSERT execution logic depends on. (In QueryKit, LIMIT disables statistics generation and funnels everything
-      // through a single partition.)
-      validateNoLimitOrOffset(rootRel);
-    }
+    // Validate that the query does not have an inappropriate LIMIT or OFFSET. LIMIT prevents gathering result key
+    // statistics, which INSERT execution logic depends on. (In QueryKit, LIMIT disables statistics generation and
+    // funnels everything through a single partition.)
+    validateLimitAndOffset(rootRel, !hasSegmentGranularity);
 
     if (hasSegmentGranularity && timeFieldIndex < 0) {
       throw new ValidationException(
@@ -212,7 +210,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
     }
   }
 
-  private static void validateNoLimitOrOffset(final RelNode topRel) throws ValidationException
+  private static void validateLimitAndOffset(final RelNode topRel, final boolean limitOk) throws ValidationException
   {
     Sort sort = null;
 
@@ -229,9 +227,19 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
       }
     }
 
-    if (sort != null && (sort.fetch != null || sort.offset != null)) {
-      // Found an outer LIMIT or OFFSET.
-      throw new ValidationException("INSERT queries cannot end with LIMIT or OFFSET.");
+    if (sort != null && sort.fetch != null && !limitOk) {
+      // Found an outer LIMIT that is not allowed.
+      throw new ValidationException(
+          StringUtils.format(
+              "INSERT queries cannot end with LIMIT unless %s is \"all\".",
+              QueryKitUtils.CTX_SEGMENT_GRANULARITY
+          )
+      );
+    }
+
+    if (sort != null && sort.offset != null) {
+      // Found an outer OFFSET that is not allowed.
+      throw new ValidationException("INSERT queries cannot end with OFFSET.");
     }
   }
 
