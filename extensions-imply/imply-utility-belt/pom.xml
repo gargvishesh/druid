@@ -136,19 +136,8 @@
       <version>1.3.0</version>
     </dependency>
     <dependency>
-      <groupId>net.sf.uadetector</groupId>
-      <artifactId>uadetector-resources</artifactId>
-      <version>2014.10</version>
-    </dependency>
-    <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.sf.uadetector</groupId>
-      <artifactId>uadetector-core</artifactId>
-      <version>0.9.22</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
