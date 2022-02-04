@@ -46,7 +46,7 @@ import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProc
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
 import io.imply.druid.talaria.querykit.InputStageDataSource;
 import io.imply.druid.talaria.querykit.NilInputSource;
-import io.imply.druid.talaria.querykit.common.LimitFrameProcessorFactory;
+import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.common.OrderByFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPostShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFactory;
@@ -88,7 +88,7 @@ public class TalariaIndexingModule implements DruidModule
             GroupByPreShuffleFrameProcessorFactory.class,
             GroupByPostShuffleFrameProcessorFactory.class,
             OrderByFrameProcessorFactory.class,
-            LimitFrameProcessorFactory.class,
+            OffsetLimitFrameProcessorFactory.class,
             NilExtraInfoHolder.class,
 
             // DataSource classes (note: ExternalDataSource is in TalariaSqlModule)
