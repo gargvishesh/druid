@@ -22,8 +22,8 @@ import React from 'react';
 
 import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
+import { getAsyncResult } from '../execution-utils';
 import { QueryOutput2 } from '../query-output2/query-output2';
-import { getAsyncResult } from '../talaria-utils';
 
 import './talaria-results-dialog.scss';
 

@@ -66,7 +66,7 @@ export type HeaderActiveTab =
   | 'services'
   | 'query'
   | 'query-next'
-  | 'talaria-loader'
+  | 'loader-v2'
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -347,7 +347,19 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         )
       ) {
         AppToaster.show({
-          message: 'Module is not loaded',
+          message: 'Talaria module is not loaded (imply-talaria)',
+          intent: Intent.DANGER,
+        });
+        return;
+      }
+
+      if (
+        !status.modules.some((module: any) =>
+          String(module.name).startsWith('io.imply.druid.sql.async'),
+        )
+      ) {
+        AppToaster.show({
+          message: 'SQL async module is not loaded (imply-sql-async)',
           intent: Intent.DANGER,
         });
         return;
@@ -444,10 +456,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         {showTalaria === 'loader' && (
           <AnchorButton
             minimal
-            active={active === 'talaria-loader'}
+            active={active === 'loader-v2'}
             icon={IconNames.CLOUD_UPLOAD}
-            text="Talaria loader"
-            href="#talaria-loader"
+            text="Loader v2"
+            href="#loader-v2"
             disabled={!capabilities.hasQuerying()}
           />
         )}

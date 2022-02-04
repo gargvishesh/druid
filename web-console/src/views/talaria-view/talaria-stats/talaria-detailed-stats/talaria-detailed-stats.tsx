@@ -32,10 +32,11 @@ interface TalariaDetailedStatsProps {
   title: string;
   labelPrefix: string;
   entries: SimpleCounter[];
+  inProgress: boolean;
 }
 
 export function TalariaDetailedStats(props: TalariaDetailedStatsProps) {
-  const { title, labelPrefix, entries } = props;
+  const { title, labelPrefix, entries, inProgress } = props;
   const [expands, setExpands] = useState(0);
   const numberToShow = 10 * Math.pow(2, expands);
   const numHidden = entries.length - numberToShow * 2;
@@ -57,10 +58,14 @@ export function TalariaDetailedStats(props: TalariaDetailedStatsProps) {
 
   function renderEntry(e: SimpleCounter) {
     return (
-      <div className="entry" key={e.index} title={`Frames: ${formatFrames(e.frames)}`}>
-        <div className="label">{`${labelPrefix}${e.index + 1}`}</div>
+      <div
+        className="entry"
+        key={e.index}
+        title={`${inProgress ? 'In progress...\n' : ''}Frames: ${formatFrames(e.frames)}`}
+      >
+        <div className="label">{`${labelPrefix}${e.index + 1}${inProgress ? '*' : ''}`}</div>
         <BracedText text={formatRows(e.rows)} braces={rowBraces} /> &nbsp;{' '}
-        <BracedText text={formatSize(e.bytes)} braces={byteBraces} />
+        {e.bytes > 0 && <BracedText text={formatSize(e.bytes)} braces={byteBraces} />}
       </div>
     );
   }

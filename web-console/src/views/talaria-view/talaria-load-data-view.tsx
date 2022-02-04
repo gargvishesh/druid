@@ -26,29 +26,28 @@ import {
   ExternalConfig,
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
-  TalariaSummary,
+  QueryExecution,
 } from '../../talaria-models';
-import { getContextFromSqlQuery, IntermediateQueryState } from '../../utils';
+import { getContextFromSqlQuery } from '../../utils';
 
-import { InitStep } from './external-config-dialog/init-step/init-step';
+import { submitAsyncQuery, talariaBackgroundStatusCheck } from './execution-utils';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
 import { StageProgress } from './stage-progress/stage-progress';
 import { TalariaStats } from './talaria-stats/talaria-stats';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from './talaria-utils';
+import { TitleFrame } from './title-frame/title-frame';
 
 import './talaria-load-data-view.scss';
 
-export interface TalariaLoadDataViewProps {}
+export interface TalariaLoadDataViewProps {
+  goToQuery: (initSql: string) => void;
+}
 
 export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
-  _props: TalariaLoadDataViewProps,
+  props: TalariaLoadDataViewProps,
 ) {
+  const { goToQuery } = props;
   const [externalConfigStep, setExternalConfigStep] = useState<Partial<ExternalConfig>>({});
   const [queryString, setQueryString] = useLocalStorageState<string>('loader-query', '');
   const [showLiveReports, setShowLiveReports] = useState(false);
@@ -57,14 +56,14 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
 
   const [insertResultState, insertQueryManager] = useQueryManager<
     string,
-    TalariaSummary,
-    TalariaSummary
+    QueryExecution,
+    QueryExecution
   >({
     processQuery: async (queryString: string, cancelToken) => {
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();
       if (!insertDatasource) throw new Error(`Must have insert datasource`);
 
-      const summary = await submitAsyncQuery({
+      return await submitAsyncQuery({
         query: queryString,
         context: {
           ...getContextFromSqlQuery(queryString),
@@ -72,9 +71,6 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
         },
         cancelToken,
       });
-
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
   });
@@ -84,47 +80,45 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isInit() && (
         <>
           {queryString ? (
-            <SchemaStep
-              queryString={queryString}
-              onQueryStringChange={setQueryString}
-              onBack={() => setQueryString('')}
-              onDone={() => {
-                console.log('Ingesting:', queryString);
-                insertQueryManager.runQuery(queryString);
-              }}
-            />
-          ) : !inputSource ? (
-            <InitStep
-              onSet={inputSource => {
-                setExternalConfigStep({ inputSource });
-              }}
-            />
-          ) : !inputFormat ? (
-            <InputSourceStep
-              initInputSource={inputSource}
-              onSet={(inputSource, inputFormat) => {
-                setExternalConfigStep({ inputSource, inputFormat });
-              }}
-              onBack={() => {
-                setExternalConfigStep({});
-              }}
-            />
+            <TitleFrame title="Load data" subtitle="Configure schema">
+              <SchemaStep
+                queryString={queryString}
+                onQueryStringChange={setQueryString}
+                goToQuery={() => goToQuery(queryString)}
+                onBack={() => setQueryString('')}
+                onDone={() => {
+                  console.log('Ingesting:', queryString);
+                  insertQueryManager.runQuery(queryString);
+                }}
+              />
+            </TitleFrame>
+          ) : inputFormat && inputSource ? (
+            <TitleFrame title="Load data" subtitle="Parse">
+              <InputFormatStep
+                inputSource={inputSource}
+                initInputFormat={inputFormat}
+                doneButton={false}
+                onSet={(inputFormat, columns) => {
+                  setQueryString(
+                    ingestQueryPatternToQuery(
+                      externalConfigToIngestQueryPattern({ inputSource, inputFormat, columns }),
+                    ).toString(),
+                  );
+                }}
+                onBack={() => {
+                  setExternalConfigStep({ inputSource });
+                }}
+              />
+            </TitleFrame>
           ) : (
-            <InputFormatStep
-              inputSource={inputSource}
-              initInputFormat={inputFormat}
-              doneButton={false}
-              onSet={(inputFormat, columns) => {
-                setQueryString(
-                  ingestQueryPatternToQuery(
-                    externalConfigToIngestQueryPattern({ inputSource, inputFormat, columns }),
-                  ).toString(),
-                );
-              }}
-              onBack={() => {
-                setExternalConfigStep({ inputSource });
-              }}
-            />
+            <TitleFrame title="Load data" subtitle="Select input type">
+              <InputSourceStep
+                initInputSource={inputSource}
+                onSet={(inputSource, inputFormat) => {
+                  setExternalConfigStep({ inputSource, inputFormat });
+                }}
+              />
+            </TitleFrame>
           )}
         </>
       )}
@@ -146,12 +140,12 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       )}
       {insertResultState.data && (
         <div className="done-step">
-          <p>Done loading data into {insertResultState.data.getInsertDataSource()}</p>
+          <p>Done loading data into {insertResultState.data.getInsertDatasource()}</p>
           <p>
             <Button icon={IconNames.APPLICATION}>
               {'Query '}
               <Tag minimal round>
-                {insertResultState.data.getInsertDataSource()}
+                {insertResultState.data.getInsertDatasource()}
               </Tag>
             </Button>
           </p>

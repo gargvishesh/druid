@@ -108,15 +108,6 @@ function stageHasPostReading(stage: StageDefinition): boolean {
   return CLEAN_STAGE_TYPE_META_INFO[cleanStageType(stage.stageType)]?.hasPostReading ?? true;
 }
 
-export function getStartTime(stages: StageDefinition[] | undefined): Date | undefined {
-  if (!Array.isArray(stages) || !stages.length) return;
-  const startTime = stages[0].startTime;
-  if (typeof startTime !== 'string') return;
-  const date = new Date(startTime);
-  if (isNaN(date.valueOf())) return;
-  return date;
-}
-
 export function overallProgress(stages: StageDefinition[] | undefined): number {
   let progress = 0;
   let total = QUERY_END_FACTOR;

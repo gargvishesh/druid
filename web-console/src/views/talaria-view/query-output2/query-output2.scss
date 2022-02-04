@@ -70,6 +70,24 @@
         .bp3-icon {
           margin-left: 3px;
         }
+
+        .output-name {
+          > * {
+            display: inline-block;
+            vertical-align: top;
+          }
+
+          .type-icon {
+            margin-top: 3px;
+            margin-right: 5px;
+          }
+        }
+
+        .formula {
+          font-family: monospace;
+          font-size: 11px;
+          margin-top: 4px;
+        }
       }
     }
 

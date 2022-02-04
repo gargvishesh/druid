@@ -31,14 +31,13 @@ import React, { useState } from 'react';
 
 import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { TalariaQuery, TalariaSummary } from '../../../talaria-models';
+import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
 import {
-  cancelAsyncQueryOnCancel,
-  downloadResults,
+  downloadQueryResults,
   submitAsyncQuery,
   talariaBackgroundStatusCheck,
-} from '../talaria-utils';
+} from '../execution-utils';
 
 import './export-dialog.scss';
 
@@ -105,45 +104,39 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
 
   const [downloadState, downloadQueryManager] = useQueryManager<
     AsyncDownloadParams,
-    TalariaSummary,
-    TalariaSummary
+    QueryExecution,
+    QueryExecution
   >({
     processQuery: async (_asyncDownloadParams, cancelToken) => {
       const downloadQuery = talariaQuery
         .changeUnlimited(true)
-        .removeInsert()
+        .makePreview()
         .changeEngine('talaria');
 
       const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
       if (!isSql) throw new Error('must be SQL for export');
 
-      const summary = await submitAsyncQuery({
+      return await submitAsyncQuery({
         query,
         context: {
           ...context,
           talariaDestination: asyncDownloadParams.local ? undefined : 'external',
         },
+        skipResults: true,
         prefixLines,
         cancelToken,
       });
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-
-      return new IntermediateQueryState(summary.changeDestination({ type: 'download' }));
     },
     backgroundStatusCheck: async (
-      currentSummary: TalariaSummary,
+      execution: QueryExecution,
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(
-        currentSummary,
-        asyncDownloadParams,
-        cancelToken,
-      );
+      const res = await talariaBackgroundStatusCheck(execution, asyncDownloadParams, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (asyncDownloadParams.local) {
-        downloadResults(
+        downloadQueryResults(
           res.id,
           addExtensionIfNeeded(
             asyncDownloadParams.filename!,

@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-import { AxiosResponse, CancelToken } from 'axios';
-import { QueryResult, RefName, SqlLiteral, SqlRef, SqlTableRef } from 'druid-query-toolkit';
+import { RefName, SqlLiteral, SqlRef, SqlTableRef } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 
 import {
@@ -28,222 +27,9 @@ import {
   TimestampSpec,
   Transform,
 } from '../../druid-models';
-import { Api } from '../../singletons';
-import { TalariaQuery, TalariaSummary } from '../../talaria-models';
-import {
-  deepGet,
-  downloadHref,
-  DruidError,
-  filterMap,
-  IntermediateQueryState,
-  queryDruidSql,
-  QueryManager,
-} from '../../utils';
-import { QueryContext } from '../../utils/query-context';
+import { deepGet, filterMap } from '../../utils';
 
-export interface SubmitAsyncQueryOptions {
-  query: string | Record<string, any>;
-  context: QueryContext;
-  prefixLines?: number;
-  cancelToken?: CancelToken;
-}
-
-export async function submitAsyncQuery(options: SubmitAsyncQueryOptions): Promise<TalariaSummary> {
-  const { query, context, prefixLines, cancelToken } = options;
-
-  let sqlQuery: string;
-  let jsonQuery: Record<string, any>;
-  if (typeof query === 'string') {
-    sqlQuery = query;
-    jsonQuery = {
-      query: sqlQuery,
-      resultFormat: 'array',
-      header: true,
-      typesHeader: true,
-      sqlTypesHeader: true,
-      context: context,
-    };
-  } else {
-    sqlQuery = query.query;
-    jsonQuery = {
-      ...query,
-      context: {
-        ...(query.context || {}),
-        ...context,
-      },
-    };
-  }
-
-  let asyncResp: AxiosResponse;
-
-  try {
-    asyncResp = await Api.instance.post(`/druid/v2/sql/async`, jsonQuery, { cancelToken });
-  } catch (e) {
-    const druidError = deepGet(e, 'response.data.error');
-    if (!druidError) throw e;
-    throw new DruidError(druidError, prefixLines);
-  }
-
-  return TalariaSummary.fromAsyncStatus(asyncResp.data, sqlQuery, context);
-}
-
-export async function getTalariaDetailSummary(
-  id: string,
-  cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
-  const resp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}`, {
-    cancelToken,
-  });
-
-  return TalariaSummary.fromDetail(resp.data);
-}
-
-export async function updateSummaryWithAsyncIfNeeded(
-  currentSummary: TalariaSummary,
-  cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
-  if (!currentSummary.isWaitingForQuery()) return currentSummary;
-
-  let newSummary: TalariaSummary;
-  try {
-    newSummary = await getTalariaDetailSummary(currentSummary.id);
-  } catch {
-    const resp = await Api.instance.get(
-      `/druid/v2/sql/async/${Api.encodePath(currentSummary.id)}/status`,
-      { cancelToken },
-    );
-
-    newSummary = TalariaSummary.fromAsyncStatus(resp.data);
-  }
-
-  return currentSummary.updateWith(newSummary);
-}
-
-async function updateSummaryWithResultsIfNeeded(
-  currentSummary: TalariaSummary,
-  cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
-  if (
-    currentSummary.status !== 'SUCCESS' ||
-    currentSummary.result ||
-    currentSummary.destination?.type !== 'taskReport'
-  ) {
-    return currentSummary;
-  }
-
-  const results = await getAsyncResult(currentSummary.id, cancelToken);
-
-  return currentSummary.changeResult(results);
-}
-
-async function updateSummaryWithDatasourceExistsIfNeeded(
-  currentSummary: TalariaSummary,
-  _cancelToken?: CancelToken,
-): Promise<TalariaSummary> {
-  if (
-    !(currentSummary.destination?.type === 'dataSource' && !currentSummary.destination.exists) ||
-    currentSummary.status !== 'SUCCESS'
-  ) {
-    return currentSummary;
-  }
-
-  // // Get the table to see if it exists
-  // const tableCheck = await queryDruidSql({
-  //   query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ${SqlLiteral.create(
-  //     currentSummary.destination.dataSource,
-  //   )}`,
-  // });
-  //
-  // if (!tableCheck.length) return currentSummary;
-  // return currentSummary.markDestinationDatasourceExists();
-
-  // Get the segments to see if it is available
-  const segmentCheck = await queryDruidSql({
-    query: `SELECT segment_id FROM sys.segments WHERE datasource = ${SqlLiteral.create(
-      currentSummary.destination.dataSource,
-    )} AND is_published = 1 AND is_overshadowed = 0 AND is_available = 0 LIMIT 1`,
-  });
-
-  if (segmentCheck.length) return currentSummary;
-  return currentSummary.markDestinationDatasourceExists();
-}
-
-export function cancelAsyncQueryOnCancel(
-  id: string,
-  cancelToken: CancelToken,
-  preserveOnTermination = false,
-): void {
-  void cancelToken.promise
-    .then(cancel => {
-      if (preserveOnTermination && cancel.message === QueryManager.TERMINATION_MESSAGE) return;
-      return Api.instance.delete(`/druid/v2/sql/async/${Api.encodePath(id)}`);
-    })
-    .catch(() => {});
-}
-
-export async function getAsyncResult(id: string, cancelToken?: CancelToken): Promise<QueryResult> {
-  const resultsResp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}/results`, {
-    cancelToken,
-  });
-
-  return QueryResult.fromRawResult(
-    resultsResp.data,
-    false,
-    true,
-    true,
-    true,
-  ).inflateDatesFromSqlTypes();
-}
-
-export function downloadResults(id: string, filename: string): void {
-  downloadHref({
-    href: `/druid/v2/sql/async/${Api.encodePath(id)}/results`,
-    filename: filename,
-  });
-}
-
-export async function talariaBackgroundStatusCheck(
-  currentSummary: TalariaSummary,
-  _query: any,
-  cancelToken: CancelToken,
-) {
-  currentSummary = await updateSummaryWithAsyncIfNeeded(currentSummary, cancelToken);
-
-  if (currentSummary.isWaitingForQuery()) return new IntermediateQueryState(currentSummary);
-
-  currentSummary = await updateSummaryWithResultsIfNeeded(currentSummary, cancelToken);
-  currentSummary = await updateSummaryWithDatasourceExistsIfNeeded(currentSummary, cancelToken);
-
-  if (!currentSummary.isFullyComplete()) return new IntermediateQueryState(currentSummary);
-
-  return currentSummary;
-}
-
-export async function talariaBackgroundResultStatusCheck(
-  currentSummary: TalariaSummary,
-  query: any,
-  cancelToken: CancelToken,
-) {
-  const updatedSummary = await talariaBackgroundStatusCheck(currentSummary, query, cancelToken);
-  if (updatedSummary instanceof IntermediateQueryState) return updatedSummary;
-
-  if (updatedSummary.result) {
-    return updatedSummary.result;
-  } else {
-    throw new Error(updatedSummary.getErrorMessage() || 'unexpected destination');
-  }
-}
-
-// Tabs
-
-export interface TabEntry {
-  id: string;
-  tabName: string;
-  query: TalariaQuery;
-}
-
-// Spec conversion
-
+const EXTERN_NAME = SqlTableRef.create('ioConfigExtern');
 export function convertSpecToSql(spec: IngestionSpec): string {
   if (spec.type !== 'index_parallel') throw new Error('only index_parallel is supported');
 
@@ -353,7 +139,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   if (typeof dataSource !== 'string') throw new Error(`spec.dataSchema.dataSource is not a string`);
   lines.push(`INSERT INTO ${SqlTableRef.create(dataSource)}`);
 
-  lines.push(`WITH "external_data" AS (SELECT * FROM TABLE(`);
+  lines.push(`WITH ${EXTERN_NAME} AS (SELECT * FROM TABLE(`);
   lines.push(`  EXTERN(`);
 
   const inputSource = deepGet(spec, 'spec.ioConfig.inputSource');
@@ -370,29 +156,36 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   lines.push(`SELECT`);
 
-  const transforms: Transform[] | undefined = deepGet(
-    spec,
-    'spec.dataSchema.transformSpec.transforms',
-  );
-  if (Array.isArray(transforms) && transforms.length) {
-    lines.push(
-      `-- The spec contained transforms that could not be automatically converted: ${JSONBig.stringify(
-        transforms,
-      )}`,
-    );
+  const transforms: Transform[] = deepGet(spec, 'spec.dataSchema.transformSpec.transforms') || [];
+  if (!Array.isArray(transforms))
+    throw new Error(`spec.dataSchema.transformSpec.transforms is not an array`);
+  if (transforms.length) {
+    lines.push(`  -- The spec contained transforms that could not be automatically converted.`);
   }
 
-  const dimensionExpressions = [`  ${timeExpression} AS __time`].concat(
-    dimensions.map((dimension: DimensionSpec) => `  ${SqlRef.columnWithQuotes(dimension.name)}`),
+  const dimensionExpressions = [`  ${timeExpression} AS __time,`].concat(
+    dimensions.flatMap((dimension: DimensionSpec) => {
+      const dimensionName = dimension.name;
+      const relevantTransform = transforms.find(t => t.name === dimensionName);
+      return `  ${SqlRef.columnWithQuotes(dimensionName)},${
+        relevantTransform ? ` -- Relevant transform: ${JSONBig.stringify(relevantTransform)}` : ''
+      }`;
+    }),
   );
 
-  const aggExpressions = Array.isArray(metricsSpec)
-    ? metricsSpec.map(metricSpec => '  ' + metricSpecToSelect(metricSpec))
-    : [];
+  const selectExpressions = dimensionExpressions.concat(
+    Array.isArray(metricsSpec)
+      ? metricsSpec.map(metricSpec => `  ${metricSpecToSelect(metricSpec)},`)
+      : [],
+  );
 
-  lines.push(dimensionExpressions.concat(aggExpressions).join(',\n'));
+  // Remove trailing comma from last expression
+  selectExpressions[selectExpressions.length - 1] = selectExpressions[selectExpressions.length - 1]
+    .replace(/,$/, '')
+    .replace(/,(\s+--)/, '$1');
 
-  lines.push(`FROM "external_data"`);
+  lines.push(selectExpressions.join('\n'));
+  lines.push(`FROM ${EXTERN_NAME}`);
 
   const filter = deepGet(spec, 'spec.dataSchema.transformSpec.filter');
   if (filter) {

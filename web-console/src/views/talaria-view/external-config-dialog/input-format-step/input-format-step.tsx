@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, Icon, Intent } from '@blueprintjs/core';
+import { Button, Callout, FormGroup, Icon, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
@@ -25,21 +25,26 @@ import {
   guessColumnTypeFromHeaderAndRows,
   INPUT_FORMAT_FIELDS,
   InputFormat,
+  inputFormatOutputsNumericStrings,
   InputSource,
   PLACEHOLDER_TIMESTAMP_SPEC,
 } from '../../../../druid-models';
 import { useQueryManager } from '../../../../hooks';
+import { getLink } from '../../../../links';
 import { ExternalConfigColumn } from '../../../../talaria-models';
-import { deepSet } from '../../../../utils';
+import { deepSet, EMPTY_ARRAY } from '../../../../utils';
 import {
   headerAndRowsFromSampleResponse,
   postToSampler,
   SampleHeaderAndRows,
   SampleSpec,
 } from '../../../../utils/sampler';
+import { LearnMore } from '../../../load-data-view/learn-more/learn-more';
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
 
 import './input-format-step.scss';
+
+const noop = () => {};
 
 export interface InputFormatStepProps {
   inputSource: InputSource;
@@ -105,21 +110,32 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             columnFilter=""
             canFlatten={false}
             flattenedColumnsOnly={false}
-            flattenFields={[]}
-            onFlattenFieldSelect={() => {}}
+            flattenFields={EMPTY_ARRAY}
+            onFlattenFieldSelect={noop}
           />
         )}
       </div>
       <div className="config">
+        <FormGroup>
+          <Callout>
+            <p>Ensure that your data appears correctly in a row/column orientation.</p>
+            <LearnMore href={`${getLink('DOCS')}/ingestion/data-formats.html`} />
+          </Callout>
+        </FormGroup>
         <AutoForm fields={INPUT_FORMAT_FIELDS} model={inputFormat} onChange={setInputFormat} />
-        <Button
-          text="Apply"
-          intent={Intent.PRIMARY}
-          disabled={!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)}
-          onClick={() => {
-            setInputFormatToSample(inputFormat as any);
-          }}
-        />
+        {inputFormatToSample !== inputFormat && (
+          <FormGroup className="control-buttons">
+            <Button
+              text="Preview changes"
+              intent={Intent.PRIMARY}
+              disabled={!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)}
+              onClick={() => {
+                if (!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
+                setInputFormatToSample(inputFormat);
+              }}
+            />
+          </FormGroup>
+        )}
         <Button className="back" text="Back" icon={IconNames.ARROW_LEFT} onClick={onBack} />
         <Button
           className="next"
@@ -129,15 +145,15 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
           disabled={!parseQueryState.data}
           onClick={() => {
             const sampleData = parseQueryState.data;
-            if (!sampleData) return;
+            if (!sampleData || !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
             onSet(
-              inputFormat as any,
+              inputFormat,
               sampleData.header.map(name => ({
                 name,
                 type: guessColumnTypeFromHeaderAndRows(
                   sampleData,
                   name,
-                  initInputFormat.type !== 'json',
+                  inputFormatOutputsNumericStrings(inputFormat),
                 ),
               })),
             );

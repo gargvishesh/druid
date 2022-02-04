@@ -28,20 +28,19 @@ import { Api } from '../../../singletons';
 import { TalariaHistory } from '../../../singletons/talaria-history';
 import {
   fitExternalConfigPattern,
+  QueryExecution,
   summarizeExternalConfig,
   TalariaQuery,
-  TalariaSummary,
 } from '../../../talaria-models';
-import {
-  ColumnMetadata,
-  DruidError,
-  IntermediateQueryState,
-  QueryAction,
-  RowColumn,
-} from '../../../utils';
+import { ColumnMetadata, DruidError, QueryAction, RowColumn } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
+import {
+  reattachAsyncQuery,
+  submitAsyncQuery,
+  talariaBackgroundStatusCheck,
+} from '../execution-utils';
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { InsertSuccess } from '../insert-success/insert-success';
 import { useMetadataStateStore } from '../metadata-state-store';
@@ -53,11 +52,6 @@ import { TalariaQueryError } from '../talaria-query-error/talaria-query-error';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TalariaQueryStateCache } from '../talaria-query-state-cache';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from '../talaria-utils';
 import { useWorkStateStore } from '../work-state-store';
 
 import './helper-query.scss';
@@ -94,16 +88,18 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   const queryInputRef = useRef<TalariaQueryInput | null>(null);
 
   const id = query.getId();
-  const [querySummaryState, queryManager] = useQueryManager<
+  const [queryExecutionState, queryManager] = useQueryManager<
     TalariaQuery | string,
-    TalariaSummary,
-    TalariaSummary,
+    QueryExecution,
+    QueryExecution,
     DruidError
   >({
     initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryId(),
     initState: TalariaQueryStateCache.getState(id),
     processQuery: async (q: TalariaQuery | string, cancelToken) => {
       if (q instanceof TalariaQuery) {
+        TalariaQueryStateCache.deleteState(id);
+
         const {
           query,
           context,
@@ -115,10 +111,16 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
 
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
-          const summary = await submitAsyncQuery({ query, context, prefixLines, cancelToken });
-          cancelAsyncQueryOnCancel(summary.id, cancelToken, true);
-          onQueryChange(props.query.changeLastQueryId(summary.id));
-          return new IntermediateQueryState(summary);
+          return await submitAsyncQuery({
+            query,
+            context,
+            prefixLines,
+            cancelToken,
+            preserveOnTermination: true,
+            onSubmitted: id => {
+              onQueryChange(props.query.changeLastQueryId(id));
+            },
+          });
         } else {
           if (cancelQueryId) {
             void cancelToken.promise
@@ -144,38 +146,41 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
           }
 
           onQueryChange(props.query.changeLastQueryId(undefined));
-          return TalariaSummary.fromResult(result);
+          return QueryExecution.fromResult(result);
         }
       } else {
-        cancelAsyncQueryOnCancel(q, cancelToken, true);
-        return new IntermediateQueryState(TalariaSummary.reattach(q), 0);
+        return await reattachAsyncQuery({
+          id: q,
+          cancelToken,
+          preserveOnTermination: true,
+        });
       }
     },
     backgroundStatusCheck: talariaBackgroundStatusCheck,
   });
 
   useEffect(() => {
-    if (querySummaryState.data || querySummaryState.error) {
-      TalariaQueryStateCache.storeState(id, querySummaryState);
+    if (queryExecutionState.data || queryExecutionState.error) {
+      TalariaQueryStateCache.storeState(id, queryExecutionState);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [querySummaryState.data, querySummaryState.error]);
+  }, [queryExecutionState.data, queryExecutionState.error]);
 
   const incrementWorkVersion = useWorkStateStore(state => state.increment);
   useEffect(() => {
     incrementWorkVersion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [querySummaryState.loading]);
+  }, [queryExecutionState.loading]);
 
-  const querySummary = querySummaryState.data;
+  const queryExecution = queryExecutionState.data;
 
   const incrementMetadataVersion = useMetadataStateStore(state => state.increment);
   useEffect(() => {
-    if (querySummary?.isSuccessfulInsert()) {
+    if (queryExecution?.isSuccessfulInsert()) {
       incrementMetadataVersion();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(querySummary?.isSuccessfulInsert())]);
+  }, [Boolean(queryExecution?.isSuccessfulInsert())]);
 
   function moveToPosition(position: RowColumn) {
     const currentQueryInput = queryInputRef.current;
@@ -187,14 +192,14 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     if (query.isJsonLike() && !query.validRune()) return;
 
     TalariaHistory.addQueryToHistory(query);
-    queryManager.runQuery(preview ? query.removeInsert() : query);
+    queryManager.runQuery(preview ? query.makePreview() : query);
   }
 
   const runeMode = query.isJsonLike();
   const collapsed = query.getCollapsed();
   const insertDatasource = query.getInsertDatasource();
 
-  const statsTaskId: string | undefined = querySummary?.id;
+  const statsTaskId: string | undefined = queryExecution?.id;
 
   let extraInfo: string | undefined;
   if (collapsed && parsedQuery instanceof SqlQuery) {
@@ -273,19 +278,17 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               onQueryChange={onQueryChange}
               onRun={handleRun}
               onExport={handleExport}
-              loading={querySummaryState.loading}
+              loading={queryExecutionState.loading}
               small
             />
-            {querySummaryState.isLoading() && !querySummaryState.intermediate?.isReattach() && (
-              <QueryTimer />
-            )}
-            {querySummary?.result && (
+            {queryExecutionState.isLoading() && <QueryTimer />}
+            {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={querySummary.result}
+                queryResult={queryExecution.result}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}
-            {(querySummary || querySummaryState.error) && (
+            {(queryExecution || queryExecutionState.error) && (
               <Button
                 className="reset"
                 icon={IconNames.CROSS}
@@ -299,36 +302,36 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               />
             )}
           </div>
-          {!querySummaryState.isInit() && (
+          {!queryExecutionState.isInit() && (
             <div className="output-pane">
-              {querySummary &&
-                (querySummary.result ? (
+              {queryExecution &&
+                (queryExecution.result ? (
                   <QueryOutput2
                     runeMode={runeMode}
-                    queryResult={querySummary.result}
+                    queryResult={queryExecution.result}
                     onExport={handleExport}
                     onQueryAction={handleQueryAction}
                     initPageSize={5}
                   />
-                ) : querySummary.isSuccessfulInsert() ? (
+                ) : queryExecution.isSuccessfulInsert() ? (
                   <InsertSuccess
-                    insertSummary={querySummary}
+                    insertQueryExecution={queryExecution}
                     onStats={() => onStats(statsTaskId!)}
                     onQueryChange={handleQueryStringChange}
                   />
-                ) : querySummary.error ? (
+                ) : queryExecution.error ? (
                   <div className="stats-container">
-                    <TalariaQueryError taskError={querySummary.error} />
-                    {querySummary.stages && (
-                      <TalariaStats stages={querySummary.stages} error={querySummary.error} />
+                    <TalariaQueryError taskError={queryExecution.error} />
+                    {queryExecution.stages && (
+                      <TalariaStats stages={queryExecution.stages} error={queryExecution.error} />
                     )}
                   </div>
                 ) : (
-                  <div>Unknown query summary state</div>
+                  <div>Unknown query execution state</div>
                 ))}
-              {querySummaryState.error && (
+              {queryExecutionState.error && (
                 <QueryError
-                  error={querySummaryState.error}
+                  error={queryExecutionState.error}
                   moveCursorTo={position => {
                     moveToPosition(position);
                   }}
@@ -336,12 +339,11 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   onQueryStringChange={handleQueryStringChange}
                 />
               )}
-              {querySummaryState.isLoading() &&
-                (querySummaryState.intermediate ? (
+              {queryExecutionState.isLoading() &&
+                (queryExecutionState.intermediate ? (
                   <div className="stats-container">
                     <StageProgress
-                      reattach={querySummaryState.intermediate.isReattach()}
-                      stages={querySummaryState.intermediate.stages}
+                      stages={queryExecutionState.intermediate.stages}
                       onCancel={() => queryManager.cancelCurrent()}
                     />
                   </div>

@@ -233,7 +233,11 @@ export class ConsoleApplication extends React.PureComponent<
   };
 
   private readonly wrappedTalariaLoadDataView = () => {
-    return this.wrapInViewContainer('talaria-loader', <TalariaLoadDataView />, 'narrow-pad');
+    return this.wrapInViewContainer(
+      'loader-v2',
+      <TalariaLoadDataView goToQuery={this.goToQuery} />,
+      'narrow-pad',
+    );
   };
   // END: Imply-modified code for Talaria execution
 
@@ -329,7 +333,7 @@ export class ConsoleApplication extends React.PureComponent<
                 />
               )}
               {TALARIA_ENABLED && (
-                <Route path="/talaria-loader" component={this.wrappedTalariaLoadDataView} />
+                <Route path="/loader-v2" component={this.wrappedTalariaLoadDataView} />
               )}
               {/* END: Imply-modified code for Talaria execution */}
 

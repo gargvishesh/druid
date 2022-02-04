@@ -125,18 +125,23 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
   );
 
   function detailedStats(stage: StageDefinition) {
+    const { phase } = stage;
     return (
       <div className="talaria-detailed-stats-container">
-        {detailedStatsForPartition(stage, 'input')}
-        {detailedStatsForWorker(stage, 'input')}
-        {detailedStatsForWorker(stage, 'preShuffle')}
-        {detailedStatsForWorker(stage, 'output')}
-        {detailedStatsForPartition(stage, 'output')}
+        {detailedStatsForPartition(stage, 'input', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'input', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'preShuffle', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'output', phase !== 'RESULTS_COMPLETE')}
+        {detailedStatsForPartition(stage, 'output', phase !== 'RESULTS_COMPLETE')}
       </div>
     );
   }
 
-  function detailedStatsForWorker(stage: StageDefinition, counterType: CounterType) {
+  function detailedStatsForWorker(
+    stage: StageDefinition,
+    counterType: CounterType,
+    inProgress: boolean,
+  ) {
     if (!hasCounterTypeForStage(stage, counterType)) return;
 
     const workerEntries = getByWorkerCountForStage(stage, counterType);
@@ -148,11 +153,16 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
         title={`${COUNTER_TYPE_TITLE[counterType]} workers`}
         labelPrefix="W"
         entries={workerEntries}
+        inProgress={inProgress}
       />
     );
   }
 
-  function detailedStatsForPartition(stage: StageDefinition, counterType: CounterType) {
+  function detailedStatsForPartition(
+    stage: StageDefinition,
+    counterType: CounterType,
+    inProgress: boolean,
+  ) {
     if (!hasCounterTypeForStage(stage, counterType)) return;
 
     const partitionEntries = getByPartitionCountForStage(stage, counterType);
@@ -165,6 +175,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
         title={`${COUNTER_TYPE_TITLE[counterType]} partitions`}
         labelPrefix="P"
         entries={partitionEntries}
+        inProgress={inProgress}
       />
     );
   }

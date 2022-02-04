@@ -18,7 +18,7 @@
 
 import { sane } from 'druid-query-toolkit';
 
-import { convertSpecToSql } from './talaria-utils';
+import { convertSpecToSql } from './spec-conversion';
 
 describe('talaria-utils', () => {
   it('converts spec (without rollup)', () => {
@@ -106,7 +106,7 @@ describe('talaria-utils', () => {
       --:context talariaReplaceTimeChunks: all
       --:context talariaSegmentGranularity: hour
       INSERT INTO wikipedia
-      WITH "external_data" AS (SELECT * FROM TABLE(
+      WITH ioConfigExtern AS (SELECT * FROM TABLE(
         EXTERN(
           '{"type":"http","uris":["https://druid.apache.org/data/wikipedia.json.gz"]}',
           '{"type":"json"}',
@@ -138,7 +138,7 @@ describe('talaria-utils', () => {
         "metroCode",
         "countryIsoCode",
         "regionName"
-      FROM "external_data"
+      FROM ioConfigExtern
       ORDER BY "isRobot"
     `);
   });
@@ -240,7 +240,7 @@ describe('talaria-utils', () => {
       --:context talariaSegmentGranularity: hour
       --:context talariaFinalizeAggregations: false
       INSERT INTO wikipedia_rollup
-      WITH "external_data" AS (SELECT * FROM TABLE(
+      WITH ioConfigExtern AS (SELECT * FROM TABLE(
         EXTERN(
           '{"type":"http","uris":["https://druid.apache.org/data/wikipedia.json.gz"]}',
           '{"type":"json"}',
@@ -272,7 +272,7 @@ describe('talaria-utils', () => {
         SUM("deltaBucket") AS "sum_deltaBucket",
         SUM("deleted") AS "sum_deleted",
         APPROX_COUNT_DISTINCT_DS_THETA("page") AS "page_theta"
-      FROM "external_data"
+      FROM ioConfigExtern
       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
     `);
   });

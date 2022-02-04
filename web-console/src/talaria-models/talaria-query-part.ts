@@ -245,4 +245,10 @@ export class TalariaQueryPart {
   public duplicate(): TalariaQueryPart {
     return this.changeId(generate8HexId()).changeLastQueryId(undefined);
   }
+
+  public addPreviewLimit(): TalariaQueryPart {
+    const { parsedQuery } = this;
+    if (!parsedQuery || parsedQuery.hasLimit()) return this;
+    return this.changeQueryString(parsedQuery.changeLimitValue(10000).toString());
+  }
 }

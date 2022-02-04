@@ -16,9 +16,25 @@
  * limitations under the License.
  */
 
-export * from './query-execution';
-export * from './talaria-general';
-export * from './talaria-query';
-export * from './talaria-query-part';
-export * from './talaria-query-pattern';
-export * from './talaria-stage';
+import React, { ReactNode } from 'react';
+
+import './title-frame.scss';
+
+export interface TitleFrameProps {
+  title: string;
+  subtitle: string;
+  children?: ReactNode;
+}
+
+export const TitleFrame = React.memo(function TitleFrame(props: TitleFrameProps) {
+  const { title, subtitle, children } = props;
+
+  return (
+    <div className="title-frame">
+      <h1 className="titles">
+        {title} <span className="slash">/</span> {subtitle}
+      </h1>
+      {children}
+    </div>
+  );
+});
