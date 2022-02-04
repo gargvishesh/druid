@@ -20,7 +20,6 @@ import {
   Button,
   ButtonGroup,
   Callout,
-  ControlGroup,
   InputGroup,
   Intent,
   Menu,
@@ -311,7 +310,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     <div className={classNames('schema-step', { 'with-analysis': showRollupAnalysisPane })}>
       <div className="loader-controls">
         <div className="control-line">
-          <Button icon={IconNames.ARROW_LEFT} minimal onClick={onBack} />
           <Popover2
             position="bottom"
             content={
@@ -373,23 +371,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Tag>
             </Button>
           </Popover2>
-          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
-            Rollup &nbsp;
-            <Tag minimal round>
-              {ingestQueryPattern?.metrics ? 'On' : 'Off'}
-            </Tag>
-          </Button>
-          {ingestQueryPattern?.metrics && (
-            <Button
-              icon={IconNames.LIGHTBULB}
-              text="Analyze rollup"
-              minimal
-              active={showRollupAnalysisPane}
-              onClick={() => setShowRollupAnalysisPane(!showRollupAnalysisPane)}
-            />
-          )}
-        </div>
-        <ControlGroup className="right-controls">
           {ingestQueryPattern && (
             <Popover2
               position="bottom"
@@ -483,19 +464,30 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Button>
             </Popover2>
           )}
-          <Button minimal>
-            Destination &nbsp;
+          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
+            Rollup &nbsp;
             <Tag minimal round>
-              {ingestQueryPattern?.insertTableName || ''}
+              {ingestQueryPattern?.metrics ? 'On' : 'Off'}
             </Tag>
           </Button>
-          <Button
-            icon={IconNames.CLOUD_UPLOAD}
-            text="Start loading data"
-            intent={Intent.PRIMARY}
-            onClick={onDone}
-          />
-        </ControlGroup>
+          {ingestQueryPattern?.metrics && (
+            <Button
+              icon={IconNames.LIGHTBULB}
+              text="Analyze rollup"
+              minimal
+              active={showRollupAnalysisPane}
+              onClick={() => setShowRollupAnalysisPane(!showRollupAnalysisPane)}
+            />
+          )}
+          {ingestQueryPattern?.insertTableName && (
+            <Button minimal>
+              Destination &nbsp;
+              <Tag minimal round>
+                {ingestQueryPattern?.insertTableName}
+              </Tag>
+            </Button>
+          )}
+        </div>
         <div className="control-line bottom-left">
           <ButtonGroup>
             <Button
@@ -519,36 +511,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               onClick={() => setMode('sql')}
             />
           </ButtonGroup>
-          {timeSuggestions.length > 0 && (
-            <Popover2
-              content={
-                <Menu>
-                  {timeSuggestions.map((timeSuggestion, i) => (
-                    <MenuItem
-                      key={i}
-                      icon={IconNames.CLEAN}
-                      text={timeSuggestion.label}
-                      onClick={() => handleQueryAction(timeSuggestion.queryAction)}
-                    />
-                  ))}
-                  <MenuItem
-                    icon={IconNames.HELP}
-                    text="Learn more about the primary time column"
-                    href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
-                    target="_blank"
-                  />
-                </Menu>
-              }
-            >
-              <Button
-                className="time-column-warning"
-                icon={IconNames.WARNING_SIGN}
-                text="No primary time column selected"
-                intent={Intent.WARNING}
-                minimal
-              />
-            </Popover2>
-          )}
         </div>
         {effectiveMode !== 'sql' && ingestQueryPattern && (
           <div className="control-line bottom-right">
@@ -614,13 +576,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             />
           </div>
         )}
-        {effectiveMode === 'sql' && (
-          <div className="control-line bottom-right">
-            <Button rightIcon={IconNames.ARROW_TOP_RIGHT} onClick={goToQuery}>
-              Open in <strong>Query</strong> view
-            </Button>
-          </div>
-        )}
       </div>
       <div className="preview">
         {effectiveMode === 'table' && (
@@ -662,14 +617,59 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               onQueryStringChange={onQueryStringChange}
               runeMode={false}
               columnMetadata={undefined}
+              leaveBackground
             />
-            {ingestPatternError && (
-              <Callout className="pattern-error" intent={Intent.DANGER}>
-                {ingestPatternError}
-              </Callout>
-            )}
+            <Button
+              className="open-in-query"
+              rightIcon={IconNames.ARROW_TOP_RIGHT}
+              minimal
+              onClick={goToQuery}
+            >
+              Open in <strong>Query</strong> view
+            </Button>
           </>
         )}
+      </div>
+      <div className="controls">
+        {ingestPatternError && <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>}
+        {timeSuggestions.length > 0 && (
+          <Popover2
+            content={
+              <Menu>
+                {timeSuggestions.map((timeSuggestion, i) => (
+                  <MenuItem
+                    key={i}
+                    icon={IconNames.CLEAN}
+                    text={timeSuggestion.label}
+                    onClick={() => handleQueryAction(timeSuggestion.queryAction)}
+                  />
+                ))}
+                <MenuItem
+                  icon={IconNames.HELP}
+                  text="Learn more about the primary time column"
+                  href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
+                  target="_blank"
+                />
+              </Menu>
+            }
+          >
+            <Button
+              className="time-column-warning"
+              icon={IconNames.WARNING_SIGN}
+              text="No primary time column selected"
+              intent={Intent.WARNING}
+              minimal
+            />
+          </Popover2>
+        )}
+        <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
+        <Button
+          className="next"
+          icon={IconNames.CLOUD_UPLOAD}
+          text="Start loading data"
+          intent={Intent.PRIMARY}
+          onClick={onDone}
+        />
       </div>
       {showRollupAnalysisPane && ingestQueryPattern && (
         <RollupAnalysisPane

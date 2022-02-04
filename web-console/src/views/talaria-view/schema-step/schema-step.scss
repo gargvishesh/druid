@@ -35,12 +35,6 @@
       }
     }
 
-    .right-controls {
-      position: absolute;
-      top: 0;
-      right: 0;
-    }
-
     .bottom-left {
       position: absolute;
       bottom: 0;
@@ -50,7 +44,7 @@
     .bottom-right {
       position: absolute;
       bottom: 0;
-      right: 0;
+      right: 320px;
 
       .column-filter-control {
         width: 350px;
@@ -67,7 +61,7 @@
     top: 100px;
     bottom: 0;
     left: 0;
-    right: 0;
+    right: 320px;
 
     .preview-table,
     .column-list,
@@ -77,17 +71,31 @@
       height: 100%;
     }
 
-    .pattern-error {
+    .open-in-query {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 300px;
-      height: 75px;
+      top: 5px;
+      right: 5px;
       z-index: 100;
     }
+  }
 
-    .talaria-query-input {
-      border-top: 1px solid gray;
+  .controls {
+    position: absolute;
+    top: 100px;
+    bottom: 0;
+    right: 0;
+    width: 300px;
+
+    .back {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+    }
+
+    .next {
+      position: absolute;
+      right: 0;
+      bottom: 0;
     }
   }
 
