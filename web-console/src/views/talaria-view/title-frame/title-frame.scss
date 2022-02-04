@@ -16,9 +16,26 @@
  * limitations under the License.
  */
 
-export * from './query-execution';
-export * from './talaria-general';
-export * from './talaria-query';
-export * from './talaria-query-part';
-export * from './talaria-query-pattern';
-export * from './talaria-stage';
+.title-frame {
+  position: relative;
+
+  & > .titles {
+    font-size: 21px;
+    line-height: 30px;
+    font-weight: 600;
+    cursor: default;
+    margin: 0;
+
+    .slash {
+      opacity: 0.5;
+    }
+  }
+
+  & > *:last-child {
+    position: absolute;
+    top: 45px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+}

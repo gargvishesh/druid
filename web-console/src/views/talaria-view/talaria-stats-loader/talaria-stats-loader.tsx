@@ -20,10 +20,9 @@ import React from 'react';
 
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
-import { TalariaSummary } from '../../../talaria-models';
-import { oneOf } from '../../../utils';
+import { QueryExecution } from '../../../talaria-models';
+import { getAsyncExecution } from '../execution-utils';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
-import { getTalariaDetailSummary } from '../talaria-utils';
 
 export interface TalariaStatsLoaderProps {
   id: string;
@@ -34,9 +33,9 @@ export const TalariaStatsLoader = React.memo(function TalariaStatsLoader(
 ) {
   const { id } = props;
 
-  const [reportState, queryManager] = useQueryManager<string, TalariaSummary>({
+  const [reportState, queryManager] = useQueryManager<string, QueryExecution>({
     processQuery: (taskId: string) => {
-      return getTalariaDetailSummary(taskId);
+      return getAsyncExecution(taskId);
     },
     initQuery: id,
   });
@@ -44,7 +43,7 @@ export const TalariaStatsLoader = React.memo(function TalariaStatsLoader(
   useInterval(() => {
     const report = reportState.data;
     if (!report) return;
-    if (oneOf(report.status, 'PENDING', 'RUNNING')) {
+    if (report.isWaitingForQuery()) {
       queryManager.rerunLastQuery(true);
     }
   }, 1000);

@@ -32,12 +32,17 @@ import {
   SqlStar,
   trimString,
 } from 'druid-query-toolkit';
+import * as JSONBig from 'json-bigint-native';
 import React, { useEffect, useState } from 'react';
 import ReactTable from 'react-table';
 
 import { BracedText, Deferred, TableCell } from '../../../components';
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
-import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models';
+import {
+  computeFlattenExprsForData,
+  possibleDruidFormatForValues,
+  TIME_COLUMN,
+} from '../../../druid-models';
 import {
   copyAndAlert,
   filterMap,
@@ -49,11 +54,26 @@ import {
   QueryAction,
   stringifyValue,
 } from '../../../utils';
+import { dataTypeToIcon } from '../../query-view/query-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { convertToGroupByExpression, timeFormatToSql } from '../sql-utils';
 import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item';
 
 import './query-output2.scss';
+
+function cast(ex: SqlExpression, as: string): SqlExpression {
+  return SqlExpression.parse(`CAST(${ex} AS ${as})`);
+}
+
+const CAST_TARGETS: string[] = ['VARCHAR', 'BIGINT', 'DOUBLE'];
+
+function jsonGetPath(ex: SqlExpression, path: string): SqlExpression {
+  return SqlExpression.parse(`JSON_GET_PATH(${ex}, ${SqlLiteral.create(path)})`);
+}
+
+function getJsonPaths(jsons: Record<string, any>[]): string[] {
+  return ['.'].concat(computeFlattenExprsForData(jsons, 'jq', 'include-arrays', true));
+}
 
 function isComparable(x: unknown): boolean {
   return x !== null && x !== '' && !isNaN(Number(x));
@@ -159,6 +179,99 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
             }}
           />,
         );
+      }
+
+      // Casts
+      if (selectExpression) {
+        const underlyingExpression = selectExpression.getUnderlyingExpression();
+        if (
+          underlyingExpression instanceof SqlFunction &&
+          underlyingExpression.getEffectiveFunctionName() === 'CAST'
+        ) {
+          menuItems.push(
+            <MenuItem
+              key="uncast"
+              icon={IconNames.CROSS}
+              text="Remove cast"
+              onClick={() => {
+                if (!selectExpression || !underlyingExpression) return;
+                onQueryAction(q =>
+                  q.changeSelect(
+                    headerIndex,
+                    underlyingExpression.getArg(0)!.as(selectExpression.getOutputName()),
+                  ),
+                );
+              }}
+            />,
+          );
+        }
+
+        menuItems.push(
+          <MenuItem key="cast" icon={IconNames.EXCHANGE} text="Cast to...">
+            {filterMap(CAST_TARGETS, as => {
+              if (as === column.sqlType) return;
+              return (
+                <MenuItem
+                  key={as}
+                  text={as}
+                  onClick={() => {
+                    if (!selectExpression) return;
+                    onQueryAction(q =>
+                      q.changeSelect(
+                        headerIndex,
+                        cast(selectExpression.getUnderlyingExpression(), as).as(
+                          selectExpression.getOutputName(),
+                        ),
+                      ),
+                    );
+                  }}
+                />
+              );
+            })}
+          </MenuItem>,
+        );
+      }
+
+      // JSON hint
+      if (column.nativeType === 'COMPLEX<json>') {
+        const paths = getJsonPaths(
+          filterMap(queryResult.rows, row => {
+            const v = row[headerIndex];
+            // Strangely talaria and broker deal with JSON differently
+            if (v && typeof v === 'object') return v;
+            try {
+              return JSONBig.parse(v);
+            } catch {
+              return;
+            }
+          }),
+        );
+
+        if (paths.length) {
+          menuItems.push(
+            <MenuItem key="get_json" icon={IconNames.DIAGRAM_TREE} text="Get JSON path...">
+              {paths.map(path => {
+                return (
+                  <MenuItem
+                    key={path}
+                    text={path}
+                    onClick={() => {
+                      if (!selectExpression) return;
+                      onQueryAction(q =>
+                        q.addSelect(
+                          jsonGetPath(selectExpression.getUnderlyingExpression(), path).as(
+                            selectExpression.getOutputName() + path,
+                          ),
+                          { insertIndex: headerIndex + 1 },
+                        ),
+                      );
+                    }}
+                  />
+                );
+              })}
+            </MenuItem>,
+          );
+        }
       }
 
       if (parsedQuery.isRealOutputColumnAtSelectIndex(headerIndex)) {
@@ -441,7 +554,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
     );
   }
 
-  function getCellMenu(header: string, headerIndex: number, value: unknown) {
+  function getCellMenu(column: Column, headerIndex: number, value: unknown) {
     const val = SqlLiteral.maybe(value);
     const showFullValueMenuItem = (
       <MenuItem
@@ -466,12 +579,13 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
           ex = selectValue.getUnderlyingExpression();
         }
       } else if (parsedQuery.hasStarInSelect()) {
-        ex = SqlRef.column(header);
+        ex = SqlRef.column(column.name);
       }
 
+      const jsonColumn = column.nativeType === 'COMPLEX<json>';
       return (
         <Menu>
-          {ex && val && (
+          {ex && val && !jsonColumn && (
             <>
               {isComparable(value) && (
                 <>
@@ -487,7 +601,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
         </Menu>
       );
     } else {
-      const ref = SqlRef.column(header);
+      const ref = SqlRef.column(column.name);
       const stringValue = stringifyValue(value);
       const trimmedValue = trimString(stringValue, 50);
       return (
@@ -571,6 +685,10 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
           ofText={hasMoreResults ? '' : 'of'}
           columns={filterMap(queryResult.header, (column, i) => {
             const h = column.name;
+
+            const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
+            const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+
             return {
               Header() {
                 return (
@@ -579,11 +697,14 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                     content={<Deferred content={() => getHeaderMenu(column, i)} />}
                   >
                     <div>
-                      <div>
+                      <div className="output-name">
+                        <Icon className="type-icon" icon={icon} iconSize={12} />
                         {h}
                         {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} iconSize={14} />}
                       </div>
-                      {parsedQuery && <div>{getExpressionIfAlias(parsedQuery, i)}</div>}
+                      {parsedQuery && (
+                        <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>
+                      )}
                     </div>
                   </Popover2>
                 );
@@ -594,7 +715,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                 const value = row.value;
                 return (
                   <div>
-                    <Popover2 content={<Deferred content={() => getCellMenu(h, i, value)} />}>
+                    <Popover2 content={<Deferred content={() => getCellMenu(column, i, value)} />}>
                       {numericColumnBraces[i] ? (
                         <BracedText
                           text={formatNumber(value)}

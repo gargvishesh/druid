@@ -11,7 +11,6 @@ package io.imply.druid.talaria.querykit.scan;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.kernel.MaxCountShuffleSpec;
@@ -24,7 +23,7 @@ import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.querykit.common.LimitFrameProcessorFactory;
+import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.scan.ScanQuery;
@@ -66,8 +65,6 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
       final int minStageNumber
   )
   {
-    Preconditions.checkState(originalQuery.getScanRowsOffset() == 0, "Must not have offset");
-
     final QueryDefinitionBuilder queryDefBuilder = QueryDefinition.builder().queryId(queryId);
     final DataSourcePlan dataSourcePlan = QueryKitUtils.makeDataSourcePlan(
         queryKit,
@@ -87,9 +84,10 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     final RowSignature scanSignature = getSignature(queryToRun, jsonMapper);
     final ShuffleSpec shuffleSpec;
     final RowSignature signatureToUse;
+    final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
 
-    if (queryToRun.getOrderBys().isEmpty() && queryToRun.isLimited()) {
-      // No ordering, but there is a limit. Limiting, for now, works by funneling everything through a single worker.
+    if (queryToRun.getOrderBys().isEmpty() && hasLimitOrOffset) {
+      // No ordering, but there is a limit or an offset. These work by funneling everything through a single partition.
       // So there is no point in forcing any particular partitioning.
       // TODO(gianm): Write some javadoc that explains why it's OK to ignore the resultShuffleSpecFactory here
       shuffleSpec = new MaxCountShuffleSpec(ClusterBy.none(), 1, false);
@@ -140,16 +138,19 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
                        )
     );
 
-    if (queryToRun.isLimited()) {
-      final long limitPlusOffset = queryToRun.getScanRowsOffset() + queryToRun.getScanRowsLimit();
-
+    if (hasLimitOrOffset) {
       queryDefBuilder.add(
           StageDefinition.builder(firstStageNumber + 1)
                          .inputStages(firstStageNumber)
                          .signature(signatureToUse)
                          .maxWorkerCount(1)
                          .shuffleSpec(new MaxCountShuffleSpec(ClusterBy.none(), 1, false))
-                         .processorFactory(new LimitFrameProcessorFactory(limitPlusOffset))
+                         .processorFactory(
+                             new OffsetLimitFrameProcessorFactory(
+                                 queryToRun.getScanRowsOffset(),
+                                 queryToRun.isLimited() ? queryToRun.getScanRowsLimit() : null
+                             )
+                         )
       );
     }
 

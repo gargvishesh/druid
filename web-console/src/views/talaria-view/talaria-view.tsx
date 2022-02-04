@@ -36,7 +36,7 @@ import { SpecDialog } from '../../dialogs';
 import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
-import { generate8HexId, TalariaQuery } from '../../talaria-models';
+import { generate8HexId, TabEntry, TalariaQuery } from '../../talaria-models';
 import {
   ColumnMetadata,
   deepSet,
@@ -59,11 +59,11 @@ import { getDemoQueries } from './demo-queries';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
+import { convertSpecToSql } from './spec-conversion';
 import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
 import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
 import { TalariaQueryStateCache } from './talaria-query-state-cache';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
-import { convertSpecToSql, TabEntry } from './talaria-utils';
 import { WorkPanel } from './work-panel/work-panel';
 
 import './talaria-view.scss';

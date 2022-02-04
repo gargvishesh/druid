@@ -28,20 +28,32 @@ export function generate8HexId(): string {
 }
 
 export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
+  // {
+  //   name: 'type',
+  //   label: 'Source type',
+  //   type: 'string',
+  //   suggestions: ['local', 'http', 'inline', 's3', 'azure', 'google', 'hdfs'],
+  //   info: (
+  //     <p>
+  //       Druid connects to raw data through{' '}
+  //       <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#input-sources`}>
+  //         inputSources
+  //       </ExternalLink>
+  //       . You can change your selected inputSource here.
+  //     </p>
+  //   ),
+  // },
+
+  // inline
   {
-    name: 'type',
-    label: 'Source type',
+    name: 'data',
+    label: 'Inline data',
     type: 'string',
-    suggestions: ['local', 'http', 'inline', 's3', 'azure', 'google', 'hdfs'],
-    info: (
-      <p>
-        Druid connects to raw data through{' '}
-        <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#input-sources`}>
-          inputSources
-        </ExternalLink>
-        . You can change your selected inputSource here.
-      </p>
-    ),
+    defined: typeIs('inline'),
+    required: true,
+    placeholder: 'Paste your data here',
+    multiline: true,
+    info: <p>Put you inline data here</p>,
   },
 
   // http
@@ -400,6 +412,16 @@ export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
         <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
       </>
     ),
+  },
+
+  // hdfs
+  {
+    name: 'paths',
+    label: 'Paths',
+    type: 'string',
+    placeholder: '/path/to/file.ext',
+    defined: typeIs('hdfs'),
+    required: true,
   },
 
   // sql

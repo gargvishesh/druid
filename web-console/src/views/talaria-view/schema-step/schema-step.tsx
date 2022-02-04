@@ -35,6 +35,7 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery, SqlRef } from 'druid
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { Loader } from '../../../components';
+import { AsyncActionDialog } from '../../../dialogs';
 import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models';
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
@@ -43,29 +44,29 @@ import {
   fitIngestQueryPattern,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
+  QueryExecution,
   summarizeExternalConfig,
-  TalariaSummary,
 } from '../../../talaria-models';
 import {
   caseInsensitiveContains,
   change,
   filterMap,
   getContextFromSqlQuery,
-  IntermediateQueryState,
   oneOf,
   QueryAction,
+  wait,
   without,
 } from '../../../utils';
 import { dataTypeToIcon } from '../../query-view/query-utils';
+import {
+  extractQueryResults,
+  submitAsyncQuery,
+  talariaBackgroundResultStatusCheck,
+} from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
 import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
-} from '../talaria-utils';
 
 import { ColumnList } from './column-list/column-list';
 import { PreviewTable } from './preview-table/preview-table';
@@ -200,20 +201,22 @@ type Mode = 'table' | 'list' | 'sql';
 export interface SchemaStepProps {
   queryString: string;
   onQueryStringChange(queryString: string): void;
+  goToQuery: () => void;
   onBack(): void;
   onDone(): void;
 }
 
 export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
-  const { queryString, onQueryStringChange, onBack, onDone } = props;
+  const { queryString, onQueryStringChange, goToQuery, onBack, onDone } = props;
   const [mode, setMode] = useState<Mode>('table');
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
   const [externalInEditor, setExternalInEditor] = useState<ExternalConfig | undefined>();
-  const [showAddColumnEditor, setShowAddColumnEditor] = useState(false);
+  const [addColumnType, setAddColumnType] = useState<'dimension' | 'metric' | undefined>();
   const [columnInEditor, setColumnInEditor] = useState<SqlExpression | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
+  const [showRollupConfirm, setShowRollupConfirm] = useState(false);
   const [showRollupAnalysisPane, setShowRollupAnalysisPane] = useState(false);
 
   const columnFilter = useCallback(
@@ -269,21 +272,20 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       : undefined,
   );
 
-  const [previewResultState] = useQueryManager<string, QueryResult, TalariaSummary>({
+  const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      const summary = await submitAsyncQuery({
-        query: previewQueryString,
-        context: {
-          ...getContextFromSqlQuery(previewQueryString),
-          talaria: true,
-          sqlOuterLimit: 50,
-        },
-        cancelToken,
-      });
-
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
+      return extractQueryResults(
+        await submitAsyncQuery({
+          query: previewQueryString,
+          context: {
+            ...getContextFromSqlQuery(previewQueryString),
+            talaria: true,
+            sqlOuterLimit: 50,
+          },
+          cancelToken,
+        }),
+      );
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
@@ -371,7 +373,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Tag>
             </Button>
           </Popover2>
-          <Button icon={IconNames.COMPRESSED} onClick={toggleRollup} minimal>
+          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
             Rollup &nbsp;
             <Tag minimal round>
               {ingestQueryPattern?.metrics ? 'On' : 'Off'}
@@ -481,13 +483,12 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Button>
             </Popover2>
           )}
-          <InputGroup
-            value={ingestQueryPattern?.insertTableName || ''}
-            onChange={(e: any) => {
-              if (!ingestQueryPattern) return;
-              updatePattern({ ...ingestQueryPattern, insertTableName: e.target.value });
-            }}
-          />
+          <Button minimal>
+            Destination &nbsp;
+            <Tag minimal round>
+              {ingestQueryPattern?.insertTableName || ''}
+            </Tag>
+          </Button>
           <Button
             icon={IconNames.CLOUD_UPLOAD}
             text="Start loading data"
@@ -556,32 +557,47 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               position="bottom"
               content={
                 <Menu>
-                  <MenuItem
-                    icon={IconNames.PLUS}
-                    text="Add custom column"
-                    onClick={() => setShowAddColumnEditor(true)}
-                  />
-                  {unusedColumns.length > 0 && (
+                  {ingestQueryPattern.metrics ? (
                     <>
-                      <MenuDivider />
-                      {unusedColumns.map((column, i) => (
-                        <MenuItem
-                          key={i}
-                          icon={dataTypeToIcon(column.type)}
-                          text={column.name}
-                          onClick={() => {
-                            handleQueryAction(q =>
-                              q.addSelect(
-                                SqlRef.column(column.name),
-                                ingestQueryPattern.metrics
-                                  ? { insertIndex: 'last-grouping', addToGroupBy: 'end' }
-                                  : {},
-                              ),
-                            );
-                          }}
-                        />
-                      ))}
+                      <MenuItem
+                        icon={IconNames.PLUS}
+                        text="Custom dimension"
+                        onClick={() => setAddColumnType('dimension')}
+                      />
+                      <MenuItem
+                        icon={IconNames.PLUS}
+                        text="Custom metric"
+                        onClick={() => setAddColumnType('metric')}
+                      />
                     </>
+                  ) : (
+                    <MenuItem
+                      icon={IconNames.PLUS}
+                      text="Custom column"
+                      onClick={() => setAddColumnType('dimension')}
+                    />
+                  )}
+                  <MenuDivider />
+                  {unusedColumns.length ? (
+                    unusedColumns.map((column, i) => (
+                      <MenuItem
+                        key={i}
+                        icon={dataTypeToIcon(column.type)}
+                        text={column.name}
+                        onClick={() => {
+                          handleQueryAction(q =>
+                            q.addSelect(
+                              SqlRef.column(column.name),
+                              ingestQueryPattern.metrics
+                                ? { insertIndex: 'last-grouping', addToGroupBy: 'end' }
+                                : {},
+                            ),
+                          );
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <MenuItem icon={IconNames.BLANK} text="No column suggestions" disabled />
                   )}
                 </Menu>
               }
@@ -600,7 +616,9 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         )}
         {effectiveMode === 'sql' && (
           <div className="control-line bottom-right">
-            <Button text="Open query in Talaria view" rightIcon={IconNames.ARROW_TOP_RIGHT} />
+            <Button rightIcon={IconNames.ARROW_TOP_RIGHT} onClick={goToQuery}>
+              Open in <strong>Query</strong> view
+            </Button>
           </div>
         )}
       </div>
@@ -676,17 +694,24 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           onClose={() => setExternalInEditor(undefined)}
         />
       )}
-      {showAddColumnEditor && ingestQueryPattern && (
+      {addColumnType && ingestQueryPattern && (
         <ExpressionEditorDialog
           title="Add column"
           includeOutputName
-          onSave={newExpression =>
-            updatePattern({
-              ...ingestQueryPattern,
-              dimensions: ingestQueryPattern.dimensions.concat(newExpression),
-            })
-          }
-          onClose={() => setShowAddColumnEditor(false)}
+          onSave={newExpression => {
+            if (addColumnType === 'metric' && ingestQueryPattern.metrics) {
+              updatePattern({
+                ...ingestQueryPattern,
+                metrics: ingestQueryPattern.metrics.concat(newExpression),
+              });
+            } else {
+              updatePattern({
+                ...ingestQueryPattern,
+                dimensions: ingestQueryPattern.dimensions.concat(newExpression),
+              });
+            }
+          }}
+          onClose={() => setAddColumnType(undefined)}
         />
       )}
       {columnInEditor && ingestQueryPattern && (
@@ -736,6 +761,26 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           }
           onClose={() => setFilterInEditor(undefined)}
         />
+      )}
+      {showRollupConfirm && ingestQueryPattern && (
+        <AsyncActionDialog
+          action={async () => {
+            await wait(100); // A hack to make it async. Revisit
+            toggleRollup();
+          }}
+          confirmButtonText={`Yes - ${ingestQueryPattern.metrics ? 'disable' : 'enable'} rollup`}
+          successText={`Rollup was ${
+            ingestQueryPattern.metrics ? 'disabled' : 'enabled'
+          }. Schema has been updated.`}
+          failText="Could change rollup"
+          intent={Intent.WARNING}
+          onClose={() => setShowRollupConfirm(false)}
+        >
+          <p>{`Are you sure you want to ${
+            ingestQueryPattern.metrics ? 'disable' : 'enable'
+          } rollup?`}</p>
+          <p>Making this change will reset any work you have done in this section.</p>
+        </AsyncActionDialog>
       )}
     </div>
   );

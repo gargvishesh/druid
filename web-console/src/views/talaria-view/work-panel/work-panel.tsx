@@ -237,9 +237,7 @@ LIMIT 100`,
                     </div>
                     <div className="timing">
                       {w.createdTime.replace('T', ' ').replace(/\.\d\d\dZ$/, '') +
-                        ' (' +
-                        (w.duration >= 0 ? formatDuration(w.duration) : 'n/a') +
-                        ')'}
+                        (w.duration > 0 ? ` (${formatDuration(w.duration)})` : '')}
                     </div>
                   </div>
                   <div className="line2">

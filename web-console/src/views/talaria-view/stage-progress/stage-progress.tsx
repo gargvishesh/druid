@@ -29,7 +29,6 @@ import {
 import './stage-progress.scss';
 
 export interface StageProgressProps {
-  reattach?: boolean;
   stages: StageDefinition[] | undefined;
   onCancel?(): void;
   onToggleLiveReports?(): void;
@@ -37,14 +36,14 @@ export interface StageProgressProps {
 }
 
 export const StageProgress = React.memo(function StageProgress(props: StageProgressProps) {
-  const { reattach, stages, onCancel, onToggleLiveReports, showLiveReports } = props;
+  const { stages, onCancel, onToggleLiveReports, showLiveReports } = props;
 
   const idx = currentStageIndex(stages);
   return (
     <div className="stage-progress">
       <Label>
-        {reattach ? 'Reattaching...' : 'Running query...'}
-        {onCancel && !reattach && (
+        {stages ? 'Running query...' : 'Loading...'}
+        {onCancel && (
           <>
             {' '}
             <span className="cancel" onClick={onCancel}>
@@ -53,14 +52,12 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
           </>
         )}
       </Label>
-      {!reattach && (
-        <ProgressBar
-          className="overall"
-          key={stages ? 'actual' : 'pending'}
-          intent={stages ? Intent.PRIMARY : undefined}
-          value={stages ? overallProgress(stages) : undefined}
-        />
-      )}
+      <ProgressBar
+        className="overall"
+        key={stages ? 'actual' : 'pending'}
+        intent={stages ? Intent.PRIMARY : undefined}
+        value={stages ? overallProgress(stages) : undefined}
+      />
       {stages && idx >= 0 && (
         <>
           <Label>{`Current stage (${idx + 1} of ${stages.length})`}</Label>

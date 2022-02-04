@@ -21,7 +21,7 @@ import { QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-
 import { deepGet, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
-import { getStartTime, StageDefinition } from './talaria-stage';
+import { StageDefinition } from './talaria-stage';
 
 // Hack around the concept that we might get back a SqlWithQuery and will need to unpack it
 function parseSqlQuery(queryString: string): SqlQuery | undefined {
@@ -44,7 +44,7 @@ export interface TalariaTaskError {
   exceptionStackTrace?: string;
 }
 
-type TalariaDestination =
+type ExecutionDestination =
   | {
       type: 'taskReport';
     }
@@ -52,73 +52,79 @@ type TalariaDestination =
   | { type: 'external' }
   | { type: 'download' };
 
-export type TalariaSummarySource = 'init' | 'reattach' | 'detail' | 'status';
-export type TalariaSummaryStatus = 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS';
+export type QueryExecutionStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
 
-export interface TalariaSummaryValue {
+export interface QueryExecutionValue {
   id: string;
-  source: TalariaSummarySource;
   sqlQuery?: string;
   queryContext?: QueryContext;
-  status?: TalariaSummaryStatus;
+  status?: QueryExecutionStatus;
   startTime?: Date;
+  duration?: number;
   stages?: StageDefinition[];
-  destination?: TalariaDestination;
+  destination?: ExecutionDestination;
   result?: QueryResult;
   error?: TalariaTaskError;
 }
 
-export class TalariaSummary {
+export class QueryExecution {
   static validStatus(
     status: string | undefined,
   ): status is 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS' {
     return oneOf(status, 'WAITING', 'PENDING', 'RUNNING', 'FAILED', 'SUCCESS');
   }
 
-  // Treat WAITING as PENDING since they are all the same as far as the UI is concerned
-  static normalizeStatus(
-    status: 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS',
-  ): 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS' {
-    return status === 'WAITING' ? 'PENDING' : status;
-  }
-
   static normalizeAsyncStatus(
     state: 'INITIALIZED' | 'RUNNING' | 'COMPLETE' | 'FAILED' | 'UNDETERMINED',
-  ): 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS' {
+  ): QueryExecutionStatus {
     switch (state) {
       case 'COMPLETE':
         return 'SUCCESS';
+
       case 'INITIALIZED':
-        return 'PENDING';
       case 'UNDETERMINED':
-        return 'PENDING';
+        return 'RUNNING';
+
       default:
         return state;
     }
   }
 
-  static init(id: string, sqlQuery?: string, queryContext?: QueryContext): TalariaSummary {
-    return new TalariaSummary({
-      id,
-      source: 'init',
-      sqlQuery,
-      queryContext,
-    });
+  // Treat WAITING as PENDING since they are all the same as far as the UI is concerned
+  static normalizeTaskStatus(
+    status: 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS',
+  ): QueryExecutionStatus {
+    switch (status) {
+      case 'SUCCESS':
+      case 'FAILED':
+        return status;
+
+      default:
+        return 'RUNNING';
+    }
   }
 
   static fromAsyncStatus(
     asyncResult: any,
     sqlQuery?: string,
     queryContext?: QueryContext,
-  ): TalariaSummary {
-    return new TalariaSummary({
+  ): QueryExecution {
+    const status = QueryExecution.normalizeAsyncStatus(asyncResult.state);
+    return new QueryExecution({
       id: asyncResult.asyncResultId,
-      source: 'status',
-      status: TalariaSummary.normalizeAsyncStatus(asyncResult.state),
+      status,
       sqlQuery,
       queryContext,
       error: asyncResult.error
         ? { error: { errorCode: 'AsyncError', errorMessage: JSON.stringify(asyncResult.error) } }
+        : status === 'FAILED'
+        ? {
+            error: {
+              errorCode: 'UnknownError',
+              errorMessage:
+                'Execution failed, there is no detail information, and there is no error in the status response',
+            },
+          }
         : undefined,
       destination:
         asyncResult.engine === 'Broker'
@@ -129,18 +135,11 @@ export class TalariaSummary {
     });
   }
 
-  static reattach(id: string): TalariaSummary {
-    return new TalariaSummary({
-      id,
-      source: 'reattach',
-    });
-  }
-
-  static fromDetail(report: any): TalariaSummary {
+  static fromAsyncDetail(report: any): QueryExecution {
     // Must have status set for a valid report
     const id = deepGet(report, 'talariaStatus.taskId');
     const status = deepGet(report, 'talariaStatus.payload.status');
-    if (typeof id !== 'string' || !TalariaSummary.validStatus(status)) {
+    if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
       throw new Error('invalid status');
     }
 
@@ -149,12 +148,14 @@ export class TalariaSummary {
       error = deepGet(report, 'talariaStatus.payload.errorReport');
     }
 
-    const stages = deepGet(report, 'talariaStages.payload.stages') || [];
-    let res = new TalariaSummary({
+    const stages = deepGet(report, 'talariaStages.payload.stages');
+    const queryStartTime = new Date(deepGet(report, 'talariaStatus.payload.queryStartTime'));
+    const queryDuration = deepGet(report, 'talariaStatus.payload.queryDuration');
+    let res = new QueryExecution({
       id,
-      source: 'detail',
-      status: TalariaSummary.normalizeStatus(status),
-      startTime: getStartTime(stages),
+      status: QueryExecution.normalizeTaskStatus(status),
+      startTime: isNaN(queryStartTime.getTime()) ? undefined : queryStartTime,
+      duration: typeof queryDuration === 'number' ? queryDuration : undefined,
       stages,
       error,
       destination: deepGet(report, 'talariaTask.payload.spec.destination'),
@@ -170,76 +171,46 @@ export class TalariaSummary {
     return res;
   }
 
-  static fromStatus(statusPayload: any): TalariaSummary {
-    const id = deepGet(statusPayload, 'task');
-    const status = deepGet(statusPayload, 'status.status');
-    if (typeof id !== 'string' || !TalariaSummary.validStatus(status)) {
-      throw new Error(`invalid task status from status endpoint: ${status}`);
-    }
-
-    let error: TalariaTaskError | undefined;
-    if (status === 'FAILED') {
-      const errorMsg = deepGet(statusPayload, 'status.errorMsg');
-      if (errorMsg) {
-        error = {
-          error: { errorCode: 'UnknownError', errorMessage: errorMsg },
-        };
-      }
-    }
-
-    let startTime: Date | undefined = new Date(deepGet(statusPayload, 'createdTime'));
-    if (isNaN(startTime.valueOf())) startTime = undefined;
-
-    return new TalariaSummary({
-      id: id,
-      source: 'status',
-      status: status === 'WAITING' ? 'PENDING' : status, // Treat WAITING as PENDING since they are all the same for the UI
-      startTime,
-      error,
-    });
-  }
-
-  static fromResult(result: QueryResult): TalariaSummary {
-    return new TalariaSummary({
+  static fromResult(result: QueryResult): QueryExecution {
+    return new QueryExecution({
       id: result.sqlQueryId || result.queryId || 'direct_result',
-      source: 'init',
       status: 'SUCCESS',
       result,
     });
   }
 
   public readonly id: string;
-  public readonly source: TalariaSummarySource;
   public readonly sqlQuery?: string;
   public readonly queryContext?: QueryContext;
-  public readonly status?: TalariaSummaryStatus;
+  public readonly status?: QueryExecutionStatus;
   public readonly startTime?: Date;
+  public readonly duration?: number;
   public readonly stages?: StageDefinition[];
-  public readonly destination?: TalariaDestination;
+  public readonly destination?: ExecutionDestination;
   public readonly result?: QueryResult;
   public readonly error?: TalariaTaskError;
 
-  constructor(value: TalariaSummaryValue) {
+  constructor(value: QueryExecutionValue) {
     this.id = value.id;
-    this.source = value.source;
     this.sqlQuery = value.sqlQuery;
     this.queryContext = value.queryContext;
     this.status = value.status;
     this.startTime = value.startTime;
+    this.duration = value.duration;
     this.stages = value.stages;
     this.destination = value.destination;
     this.result = value.result;
     this.error = value.error;
   }
 
-  valueOf(): TalariaSummaryValue {
+  valueOf(): QueryExecutionValue {
     return {
       id: this.id,
-      source: this.source,
       sqlQuery: this.sqlQuery,
       queryContext: this.queryContext,
       status: this.status,
       startTime: this.startTime,
+      duration: this.duration,
       stages: this.stages,
       destination: this.destination,
       result: this.result,
@@ -247,14 +218,7 @@ export class TalariaSummary {
     };
   }
 
-  public changeSummarySource(source: TalariaSummarySource): TalariaSummary {
-    return new TalariaSummary({
-      ...this.valueOf(),
-      source,
-    });
-  }
-
-  public changeSqlQuery(sqlQuery: string, queryContext?: QueryContext): TalariaSummary {
+  public changeSqlQuery(sqlQuery: string, queryContext?: QueryContext): QueryExecution {
     const value = this.valueOf();
 
     value.sqlQuery = sqlQuery;
@@ -264,24 +228,24 @@ export class TalariaSummary {
       value.result = value.result.attachQuery({ context: queryContext }, parsedQuery);
     }
 
-    return new TalariaSummary(value);
+    return new QueryExecution(value);
   }
 
-  public changeDestination(destination: TalariaDestination): TalariaSummary {
-    return new TalariaSummary({
+  public changeDestination(destination: ExecutionDestination): QueryExecution {
+    return new QueryExecution({
       ...this.valueOf(),
       destination,
     });
   }
 
-  public changeResult(result: QueryResult): TalariaSummary {
-    return new TalariaSummary({
+  public changeResult(result: QueryResult): QueryExecution {
+    return new QueryExecution({
       ...this.valueOf(),
       result: result.attachQuery({}, this.sqlQuery ? parseSqlQuery(this.sqlQuery) : undefined),
     });
   }
 
-  public updateWith(newSummary: TalariaSummary): TalariaSummary {
+  public updateWith(newSummary: QueryExecution): QueryExecution {
     if (this.stages && !newSummary.stages) return this;
 
     let nextSummary = newSummary;
@@ -295,10 +259,10 @@ export class TalariaSummary {
     return nextSummary;
   }
 
-  public attachErrorFromStatus(status: any): TalariaSummary {
+  public attachErrorFromStatus(status: any): QueryExecution {
     const errorMsg = deepGet(status, 'status.errorMsg');
 
-    return new TalariaSummary({
+    return new QueryExecution({
       ...this.valueOf(),
       error: {
         error: {
@@ -309,21 +273,17 @@ export class TalariaSummary {
     });
   }
 
-  public markDestinationDatasourceExists(): TalariaSummary {
+  public markDestinationDatasourceExists(): QueryExecution {
     const { destination } = this;
     if (destination?.type !== 'dataSource') return this;
 
-    return new TalariaSummary({
+    return new QueryExecution({
       ...this.valueOf(),
       destination: {
         ...destination,
         exists: true,
       },
     });
-  }
-
-  public isReattach(): boolean {
-    return this.source === 'reattach';
   }
 
   public isWaitingForQuery(): boolean {
@@ -342,11 +302,7 @@ export class TalariaSummary {
     return true;
   }
 
-  public getDuration(): number {
-    return 0;
-  }
-
-  public getInsertDataSource(): string | undefined {
+  public getInsertDatasource(): string | undefined {
     const { destination } = this;
     if (destination?.type !== 'dataSource') return;
     return destination.dataSource;
@@ -354,7 +310,7 @@ export class TalariaSummary {
 
   public isSuccessfulInsert(): boolean {
     return Boolean(
-      this.isFullyComplete() && this.getInsertDataSource() && this.status === 'SUCCESS',
+      this.isFullyComplete() && this.getInsertDatasource() && this.status === 'SUCCESS',
     );
   }
 

@@ -23,7 +23,7 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-t
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { TalariaSummary } from '../../../../talaria-models';
+import { QueryExecution } from '../../../../talaria-models';
 import {
   filterMap,
   formatPercentClapped,
@@ -31,11 +31,7 @@ import {
   QueryAction,
 } from '../../../../utils';
 import { ColumnActionMenu } from '../../column-action-menu/column-action-menu';
-import {
-  cancelAsyncQueryOnCancel,
-  submitAsyncQuery,
-  talariaBackgroundStatusCheck,
-} from '../../talaria-utils';
+import { submitAsyncQuery, talariaBackgroundStatusCheck } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';
 
@@ -150,7 +146,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
   const [analyzeQueryState, analyzeQueryManager] = useQueryManager<
     AnalyzeQuery,
     AnalyzeResult,
-    TalariaSummary
+    QueryExecution
   >({
     processQuery: async (analyzeQuery: AnalyzeQuery, cancelToken) => {
       const { expressions, deep } = analyzeQuery;
@@ -178,7 +174,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
 
       // console.log('analyze:', queryString);
 
-      const summary = await submitAsyncQuery({
+      const res = await submitAsyncQuery({
         query: queryString,
         context: {
           talaria: true,
@@ -186,15 +182,20 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         cancelToken,
       });
 
-      cancelAsyncQueryOnCancel(summary.id, cancelToken);
-      return new IntermediateQueryState(summary);
+      if (res instanceof IntermediateQueryState) return res;
+
+      if (res.result) {
+        return queryResultToAnalysis(analyzeQuery, res.result);
+      } else {
+        throw new Error(res.getErrorMessage() || 'unexpected destination');
+      }
     },
     backgroundStatusCheck: async (
-      currentSummary: TalariaSummary,
+      execution: QueryExecution,
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(currentSummary, analyzeQuery, cancelToken);
+      const res = await talariaBackgroundStatusCheck(execution, analyzeQuery, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (res.result) {

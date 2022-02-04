@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.querykit.common;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.talaria.frame.channel.ReadableConcatFrameChannel;
@@ -38,18 +39,34 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 @JsonTypeName("limit")
-public class LimitFrameProcessorFactory extends BaseFrameProcessorFactory
+public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
 {
-  private final long limit;
+  private final long offset;
+
+  @Nullable
+  private final Long limit;
 
   @JsonCreator
-  public LimitFrameProcessorFactory(@JsonProperty("limit") final long limit)
+  public OffsetLimitFrameProcessorFactory(
+      @JsonProperty("offset") final long offset,
+      @Nullable @JsonProperty("limit") final Long limit
+  )
   {
+    this.offset = offset;
     this.limit = limit;
   }
 
   @JsonProperty
-  public long getLimit()
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  public long getOffset()
+  {
+    return offset;
+  }
+
+  @Nullable
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long getLimit()
   {
     return limit;
   }
@@ -97,11 +114,13 @@ public class LimitFrameProcessorFactory extends BaseFrameProcessorFactory
               }
           ).iterator();
 
-      return new LimitFrameProcessor(
+      return new OffsetLimitFrameProcessor(
           ReadableConcatFrameChannel.open(channelIterator),
           outputChannel.getWritableChannel(),
           frameReader,
-          limit
+          offset,
+          // Limit processor will add limit + offset at various points; must avoid overflow
+          limit == null ? Long.MAX_VALUE - offset : limit
       );
     };
 
