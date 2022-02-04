@@ -36,10 +36,20 @@ export function dataTypeToIcon(dataType: string): IconName {
     case 'DOUBLE':
       return IconNames.NUMERICAL;
 
+    case 'ARRAY<STRING>':
+      return IconNames.ARRAY_STRING;
+
+    case 'ARRAY<LONG>':
+    case 'ARRAY<FLOAT>':
+    case 'ARRAY<DOUBLE>':
+      return IconNames.ARRAY_NUMERIC;
+
     case 'COMPLEX<JSON>':
       return IconNames.DIAGRAM_TREE;
 
     default:
-      return typeUpper.startsWith('COMPLEX') ? IconNames.ASTERISK : IconNames.HELP;
+      if (typeUpper.startsWith('ARRAY')) return IconNames.ARRAY;
+      if (typeUpper.startsWith('COMPLEX')) return IconNames.ASTERISK;
+      return IconNames.HELP;
   }
 }

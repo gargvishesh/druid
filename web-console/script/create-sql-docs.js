@@ -50,9 +50,25 @@ const IMPLY_FUNCTION_DOCS = {
   ],
   JSON_GET_PATH: [
     [
-      'jsonColumn, selectorPath',
+      'jsonExpression, selectorPath',
       convertMarkdownToHtml(
-        'Gets the `selectorPath` out of the `jsonColumn`. The `selectorPath` must be expressed as a jq like selector.',
+        'Gets the `selectorPath` out of the `jsonExpression`. The `selectorPath` must be expressed as a jq like selector.',
+      ),
+    ],
+  ],
+  JSON_KEYS: [
+    [
+      'jsonExpression, selectorPath',
+      convertMarkdownToHtml(
+        'Returns an array of keys located under the `selectorPath` path within `jsonExpression`.',
+      ),
+    ],
+  ],
+  JSON_PATHS: [
+    [
+      'jsonExpression, selectorPath',
+      convertMarkdownToHtml(
+        'Returns an array of all the paths located under the `selectorPath` path within `jsonExpression`.',
       ),
     ],
   ],

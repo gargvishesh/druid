@@ -86,6 +86,7 @@ export function computeFlattenExprsForData(
 ): string[] {
   const seenPaths: Record<string, boolean> = {};
   for (const datum of data) {
+    if (!datum || typeof datum !== 'object') continue;
     const datumKeys = Object.keys(datum);
     for (const datumKey of datumKeys) {
       const datumValue = datum[datumKey];

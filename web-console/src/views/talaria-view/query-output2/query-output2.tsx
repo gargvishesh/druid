@@ -54,6 +54,7 @@ import {
   QueryAction,
   stringifyValue,
 } from '../../../utils';
+import { dataTypeToIcon } from '../../query-view/query-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { convertToGroupByExpression, timeFormatToSql } from '../sql-utils';
 import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item';
@@ -71,7 +72,7 @@ function jsonGetPath(ex: SqlExpression, path: string): SqlExpression {
 }
 
 function getJsonPaths(jsons: Record<string, any>[]): string[] {
-  return computeFlattenExprsForData(jsons, 'jq', 'include-arrays', true);
+  return ['.'].concat(computeFlattenExprsForData(jsons, 'jq', 'include-arrays', true));
 }
 
 function isComparable(x: unknown): boolean {
@@ -684,6 +685,10 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
           ofText={hasMoreResults ? '' : 'of'}
           columns={filterMap(queryResult.header, (column, i) => {
             const h = column.name;
+
+            const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
+            const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+
             return {
               Header() {
                 return (
@@ -692,11 +697,14 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                     content={<Deferred content={() => getHeaderMenu(column, i)} />}
                   >
                     <div>
-                      <div>
+                      <div className="output-name">
+                        <Icon className="type-icon" icon={icon} iconSize={12} />
                         {h}
                         {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} iconSize={14} />}
                       </div>
-                      {parsedQuery && <div>{getExpressionIfAlias(parsedQuery, i)}</div>}
+                      {parsedQuery && (
+                        <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>
+                      )}
                     </div>
                   </Popover2>
                 );
