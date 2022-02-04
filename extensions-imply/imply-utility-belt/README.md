@@ -101,16 +101,6 @@ Lookup types supported:
 - `countryIso` - ISO-3166-1 country code, 2 characters long, like "DE".
 - `continent` - Continent name, like "North America".
 
-## User agent extraction
-
-Extracts information from HTTP user agent strings using a bundled database.
-
-This functions is available through either Druid expressions (useful for ingest-time transformSpecs) or Druid SQL:
-
-|Function|Description|
-|--------|-----------|
-|ft_useragent(ua, type)|Extract up the "type" attribute of "ua". Type can be one of the types listed below.|
-
 Lookup types supported:
 
 - `browser` - Browser type, like "Chrome".
