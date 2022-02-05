@@ -296,7 +296,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             {queryExecutionState.isLoading() && <QueryTimer />}
             {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={queryExecution.result}
+                queryExecution={queryExecution}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}

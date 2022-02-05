@@ -149,13 +149,13 @@ export class QueryExecution {
     }
 
     const stages = deepGet(report, 'talariaStages.payload.stages');
-    const queryStartTime = new Date(deepGet(report, 'talariaStatus.payload.queryStartTime'));
-    const queryDuration = deepGet(report, 'talariaStatus.payload.queryDuration');
+    const startTime = new Date(deepGet(report, 'talariaStatus.payload.startTime'));
+    const durationMs = deepGet(report, 'talariaStatus.payload.durationMs');
     let res = new QueryExecution({
       id,
       status: QueryExecution.normalizeTaskStatus(status),
-      startTime: isNaN(queryStartTime.getTime()) ? undefined : queryStartTime,
-      duration: typeof queryDuration === 'number' ? queryDuration : undefined,
+      startTime: isNaN(startTime.getTime()) ? undefined : startTime,
+      duration: typeof durationMs === 'number' ? durationMs : undefined,
       stages,
       error,
       destination: deepGet(report, 'talariaTask.payload.spec.destination'),

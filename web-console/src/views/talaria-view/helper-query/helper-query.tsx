@@ -284,7 +284,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             {queryExecutionState.isLoading() && <QueryTimer />}
             {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={queryExecution.result}
+                queryExecution={queryExecution}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}
