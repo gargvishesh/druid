@@ -137,15 +137,20 @@ export class QueryExecution {
 
   static fromAsyncDetail(report: any): QueryExecution {
     // Must have status set for a valid report
-    const id = deepGet(report, 'talariaStatus.taskId');
-    const status = deepGet(report, 'talariaStatus.payload.status');
+    const id = deepGet(report, 'talariaStatus.taskId') || deepGet(report, 'talariaTask.payload.id');
+    const status =
+      deepGet(report, 'talariaStatus.payload.status') || (report.error ? 'FAILED' : undefined);
     if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
       throw new Error('invalid status');
     }
 
     let error: TalariaTaskError | undefined;
     if (status === 'FAILED') {
-      error = deepGet(report, 'talariaStatus.payload.errorReport');
+      error =
+        deepGet(report, 'talariaStatus.payload.errorReport') ||
+        (typeof report.error === 'string'
+          ? { error: { errorCode: 'UnknownError', errorMessage: report.error } }
+          : undefined);
     }
 
     const stages = deepGet(report, 'talariaStages.payload.stages');
