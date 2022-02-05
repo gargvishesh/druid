@@ -20,7 +20,7 @@ import { AxiosResponse, CancelToken } from 'axios';
 import { QueryResult, SqlLiteral } from 'druid-query-toolkit';
 
 import { Api } from '../../singletons';
-import { QueryExecution } from '../../talaria-models';
+import { getNumPartitions, QueryExecution } from '../../talaria-models';
 import {
   deepGet,
   downloadHref,
@@ -30,6 +30,8 @@ import {
   QueryManager,
 } from '../../utils';
 import { QueryContext } from '../../utils/query-context';
+
+const WAIT_FOR_SEGMENTS_TIMEOUT = 180000; // 3 minutes to wait until segments appear
 
 export interface SubmitAsyncQueryOptions {
   query: string | Record<string, any>;
@@ -186,7 +188,7 @@ async function updateExecutionWithResultsIfNeeded(
 
 async function updateExecutionWithDatasourceExistsIfNeeded(
   execution: QueryExecution,
-  cancelToken?: CancelToken,
+  _cancelToken?: CancelToken,
 ): Promise<QueryExecution> {
   if (
     !(execution.destination?.type === 'dataSource' && !execution.destination.exists) ||
@@ -195,23 +197,44 @@ async function updateExecutionWithDatasourceExistsIfNeeded(
     return execution;
   }
 
-  const loadingSegments = await hasLoadingSegments(execution.destination.dataSource, cancelToken);
-  if (loadingSegments) return execution;
-
-  return execution.markDestinationDatasourceExists();
-}
-
-async function hasLoadingSegments(
-  datasource: string,
-  _cancelToken?: CancelToken,
-): Promise<boolean> {
   const segmentCheck = await queryDruidSql({
-    query: `SELECT segment_id FROM sys.segments WHERE datasource = ${SqlLiteral.create(
-      datasource,
-    )} AND is_published = 1 AND is_overshadowed = 0 AND is_available = 0 LIMIT 1`,
+    query: `SELECT
+  COUNT(*) AS num_segments,
+  COUNT(*) FILTER (WHERE is_published = 1 AND is_available = 0) AS loading_segments
+FROM sys.segments
+WHERE datasource = ${SqlLiteral.create(execution.destination.dataSource)} AND is_overshadowed = 0`,
   });
 
-  return Boolean(segmentCheck.length);
+  const numSegments: number = deepGet(segmentCheck, '0.num_segments') || 0;
+  const loadingSegments: number = deepGet(segmentCheck, '0.loading_segments') || 0;
+
+  // There appear to be no segments either nothing was written out or they have not shown up in the metadata yet
+  if (numSegments === 0) {
+    const { stages } = execution;
+    if (Array.isArray(stages)) {
+      const lastStage = stages[stages.length - 1];
+      if (getNumPartitions(lastStage, 'output') === 0) {
+        // No data was meant to be written anyway
+        console.log('>> No data was meant to be written anyway');
+        return execution.markDestinationDatasourceExists();
+      }
+    }
+
+    const endTime = execution.getEndTime();
+    if (!endTime || endTime.valueOf() + WAIT_FOR_SEGMENTS_TIMEOUT < Date.now()) {
+      // Enough time has passed since the query ran... give up waiting (or there is no time info).
+      console.log('>> Enough time has passed since the query ran... give up waiting.');
+      return execution.markDestinationDatasourceExists();
+    }
+
+    console.log('>> Keep going.');
+    return execution;
+  }
+
+  // There are segments, and we are still waiting for some of them to load
+  if (loadingSegments > 0) return execution;
+
+  return execution.markDestinationDatasourceExists();
 }
 
 function deleteAsyncQueryOnCancel(

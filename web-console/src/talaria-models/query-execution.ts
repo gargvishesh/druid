@@ -251,8 +251,6 @@ export class QueryExecution {
   }
 
   public updateWith(newSummary: QueryExecution): QueryExecution {
-    if (this.stages && !newSummary.stages) return this;
-
     let nextSummary = newSummary;
     if (this.sqlQuery && !nextSummary.sqlQuery) {
       nextSummary = nextSummary.changeSqlQuery(this.sqlQuery, this.queryContext);
@@ -326,5 +324,11 @@ export class QueryExecution {
       (error.error.errorCode ? `${error.error.errorCode}: ` : '') +
       (error.error.errorMessage || (error.exceptionStackTrace || '').split('\n')[0])
     );
+  }
+
+  public getEndTime(): Date | undefined {
+    const { startTime, duration } = this;
+    if (!startTime || !duration) return;
+    return new Date(startTime.valueOf() + duration);
   }
 }
