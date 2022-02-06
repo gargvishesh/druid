@@ -27,14 +27,28 @@
 .column-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 15px 1fr;
+  grid-template-rows: 1fr;
   grid-gap: 10px;
-  overflow: hidden;
-  padding: 5px;
 
   .list-column {
+    position: relative;
     @include sunk-panel;
     overflow: auto;
-    padding: 5px 8px;
+
+    .list-label {
+      position: absolute;
+      top: 5px;
+      left: 8px;
+    }
+
+    .list-container {
+      position: absolute;
+      top: 30px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 5px 8px;
+      overflow: auto;
+    }
   }
 }

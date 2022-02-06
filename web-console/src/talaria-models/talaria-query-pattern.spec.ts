@@ -44,7 +44,7 @@ describe('talaria-query-pattern', () => {
     `);
 
     const insertQueryPattern = fitIngestQueryPattern(query);
-    expect(insertQueryPattern.segmentGranularity).toEqual('hour');
+    expect(insertQueryPattern.partitionedBy).toEqual('hour');
 
     const query2 = ingestQueryPatternToQuery(insertQueryPattern);
 

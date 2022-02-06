@@ -97,11 +97,18 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 )`);
 }
 
+const INITIAL_CONTEXT_LINES = [
+  `--:context talariaReplaceTimeChunks: all`,
+  `--:context talariaSegmentGranularity: hour`,
+  `--:context talariaFinalizeAggregations: false`,
+];
+
 export function externalConfigToInitQuery(
   externalConfigName: string,
   config: ExternalConfig,
 ): SqlQuery {
   return SqlQuery.create(SqlTableRef.create(externalConfigName))
+    .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
       config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
     )
@@ -157,27 +164,27 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
 export function externalConfigToIngestQueryPattern(config: ExternalConfig): IngestQueryPattern {
   const hasTimeColumn = false; // ToDo
   return {
-    segmentGranularity: hasTimeColumn ? 'day' : undefined,
     insertTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
     dimensions: config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
-    partitions: [],
+    partitionedBy: hasTimeColumn ? 'day' : undefined,
+    clusteredBy: [],
   };
 }
 
 // --------------------------------------------
 
 export interface IngestQueryPattern {
-  segmentGranularity?: string;
   insertTableName: string;
   mainExternalName: string;
   mainExternalConfig: ExternalConfig;
   filters: readonly SqlExpression[];
   dimensions: readonly SqlExpression[];
   metrics?: readonly SqlExpression[];
-  partitions: readonly number[];
+  partitionedBy?: string;
+  clusteredBy: readonly number[];
 }
 
 function verifyHasOutputName(expression: SqlExpression): void {
@@ -251,14 +258,14 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   });
 
   return {
-    segmentGranularity,
+    partitionedBy: segmentGranularity,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
-    partitions,
+    clusteredBy: partitions,
   };
 }
 
@@ -267,14 +274,14 @@ export function ingestQueryPatternToQuery(
   preview?: boolean,
 ): SqlQuery {
   const {
-    segmentGranularity,
+    partitionedBy,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
-    partitions,
+    clusteredBy,
   } = ingestQueryPattern;
 
   // ToDo: make this actually work
@@ -286,8 +293,8 @@ export function ingestQueryPatternToQuery(
       : undefined;
 
   const initialContextLines: string[] = [];
-  if (segmentGranularity && !preview) {
-    initialContextLines.push(`--:context ${TALARIA_SEGMENT_GRANULARITY}: ${segmentGranularity}`);
+  if (partitionedBy && !preview) {
+    initialContextLines.push(`--:context ${TALARIA_SEGMENT_GRANULARITY}: ${partitionedBy}`);
   }
   if (metrics) {
     initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
@@ -315,6 +322,6 @@ export function ingestQueryPatternToQuery(
     .applyForEach(metrics || [], (query, ex) => query.addSelect(ex))
     .applyIf(filters.length, query => query.changeWhereExpression(SqlExpression.and(...filters)))
     .applyIf(!preview, q =>
-      q.changeOrderByExpressions(partitions.map(p => SqlOrderByExpression.index(p))),
+      q.changeOrderByExpressions(clusteredBy.map(p => SqlOrderByExpression.index(p))),
     );
 }

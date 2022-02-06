@@ -56,6 +56,7 @@ import {
   wait,
   without,
 } from '../../../utils';
+import { LearnMore } from '../../load-data-view/learn-more/learn-more';
 import { dataTypeToIcon } from '../../query-view/query-utils';
 import {
   extractQueryResults,
@@ -297,7 +298,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       )
     : [];
 
-  const segmentGranularity = ingestQueryPattern?.segmentGranularity;
+  const segmentGranularity = ingestQueryPattern?.partitionedBy;
 
   const timeSuggestions =
     previewResultState.data && parsedQuery
@@ -398,7 +399,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                             if (!ingestQueryPattern) return;
                             updatePattern({
                               ...ingestQueryPattern,
-                              segmentGranularity: g,
+                              partitionedBy: g,
                             });
                           }}
                         />
@@ -411,7 +412,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                     />
                   )}
                   <MenuDivider title="Secondary partitioning" />
-                  {ingestQueryPattern.partitions.map((p, i) => (
+                  {ingestQueryPattern.clusteredBy.map((p, i) => (
                     <MenuItem
                       key={i}
                       icon={IconNames.SPLIT_COLUMNS}
@@ -419,7 +420,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                       onClick={() =>
                         updatePattern({
                           ...ingestQueryPattern,
-                          partitions: without(ingestQueryPattern.partitions, p),
+                          clusteredBy: without(ingestQueryPattern.clusteredBy, p),
                         })
                       }
                     />
@@ -427,7 +428,10 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                   <MenuItem icon={IconNames.PLUS} text="Add column partitioning">
                     {filterMap(ingestQueryPattern.dimensions, (dimension, i) => {
                       const outputName = dimension.getOutputName();
-                      if (outputName === TIME_COLUMN || ingestQueryPattern.partitions.includes(i)) {
+                      if (
+                        outputName === TIME_COLUMN ||
+                        ingestQueryPattern.clusteredBy.includes(i)
+                      ) {
                         return;
                       }
 
@@ -438,7 +442,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                           onClick={() =>
                             updatePattern({
                               ...ingestQueryPattern,
-                              partitions: ingestQueryPattern.partitions.concat([i]),
+                              clusteredBy: ingestQueryPattern.clusteredBy.concat([i]),
                             })
                           }
                         />
@@ -459,7 +463,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 Partitioning &nbsp;
                 <Tag minimal round>
                   {(segmentGranularity && segmentGranularity !== 'all' ? 1 : 0) +
-                    ingestQueryPattern.partitions.length}
+                    ingestQueryPattern.clusteredBy.length}
                 </Tag>
               </Button>
             </Popover2>
@@ -564,7 +568,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 </Menu>
               }
             >
-              <Button icon={IconNames.PLUS} text="Add column" minimal />
+              <Button icon={IconNames.PLUS} text="Add column" />
             </Popover2>
             <InputGroup
               className="column-filter-control"
@@ -631,6 +635,17 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         )}
       </div>
       <div className="controls">
+        <Callout>
+          <p>
+            Each column in Druid must have an assigned type (string, long, float, double, complex,
+            etc).
+          </p>
+          <p>
+            Types have been automatically assigned to your columns. If you want to change the type,
+            click on the column header.
+          </p>
+          <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+        </Callout>
         {ingestPatternError && <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>}
         {timeSuggestions.length > 0 && (
           <Popover2
