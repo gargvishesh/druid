@@ -20,6 +20,7 @@ import {
   Button,
   ButtonGroup,
   Callout,
+  FormGroup,
   InputGroup,
   Intent,
   Menu,
@@ -568,7 +569,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 </Menu>
               }
             >
-              <Button icon={IconNames.PLUS} text="Add column" />
+              <Button className="add-column" icon={IconNames.PLUS} text="Add column" />
             </Popover2>
             <InputGroup
               className="column-filter-control"
@@ -578,6 +579,13 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 setColumnSearch(e.target.value);
               }}
             />
+          </div>
+        )}
+        {effectiveMode === 'sql' && (
+          <div className="control-line bottom-right">
+            <Button rightIcon={IconNames.ARROW_TOP_RIGHT} onClick={goToQuery}>
+              Open in <strong>Query</strong> view
+            </Button>
           </div>
         )}
       </div>
@@ -614,39 +622,35 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             )
           ))}
         {effectiveMode === 'sql' && (
-          <>
-            <TalariaQueryInput
-              autoHeight={false}
-              queryString={queryString}
-              onQueryStringChange={onQueryStringChange}
-              runeMode={false}
-              columnMetadata={undefined}
-              leaveBackground
-            />
-            <Button
-              className="open-in-query"
-              rightIcon={IconNames.ARROW_TOP_RIGHT}
-              minimal
-              onClick={goToQuery}
-            >
-              Open in <strong>Query</strong> view
-            </Button>
-          </>
+          <TalariaQueryInput
+            autoHeight={false}
+            queryString={queryString}
+            onQueryStringChange={onQueryStringChange}
+            runeMode={false}
+            columnMetadata={undefined}
+            leaveBackground
+          />
         )}
       </div>
       <div className="controls">
-        <Callout>
-          <p>
-            Each column in Druid must have an assigned type (string, long, float, double, complex,
-            etc).
-          </p>
-          <p>
-            Types have been automatically assigned to your columns. If you want to change the type,
-            click on the column header.
-          </p>
-          <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
-        </Callout>
-        {ingestPatternError && <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>}
+        <FormGroup>
+          <Callout>
+            <p>
+              Each column in Druid must have an assigned type (string, long, float, double, complex,
+              etc).
+            </p>
+            <p>
+              Types have been automatically assigned to your columns. If you want to change the
+              type, click on the column header.
+            </p>
+            <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+          </Callout>
+        </FormGroup>
+        {ingestPatternError && (
+          <FormGroup>
+            <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>
+          </FormGroup>
+        )}
         {timeSuggestions.length > 0 && (
           <Popover2
             content={

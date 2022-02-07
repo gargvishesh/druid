@@ -46,6 +46,10 @@
       bottom: 0;
       right: 320px;
 
+      .add-column {
+        margin-right: 10px;
+      }
+
       .column-filter-control {
         width: 350px;
       }
@@ -69,13 +73,6 @@
       position: absolute;
       width: 100%;
       height: 100%;
-    }
-
-    .open-in-query {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      z-index: 100;
     }
   }
 
