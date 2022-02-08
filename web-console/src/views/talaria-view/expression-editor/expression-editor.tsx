@@ -26,14 +26,13 @@ import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import './expression-editor.scss';
 
 interface ExpressionEditorProps {
-  includeOutputName?: boolean;
   expression?: SqlExpression;
-  onSave(expression: SqlExpression | undefined): void;
-  onClose(): void;
+  onApply(expression: SqlExpression | undefined): void;
+  onCancel(): void;
 }
 
 export const ExpressionEditor = React.memo(function ExpressionEditor(props: ExpressionEditorProps) {
-  const { includeOutputName, expression, onSave, onClose } = props;
+  const { expression, onApply, onCancel } = props;
 
   const [outputName, setOutputName] = useState<string>(() => expression?.getOutputName() || '');
   const [formula, setFormula] = useState<string>(
@@ -45,7 +44,10 @@ export const ExpressionEditor = React.memo(function ExpressionEditor(props: Expr
   return (
     <div className="expression-editor">
       <div className="title">{expression ? 'Edit column' : 'Add column'}</div>
-      <FormGroup>
+      <FormGroup label="Column name">
+        <InputGroup value={outputName} onChange={e => setOutputName(e.target.value)} />
+      </FormGroup>
+      <FormGroup label="Formula">
         <TalariaQueryInput
           autoHeight={false}
           showGutter={false}
@@ -56,11 +58,6 @@ export const ExpressionEditor = React.memo(function ExpressionEditor(props: Expr
           columnMetadata={undefined}
         />
       </FormGroup>
-      {includeOutputName && (
-        <FormGroup label="Output name">
-          <InputGroup value={outputName} onChange={e => setOutputName(e.target.value)} />
-        </FormGroup>
-      )}
       <div className="apply-cancel-buttons">
         {expression && (
           <Button
@@ -68,12 +65,12 @@ export const ExpressionEditor = React.memo(function ExpressionEditor(props: Expr
             icon={IconNames.TRASH}
             intent={Intent.DANGER}
             onClick={() => {
-              onSave(undefined);
-              onClose();
+              onApply(undefined);
+              onCancel();
             }}
           />
         )}
-        <Button text="Close" onClick={onClose} />
+        <Button text="Cancel" onClick={onCancel} />
         <Button
           text="Apply"
           intent={Intent.PRIMARY}
@@ -81,11 +78,11 @@ export const ExpressionEditor = React.memo(function ExpressionEditor(props: Expr
           onClick={() => {
             if (!parsedExpression) return;
             let newExpression = parsedExpression;
-            if (includeOutputName && newExpression.getOutputName() !== outputName) {
+            if (newExpression.getOutputName() !== outputName) {
               newExpression = newExpression.as(outputName);
             }
-            onSave(newExpression);
-            onClose();
+            onApply(newExpression);
+            onCancel();
           }}
         />
       </div>

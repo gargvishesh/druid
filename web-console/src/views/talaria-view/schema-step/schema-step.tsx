@@ -710,15 +710,14 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         )}
         {editorColumn && ingestQueryPattern && (
           <ExpressionEditor
-            includeOutputName
             expression={editorColumn.expression}
-            onSave={newColumn => {
+            onApply={newColumn => {
               if (!editorColumn) return;
               updatePattern(
                 changeQueryPatternExpression(ingestQueryPattern, editorColumn.index, newColumn),
               );
             }}
-            onClose={() => setEditorColumn(undefined)}
+            onCancel={() => setEditorColumn(undefined)}
           />
         )}
         {ingestPatternError && (
@@ -752,7 +751,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               icon={IconNames.WARNING_SIGN}
               text="No primary time column selected"
               intent={Intent.WARNING}
-              minimal
+              fill
             />
           </Popover2>
         )}
