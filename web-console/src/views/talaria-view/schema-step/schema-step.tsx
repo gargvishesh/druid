@@ -17,6 +17,7 @@
  */
 
 import {
+  AnchorButton,
   Button,
   ButtonGroup,
   Callout,
@@ -726,34 +727,31 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           </FormGroup>
         )}
         {!editorColumn && timeSuggestions.length > 0 && (
-          <Popover2
-            content={
-              <Menu>
-                {timeSuggestions.map((timeSuggestion, i) => (
-                  <MenuItem
-                    key={i}
-                    icon={IconNames.CLEAN}
-                    text={timeSuggestion.label}
-                    onClick={() => handleQueryAction(timeSuggestion.queryAction)}
-                  />
-                ))}
-                <MenuItem
-                  icon={IconNames.HELP}
-                  text="Learn more about the primary time column"
-                  href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
-                  target="_blank"
-                />
-              </Menu>
-            }
+          <Callout
+            className="time-column-warning"
+            intent={Intent.WARNING}
+            title="No __time column selected"
           >
-            <Button
-              className="time-column-warning"
-              icon={IconNames.WARNING_SIGN}
-              text="No primary time column selected"
+            {timeSuggestions.map((timeSuggestion, i) => (
+              <FormGroup>
+                <Button
+                  key={i}
+                  icon={IconNames.CLEAN}
+                  text={timeSuggestion.label}
+                  intent={Intent.WARNING}
+                  onClick={() => handleQueryAction(timeSuggestion.queryAction)}
+                />
+              </FormGroup>
+            ))}
+            <AnchorButton
+              icon={IconNames.HELP}
+              text="Learn more..."
+              href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
+              target="_blank"
               intent={Intent.WARNING}
-              fill
+              minimal
             />
-          </Popover2>
+          </Callout>
         )}
         <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
         <Button
