@@ -48,6 +48,7 @@ export const LocalStorageKeys = {
   TALARIA_HISTORY: 'talaria-history2' as const,
   TALARIA_LIVE_MODE: 'talaria-live-mode' as const,
   TALARIA_WORK_HISTORY: 'talaria-work-history' as const,
+  TALARIA_LOADER_QUERY: 'loader-query' as const,
   // END: Imply-modified code for Talaria execution
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
