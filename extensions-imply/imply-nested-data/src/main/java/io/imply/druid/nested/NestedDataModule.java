@@ -72,9 +72,13 @@ public class NestedDataModule implements DruidModule
   {
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.StructExprMacro.class);
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.GetPathExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.ListKeysExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.ListPathsExprMacro.class);
 
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.GetPathOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonGetPathAliasOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonKeysOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonPathsOperatorConversion.class);
   }
 
 

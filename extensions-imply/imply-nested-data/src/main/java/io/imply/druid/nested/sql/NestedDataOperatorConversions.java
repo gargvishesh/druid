@@ -114,4 +114,80 @@ public class NestedDataOperatorConversions
       super(new GetPathOperatorConversion(), StringUtils.toUpperCase("json_get_path"));
     }
   }
+
+  public static class JsonPathsOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder("JSON_PATHS")
+        .operandTypeChecker(OperandTypes.ANY)
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .returnTypeNullableArray(SqlTypeName.VARCHAR)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          druidExpressions -> DruidExpression.of(
+              null,
+              DruidExpression.functionCall("list_paths", druidExpressions)
+          )
+      );
+    }
+  }
+
+  public static class JsonKeysOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder("JSON_KEYS")
+        .operandTypeChecker(
+            OperandTypes.sequence(
+                "(expr,path)",
+                OperandTypes.ANY,
+                OperandTypes.and(OperandTypes.family(SqlTypeFamily.STRING), OperandTypes.LITERAL)
+            )
+        )
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .returnTypeNullableArray(SqlTypeName.VARCHAR)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          druidExpressions -> DruidExpression.of(
+              null,
+              DruidExpression.functionCall("list_keys", druidExpressions)
+          )
+      );
+    }
+  }
 }

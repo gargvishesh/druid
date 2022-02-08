@@ -85,7 +85,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   private final StructuredDataProcessor fieldProcessor = new StructuredDataProcessor()
   {
     @Override
-    void processLiteralField(String fieldName, Object fieldValue)
+    public void processLiteralField(String fieldName, Object fieldValue)
     {
       final StringFieldColumnWriter writer = fieldWriters.get(fieldName);
       try {
