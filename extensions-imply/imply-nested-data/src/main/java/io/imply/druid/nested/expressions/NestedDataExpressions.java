@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableMap;
 import io.imply.druid.nested.column.NestedDataComplexTypeSerde;
 import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.column.StructuredData;
+import io.imply.druid.nested.column.StructuredDataProcessor;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
@@ -60,7 +61,7 @@ public class NestedDataExpressions
             ExprEval field = args.get(i).eval(bindings);
             ExprEval value = args.get(i + 1).eval(bindings);
 
-            Preconditions.checkArgument(field.type().is(ExprType.STRING), "struct field name must be a STRING");
+            Preconditions.checkArgument(field.type().is(ExprType.STRING), "field name must be a STRING");
             bob.put(field.asString(), value.value());
           }
 
@@ -98,15 +99,7 @@ public class NestedDataExpressions
     @Override
     public Expr apply(List<Expr> args)
     {
-      if (!(args.get(1).isLiteral() && args.get(1).getLiteralValue() instanceof String)) {
-        throw new IAE(
-            "Function[%s] second argument [%s] must be a literal [%s] value, got [%s] instead",
-            NAME,
-            args.get(1).stringify(),
-            ExpressionType.STRING
-        );
-      }
-      final List<PathFinder.PathPartFinder> parts = PathFinder.parseJqPath((String) args.get(1).getLiteralValue());
+      final List<PathFinder.PathPartFinder> parts = getArg1PathPartsFromLiteral(NAME, args);
       class GetPathExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
       {
         public GetPathExpr(List<Expr> args)
@@ -118,20 +111,11 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE(
-                "Function[%s] first argument [%s] must be type [%s] as input, got [%s]",
-                name,
-                args.get(0).stringify(),
-                TYPE.asTypeString(),
-                input.type().asTypeString()
-            );
-          }
-          if (input.value() instanceof StructuredData) {
-            StructuredData data = (StructuredData) input.value();
-            return ExprEval.ofType(ExpressionType.STRING, PathFinder.findStringLiteral(data.getValue(), parts));
-          }
-          return ExprEval.ofType(ExpressionType.STRING, PathFinder.findStringLiteral(input.value(), parts));
+          checkArg0NestedType(name, args, input);
+          return ExprEval.ofType(
+              ExpressionType.STRING,
+              PathFinder.findStringLiteral(maybeUnwrapStructuredData(input), parts)
+          );
         }
 
         @Override
@@ -151,5 +135,155 @@ public class NestedDataExpressions
       }
       return new GetPathExpr(args);
     }
+  }
+
+  public static class ListPathsExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "list_paths";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(List<Expr> args)
+    {
+      final StructuredDataProcessor processor = new StructuredDataProcessor()
+      {
+        @Override
+        public void processLiteralField(String fieldName, Object fieldValue)
+        {
+          // do nothing, we only want the list of fields returned by this method;
+        }
+      };
+
+      class ListPathsExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+      {
+        public ListPathsExpr(List<Expr> args)
+        {
+          super(NAME, args);
+        }
+
+        @Override
+        public ExprEval eval(ObjectBinding bindings)
+        {
+          ExprEval input = args.get(0).eval(bindings);
+          checkArg0NestedType(name, args, input);
+          return ExprEval.ofType(
+              ExpressionType.STRING_ARRAY,
+              processor.processFields(maybeUnwrapStructuredData(input))
+          );
+        }
+
+
+        @Override
+        public Expr visit(Shuttle shuttle)
+        {
+          List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
+          return shuttle.visit(new ListPathsExpr(newArgs));
+        }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return ExpressionType.STRING_ARRAY;
+        }
+      }
+      return new ListPathsExpr(args);
+    }
+  }
+
+  public static class ListKeysExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "list_keys";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(List<Expr> args)
+    {
+      final List<PathFinder.PathPartFinder> parts = getArg1PathPartsFromLiteral(NAME, args);
+      class ListKeysExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+      {
+        public ListKeysExpr(List<Expr> args)
+        {
+          super(NAME, args);
+        }
+
+        @Override
+        public ExprEval eval(ObjectBinding bindings)
+        {
+          ExprEval input = args.get(0).eval(bindings);
+          checkArg0NestedType(name, args, input);
+          return ExprEval.ofType(
+              ExpressionType.STRING_ARRAY,
+              PathFinder.findKeys(maybeUnwrapStructuredData(input), parts)
+          );
+        }
+
+
+        @Override
+        public Expr visit(Shuttle shuttle)
+        {
+          List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
+          return shuttle.visit(new ListKeysExpr(newArgs));
+        }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return ExpressionType.STRING_ARRAY;
+        }
+      }
+      return new ListKeysExpr(args);
+    }
+
+
+
+  }
+
+  @Nullable
+  static Object maybeUnwrapStructuredData(ExprEval input)
+  {
+    if (input.value() instanceof StructuredData) {
+      StructuredData data = (StructuredData) input.value();
+      return data.getValue();
+    }
+    return input.value();
+  }
+
+  static void checkArg0NestedType(String fnName, List<Expr> args, ExprEval input)
+  {
+    if (!TYPE.equals(input.type()) && input.value() != null) {
+      throw new IAE(
+          "Function[%s] first argument [%s] must be type [%s] as input, got [%s]",
+          fnName,
+          args.get(0).stringify(),
+          TYPE.asTypeString(),
+          input.type().asTypeString()
+      );
+    }
+  }
+
+  static List<PathFinder.PathPartFinder> getArg1PathPartsFromLiteral(String fnName, List<Expr> args)
+  {
+    if (!(args.get(1).isLiteral() && args.get(1).getLiteralValue() instanceof String)) {
+      throw new IAE(
+          "Function[%s] second argument [%s] must be a literal [%s] value, got [%s] instead",
+          fnName,
+          args.get(1).stringify(),
+          ExpressionType.STRING
+      );
+    }
+    final List<PathFinder.PathPartFinder> parts = PathFinder.parseJqPath((String) args.get(1).getLiteralValue());
+    return parts;
   }
 }

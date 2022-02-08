@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 public class PathFinder
 {
@@ -170,6 +171,22 @@ public class PathFinder
       }
       return String.valueOf(currentObject);
     }
+  }
+
+  @Nullable
+  public static Object[] findKeys(@Nullable Object data, List<PathPartFinder> path)
+  {
+    Object currentObject = find(data, path);
+    if (currentObject instanceof Map) {
+      return ((Map) currentObject).keySet().toArray();
+    }
+    if (currentObject instanceof List) {
+      return IntStream.range(0, ((List) currentObject).size()).mapToObj(Integer::toString).toArray();
+    }
+    if (currentObject instanceof Object[]) {
+      return IntStream.range(0, ((Object[]) currentObject).length).mapToObj(Integer::toString).toArray();
+    }
+    return null;
   }
 
   /**

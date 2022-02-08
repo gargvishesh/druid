@@ -30,7 +30,9 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
   private static final ExprMacroTable MACRO_TABLE = new ExprMacroTable(
       ImmutableList.of(
           new NestedDataExpressions.StructExprMacro(),
-          new NestedDataExpressions.GetPathExprMacro()
+          new NestedDataExpressions.GetPathExprMacro(),
+          new NestedDataExpressions.ListKeysExprMacro(),
+          new NestedDataExpressions.ListPathsExprMacro()
       )
   );
   private static final Map<String, Object> NEST = ImmutableMap.of(
@@ -69,6 +71,49 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
     // decompose because of array equals
     Assert.assertArrayEquals(new Object[]{"a", "b", "c"}, (Object[]) ((Map) eval.value()).get("x"));
     Assert.assertEquals(ImmutableMap.of("a", "hello", "b", "world"), ((Map) eval.value()).get("y"));
+  }
+
+  @Test
+  public void testListKeysExpression()
+  {
+    Expr expr = Parser.parse("list_keys(nest, '.')", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
+    Assert.assertArrayEquals(new Object[]{"x", "y", "z"}, (Object[]) eval.value());
+
+
+    expr = Parser.parse("list_keys(nester, '.x')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
+    Assert.assertArrayEquals(new Object[]{"0", "1", "2"}, (Object[]) eval.value());
+
+    expr = Parser.parse("list_keys(nester, '.y')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
+    Assert.assertArrayEquals(new Object[]{"a", "b"}, (Object[]) eval.value());
+
+    expr = Parser.parse("list_keys(nester, '.x.a')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+
+    expr = Parser.parse("list_keys(nester, '.x.a.b')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertNull(eval.value());
+  }
+
+  @Test
+  public void testListPathsExpression()
+  {
+    Expr expr = Parser.parse("list_paths(nest)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
+    Assert.assertArrayEquals(new Object[]{".\"x\"", ".\"y\"", ".\"z\""}, (Object[]) eval.value());
+
+    expr = Parser.parse("list_paths(nester)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
+    Assert.assertArrayEquals(new Object[]{".\"x\".[0]", ".\"x\".[1]", ".\"x\".[2]", ".\"y\".\"a\"", ".\"y\".\"b\""}, (Object[]) eval.value());
+
   }
 
   @Test
