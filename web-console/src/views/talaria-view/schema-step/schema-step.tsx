@@ -31,7 +31,14 @@ import {
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
-import { QueryResult, SqlExpression, SqlFunction, SqlQuery, SqlRef } from 'druid-query-toolkit';
+import {
+  QueryResult,
+  QueryRunner,
+  SqlExpression,
+  SqlFunction,
+  SqlQuery,
+  SqlRef,
+} from 'druid-query-toolkit';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { Loader } from '../../../components';
@@ -40,8 +47,11 @@ import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
 import {
+  changeQueryPatternExpression,
   ExternalConfig,
   fitIngestQueryPattern,
+  getQueryPatternExpression,
+  getQueryPatternExpressionType,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   QueryExecution,
@@ -50,6 +60,7 @@ import {
 import {
   caseInsensitiveContains,
   change,
+  DruidError,
   filterMap,
   getContextFromSqlQuery,
   oneOf,
@@ -64,6 +75,7 @@ import {
   submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
 } from '../execution-utils';
+import { ExpressionEditor } from '../expression-editor/expression-editor';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
@@ -75,9 +87,16 @@ import { RollupAnalysisPane } from './rollup-analysis-pane/rollup-analysis-pane'
 
 import './schema-step.scss';
 
-export function changeByString<T>(xs: readonly T[], from: T, to: T): T[] {
+const queryRunner = new QueryRunner();
+
+export function changeByIndex<T>(xs: readonly T[], from: T, to: T): T[] {
   const fromString = String(from);
   return xs.map(x => (String(x) === fromString ? to : x));
+}
+
+export function deleteByString<T>(xs: readonly T[], thing: T): T[] {
+  const thingString = String(thing);
+  return xs.filter(x => String(x) !== thingString);
 }
 
 function digestQueryString(
@@ -199,6 +218,12 @@ const GRANULARITIES: string[] = ['hour', 'day', 'month', 'all'];
 
 type Mode = 'table' | 'list' | 'sql';
 
+interface EditorColumn {
+  index: number;
+  expression?: SqlExpression;
+  type: 'dimension' | 'metric';
+}
+
 export interface SchemaStepProps {
   queryString: string;
   onQueryStringChange(queryString: string): void;
@@ -213,8 +238,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
   const [externalInEditor, setExternalInEditor] = useState<ExternalConfig | undefined>();
-  const [addColumnType, setAddColumnType] = useState<'dimension' | 'metric' | undefined>();
-  const [columnInEditor, setColumnInEditor] = useState<SqlExpression | undefined>();
+  const [editorColumn, setEditorColumn] = useState<EditorColumn | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
   const [showRollupConfirm, setShowRollupConfirm] = useState(false);
@@ -276,17 +300,33 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      return extractQueryResults(
-        await submitAsyncQuery({
-          query: previewQueryString,
-          context: {
-            ...getContextFromSqlQuery(previewQueryString),
-            talaria: true,
-            sqlOuterLimit: 50,
-          },
-          cancelToken,
-        }),
-      );
+      const talaria = /EXTERN\s*\(/.test(previewQueryString);
+      if (talaria) {
+        return extractQueryResults(
+          await submitAsyncQuery({
+            query: previewQueryString,
+            context: {
+              ...getContextFromSqlQuery(previewQueryString),
+              talaria,
+              sqlOuterLimit: 25,
+            },
+            cancelToken,
+          }),
+        );
+      } else {
+        let result: QueryResult;
+        try {
+          result = await queryRunner.runQuery({
+            query: previewQueryString,
+            extraQueryContext: { sqlOuterLimit: 25 },
+            cancelToken,
+          });
+        } catch (e) {
+          throw new DruidError(e);
+        }
+
+        return result;
+      }
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
@@ -307,6 +347,19 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       : [];
 
   const previewResultSomeData = previewResultState.getSomeData();
+
+  const selectedColumnIndex = editorColumn ? editorColumn.index : -1;
+  const setSelectColumnIndex = (index: number) => {
+    if (!ingestQueryPattern) return;
+    const expression = getQueryPatternExpression(ingestQueryPattern, index);
+    const expressionType = getQueryPatternExpressionType(ingestQueryPattern, index);
+    if (!expression || !expressionType) return;
+    setEditorColumn({
+      index,
+      expression,
+      type: expressionType,
+    });
+  };
 
   return (
     <div className={classNames('schema-step', { 'with-analysis': showRollupAnalysisPane })}>
@@ -529,19 +582,25 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                       <MenuItem
                         icon={IconNames.PLUS}
                         text="Custom dimension"
-                        onClick={() => setAddColumnType('dimension')}
+                        onClick={() => {
+                          setEditorColumn({ index: -1, type: 'dimension' });
+                        }}
                       />
                       <MenuItem
                         icon={IconNames.PLUS}
                         text="Custom metric"
-                        onClick={() => setAddColumnType('metric')}
+                        onClick={() => {
+                          setEditorColumn({ index: -1, type: 'metric' });
+                        }}
                       />
                     </>
                   ) : (
                     <MenuItem
                       icon={IconNames.PLUS}
                       text="Custom column"
-                      onClick={() => setAddColumnType('dimension')}
+                      onClick={() => {
+                        setEditorColumn({ index: -1, type: 'dimension' });
+                      }}
                     />
                   )}
                   <MenuDivider />
@@ -600,7 +659,8 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                   queryResult={previewResultSomeData}
                   onQueryAction={handleQueryAction}
                   columnFilter={columnFilter}
-                  onEditColumn={setColumnInEditor}
+                  selectedColumnIndex={selectedColumnIndex}
+                  onEditColumn={setSelectColumnIndex}
                 />
               )
             )}
@@ -616,7 +676,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               <ColumnList
                 queryResult={previewResultSomeData}
                 columnFilter={columnFilter}
-                onEditColumn={setColumnInEditor}
+                onEditColumn={setSelectColumnIndex}
                 onQueryAction={handleQueryAction}
               />
             )
@@ -633,25 +693,40 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         )}
       </div>
       <div className="controls">
-        <FormGroup>
-          <Callout>
-            <p>
-              Each column in Druid must have an assigned type (string, long, float, double, complex,
-              etc).
-            </p>
-            <p>
-              Types have been automatically assigned to your columns. If you want to change the
-              type, click on the column header.
-            </p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
-          </Callout>
-        </FormGroup>
+        {!editorColumn && (
+          <FormGroup>
+            <Callout>
+              <p>
+                Each column in Druid must have an assigned type (string, long, float, double,
+                complex, etc).
+              </p>
+              <p>
+                Types have been automatically assigned to your columns. If you want to change the
+                type, click on the column header.
+              </p>
+              <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+            </Callout>
+          </FormGroup>
+        )}
+        {editorColumn && ingestQueryPattern && (
+          <ExpressionEditor
+            includeOutputName
+            expression={editorColumn.expression}
+            onSave={newColumn => {
+              if (!editorColumn) return;
+              updatePattern(
+                changeQueryPatternExpression(ingestQueryPattern, editorColumn.index, newColumn),
+              );
+            }}
+            onClose={() => setEditorColumn(undefined)}
+          />
+        )}
         {ingestPatternError && (
           <FormGroup>
             <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>
           </FormGroup>
         )}
-        {timeSuggestions.length > 0 && (
+        {!editorColumn && timeSuggestions.length > 0 && (
           <Popover2
             content={
               <Menu>
@@ -695,7 +770,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           dimensions={ingestQueryPattern.dimensions}
           seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true)}
           queryResult={previewResultState.data}
-          onEditColumn={setColumnInEditor}
+          onEditColumn={setSelectColumnIndex}
           onQueryAction={handleQueryAction}
           onClose={() => setShowRollupAnalysisPane(false)}
         />
@@ -711,43 +786,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           initExternalConfig={externalInEditor}
           onSetExternalConfig={() => {}}
           onClose={() => setExternalInEditor(undefined)}
-        />
-      )}
-      {addColumnType && ingestQueryPattern && (
-        <ExpressionEditorDialog
-          title="Add column"
-          includeOutputName
-          onSave={newExpression => {
-            if (addColumnType === 'metric' && ingestQueryPattern.metrics) {
-              updatePattern({
-                ...ingestQueryPattern,
-                metrics: ingestQueryPattern.metrics.concat(newExpression),
-              });
-            } else {
-              updatePattern({
-                ...ingestQueryPattern,
-                dimensions: ingestQueryPattern.dimensions.concat(newExpression),
-              });
-            }
-          }}
-          onClose={() => setAddColumnType(undefined)}
-        />
-      )}
-      {columnInEditor && ingestQueryPattern && (
-        <ExpressionEditorDialog
-          title="Edit column"
-          includeOutputName
-          expression={columnInEditor}
-          onSave={newColumn =>
-            updatePattern({
-              ...ingestQueryPattern,
-              dimensions: changeByString(ingestQueryPattern.dimensions, columnInEditor, newColumn),
-              metrics: ingestQueryPattern.metrics
-                ? changeByString(ingestQueryPattern.metrics, columnInEditor, newColumn)
-                : undefined,
-            })
-          }
-          onClose={() => setColumnInEditor(undefined)}
         />
       )}
       {showAddFilterEditor && ingestQueryPattern && (

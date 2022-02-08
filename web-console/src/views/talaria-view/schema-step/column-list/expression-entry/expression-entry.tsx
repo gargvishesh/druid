@@ -20,7 +20,7 @@ import { Icon } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
-import { Column, QueryResult, SqlExpression, SqlRef } from 'druid-query-toolkit';
+import { Column, QueryResult, SqlRef } from 'druid-query-toolkit';
 import React from 'react';
 
 import { Deferred } from '../../../../../components/deferred/deferred';
@@ -36,7 +36,7 @@ interface ExpressionEntryProps {
   queryResult: QueryResult;
   filtered?: boolean;
   grouped?: boolean;
-  onEditColumn(expression: SqlExpression): void;
+  onEditColumn(expression: number): void;
   onQueryAction(action: QueryAction): void;
 }
 

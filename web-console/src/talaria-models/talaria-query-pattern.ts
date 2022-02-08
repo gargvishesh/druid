@@ -33,7 +33,7 @@ import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-sp
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
 import { TIME_COLUMN } from '../druid-models/timestamp-spec';
-import { getContextFromSqlQuery } from '../utils';
+import { filterMap, getContextFromSqlQuery } from '../utils';
 
 export const TALARIA_MAX_COLUMNS = 2000;
 
@@ -187,6 +187,47 @@ export interface IngestQueryPattern {
   clusteredBy: readonly number[];
 }
 
+export function getQueryPatternExpression(
+  pattern: IngestQueryPattern,
+  index: number,
+): SqlExpression | undefined {
+  const { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    return dimensions[index];
+  } else if (metrics) {
+    return metrics[index - dimensions.length];
+  }
+  return;
+}
+
+export function getQueryPatternExpressionType(
+  pattern: IngestQueryPattern,
+  index: number,
+): 'dimension' | 'metric' | undefined {
+  const { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    return 'dimension';
+  } else if (metrics) {
+    return 'metric';
+  }
+  return;
+}
+
+export function changeQueryPatternExpression(
+  pattern: IngestQueryPattern,
+  index: number,
+  ex: SqlExpression | undefined,
+): IngestQueryPattern {
+  let { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    dimensions = filterMap(dimensions, (d, i) => (i === index ? ex : d));
+  } else if (metrics) {
+    const metricIndex = index - dimensions.length;
+    metrics = filterMap(metrics, (m, i) => (i === metricIndex ? ex : m));
+  }
+  return { ...pattern, dimensions, metrics };
+}
+
 function verifyHasOutputName(expression: SqlExpression): void {
   if (expression.getOutputName()) return;
   throw new Error(`${expression} must have an AS alias`);
@@ -288,7 +329,7 @@ export function ingestQueryPatternToQuery(
   const cacheDatasource =
     preview &&
     String(mainExternalConfig.inputSource.uris) ===
-      'https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz_'
+      'https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz'
       ? '_tmp_loader_cache_20210101_010102'
       : undefined;
 

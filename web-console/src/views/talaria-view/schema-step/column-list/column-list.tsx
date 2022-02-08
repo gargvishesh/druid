@@ -34,7 +34,7 @@ import './column-list.scss';
 export interface ColumnListProps {
   queryResult: QueryResult;
   columnFilter?(columnName: string): boolean;
-  onEditColumn(expression: SqlExpression): void;
+  onEditColumn(expression: number): void;
   onQueryAction(action: QueryAction): void;
 }
 

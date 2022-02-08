@@ -133,7 +133,7 @@ interface RollupAnalysisPaneProps {
   dimensions: readonly SqlExpression[];
   seedQuery: SqlQuery;
   queryResult: QueryResult | undefined;
-  onEditColumn(expression: SqlExpression): void;
+  onEditColumn(expression: number): void;
   onQueryAction(action: QueryAction): void;
   onClose(): void;
 }
