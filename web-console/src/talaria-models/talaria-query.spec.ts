@@ -36,13 +36,13 @@ describe('TalariaQuery', () => {
 
     it('works when INSERT INTO is not first', () => {
       const sql = sane`
-        --:context talariaSegmentGranularity: month
+        --:context talariaReplaceTimeChunks: all
         INSERT INTO trips2
         SELECT * FROM TABLE(EXTERN(''))
       `;
 
       expect(TalariaQuery.commentOutInsertInto(sql)).toEqual(sane`
-        --:context talariaSegmentGranularity: month
+        --:context talariaReplaceTimeChunks: all
         --SERT INTO trips2
         SELECT * FROM TABLE(EXTERN(''))
       `);
@@ -50,13 +50,13 @@ describe('TalariaQuery', () => {
 
     it('works when INSERT INTO is indented', () => {
       const sql = sane`
-        --:context talariaSegmentGranularity: month
+        --:context talariaReplaceTimeChunks: all
             INSERT INTO trips2
         SELECT * FROM TABLE(EXTERN(''))
       `;
 
       expect(TalariaQuery.commentOutInsertInto(sql)).toEqual(sane`
-        --:context talariaSegmentGranularity: month
+        --:context talariaReplaceTimeChunks: all
             --SERT INTO trips2
         SELECT * FROM TABLE(EXTERN(''))
       `);
@@ -66,7 +66,7 @@ describe('TalariaQuery', () => {
   describe('#getInsertDatasource', () => {
     it('works', () => {
       const sql = sane`
-        --:context talariaSegmentGranularity: month
+        --:context talariaReplaceTimeChunks: all
         INSERT INTO trips2
         SELECT
           TIME_PARSE(pickup_datetime) AS __time,
@@ -78,7 +78,7 @@ describe('TalariaQuery', () => {
               '[{ "name": "cab_type", "type": "string" }, ...]'
             )
           )
-        ORDER BY trip_id
+        CLUSTERED BY trip_id
       `;
 
       expect(TalariaQuery.blank().changeQueryString(sql).getInsertDatasource()).toEqual('trips2');

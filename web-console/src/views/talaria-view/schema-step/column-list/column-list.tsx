@@ -34,7 +34,7 @@ import './column-list.scss';
 export interface ColumnListProps {
   queryResult: QueryResult;
   columnFilter?(columnName: string): boolean;
-  onEditColumn(expression: SqlExpression): void;
+  onEditColumn(columnIndex: number): void;
   onQueryAction(action: QueryAction): void;
 }
 
@@ -63,34 +63,55 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
 
   return (
     <div className="column-list">
-      <div className="dimensions-label">
-        {metrics ? (
-          <>
-            {'Dimensions '}
-            <Popover2
-              className="info-popover"
-              content={
-                <PopoverText>
-                  <p>
-                    Dimension columns are stored as-is, so they can be filtered on, grouped by, or
-                    aggregated at query time. They are always single Strings, arrays of Strings,
-                    single Longs, single Doubles or single Floats.
-                  </p>
-                  <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
-                </PopoverText>
-              }
-              position="left-bottom"
-            >
-              <Icon icon={IconNames.INFO_SIGN} iconSize={14} />
-            </Popover2>
-          </>
-        ) : (
-          'Columns'
-        )}
+      <div className="list-column">
+        <div className="list-label">
+          {metrics ? (
+            <>
+              {'Dimensions '}
+              <Popover2
+                className="info-popover"
+                content={
+                  <PopoverText>
+                    <p>
+                      Dimension columns are stored as-is, so they can be filtered on, grouped by, or
+                      aggregated at query time. They are always single Strings, arrays of Strings,
+                      single Longs, single Doubles or single Floats.
+                    </p>
+                    <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+                  </PopoverText>
+                }
+                position="left-bottom"
+              >
+                <Icon icon={IconNames.INFO_SIGN} iconSize={14} />
+              </Popover2>
+            </>
+          ) : (
+            'Columns'
+          )}
+        </div>
+        <div className="list-container">
+          {filterMap(dimensions, (ex, i) => {
+            const columnIndex = getColumnIndexForExpression(ex);
+            const column = queryResult.header[columnIndex];
+            if (columnFilter && !columnFilter(column.name)) return;
+
+            return (
+              <ExpressionEntry
+                key={i}
+                column={column}
+                headerIndex={columnIndex}
+                queryResult={queryResult}
+                grouped={metrics ? true : undefined}
+                onEditColumn={onEditColumn}
+                onQueryAction={onQueryAction}
+              />
+            );
+          })}
+        </div>
       </div>
-      <div className="metrics-label">
-        {metrics && (
-          <>
+      {metrics ? (
+        <div className="list-column">
+          <div className="list-label">
             {'Metrics '}
             <Popover2
               className="info-popover"
@@ -109,47 +130,26 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
             >
               <Icon icon={IconNames.INFO_SIGN} iconSize={14} />
             </Popover2>
-          </>
-        )}
-      </div>
-      <div className="list-column">
-        {filterMap(dimensions, (ex, i) => {
-          const columnIndex = getColumnIndexForExpression(ex);
-          const column = queryResult.header[columnIndex];
-          if (columnFilter && !columnFilter(column.name)) return;
+          </div>
+          <div className="list-container">
+            {filterMap(metrics, (ex, i) => {
+              const columnIndex = getColumnIndexForExpression(ex);
+              const column = queryResult?.header[columnIndex];
+              if (columnFilter && !columnFilter(column.name)) return;
 
-          return (
-            <ExpressionEntry
-              key={i}
-              column={column}
-              headerIndex={columnIndex}
-              queryResult={queryResult}
-              grouped={metrics ? true : undefined}
-              onEditColumn={onEditColumn}
-              onQueryAction={onQueryAction}
-            />
-          );
-        })}
-      </div>
-      {metrics ? (
-        <div className="list-column">
-          {filterMap(metrics, (ex, i) => {
-            const columnIndex = getColumnIndexForExpression(ex);
-            const column = queryResult?.header[columnIndex];
-            if (columnFilter && !columnFilter(column.name)) return;
-
-            return (
-              <ExpressionEntry
-                key={i}
-                column={column}
-                headerIndex={columnIndex}
-                queryResult={queryResult}
-                grouped={false}
-                onEditColumn={onEditColumn}
-                onQueryAction={onQueryAction}
-              />
-            );
-          })}
+              return (
+                <ExpressionEntry
+                  key={i}
+                  column={column}
+                  headerIndex={columnIndex}
+                  queryResult={queryResult}
+                  grouped={false}
+                  onEditColumn={onEditColumn}
+                  onQueryAction={onQueryAction}
+                />
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div />

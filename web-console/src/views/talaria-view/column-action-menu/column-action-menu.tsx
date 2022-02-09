@@ -32,7 +32,7 @@ export interface ColumnActionMenuProps {
   queryResult: QueryResult;
   filtered?: boolean;
   grouped?: boolean;
-  onEditColumn?(expression?: SqlExpression): void;
+  onEditColumn?(index: number): void;
   onQueryAction(action: QueryAction): void;
 }
 
@@ -76,7 +76,7 @@ export function ColumnActionMenu(props: ColumnActionMenuProps) {
         key="edit_column"
         icon={IconNames.EDIT}
         text="Edit column"
-        onClick={() => onEditColumn(expression)}
+        onClick={() => onEditColumn(headerIndex)}
       />,
     );
   }

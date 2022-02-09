@@ -128,7 +128,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isLoading() && (
         <div className="loading-step">
           <StageProgress
-            stages={insertResultState.intermediate?.stages}
+            queryExecution={insertResultState.intermediate}
             onCancel={() => insertQueryManager.cancelCurrent()}
             onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
             showLiveReports={showLiveReports}

@@ -137,25 +137,30 @@ export class QueryExecution {
 
   static fromAsyncDetail(report: any): QueryExecution {
     // Must have status set for a valid report
-    const id = deepGet(report, 'talariaStatus.taskId');
-    const status = deepGet(report, 'talariaStatus.payload.status');
+    const id = deepGet(report, 'talariaStatus.taskId') || deepGet(report, 'talariaTask.payload.id');
+    const status =
+      deepGet(report, 'talariaStatus.payload.status') || (report.error ? 'FAILED' : undefined);
     if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
       throw new Error('invalid status');
     }
 
     let error: TalariaTaskError | undefined;
     if (status === 'FAILED') {
-      error = deepGet(report, 'talariaStatus.payload.errorReport');
+      error =
+        deepGet(report, 'talariaStatus.payload.errorReport') ||
+        (typeof report.error === 'string'
+          ? { error: { errorCode: 'UnknownError', errorMessage: report.error } }
+          : undefined);
     }
 
     const stages = deepGet(report, 'talariaStages.payload.stages');
-    const queryStartTime = new Date(deepGet(report, 'talariaStatus.payload.queryStartTime'));
-    const queryDuration = deepGet(report, 'talariaStatus.payload.queryDuration');
+    const startTime = new Date(deepGet(report, 'talariaStatus.payload.startTime'));
+    const durationMs = deepGet(report, 'talariaStatus.payload.durationMs');
     let res = new QueryExecution({
       id,
       status: QueryExecution.normalizeTaskStatus(status),
-      startTime: isNaN(queryStartTime.getTime()) ? undefined : queryStartTime,
-      duration: typeof queryDuration === 'number' ? queryDuration : undefined,
+      startTime: isNaN(startTime.getTime()) ? undefined : startTime,
+      duration: typeof durationMs === 'number' ? durationMs : undefined,
       stages,
       error,
       destination: deepGet(report, 'talariaTask.payload.spec.destination'),
@@ -246,8 +251,6 @@ export class QueryExecution {
   }
 
   public updateWith(newSummary: QueryExecution): QueryExecution {
-    if (this.stages && !newSummary.stages) return this;
-
     let nextSummary = newSummary;
     if (this.sqlQuery && !nextSummary.sqlQuery) {
       nextSummary = nextSummary.changeSqlQuery(this.sqlQuery, this.queryContext);
@@ -321,5 +324,11 @@ export class QueryExecution {
       (error.error.errorCode ? `${error.error.errorCode}: ` : '') +
       (error.error.errorMessage || (error.exceptionStackTrace || '').split('\n')[0])
     );
+  }
+
+  public getEndTime(): Date | undefined {
+    const { startTime, duration } = this;
+    if (!startTime || !duration) return;
+    return new Date(startTime.valueOf() + duration);
   }
 }

@@ -16,39 +16,29 @@
  * limitations under the License.
  */
 
-@import '../../../../variables';
+import { render } from '@testing-library/react';
+import React from 'react';
 
-@mixin sunk-panel {
-  background: rgba($dark-gray1, 0.5);
-  border-radius: $pt-border-radius;
-  box-shadow: inset 0 1px 3px rgba($black, 0.32);
-}
+import { AnchoredQueryTimer } from './anchored-query-timer';
 
-.column-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;
-  grid-gap: 10px;
+describe('AnchoredQueryTimer', () => {
+  const start = 1619201218452;
 
-  .list-column {
-    position: relative;
-    @include sunk-panel;
-    overflow: auto;
+  beforeEach(() => {
+    let nowCalls = 0;
+    jest.spyOn(Date, 'now').mockImplementation(() => {
+      return start + 1000 + 2000 * nowCalls++;
+    });
+  });
 
-    .list-label {
-      position: absolute;
-      top: 5px;
-      left: 8px;
-    }
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-    .list-container {
-      position: absolute;
-      top: 30px;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      padding: 5px 8px;
-      overflow: auto;
-    }
-  }
-}
+  it('matches snapshot', () => {
+    const queryTimer = <AnchoredQueryTimer startTime={new Date(start)} />;
+
+    const { container } = render(queryTimer);
+    expect(container.firstChild).toMatchSnapshot();
+  });
+});
