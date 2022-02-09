@@ -33,7 +33,6 @@ import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.segment.RowAdapters;
 import org.apache.druid.segment.RowBasedSegment;
 import org.apache.druid.segment.Segment;
-import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.timeline.SegmentId;
 
@@ -148,7 +147,7 @@ public class QueryWorkerUtils
                 column ->
                     DimensionSchemaUtils.createDimensionSchema(
                         column,
-                        signature.getColumnType(column).map(ColumnType::getType).orElse(null)
+                        signature.getColumnType(column).orElse(null)
                     )
             ).collect(Collectors.toList())
         ),

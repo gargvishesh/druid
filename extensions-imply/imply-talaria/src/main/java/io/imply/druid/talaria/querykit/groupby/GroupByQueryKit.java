@@ -284,7 +284,8 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
 
   private static boolean isNaturalComparator(final ValueType type, final StringComparator comparator)
   {
-    return (type == ValueType.STRING && StringComparators.LEXICOGRAPHIC.equals(comparator))
-           || (type.isNumeric() && StringComparators.NUMERIC.equals(comparator));
+    return ((type == ValueType.STRING && StringComparators.LEXICOGRAPHIC.equals(comparator))
+            || (type.isNumeric() && StringComparators.NUMERIC.equals(comparator)))
+           && !type.isArray();
   }
 }

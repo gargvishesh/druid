@@ -15,7 +15,7 @@ import org.apache.druid.data.input.impl.FloatDimensionSchema;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 
@@ -25,18 +25,31 @@ import javax.annotation.Nullable;
  */
 public class DimensionSchemaUtils
 {
-  public static DimensionSchema createDimensionSchema(final String column, @Nullable final ValueType type)
+  public static DimensionSchema createDimensionSchema(final String column, @Nullable final ColumnType type)
   {
-    if (type == null || type == ValueType.STRING) {
+    // if schema information not available, create a string dimension
+    if (type == null) {
       return new StringDimensionSchema(column);
-    } else if (type == ValueType.LONG) {
-      return new LongDimensionSchema(column);
-    } else if (type == ValueType.FLOAT) {
-      return new FloatDimensionSchema(column);
-    } else if (type == ValueType.DOUBLE) {
-      return new DoubleDimensionSchema(column);
-    } else {
-      throw new ISE("Cannot create dimension for type [%s]", type);
+    }
+
+    switch (type.getType()) {
+      case STRING:
+        return new StringDimensionSchema(column);
+      case LONG:
+        return new LongDimensionSchema(column);
+      case FLOAT:
+        return new FloatDimensionSchema(column);
+      case DOUBLE:
+        return new DoubleDimensionSchema(column);
+      case ARRAY:
+        switch (type.getElementType().getType()) {
+          case STRING:
+            return new StringDimensionSchema(column, DimensionSchema.MultiValueHandling.ARRAY, null);
+          default:
+            throw new ISE("Cannot create dimension for type [%s]", type.toString());
+        }
+      default:
+        throw new ISE("Cannot create dimension for type [%s]", type.toString());
     }
   }
 }

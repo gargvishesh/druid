@@ -16,7 +16,7 @@ import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.column.ColumnCapabilities;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 
 import java.util.ArrayList;
@@ -94,13 +94,12 @@ public class ClusterBy
     final List<Supplier<Object>> partReaders = new ArrayList<>();
 
     for (final ClusterByColumn part : columns) {
-      final ColumnCapabilities capabilities = signature.getColumnCapabilities(part.columnName());
-      if (capabilities == null) {
-        throw new ISE("Column [%s] not found, cannot use it in clusterBy", part.columnName());
-      }
+      final ColumnType type = signature.getColumnType(part.columnName()).orElseThrow(
+          () -> new ISE("Column [%s] type not found, cannot use it in clusterBy", part.columnName())
+      );
 
       //noinspection rawtypes
-      final ClusterByColumnWidget widget = ClusterByColumnWidgets.create(part, capabilities.getType());
+      final ClusterByColumnWidget widget = ClusterByColumnWidgets.create(part, type);
       //noinspection unchecked
       partReaders.add(widget.reader(widget.makeSelector(columnSelectorFactory)));
     }

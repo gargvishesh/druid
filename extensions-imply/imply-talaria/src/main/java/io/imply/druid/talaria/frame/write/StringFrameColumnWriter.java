@@ -20,9 +20,8 @@ import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.io.Channels;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.segment.DimensionDictionarySelector;
-import org.apache.druid.segment.DimensionSelector;
-import org.apache.druid.segment.data.IndexedInts;
+import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.segment.data.ComparableStringArray;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -40,7 +39,7 @@ public class StringFrameColumnWriter implements FrameColumnWriter
 
   private static final byte[] NULL_MARKER_ARRAY = new byte[]{NULL_MARKER};
 
-  private final DimensionSelector selector;
+  private final ColumnValueSelector selector;
   private final boolean multiValue;
 
   // Row lengths: one int per row with the number of values contained by that row and all previous rows.
@@ -59,7 +58,7 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   private int lastStringLength = -1;
 
   StringFrameColumnWriter(
-      final DimensionSelector selector,
+      final ColumnValueSelector selector,
       final MemoryAllocator allocator,
       final boolean multiValue
   )
@@ -82,8 +81,8 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   {
     // TODO(gianm): retain dictionary codes from selectors
 
-    final IndexedInts row = selector.getRow();
-    final List<ByteBuffer> utf8Data = getUtf8ByteBuffersFromSelector(selector, row, multiValue);
+    final Object row = selector.getObject();
+    final List<ByteBuffer> utf8Data = getUtf8ByteBuffersFromObject(row, multiValue);
     final int utf8DataByteLength = countBytes(utf8Data);
 
     if ((long) lastCumulativeRowLength + utf8Data.size() > Integer.MAX_VALUE) {
@@ -295,57 +294,50 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   }
 
   /**
-   * Extracts a list of ByteBuffers containing UTF-8 encoded string data for certain IDs of the provided selector.
-   * Null values are returned as {@link #NULL_MARKER_ARRAY}.
+   * Extracts a list of ByteBuffers from the object. Null values are returned as {@link #NULL_MARKER_ARRAY}.
    */
-  private static List<ByteBuffer> getUtf8ByteBuffersFromSelector(
-      final DimensionDictionarySelector selector,
-      final IndexedInts row,
+  private static List<ByteBuffer> getUtf8ByteBuffersFromObject(
+      final Object row,
       final boolean multiValue
   )
   {
-    final int size = row.size();
+    if (row == null) {
+      return Collections.singletonList(getUtf8ByteBufferFromString(null));
+    } else if (row instanceof String) {
+      return Collections.singletonList(getUtf8ByteBufferFromString((String) row));
+    }
 
     if (multiValue) {
-      final List<ByteBuffer> retVal = new ArrayList<>(size);
-
-      for (int i = 0; i < size; i++) {
-        retVal.add(getUtf8ByteBufferFromSelector(selector, row.get(i)));
-      }
-
-      return retVal;
-    } else {
-      // If !multivalue, always return exactly one buffer.
-      if (size == 0) {
-        return Collections.singletonList(ByteBuffer.wrap(NULL_MARKER_ARRAY));
+      final List<ByteBuffer> retVal = new ArrayList<>();
+      if (row instanceof List) {
+        for (int i = 0; i < ((List<?>) row).size(); i++) {
+          retVal.add(getUtf8ByteBufferFromString(((List<String>) row).get(i)));
+        }
+      } else if (row instanceof String[]) {
+        for (String value : (String[]) row) {
+          retVal.add(getUtf8ByteBufferFromString(value));
+        }
+      } else if (row instanceof ComparableStringArray) {
+        for (String value : ((ComparableStringArray) row).getDelegate()) {
+          retVal.add(getUtf8ByteBufferFromString(value));
+        }
       } else {
-        return Collections.singletonList(getUtf8ByteBufferFromSelector(selector, row.get(0)));
+        throw new ISE("Unexpected type %s found", row.getClass().getName());
       }
+      return retVal;
     }
+    throw new ISE("Unexpected type %s found", row.getClass().getName());
   }
 
   /**
-   * Extracts a ByteBuffer containing UTF-8 encoded string data for a certain ID of the provided selector.
-   * Null values are returned as {@link #NULL_MARKER_ARRAY}.
+   * Extracts a ByteBuffer from the string. Null values are returned as {@link #NULL_MARKER_ARRAY}.
    */
-  private static ByteBuffer getUtf8ByteBufferFromSelector(final DimensionDictionarySelector selector, final int index)
+  private static ByteBuffer getUtf8ByteBufferFromString(String data)
   {
-    if (selector.supportsLookupNameUtf8()) {
-      final ByteBuffer buf = selector.lookupNameUtf8(index);
-
-      if (buf == null || (NullHandling.replaceWithDefault() && buf.remaining() == 0)) {
-        return ByteBuffer.wrap(NULL_MARKER_ARRAY);
-      } else {
-        return buf;
-      }
+    if (NullHandling.isNullOrEquivalent(data)) {
+      return ByteBuffer.wrap(NULL_MARKER_ARRAY);
     } else {
-      final String s = selector.lookupName(index);
-
-      if (NullHandling.isNullOrEquivalent(s)) {
-        return ByteBuffer.wrap(NULL_MARKER_ARRAY);
-      } else {
-        return ByteBuffer.wrap(StringUtils.toUtf8(s));
-      }
+      return ByteBuffer.wrap(StringUtils.toUtf8(data));
     }
   }
 

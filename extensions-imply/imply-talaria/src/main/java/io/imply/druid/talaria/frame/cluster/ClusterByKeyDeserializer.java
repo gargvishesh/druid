@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.google.common.collect.ImmutableList;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
@@ -74,25 +75,18 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
         }
 
         switch (types.get(i).getType()) {
-          case STRING:
-            if (token == JsonToken.VALUE_NULL) {
-              retVal[i] = null;
-            } else if (token == JsonToken.VALUE_STRING) {
-              retVal[i] = jp.getText();
-            } else if (token == JsonToken.START_ARRAY) {
-              final List<String> strings = new ArrayList<>();
-
-              while (jp.nextToken() != JsonToken.END_ARRAY) {
-                strings.add(jp.getText());
-              }
-
-              retVal[i] = strings;
-            } else {
-              throw ctxt.instantiationException(
-                  ClusterByKey.class,
-                  StringUtils.format("Unexpected token [%s] when reading string", token)
-              );
+          case ARRAY:
+            switch (types.get(i).getElementType().getType()) {
+              case STRING:
+                extractString(jp, ctxt, retVal, i, token, true);
+                break;
+              default:
+                throw new ISE("Can't handle type [%s]", types.get(i).asTypeString());
             }
+            break;
+
+          case STRING:
+            extractString(jp, ctxt, retVal, i, token, false);
             break;
 
           case LONG:
@@ -119,6 +113,36 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
       return ClusterByKey.of(retVal);
     } else {
       return (ClusterByKey) ctxt.handleUnexpectedToken(ClusterByKey.class, jp);
+    }
+  }
+
+  private void extractString(
+      JsonParser jp,
+      DeserializationContext ctxt,
+      Object[] retVal,
+      int i,
+      JsonToken token,
+      boolean toArray
+  )
+      throws IOException
+  {
+    if (token == JsonToken.VALUE_NULL) {
+      retVal[i] = null;
+    } else if (token == JsonToken.VALUE_STRING) {
+      retVal[i] = toArray ? ImmutableList.of(jp.getText()) : jp.getText();
+    } else if (token == JsonToken.START_ARRAY) {
+      final List<String> strings = new ArrayList<>();
+
+      while (jp.nextToken() != JsonToken.END_ARRAY) {
+        strings.add(jp.getText());
+      }
+
+      retVal[i] = strings;
+    } else {
+      throw ctxt.instantiationException(
+          ClusterByKey.class,
+          StringUtils.format("Unexpected token [%s] when reading string", token)
+      );
     }
   }
 }

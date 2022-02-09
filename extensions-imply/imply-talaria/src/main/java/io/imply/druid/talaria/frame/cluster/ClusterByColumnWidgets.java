@@ -11,16 +11,25 @@ package io.imply.druid.talaria.frame.cluster;
 
 import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.UOE;
-import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.segment.column.ColumnType;
 
 public class ClusterByColumnWidgets
 {
   @SuppressWarnings("rawtypes")
-  public static ClusterByColumnWidget create(final ClusterByColumn part, final ValueType type)
+  public static ClusterByColumnWidget create(final ClusterByColumn part, final ColumnType type)
   {
-    switch (Preconditions.checkNotNull(type, "type must be nonnull")) {
+    Preconditions.checkNotNull(type, "type must be nonnull");
+
+    switch (type.getType()) {
       case STRING:
-        return new StringClusterByColumnWidget(part.columnName(), part.descending());
+        return new StringClusterByColumnWidget(part.columnName(), part.descending(), false);
+      case ARRAY:
+        switch (type.getElementType().getType()) {
+          case STRING:
+            return new StringClusterByColumnWidget(part.columnName(), part.descending(), true);
+          default:
+            throw new UOE("Cannot cluster by type [%s]", type);
+        }
       case LONG:
         return new LongClusterByColumnWidget(part.columnName(), part.descending());
       case FLOAT:
