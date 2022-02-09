@@ -249,15 +249,8 @@ export class TalariaQueryInput extends React.PureComponent<
   }
 
   renderAce() {
-    const {
-      queryString,
-      runeMode,
-      autoHeight,
-      minRows,
-      showGutter,
-      placeholder,
-      editorStateId,
-    } = this.props;
+    const { queryString, runeMode, autoHeight, minRows, showGutter, placeholder, editorStateId } =
+      this.props;
     const { editorHeight } = this.state;
 
     let height: number;

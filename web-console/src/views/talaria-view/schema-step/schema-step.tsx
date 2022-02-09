@@ -79,9 +79,7 @@ export function changeByString<T>(xs: readonly T[], from: T, to: T): T[] {
   return xs.map(x => (String(x) === fromString ? to : x));
 }
 
-function digestQueryString(
-  queryString: string,
-): {
+function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
   ingestPatternError?: string;
   parsedQuery?: SqlQuery;

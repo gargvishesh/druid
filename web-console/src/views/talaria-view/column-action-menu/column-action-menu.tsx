@@ -37,15 +37,8 @@ export interface ColumnActionMenuProps {
 }
 
 export function ColumnActionMenu(props: ColumnActionMenuProps) {
-  const {
-    column,
-    headerIndex,
-    queryResult,
-    filtered,
-    grouped,
-    onEditColumn,
-    onQueryAction,
-  } = props;
+  const { column, headerIndex, queryResult, filtered, grouped, onEditColumn, onQueryAction } =
+    props;
 
   const expression = queryResult.sqlQuery?.getSelectExpressionForIndex(headerIndex);
   if (!expression) return null;

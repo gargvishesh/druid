@@ -110,14 +110,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
       if (q instanceof TalariaQuery) {
         TalariaQueryStateCache.deleteState(id);
 
-        const {
-          query,
-          context,
-          prefixLines,
-          isAsync,
-          isSql,
-          cancelQueryId,
-        } = q.getEffectiveQueryAndContext();
+        const { query, context, prefixLines, isAsync, isSql, cancelQueryId } =
+          q.getEffectiveQueryAndContext();
 
         if (isAsync) {
           if (!isSql) throw new Error('must be SQL to be async');
