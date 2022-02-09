@@ -29,6 +29,7 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.server.QueryLifecycleFactory;
+import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
 import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.run.NativeQueryMaker;
@@ -126,9 +127,9 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
   {
     validateNoDuplicateAliases(fieldMappings);
 
-    if (plannerContext.getQueryContext().containsKey(QueryKitUtils.CTX_SEGMENT_GRANULARITY)) {
+    if (plannerContext.getQueryContext().containsKey(DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY)) {
       throw new ValidationException(
-          StringUtils.format("Cannot use \"%s\" without INSERT", QueryKitUtils.CTX_SEGMENT_GRANULARITY)
+          StringUtils.format("Cannot use \"%s\" without INSERT", DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY)
       );
     }
   }
@@ -172,7 +173,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
       throw new ValidationException(
           StringUtils.format(
               "Invalid segmentGranularity: %s",
-              plannerContext.getQueryContext().get(QueryKitUtils.CTX_SEGMENT_GRANULARITY)
+              plannerContext.getQueryContext().get(DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY)
           ),
           e
       );
@@ -232,7 +233,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
       throw new ValidationException(
           StringUtils.format(
               "INSERT queries cannot end with LIMIT unless %s is \"all\".",
-              QueryKitUtils.CTX_SEGMENT_GRANULARITY
+              DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY
           )
       );
     }

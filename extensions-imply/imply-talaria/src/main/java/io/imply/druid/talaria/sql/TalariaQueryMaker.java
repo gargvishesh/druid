@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.sql;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -21,11 +22,12 @@ import org.apache.calcite.util.Pair;
 import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
-import org.apache.druid.java.util.common.granularity.GranularityType;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.jackson.JacksonUtils;
@@ -34,6 +36,7 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.DruidQuery;
 import org.apache.druid.sql.calcite.rel.Grouping;
@@ -63,7 +66,7 @@ public class TalariaQueryMaker implements QueryMaker
   private static final String DESTINATION_REPORT = "taskReport";
   private static final String DESTINATION_EXTERNAL = "external";
 
-  private static final String DEFAULT_SEGMENT_GRANULARITY = GranularityType.ALL.name();
+  private static final Granularity DEFAULT_SEGMENT_GRANULARITY = Granularities.ALL;
   private static final int DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS = 1;
   private static final int DEFAULT_ROWS_PER_SEGMENT = 3000000;
 
@@ -131,10 +134,16 @@ public class TalariaQueryMaker implements QueryMaker
     final String ctxDestination =
         DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext().get(CTX_DESTINATION));
 
-    // TODO(gianm): better error messages for bad parameters
-    final Object segmentGranularity =
-        Optional.ofNullable(plannerContext.getQueryContext().get(QueryKitUtils.CTX_SEGMENT_GRANULARITY))
-                .orElse(DEFAULT_SEGMENT_GRANULARITY);
+    Object segmentGranularity;
+    try {
+      // TODO(gianm): better error messages for bad parameters
+      segmentGranularity = Optional.ofNullable(plannerContext.getQueryContext()
+                                                             .get(DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY))
+                                   .orElse(jsonMapper.writeValueAsString(DEFAULT_SEGMENT_GRANULARITY));
+    }
+    catch (JsonProcessingException e) {
+      throw new ISE("Unable to serialize default segment granularity.");
+    }
 
     final long maxNumConcurrentSubTasks =
         Optional.ofNullable(plannerContext.getQueryContext().get(CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
@@ -227,12 +236,16 @@ public class TalariaQueryMaker implements QueryMaker
         throw new IAE("Cannot INSERT with destination [%s]", ctxDestination);
       }
 
+      Granularity segmentGranularityObject;
+      try {
+        segmentGranularityObject = jsonMapper.readValue((String) segmentGranularity, Granularity.class);
+      }
+      catch (Exception e) {
+        throw new ISE("Unable to convert %s to a segment granularity", segmentGranularity);
+      }
+
       destinationSpec = jsonMapper.convertValue(
-          new DataSourceTalariaDestination(
-              targetDataSource,
-              jsonMapper.convertValue(segmentGranularity, Granularity.class),
-              replaceTimeChunks
-          ),
+          new DataSourceTalariaDestination(targetDataSource, segmentGranularityObject, replaceTimeChunks),
           JacksonUtils.TYPE_REFERENCE_MAP_STRING_OBJECT
       );
     } else {
