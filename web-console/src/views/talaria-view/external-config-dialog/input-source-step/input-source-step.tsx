@@ -130,6 +130,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
       exampleInputSource?.inputSource || (inputSource as any),
       guessInputFormat(sampleData.rows.map((r: any) => r[0])),
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectResultState]);
 
   const effectiveType = typeof inputSource === 'string' ? 'example' : inputSource?.type;

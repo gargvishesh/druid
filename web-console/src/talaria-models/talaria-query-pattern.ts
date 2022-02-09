@@ -286,7 +286,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     if (partitionedByClause.expression instanceof SqlLiteral) {
       partitionedBy = String(partitionedByClause.expression.value).toLowerCase();
     } else {
-      partitionedBy = 'x';
+      partitionedBy = '';
     }
   } else {
     partitionedBy = 'all';
@@ -295,19 +295,22 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     throw new Error(`Must partition by HOUR, DAY, MONTH, YEAR, or ALL TIME`);
   }
 
-  const partitions = query.getOrderByExpressions().map(orderByExpression => {
-    if (orderByExpression.direction === 'DESC') {
-      throw new Error(`Can not have descending direction in ORDER BY`);
-    }
-
-    const selectIndex = query.getSelectIndexForExpression(orderByExpression.expression, true);
+  const clusteredByExpressions = query.clusteredByClause
+    ? query.clusteredByClause.expressions.values
+    : [];
+  const clusteredBy = clusteredByExpressions.map(clusteredByExpression => {
+    const selectIndex = query.getSelectIndexForExpression(clusteredByExpression, true);
     if (selectIndex === -1) {
       throw new Error(
-        `Invalid ORDER BY expression ${orderByExpression.expression}, can only partition on a dimension`,
+        `Invalid CLUSTERED BY expression ${clusteredByExpression}, can only partition on a dimension`,
       );
     }
     return selectIndex;
   });
+
+  if (query.orderByClause) {
+    throw new Error(`Can not have an ORDER BY expression`);
+  }
 
   return {
     partitionedBy,
@@ -317,7 +320,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     filters,
     dimensions,
     metrics,
-    clusteredBy: partitions,
+    clusteredBy,
   };
 }
 

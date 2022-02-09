@@ -733,9 +733,8 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             title="No __time column selected"
           >
             {timeSuggestions.map((timeSuggestion, i) => (
-              <FormGroup>
+              <FormGroup key={i}>
                 <Button
-                  key={i}
                   icon={IconNames.CLEAN}
                   text={timeSuggestion.label}
                   intent={Intent.WARNING}
