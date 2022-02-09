@@ -9,6 +9,7 @@
 
 package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -26,6 +27,7 @@ import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
+import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
@@ -61,9 +63,13 @@ public class SessionFilterOperatorConversion implements SqlOperatorConversion
     final RexInputRef ref = (RexInputRef) operands.get(0);
     final String columnName = rowSignature.getColumnName(ref.getIndex());
 
-    DruidExpression druidExpression = DruidExpression.forVirtualColumn(
-        StringUtils.format("sessionize(%s)", DruidExpression.fromColumn(columnName).getExpression()),
-        (name, outputType, macroTable) -> new ImplySessionFilteringVirtualColumn(name, columnName)
+    DruidExpression druidExpression = DruidExpression.ofVirtualColumn(
+        Calcites.getColumnTypeForRelDataType(rexNode.getType()),
+        (args) -> StringUtils.format("sessionize(%s)", args.get(0).getExpression()),
+        ImmutableList.of(
+            DruidExpression.ofColumn(rowSignature.getColumnType(ref.getIndex()).orElse(null), columnName)
+        ),
+        (name, outputType, expression, macroTable) -> new ImplySessionFilteringVirtualColumn(name, columnName)
     );
 
     if (plannerContext.getJoinExpressionVirtualColumnRegistry() != null) {

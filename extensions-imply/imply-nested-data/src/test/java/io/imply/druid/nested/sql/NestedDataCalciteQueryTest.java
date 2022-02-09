@@ -362,7 +362,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                           new LongSumAggregatorFactory(
                               "a0",
                               null,
-                              "CAST(get_path(nest,'.\"x\"'), 'LONG')",
+                              "CAST(get_path(\"nest\",'.\"x\"'), 'LONG')",
                               TestExprMacroTable.INSTANCE
                           )
                       )
