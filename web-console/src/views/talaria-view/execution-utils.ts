@@ -215,7 +215,6 @@ WHERE datasource = ${SqlLiteral.create(execution.destination.dataSource)} AND is
       const lastStage = stages[stages.length - 1];
       if (getNumPartitions(lastStage, 'output') === 0) {
         // No data was meant to be written anyway
-        console.log('>> No data was meant to be written anyway');
         return execution.markDestinationDatasourceExists();
       }
     }
@@ -223,11 +222,9 @@ WHERE datasource = ${SqlLiteral.create(execution.destination.dataSource)} AND is
     const endTime = execution.getEndTime();
     if (!endTime || endTime.valueOf() + WAIT_FOR_SEGMENTS_TIMEOUT < Date.now()) {
       // Enough time has passed since the query ran... give up waiting (or there is no time info).
-      console.log('>> Enough time has passed since the query ran... give up waiting.');
       return execution.markDestinationDatasourceExists();
     }
 
-    console.log('>> Keep going.');
     return execution;
   }
 
