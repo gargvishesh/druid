@@ -22,27 +22,32 @@ import React from 'react';
 import {
   currentStageIndex,
   overallProgress,
-  StageDefinition,
+  QueryExecution,
   stageProgress,
 } from '../../../talaria-models';
 
 import './stage-progress.scss';
 
 export interface StageProgressProps {
-  stages: StageDefinition[] | undefined;
+  queryExecution: QueryExecution | undefined;
   onCancel?(): void;
   onToggleLiveReports?(): void;
   showLiveReports?: boolean;
 }
 
 export const StageProgress = React.memo(function StageProgress(props: StageProgressProps) {
-  const { stages, onCancel, onToggleLiveReports, showLiveReports } = props;
+  const { queryExecution, onCancel, onToggleLiveReports, showLiveReports } = props;
+  const stages = queryExecution?.stages;
 
   const idx = currentStageIndex(stages);
   return (
     <div className="stage-progress">
       <Label>
-        {stages ? 'Running query...' : 'Loading...'}
+        {stages
+          ? queryExecution.isWaitingForQuery()
+            ? 'Running query...'
+            : 'Query complete, waiting for segments to be loaded...'
+          : 'Loading...'}
         {onCancel && (
           <>
             {' '}
@@ -56,7 +61,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
         className="overall"
         key={stages ? 'actual' : 'pending'}
         intent={stages ? Intent.PRIMARY : undefined}
-        value={stages ? overallProgress(stages) : undefined}
+        value={stages && queryExecution.isWaitingForQuery() ? overallProgress(stages) : undefined}
       />
       {stages && idx >= 0 && (
         <>

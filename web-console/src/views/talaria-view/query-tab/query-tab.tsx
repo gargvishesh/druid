@@ -40,7 +40,7 @@ import {
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
-import { QueryTimer } from '../../query-view/query-timer/query-timer';
+import { AnchoredQueryTimer } from '../anchored-query-timer/anchored-query-timer';
 import {
   reattachAsyncQuery,
   submitAsyncQuery,
@@ -287,10 +287,12 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onExport={handleExport}
               loading={queryExecutionState.loading}
             />
-            {queryExecutionState.isLoading() && <QueryTimer />}
+            {queryExecutionState.isLoading() && (
+              <AnchoredQueryTimer startTime={queryExecutionState.intermediate?.startTime} />
+            )}
             {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={queryExecution.result}
+                queryExecution={queryExecution}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}
@@ -360,7 +362,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             (queryExecutionState.intermediate ? (
               <div className="stats-container">
                 <StageProgress
-                  stages={queryExecutionState.intermediate.stages}
+                  queryExecution={queryExecutionState.intermediate}
                   onCancel={() => queryManager.cancelCurrent()}
                   onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
                   showLiveReports={showLiveReports}

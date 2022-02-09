@@ -36,6 +36,7 @@ FROM TABLE(
     '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
   )
 )
+PARTITIONED BY ALL TIME
 `.trim(),
       ),
     },
@@ -45,7 +46,6 @@ FROM TABLE(
       query: BASE_QUERY.duplicate().changeQueryString(
         `
 --:context talariaReplaceTimeChunks: all
---:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_rollup"
 
@@ -59,10 +59,7 @@ SELECT * FROM TABLE(
 ))
 
 SELECT
-  FLOOR(
-    TIME_PARSE("timestamp") -- Timestamp parsing
-    TO MINUTE -- Query granularity
-  ) AS __time,
+  FLOOR(TIME_PARSE("timestamp") TO MINUTE) AS __time,
   session,
   agent_category,
   agent_type,
@@ -88,7 +85,8 @@ SELECT
 FROM kttm_data
 WHERE os = 'iOS'
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
-ORDER BY session -- Secondary partitioning
+PARTITIONED BY HOUR
+CLUSTERED BY session
 `.trim(),
       ),
     },
@@ -98,7 +96,6 @@ ORDER BY session -- Secondary partitioning
       query: BASE_QUERY.duplicate().changeQueryString(
         `
 --:context talariaReplaceTimeChunks: all
---:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_etl"
 WITH
@@ -120,10 +117,7 @@ SELECT * FROM TABLE(
 ))
 
 SELECT
-  FLOOR(
-    TIME_PARSE("timestamp") -- Timestamp parsing
-    TO MINUTE -- Query granularity
-  ) AS __time,
+  FLOOR(TIME_PARSE("timestamp") TO MINUTE) AS __time,
   session,
   agent_category,
   agent_type,
@@ -154,7 +148,8 @@ FROM kttm_data
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
 WHERE os = 'iOS'
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
-ORDER BY session -- Secondary partitioning
+PARTITIONED BY HOUR
+CLUSTERED BY session
 `.trim(),
       ),
     },
@@ -164,7 +159,6 @@ ORDER BY session -- Secondary partitioning
       query: BASE_QUERY.duplicate().changeQueryString(
         `
 --:context talariaReplaceTimeChunks: all
---:context talariaSegmentGranularity: hour
 --:context talariaFinalizeAggregations: false
 INSERT INTO "kttm_reingest"
 WITH
@@ -178,10 +172,7 @@ SELECT * FROM TABLE(
 ))
 
 SELECT
-  FLOOR(
-    TIME_PARSE("timestamp") -- Timestamp parsing
-    TO MINUTE -- Query granularity
-  ) AS __time,
+  FLOOR(TIME_PARSE("timestamp") TO MINUTE) AS __time,
   session,
   agent_category,
   agent_type,
@@ -211,7 +202,8 @@ SELECT
 FROM kttm_simple
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_simple.country
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
-ORDER BY session -- Secondary partitioning
+PARTITIONED BY HOUR
+CLUSTERED BY session
 `.trim(),
       ),
     },
@@ -225,6 +217,7 @@ INSERT INTO kttm_simple
 SELECT *
 FROM kttm_simple
 WHERE NOT(country = 'New Zealand')
+PARTITIONED BY ALL TIME
 `.trim(),
       ),
     },

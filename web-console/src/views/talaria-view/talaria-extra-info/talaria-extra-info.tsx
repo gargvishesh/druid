@@ -17,20 +17,22 @@
  */
 
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { QueryResult } from 'druid-query-toolkit';
 import React from 'react';
 
+import { QueryExecution } from '../../../talaria-models';
 import { pluralIfNeeded } from '../../../utils';
 
 import './talaria-extra-info.scss';
 
 export interface TalariaExtraInfoProps {
-  queryResult: QueryResult;
+  queryExecution: QueryExecution;
   onStats(): void;
 }
 
 export const TalariaExtraInfo = React.memo(function TalariaExtraInfo(props: TalariaExtraInfoProps) {
-  const { queryResult, onStats } = props;
+  const { queryExecution, onStats } = props;
+  const queryResult = queryExecution.result;
+  if (!queryResult) return null;
 
   const wrapQueryLimit = queryResult.getSqlOuterLimit();
   const hasMoreResults = queryResult.getNumResults() === wrapQueryLimit;
@@ -49,11 +51,11 @@ export const TalariaExtraInfo = React.memo(function TalariaExtraInfo(props: Tala
     ); // (click to copy)
   }
 
-  // in ${(queryResult.queryDuration / 1000).toFixed(2)}s
   return (
     <div className="talaria-extra-info" onClick={onStats}>
       <Tooltip2 content={tooltipContent} hoverOpenDelay={500} placement="top-start">
-        {resultCount}
+        {resultCount +
+          (queryExecution.duration ? ` in ${(queryExecution.duration / 1000).toFixed(2)}s` : '')}
       </Tooltip2>
     </div>
   );

@@ -20,7 +20,7 @@ import {
   SqlExpression,
   SqlFunction,
   SqlLiteral,
-  SqlOrderByExpression,
+  SqlPartitionedByClause,
   SqlQuery,
   SqlRef,
   SqlStar,
@@ -32,12 +32,10 @@ import * as JSONBig from 'json-bigint-native';
 import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-spec';
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { TIME_COLUMN } from '../druid-models/timestamp-spec';
-import { getContextFromSqlQuery } from '../utils';
+import { filterMap, oneOf } from '../utils';
 
 export const TALARIA_MAX_COLUMNS = 2000;
 
-const TALARIA_SEGMENT_GRANULARITY = 'talariaSegmentGranularity';
 const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
 
 export interface ExternalConfig {
@@ -97,15 +95,22 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 )`);
 }
 
+const INITIAL_CONTEXT_LINES = [
+  `--:context talariaReplaceTimeChunks: all`,
+  `--:context talariaFinalizeAggregations: false`,
+];
+
 export function externalConfigToInitQuery(
   externalConfigName: string,
   config: ExternalConfig,
 ): SqlQuery {
   return SqlQuery.create(SqlTableRef.create(externalConfigName))
+    .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
       config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
     )
-    .changeInsertIntoTable(SqlTableRef.create(externalConfigName));
+    .changeInsertIntoTable(SqlTableRef.create(externalConfigName))
+    .changePartitionedByClause(SqlPartitionedByClause.create(undefined));
 }
 
 export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
@@ -157,27 +162,68 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
 export function externalConfigToIngestQueryPattern(config: ExternalConfig): IngestQueryPattern {
   const hasTimeColumn = false; // ToDo
   return {
-    segmentGranularity: hasTimeColumn ? 'day' : undefined,
     insertTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
     dimensions: config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
-    partitions: [],
+    partitionedBy: hasTimeColumn ? 'day' : 'all',
+    clusteredBy: [],
   };
 }
 
 // --------------------------------------------
 
 export interface IngestQueryPattern {
-  segmentGranularity?: string;
   insertTableName: string;
   mainExternalName: string;
   mainExternalConfig: ExternalConfig;
   filters: readonly SqlExpression[];
   dimensions: readonly SqlExpression[];
   metrics?: readonly SqlExpression[];
-  partitions: readonly number[];
+  partitionedBy: string;
+  clusteredBy: readonly number[];
+}
+
+export function getQueryPatternExpression(
+  pattern: IngestQueryPattern,
+  index: number,
+): SqlExpression | undefined {
+  const { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    return dimensions[index];
+  } else if (metrics) {
+    return metrics[index - dimensions.length];
+  }
+  return;
+}
+
+export function getQueryPatternExpressionType(
+  pattern: IngestQueryPattern,
+  index: number,
+): 'dimension' | 'metric' | undefined {
+  const { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    return 'dimension';
+  } else if (metrics) {
+    return 'metric';
+  }
+  return;
+}
+
+export function changeQueryPatternExpression(
+  pattern: IngestQueryPattern,
+  index: number,
+  ex: SqlExpression | undefined,
+): IngestQueryPattern {
+  let { dimensions, metrics } = pattern;
+  if (index < dimensions.length) {
+    dimensions = filterMap(dimensions, (d, i) => (i === index ? ex : d));
+  } else if (metrics) {
+    const metricIndex = index - dimensions.length;
+    metrics = filterMap(metrics, (m, i) => (i === metricIndex ? ex : m));
+  }
+  return { ...pattern, dimensions, metrics };
 }
 
 function verifyHasOutputName(expression: SqlExpression): void {
@@ -197,7 +243,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     );
   }
 
-  const context = getContextFromSqlQuery(query.toString());
+  // const context = getContextFromSqlQuery(query.toString());
 
   const insertTableName = query.getInsertIntoTable()?.getTable();
   if (!insertTableName) {
@@ -231,34 +277,50 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
 
   dimensions.forEach(verifyHasOutputName);
 
-  let segmentGranularity: string | undefined;
-  if (dimensions.some(d => d.getOutputName() === TIME_COLUMN)) {
-    segmentGranularity = context[TALARIA_SEGMENT_GRANULARITY] || 'day';
+  const partitionedByClause = query.partitionedByClause;
+  if (!partitionedByClause) {
+    throw new Error(`Must have a PARTITIONED BY clause`);
+  }
+  let partitionedBy: string;
+  if (partitionedByClause.expression) {
+    if (partitionedByClause.expression instanceof SqlLiteral) {
+      partitionedBy = String(partitionedByClause.expression.value).toLowerCase();
+    } else {
+      partitionedBy = '';
+    }
+  } else {
+    partitionedBy = 'all';
+  }
+  if (!oneOf(partitionedBy, 'hour', 'day', 'month', 'year', 'all')) {
+    throw new Error(`Must partition by HOUR, DAY, MONTH, YEAR, or ALL TIME`);
   }
 
-  const partitions = query.getOrderByExpressions().map(orderByExpression => {
-    if (orderByExpression.direction === 'DESC') {
-      throw new Error(`Can not have descending direction in ORDER BY`);
-    }
-
-    const selectIndex = query.getSelectIndexForExpression(orderByExpression.expression, true);
+  const clusteredByExpressions = query.clusteredByClause
+    ? query.clusteredByClause.expressions.values
+    : [];
+  const clusteredBy = clusteredByExpressions.map(clusteredByExpression => {
+    const selectIndex = query.getSelectIndexForExpression(clusteredByExpression, true);
     if (selectIndex === -1) {
       throw new Error(
-        `Invalid ORDER BY expression ${orderByExpression.expression}, can only partition on a dimension`,
+        `Invalid CLUSTERED BY expression ${clusteredByExpression}, can only partition on a dimension`,
       );
     }
     return selectIndex;
   });
 
+  if (query.orderByClause) {
+    throw new Error(`Can not have an ORDER BY expression`);
+  }
+
   return {
-    segmentGranularity,
+    partitionedBy,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
-    partitions,
+    clusteredBy,
   };
 }
 
@@ -267,14 +329,14 @@ export function ingestQueryPatternToQuery(
   preview?: boolean,
 ): SqlQuery {
   const {
-    segmentGranularity,
+    partitionedBy,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
-    partitions,
+    clusteredBy,
   } = ingestQueryPattern;
 
   // ToDo: make this actually work
@@ -286,9 +348,6 @@ export function ingestQueryPatternToQuery(
       : undefined;
 
   const initialContextLines: string[] = [];
-  if (segmentGranularity && !preview) {
-    initialContextLines.push(`--:context ${TALARIA_SEGMENT_GRANULARITY}: ${segmentGranularity}`);
-  }
   if (metrics) {
     initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
   }
@@ -315,6 +374,17 @@ export function ingestQueryPatternToQuery(
     .applyForEach(metrics || [], (query, ex) => query.addSelect(ex))
     .applyIf(filters.length, query => query.changeWhereExpression(SqlExpression.and(...filters)))
     .applyIf(!preview, q =>
-      q.changeOrderByExpressions(partitions.map(p => SqlOrderByExpression.index(p))),
+      q
+        .changePartitionedByClause(
+          SqlPartitionedByClause.create(
+            partitionedBy !== 'all'
+              ? new SqlLiteral({
+                  value: partitionedBy.toUpperCase(),
+                  stringValue: partitionedBy.toUpperCase(),
+                })
+              : undefined,
+          ),
+        )
+        .changeClusteredByExpressions(clusteredBy.map(p => SqlLiteral.index(p))),
     );
 }

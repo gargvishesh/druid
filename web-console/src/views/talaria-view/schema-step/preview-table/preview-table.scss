@@ -36,6 +36,17 @@
       .rt-th {
         height: 46px;
 
+        &.selected::after {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          content: '';
+          border: 2px solid $blue4;
+          border-radius: $pt-border-radius;
+        }
+
         &.timestamp {
           background: rgba($cobalt3, 0.44);
         }
@@ -56,6 +67,10 @@
 
         &.first-metric {
           border-left: 2px solid rgba(194, 39, 98, 0.7);
+        }
+
+        .header-wrapper {
+          cursor: pointer;
         }
 
         .output-name {

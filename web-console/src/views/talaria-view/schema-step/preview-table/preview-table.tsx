@@ -42,7 +42,6 @@ import {
   stringifyValue,
 } from '../../../../utils';
 import { dataTypeToIcon } from '../../../query-view/query-utils';
-import { ColumnActionMenu } from '../../column-action-menu/column-action-menu';
 
 import './preview-table.scss';
 
@@ -74,11 +73,12 @@ export interface PreviewTableProps {
   queryResult: QueryResult;
   onQueryAction(action: QueryAction): void;
   columnFilter?(columnName: string): boolean;
-  onEditColumn(expression: SqlExpression): void;
+  selectedColumnIndex: number;
+  onEditColumn(index: number): void;
 }
 
 export const PreviewTable = React.memo(function PreviewTable(props: PreviewTableProps) {
-  const { queryResult, onQueryAction, columnFilter, onEditColumn } = props;
+  const { queryResult, onQueryAction, columnFilter, selectedColumnIndex, onEditColumn } = props;
   const [showValue, setShowValue] = useState<string>();
 
   const parsedQuery: SqlQuery = queryResult.sqlQuery!;
@@ -150,7 +150,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
       <ReactTable
         data={queryResult.rows as any[][]}
         noDataText={queryResult.rows.length ? '' : 'Preview returned no data'}
-        defaultPageSize={50}
+        defaultPageSize={25}
         showPagination={false}
         sortable={false}
         columns={filterMap(queryResult.header, (column, i) => {
@@ -159,57 +159,32 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
 
           const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
           const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+          const selected = selectedColumnIndex === i;
 
           const columnClassName = parsedQuery.isAggregateSelectIndex(i)
             ? classNames('metric', {
+                selected,
                 'first-metric': i > 0 && !parsedQuery.isAggregateSelectIndex(i - 1),
               })
             : classNames(
                 column.isTimeColumn() ? 'timestamp' : 'dimension',
                 column.sqlType?.toLowerCase(),
+                { selected },
               );
 
           return {
             Header() {
               return (
-                <Popover2
-                  className="clickable-cell"
-                  content={
-                    <Deferred
-                      content={() => {
-                        const expression = parsedQuery.getSelectExpressionForIndex(i);
-                        if (!expression) return null;
-
-                        return (
-                          <ColumnActionMenu
-                            column={column}
-                            headerIndex={i}
-                            queryResult={queryResult}
-                            filtered={parsedQuery.getWhereExpression()?.containsColumn(column.name)}
-                            grouped={
-                              parsedQuery.hasGroupBy()
-                                ? parsedQuery.isGroupedSelectIndex(i)
-                                : undefined
-                            }
-                            onEditColumn={onEditColumn}
-                            onQueryAction={onQueryAction}
-                          />
-                        );
-                      }}
-                    />
-                  }
-                >
-                  <div>
-                    <div className="output-name">
-                      <Icon className="type-icon" icon={icon} iconSize={12} />
-                      {h}
-                      {hasFilterOnHeader(h, i) && (
-                        <Icon className="filter-icon" icon={IconNames.FILTER} iconSize={14} />
-                      )}
-                    </div>
-                    <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>
+                <div className="header-wrapper" onClick={() => onEditColumn(i)}>
+                  <div className="output-name">
+                    <Icon className="type-icon" icon={icon} iconSize={12} />
+                    {h}
+                    {hasFilterOnHeader(h, i) && (
+                      <Icon className="filter-icon" icon={IconNames.FILTER} iconSize={14} />
+                    )}
                   </div>
-                </Popover2>
+                  <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>
+                </div>
               );
             },
             headerClassName: columnClassName,

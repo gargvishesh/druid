@@ -125,12 +125,6 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     );
   }
 
-  const segmentGranularity = deepGet(spec, 'spec.dataSchema.granularitySpec.segmentGranularity');
-  if (typeof segmentGranularity !== 'string') {
-    throw new Error(`spec.dataSchema.granularitySpec.segmentGranularity is not a string`);
-  }
-  lines.push(`--:context talariaSegmentGranularity: ${segmentGranularity.toLowerCase()}`);
-
   if (rollup) {
     lines.push(`--:context talariaFinalizeAggregations: false`);
   }
@@ -200,12 +194,24 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     lines.push(`GROUP BY ${dimensionExpressions.map((_, i) => i + 1).join(', ')}`);
   }
 
+  const segmentGranularity = deepGet(spec, 'spec.dataSchema.granularitySpec.segmentGranularity');
+  if (typeof segmentGranularity !== 'string') {
+    throw new Error(`spec.dataSchema.granularitySpec.segmentGranularity is not a string`);
+  }
+  lines.push(
+    `PARTITIONED BY ${
+      segmentGranularity.toLowerCase() === 'all' ? 'ALL TIME' : segmentGranularity.toUpperCase()
+    }`,
+  );
+
   const partitionsSpec = deepGet(spec, 'spec.tuningConfig.partitionsSpec') || {};
   const partitionDimensions =
     partitionsSpec.partitionDimensions ||
     (partitionsSpec.partitionDimension ? [partitionsSpec.partitionDimension] : undefined);
   if (Array.isArray(partitionDimensions)) {
-    lines.push(`ORDER BY ${partitionDimensions.map(d => SqlRef.columnWithQuotes(d)).join(', ')}`);
+    lines.push(
+      `CLUSTERED BY ${partitionDimensions.map(d => SqlRef.columnWithQuotes(d)).join(', ')}`,
+    );
   }
 
   return lines.join('\n');
