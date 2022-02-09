@@ -236,7 +236,6 @@ export class ConsoleApplication extends React.PureComponent<
     return this.wrapInViewContainer(
       'loader-v2',
       <TalariaLoadDataView goToQuery={this.goToQuery} />,
-      'narrow-pad',
     );
   };
   // END: Imply-modified code for Talaria execution

@@ -19,6 +19,7 @@
 import { ResizeEntry } from '@blueprintjs/core';
 import { ResizeSensor2 } from '@blueprintjs/popover2';
 import ace, { Ace } from 'ace-builds';
+import classNames from 'classnames';
 import escape from 'lodash.escape';
 import React from 'react';
 import AceEditor from 'react-ace';
@@ -62,6 +63,7 @@ export interface TalariaQueryInputProps {
   currentSchema?: string;
   currentTable?: string;
   editorStateId?: string;
+  leaveBackground?: boolean;
 }
 
 export interface TalariaQueryInputState {
@@ -271,7 +273,10 @@ export class TalariaQueryInput extends React.PureComponent<
       <AceEditor
         mode={runeMode ? 'hjson' : 'dsql'}
         theme="solarized_dark"
-        className="no-background placeholder-padding"
+        className={classNames(
+          'placeholder-padding',
+          this.props.leaveBackground ? undefined : 'no-background',
+        )}
         name="ace-editor"
         onChange={this.handleChange}
         focus

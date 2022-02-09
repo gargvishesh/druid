@@ -284,7 +284,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             {queryExecutionState.isLoading() && <QueryTimer />}
             {queryExecution?.result && (
               <TalariaExtraInfo
-                queryResult={queryExecution.result}
+                queryExecution={queryExecution}
                 onStats={() => onStats(statsTaskId!)}
               />
             )}
@@ -343,7 +343,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                 (queryExecutionState.intermediate ? (
                   <div className="stats-container">
                     <StageProgress
-                      stages={queryExecutionState.intermediate.stages}
+                      queryExecution={queryExecutionState.intermediate}
                       onCancel={() => queryManager.cancelCurrent()}
                     />
                   </div>

@@ -136,7 +136,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             />
           </FormGroup>
         )}
-        <Button className="back" text="Back" icon={IconNames.ARROW_LEFT} onClick={onBack} />
+        <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
         <Button
           className="next"
           text={doneButton ? 'Done' : 'Next'}

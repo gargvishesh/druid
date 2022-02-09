@@ -92,10 +92,18 @@ export class TalariaQuery {
     return /(?:^|\n)\s*(INSERT\s+INTO[^\n]+)(?:\n|SELECT)/im.exec(sqlString)?.[1];
   }
 
+  static getPartitionedByLine(sqlString: string): string | undefined {
+    return /\n\s*(PARTITIONED\s+BY[^\n]+)(?:\n|$)/im.exec(sqlString)?.[1];
+  }
+
+  static getClusteredByLine(sqlString: string): string | undefined {
+    return /\n\s*(CLUSTERED\s+BY[^\n]+)(?:\n|$)/im.exec(sqlString)?.[1];
+  }
+
   static commentOutInsertInto(sqlString: string): string {
     return sqlString.replace(
-      /((?:^|\n)\s*)(INSERT\s+INTO)/i,
-      (_, spaces, insertInto) => `${spaces}--${insertInto.substr(2)}`,
+      /((?:^|\n)\s*)((?:INSERT\s+INTO)|(?:PARTITIONED\s+BY)|(?:CLUSTERED\s+BY))/gi,
+      (_, spaces, thing) => `${spaces}--${thing.substr(2)}`,
     );
   }
 
@@ -278,7 +286,11 @@ export class TalariaQuery {
 
     return ret.changeQueryString(
       parsedQuery
-        ? parsedQuery.changeInsertClause(undefined).toString()
+        ? parsedQuery
+            .changeInsertClause(undefined)
+            .changePartitionedByClause(undefined)
+            .changeClusteredByClause(undefined)
+            .toString()
         : TalariaQuery.commentOutInsertInto(this.getQueryString()),
     );
   }
@@ -336,12 +348,22 @@ export class TalariaQuery {
     if (prefixParts.length) {
       const insertIntoLine = TalariaQuery.getInsertIntoLine(sqlQuery);
       if (insertIntoLine) {
+        const partitionedByLine = TalariaQuery.getPartitionedByLine(sqlQuery);
+        const clusteredByLine = TalariaQuery.getClusteredByLine(sqlQuery);
+
         queryPrepend += insertIntoLine + '\n';
         sqlQuery = TalariaQuery.commentOutInsertInto(sqlQuery);
+
+        if (clusteredByLine) {
+          queryAppend = '\n' + clusteredByLine + queryAppend;
+        }
+        if (partitionedByLine) {
+          queryAppend = '\n' + partitionedByLine + queryAppend;
+        }
       }
 
-      queryPrepend += 'WITH\n' + prefixParts.map(p => p.toWithPart()).join(',\n') + '\n(';
-      queryAppend += '\n)';
+      queryPrepend += 'WITH\n' + prefixParts.map(p => p.toWithPart()).join(',\n') + '\n(\n';
+      queryAppend = '\n)' + queryAppend;
     }
 
     let prefixLines = 0;
@@ -351,10 +373,6 @@ export class TalariaQuery {
     }
 
     const inlineContext = getContextFromSqlQuery(sqlQuery);
-    if (!insertQuery && inlineContext.talariaSegmentGranularity) {
-      delete inlineContext.talariaSegmentGranularity;
-    }
-
     let context: QueryContext = {
       sqlOuterLimit: unlimited || insertQuery ? undefined : 1001,
       ...queryContext,

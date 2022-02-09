@@ -17,10 +17,11 @@
  */
 
 import {
+  AnchorButton,
   Button,
   ButtonGroup,
   Callout,
-  ControlGroup,
+  FormGroup,
   InputGroup,
   Intent,
   Menu,
@@ -31,7 +32,14 @@ import {
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
-import { QueryResult, SqlExpression, SqlFunction, SqlQuery, SqlRef } from 'druid-query-toolkit';
+import {
+  QueryResult,
+  QueryRunner,
+  SqlExpression,
+  SqlFunction,
+  SqlQuery,
+  SqlRef,
+} from 'druid-query-toolkit';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { Loader } from '../../../components';
@@ -40,8 +48,11 @@ import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
 import {
+  changeQueryPatternExpression,
   ExternalConfig,
   fitIngestQueryPattern,
+  getQueryPatternExpression,
+  getQueryPatternExpressionType,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   QueryExecution,
@@ -50,6 +61,7 @@ import {
 import {
   caseInsensitiveContains,
   change,
+  DruidError,
   filterMap,
   getContextFromSqlQuery,
   oneOf,
@@ -57,12 +69,14 @@ import {
   wait,
   without,
 } from '../../../utils';
+import { LearnMore } from '../../load-data-view/learn-more/learn-more';
 import { dataTypeToIcon } from '../../query-view/query-utils';
 import {
   extractQueryResults,
   submitAsyncQuery,
   talariaBackgroundResultStatusCheck,
 } from '../execution-utils';
+import { ExpressionEditor } from '../expression-editor/expression-editor';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { timeFormatToSql } from '../sql-utils';
@@ -74,9 +88,16 @@ import { RollupAnalysisPane } from './rollup-analysis-pane/rollup-analysis-pane'
 
 import './schema-step.scss';
 
-export function changeByString<T>(xs: readonly T[], from: T, to: T): T[] {
+const queryRunner = new QueryRunner();
+
+export function changeByIndex<T>(xs: readonly T[], from: T, to: T): T[] {
   const fromString = String(from);
   return xs.map(x => (String(x) === fromString ? to : x));
+}
+
+export function deleteByString<T>(xs: readonly T[], thing: T): T[] {
+  const thingString = String(thing);
+  return xs.filter(x => String(x) !== thingString);
 }
 
 function digestQueryString(
@@ -198,6 +219,12 @@ const GRANULARITIES: string[] = ['hour', 'day', 'month', 'all'];
 
 type Mode = 'table' | 'list' | 'sql';
 
+interface EditorColumn {
+  index: number;
+  expression?: SqlExpression;
+  type: 'dimension' | 'metric';
+}
+
 export interface SchemaStepProps {
   queryString: string;
   onQueryStringChange(queryString: string): void;
@@ -212,8 +239,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
   const [externalInEditor, setExternalInEditor] = useState<ExternalConfig | undefined>();
-  const [addColumnType, setAddColumnType] = useState<'dimension' | 'metric' | undefined>();
-  const [columnInEditor, setColumnInEditor] = useState<SqlExpression | undefined>();
+  const [editorColumn, setEditorColumn] = useState<EditorColumn | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
   const [showRollupConfirm, setShowRollupConfirm] = useState(false);
@@ -275,17 +301,33 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      return extractQueryResults(
-        await submitAsyncQuery({
-          query: previewQueryString,
-          context: {
-            ...getContextFromSqlQuery(previewQueryString),
-            talaria: true,
-            sqlOuterLimit: 50,
-          },
-          cancelToken,
-        }),
-      );
+      const talaria = /EXTERN\s*\(/.test(previewQueryString);
+      if (talaria) {
+        return extractQueryResults(
+          await submitAsyncQuery({
+            query: previewQueryString,
+            context: {
+              ...getContextFromSqlQuery(previewQueryString),
+              talaria,
+              sqlOuterLimit: 25,
+            },
+            cancelToken,
+          }),
+        );
+      } else {
+        let result: QueryResult;
+        try {
+          result = await queryRunner.runQuery({
+            query: previewQueryString,
+            extraQueryContext: { sqlOuterLimit: 25 },
+            cancelToken,
+          });
+        } catch (e) {
+          throw new DruidError(e);
+        }
+
+        return result;
+      }
     },
     backgroundStatusCheck: talariaBackgroundResultStatusCheck,
   });
@@ -298,7 +340,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       )
     : [];
 
-  const segmentGranularity = ingestQueryPattern?.segmentGranularity;
+  const segmentGranularity = ingestQueryPattern?.partitionedBy;
 
   const timeSuggestions =
     previewResultState.data && parsedQuery
@@ -307,11 +349,23 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
 
   const previewResultSomeData = previewResultState.getSomeData();
 
+  const selectedColumnIndex = editorColumn ? editorColumn.index : -1;
+  const setSelectColumnIndex = (index: number) => {
+    if (!ingestQueryPattern) return;
+    const expression = getQueryPatternExpression(ingestQueryPattern, index);
+    const expressionType = getQueryPatternExpressionType(ingestQueryPattern, index);
+    if (!expression || !expressionType) return;
+    setEditorColumn({
+      index,
+      expression,
+      type: expressionType,
+    });
+  };
+
   return (
     <div className={classNames('schema-step', { 'with-analysis': showRollupAnalysisPane })}>
       <div className="loader-controls">
         <div className="control-line">
-          <Button icon={IconNames.ARROW_LEFT} minimal onClick={onBack} />
           <Popover2
             position="bottom"
             content={
@@ -373,23 +427,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               </Tag>
             </Button>
           </Popover2>
-          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
-            Rollup &nbsp;
-            <Tag minimal round>
-              {ingestQueryPattern?.metrics ? 'On' : 'Off'}
-            </Tag>
-          </Button>
-          {ingestQueryPattern?.metrics && (
-            <Button
-              icon={IconNames.LIGHTBULB}
-              text="Analyze rollup"
-              minimal
-              active={showRollupAnalysisPane}
-              onClick={() => setShowRollupAnalysisPane(!showRollupAnalysisPane)}
-            />
-          )}
-        </div>
-        <ControlGroup className="right-controls">
           {ingestQueryPattern && (
             <Popover2
               position="bottom"
@@ -417,7 +454,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                             if (!ingestQueryPattern) return;
                             updatePattern({
                               ...ingestQueryPattern,
-                              segmentGranularity: g,
+                              partitionedBy: g,
                             });
                           }}
                         />
@@ -430,7 +467,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                     />
                   )}
                   <MenuDivider title="Secondary partitioning" />
-                  {ingestQueryPattern.partitions.map((p, i) => (
+                  {ingestQueryPattern.clusteredBy.map((p, i) => (
                     <MenuItem
                       key={i}
                       icon={IconNames.SPLIT_COLUMNS}
@@ -438,7 +475,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                       onClick={() =>
                         updatePattern({
                           ...ingestQueryPattern,
-                          partitions: without(ingestQueryPattern.partitions, p),
+                          clusteredBy: without(ingestQueryPattern.clusteredBy, p),
                         })
                       }
                     />
@@ -446,7 +483,10 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                   <MenuItem icon={IconNames.PLUS} text="Add column partitioning">
                     {filterMap(ingestQueryPattern.dimensions, (dimension, i) => {
                       const outputName = dimension.getOutputName();
-                      if (outputName === TIME_COLUMN || ingestQueryPattern.partitions.includes(i)) {
+                      if (
+                        outputName === TIME_COLUMN ||
+                        ingestQueryPattern.clusteredBy.includes(i)
+                      ) {
                         return;
                       }
 
@@ -457,7 +497,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                           onClick={() =>
                             updatePattern({
                               ...ingestQueryPattern,
-                              partitions: ingestQueryPattern.partitions.concat([i]),
+                              clusteredBy: ingestQueryPattern.clusteredBy.concat([i]),
                             })
                           }
                         />
@@ -478,24 +518,35 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 Partitioning &nbsp;
                 <Tag minimal round>
                   {(segmentGranularity && segmentGranularity !== 'all' ? 1 : 0) +
-                    ingestQueryPattern.partitions.length}
+                    ingestQueryPattern.clusteredBy.length}
                 </Tag>
               </Button>
             </Popover2>
           )}
-          <Button minimal>
-            Destination &nbsp;
+          <Button icon={IconNames.COMPRESSED} onClick={() => setShowRollupConfirm(true)} minimal>
+            Rollup &nbsp;
             <Tag minimal round>
-              {ingestQueryPattern?.insertTableName || ''}
+              {ingestQueryPattern?.metrics ? 'On' : 'Off'}
             </Tag>
           </Button>
-          <Button
-            icon={IconNames.CLOUD_UPLOAD}
-            text="Start loading data"
-            intent={Intent.PRIMARY}
-            onClick={onDone}
-          />
-        </ControlGroup>
+          {ingestQueryPattern?.metrics && (
+            <Button
+              icon={IconNames.LIGHTBULB}
+              text="Analyze rollup"
+              minimal
+              active={showRollupAnalysisPane}
+              onClick={() => setShowRollupAnalysisPane(!showRollupAnalysisPane)}
+            />
+          )}
+          {ingestQueryPattern?.insertTableName && (
+            <Button minimal>
+              Destination &nbsp;
+              <Tag minimal round>
+                {ingestQueryPattern?.insertTableName}
+              </Tag>
+            </Button>
+          )}
+        </div>
         <div className="control-line bottom-left">
           <ButtonGroup>
             <Button
@@ -519,36 +570,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               onClick={() => setMode('sql')}
             />
           </ButtonGroup>
-          {timeSuggestions.length > 0 && (
-            <Popover2
-              content={
-                <Menu>
-                  {timeSuggestions.map((timeSuggestion, i) => (
-                    <MenuItem
-                      key={i}
-                      icon={IconNames.CLEAN}
-                      text={timeSuggestion.label}
-                      onClick={() => handleQueryAction(timeSuggestion.queryAction)}
-                    />
-                  ))}
-                  <MenuItem
-                    icon={IconNames.HELP}
-                    text="Learn more about the primary time column"
-                    href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
-                    target="_blank"
-                  />
-                </Menu>
-              }
-            >
-              <Button
-                className="time-column-warning"
-                icon={IconNames.WARNING_SIGN}
-                text="No primary time column selected"
-                intent={Intent.WARNING}
-                minimal
-              />
-            </Popover2>
-          )}
         </div>
         {effectiveMode !== 'sql' && ingestQueryPattern && (
           <div className="control-line bottom-right">
@@ -562,19 +583,25 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                       <MenuItem
                         icon={IconNames.PLUS}
                         text="Custom dimension"
-                        onClick={() => setAddColumnType('dimension')}
+                        onClick={() => {
+                          setEditorColumn({ index: -1, type: 'dimension' });
+                        }}
                       />
                       <MenuItem
                         icon={IconNames.PLUS}
                         text="Custom metric"
-                        onClick={() => setAddColumnType('metric')}
+                        onClick={() => {
+                          setEditorColumn({ index: -1, type: 'metric' });
+                        }}
                       />
                     </>
                   ) : (
                     <MenuItem
                       icon={IconNames.PLUS}
                       text="Custom column"
-                      onClick={() => setAddColumnType('dimension')}
+                      onClick={() => {
+                        setEditorColumn({ index: -1, type: 'dimension' });
+                      }}
                     />
                   )}
                   <MenuDivider />
@@ -602,7 +629,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 </Menu>
               }
             >
-              <Button icon={IconNames.PLUS} text="Add column" minimal />
+              <Button className="add-column" icon={IconNames.PLUS} text="Add column" />
             </Popover2>
             <InputGroup
               className="column-filter-control"
@@ -633,7 +660,8 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                   queryResult={previewResultSomeData}
                   onQueryAction={handleQueryAction}
                   columnFilter={columnFilter}
-                  onEditColumn={setColumnInEditor}
+                  selectedColumnIndex={selectedColumnIndex}
+                  onEditColumn={setSelectColumnIndex}
                 />
               )
             )}
@@ -649,34 +677,96 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               <ColumnList
                 queryResult={previewResultSomeData}
                 columnFilter={columnFilter}
-                onEditColumn={setColumnInEditor}
+                onEditColumn={setSelectColumnIndex}
                 onQueryAction={handleQueryAction}
               />
             )
           ))}
         {effectiveMode === 'sql' && (
-          <>
-            <TalariaQueryInput
-              autoHeight={false}
-              queryString={queryString}
-              onQueryStringChange={onQueryStringChange}
-              runeMode={false}
-              columnMetadata={undefined}
-            />
-            {ingestPatternError && (
-              <Callout className="pattern-error" intent={Intent.DANGER}>
-                {ingestPatternError}
-              </Callout>
-            )}
-          </>
+          <TalariaQueryInput
+            autoHeight={false}
+            queryString={queryString}
+            onQueryStringChange={onQueryStringChange}
+            runeMode={false}
+            columnMetadata={undefined}
+            leaveBackground
+          />
         )}
+      </div>
+      <div className="controls">
+        {!editorColumn && (
+          <FormGroup>
+            <Callout>
+              <p>
+                Each column in Druid must have an assigned type (string, long, float, double,
+                complex, etc).
+              </p>
+              <p>
+                Types have been automatically assigned to your columns. If you want to change the
+                type, click on the column header.
+              </p>
+              <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+            </Callout>
+          </FormGroup>
+        )}
+        {editorColumn && ingestQueryPattern && (
+          <ExpressionEditor
+            expression={editorColumn.expression}
+            onApply={newColumn => {
+              if (!editorColumn) return;
+              updatePattern(
+                changeQueryPatternExpression(ingestQueryPattern, editorColumn.index, newColumn),
+              );
+            }}
+            onCancel={() => setEditorColumn(undefined)}
+          />
+        )}
+        {ingestPatternError && (
+          <FormGroup>
+            <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>
+          </FormGroup>
+        )}
+        {!editorColumn && timeSuggestions.length > 0 && (
+          <Callout
+            className="time-column-warning"
+            intent={Intent.WARNING}
+            title="No __time column selected"
+          >
+            {timeSuggestions.map((timeSuggestion, i) => (
+              <FormGroup key={i}>
+                <Button
+                  icon={IconNames.CLEAN}
+                  text={timeSuggestion.label}
+                  intent={Intent.WARNING}
+                  onClick={() => handleQueryAction(timeSuggestion.queryAction)}
+                />
+              </FormGroup>
+            ))}
+            <AnchorButton
+              icon={IconNames.HELP}
+              text="Learn more..."
+              href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
+              target="_blank"
+              intent={Intent.WARNING}
+              minimal
+            />
+          </Callout>
+        )}
+        <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
+        <Button
+          className="next"
+          icon={IconNames.CLOUD_UPLOAD}
+          text="Start loading data"
+          intent={Intent.PRIMARY}
+          onClick={onDone}
+        />
       </div>
       {showRollupAnalysisPane && ingestQueryPattern && (
         <RollupAnalysisPane
           dimensions={ingestQueryPattern.dimensions}
           seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true)}
           queryResult={previewResultState.data}
-          onEditColumn={setColumnInEditor}
+          onEditColumn={setSelectColumnIndex}
           onQueryAction={handleQueryAction}
           onClose={() => setShowRollupAnalysisPane(false)}
         />
@@ -692,43 +782,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           initExternalConfig={externalInEditor}
           onSetExternalConfig={() => {}}
           onClose={() => setExternalInEditor(undefined)}
-        />
-      )}
-      {addColumnType && ingestQueryPattern && (
-        <ExpressionEditorDialog
-          title="Add column"
-          includeOutputName
-          onSave={newExpression => {
-            if (addColumnType === 'metric' && ingestQueryPattern.metrics) {
-              updatePattern({
-                ...ingestQueryPattern,
-                metrics: ingestQueryPattern.metrics.concat(newExpression),
-              });
-            } else {
-              updatePattern({
-                ...ingestQueryPattern,
-                dimensions: ingestQueryPattern.dimensions.concat(newExpression),
-              });
-            }
-          }}
-          onClose={() => setAddColumnType(undefined)}
-        />
-      )}
-      {columnInEditor && ingestQueryPattern && (
-        <ExpressionEditorDialog
-          title="Edit column"
-          includeOutputName
-          expression={columnInEditor}
-          onSave={newColumn =>
-            updatePattern({
-              ...ingestQueryPattern,
-              dimensions: changeByString(ingestQueryPattern.dimensions, columnInEditor, newColumn),
-              metrics: ingestQueryPattern.metrics
-                ? changeByString(ingestQueryPattern.metrics, columnInEditor, newColumn)
-                : undefined,
-            })
-          }
-          onClose={() => setColumnInEditor(undefined)}
         />
       )}
       {showAddFilterEditor && ingestQueryPattern && (
