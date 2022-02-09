@@ -988,8 +988,7 @@ pipeline {
                                 echo 'Starting nvm install...'
                                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
                                 [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
-                                nvm install 10.24.0
-                                npm i -D playwright@1.15.2
+                                nvm install 14.19.0                                
                                 web-console/script/druid start
                                 cd web-console && npm run test-e2e
                             '''

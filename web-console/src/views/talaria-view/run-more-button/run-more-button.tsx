@@ -205,10 +205,9 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                     label={query.engine || `${query.getEffectiveEngine()} (auto)`}
                   >
                     <Menu>
-                      {([undefined, 'broker', 'async', 'talaria'] as (
-                        | DruidEngine
-                        | undefined
-                      )[]).map(renderQueryEngineMenuItem)}
+                      {(
+                        [undefined, 'broker', 'async', 'talaria'] as (DruidEngine | undefined)[]
+                      ).map(renderQueryEngineMenuItem)}
                     </Menu>
                   </MenuItem>
                   <MenuDivider />
