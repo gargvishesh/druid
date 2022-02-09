@@ -1347,8 +1347,10 @@ public class LeaderImpl implements Leader
         return Collections.emptyList();
       }
 
+      ColumnType columnType = signature.getColumnType(column.columnName()).orElse(null);
+
       // DimensionRangeShardSpec only handles strings.
-      if (!ColumnType.STRING.equals(signature.getColumnType(column.columnName()).orElse(null))) {
+      if (!(ColumnType.STRING.equals(columnType))) {
         return Collections.emptyList();
       }
 
@@ -1425,7 +1427,7 @@ public class LeaderImpl implements Leader
           // TODO(gianm): hack to workaround the fact that aggregators are required for transferring complex types
           aggregators.add(new PassthroughAggregatorFactory(outputColumn, type.getComplexTypeName()));
         } else {
-          dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type.getType()));
+          dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
         }
       }
     }

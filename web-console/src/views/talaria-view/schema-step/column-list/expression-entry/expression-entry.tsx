@@ -41,15 +41,8 @@ interface ExpressionEntryProps {
 }
 
 export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryProps) {
-  const {
-    column,
-    headerIndex,
-    queryResult,
-    filtered,
-    grouped,
-    onEditColumn,
-    onQueryAction,
-  } = props;
+  const { column, headerIndex, queryResult, filtered, grouped, onEditColumn, onQueryAction } =
+    props;
 
   const expression = queryResult.sqlQuery?.getSelectExpressionForIndex(headerIndex);
   if (!expression) return null;

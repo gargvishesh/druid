@@ -12,10 +12,8 @@ package io.imply.druid.talaria.frame.write;
 import io.imply.druid.talaria.frame.MemoryAllocator;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
@@ -61,6 +59,13 @@ public class FrameColumnWriters
         return makeDoubleWriter(columnSelectorFactory, allocator, column);
       case STRING:
         return makeStringWriter(columnSelectorFactory, allocator, column);
+      case ARRAY:
+        switch (type.getElementType().getType()) {
+          case STRING:
+            return makeStringWriter(columnSelectorFactory, allocator, column);
+          default:
+            throw new UnsupportedColumnTypeException(column, type);
+        }
       case COMPLEX:
         return makeComplexWriter(columnSelectorFactory, allocator, column, type.getComplexTypeName());
       default:
@@ -108,7 +113,7 @@ public class FrameColumnWriters
   )
   {
     final ColumnCapabilities capabilities = selectorFactory.getColumnCapabilities(columnName);
-    final DimensionSelector selector = selectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(columnName));
+    final ColumnValueSelector selector = selectorFactory.makeColumnValueSelector(columnName);
     return new StringFrameColumnWriter(
         selector,
         allocator,

@@ -35,7 +35,7 @@ public class ClusterByKeyComparator implements Comparator<ClusterByKey>
       );
 
       //noinspection rawtypes
-      final ClusterByColumnWidget widget = ClusterByColumnWidgets.create(part, type.getType());
+      final ClusterByColumnWidget widget = ClusterByColumnWidgets.create(part, type);
       //noinspection unchecked
       this.partComparators.add(widget.objectComparator());
     }

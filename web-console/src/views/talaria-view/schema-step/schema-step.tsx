@@ -95,14 +95,7 @@ export function changeByIndex<T>(xs: readonly T[], from: T, to: T): T[] {
   return xs.map(x => (String(x) === fromString ? to : x));
 }
 
-export function deleteByString<T>(xs: readonly T[], thing: T): T[] {
-  const thingString = String(thing);
-  return xs.filter(x => String(x) !== thingString);
-}
-
-function digestQueryString(
-  queryString: string,
-): {
+function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
   ingestPatternError?: string;
   parsedQuery?: SqlQuery;

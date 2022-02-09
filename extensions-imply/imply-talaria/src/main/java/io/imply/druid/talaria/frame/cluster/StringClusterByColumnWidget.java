@@ -11,7 +11,7 @@ package io.imply.druid.talaria.frame.cluster;
 
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.ColumnValueSelector;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -19,7 +19,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class StringClusterByColumnWidget implements ClusterByColumnWidget<Object, DimensionSelector>
+public class StringClusterByColumnWidget implements ClusterByColumnWidget<Object, ColumnValueSelector>
 {
   private static final Comparator<Object> OBJECT_COMPARATOR =
       new Comparator<Object>()
@@ -54,21 +54,25 @@ public class StringClusterByColumnWidget implements ClusterByColumnWidget<Object
 
   private final String columnName;
   private final boolean descending;
+  private final boolean isArray;
 
-  StringClusterByColumnWidget(String columnName, boolean descending)
+  StringClusterByColumnWidget(String columnName, boolean descending, boolean isArray)
   {
     this.columnName = columnName;
     this.descending = descending;
+    this.isArray = isArray;
   }
 
   @Override
-  public DimensionSelector makeSelector(ColumnSelectorFactory columnSelectorFactory)
+  public ColumnValueSelector makeSelector(ColumnSelectorFactory columnSelectorFactory)
   {
-    return columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(columnName));
+    return isArray ?
+           columnSelectorFactory.makeColumnValueSelector(columnName) :
+           columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(columnName));
   }
 
   @Override
-  public Supplier<Object> reader(DimensionSelector selector)
+  public Supplier<Object> reader(ColumnValueSelector selector)
   {
     return selector::getObject;
   }
