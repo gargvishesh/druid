@@ -36,7 +36,7 @@ interface ExpressionEntryProps {
   queryResult: QueryResult;
   filtered?: boolean;
   grouped?: boolean;
-  onEditColumn(expression: number): void;
+  onEditColumn(columnIndex: number): void;
   onQueryAction(action: QueryAction): void;
 }
 
