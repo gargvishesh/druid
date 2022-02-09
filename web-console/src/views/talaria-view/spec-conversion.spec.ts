@@ -104,7 +104,6 @@ describe('talaria-utils', () => {
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaReplaceTimeChunks: all
-      --:context talariaSegmentGranularity: hour
       INSERT INTO wikipedia
       WITH ioConfigExtern AS (SELECT * FROM TABLE(
         EXTERN(
@@ -139,7 +138,8 @@ describe('talaria-utils', () => {
         "countryIsoCode",
         "regionName"
       FROM ioConfigExtern
-      ORDER BY "isRobot"
+      PARTITIONED BY HOUR
+      CLUSTERED BY "isRobot"
     `);
   });
 
@@ -237,7 +237,6 @@ describe('talaria-utils', () => {
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaReplaceTimeChunks: all
-      --:context talariaSegmentGranularity: hour
       --:context talariaFinalizeAggregations: false
       INSERT INTO wikipedia_rollup
       WITH ioConfigExtern AS (SELECT * FROM TABLE(
@@ -274,6 +273,7 @@ describe('talaria-utils', () => {
         APPROX_COUNT_DISTINCT_DS_THETA("page") AS "page_theta"
       FROM ioConfigExtern
       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+      PARTITIONED BY HOUR
     `);
   });
 });

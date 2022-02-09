@@ -23,7 +23,6 @@ import { fitIngestQueryPattern, ingestQueryPatternToQuery } from './talaria-quer
 describe('talaria-query-pattern', () => {
   it('IngestQueryPattern works', () => {
     const query = SqlQuery.parse(sane`
-      --:context talariaSegmentGranularity: hour
       INSERT INTO "kttm-2019"
       WITH ext AS (SELECT *
       FROM TABLE(
@@ -40,7 +39,8 @@ describe('talaria-query-pattern', () => {
         browser,
         browser_version
       FROM ext
-      ORDER BY 4
+      PARTITIONED BY HOUR
+      CLUSTERED BY 4
     `);
 
     const insertQueryPattern = fitIngestQueryPattern(query);

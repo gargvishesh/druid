@@ -20,7 +20,7 @@ import {
   SqlExpression,
   SqlFunction,
   SqlLiteral,
-  SqlOrderByExpression,
+  SqlPartitionedByClause,
   SqlQuery,
   SqlRef,
   SqlStar,
@@ -32,12 +32,10 @@ import * as JSONBig from 'json-bigint-native';
 import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-spec';
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { TIME_COLUMN } from '../druid-models/timestamp-spec';
-import { filterMap, getContextFromSqlQuery } from '../utils';
+import { filterMap, oneOf } from '../utils';
 
 export const TALARIA_MAX_COLUMNS = 2000;
 
-const TALARIA_SEGMENT_GRANULARITY = 'talariaSegmentGranularity';
 const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
 
 export interface ExternalConfig {
@@ -99,7 +97,6 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 
 const INITIAL_CONTEXT_LINES = [
   `--:context talariaReplaceTimeChunks: all`,
-  `--:context talariaSegmentGranularity: hour`,
   `--:context talariaFinalizeAggregations: false`,
 ];
 
@@ -112,7 +109,8 @@ export function externalConfigToInitQuery(
     .changeSelectExpressions(
       config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
     )
-    .changeInsertIntoTable(SqlTableRef.create(externalConfigName));
+    .changeInsertIntoTable(SqlTableRef.create(externalConfigName))
+    .changePartitionedByClause(SqlPartitionedByClause.create(undefined));
 }
 
 export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
@@ -169,7 +167,7 @@ export function externalConfigToIngestQueryPattern(config: ExternalConfig): Inge
     mainExternalConfig: config,
     filters: [],
     dimensions: config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
-    partitionedBy: hasTimeColumn ? 'day' : undefined,
+    partitionedBy: hasTimeColumn ? 'day' : 'all',
     clusteredBy: [],
   };
 }
@@ -183,7 +181,7 @@ export interface IngestQueryPattern {
   filters: readonly SqlExpression[];
   dimensions: readonly SqlExpression[];
   metrics?: readonly SqlExpression[];
-  partitionedBy?: string;
+  partitionedBy: string;
   clusteredBy: readonly number[];
 }
 
@@ -245,7 +243,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     );
   }
 
-  const context = getContextFromSqlQuery(query.toString());
+  // const context = getContextFromSqlQuery(query.toString());
 
   const insertTableName = query.getInsertIntoTable()?.getTable();
   if (!insertTableName) {
@@ -279,9 +277,22 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
 
   dimensions.forEach(verifyHasOutputName);
 
-  let segmentGranularity: string | undefined;
-  if (dimensions.some(d => d.getOutputName() === TIME_COLUMN)) {
-    segmentGranularity = context[TALARIA_SEGMENT_GRANULARITY] || 'day';
+  const partitionedByClause = query.partitionedByClause;
+  if (!partitionedByClause) {
+    throw new Error(`Must have a PARTITIONED BY clause`);
+  }
+  let partitionedBy: string;
+  if (partitionedByClause.expression) {
+    if (partitionedByClause.expression instanceof SqlLiteral) {
+      partitionedBy = String(partitionedByClause.expression.value).toLowerCase();
+    } else {
+      partitionedBy = 'x';
+    }
+  } else {
+    partitionedBy = 'all';
+  }
+  if (!oneOf(partitionedBy, 'hour', 'day', 'month', 'year', 'all')) {
+    throw new Error(`Must partition by HOUR, DAY, MONTH, YEAR, or ALL TIME`);
   }
 
   const partitions = query.getOrderByExpressions().map(orderByExpression => {
@@ -299,7 +310,7 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   });
 
   return {
-    partitionedBy: segmentGranularity,
+    partitionedBy,
     insertTableName,
     mainExternalName,
     mainExternalConfig,
@@ -329,14 +340,11 @@ export function ingestQueryPatternToQuery(
   const cacheDatasource =
     preview &&
     String(mainExternalConfig.inputSource.uris) ===
-      'https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz'
+      'https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz_'
       ? '_tmp_loader_cache_20210101_010102'
       : undefined;
 
   const initialContextLines: string[] = [];
-  if (partitionedBy && !preview) {
-    initialContextLines.push(`--:context ${TALARIA_SEGMENT_GRANULARITY}: ${partitionedBy}`);
-  }
   if (metrics) {
     initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
   }
@@ -363,6 +371,17 @@ export function ingestQueryPatternToQuery(
     .applyForEach(metrics || [], (query, ex) => query.addSelect(ex))
     .applyIf(filters.length, query => query.changeWhereExpression(SqlExpression.and(...filters)))
     .applyIf(!preview, q =>
-      q.changeOrderByExpressions(clusteredBy.map(p => SqlOrderByExpression.index(p))),
+      q
+        .changePartitionedByClause(
+          SqlPartitionedByClause.create(
+            partitionedBy !== 'all'
+              ? new SqlLiteral({
+                  value: partitionedBy.toUpperCase(),
+                  stringValue: partitionedBy.toUpperCase(),
+                })
+              : undefined,
+          ),
+        )
+        .changeClusteredByExpressions(clusteredBy.map(p => SqlLiteral.index(p))),
     );
 }

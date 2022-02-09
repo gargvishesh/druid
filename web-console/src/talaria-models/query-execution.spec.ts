@@ -62,13 +62,12 @@ describe('QueryExecution', () => {
               },
             },
             sqlQuery:
-              '--:context talariaSegmentGranularity: day\n--:context talariaReplaceTimeChunks: all\n--:context talariaRowsPerSegment: 40000\nINSERT INTO "kttm_part1"\n\nWITH kttm_data AS (\nSELECT * FROM TABLE(\n  EXTERN(\n    \'{"type":"http","uris":["https://file.com/file"]}\',\n    \'{"type":"json"}\',\n    \'[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]\'\n  )\n))\n\nSELECT\n  TIME_PARSE("timestamp") AS __time,\n  session,\n  agent_category,\n  agent_type,\n  browser,\n  browser_version,\n  city,\n  continent,\n  country,\n  region,\n  adblock_list,\n  forwarded_for,\n  os,\n  path,\n  platform,\n  referrer,\n  referrer_host,\n  remote_address,\n  screen\nFROM kttm_data\nWHERE session = \'woop\'\nORDER BY browser, browser_version -- Secondary partitioning',
+              '--:context talariaReplaceTimeChunks: all\n--:context talariaRowsPerSegment: 40000\nINSERT INTO "kttm_part1"\n\nWITH kttm_data AS (\nSELECT * FROM TABLE(\n  EXTERN(\n    \'{"type":"http","uris":["https://file.com/file"]}\',\n    \'{"type":"json"}\',\n    \'[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]\'\n  )\n))\n\nSELECT\n  TIME_PARSE("timestamp") AS __time,\n  session,\n  agent_category,\n  agent_type,\n  browser,\n  browser_version,\n  city,\n  continent,\n  country,\n  region,\n  adblock_list,\n  forwarded_for,\n  os,\n  path,\n  platform,\n  referrer,\n  referrer_host,\n  remote_address,\n  screen\nFROM kttm_data\nWHERE session = \'woop\'\nORDER BY browser, browser_version -- Secondary partitioning',
             sqlQueryContext: {
               talaria: true,
               talariaRowsPerSegment: 40000,
               sqlQueryId: 'cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
               talariaNumTasks: 2,
-              talariaSegmentGranularity: 'day',
               talariaReplaceTimeChunks: 'all',
             },
             sqlTypeNames: ['TIMESTAMP'],
@@ -116,11 +115,9 @@ describe('QueryExecution', () => {
           "talariaNumTasks": 2,
           "talariaReplaceTimeChunks": "all",
           "talariaRowsPerSegment": 40000,
-          "talariaSegmentGranularity": "day",
         },
         "result": undefined,
-        "sqlQuery": "--:context talariaSegmentGranularity: day
-      --:context talariaReplaceTimeChunks: all
+        "sqlQuery": "--:context talariaReplaceTimeChunks: all
       --:context talariaRowsPerSegment: 40000
       INSERT INTO \\"kttm_part1\\"
 

@@ -54,6 +54,9 @@ exports.SQL_KEYWORDS = [
   'ROWS',
   'ONLY',
   'VALUES',
+  'PARTITIONED BY',
+  'CLUSTERED BY',
+  'ALL TIME',
 ];
 
 // BEGIN: Imply-added code for Talaria execution
