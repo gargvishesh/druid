@@ -145,7 +145,7 @@ export function stageProgress(stage: StageDefinition, stages: StageDefinition[])
 
       const phaseProgress = expectedInputRows
         ? currentInputRows / expectedInputRows
-        : zeno(currentInputRows / 1000000);
+        : zeno(currentInputRows / (100e6 * Math.max(stage.workerCount || 0, 1)));
 
       if (stageHasPostReading(stage)) {
         return 0.45 * phaseProgress;
