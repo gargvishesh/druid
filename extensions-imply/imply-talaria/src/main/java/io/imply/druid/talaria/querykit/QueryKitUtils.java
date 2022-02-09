@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.querykit;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
@@ -26,6 +27,7 @@ import org.apache.druid.data.input.SplitHintSpec;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.SplittableInputSource;
+import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
@@ -53,6 +55,7 @@ import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
+import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.TimelineLookup;
 
@@ -78,10 +81,11 @@ public class QueryKitUtils
 
   // TODO(gianm): use safer name for __bucket column
   public static final String SEGMENT_GRANULARITY_COLUMN = "__bucket";
-  public static final String CTX_SEGMENT_GRANULARITY = "talariaSegmentGranularity";
 
   // TODO(gianm): hack alert: this is redundant to the ColumnMappings, but is here because QueryKit doesn't get those
   public static final String CTX_TIME_COLUMN_NAME = "talariaTimeColumn";
+
+  private static final ObjectMapper OBJECT_MAPPER = new DefaultObjectMapper();
 
   public static DataSourcePlan makeDataSourcePlan(
       final QueryKit queryKit,
@@ -251,10 +255,15 @@ public class QueryKitUtils
 
   public static Granularity getSegmentGranularityFromContext(@Nullable final Map<String, Object> context)
   {
-    final Object o = context == null ? null : context.get(CTX_SEGMENT_GRANULARITY);
+    final Object o = context == null ? null : context.get(DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY);
 
     if (o instanceof String) {
-      return Granularity.fromString((String) o);
+      try {
+        return OBJECT_MAPPER.readValue((String) o, Granularity.class);
+      }
+      catch (JsonProcessingException e) {
+        throw new ISE("Invalid segment granularity [%s]", o);
+      }
     } else if (o == null) {
       return Granularities.ALL;
     } else {
