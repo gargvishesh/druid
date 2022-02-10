@@ -30,6 +30,7 @@ import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
+import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.table.RowSignatures;
 
@@ -179,11 +180,12 @@ public class IpAddressSqlOperatorConversions
       } else {
         compact = true;
       }
-      String fn = DruidExpression.functionCall(IpAddressExpressions.StringifyExprMacro.NAME, druidExpressions);
       if (druidExpressions.get(0).isSimpleExtraction()) {
-        return DruidExpression.forVirtualColumn(
-            fn,
-            (name, outputType, macroTable) -> new IpAddressFormatVirtualColumn(
+        return DruidExpression.ofVirtualColumn(
+            Calcites.getColumnTypeForRelDataType(call.getType()),
+            DruidExpression.functionCall(IpAddressExpressions.StringifyExprMacro.NAME),
+            druidExpressions,
+            (name, outputType, expression, macroTable) -> new IpAddressFormatVirtualColumn(
                 name,
                 druidExpressions.get(0).getDirectColumn(),
                 compact,
@@ -191,7 +193,11 @@ public class IpAddressSqlOperatorConversions
             )
         );
       }
-      return DruidExpression.fromExpression(fn);
+      return DruidExpression.ofFunctionCall(
+          Calcites.getColumnTypeForRelDataType(call.getType()),
+          IpAddressExpressions.StringifyExprMacro.NAME,
+          druidExpressions
+      );
     }
   }
 
