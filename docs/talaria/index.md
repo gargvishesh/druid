@@ -137,8 +137,6 @@ Talaria enhances Druid so we can now query external data using the
 To ingest the query results into a table, run the following query.
 
 ```sql
---:context talariaSegmentGranularity: day
-
 INSERT INTO wikipedia
 SELECT
   TIME_PARSE("timestamp") AS __time,
@@ -150,16 +148,11 @@ FROM TABLE(
     '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
   )
 )
+PARTITIONED BY DAY
 ```
 
-The context comment (line 1) passes an ingestion configuration parameter
-along with the query, specifying day-based segment granularity. The
+The `PARTITIONED BY` clause specifies the day-based segment graunularity. The
 data is inserted into the `wikipedia` table.
-
-> Context comments are available only in the web console. When using
-> the API, context comments will be ignored, and
-> [context parameters](https://docs.imply.io/latest/druid/querying/query-context.html)
-> must be provided separately from the query string.
 
 The data is now queryable. Run the following query to analyze the data
 in the ingested table, producing a list of top channels.
@@ -293,15 +286,21 @@ query, subject to the limitations mentioned in the [Known issues](#known-issues)
 section. In addition to standard Druid SQL syntax, queries that run with Talaria
 can use two additional features:
 
-- [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources.
+- [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources. 
+These queries must have a required [`PARTITIONED BY`](#partitioned-by) clause and can have an optional [`CLUSTERED BY`](#clustered-by) clause.
+
 - [EXTERN](#extern) to query external data from S3, GCS, HDFS, and so on.
+
+> All INSERT statements must have the `PARTITIONED BY` clause.
+
+> `ORDER BY` is disallowed on the SELECT portion of INSERT statements. Use `CLUSTERED BY` instead.
 
 **Context parameters**
 
 The Talaria engine accepts additional Druid SQL
 [context parameters](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
 
-> Context comments like `--:context talariaSegmentGranularity: day`
+> Context comments like `--:context talariaFinalizeAggregations: false`
 > are available only in the web console. When using the API, context comments
 > will be ignored, and context parameters must be provided in the `context`
 > section of the JSON object.
@@ -311,10 +310,9 @@ The Talaria engine accepts additional Druid SQL
 | talaria| True to execute using Talaria, false to execute using Druid's native query engine| false|
 | talariaNumTasks| (SELECT or INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If true, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
-| talariaSegmentGranularity | (INSERT only)<br /><br />Segment granularity to use when generating segments.<br /><br />Your query must have an ORDER BY that matches the time granularity. See the "INSERT" section above for examples.<br /><br />At some point this will be replaced by a "PARTITION BY" keyword.| all|
-| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given by `talariaSegmentGranularity`.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all ORDER BY columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
-
+ 
 #### Response
 
 ```json
@@ -608,8 +606,8 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 |  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
 |  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
-|  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `talariaSegmentGranularity` set to something other than `all`.  |  &bull;&nbsp;dataSource  |
-|  InsertCannotOrderByDescending  |  An INSERT query contained an ORDER BY expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
+|  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
+|  InsertCannotOrderByDescending  |  An INSERT query contained an `CLUSTERED BY` expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
 |  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
 |  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a Talaria query.<br /> <br />This can happen if the query uses features that Talaria does not yet support, like GROUPING SETS. |    |
@@ -700,13 +698,16 @@ FROM TABLE(
     '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
   )
 )
+PARTITIONED BY ALL TIME
 ```
 
 To run an INSERT query:
 
 1. Activate the Talaria engine by setting `talaria: true` as a [context parameter](#submit-a-query).
 2. Add `INSERT INTO <dataSource>` at the start of your query.
-3. If you want to replace data in an existing datasource, additionally set the `talariaReplaceTimeChunks` context parameter.
+3. [`PARTITIONED BY`](#partitioned-by) in the INSERT statement is necessary. For example, use `PARTITIONED BY DAY` for daily partitioning, 
+   or `PARTITIONED BY ALL TIME` to skip time partitioning completely. See [`CLUSTERED BY`](#clustered-by) clause as well.
+4. If you want to replace data in an existing datasource, additionally set the `talariaReplaceTimeChunks` context parameter.
 
 There is no syntactic difference between creating a new datasource and
 inserting into an existing datasource. The `INSERT INTO <dataSource>` command
@@ -719,31 +720,35 @@ implemented.
 
 For more examples, refer to the [Example queries](#example-queries) section.
 
-### Segment granularity and partitioning
+### PARTITIONED BY
 
 > INSERT syntax is in a work-in-progress state for the alpha. It is expected to
 > change in future releases.
 
-Time-based partitioning is determined by the `talariaSegmentGranularity`
-context parameter. Secondary partitioning is determined by the query\'s
-ORDER BY clause. Partitioning is always done on a range basis.
+Time-based partitioning is determined by the PARTITIONED BY clause.
+This clause is required for INSERT queries. Possible arguments include:
 
--   The `talariaSegmentGranularity` parameter controls partitioning by
-    time chunk, and can be set to any standard granularity string, like
-    `hour` or `all`. If you specify `talariaSegmentGranularity` as
-    anything other than `all`, you must have an output column named
-    `__time`, and you cannot use LIMIT or OFFSET at the outer level of
-    your query.
+- Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
+- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like 'PT1H'. The first argument must be `__time`.
+- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR function](https://druid.apache.org/docs/latest/querying/sql.html#time-functions). The first argument must be `__time`.
+- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single time chunk.
 
--   The ORDER BY clause controls partitioning within a time chunk. ORDER
-    BY can partition by any number of expressions. If
-    `talariaSegmentGranularity` is set to `all`, ORDER BY controls
-    partitioning across the entire dataset.
+If `PARTITIONED BY` is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or OFFSET at the outer level of your query.
 
-It is OK to mix time partitioning with secondary partitioning. For
-example, you can combine `talariaSegmentGranularity: hour` and
-`ORDER BY channel` to perform segment-granular partitioning by hour
-and secondary partitioning by channel.
+### CLUSTERED BY
+
+> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
+
+Secondary partitioning within a time chunk is determined by the `CLUSTERED BY`
+clause. `CLUSTERED BY` can partition by any number of columns or expressions.
+
+It is OK to mix time partitioning with secondary partitioning. For example, you can
+combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
+time partitioning by hour and secondary partitioning by channel within each hour.
+
+INSERT INTO … SELECT queries cannot include `ORDER BY` as part of the SELECT.
+Similar functionality can be achieved by using `CLUSTERED BY` instead.
 
 ### Rollup
 
@@ -881,8 +886,6 @@ the triangle to show per worker and per partition statistics.
 ### INSERT with no rollup
 
 ```sql
---:context talariaSegmentGranularity: hour
-
 INSERT INTO w000
 SELECT
   TIME_PARSE("timestamp") AS __time,
@@ -894,14 +897,14 @@ FROM TABLE(
       '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
     )
   )
-ORDER BY
+PARTITIONED BY HOUR
+CLUSTERED BY
   channel -- Secondary partitioning
 ```
 
 ### INSERT with rollup
 
 ```sql
---:context talariaSegmentGranularity: day
 --:context talariaFinalizeAggregations: false
 
 INSERT INTO w001
@@ -925,7 +928,8 @@ FROM TABLE(
     )
   )
 GROUP BY 1, 2, 3, 4, 5, 6, 7
-ORDER BY
+PARTITIONED BY ALL TIME
+CLUSTERED BY
   channel -- Secondary partitioning
 ```
 
@@ -934,7 +938,6 @@ ORDER BY
 This query rolls up data from w000 and inserts the result into w002.
 
 ```sql
---:context talariaSegmentGranularity: hour
 
 INSERT INTO w002
 SELECT
@@ -950,15 +953,14 @@ SELECT
   SUM(deleted) AS sum_deleted
 FROM w000
 GROUP BY 1, 2, 3, 4, 5, 6, 7
-ORDER BY
+PARTITIONED BY HOUR
+CLUSTERED BY
   page
 ```
 
 ### INSERT with JOIN
 
 ```sql
---:context talariaSegmentGranularity: hour
-
 INSERT INTO w003
 WITH wikidata AS (
   SELECT * FROM TABLE(
@@ -986,6 +988,7 @@ SELECT
   countries.Capital AS countryCapital
 FROM wikidata
 LEFT JOIN countries ON wikidata.countryIsoCode = countries.ISO2
+PARTITIONED BY HOUR
 ```
 
 ### SELECT with EXTERN and JOIN
@@ -1177,7 +1180,7 @@ LIMIT 1000
   This can happen even if the number of partitions is not in excess of the
   [TooManyPartitions limit](#limits). This is most common on INSERT queries
   that ingest a large number of time chunks. If you encounter this issue,
-  consider using a coarser `talariaSegmentGranularity`. (14764)
+  consider using a coarser granularity in `PARTITIONED BY`. (14764)
 
 **Issues with SELECT queries.**
 
