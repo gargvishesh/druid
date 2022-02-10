@@ -9,6 +9,8 @@
 
 package io.imply.druid.nested.sql;
 
+import com.google.common.collect.ImmutableList;
+import io.imply.druid.nested.column.NestedDataComplexTypeSerde;
 import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.virtual.NestedFieldVirtualColumn;
 import org.apache.calcite.rex.RexCall;
@@ -30,6 +32,7 @@ import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
+import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
@@ -89,9 +92,14 @@ public class NestedDataOperatorConversions
       final String normalized = PathFinder.toNormalizedJqPath(parts);
 
       if (druidExpressions.get(0).isSimpleExtraction()) {
-        return DruidExpression.forVirtualColumn(
-            "get_path(" + druidExpressions.get(0).getDirectColumn() + ",'" + normalized + "')",
-            (name, outputType, macroTable) -> new NestedFieldVirtualColumn(
+
+        return DruidExpression.ofVirtualColumn(
+            Calcites.getColumnTypeForRelDataType(call.getType()),
+            (args) -> "get_path(" + args.get(0).getExpression() + ",'" + normalized + "')",
+            ImmutableList.of(
+                DruidExpression.ofColumn(NestedDataComplexTypeSerde.TYPE, druidExpressions.get(0).getDirectColumn())
+            ),
+            (name, outputType, expression, macroTable) -> new NestedFieldVirtualColumn(
                 druidExpressions.get(0).getDirectColumn(),
                 name,
                 parts,
