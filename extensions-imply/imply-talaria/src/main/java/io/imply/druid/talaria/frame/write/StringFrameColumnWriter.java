@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.frame.write;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.AppendableMemory;
 import io.imply.druid.talaria.frame.MemoryAllocator;
@@ -21,7 +22,10 @@ import org.apache.druid.io.Channels;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.segment.DimensionDictionarySelector;
+import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.data.ComparableStringArray;
+import org.apache.druid.segment.data.IndexedInts;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -32,15 +36,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class StringFrameColumnWriter implements FrameColumnWriter
+public abstract class StringFrameColumnWriter<T extends ColumnValueSelector> implements FrameColumnWriter
 {
   public static final long DATA_OFFSET = 1 /* type code */ + 1 /* single or multi-value? */;
   public static final byte NULL_MARKER = (byte) 0xFF; /* cannot appear in a valid utf-8 byte sequence */
 
-  private static final byte[] NULL_MARKER_ARRAY = new byte[]{NULL_MARKER};
+  protected static final byte[] NULL_MARKER_ARRAY = new byte[]{NULL_MARKER};
 
-  private final ColumnValueSelector selector;
-  private final boolean multiValue;
+  private final T selector;
+  protected final boolean multiValue;
 
   // Row lengths: one int per row with the number of values contained by that row and all previous rows.
   // Only written for multi-value columns.
@@ -58,7 +62,7 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   private int lastStringLength = -1;
 
   StringFrameColumnWriter(
-      final ColumnValueSelector selector,
+      final T selector,
       final MemoryAllocator allocator,
       final boolean multiValue
   )
@@ -81,8 +85,7 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   {
     // TODO(gianm): retain dictionary codes from selectors
 
-    final Object row = selector.getObject();
-    final List<ByteBuffer> utf8Data = getUtf8ByteBuffersFromObject(row, multiValue);
+    final List<ByteBuffer> utf8Data = getUtf8ByteBuffersFromSelector(selector);
     final int utf8DataByteLength = countBytes(utf8Data);
 
     if ((long) lastCumulativeRowLength + utf8Data.size() > Integer.MAX_VALUE) {
@@ -294,45 +297,16 @@ public class StringFrameColumnWriter implements FrameColumnWriter
   }
 
   /**
-   * Extracts a list of ByteBuffers from the object. Null values are returned as {@link #NULL_MARKER_ARRAY}.
+   * Extracts a list of ByteBuffers from the selector. Null values are returned as {@link #NULL_MARKER_ARRAY}.
    */
-  private static List<ByteBuffer> getUtf8ByteBuffersFromObject(
-      final Object row,
-      final boolean multiValue
-  )
-  {
-    if (row == null) {
-      return Collections.singletonList(getUtf8ByteBufferFromString(null));
-    } else if (row instanceof String) {
-      return Collections.singletonList(getUtf8ByteBufferFromString((String) row));
-    }
-
-    if (multiValue) {
-      final List<ByteBuffer> retVal = new ArrayList<>();
-      if (row instanceof List) {
-        for (int i = 0; i < ((List<?>) row).size(); i++) {
-          retVal.add(getUtf8ByteBufferFromString(((List<String>) row).get(i)));
-        }
-      } else if (row instanceof String[]) {
-        for (String value : (String[]) row) {
-          retVal.add(getUtf8ByteBufferFromString(value));
-        }
-      } else if (row instanceof ComparableStringArray) {
-        for (String value : ((ComparableStringArray) row).getDelegate()) {
-          retVal.add(getUtf8ByteBufferFromString(value));
-        }
-      } else {
-        throw new ISE("Unexpected type %s found", row.getClass().getName());
-      }
-      return retVal;
-    }
-    throw new ISE("Unexpected type %s found", row.getClass().getName());
-  }
+  public abstract List<ByteBuffer> getUtf8ByteBuffersFromSelector(
+      T selector
+  );
 
   /**
    * Extracts a ByteBuffer from the string. Null values are returned as {@link #NULL_MARKER_ARRAY}.
    */
-  private static ByteBuffer getUtf8ByteBufferFromString(String data)
+  protected static ByteBuffer getUtf8ByteBufferFromString(final String data)
   {
     if (NullHandling.isNullOrEquivalent(data)) {
       return ByteBuffer.wrap(NULL_MARKER_ARRAY);
@@ -386,5 +360,102 @@ public class StringFrameColumnWriter implements FrameColumnWriter
 
     // Hopefully there's never more than 2GB of string per row!
     return Ints.checkedCast(count);
+  }
+}
+
+class StringFrameColumnWriterImpl extends StringFrameColumnWriter<DimensionSelector>
+{
+  StringFrameColumnWriterImpl(
+      DimensionSelector selector,
+      MemoryAllocator allocator,
+      boolean multiValue
+  )
+  {
+    super(selector, allocator, multiValue);
+  }
+
+  @Override
+  public List<ByteBuffer> getUtf8ByteBuffersFromSelector(final DimensionSelector selector)
+  {
+    final IndexedInts row = selector.getRow();
+    final int size = row.size();
+
+    if (multiValue) {
+      final List<ByteBuffer> retVal = new ArrayList<>(size);
+
+      for (int i = 0; i < size; i++) {
+        retVal.add(getUtf8ByteBufferFromRowIndex(selector, row.get(i)));
+      }
+
+      return retVal;
+    } else {
+      // If !multivalue, always return exactly one buffer.
+      if (size == 0) {
+        return Collections.singletonList(ByteBuffer.wrap(NULL_MARKER_ARRAY));
+      } else {
+        return Collections.singletonList(getUtf8ByteBufferFromRowIndex(selector, row.get(0)));
+      }
+    }
+  }
+
+  private ByteBuffer getUtf8ByteBufferFromRowIndex(final DimensionDictionarySelector selector, final int index)
+  {
+    if (selector.supportsLookupNameUtf8()) {
+      final ByteBuffer buf = selector.lookupNameUtf8(index);
+
+      if (buf == null || (NullHandling.replaceWithDefault() && buf.remaining() == 0)) {
+        return ByteBuffer.wrap(NULL_MARKER_ARRAY);
+      } else {
+        return buf;
+      }
+    } else {
+      return getUtf8ByteBufferFromString(selector.lookupName(index));
+    }
+  }
+}
+
+class StringArrayFrameColumnWriter extends StringFrameColumnWriter<ColumnValueSelector>
+{
+  StringArrayFrameColumnWriter(
+      ColumnValueSelector selector,
+      MemoryAllocator allocator,
+      boolean multiValue
+  )
+  {
+    super(selector, allocator, multiValue);
+    Preconditions.checkArgument(
+        multiValue,
+        "%s can only be used when multiValue is true",
+        StringArrayFrameColumnWriter.class.getName()
+    );
+  }
+
+  @Override
+  public List<ByteBuffer> getUtf8ByteBuffersFromSelector(final ColumnValueSelector selector)
+  {
+    Object row = selector.getObject();
+    if (row == null) {
+      return Collections.singletonList(getUtf8ByteBufferFromString(null));
+    } else if (row instanceof String) {
+      return Collections.singletonList(getUtf8ByteBufferFromString((String) row));
+    }
+
+    final List<ByteBuffer> retVal = new ArrayList<>();
+    if (row instanceof List) {
+      for (int i = 0; i < ((List<?>) row).size(); i++) {
+        retVal.add(getUtf8ByteBufferFromString(((List<String>) row).get(i)));
+      }
+    } else if (row instanceof String[]) {
+      for (String value : (String[]) row) {
+        retVal.add(getUtf8ByteBufferFromString(value));
+      }
+    } else if (row instanceof ComparableStringArray) {
+      for (String value : ((ComparableStringArray) row).getDelegate()) {
+        retVal.add(getUtf8ByteBufferFromString(value));
+      }
+    } else {
+      throw new ISE("Unexpected type %s found", row.getClass().getName());
+    }
+    return retVal;
   }
 }
