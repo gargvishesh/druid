@@ -13,6 +13,9 @@ import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.indexing.MemoryLimits;
+import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
+import io.imply.druid.talaria.indexing.error.TalariaException;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -44,12 +47,14 @@ public class BroadcastJoinHelper
   private final JoinableFactoryWrapper joinableFactory;
   private final List<List<Object[]>> channelData;
   private final IntSet sideChannelNumbers;
+  private final AtomicLong broadcastHashJoinRhsTablesMemoryCounter;
 
   public BroadcastJoinHelper(
       final Int2IntMap sideStageChannelNumberMap,
       final List<ReadableFrameChannel> channels,
       final List<FrameReader> channelReaders,
-      final JoinableFactoryWrapper joinableFactory
+      final JoinableFactoryWrapper joinableFactory,
+      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
   )
   {
     this.sideStageChannelNumberMap = sideStageChannelNumberMap;
@@ -59,6 +64,7 @@ public class BroadcastJoinHelper
     this.channelData = new ArrayList<>();
     this.sideChannelNumbers = new IntOpenHashSet();
     this.sideChannelNumbers.addAll(sideStageChannelNumberMap.values());
+    this.broadcastHashJoinRhsTablesMemoryCounter = broadcastHashJoinRhsTablesMemoryCounter;
 
     for (int i = 0; i < channels.size(); i++) {
       if (sideChannelNumbers.contains(i)) {
@@ -82,10 +88,17 @@ public class BroadcastJoinHelper
   {
     final IntIterator inputChannelIterator = readableInputs.iterator();
 
+    final long memoryReservedForBroadcastJoin = (long) (MemoryLimits.BROADCAST_JOIN_DATA_MEMORY_FRACTION
+                                                  * Runtime.getRuntime().maxMemory());
     while (inputChannelIterator.hasNext()) {
       final int channelNumber = inputChannelIterator.nextInt();
       if (sideChannelNumbers.contains(channelNumber) && channels.get(channelNumber).canRead()) {
         final Frame frame = channels.get(channelNumber).read().getOrThrow();
+
+        if (broadcastHashJoinRhsTablesMemoryCounter.addAndGet(frame.numBytes()) > memoryReservedForBroadcastJoin) {
+          throw new TalariaException(new BroadcastTablesTooLargeFault(memoryReservedForBroadcastJoin));
+        }
+
         addFrame(channelNumber, frame);
       }
     }

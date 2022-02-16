@@ -1122,7 +1122,7 @@ public class WorkerImpl implements Worker
     )
     {
       final long maxMemoryForFrames =
-          (long) (maxMemory * MemoryLimits.FRAME_MEMORY_PERCENT) / numWorkersInJvm;
+          (long) (maxMemory * MemoryLimits.FRAME_MEMORY_FRACTION) / numWorkersInJvm;
       final int maxNumFrames = Ints.checkedCast(maxMemoryForFrames / MemoryLimits.FRAME_SIZE);
       final int maxNumFramesForSuperSorter = maxNumFrames - maxProcessors;
 
@@ -1130,14 +1130,14 @@ public class WorkerImpl implements Worker
         final long minMemoryNeeded =
             (long) (((long) MemoryLimits.FRAME_SIZE
                      * (MINIMUM_SUPER_SORTER_FRAMES + maxProcessors)
-                     * numWorkersInJvm) / MemoryLimits.FRAME_MEMORY_PERCENT);
+                     * numWorkersInJvm) / MemoryLimits.FRAME_MEMORY_FRACTION);
         throw new ISE(
             "Not enough memory for frames: "
             + "total memory [%,d] (%.02f%% reserved for frames), workers [%,d], processing threads [%,d]; "
             + "minimum memory needed [%,d]. "
             + "Increase memory or decrease workers or processing threads.",
             maxMemory,
-            MemoryLimits.FRAME_MEMORY_PERCENT * 100,
+            MemoryLimits.FRAME_MEMORY_FRACTION * 100,
             numWorkersInJvm,
             maxProcessors,
             minMemoryNeeded

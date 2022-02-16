@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.frame.file;
 
 import com.google.common.math.IntMath;
+import io.imply.druid.talaria.TestArrayStorageAdapter;
 import io.imply.druid.talaria.frame.FrameTestUtil;
 import io.imply.druid.talaria.frame.TestFrameSequenceBuilder;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
@@ -65,6 +66,13 @@ public class FrameFileTest extends InitializedNullHandlingTest
       StorageAdapter getAdapter()
       {
         return new QueryableIndexStorageAdapter(TestIndex.getNoRollupMMappedTestIndex());
+      }
+    },
+    MV_AS_STRING_ARRAYS {
+      @Override
+      StorageAdapter getAdapter()
+      {
+        return new TestArrayStorageAdapter(TestIndex.getNoRollupMMappedTestIndex());
       }
     };
 

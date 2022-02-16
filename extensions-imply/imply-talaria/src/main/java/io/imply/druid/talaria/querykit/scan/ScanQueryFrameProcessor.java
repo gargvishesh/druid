@@ -91,10 +91,20 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
       final JoinableFactoryWrapper joinableFactory,
       final ResourceHolder<WritableFrameChannel> outputChannel,
       final ResourceHolder<MemoryAllocator> allocator,
-      @Nullable final AtomicLong runningCountForLimit
+      @Nullable final AtomicLong runningCountForLimit,
+      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
   )
   {
-    super(query, baseInput, sideChannels, sideChannelReaders, joinableFactory, outputChannel, allocator);
+    super(
+        query,
+        baseInput,
+        sideChannels,
+        sideChannelReaders,
+        joinableFactory,
+        outputChannel,
+        allocator,
+        broadcastHashJoinRhsTablesMemoryCounter
+    );
     this.query = query;
     this.signature = signature;
     this.clusterBy = clusterBy;

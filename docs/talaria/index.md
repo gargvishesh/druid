@@ -602,6 +602,7 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
+|  BroadcastTablesTooLarge  | Size of the broadcast tables used in right hand side of the joins exceeded the memory reserved for them in a worker task  | &bull;&nbsp;maxBroadcastTablesSize: Memory reserved for the broadcast tables, measured in bytes |
 |  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
 |  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
@@ -807,6 +808,7 @@ Queries are subject to the following limits.
 | Number of segment-granular time chunks encountered during ingestion | 10,000 | TooManyBuckets |
 | Number of output columns for any one stage|  2,000| TooManyColumns|
 | Number of output partitions for any one stage<br /> <br /> Number of segments generated during ingestion |25,000  |TooManyPartitions |
+| Maximum memory occupied by broadcasted tables, per worker, per stage |20% of max JVM size  |BroadcastTablesTooLarge |
 
 ## Web console
 
