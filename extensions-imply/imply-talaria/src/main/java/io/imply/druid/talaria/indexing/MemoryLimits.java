@@ -12,20 +12,20 @@ package io.imply.druid.talaria.indexing;
 public class MemoryLimits
 {
   /**
-   * Percent of memory allocated to {@link org.apache.druid.segment.incremental.IncrementalIndex} during
+   * Fraction of memory allocated to {@link org.apache.druid.segment.incremental.IncrementalIndex} during
    * the add-and-persist phase of segment generation.
    */
-  public static final double APPENDERATOR_INDEX_MEMORY_PERCENT = 0.2;
+  public static final double APPENDERATOR_INDEX_MEMORY_FRACTION = 0.2;
 
   /**
-   * Percent of memory allocated to reading columns during the merge phase of segment generation.
+   * Fraction of memory allocated to reading columns during the merge phase of segment generation.
    */
-  public static final double APPENDERATOR_MERGE_MEMORY_PERCENT = 0.3;
+  public static final double APPENDERATOR_MERGE_MEMORY_FRACTION = 0.3;
 
   /**
-   * Percent of memory allocated to frames.
+   * Fraction of memory allocated to frames.
    */
-  public static final double FRAME_MEMORY_PERCENT = 0.6;
+  public static final double FRAME_MEMORY_FRACTION = 0.6;
 
   /**
    * Size of frames.
@@ -43,6 +43,14 @@ public class MemoryLimits
    * constant (string).
    */
   public static final int FRAME_MAX_COLUMNS = 2_000;
+
+  /**
+   * Fraction of memory per worker, per stage that will can get utilized in building the tables appearing in right
+   * hand side of the joins
+   *
+   * TODO: Come up with an optimal number for the parameter
+   */
+  public static final double BROADCAST_JOIN_DATA_MEMORY_FRACTION = 0.2;
 
   private MemoryLimits()
   {

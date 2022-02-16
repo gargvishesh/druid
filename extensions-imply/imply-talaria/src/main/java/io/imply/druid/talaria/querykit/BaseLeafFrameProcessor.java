@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
@@ -46,6 +47,7 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
   private final ResourceHolder<WritableFrameChannel> outputChannel;
   private final ResourceHolder<MemoryAllocator> allocator;
   private final BroadcastJoinHelper broadcastJoinHelper;
+  private final AtomicLong broadcastHashJoinRhsTablesMemoryCounter;
 
   private Function<SegmentReference, SegmentReference> segmentMapFn;
 
@@ -56,13 +58,15 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
       final Int2ObjectMap<FrameReader> sideChannelReaders,
       final JoinableFactoryWrapper joinableFactory,
       final ResourceHolder<WritableFrameChannel> outputChannel,
-      final ResourceHolder<MemoryAllocator> allocator
+      final ResourceHolder<MemoryAllocator> allocator,
+      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
   )
   {
     this.query = query;
     this.baseInput = baseInput;
     this.outputChannel = outputChannel;
     this.allocator = allocator;
+    this.broadcastHashJoinRhsTablesMemoryCounter = broadcastHashJoinRhsTablesMemoryCounter;
 
     final Pair<List<ReadableFrameChannel>, BroadcastJoinHelper> inputChannelsAndBroadcastJoinHelper =
         makeInputChannelsAndBroadcastJoinHelper(
@@ -70,7 +74,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
             baseInput,
             sideChannels,
             sideChannelReaders,
-            joinableFactory
+            joinableFactory,
+            broadcastHashJoinRhsTablesMemoryCounter
         );
 
     this.inputChannels = inputChannelsAndBroadcastJoinHelper.lhs;
@@ -158,7 +163,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
       final QueryWorkerInput baseInput,
       final Int2ObjectMap<ReadableFrameChannel> sideChannels,
       final Int2ObjectMap<FrameReader> sideChannelReaders,
-      final JoinableFactoryWrapper joinableFactory
+      final JoinableFactoryWrapper joinableFactory,
+      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
   )
   {
     if (!(dataSource instanceof JoinDataSource) && !sideChannels.isEmpty()) {
@@ -192,7 +198,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
           sideStageChannelNumberMap,
           inputChannels,
           channelReaders,
-          joinableFactory
+          joinableFactory,
+          broadcastHashJoinRhsTablesMemoryCounter
       );
     } else {
       broadcastJoinHelper = null;

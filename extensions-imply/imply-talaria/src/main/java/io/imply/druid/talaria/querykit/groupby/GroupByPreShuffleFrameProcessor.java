@@ -44,6 +44,7 @@ import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.timeline.SegmentId;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A {@link FrameProcessor} that reads one {@link Frame} at a time from a particular segment, writes them
@@ -72,10 +73,20 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
       final RowSignature aggregationSignature,
       final ClusterBy clusterBy,
       final ResourceHolder<WritableFrameChannel> outputChannel,
-      final ResourceHolder<MemoryAllocator> allocator
+      final ResourceHolder<MemoryAllocator> allocator,
+      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
   )
   {
-    super(query, baseInput, sideChannels, sideChannelReaders, joinableFactory, outputChannel, allocator);
+    super(
+        query,
+        baseInput,
+        sideChannels,
+        sideChannelReaders,
+        joinableFactory,
+        outputChannel,
+        allocator,
+        broadcastHashJoinRhsTablesMemoryCounter
+    );
     this.query = query;
     this.strategySelector = strategySelector;
     this.aggregationSignature = aggregationSignature;

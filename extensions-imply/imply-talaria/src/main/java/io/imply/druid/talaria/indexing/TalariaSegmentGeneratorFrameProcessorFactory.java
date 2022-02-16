@@ -259,7 +259,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       public long getMaxBytesInMemory()
       {
         final long memoryForIncrementalIndex =
-            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_INDEX_MEMORY_PERCENT);
+            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_INDEX_MEMORY_FRACTION);
 
         // Indexing memory is divided amongst concurrently-running processors.
         return Math.max(1, memoryForIncrementalIndex / maxOutstandingProcessors);
@@ -338,7 +338,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       public int getMaxColumnsToMerge()
       {
         final long memoryForColumns =
-            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_MERGE_MEMORY_PERCENT);
+            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_MERGE_MEMORY_FRACTION);
         final long totalMaxColumnsToMerge = memoryForColumns / ROUGH_MEMORY_PER_COLUMN;
 
         // Column merging memory is divided amongst concurrently-running processors.
