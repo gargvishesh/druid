@@ -1227,6 +1227,9 @@ pipeline {
                 }
 
                 stage('(openjdk11) indexing modules test') {
+                    when {
+                        expression { "skip this from monthly to unblock building artifact" == "run" }
+                    }
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
                         MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
@@ -1342,6 +1345,9 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
+                    when {
+                        expression { "skip this from monthly to unblock building artifact" == "run" }
+                    }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { s3DeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
@@ -1366,6 +1372,9 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
+                    when {
+                        expression { "skip this from monthly to unblock building artifact" == "run" }
+                    }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
