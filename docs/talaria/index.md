@@ -75,12 +75,6 @@ druid.query.async.storage.type=local
 druid.query.async.storage.local.directory=/mnt/tmp/async-query
 ```
 
-**Coordinator**
-
-```bash
-druid.coordinator.balancer.strategy=cost
-```
-
 **Indexer** or **Middle Manager**
 
 ```bash
