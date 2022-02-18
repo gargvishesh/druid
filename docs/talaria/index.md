@@ -674,7 +674,7 @@ External data can be used with either SELECT or INSERT queries. The
 following query illustrates joining external data with other external
 data.
 
-> Performance note: when reading from external data, the EXTERN operator cannot split large files
+> Performance note: when reading from external data, the `EXTERN` operator cannot split large files
 > into different worker tasks. For this reason, if you are reading a small number of large files,
 > you can increase the parallelism of the EXTERN operator by splitting your input files beforehand.
 
