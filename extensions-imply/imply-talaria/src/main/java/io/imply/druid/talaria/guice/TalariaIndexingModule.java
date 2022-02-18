@@ -23,6 +23,7 @@ import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFact
 import io.imply.druid.talaria.indexing.TalariaStagesTaskReport;
 import io.imply.druid.talaria.indexing.TalariaStatusTaskReport;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.ColumnTypeNotSupportedFault;
@@ -100,6 +101,7 @@ public class TalariaIndexingModule implements DruidModule
             TalariaResultsTaskReport.class,
 
             // TalariaFault classes
+            BroadcastTablesTooLargeFault.class,
             CanceledFault.class,
             CannotParseExternalDataFault.class,
             ColumnTypeNotSupportedFault.class,
