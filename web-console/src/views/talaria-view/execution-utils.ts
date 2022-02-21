@@ -18,6 +18,7 @@
 
 import { AxiosResponse, CancelToken } from 'axios';
 import { QueryResult, SqlLiteral } from 'druid-query-toolkit';
+import * as JSONBig from 'json-bigint-native';
 
 import { Api } from '../../singletons';
 import { getNumPartitions, QueryExecution } from '../../talaria-models';
@@ -28,6 +29,7 @@ import {
   IntermediateQueryState,
   queryDruidSql,
   QueryManager,
+  wait,
 } from '../../utils';
 import { QueryContext } from '../../utils/query-context';
 
@@ -148,18 +150,39 @@ export async function getAsyncExecution(
   id: string,
   cancelToken?: CancelToken,
 ): Promise<QueryExecution> {
+  const encodedId = Api.encodePath(id);
   let detailResp: AxiosResponse | undefined;
   try {
-    detailResp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}`, {
+    detailResp = await Api.instance.get(`/druid/v2/sql/async/${encodedId}`, {
       cancelToken,
     });
   } catch {}
 
   let execution: QueryExecution;
   if (detailResp) {
-    execution = QueryExecution.fromAsyncDetail(detailResp.data);
+    try {
+      execution = QueryExecution.fromAsyncDetail(detailResp.data);
+    } catch {
+      // We got a bad payload, wait a bit and try to get the payload again (also log it)
+      // This whole catch block is a hack, and we should make the detail route more robust
+      console.error(
+        `Got unusable response from the detail endpoint (/druid/v2/sql/async/${encodedId}) going to retry: ${JSONBig.stringify(
+          detailResp.data,
+          undefined,
+          2,
+        )}`,
+      );
+      await wait(500);
+      execution = QueryExecution.fromAsyncDetail(
+        (
+          await Api.instance.get(`/druid/v2/sql/async/${encodedId}`, {
+            cancelToken,
+          })
+        ).data,
+      );
+    }
   } else {
-    const statusResp = await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(id)}/status`, {
+    const statusResp = await Api.instance.get(`/druid/v2/sql/async/${encodedId}/status`, {
       cancelToken,
     });
 
@@ -178,12 +201,24 @@ async function updateExecutionWithResultsIfNeeded(
   if (
     execution.status !== 'SUCCESS' ||
     execution.result ||
-    execution.destination?.type !== 'taskReport'
+    (execution.destination && execution.destination.type !== 'taskReport')
   ) {
     return execution;
   }
 
-  return execution.changeResult(await getAsyncResult(execution.id, cancelToken));
+  let asyncResult: QueryResult;
+  if (execution.destination) {
+    asyncResult = await getAsyncResult(execution.id, cancelToken);
+  } else {
+    // If destination is unknown, swallow the error
+    try {
+      asyncResult = await getAsyncResult(execution.id, cancelToken);
+    } catch {
+      return execution;
+    }
+  }
+
+  return execution.changeResult(asyncResult);
 }
 
 async function updateExecutionWithDatasourceExistsIfNeeded(

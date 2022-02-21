@@ -65,28 +65,19 @@ SELECT
   agent_type,
   browser,
   browser_version,
-  city,
-  continent,
-  country,
-  region,
-  adblock_list,
-  forwarded_for,
   os,
-  path,
-  platform,
-  referrer,
-  referrer_host,
-  remote_address,
-  screen,
+  city,
+  country,
+  forwarded_for AS ip_address,
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
   APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_data
 WHERE os = 'iOS'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 PARTITIONED BY HOUR
-CLUSTERED BY session
+CLUSTERED BY browser, session
 `.trim(),
       ),
     },
@@ -124,22 +115,12 @@ SELECT
   browser,
   browser_version,
   CAST(REGEXP_EXTRACT(browser_version, '^(\\d+)') AS BIGINT) AS browser_major,
+  os,
   city,
-  continent,
   country,
   country_lookup.Capital AS capital,
-  country_lookup.ISO2 AS iso2,
   country_lookup.ISO3 AS iso3,
-  region,
-  adblock_list,
-  forwarded_for,
-  os,
-  path,
-  platform,
-  referrer,
-  referrer_host,
-  remote_address,
-  screen,
+  forwarded_for AS ip_address,
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
@@ -147,9 +128,9 @@ SELECT
 FROM kttm_data
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
 WHERE os = 'iOS'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 PARTITIONED BY HOUR
-CLUSTERED BY session
+CLUSTERED BY browser, session
 `.trim(),
       ),
     },
@@ -179,31 +160,21 @@ SELECT
   browser,
   browser_version,
   CAST(REGEXP_EXTRACT(browser_version, '^(\\d+)') AS BIGINT) AS browser_major,
+  os,
   city,
-  continent,
   country,
   country_lookup.Capital AS capital,
-  country_lookup.ISO2 AS iso2,
   country_lookup.ISO3 AS iso3,
-  region,
-  adblock_list,
-  forwarded_for,
-  os,
-  path,
-  platform,
-  referrer,
-  referrer_host,
-  remote_address,
-  screen,
+  forwarded_for AS ip_address,
 
   COUNT(*) AS "cnt",
   SUM(session_length) AS session_length,
   APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_simple
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_simple.country
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 PARTITIONED BY HOUR
-CLUSTERED BY session
+CLUSTERED BY browser, session
 `.trim(),
       ),
     },
@@ -261,7 +232,13 @@ LIMIT 10
       query: BASE_QUERY.duplicate()
         .changeQueryString(
           `
-SELECT *
+SELECT
+  session,
+  number,
+  browser,
+  browser_version,
+  event_type,
+  event_subtype
 FROM "kttm_simple"
 ORDER BY
   session ASC,

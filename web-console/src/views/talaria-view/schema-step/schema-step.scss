@@ -18,100 +18,112 @@
 
 @import '../../../variables';
 
+$loader-controls-height: 30px;
+$rollup-analysis-height: 160px;
+$controls-width: 305px;
+$gap: 15px;
+
 .schema-step {
-  position: relative;
-
-  .loader-controls {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 85px;
-
-    .control-line {
-      & > * {
-        display: inline-block;
-        vertical-align: top;
-      }
-    }
-
-    .bottom-left {
+  .schema-container {
+    .loader-controls {
       position: absolute;
-      bottom: 0;
+      top: 0;
       left: 0;
-    }
-
-    .bottom-right {
-      position: absolute;
-      bottom: 0;
-      right: 320px;
-
-      .add-column {
-        margin-right: 10px;
-      }
-
-      .column-filter-control {
-        width: 250px;
-      }
-    }
-
-    .time-column-warning {
-      margin-left: 10px;
-    }
-  }
-
-  .preview {
-    position: absolute;
-    top: 100px;
-    bottom: 0;
-    left: 0;
-    right: 320px;
-
-    .preview-table,
-    .column-list,
-    .talaria-query-input {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-    }
-  }
-
-  .controls {
-    position: absolute;
-    top: 100px;
-    bottom: 0;
-    right: 0;
-    width: 305px;
-
-    .time-column-warning {
-      .bp3-heading {
-        margin-bottom: 15px;
-      }
-    }
-
-    .back {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-    }
-
-    .next {
-      position: absolute;
       right: 0;
-      bottom: 0;
-    }
-  }
+      height: $loader-controls-height;
 
-  &.with-analysis {
+      .control-line {
+        & > * {
+          display: inline-block;
+          vertical-align: top;
+        }
+      }
+
+      .left {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+
+        & > * {
+          margin-right: 10px;
+        }
+      }
+
+      .right {
+        position: absolute;
+        bottom: 0;
+        right: $controls-width + $gap;
+
+        & > * {
+          margin-left: 10px;
+        }
+
+        .column-filter-control {
+          width: 250px;
+        }
+      }
+
+      .time-column-warning {
+        margin-left: 10px;
+      }
+    }
+
     .preview {
-      left: 350px;
+      position: absolute;
+      top: $loader-controls-height + $gap;
+      bottom: 0;
+      left: 0;
+      right: $controls-width + $gap;
+
+      .preview-table,
+      .column-list,
+      .talaria-query-input,
+      .preview-error {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    .controls {
+      position: absolute;
+      top: $loader-controls-height + $gap;
+      bottom: 0;
+      right: 0;
+      width: $controls-width;
+
+      .time-column-warning {
+        .bp3-heading {
+          margin-bottom: 15px;
+        }
+      }
+
+      .back {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+      }
+
+      .next {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+      }
     }
 
     .rollup-analysis-pane {
       position: absolute;
-      top: 100px;
-      width: 345px;
-      bottom: 0;
+      top: $loader-controls-height + $gap;
+      height: $rollup-analysis-height;
+      left: 0;
+      right: $controls-width + $gap;
+      width: auto;
+    }
+
+    &.with-analysis {
+      .preview {
+        top: $loader-controls-height + $gap + $rollup-analysis-height + $gap;
+      }
     }
   }
 }

@@ -162,12 +162,13 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
           const selected = selectedColumnIndex === i;
 
           const columnClassName = parsedQuery.isAggregateSelectIndex(i)
-            ? classNames('metric', {
+            ? classNames('metric', `column${i}`, {
                 selected,
                 'first-metric': i > 0 && !parsedQuery.isAggregateSelectIndex(i - 1),
               })
             : classNames(
                 column.isTimeColumn() ? 'timestamp' : 'dimension',
+                `column${i}`,
                 column.sqlType?.toLowerCase(),
                 { selected },
               );

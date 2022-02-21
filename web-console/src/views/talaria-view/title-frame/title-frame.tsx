@@ -16,24 +16,28 @@
  * limitations under the License.
  */
 
+import classNames from 'classnames';
 import React, { ReactNode } from 'react';
 
 import './title-frame.scss';
 
 export interface TitleFrameProps {
+  className?: string;
   title: string;
   subtitle: string;
+  toolbar?: ReactNode;
   children?: ReactNode;
 }
 
 export const TitleFrame = React.memo(function TitleFrame(props: TitleFrameProps) {
-  const { title, subtitle, children } = props;
+  const { className, title, subtitle, toolbar, children } = props;
 
   return (
-    <div className="title-frame">
+    <div className={classNames('title-frame', className)}>
       <h1 className="titles">
         {title} <span className="slash">/</span> {subtitle}
       </h1>
+      {toolbar && <div className="toolbar">{toolbar}</div>}
       {children}
     </div>
   );
