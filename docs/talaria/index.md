@@ -309,7 +309,7 @@ The Talaria engine accepts additional Druid SQL
 |----|-----------|----|
 | talaria| True to execute using Talaria, false to execute using Druid's native query engine| false|
 | talariaNumTasks| (SELECT or INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
-| talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If true, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
+| talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
  
@@ -674,6 +674,10 @@ External data can be used with either SELECT or INSERT queries. The
 following query illustrates joining external data with other external
 data.
 
+> Performance note: when reading from external data, the EXTERN operator cannot split large files
+> into different worker tasks. For this reason, if you are reading a small number of large files,
+> you can increase the parallelism of the EXTERN operator by splitting your input files beforehand.
+
 ## INSERT
 
 ### INSERT INTO ... SELECT
@@ -720,6 +724,20 @@ mind that Talaria does not yet implement all native Druid query features. See
 implemented.
 
 For more examples, refer to the [Example queries](#example-queries) section.
+
+### Primary timestamp
+
+Druid tables always include a primary timestamp named `__time`.
+
+Typically, Druid tables also use time-based partitioning, such as
+`PARTITIONED BY DAY`. In this case your INSERT query must include a column
+named `__time`. This will become the primary timestamp and will be used for
+partitioning.
+
+When you use `PARTITIONED BY ALL` or `PARTITIONED BY ALL TIME`, time-based
+partitioning is disabled. In this case your INSERT query does not need
+to include a `__time` column. However, a `__time` column will still be created
+in your Druid table with all timestamps set to 1970-01-01 00:00:00.
 
 ### PARTITIONED BY
 
@@ -1169,6 +1187,13 @@ LIMIT 1000
 - Fault tolerance is not yet implemented. If any task fails, the
   entire query fails. (14718)
 
+- The controller task will stall if it cannot launch all worker tasks
+  simultaneously. Additionally, two controller tasks can deadlock each
+  other if the sum of their `talariaNumTasks` exceeds available task
+  capacity. To avoid this, ensure that the sum of `talariaNumTasks`
+  across all concurrently-running queries, plus the number of controller
+  tasks (one per query), does not exceed available task capacity. (17183)
+
 - Canceling the controller task sometimes leads to the error code
   "UnknownError" instead of "Canceled". (14722)
 
@@ -1213,8 +1238,6 @@ LIMIT 1000
 
 - GROUPING SETS is not implemented. Queries that use GROUPING SETS
   will fail. (14999)
-
-- Only one SELECT query can run at a time on a given cluster. (15001)
 
 - The numeric flavors of the EARLIEST and LATEST aggregators do not work
   properly. Attempting to use the numeric flavors of these aggregators will
@@ -1299,23 +1322,32 @@ LIMIT 1000
 
 ## Release notes
 
+**2022.02** <a href="#2022.02" name="2022.02">#</a>
+
+- INSERT uses PARTITIONED BY and CLUSTERED BY instead of talariaSegmentGranularity and ORDER BY. (15045)
+- INSERT validates the datasource name at planning time instead of execution time. (15038)
+- SELECT queries support OFFSET. (15000)
+- The "Connect external data" feature in the Query view of the web console correctly supports Parquet files.
+  Previously, this feature would report a "ParseException: Incorrect Regex" error on Parquet files. (16197)
+- The Query detail API includes startTime and durationMs for the whole query. (15046)
+
 **2022.01** <a href="#2022.01" name="2022.01">#</a>
 
-- Introduced async query API based on the [`imply-sql-async`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query)
+- Talaria-based queries can now be issued using the async query API provided by the
+  [`imply-sql-async`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query)
   extension. (15014)
-- Added `talariaFinalizeAggregations` parameter. Setting this to false causes queries to emit nonfinalized
+- New `talariaFinalizeAggregations` parameter may be set to false to cause queries to emit nonfinalized
   aggregation results. (15010)
-- Implemented fine-grained locking for INSERT. INSERT queries obtain minimally-sized locks rather than locking
-  the entire target datasource. (15003)
-- Added tabs and an engine selector to the "Query" view of the web console, which allows Talaria-based queries to be
-  issued from this view. Removed the dedicated "Talaria" view.
-- Added an ingestion spec conversion tool to the web console. It performs a best-effort conversion of a native batch
+- INSERT queries obtain minimally-sized locks rather than locking the entire target datasource. (15003)
+- The Query view of the web console now has tabs and an engine selector that allows issuing Talaria-based queries.
+  The dedicated "Talaria" view has been removed.
+- The web console includes an ingestion spec conversion tool. It performs a best-effort conversion of a native batch
   ingestion spec into a Talaria-based SQL query. It does not guarantee perfect fidelity, so we recommend that you
   review the generated SQL query before running it.
-- Fixed a bug where INSERT queries using LIMIT with `talariaSegmentGranularity` set to "all" would fail. Now, these
-  queries write a single segment to the target datasource. (15051)
-- Fixed a bug where some INSERT queries using `talariaReplaceTimeChunks` would produce "numbered" shard specs instead
-  of "range" shard specs as documented. (14768)
+- INSERT queries with LIMIT and `talariaSegmentGranularity` set to "all" now execute properly and write a single
+  segment to the target datasource. Previously, these queries would fail. (15051)
+- INSERT queries using `talariaReplaceTimeChunks` now always produce "range" shard specs when appropriate. Previously,
+  "numbered" shard specs would sometimes be produced instead of "range" shard specs as documented. (14768)
 
 **2021.12** <a href="#2021.12" name="2021.12">#</a>
 
