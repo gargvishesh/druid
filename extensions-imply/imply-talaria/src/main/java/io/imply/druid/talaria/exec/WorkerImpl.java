@@ -56,6 +56,7 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -185,10 +186,12 @@ public class WorkerImpl implements Worker
 
         if (exceptionEncountered == null) {
           log.warn(logMessage.toString());
+        } else if (errorReport.getFault().getErrorCode().equals(UnknownFault.INSTANCE.getErrorCode())) {
+          // Log full stack trace for unknown faults.
+          log.warn(exceptionEncountered, logMessage.toString());
         } else {
-          // TODO(paul): put back
-          log.error(exceptionEncountered, logMessage.toString());
-          //log.noStackTrace().warn(exceptionEncountered, logMessage.toString());
+          // Log error message only for known faults, to avoid polluting logs.
+          log.noStackTrace().warn(exceptionEncountered, logMessage.toString());
         }
 
         closer.register(() -> {
