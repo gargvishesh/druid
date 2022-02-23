@@ -80,7 +80,7 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
       final ResourceHolder<MemoryAllocator> allocator,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy
+      final FrameContext frameContext
   )
   {
     return new ScanQueryFrameProcessor(
@@ -90,11 +90,11 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
         baseInput,
         sideChannels,
         sideChannelReaders,
-        new JoinableFactoryWrapper(providerThingy.joinableFactory()),
+        new JoinableFactoryWrapper(frameContext.joinableFactory()),
         outputChannel,
         allocator,
         runningCountForLimit,
-        broadcastHashJoinRhsTablesMemoryCounter
+        frameContext.memoryParameters().getBroadcastJoinMemory()
     );
   }
 }

@@ -150,6 +150,8 @@ public class WorkerStageKernel
 
   public void fail(Throwable t)
   {
+    Preconditions.checkNotNull(t, "t");
+
     transitionTo(WorkerStagePhase.FAILED);
     resultKeyStatisticsSnapshot = null;
     resultPartitionBoundaries = null;

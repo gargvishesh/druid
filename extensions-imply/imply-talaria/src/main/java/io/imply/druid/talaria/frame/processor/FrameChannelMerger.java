@@ -178,7 +178,7 @@ public class FrameChannelMerger implements FrameProcessor<Long>
           rowsOutput++;
         } else {
           if (mergedFrameWriter.getNumRows() == 0) {
-            throw new FrameRowTooLargeException();
+            throw new FrameRowTooLargeException(allocator.capacity());
           }
 
           // Frame is full. Don't touch the priority queue; instead, return the current frame.

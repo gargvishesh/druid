@@ -103,9 +103,9 @@ public class OrderByFrameProcessor implements FrameProcessor<Long>
              FrameWriter.create(wrappedColumnSelectorFactory, unlimitedAllocator, outputSignature)) {
       while (!cursor.isDone()) {
         if (!frameWriter.addSelection()) {
-          // Don't retry; it can't work because the allocator is unlimited anyway. The individual row must have
-          // been too large on its own.
-          throw new FrameRowTooLargeException();
+          // Don't retry; it can't work because the allocator is unlimited anyway.
+          // Also, I don't think this line can be reached, because the allocator is unlimited.
+          throw new FrameRowTooLargeException(unlimitedAllocator.capacity());
         }
 
         cursor.advance();

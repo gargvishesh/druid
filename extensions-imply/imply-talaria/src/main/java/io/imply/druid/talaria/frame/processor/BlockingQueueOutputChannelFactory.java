@@ -10,27 +10,27 @@
 package io.imply.druid.talaria.frame.processor;
 
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableNilFrameChannel;
+import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 
 public class BlockingQueueOutputChannelFactory implements OutputChannelFactory
 {
-  public static final BlockingQueueOutputChannelFactory INSTANCE = new BlockingQueueOutputChannelFactory();
+  private final int frameSize;
 
-  private BlockingQueueOutputChannelFactory()
+  public BlockingQueueOutputChannelFactory(final int frameSize)
   {
-    // Singleton.
+    this.frameSize = frameSize;
   }
 
   @Override
-  public OutputChannel openChannel(int partitionNumber, boolean sorted)
+  public OutputChannel openChannel(int partitionNumber)
   {
     final BlockingQueueFrameChannel channel = BlockingQueueFrameChannel.minimal();
-    return new OutputChannel(channel, () -> channel, partitionNumber);
+    return OutputChannel.pair(channel, ArenaMemoryAllocator.createOnHeap(frameSize), () -> channel, partitionNumber);
   }
 
   @Override
   public OutputChannel openNilChannel(final int partitionNumber)
   {
-    return new OutputChannel(null, () -> ReadableNilFrameChannel.INSTANCE, partitionNumber);
+    return OutputChannel.nil(partitionNumber);
   }
 }

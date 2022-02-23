@@ -12,11 +12,11 @@ package io.imply.druid.talaria.frame.processor;
 import com.google.common.base.Suppliers;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableNilFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableStreamFrameChannel;
 import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
-import org.apache.druid.java.util.common.IOE;
+import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
+import org.apache.druid.java.util.common.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,18 +28,18 @@ import java.util.function.Supplier;
 public class FileOutputChannelFactory implements OutputChannelFactory
 {
   private final File fileChannelsDirectory;
+  private final int frameSize;
 
-  public FileOutputChannelFactory(final File fileChannelsDirectory)
+  public FileOutputChannelFactory(final File fileChannelsDirectory, final int frameSize)
   {
     this.fileChannelsDirectory = fileChannelsDirectory;
+    this.frameSize = frameSize;
   }
 
   @Override
-  public OutputChannel openChannel(int partitionNumber, boolean sorted) throws IOException
+  public OutputChannel openChannel(int partitionNumber) throws IOException
   {
-    if (!fileChannelsDirectory.exists() && !fileChannelsDirectory.mkdir()) {
-      throw new IOE("Could not create file channel directory: %s", fileChannelsDirectory);
-    }
+    FileUtils.mkdirp(fileChannelsDirectory);
 
     final File file = new File(fileChannelsDirectory, UUID.randomUUID().toString());
 
@@ -66,12 +66,17 @@ public class FileOutputChannelFactory implements OutputChannelFactory
         }
     )::get;
 
-    return new OutputChannel(writableChannel, readableChannelSupplier, partitionNumber);
+    return OutputChannel.pair(
+        writableChannel,
+        ArenaMemoryAllocator.createOnHeap(frameSize),
+        readableChannelSupplier,
+        partitionNumber
+    );
   }
 
   @Override
   public OutputChannel openNilChannel(final int partitionNumber)
   {
-    return new OutputChannel(null, () -> ReadableNilFrameChannel.INSTANCE, partitionNumber);
+    return OutputChannel.nil(partitionNumber);
   }
 }

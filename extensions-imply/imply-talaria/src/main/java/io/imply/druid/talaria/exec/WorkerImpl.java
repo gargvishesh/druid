@@ -14,13 +14,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
-import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
@@ -45,12 +43,12 @@ import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
+import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import io.imply.druid.talaria.indexing.CountingInputChannelFactory;
 import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.MemoryLimits;
-import io.imply.druid.talaria.indexing.TalariaClusterByStatisticsCollectorWorker;
+import io.imply.druid.talaria.indexing.TalariaClusterByStatisticsCollectionProcessor;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
@@ -87,7 +85,6 @@ import org.apache.druid.server.DruidNode;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -103,7 +100,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -122,10 +118,6 @@ import java.util.stream.StreamSupport;
 public class WorkerImpl implements Worker
 {
   private static final Logger log = new Logger(WorkerImpl.class);
-
-  // TODO(gianm): handle parallelism way less jankily
-  private static final int MAX_SUPER_SORTER_PROCESSORS = 4;
-  private static final int MINIMUM_SUPER_SORTER_FRAMES = 3; // 2 input frames, 1 output frame
 
   private final TalariaWorkerTask task;
   private final WorkerContext context;
@@ -215,38 +207,26 @@ public class WorkerImpl implements Worker
   {
     context.registerWorker(this, closer);
     this.selfDruidNode = context.selfNode();
-    // TODO(paul): Need location of the leader for distributed operation.
     this.leaderClient = context.makeLeaderClient(id());
     closer.register(leaderClient::close);
-    // TODO(paul): Separate client per worker to allow distributed operation.
-    this.workerClient = context.makeTaskClient(id());
+    this.workerClient = context.makeWorkerClient(id());
     closer.register(workerClient::close);
     this.processorBouncer = context.processorBouncer();
 
     final KernelHolder kernelHolder = new KernelHolder();
     final String cancellationId = id();
 
-    final FrameContext providerThingy = context.frameContext();
-
-    // TODO(gianm): we need visibility into the thread pool size so we know how many workers should be created at once
-    final int numThreads = context.threadCount();
-
     final FrameProcessorExecutor workerExec = new FrameProcessorExecutor(makeProcessingPool());
     closer.register(() -> workerExec.cancel(cancellationId));
 
     // TODO(gianm): consider using a different thread pool for connecting
     final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(workerExec.getExecutorService());
-    final OutputChannelFactory baseOutputChannelFactory = makeBaseOutputChannelFactory();
-
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
 
     // TODO(gianm): push this into kernel
     final Set<Pair<StageId, Integer>> postedResultsComplete = new HashSet<>();
 
-    // TODO(gianm): hack alert!! need to know max # of workers in jvm for memory allocations
-    final int workersInJvm = context.workerCount();
-
-    SuperSorterParameters superSorterParameters = null;
+    final Map<StageId, FrameContext> stageFrameContexts = new HashMap<>();
 
     while (!kernelHolder.isDone()) {
       boolean didSomething = false;
@@ -257,14 +237,17 @@ public class WorkerImpl implements Worker
         if (kernel.getPhase() == WorkerStagePhase.NEW) {
           log.debug("New work order: %s", context.jsonMapper().writeValueAsString(kernel.getWorkOrder()));
 
-          // Verify memory *now*, instead of before receiving the work order, to ensure that the error can
-          // propagate back up to the controller.
-          if (superSorterParameters == null) {
-            superSorterParameters = SuperSorterParameters.compute(
-                Runtime.getRuntime().maxMemory(),
-                workersInJvm,
-                processorBouncer.getMaxCount(),
-                MAX_SUPER_SORTER_PROCESSORS
+          // Compute memory parameters *now*, instead of before receiving the work order, to ensure that the
+          // error can propagate back up to the controller. Also, compute memory parameters for all stages,
+          // even ones that haven't been assigned yet, so we can fail-fast if some won't work. (We expect
+          // that all stages will get assigned to the same pool of workers.)
+          for (final StageDefinition stageDef : kernel.getWorkOrder().getQueryDefinition().getStageDefinitions()) {
+            stageFrameContexts.computeIfAbsent(
+                stageDef.getId(),
+                stageId -> context.frameContext(
+                    kernel.getWorkOrder().getQueryDefinition(),
+                    stageId.getStageNumber()
+                )
             );
           }
 
@@ -275,14 +258,11 @@ public class WorkerImpl implements Worker
               startWorkOrder(
                   kernel,
                   inputChannelFactory,
-                  baseOutputChannelFactory,
                   talariaCounters,
                   workerExec,
                   cancellationId,
-                  numThreads,
-                  providerThingy.allocatorMaker(),
-                  superSorterParameters,
-                  providerThingy
+                  context.threadCount(),
+                  stageFrameContexts.get(stageDefinition.getId())
               );
 
           if (partitionBoundariesFuture != null) {
@@ -384,7 +364,8 @@ public class WorkerImpl implements Worker
       final String queryId,
       final int stageNumber,
       final int partitionNumber,
-      final long offset)
+      final long offset
+  )
   {
     final StagePartition stagePartition = new StagePartition(new StageId(queryId, stageNumber), partitionNumber);
     final OutputChannel channel = outputChannelMap.get(stagePartition);
@@ -464,7 +445,8 @@ public class WorkerImpl implements Worker
   public boolean postResultPartitionBoundaries(
       final Object stagePartitionBoundariesObject,
       final String queryId,
-      final int stageNumber)
+      final int stageNumber
+  )
   {
     final StageId stageId = new StageId(queryId, stageNumber);
     final QueryDefinition queryDef = queryDefinitionMap.get(queryId);
@@ -550,10 +532,10 @@ public class WorkerImpl implements Worker
     };
   }
 
-  private OutputChannelFactory makeBaseOutputChannelFactory()
+  private OutputChannelFactory makeFileOutputChannelFactory(final int frameSize)
   {
     final File fileChannelDirectory = new File(context.tempDir(), "file-channels");
-    return new FileOutputChannelFactory(fileChannelDirectory);
+    return new FileOutputChannelFactory(fileChannelDirectory, frameSize);
   }
 
   private ListeningExecutorService makeProcessingPool()
@@ -606,19 +588,16 @@ public class WorkerImpl implements Worker
     );
   }
 
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Nullable
   private SettableFuture<ClusterByPartitions> startWorkOrder(
       final WorkerStageKernel kernel,
       final InputChannelFactory inputChannelFactory,
-      final OutputChannelFactory fileOutputChannelFactory,
       final TalariaCounters counters,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
-      final Supplier<MemoryAllocator> allocatorMaker,
-      final SuperSorterParameters superSorterParameters,
-      final FrameContext providerThingy
+      final FrameContext frameContext
   ) throws IOException
   {
     final WorkOrder workOrder = kernel.getWorkOrder();
@@ -642,16 +621,25 @@ public class WorkerImpl implements Worker
                         partitionNumber
                     )
             ),
-            allocatorMaker,
+            () -> ArenaMemoryAllocator.createOnHeap(frameContext.memoryParameters().getStandardFrameSize()),
             exec,
             cancellationId
         );
 
-    // Currently, the *final* final output channel of all stages must be files.
-    // For shuffling stages: use an in-memory channel, since it will be shuffled into files later.
-    // For non-shuffling stages: write to files directly.
-    final OutputChannelFactory workerOutputChannelFactory =
-        stageDef.doesShuffle() ? BlockingQueueOutputChannelFactory.INSTANCE : fileOutputChannelFactory;
+    final OutputChannelFactory workerOutputChannelFactory;
+
+    if (stageDef.doesShuffle()) {
+      // Writing to a consumer in the same JVM (which will be set up later on in this method). Use the large frame
+      // size, since we may be writing to a SuperSorter, and we'll generate fewer temp files if we use larger frames.
+      // Note: it's not *guaranteed* that we're writing to a SuperSorter, but it's harmless to use large frames
+      // even if not.
+      workerOutputChannelFactory =
+          new BlockingQueueOutputChannelFactory(frameContext.memoryParameters().getLargeFrameSize());
+    } else {
+      // Writing directly to an output file. Use the standard frame size, since we assume this size when computing
+      // how much memory is needed to merge output files from different workers.
+      workerOutputChannelFactory = makeFileOutputChannelFactory(frameContext.memoryParameters().getStandardFrameSize());
+    }
 
     final ResultAndChannels<?> workerResultAndOutputChannels =
         makeAndRunWorkers(
@@ -681,7 +669,7 @@ public class WorkerImpl implements Worker
             ),
             stageDef.getSignature(),
             workOrder.getQueryDefinition().getClusterByForStage(stageDef.getStageNumber()),
-            providerThingy,
+            frameContext,
             exec,
             cancellationId,
             parallelism,
@@ -694,7 +682,7 @@ public class WorkerImpl implements Worker
     if (stageDef.doesShuffle()) {
       final CountingOutputChannelFactory shuffleOutputChannelFactory =
           new CountingOutputChannelFactory(
-              fileOutputChannelFactory,
+              makeFileOutputChannelFactory(frameContext.memoryParameters().getStandardFrameSize()),
               partitionNumber ->
                   counters.getOrCreateChannelCounters(
                       TalariaCounterType.OUTPUT,
@@ -704,11 +692,13 @@ public class WorkerImpl implements Worker
                   )
           );
 
-      if (clusterBy.getColumns().isEmpty() && kernel.getResultPartitionBoundaries().size() == 1) {
-        // Get everything into one big partition.
-        // TODO(gianm): Ideally, if there is only one output channel, we should return it directly. But we can't:
-        //   it must be run through a muxer so it can get written to a file. (httpGetChannelData requires files.)
-        final OutputChannel outputChannel = shuffleOutputChannelFactory.openChannel(0, true);
+      if (clusterBy.getColumns().isEmpty()
+          && kernel.hasResultPartitionBoundaries()
+          && kernel.getResultPartitionBoundaries().size() == 1) {
+        // No sorting, just combining all outputs into one big partition. Use a muxer to get everything into one file.
+        // Note: even if there is only one output channel, we'll run it through the muxer anyway, to ensure the data
+        // gets written to a file. (httpGetChannelData requires files.)
+        final OutputChannel outputChannel = shuffleOutputChannelFactory.openChannel(0);
 
         final FrameChannelMuxer muxer =
             new FrameChannelMuxer(
@@ -742,8 +732,7 @@ public class WorkerImpl implements Worker
             shuffleOutputChannelFactory,
             exec,
             cancellationId,
-            allocatorMaker,
-            superSorterParameters,
+            frameContext.memoryParameters(),
             context,
             kernelManipulationQueue
         );
@@ -820,14 +809,14 @@ public class WorkerImpl implements Worker
       final OutputChannelFactory outputChannelFactory,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy,
+      final FrameContext frameContext,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
       final Bouncer processorBouncer
   ) throws IOException
   {
-    final ProcessorsAndChannels<WorkerClass, T> workers =
+    final ProcessorsAndChannels<WorkerClass, T> processors =
         processorFactory.makeProcessors(
             workerNumber,
             processorFactoryExtraInfo,
@@ -835,21 +824,21 @@ public class WorkerImpl implements Worker
             outputChannelFactory,
             signature,
             clusterBy,
-            providerThingy,
+            frameContext,
             parallelism
         );
 
-    final Sequence<WorkerClass> processorSequence = workers.processors();
+    final Sequence<WorkerClass> processorSequence = processors.processors();
 
     final int maxOutstandingProcessors;
 
-    if (workers.getOutputChannels().getAllChannels().isEmpty()) {
+    if (processors.getOutputChannels().getAllChannels().isEmpty()) {
       // No output channels: run up to "parallelism" processors at once.
       maxOutstandingProcessors = Math.max(1, parallelism);
     } else {
       // If there are output channels, that acts as a ceiling on the number of processors that can run at once.
       maxOutstandingProcessors =
-          Math.max(1, Math.min(parallelism, workers.getOutputChannels().getAllChannels().size()));
+          Math.max(1, Math.min(parallelism, processors.getOutputChannels().getAllChannels().size()));
     }
 
     final ListenableFuture<R> workResultFuture = FrameProcessors.runAllFully(
@@ -862,19 +851,18 @@ public class WorkerImpl implements Worker
         cancellationId
     );
 
-    return new ResultAndChannels<>(workResultFuture, workers.getOutputChannels());
+    return new ResultAndChannels<>(workResultFuture, processors.getOutputChannels());
   }
 
   private static ListenableFuture<OutputChannels> superSortOutputChannels(
       final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
-      final OutputChannels workerOutputChannels,
+      final OutputChannels processorOutputChannels,
       final ListenableFuture<ClusterByPartitions> stagePartitionBoundariesFuture,
       final OutputChannelFactory outputChannelFactory,
       final FrameProcessorExecutor exec,
       final String cancellationId,
-      final Supplier<MemoryAllocator> allocatorMaker,
-      final SuperSorterParameters superSorterParameters,
+      final WorkerMemoryParameters memoryParameters,
       final WorkerContext context,
       final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue
   ) throws IOException
@@ -885,10 +873,8 @@ public class WorkerImpl implements Worker
 
     final List<ReadableFrameChannel> channelsToSuperSort;
 
-    if (workerOutputChannels.getAllChannels().isEmpty()) {
-      // No data coming out of this worker.
-
-      // Report empty statistics, if the kernel is expecting statistics.
+    if (processorOutputChannels.getAllChannels().isEmpty()) {
+      // No data coming out of this processor. Report empty statistics, if the kernel is expecting statistics.
       if (stageDefinition.mustGatherResultKeyStatistics()) {
         kernelManipulationQueue.add(
             holder ->
@@ -906,16 +892,16 @@ public class WorkerImpl implements Worker
       channelsToSuperSort = gatherResultKeyStatistics(
           stageDefinition,
           clusterBy,
-          workerOutputChannels,
+          processorOutputChannels,
           exec,
           cancellationId,
           kernelManipulationQueue
       );
     } else {
-      channelsToSuperSort = workerOutputChannels.getAllChannels()
-                                                .stream()
-                                                .map(OutputChannel::getReadableChannel)
-                                                .collect(Collectors.toList());
+      channelsToSuperSort = processorOutputChannels.getAllChannels()
+                                                   .stream()
+                                                   .map(OutputChannel::getReadableChannel)
+                                                   .collect(Collectors.toList());
     }
 
     // TODO(gianm): Check if things are already partitioned properly, and if so, skip the supersorter
@@ -934,9 +920,9 @@ public class WorkerImpl implements Worker
         exec,
         sorterTmpDir,
         outputChannelFactory,
-        allocatorMaker,
-        superSorterParameters.channelsPerProcessor,
-        superSorterParameters.channelsPerProcessor * superSorterParameters.numProcessors,
+        () -> ArenaMemoryAllocator.createOnHeap(memoryParameters.getLargeFrameSize()),
+        memoryParameters.getSuperSorterMaxActiveProcessors(),
+        memoryParameters.getSuperSorterMaxChannelsPerProcessor(),
         -1
     );
 
@@ -946,22 +932,22 @@ public class WorkerImpl implements Worker
   private static List<ReadableFrameChannel> gatherResultKeyStatistics(
       final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
-      final OutputChannels workerOutputChannels,
+      final OutputChannels processorOutputChannels,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue
   )
   {
     final List<ReadableFrameChannel> retVal = new ArrayList<>();
-    final List<TalariaClusterByStatisticsCollectorWorker> resultKeyCollectionWorkers = new ArrayList<>();
+    final List<TalariaClusterByStatisticsCollectionProcessor> resultKeyCollectionProcessors = new ArrayList<>();
 
-    for (final OutputChannel workerOutputChannel : workerOutputChannels.getAllChannels()) {
+    for (final OutputChannel outputChannel : processorOutputChannels.getAllChannels()) {
       final BlockingQueueFrameChannel channel = BlockingQueueFrameChannel.minimal();
       retVal.add(channel);
 
-      resultKeyCollectionWorkers.add(
-          new TalariaClusterByStatisticsCollectorWorker(
-              workerOutputChannel.getReadableChannel(),
+      resultKeyCollectionProcessors.add(
+          new TalariaClusterByStatisticsCollectionProcessor(
+              outputChannel.getReadableChannel(),
               channel,
               stageDefinition.getFrameReader(),
               clusterBy,
@@ -972,12 +958,12 @@ public class WorkerImpl implements Worker
 
     final ListenableFuture<ClusterByStatisticsCollector> clusterByStatisticsCollectorFuture =
         FrameProcessors.runAllFully(
-            Sequences.simple(resultKeyCollectionWorkers),
+            Sequences.simple(resultKeyCollectionProcessors),
             exec,
             stageDefinition.createResultKeyStatisticsCollector(),
             ClusterByStatisticsCollector::addAll,
-            // Run all result key collection workers simultaneously; they are lightweight and this keeps things moving.
-            resultKeyCollectionWorkers.size(),
+            // Run all processors simultaneously. They are lightweight and this keeps things moving.
+            resultKeyCollectionProcessors.size(),
             Bouncer.unlimited(),
             cancellationId
         );
@@ -1103,87 +1089,6 @@ public class WorkerImpl implements Worker
     public OutputChannels getOutputChannels()
     {
       return outputChannels;
-    }
-  }
-
-  static class SuperSorterParameters
-  {
-    private final int numProcessors;
-    private final int channelsPerProcessor;
-
-    SuperSorterParameters(int numProcessors, int channelsPerProcessor)
-    {
-      this.numProcessors = numProcessors;
-      this.channelsPerProcessor = channelsPerProcessor;
-    }
-
-    static SuperSorterParameters compute(
-        final long maxMemory,
-        final int numWorkersInJvm,
-        final int maxProcessors,
-        final int maxSuperSorterProcessors
-    )
-    {
-      final long maxMemoryForFrames =
-          (long) (maxMemory * MemoryLimits.FRAME_MEMORY_FRACTION) / numWorkersInJvm;
-      final int maxNumFrames = Ints.checkedCast(maxMemoryForFrames / MemoryLimits.FRAME_SIZE);
-      final int maxNumFramesForSuperSorter = maxNumFrames - maxProcessors;
-
-      if (maxNumFramesForSuperSorter < MINIMUM_SUPER_SORTER_FRAMES) {
-        final long minMemoryNeeded =
-            (long) (((long) MemoryLimits.FRAME_SIZE
-                     * (MINIMUM_SUPER_SORTER_FRAMES + maxProcessors)
-                     * numWorkersInJvm) / MemoryLimits.FRAME_MEMORY_FRACTION);
-        throw new ISE(
-            "Not enough memory for frames: "
-            + "total memory [%,d] (%.02f%% reserved for frames), workers [%,d], processing threads [%,d]; "
-            + "minimum memory needed [%,d]. "
-            + "Increase memory or decrease workers or processing threads.",
-            maxMemory,
-            MemoryLimits.FRAME_MEMORY_FRACTION * 100,
-            numWorkersInJvm,
-            maxProcessors,
-            minMemoryNeeded
-        );
-      }
-
-      final int numSuperSorterProcessors = Math.min(
-          maxProcessors,
-          Math.min(
-              maxNumFramesForSuperSorter / MINIMUM_SUPER_SORTER_FRAMES,
-              maxSuperSorterProcessors
-          )
-      );
-      final int channelsPerProcessor = maxNumFramesForSuperSorter / numSuperSorterProcessors - 1;
-      return new SuperSorterParameters(numSuperSorterProcessors, channelsPerProcessor);
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      SuperSorterParameters that = (SuperSorterParameters) o;
-      return numProcessors == that.numProcessors && channelsPerProcessor == that.channelsPerProcessor;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Objects.hash(numProcessors, channelsPerProcessor);
-    }
-
-    @Override
-    public String toString()
-    {
-      return "SuperSorterParameters{" +
-             "numProcessors=" + numProcessors +
-             ", channelsPerProcessor=" + channelsPerProcessor +
-             '}';
     }
   }
 }

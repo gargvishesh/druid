@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class TalariaClusterByStatisticsCollectorWorker
+public class TalariaClusterByStatisticsCollectionProcessor
     implements FrameProcessor<ClusterByStatisticsCollector>
 {
   private final ReadableFrameChannel inputChannel;
@@ -38,7 +38,7 @@ public class TalariaClusterByStatisticsCollectorWorker
 
   private ClusterByStatisticsCollector clusterByStatisticsCollector;
 
-  public TalariaClusterByStatisticsCollectorWorker(
+  public TalariaClusterByStatisticsCollectionProcessor(
       final ReadableFrameChannel inputChannel,
       final WritableFrameChannel outputChannel,
       final FrameReader frameReader,

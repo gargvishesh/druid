@@ -29,15 +29,12 @@ import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 @JsonTypeName("groupByPreShuffle")
 public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcessorFactory
 {
   private final GroupByQuery query;
   private final List<QueryWorkerInputSpec> inputSpecs;
-
-  private final AtomicLong broadcastHashJoinRhsTablesMemoryCounter;
 
   @JsonCreator
   public GroupByPreShuffleFrameProcessorFactory(
@@ -48,7 +45,6 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
     super(inputSpecs);
     this.query = Preconditions.checkNotNull(query, "query");
     this.inputSpecs = Preconditions.checkNotNull(inputSpecs, "inputSpecs");
-    this.broadcastHashJoinRhsTablesMemoryCounter = new AtomicLong();
   }
 
   @JsonProperty
@@ -72,7 +68,7 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
       final ResourceHolder<MemoryAllocator> allocator,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy
+      final FrameContext frameContext
   )
   {
     return new GroupByPreShuffleFrameProcessor(
@@ -80,13 +76,13 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
         baseInput,
         sideChannels,
         sideChannelReaders,
-        providerThingy.groupByStrategySelector(),
-        new JoinableFactoryWrapper(providerThingy.joinableFactory()),
+        frameContext.groupByStrategySelector(),
+        new JoinableFactoryWrapper(frameContext.joinableFactory()),
         signature,
         clusterBy,
         outputChannel,
         allocator,
-        broadcastHashJoinRhsTablesMemoryCounter
+        frameContext.memoryParameters().getBroadcastJoinMemory()
     );
   }
 }

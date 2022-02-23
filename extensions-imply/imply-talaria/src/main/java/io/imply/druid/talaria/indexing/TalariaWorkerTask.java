@@ -84,7 +84,7 @@ public class TalariaWorkerTask extends AbstractTask implements ChatHandler
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    WorkerContext context = new IndexerWorkerContext(toolbox, injector);
+    WorkerContext context = new IndexerWorkerContext(toolbox, injector, getId());
     worker = new WorkerImpl(this, context);
     return worker.run();
   }

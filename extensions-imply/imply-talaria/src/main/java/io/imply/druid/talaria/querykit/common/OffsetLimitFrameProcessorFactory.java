@@ -95,7 +95,7 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
       return new ProcessorsAndChannels<>(Sequences.empty(), OutputChannels.none());
     }
 
-    final OutputChannel outputChannel = outputChannelFactory.openChannel(0, false);
+    final OutputChannel outputChannel = outputChannelFactory.openChannel(0);
 
     final Supplier<FrameProcessor<Long>> workerSupplier = () -> {
       // TODO(gianm): assumes all input channels have the same frame signature. validate?
@@ -114,6 +114,7 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
               }
           ).iterator();
 
+      // Note: OffsetLimitFrameProcessor does not use allocator from the outputChannel; it uses unlimited instead.
       return new OffsetLimitFrameProcessor(
           ReadableConcatFrameChannel.open(channelIterator),
           outputChannel.getWritableChannel(),

@@ -28,13 +28,12 @@ import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapsh
 import io.imply.druid.talaria.frame.processor.FrameProcessorExecutor;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
-import io.imply.druid.talaria.frame.write.HeapMemoryAllocator;
+import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.indexing.ExternalTalariaDestination;
 import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.MemoryLimits;
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
 import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
@@ -60,6 +59,7 @@ import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
+import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.kernel.QueryDefinition;
@@ -203,7 +203,8 @@ public class LeaderImpl implements Leader
 
   public LeaderImpl(
       TalariaControllerTask task,
-      final LeaderContext context)
+      final LeaderContext context
+  )
   {
     this.task = task;
     this.context = context;
@@ -306,7 +307,13 @@ public class LeaderImpl implements Leader
 
       if (resultsYielder != null) {
         reports.add(
-            makeResultsTaskReport(id(), queryDef, resultsYielder, task.getQuerySpec().getColumnMappings(), task.getSqlTypeNames())
+            makeResultsTaskReport(
+                id(),
+                queryDef,
+                resultsYielder,
+                task.getQuerySpec().getColumnMappings(),
+                task.getSqlTypeNames()
+            )
         );
       }
 
@@ -381,8 +388,6 @@ public class LeaderImpl implements Leader
     this.selfDruidNode = context.selfNode();
     context.registerLeader(this, closer);
 
-    // TODO(paul): create separate clients per worker to allow
-    // distributed operation.
     this.netClient = context.taskClientFor(this);
     closer.register(netClient::close);
 
@@ -446,7 +451,8 @@ public class LeaderImpl implements Leader
         stageKernel.start();
 
         // Allocate segments, if this is the final stage of an ingestion.
-        if (TalariaControllerTask.isIngestion(task.getQuerySpec()) && stageId.getStageNumber() == queryDef.getFinalStageDefinition().getStageNumber()) {
+        if (TalariaControllerTask.isIngestion(task.getQuerySpec())
+            && stageId.getStageNumber() == queryDef.getFinalStageDefinition().getStageNumber()) {
           // We need to find the shuffle details (like partition ranges) to generate segments. Generally this is
           // going to correspond to the stage immediately prior to the final segment-generator stage.
           ControllerStageKernel shuffleStageKernel = queryKernel.getStageKernel(
@@ -643,7 +649,8 @@ public class LeaderImpl implements Leader
       final String queryId,
       final int stageNumber,
       final int workerNumber,
-      Object resultObject)
+      Object resultObject
+  )
   {
     kernelManipulationQueue.add(
         queryKernel -> {
@@ -861,7 +868,7 @@ public class LeaderImpl implements Leader
     return workerTaskLauncher.getTaskList().map(TalariaTaskList::getTaskIds);
   }
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
+  @SuppressWarnings({"unchecked", "rawtypes"})
   @Nullable
   private List<Object> makeWorkerFactoryInfosForStage(
       final QueryDefinition queryDef,
@@ -870,7 +877,8 @@ public class LeaderImpl implements Leader
       @Nullable final List<SegmentIdWithShardSpec> segmentsToGenerate
   )
   {
-    if (TalariaControllerTask.isIngestion(task.getQuerySpec()) && stageNumber == queryDef.getFinalStageDefinition().getStageNumber()) {
+    if (TalariaControllerTask.isIngestion(task.getQuerySpec()) &&
+        stageNumber == queryDef.getFinalStageDefinition().getStageNumber()) {
       // noinspection unchecked,rawtypes
       return (List) makeSegmentGeneratorWorkerFactoryInfos(workerInputs, segmentsToGenerate);
     } else {
@@ -919,7 +927,6 @@ public class LeaderImpl implements Leader
 
   private void contactWorkersForStage(final TaskContactFn contactFn, final int numWorkers)
   {
-    // TODO(gianm): Better handling for task failures
     final List<String> taskIds = getTaskIds().orElseThrow(() -> new ISE("Tasks went away!"));
 
     for (int workerNumber = 0; workerNumber < numWorkers; workerNumber++) {
@@ -978,7 +985,8 @@ public class LeaderImpl implements Leader
    */
   private void publishAllSegments(final Set<DataSegment> segments) throws IOException
   {
-    final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
+    final DataSourceTalariaDestination destination =
+        (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
     final Set<DataSegment> segmentsToDrop;
 
     if (destination.isReplaceTimeChunks()) {
@@ -1035,7 +1043,8 @@ public class LeaderImpl implements Leader
   private List<Interval> findIntervalsToDrop(final Set<DataSegment> publishedSegments)
   {
     // Safe to cast because publishAllSegments is only called for dataSource destinations.
-    final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
+    final DataSourceTalariaDestination destination =
+        (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
     final List<Interval> replaceIntervals =
         new ArrayList<>(JodaUtils.condenseIntervals(destination.getReplaceTimeChunks()));
     final List<Interval> publishIntervals =
@@ -1106,15 +1115,13 @@ public class LeaderImpl implements Leader
       final ListeningExecutorService resultReaderExec =
           MoreExecutors.listeningDecorator(Execs.singleThreaded("result-reader-%d"));
 
-      // TODO(gianm): something sane with allocator?
       final InputChannels inputChannels = InputChannels.create(
           queryDef,
           new int[]{finalStageKernel.getStageDefinition().getStageNumber()},
           finalStageKernel.getResultPartitions(),
           (stageId, workerNumber, partitionNumber) ->
               netClient.getChannelData(taskIds.get(workerNumber), stageId, partitionNumber, resultReaderExec),
-          // TODO(gianm): adjust size to make sense
-          () -> HeapMemoryAllocator.createWithCapacity(5_000_000L),
+          () -> ArenaMemoryAllocator.createOnHeap(5_000_000),
           new FrameProcessorExecutor(resultReaderExec),
           null
       );
@@ -1197,6 +1204,7 @@ public class LeaderImpl implements Leader
   private void validateQueryDef(final QueryDefinition queryDef)
   {
     validateQueryDefColumnCount(queryDef);
+    validateQueryDefWorkerCount(queryDef);
   }
 
   private void validateQueryDefColumnCount(final QueryDefinition queryDef)
@@ -1204,8 +1212,19 @@ public class LeaderImpl implements Leader
     for (final StageDefinition stageDef : queryDef.getStageDefinitions()) {
       final int numColumns = stageDef.getSignature().size();
 
-      if (numColumns > MemoryLimits.FRAME_MAX_COLUMNS) {
-        throw new TalariaException(new TooManyColumnsFault(numColumns, MemoryLimits.FRAME_MAX_COLUMNS));
+      if (numColumns > Limits.MAX_FRAME_COLUMNS) {
+        throw new TalariaException(new TooManyColumnsFault(numColumns, Limits.MAX_FRAME_COLUMNS));
+      }
+    }
+  }
+
+  private void validateQueryDefWorkerCount(final QueryDefinition queryDef)
+  {
+    for (final StageDefinition stageDef : queryDef.getStageDefinitions()) {
+      final int numWorkers = stageDef.getMaxWorkerCount();
+
+      if (numWorkers > Limits.MAX_WORKERS) {
+        throw new TalariaException(new TooManyWorkersFault(numWorkers, Limits.MAX_WORKERS));
       }
     }
   }

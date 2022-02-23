@@ -37,11 +37,11 @@ public class AppendableMemory implements Closeable
   private static final int NO_BLOCK = -1;
 
   // Reasonable initial allocation size. Multiple of 4, 5, 8, and 9; meaning int, int + byte, long, and long + byte can
-  // all be packed into blocks without wasted space.
-  private static final int INITIAL_ALLOCATION_SIZE = 360;
+  // all be packed into blocks (see blocksPackedAndInitialSize).
+  private static final int DEFAULT_INITIAL_ALLOCATION_SIZE = 360;
 
   // Largest allocation that we will do, unless "reserve" is called with a number bigger than this.
-  private static final int SOFT_MAXIMUM_ALLOCATION_SIZE = INITIAL_ALLOCATION_SIZE * 4096;
+  private static final int SOFT_MAXIMUM_ALLOCATION_SIZE = DEFAULT_INITIAL_ALLOCATION_SIZE * 4096;
 
   private final MemoryAllocator allocator;
   private int nextAllocationSize;
@@ -58,15 +58,28 @@ public class AppendableMemory implements Closeable
   // Whether the blocks we've allocated are "packed"; meaning all non-final block limits equal the allocationSize.
   private boolean blocksPackedAndInitialSize = true;
 
-  private AppendableMemory(final MemoryAllocator allocator)
+  private AppendableMemory(final MemoryAllocator allocator, final int initialAllocationSize)
   {
     this.allocator = allocator;
-    this.nextAllocationSize = INITIAL_ALLOCATION_SIZE;
+    this.nextAllocationSize = initialAllocationSize;
   }
 
+  /**
+   * Creates an appendable memory instance with a default initial allocation size. This default size can accept
+   * is a multiple of 4, 5, 8, and 9, meaning that {@link #reserve} can accept allocations of that size and
+   * remain fully-packed.
+   */
   public static AppendableMemory create(final MemoryAllocator allocator)
   {
-    return new AppendableMemory(allocator);
+    return new AppendableMemory(allocator, DEFAULT_INITIAL_ALLOCATION_SIZE);
+  }
+
+  /**
+   * Creates an appendable memory instance using a particular initial allocation size.
+   */
+  public static AppendableMemory create(final MemoryAllocator allocator, final int initialAllocationSize)
+  {
+    return new AppendableMemory(allocator, initialAllocationSize);
   }
 
   /**
@@ -303,7 +316,8 @@ public class AppendableMemory implements Closeable
       final long newBlockGlobalStartPosition = globalStartPositions.getLong(lastBlockNumber) + lastBlockLimit;
       globalStartPositions.add(newBlockGlobalStartPosition);
 
-      if (block.get().getCapacity() != INITIAL_ALLOCATION_SIZE || lastBlockLimit != INITIAL_ALLOCATION_SIZE) {
+      if (block.get().getCapacity() != DEFAULT_INITIAL_ALLOCATION_SIZE
+          || lastBlockLimit != DEFAULT_INITIAL_ALLOCATION_SIZE) {
         blocksPackedAndInitialSize = false;
       }
     }
@@ -324,7 +338,7 @@ public class AppendableMemory implements Closeable
   private int findBlock(final long position)
   {
     if (blocksPackedAndInitialSize) {
-      long blockNumber = position / INITIAL_ALLOCATION_SIZE;
+      long blockNumber = position / DEFAULT_INITIAL_ALLOCATION_SIZE;
       if (blockNumber < 0 || blockNumber >= blockHolders.size()) {
         throw new IAE("No such position");
       }

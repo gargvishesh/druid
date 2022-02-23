@@ -128,7 +128,7 @@ public class TestFrameSequenceBuilder
                       while (!cursor.isDone()) {
                         if (!writer.addSelection()) {
                           if (writer.getNumRows() == 0) {
-                            throw new FrameRowTooLargeException();
+                            throw new FrameRowTooLargeException(allocator.capacity());
                           }
 
                           return makeFrame(writer);

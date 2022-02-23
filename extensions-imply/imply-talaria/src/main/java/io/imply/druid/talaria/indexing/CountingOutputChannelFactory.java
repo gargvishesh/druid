@@ -31,9 +31,9 @@ public class CountingOutputChannelFactory implements OutputChannelFactory
   }
 
   @Override
-  public OutputChannel openChannel(int partitionNumber, boolean sorted) throws IOException
+  public OutputChannel openChannel(int partitionNumber) throws IOException
   {
-    return wrap(baseFactory.openChannel(partitionNumber, sorted));
+    return wrap(baseFactory.openChannel(partitionNumber));
   }
 
   @Override

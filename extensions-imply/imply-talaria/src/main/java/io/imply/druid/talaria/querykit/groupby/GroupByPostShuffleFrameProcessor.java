@@ -225,10 +225,10 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
         outputRow = null;
         return true;
       } else {
-        throw new FrameRowTooLargeException();
+        throw new FrameRowTooLargeException(allocator.capacity());
       }
     } else {
-      throw new FrameRowTooLargeException();
+      throw new FrameRowTooLargeException(allocator.capacity());
     }
   }
 

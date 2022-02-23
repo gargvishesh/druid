@@ -187,9 +187,4 @@ public class TalariaControllerTask extends AbstractTask
   {
     return querySpec.getDestination() instanceof DataSourceTalariaDestination;
   }
-
-  public boolean isWritable()
-  {
-    return isIngestion(querySpec);
-  }
 }

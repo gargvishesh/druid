@@ -19,6 +19,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Optional;
 
+/**
+ * Allocator that uses {@link ByteBuffer#allocate} to create chunks in the JVM heap.
+ */
 public class HeapMemoryAllocator implements MemoryAllocator
 {
   private final long capacity;
@@ -30,18 +33,12 @@ public class HeapMemoryAllocator implements MemoryAllocator
     this.capacity = capacity;
   }
 
+  /**
+   * Create an allocator that is "unlimited", which, of course, means it is limited only by available JVM heap.
+   */
   public static HeapMemoryAllocator unlimited()
   {
     return new HeapMemoryAllocator(Long.MAX_VALUE);
-  }
-
-  public static HeapMemoryAllocator createWithCapacity(final long capacity)
-  {
-    if (capacity <= 0) {
-      throw new ISE("Capacity must be greater than zero");
-    }
-
-    return new HeapMemoryAllocator(capacity);
   }
 
   @Override
@@ -81,6 +78,12 @@ public class HeapMemoryAllocator implements MemoryAllocator
 
   @Override
   public long available()
+  {
+    return capacity - bytesAllocated;
+  }
+
+  @Override
+  public long capacity()
   {
     return capacity;
   }

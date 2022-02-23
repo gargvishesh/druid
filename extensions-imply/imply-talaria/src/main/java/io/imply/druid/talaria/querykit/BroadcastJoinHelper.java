@@ -9,11 +9,11 @@
 
 package io.imply.druid.talaria.querykit;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
-import io.imply.druid.talaria.indexing.MemoryLimits;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
@@ -47,14 +47,26 @@ public class BroadcastJoinHelper
   private final JoinableFactoryWrapper joinableFactory;
   private final List<List<Object[]>> channelData;
   private final IntSet sideChannelNumbers;
-  private final AtomicLong broadcastHashJoinRhsTablesMemoryCounter;
+  private final long memoryReservedForBroadcastJoin;
 
+  private long memoryUsed = 0L;
+
+  /**
+   * Create a new broadcast join helper.
+   *
+   * @param sideStageChannelNumberMap      map of input stage number -> channel position in the "channels" list
+   * @param channels                       list of input channels
+   * @param channelReaders                 list of input channel readers; corresponds one-to-one with "channels"
+   * @param joinableFactory                joinable factory for this server
+   * @param memoryReservedForBroadcastJoin total bytes of frames we are permitted to use; derived from
+   *                                       {@link io.imply.druid.talaria.exec.WorkerMemoryParameters#broadcastJoinMemory}
+   */
   public BroadcastJoinHelper(
       final Int2IntMap sideStageChannelNumberMap,
       final List<ReadableFrameChannel> channels,
       final List<FrameReader> channelReaders,
       final JoinableFactoryWrapper joinableFactory,
-      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
+      final long memoryReservedForBroadcastJoin
   )
   {
     this.sideStageChannelNumberMap = sideStageChannelNumberMap;
@@ -64,7 +76,7 @@ public class BroadcastJoinHelper
     this.channelData = new ArrayList<>();
     this.sideChannelNumbers = new IntOpenHashSet();
     this.sideChannelNumbers.addAll(sideStageChannelNumberMap.values());
-    this.broadcastHashJoinRhsTablesMemoryCounter = broadcastHashJoinRhsTablesMemoryCounter;
+    this.memoryReservedForBroadcastJoin = memoryReservedForBroadcastJoin;
 
     for (int i = 0; i < channels.size(); i++) {
       if (sideChannelNumbers.contains(i)) {
@@ -88,14 +100,14 @@ public class BroadcastJoinHelper
   {
     final IntIterator inputChannelIterator = readableInputs.iterator();
 
-    final long memoryReservedForBroadcastJoin = (long) (MemoryLimits.BROADCAST_JOIN_DATA_MEMORY_FRACTION
-                                                  * Runtime.getRuntime().maxMemory());
     while (inputChannelIterator.hasNext()) {
       final int channelNumber = inputChannelIterator.nextInt();
       if (sideChannelNumbers.contains(channelNumber) && channels.get(channelNumber).canRead()) {
         final Frame frame = channels.get(channelNumber).read().getOrThrow();
 
-        if (broadcastHashJoinRhsTablesMemoryCounter.addAndGet(frame.numBytes()) > memoryReservedForBroadcastJoin) {
+        memoryUsed += frame.numBytes();
+
+        if (memoryUsed > memoryReservedForBroadcastJoin) {
           throw new TalariaException(new BroadcastTablesTooLargeFault(memoryReservedForBroadcastJoin));
         }
 
@@ -130,35 +142,34 @@ public class BroadcastJoinHelper
     );
   }
 
-  private DataSource inlineChannelData(final DataSource originalDataSource)
+  @VisibleForTesting
+  DataSource inlineChannelData(final DataSource originalDataSource)
   {
-    final List<DataSource> newChildren = new ArrayList<>(originalDataSource.getChildren().size());
+    if (originalDataSource instanceof InputStageDataSource) {
+      final int stageNumber = ((InputStageDataSource) originalDataSource).getStageNumber();
+      if (sideStageChannelNumberMap.containsKey(stageNumber)) {
+        final int channelNumber = sideStageChannelNumberMap.get(stageNumber);
 
-    for (final DataSource child : originalDataSource.getChildren()) {
-      if (child instanceof InputStageDataSource) {
-        final int stageNumber = ((InputStageDataSource) child).getStageNumber();
-        if (sideStageChannelNumberMap.containsKey(stageNumber)) {
-          final int channelNumber = sideStageChannelNumberMap.get(stageNumber);
-
-          if (sideChannelNumbers.contains(channelNumber)) {
-            final InlineDataSource newChild = InlineDataSource.fromIterable(
-                channelData.get(channelNumber),
-                channelReaders.get(channelNumber).signature()
-            );
-
-            newChildren.add(newChild);
-          } else {
-            newChildren.add(inlineChannelData(child));
-          }
+        if (sideChannelNumbers.contains(channelNumber)) {
+          return InlineDataSource.fromIterable(
+              channelData.get(channelNumber),
+              channelReaders.get(channelNumber).signature()
+          );
         } else {
-          newChildren.add(inlineChannelData(child));
+          return originalDataSource;
         }
       } else {
+        return originalDataSource;
+      }
+    } else {
+      final List<DataSource> newChildren = new ArrayList<>(originalDataSource.getChildren().size());
+
+      for (final DataSource child : originalDataSource.getChildren()) {
         newChildren.add(inlineChannelData(child));
       }
-    }
 
-    return originalDataSource.withChildren(newChildren);
+      return originalDataSource.withChildren(newChildren);
+    }
   }
 
   private void addFrame(final int channelNumber, final Frame frame)
@@ -173,7 +184,6 @@ public class BroadcastJoinHelper
                 cursor.getColumnSelectorFactory().makeColumnValueSelector(columnName)
         ).collect(Collectors.toList());
 
-    // TODO(gianm): need limit on total aggregate size of inlined data
     while (!cursor.isDone()) {
       final Object[] row = new Object[selectors.size()];
       for (int i = 0; i < row.length; i++) {

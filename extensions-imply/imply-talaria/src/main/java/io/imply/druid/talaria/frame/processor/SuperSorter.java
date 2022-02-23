@@ -65,12 +65,9 @@ import java.util.function.Supplier;
  * TODO(gianm): Feature to collapse to single level if L0 has # mergers = 1, and # partitions = 1
  * TODO(gianm): Feature to merge already-sorted inputs (i.e. inject at level 0 instead of -1)
  * TODO(gianm): Feature to combine while merging
- * TODO(gianm): Use in-memory channels when merge tree can be constructed 100% upfront
  * TODO(gianm): Use in-memory channels when limiting (?) although hard to predict if this is OK due to variable frame sizes
- * TODO(gianm): Ability to control / report on max # of frames in memory at once
  * TODO(gianm): Clarify semantics of limits + partitions (is the limit applied to each? or globally?)
- * TODO(gianm): Customizable MemoryAllocator
- * TODO(gianm): document requirement that input channel frames be individually sorted
+ * TODO(gianm): Document requirement that input channel frames be individually sorted
  */
 public class SuperSorter
 {
@@ -85,9 +82,9 @@ public class SuperSorter
   private final FrameProcessorExecutor exec;
   private final File directory;
   private final OutputChannelFactory outputChannelFactory;
-  private final Supplier<MemoryAllocator> allocatorMaker;
-  private final int maxChannelsPerWorker;
-  private final int maxActiveChannels;
+  private final Supplier<MemoryAllocator> innerFrameAllocatorMaker;
+  private final int maxChannelsPerProcessor;
+  private final int maxActiveProcessors;
   private final long rowLimit;
 
   private final Object runWorkersLock = new Object();
@@ -105,7 +102,7 @@ public class SuperSorter
   private List<OutputChannel> outputChannels = null;
 
   @GuardedBy("runWorkersLock")
-  private int activeChannels = 0;
+  private int activeProcessors = 0;
 
   @GuardedBy("runWorkersLock")
   private long totalInputFrames = UNKNOWN_TOTAL;
@@ -145,9 +142,9 @@ public class SuperSorter
       final FrameProcessorExecutor exec,
       final File directory,
       final OutputChannelFactory outputChannelFactory,
-      final Supplier<MemoryAllocator> allocatorMaker,
-      final int maxChannelsPerWorker,
-      final int maxActiveChannels,
+      final Supplier<MemoryAllocator> innerFrameAllocatorMaker,
+      final int maxActiveProcessors,
+      final int maxChannelsPerProcessor,
       final long rowLimit
   )
   {
@@ -158,21 +155,21 @@ public class SuperSorter
     this.exec = exec;
     this.directory = directory;
     this.outputChannelFactory = outputChannelFactory;
-    this.allocatorMaker = allocatorMaker;
-    this.maxChannelsPerWorker = maxChannelsPerWorker;
-    this.maxActiveChannels = maxActiveChannels;
+    this.innerFrameAllocatorMaker = innerFrameAllocatorMaker;
+    this.maxChannelsPerProcessor = maxChannelsPerProcessor;
+    this.maxActiveProcessors = maxActiveProcessors;
     this.rowLimit = rowLimit;
 
     for (int i = 0; i < inputChannels.size(); i++) {
       inputChannelsToRead.add(i);
     }
 
-    if (maxActiveChannels < maxChannelsPerWorker) {
-      throw new IAE("maxActiveChannels[%d] < maxChannelsPerWorker[%d]", maxActiveChannels, maxChannelsPerWorker);
+    if (maxActiveProcessors < 1) {
+      throw new IAE("maxActiveProcessors[%d] < 1", maxActiveProcessors);
     }
 
-    if (maxChannelsPerWorker < 2) {
-      throw new IAE("maxChannelsPerWorker[%d] < 2", maxChannelsPerWorker);
+    if (maxChannelsPerProcessor < 2) {
+      throw new IAE("maxChannelsPerProcessor[%d] < 2", maxChannelsPerProcessor);
     }
   }
 
@@ -241,7 +238,7 @@ public class SuperSorter
   @GuardedBy("runWorkersLock")
   private void workerFinished()
   {
-    activeChannels -= maxChannelsPerWorker;
+    activeProcessors -= 1;
 
     if (log.isDebugEnabled()) {
       log.debug(stateString());
@@ -262,17 +259,18 @@ public class SuperSorter
   private void runWorkersIfPossible()
   {
     try {
-      while (activeChannels + maxChannelsPerWorker <= maxActiveChannels &&
+      while (activeProcessors < maxActiveProcessors &&
              (runNextUltimateMerger() || runNextMiddleMerger() || runNextLevelZeroMerger() || runNextBatcher())) {
-        // TODO(gianm): Not 100% true, necessarily, but this is safe. If we change this, must change workerFinished too.
-        activeChannels += maxChannelsPerWorker;
+        // Not 100% true that all workers use maxChannelsPerWorker, necessarily, but this is safe since we know a
+        // worker won't use *more*. If we change this, must change workerFinished too.
+        activeProcessors += 1;
 
         if (log.isDebugEnabled()) {
           log.debug(stateString());
         }
       }
 
-      if (activeChannels == 0 && noWorkRunnable != null) {
+      if (activeProcessors == 0 && noWorkRunnable != null) {
         log.debug("No active workers and no work left to start.");
 
         // Only called in tests. No need to bother with try/catch and such.
@@ -320,7 +318,7 @@ public class SuperSorter
       batcherIsRunning = true;
 
       runWorker(
-          new FrameChannelBatcher(inputChannels, maxChannelsPerWorker),
+          new FrameChannelBatcher(inputChannels, maxChannelsPerProcessor),
           result -> {
             final List<Frame> batch = result.lhs;
             final IntSet keepReading = result.rhs;
@@ -335,7 +333,7 @@ public class SuperSorter
                 inputChannels.forEach(ReadableFrameChannel::doneReading);
                 setTotalInputFrames(inputFramesReadSoFar);
                 runWorkersIfPossible();
-              } else if (inputBuffer.size() >= maxChannelsPerWorker) {
+              } else if (inputBuffer.size() >= maxChannelsPerProcessor) {
                 runWorkersIfPossible();
               }
 
@@ -355,13 +353,13 @@ public class SuperSorter
   @GuardedBy("runWorkersLock")
   private boolean runNextLevelZeroMerger()
   {
-    if (inputBuffer.isEmpty() || (inputBuffer.size() < maxChannelsPerWorker && !allInputRead())) {
+    if (inputBuffer.isEmpty() || (inputBuffer.size() < maxChannelsPerProcessor && !allInputRead())) {
       return false;
     }
 
     final List<ReadableFrameChannel> in = new ArrayList<>();
 
-    while (in.size() < maxChannelsPerWorker) {
+    while (in.size() < maxChannelsPerProcessor) {
       final Frame frame = inputBuffer.poll();
 
       if (frame == null) {
@@ -389,14 +387,14 @@ public class SuperSorter
       }
 
       if (totalMergingLevels == UNKNOWN_LEVEL
-          && LongMath.divide(inputsReady.size(), maxChannelsPerWorker, RoundingMode.CEILING) <= maxChannelsPerWorker) {
+          && LongMath.divide(inputsReady.size(), maxChannelsPerProcessor, RoundingMode.CEILING)
+             <= maxChannelsPerProcessor) {
         // This *might* be the penultimate level. Skip until we know for sure. (i.e., until all input frames have
         // been read.)
         continue;
       }
 
       final ClusterByPartitions outPartitions;
-      final int channelsPerWorker;
 
       if (totalMergingLevels != UNKNOWN_LEVEL && outLevel == totalMergingLevels - 2) {
         // This is the penultimate level.
@@ -406,12 +404,8 @@ public class SuperSorter
         }
 
         outPartitions = getOutputPartitions();
-
-        // TODO(gianm): Use a different size when appropriate
-        channelsPerWorker = maxChannelsPerWorker;
       } else {
         outPartitions = null;
-        channelsPerWorker = maxChannelsPerWorker;
       }
 
       // See if there's work to do.
@@ -421,7 +415,7 @@ public class SuperSorter
       long currentSetStart = -1, currentSetIndex = -1;
       while (iter.hasNext()) {
         final long w = iter.nextLong();
-        if (w % channelsPerWorker == 0) {
+        if (w % maxChannelsPerProcessor == 0) {
           // w is the start of a set
           currentSetStart = w;
           currentSetIndex = -1;
@@ -432,10 +426,10 @@ public class SuperSorter
           long pos = w - currentSetStart;
 
           if (pos == currentSetIndex + 1 &&
-              (pos == channelsPerWorker - 1 || (totalInputs != UNKNOWN_TOTAL && w == totalInputs - 1))) {
+              (pos == maxChannelsPerProcessor - 1 || (totalInputs != UNKNOWN_TOTAL && w == totalInputs - 1))) {
             // We found a set to merge. Let's collect the input channels and launch the merger.
             final List<ReadableFrameChannel> in = new ArrayList<>();
-            for (long i = currentSetStart; i < currentSetStart + channelsPerWorker; i++) {
+            for (long i = currentSetStart; i < currentSetStart + maxChannelsPerProcessor; i++) {
               if (inputsReady.remove(i)) {
                 try {
                   final FrameFile handle = FrameFile.open(mergerOutputFile(inLevel, i), FrameFile.Flag.DELETE_ON_CLOSE);
@@ -447,7 +441,7 @@ public class SuperSorter
               }
             }
 
-            runMerger(outLevel, currentSetStart / channelsPerWorker, in, outPartitions);
+            runMerger(outLevel, currentSetStart / maxChannelsPerProcessor, in, outPartitions);
             return true;
           } else if (w == currentSetStart + currentSetIndex + 1) {
             currentSetIndex++;
@@ -529,12 +523,14 @@ public class SuperSorter
   {
     try {
       final WritableFrameChannel writableChannel;
+      final MemoryAllocator frameAllocator;
 
       if (totalMergingLevels != UNKNOWN_LEVEL && level == totalMergingLevels - 1) {
         final int intRank = Ints.checkedCast(rank);
-        final OutputChannel outputChannel = outputChannelFactory.openChannel(intRank, true);
+        final OutputChannel outputChannel = outputChannelFactory.openChannel(intRank);
         outputChannels.set(intRank, outputChannel);
         writableChannel = outputChannel.getWritableChannel();
+        frameAllocator = outputChannel.getFrameMemoryAllocator();
       } else {
         writableChannel = new WritableStreamFrameChannel(
             FrameFileWriter.open(
@@ -545,15 +541,15 @@ public class SuperSorter
                 )
             )
         );
+        frameAllocator = innerFrameAllocatorMaker.get();
       }
 
-      // TODO(gianm): Better allocator
       final FrameChannelMerger worker =
           new FrameChannelMerger(
               in,
               writableChannel,
               frameReader,
-              allocatorMaker.get(),
+              frameAllocator,
               clusterBy,
               partitions,
               rowLimit
@@ -620,9 +616,9 @@ public class SuperSorter
     long totalMergersInLevel = totalInputFrames;
     int level = -1;
 
-    while (totalMergersInLevel > maxChannelsPerWorker) {
+    while (totalMergersInLevel > maxChannelsPerProcessor) {
       level++;
-      totalMergersInLevel = LongMath.divide(totalMergersInLevel, maxChannelsPerWorker, RoundingMode.CEILING);
+      totalMergersInLevel = LongMath.divide(totalMergersInLevel, maxChannelsPerProcessor, RoundingMode.CEILING);
     }
 
     // Must have at least three levels. (Zero, penultimate, ultimate.)
@@ -660,7 +656,7 @@ public class SuperSorter
       long totalMergersInLevel = totalInputFrames;
 
       for (int i = 0; i <= level; i++) {
-        totalMergersInLevel = LongMath.divide(totalMergersInLevel, maxChannelsPerWorker, RoundingMode.CEILING);
+        totalMergersInLevel = LongMath.divide(totalMergersInLevel, maxChannelsPerProcessor, RoundingMode.CEILING);
       }
 
       return totalMergersInLevel;
@@ -689,7 +685,7 @@ public class SuperSorter
              + " lvls=" + totalMergingLevels
              + " parts=" +
              (outputPartitionsFuture.isDone() ? FutureUtils.getUncheckedImmediately(outputPartitionsFuture).size() : -1)
-             + " ch=" + activeChannels + "/" + maxActiveChannels + "[" + maxChannelsPerWorker + " per]"
+             + " p=" + activeProcessors + "/" + maxActiveProcessors
              + " ch-pending=" + inputChannelsToRead
              + " to-merge=" + outputsReadyByLevel
              + " cancel=" + (allDone.isCancelled() ? "y" : "n")

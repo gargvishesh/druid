@@ -33,7 +33,6 @@ import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
-import io.imply.druid.talaria.frame.write.HeapMemoryAllocator;
 import io.imply.druid.talaria.util.SequenceUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -79,9 +78,10 @@ public class SuperSorterTest
   /**
    * Non-parameterized test cases that
    */
-  public static class NonParameterizedCases extends InitializedNullHandlingTest
+  public static class NonParameterizedCasesTest extends InitializedNullHandlingTest
   {
     private static final int NUM_THREADS = 1;
+    private static final int FRAME_SIZE = 1_000_000;
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -117,8 +117,8 @@ public class SuperSorterTest
           outputPartitionsFuture,
           exec,
           temporaryFolder.newFolder(),
-          new FileOutputChannelFactory(temporaryFolder.newFolder()),
-          () -> HeapMemoryAllocator.createWithCapacity(1_000_000),
+          new FileOutputChannelFactory(temporaryFolder.newFolder(), FRAME_SIZE),
+          () -> ArenaMemoryAllocator.createOnHeap(FRAME_SIZE),
           2,
           2,
           -1
@@ -142,7 +142,7 @@ public class SuperSorterTest
    * TODO(gianm): also make sense of logs "close() is called more than once on ReferenceCountingCloseableObject"
    */
   @RunWith(Parameterized.class)
-  public static class ParameterizedCases extends InitializedNullHandlingTest
+  public static class ParameterizedCasesTest extends InitializedNullHandlingTest
   {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -150,8 +150,8 @@ public class SuperSorterTest
     private final int maxRowsPerFrame;
     private final int maxBytesPerFrame;
     private final int numChannels;
-    private final int maxChannelsPerWorker;
-    private final int maxActiveChannels;
+    private final int maxActiveProcessors;
+    private final int maxChannelsPerProcessor;
     private final int numThreads;
 
     private StorageAdapter adapter;
@@ -160,20 +160,20 @@ public class SuperSorterTest
     private List<ReadableFrameChannel> inputChannels;
     private FrameReader frameReader;
 
-    public ParameterizedCases(
+    public ParameterizedCasesTest(
         int maxRowsPerFrame,
         int maxBytesPerFrame,
         int numChannels,
-        int maxChannelsPerWorker,
-        int maxActiveChannels,
+        int maxActiveProcessors,
+        int maxChannelsPerProcessor,
         int numThreads
     )
     {
       this.maxRowsPerFrame = maxRowsPerFrame;
       this.maxBytesPerFrame = maxBytesPerFrame;
       this.numChannels = numChannels;
-      this.maxChannelsPerWorker = maxChannelsPerWorker;
-      this.maxActiveChannels = maxActiveChannels;
+      this.maxActiveProcessors = maxActiveProcessors;
+      this.maxChannelsPerProcessor = maxChannelsPerProcessor;
       this.numThreads = numThreads;
     }
 
@@ -181,8 +181,8 @@ public class SuperSorterTest
         name = "maxRowsPerFrame = {0}, "
                + "maxBytesPerFrame = {1}, "
                + "numChannels = {2}, "
-               + "maxChannelsPerWorker = {3}, "
-               + "maxActiveChannels = {4}, "
+               + "maxActiveProcessors = {4}, "
+               + "maxChannelsPerProcessor = {3}, "
                + "numThreads = {5}"
     )
     public static Iterable<Object[]> constructorFeeder()
@@ -192,17 +192,17 @@ public class SuperSorterTest
       for (int maxRowsPerFrame : new int[]{Integer.MAX_VALUE, 50, 1}) {
         for (int numChannels : new int[]{1, 3}) {
           for (int maxBytesPerFrame : new int[]{20000, 200000}) {
-            for (int maxChannelsPerWorker : new int[]{2, 3, 8}) {
-              for (int maxActiveChannels : new int[]{2, 8, 16}) {
+            for (int maxActiveProcessors : new int[]{1, 2, 4}) {
+              for (int maxChannelsPerProcessor : new int[]{2, 3, 8}) {
                 for (int numThreads : new int[]{1, 3}) {
-                  if (maxActiveChannels >= maxChannelsPerWorker) {
+                  if (maxActiveProcessors >= maxChannelsPerProcessor) {
                     constructors.add(
                         new Object[]{
                             maxRowsPerFrame,
                             maxBytesPerFrame,
                             numChannels,
-                            maxChannelsPerWorker,
-                            maxActiveChannels,
+                            maxActiveProcessors,
+                            maxChannelsPerProcessor,
                             numThreads
                         }
                     );
@@ -279,10 +279,10 @@ public class SuperSorterTest
           clusterByPartitionsFuture,
           exec,
           temporaryFolder.newFolder(),
-          new FileOutputChannelFactory(temporaryFolder.newFolder()),
-          () -> HeapMemoryAllocator.createWithCapacity(maxBytesPerFrame),
-          maxChannelsPerWorker,
-          maxActiveChannels,
+          new FileOutputChannelFactory(temporaryFolder.newFolder(), maxBytesPerFrame),
+          () -> ArenaMemoryAllocator.createOnHeap(maxBytesPerFrame),
+          maxActiveProcessors / maxChannelsPerProcessor,
+          maxChannelsPerProcessor,
           -1
       );
 

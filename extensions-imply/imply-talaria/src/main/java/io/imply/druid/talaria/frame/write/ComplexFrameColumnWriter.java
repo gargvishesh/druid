@@ -33,6 +33,10 @@ import java.nio.channels.WritableByteChannel;
  */
 public class ComplexFrameColumnWriter implements FrameColumnWriter
 {
+  // Less than half of AppendableMemory.DEFAULT_INITIAL_ALLOCATION_SIZE.
+  // This guarantees we can fit a WorkerMemoryParmeters.MAX_FRAME_COLUMNS number of columns into a frame.
+  private static final int INITIAL_ALLOCATION_SIZE = 128;
+
   public static final byte NOT_NULL_MARKER = 0x00;
   public static final byte NULL_MARKER = 0x01;
 
@@ -52,8 +56,8 @@ public class ComplexFrameColumnWriter implements FrameColumnWriter
   {
     this.selector = selector;
     this.serde = serde;
-    this.offsetMemory = AppendableMemory.create(allocator);
-    this.dataMemory = AppendableMemory.create(allocator);
+    this.offsetMemory = AppendableMemory.create(allocator, INITIAL_ALLOCATION_SIZE);
+    this.dataMemory = AppendableMemory.create(allocator, INITIAL_ALLOCATION_SIZE);
     this.typeNameBytes = StringUtils.toUtf8(serde.getTypeName());
   }
 
