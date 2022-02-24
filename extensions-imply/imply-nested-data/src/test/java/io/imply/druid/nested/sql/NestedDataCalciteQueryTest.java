@@ -50,6 +50,7 @@ import org.apache.druid.sql.calcite.aggregation.builtin.BuiltinApproxCountDistin
 import org.apache.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
+import org.apache.druid.sql.calcite.planner.UnsupportedSQLQueryException;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.timeline.DataSegment;
@@ -437,8 +438,70 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{"[\".\"]", 5L},
-            new Object[]{"[\".\\\"array\\\".[0]\",\".\\\"array\\\".[1]\",\".\\\"n\\\".\\\"x\\\"\"]", 2L}
+            new Object[]{"[\".\\\"array\\\"[0]\",\".\\\"array\\\"[1]\",\".\\\"n\\\".\\\"x\\\"\"]", 2L}
         )
+    );
+  }
+
+  @Test
+  public void testGroupByNestedArrayPath() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "JSON_GET_PATH(nester, '.array[1]'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nester", ".array[1]", "v0")
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0", ColumnType.STRING)
+                            )
+                        )
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 5L},
+            new Object[]{"b", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByInvalidPath() throws Exception
+  {
+    testQueryThrows(
+        "SELECT "
+        + "JSON_GET_PATH(nester, '.array.[1]'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        (expected) -> {
+          expected.expect(UnsupportedSQLQueryException.class);
+          expected.expectMessage("Cannot use [JSON_GET_PATH]: [Bad format, '.array.[1]' is not a valid 'jq' path: invalid position 7 for '[', must not follow '.' or must be contained with '\"']");
+        }
+    );
+  }
+
+  @Test
+  public void testGroupByInvalidPathOnExpression() throws Exception
+  {
+    testQueryThrows(
+        "SELECT "
+        + "JSON_GET_PATH(JSON_GET_PATH(nester, '.'), '.array[1]'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        (expected) -> {
+          expected.expect(UnsupportedSQLQueryException.class);
+          expected.expectMessage("Cannot use [JSON_GET_PATH] on expression input: [get_path(\"nester\",'.')]");
+        }
     );
   }
 }

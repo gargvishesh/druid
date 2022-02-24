@@ -64,34 +64,34 @@ public class PathFinderTest
     Assert.assertEquals(".\"z\"", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : ["a", "b"]}
-    pathParts = PathFinder.parseJqPath(".x.[1]");
+    pathParts = PathFinder.parseJqPath(".x[1]");
     Assert.assertEquals(2, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
     Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
     Assert.assertEquals("1", pathParts.get(1).getPartName());
-    Assert.assertEquals(".\"x\".[1]", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1]", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : ["a", "b"]}
-    pathParts = PathFinder.parseJqPath(".\"x\".[1]");
+    pathParts = PathFinder.parseJqPath(".\"x\"[1]");
     Assert.assertEquals(2, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
     Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
     Assert.assertEquals("1", pathParts.get(1).getPartName());
-    Assert.assertEquals(".\"x\".[1]", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1]", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : ["a", "b"]}
-    pathParts = PathFinder.parseJqPath(".[\"x\"].[1]");
+    pathParts = PathFinder.parseJqPath(".[\"x\"][1]");
     Assert.assertEquals(2, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
     Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
     Assert.assertEquals("1", pathParts.get(1).getPartName());
-    Assert.assertEquals(".\"x\".[1]", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1]", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : { "1" : "hello" }}
-    pathParts = PathFinder.parseJqPath(".[\"x\"].[\"1\"]");
+    pathParts = PathFinder.parseJqPath(".[\"x\"][\"1\"]");
     Assert.assertEquals(2, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -101,7 +101,7 @@ public class PathFinderTest
 
 
     // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
-    pathParts = PathFinder.parseJqPath(".x.[1].foo.bar");
+    pathParts = PathFinder.parseJqPath(".x[1].foo.bar");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -111,10 +111,10 @@ public class PathFinderTest
     Assert.assertEquals("foo", pathParts.get(2).getPartName());
     Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
     Assert.assertEquals("bar", pathParts.get(3).getPartName());
-    Assert.assertEquals(".\"x\".[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
-    pathParts = PathFinder.parseJqPath(".x.[1].\"foo\".bar");
+    pathParts = PathFinder.parseJqPath(".x[1].\"foo\".bar");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -124,10 +124,10 @@ public class PathFinderTest
     Assert.assertEquals("foo", pathParts.get(2).getPartName());
     Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
     Assert.assertEquals("bar", pathParts.get(3).getPartName());
-    Assert.assertEquals(".\"x\".[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
-    pathParts = PathFinder.parseJqPath(".[\"x\"].[1].\"foo\".[\"bar\"]");
+    pathParts = PathFinder.parseJqPath(".[\"x\"][1].\"foo\"[\"bar\"]");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -137,11 +137,11 @@ public class PathFinderTest
     Assert.assertEquals("foo", pathParts.get(2).getPartName());
     Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
     Assert.assertEquals("bar", pathParts.get(3).getPartName());
-    Assert.assertEquals(".\"x\".[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
 
     // make sure we chomp question marks
     // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
-    pathParts = PathFinder.parseJqPath(".[\"x\"]?.[1]?.foo?.\"bar\"?");
+    pathParts = PathFinder.parseJqPath(".[\"x\"]?[1]?.foo?.\"bar\"?");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -151,10 +151,10 @@ public class PathFinderTest
     Assert.assertEquals("foo", pathParts.get(2).getPartName());
     Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
     Assert.assertEquals("bar", pathParts.get(3).getPartName());
-    Assert.assertEquals(".\"x\".[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
 
     // { "x" : { "1" : { "foo" : { "bar" : "hello" }}}}
-    pathParts = PathFinder.parseJqPath(".\"x\".[\"1\"].\"foo\".\"bar\"");
+    pathParts = PathFinder.parseJqPath(".\"x\"[\"1\"].\"foo\".\"bar\"");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x", pathParts.get(0).getPartName());
@@ -168,7 +168,7 @@ public class PathFinderTest
 
     // stress out the parser
     // { "x.y.z]?[\\\"]][]\" : { "13234.12[]][23" : { "f?o.o" : { ".b?.a.r.": "hello" }}}}
-    pathParts = PathFinder.parseJqPath(".[\"x.y.z]?[\\\"]][]\"]?.[\"13234.12[]][23\"].\"f?o.o\"?.[\".b?.a.r.\"]");
+    pathParts = PathFinder.parseJqPath(".[\"x.y.z]?[\\\"]][]\"]?[\"13234.12[]][23\"].\"f?o.o\"?[\".b?.a.r.\"]");
     Assert.assertEquals(4, pathParts.size());
     Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
     Assert.assertEquals("x.y.z]?[\\\"]][]", pathParts.get(0).getPartName());
@@ -198,7 +198,7 @@ public class PathFinderTest
   }
 
   @Test
-  public void testBadFormatNoDot2()
+  public void testBadFormatWithDot2()
   {
     expectedException.expect(IAE.class);
     expectedException.expectMessage("Bad format, '..\"x\"' is not a valid 'jq' path: path parts separated by '.' must not be empty");
@@ -206,43 +206,43 @@ public class PathFinderTest
   }
 
   @Test
-  public void testBadFormatNoDot3()
+  public void testBadFormatWithDot3()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x[1]' is not a valid 'jq' path: invalid position 2 for '[', must follow '.' or be contained with '\"'");
-    PathFinder.parseJqPath(".x[1]");
+    expectedException.expectMessage("Bad format, '.x.[1]' is not a valid 'jq' path: invalid position 3 for '[', must not follow '.' or must be contained with '\"'");
+    PathFinder.parseJqPath(".x.[1]");
   }
 
   @Test
-  public void testBadFormatNoDot4()
+  public void testBadFormatWithDot4()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x.[1][2]' is not a valid 'jq' path: path parts must be separated with '.'");
-    PathFinder.parseJqPath(".x.[1][2]");
+    expectedException.expectMessage("Bad format, '.x[1].[2]' is not a valid 'jq' path: invalid position 6 for '[', must not follow '.' or must be contained with '\"'");
+    PathFinder.parseJqPath(".x[1].[2]");
   }
 
   @Test
   public void testBadFormatNotANumber()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x.[.1]' is not a valid 'jq' path: expected number for array specifier got .1 instead. Use \"\" if this value was meant to be a field name");
-    PathFinder.parseJqPath(".x.[.1]");
+    expectedException.expectMessage("Bad format, '.x[.1]' is not a valid 'jq' path: expected number for array specifier got .1 instead. Use \"\" if this value was meant to be a field name");
+    PathFinder.parseJqPath(".x[.1]");
   }
 
   @Test
   public void testBadFormatUnclosedArray()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x.[1' is not a valid 'jq' path: unterminated '['");
-    PathFinder.parseJqPath(".x.[1");
+    expectedException.expectMessage("Bad format, '.x[1' is not a valid 'jq' path: unterminated '['");
+    PathFinder.parseJqPath(".x[1");
   }
 
   @Test
   public void testBadFormatUnclosedArray2()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x.[\"1\"' is not a valid 'jq' path: unterminated '['");
-    PathFinder.parseJqPath(".x.[\"1\"");
+    expectedException.expectMessage("Bad format, '.x[\"1\"' is not a valid 'jq' path: unterminated '['");
+    PathFinder.parseJqPath(".x[\"1\"");
   }
 
   @Test
@@ -257,8 +257,8 @@ public class PathFinderTest
   public void testBadFormatUnclosedQuote2()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Bad format, '.x.[\"1]' is not a valid 'jq' path: unterminated '\"'");
-    PathFinder.parseJqPath(".x.[\"1]");
+    expectedException.expectMessage("Bad format, '.x[\"1]' is not a valid 'jq' path: unterminated '\"'");
+    PathFinder.parseJqPath(".x[\"1]");
   }
 
 
@@ -280,12 +280,12 @@ public class PathFinderTest
     Assert.assertEquals(NESTER.get("x"), PathFinder.find(NESTER, pathParts));
     Assert.assertNull(PathFinder.findStringLiteral(NESTER, pathParts));
 
-    pathParts = PathFinder.parseJqPath(".x.[1]");
+    pathParts = PathFinder.parseJqPath(".x[1]");
     Assert.assertEquals("b", PathFinder.find(NESTER, pathParts));
     Assert.assertEquals("b", PathFinder.findStringLiteral(NESTER, pathParts));
 
     // nonexistent
-    pathParts = PathFinder.parseJqPath(".x.[1].y.z");
+    pathParts = PathFinder.parseJqPath(".x[1].y.z");
     Assert.assertNull(PathFinder.find(NESTER, pathParts));
     Assert.assertNull(PathFinder.findStringLiteral(NESTER, pathParts));
 
@@ -293,7 +293,7 @@ public class PathFinderTest
     Assert.assertEquals("hello", PathFinder.find(NESTER, pathParts));
     Assert.assertEquals("hello", PathFinder.findStringLiteral(NESTER, pathParts));
 
-    pathParts = PathFinder.parseJqPath(".y.[1]");
+    pathParts = PathFinder.parseJqPath(".y[1]");
     Assert.assertNull(PathFinder.find(NESTER, pathParts));
     Assert.assertNull(PathFinder.findStringLiteral(NESTER, pathParts));
 
@@ -301,7 +301,7 @@ public class PathFinderTest
     Assert.assertEquals("bar", PathFinder.find(NESTER, pathParts));
     Assert.assertEquals("bar", PathFinder.findStringLiteral(NESTER, pathParts));
 
-    pathParts = PathFinder.parseJqPath(".\"[also_sneaky]\".[1].c");
+    pathParts = PathFinder.parseJqPath(".\"[also_sneaky]\"[1].c");
     Assert.assertEquals("z", PathFinder.find(NESTER, pathParts));
     Assert.assertEquals("z", PathFinder.findStringLiteral(NESTER, pathParts));
   }

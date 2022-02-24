@@ -35,7 +35,7 @@ public abstract class StructuredDataProcessor
     if (raw instanceof Map) {
       toProcess.add(new MapField("", (Map<String, ?>) raw));
     } else if (raw instanceof List) {
-      toProcess.add(new ListField("", (List<?>) raw));
+      toProcess.add(new ListField(ROOT_LITERAL, (List<?>) raw));
     } else {
       processLiteralField(ROOT_LITERAL, raw);
       return ROOT_LITERAL_FIELDS;
@@ -78,7 +78,7 @@ public abstract class StructuredDataProcessor
     List<String> fields = new LinkedList<>();
     final List<?> theList = list.getList();
     for (int i = 0; i < theList.size(); i++) {
-      final String listFieldName = list.getName() + ".[" + i + "]";
+      final String listFieldName = list.getName() + "[" + i + "]";
       final Object element = theList.get(i);
       if (element instanceof Map) {
         toProcess.add(new MapField(listFieldName, (Map<String, ?>) element));
