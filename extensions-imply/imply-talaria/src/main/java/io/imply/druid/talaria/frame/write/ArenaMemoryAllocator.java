@@ -19,6 +19,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Optional;
 
+/**
+ * Allocator that uses a reusable {@link WritableMemory} arena. The allocator maintains a high watermark that
+ * is reset to zero when all outstanding allocations have been freed.
+ */
 public class ArenaMemoryAllocator implements MemoryAllocator
 {
   private final WritableMemory arena;
@@ -33,6 +37,11 @@ public class ArenaMemoryAllocator implements MemoryAllocator
   public static ArenaMemoryAllocator create(final ByteBuffer buffer)
   {
     return new ArenaMemoryAllocator(WritableMemory.writableWrap(buffer));
+  }
+
+  public static ArenaMemoryAllocator createOnHeap(final int capacity)
+  {
+    return create(ByteBuffer.allocate(capacity));
   }
 
   @Override
@@ -79,5 +88,11 @@ public class ArenaMemoryAllocator implements MemoryAllocator
   public long available()
   {
     return arena.getCapacity() - position;
+  }
+
+  @Override
+  public long capacity()
+  {
+    return arena.getCapacity();
   }
 }

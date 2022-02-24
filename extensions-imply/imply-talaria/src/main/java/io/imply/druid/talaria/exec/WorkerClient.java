@@ -18,7 +18,7 @@ import io.imply.druid.talaria.kernel.WorkOrder;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Client for a Talaria worker. Used by the Leader (Controller) task.
+ * Client for Talaria workers. Used by the Leader (Controller) task.
  */
 public interface WorkerClient extends AutoCloseable
 {

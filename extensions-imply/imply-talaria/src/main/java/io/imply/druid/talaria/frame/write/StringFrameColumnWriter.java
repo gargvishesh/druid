@@ -38,6 +38,10 @@ import java.util.List;
 
 public abstract class StringFrameColumnWriter<T extends ColumnValueSelector> implements FrameColumnWriter
 {
+  // Multiple of 4 such that three of these fit within AppendableMemory.DEFAULT_INITIAL_ALLOCATION_SIZE.
+  // This guarantees we can fit a WorkerMemoryParmeters.MAX_FRAME_COLUMNS number of columns into a frame.
+  private static final int INITIAL_ALLOCATION_SIZE = 120;
+
   public static final long DATA_OFFSET = 1 /* type code */ + 1 /* single or multi-value? */;
   public static final byte NULL_MARKER = (byte) 0xFF; /* cannot appear in a valid utf-8 byte sequence */
 
@@ -71,13 +75,13 @@ public abstract class StringFrameColumnWriter<T extends ColumnValueSelector> imp
     this.multiValue = multiValue;
 
     if (multiValue) {
-      this.cumulativeRowLengths = AppendableMemory.create(allocator);
+      this.cumulativeRowLengths = AppendableMemory.create(allocator, INITIAL_ALLOCATION_SIZE);
     } else {
       this.cumulativeRowLengths = null;
     }
 
-    this.cumulativeStringLengths = AppendableMemory.create(allocator);
-    this.stringData = AppendableMemory.create(allocator);
+    this.cumulativeStringLengths = AppendableMemory.create(allocator, INITIAL_ALLOCATION_SIZE);
+    this.stringData = AppendableMemory.create(allocator, INITIAL_ALLOCATION_SIZE);
   }
 
   @Override

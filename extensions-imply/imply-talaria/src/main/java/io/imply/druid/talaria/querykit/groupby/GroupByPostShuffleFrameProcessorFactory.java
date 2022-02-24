@@ -69,8 +69,7 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
 
     final List<OutputChannel> outputChannels = new ArrayList<>();
     for (final StagePartition partition : inputChannels.getStagePartitions()) {
-      // TODO(gianm): double-check that the partitionNumber + sorted stuff is good here
-      outputChannels.add(outputChannelFactory.openChannel(partition.getPartitionNumber(), false));
+      outputChannels.add(outputChannelFactory.openChannel(partition.getPartitionNumber()));
     }
 
     final Sequence<Integer> inputSequence =
@@ -88,7 +87,7 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
                 outputChannels.get(i).getWritableChannel(),
                 inputChannels.getFrameReader(stagePartition),
                 signature,
-                providerThingy.memoryAllocator()
+                outputChannels.get(i).getFrameMemoryAllocator()
             );
           }
           catch (IOException e) {

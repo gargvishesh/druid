@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import io.imply.druid.talaria.frame.cluster.statistics.TooManyBucketsException;
 import io.imply.druid.talaria.frame.processor.FrameRowTooLargeException;
 import io.imply.druid.talaria.frame.write.UnsupportedColumnTypeException;
-import io.imply.druid.talaria.indexing.MemoryLimits;
 import org.apache.druid.java.util.common.parsers.ParseException;
 
 import javax.annotation.Nullable;
@@ -175,8 +174,7 @@ public class TalariaErrorReport
       } else if (cause instanceof TooManyBucketsException) {
         return new TooManyBucketsFault(((TooManyBucketsException) cause).getMaxBuckets());
       } else if (cause instanceof FrameRowTooLargeException) {
-        // TODO(gianm): ok to use a constant for now, but brittle
-        return new RowTooLargeFault(MemoryLimits.FRAME_SIZE);
+        return new RowTooLargeFault(((FrameRowTooLargeException) cause).getMaxFrameSize());
       } else {
         cause = cause.getCause();
       }

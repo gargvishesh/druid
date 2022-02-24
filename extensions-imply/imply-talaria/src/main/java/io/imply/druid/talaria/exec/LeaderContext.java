@@ -59,7 +59,7 @@ public interface LeaderContext
   void registerLeader(Leader leader, Closer closer);
 
   /**
-   * The worker client interfaces to a specific worker.
+   * The worker client interfaces to all workers.
    */
   WorkerClient taskClientFor(Leader leader);
 

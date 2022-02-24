@@ -10,7 +10,7 @@
 package io.imply.druid.talaria.frame.processor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.talaria.frame.MemoryAllocator;
+import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSink;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
@@ -21,15 +21,12 @@ import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 
 import java.io.File;
-import java.util.function.Supplier;
 
 /**
  * Provides services that frame processors need to do their thing.
  */
 public interface FrameContext
 {
-  Supplier<MemoryAllocator> allocatorMaker();
-  MemoryAllocator memoryAllocator();
   JoinableFactory joinableFactory();
   GroupByStrategySelector groupByStrategySelector();
   RowIngestionMeters rowIngestionMeters();
@@ -41,4 +38,5 @@ public interface FrameContext
   File persistDir();
   DataSegmentPusher segmentPusher();
   IndexMergerV9 indexMerger();
+  WorkerMemoryParameters memoryParameters();
 }

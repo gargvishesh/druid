@@ -34,4 +34,13 @@ public interface MemoryAllocator
    * allocate 9 exabytes.
    */
   long available();
+
+  /**
+   * Returns the number of bytes managed by this allocator. When no memory has been allocated yet, this is identical to
+   * {@link #available()}.
+   *
+   * May return {@link Long#MAX_VALUE} if there is no inherent limit. This generally does not mean you can actually
+   * allocate 9 exabytes.
+   */
+  long capacity();
 }

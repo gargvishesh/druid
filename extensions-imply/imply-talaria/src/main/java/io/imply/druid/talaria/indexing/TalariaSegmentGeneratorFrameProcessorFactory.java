@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
+import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.processor.FrameContext;
@@ -59,10 +59,6 @@ import java.util.stream.IntStream;
 public class TalariaSegmentGeneratorFrameProcessorFactory
     implements FrameProcessorFactory<List<SegmentIdWithShardSpec>, TalariaSegmentGeneratorFrameProcessor, DataSegment, Set<DataSegment>>
 {
-  // (Very) rough estimate of the on-heap overhead of reading a column.
-  // TODO(gianm): improve estimate
-  private static final int ROUGH_MEMORY_PER_COLUMN = 3_000;
-
   private final DataSchema dataSchema;
   private final ColumnMappings columnMappings;
   private final ParallelIndexTuningConfig tuningConfig;
@@ -105,11 +101,11 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       final OutputChannelFactory outputChannelFactory,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final FrameContext providerThingy,
+      final FrameContext frameContext,
       final int maxOutstandingProcessors
   )
   {
-    final RowIngestionMeters meters = providerThingy.rowIngestionMeters();
+    final RowIngestionMeters meters = frameContext.rowIngestionMeters();
 
     final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
         meters,
@@ -127,13 +123,13 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
           final SegmentIdWithShardSpec segmentIdWithShardSpec = segmentIdsWithShardSpecs.get(i);
           final String idString = StringUtils.format("%s:%s", stagePartition, workerNumber);
           final File persistDirectory = new File(
-              providerThingy.persistDir(),
+              frameContext.persistDir(),
               segmentIdWithShardSpec.asSegmentId().toString()
           );
 
           // Create directly, without using AppenderatorsManager, because we need different memory overrides due to
           // using one Appenderator per processing thread instead of per task.
-          // TODO(gianm): This ignores the batchProcessingMode and always acts like CLOSED_SEGMENTS_SINKS
+          // Note: "createOffline" ignores the batchProcessingMode and always acts like CLOSED_SEGMENTS_SINKS.
           final Appenderator appenderator =
               Appenderators.createOffline(
                   idString,
@@ -141,13 +137,13 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
                   makeAppenderatorConfig(
                       tuningConfig,
                       persistDirectory,
-                      maxOutstandingProcessors
+                      frameContext.memoryParameters()
                   ),
                   new FireDepartmentMetrics() /* TODO(gianm): Don't throw away */,
-                  providerThingy.segmentPusher(),
-                  providerThingy.jsonMapper(),
-                  providerThingy.indexIO(),
-                  providerThingy.indexMerger(),
+                  frameContext.segmentPusher(),
+                  frameContext.jsonMapper(),
+                  frameContext.indexIO(),
+                  frameContext.indexMerger(),
                   meters,
                   parseExceptionHandler,
                   true
@@ -238,7 +234,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
   private static AppenderatorConfig makeAppenderatorConfig(
       final ParallelIndexTuningConfig tuningConfig,
       final File persistDirectory,
-      final int maxOutstandingProcessors
+      final WorkerMemoryParameters memoryParameters
   )
   {
     return new AppenderatorConfig()
@@ -252,17 +248,13 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       @Override
       public int getMaxRowsInMemory()
       {
-        return Math.max(1, tuningConfig.getMaxRowsInMemory() / maxOutstandingProcessors);
+        return Math.max(1, tuningConfig.getMaxRowsInMemory() / memoryParameters.getAppenderatorCount());
       }
 
       @Override
       public long getMaxBytesInMemory()
       {
-        final long memoryForIncrementalIndex =
-            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_INDEX_MEMORY_FRACTION);
-
-        // Indexing memory is divided amongst concurrently-running processors.
-        return Math.max(1, memoryForIncrementalIndex / maxOutstandingProcessors);
+        return memoryParameters.getAppenderatorMaxBytesInMemory();
       }
 
       @Override
@@ -337,12 +329,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       @Override
       public int getMaxColumnsToMerge()
       {
-        final long memoryForColumns =
-            (long) (Runtime.getRuntime().maxMemory() * MemoryLimits.APPENDERATOR_MERGE_MEMORY_FRACTION);
-        final long totalMaxColumnsToMerge = memoryForColumns / ROUGH_MEMORY_PER_COLUMN;
-
-        // Column merging memory is divided amongst concurrently-running processors.
-        return Math.max(2, Ints.checkedCast(totalMaxColumnsToMerge / maxOutstandingProcessors));
+        return memoryParameters.getAppenderatorMaxColumnsToMerge();
       }
     };
   }

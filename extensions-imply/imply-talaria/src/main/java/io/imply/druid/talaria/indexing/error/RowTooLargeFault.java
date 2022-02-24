@@ -19,17 +19,17 @@ public class RowTooLargeFault extends BaseTalariaFault
 {
   static final String CODE = "RowTooLarge";
 
-  private final int maxFrameSize;
+  private final long maxFrameSize;
 
   @JsonCreator
-  public RowTooLargeFault(@JsonProperty("maxFrameSize") final int maxFrameSize)
+  public RowTooLargeFault(@JsonProperty("maxFrameSize") final long maxFrameSize)
   {
     super(CODE, "Encountered row that cannot fit in a single frame (max frame size = %,d)", maxFrameSize);
     this.maxFrameSize = maxFrameSize;
   }
 
   @JsonProperty
-  public int getMaxFrameSize()
+  public long getMaxFrameSize()
   {
     return maxFrameSize;
   }

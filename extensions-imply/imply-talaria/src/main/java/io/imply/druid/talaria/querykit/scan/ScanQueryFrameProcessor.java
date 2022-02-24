@@ -64,8 +64,6 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A {@link FrameProcessor} that reads one {@link Frame} at a time from a particular segment, writes them
  * to a {@link WritableFrameChannel}, and returns the number of rows output.
- *
- * TODO(gianm): implement offset
  */
 public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
 {
@@ -80,6 +78,7 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
   private long rowsOutput = 0;
   private Cursor cursor;
   private FrameWriter frameWriter;
+  private long currentAllocatorCapacity; // Used for generating FrameRowTooLargeException if needed
 
   public ScanQueryFrameProcessor(
       final ScanQuery query,
@@ -92,7 +91,7 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
       final ResourceHolder<WritableFrameChannel> outputChannel,
       final ResourceHolder<MemoryAllocator> allocator,
       @Nullable final AtomicLong runningCountForLimit,
-      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
+      final long memoryReservedForBroadcastJoin
   )
   {
     super(
@@ -103,7 +102,7 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
         joinableFactory,
         outputChannel,
         allocator,
-        broadcastHashJoinRhsTablesMemoryCounter
+        memoryReservedForBroadcastJoin
     );
     this.query = query;
     this.signature = signature;
@@ -246,7 +245,7 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
 
           return;
         } else {
-          throw new FrameRowTooLargeException();
+          throw new FrameRowTooLargeException(currentAllocatorCapacity);
         }
       }
 
@@ -258,7 +257,9 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
   private void createFrameWriterIfNeeded()
   {
     if (frameWriter == null) {
-      frameWriter = FrameWriter.create(frameWriterColumnSelectorFactory, getAllocator(), signature);
+      final MemoryAllocator allocator = getAllocator();
+      frameWriter = FrameWriter.create(frameWriterColumnSelectorFactory, allocator, signature);
+      currentAllocatorCapacity = allocator.capacity();
     }
   }
 

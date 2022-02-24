@@ -68,7 +68,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       OutputChannelFactory outputChannelFactory,
       RowSignature signature,
       ClusterBy clusterBy,
-      FrameContext providerThingy,
+      FrameContext frameContext,
       int maxOutstandingProcessors
   ) throws IOException
   {
@@ -86,15 +86,14 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     final List<OutputChannel> outputChannels = new ArrayList<>(maxOutstandingProcessors);
 
     for (int i = 0; i < maxOutstandingProcessors; i++) {
-      allocatorQueueRef.get().add(providerThingy.memoryAllocator());
-      final OutputChannel outputChannel =
-          outputChannelFactory.openChannel(FrameWithPartition.NO_PARTITION, false);
+      final OutputChannel outputChannel = outputChannelFactory.openChannel(FrameWithPartition.NO_PARTITION);
       outputChannels.add(outputChannel);
       channelQueueRef.get().add(outputChannel.getWritableChannel());
+      allocatorQueueRef.get().add(outputChannel.getFrameMemoryAllocator());
     }
 
-    final DataSegmentProvider dataSegmentProvider = providerThingy.dataSegmentProvider();
-    final File temporaryDirectory = new File(providerThingy.tempDir(), "input-source-" + UUID.randomUUID());
+    final DataSegmentProvider dataSegmentProvider = frameContext.dataSegmentProvider();
+    final File temporaryDirectory = new File(frameContext.tempDir(), "input-source-" + UUID.randomUUID());
 
     final Sequence<QueryWorkerInput> processorBaseInputs =
         Sequences.simple(
@@ -126,7 +125,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
               makeLazyResourceHolder(allocatorQueueRef, ignored -> {}),
               signature,
               clusterBy,
-              providerThingy
+              frameContext
           );
         }
     ).withBaggage(

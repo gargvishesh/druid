@@ -25,14 +25,15 @@ import org.apache.druid.timeline.DataSegment;
 import java.io.File;
 import java.io.IOException;
 
-public class TalaraDataSegmentProvider implements DataSegmentProvider
+public class TalariaDataSegmentProvider implements DataSegmentProvider
 {
   private final SegmentCacheManager segmentCacheManager;
   private final IndexIO indexIO;
 
-  public TalaraDataSegmentProvider(
+  public TalariaDataSegmentProvider(
       SegmentCacheManager segmentCacheManager,
-      IndexIO indexIO)
+      IndexIO indexIO
+  )
   {
     this.segmentCacheManager = segmentCacheManager;
     this.indexIO = indexIO;

@@ -44,7 +44,6 @@ import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.timeline.SegmentId;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A {@link FrameProcessor} that reads one {@link Frame} at a time from a particular segment, writes them
@@ -62,6 +61,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
   private Yielder<ResultRow> resultYielder;
   private FrameWriter frameWriter;
   private long rowsOutput;
+  private long currentAllocatorCapacity; // Used for generating FrameRowTooLargeException if needed
 
   public GroupByPreShuffleFrameProcessor(
       final GroupByQuery query,
@@ -74,7 +74,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
       final ClusterBy clusterBy,
       final ResourceHolder<WritableFrameChannel> outputChannel,
       final ResourceHolder<MemoryAllocator> allocator,
-      final AtomicLong broadcastHashJoinRhsTablesMemoryCounter
+      final long memoryReservedForBroadcastJoin
   )
   {
     super(
@@ -85,7 +85,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
         joinableFactory,
         outputChannel,
         allocator,
-        broadcastHashJoinRhsTablesMemoryCounter
+        memoryReservedForBroadcastJoin
     );
     this.query = query;
     this.strategySelector = strategySelector;
@@ -182,7 +182,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
       if (didAddToFrame) {
         resultYielder = resultYielder.next(null);
       } else if (frameWriter.getNumRows() == 0) {
-        throw new FrameRowTooLargeException();
+        throw new FrameRowTooLargeException(currentAllocatorCapacity);
       } else {
         flushFrameWriterIfNeeded();
         return;
@@ -196,7 +196,9 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
   private void createFrameWriterIfNeeded()
   {
     if (frameWriter == null) {
-      frameWriter = FrameWriter.create(frameWriterColumnSelectorFactory, getAllocator(), aggregationSignature);
+      final MemoryAllocator allocator = getAllocator();
+      frameWriter = FrameWriter.create(frameWriterColumnSelectorFactory, allocator, aggregationSignature);
+      currentAllocatorCapacity = allocator.capacity();
     }
   }
 

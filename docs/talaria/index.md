@@ -608,9 +608,11 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a Talaria query.<br /> <br />This can happen if the query uses features that Talaria does not yet support, like GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
 |  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
-|   TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
-| TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
-| UnknownError   |  All other errors.  |    |
+|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
+|  TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
+|  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
+|  NotEnoughMemory  |  Not enough memory to launch a stage.  |  &bull;&nbsp;serverMemory: the amount of memory available to a single process<br /><br />&bull;&nbsp;serverWorkers: the number of workers running in a single process<br /><br />&bull;&nbsp;serverThreads: the number of threads in a single process  |
+|  UnknownError   |  All other errors.  |    |
 
 #### Request
 
@@ -816,11 +818,40 @@ Queries are subject to the following limits.
 
 |Limit|Value|Error if exceeded|
 |----|-----------|----|
-| Maximum frame size | 8 MB  | RowTooLarge |
+| Size of an individual row written into a frame<br/><br/>Note: row size as written to a frame may differ from the original row size | 1 MB | RowTooLarge |
 | Number of segment-granular time chunks encountered during ingestion | 10,000 | TooManyBuckets |
-| Number of output columns for any one stage|  2,000| TooManyColumns|
 | Number of output partitions for any one stage<br /> <br /> Number of segments generated during ingestion |25,000  |TooManyPartitions |
-| Maximum memory occupied by broadcasted tables, per worker, per stage |20% of max JVM size  |BroadcastTablesTooLarge |
+| Number of output columns for any one stage|  2,000| TooManyColumns|
+| Number of workers for any one stage | 1,000 (hard limit)<br /><br />Memory-dependent (soft limit; may be lower) | TooManyWorkers |
+| Maximum memory occupied by broadcasted tables | 30% of each [processor memory bundle](#memory-usage) |BroadcastTablesTooLarge |
+
+## Memory usage
+
+Talaria worker tasks use both JVM heap memory as well as off-heap ("direct") memory.
+
+The bulk of the JVM heap (75%) is split up into equally-sized bundles. On Indexers, there is
+one bundle for each processing thread (`druid.processing.numThreads`) and one bundle for each
+worker that may run in the JVM (`druid.worker.capacity`). On Peons launched by MiddleManagers,
+there are two bundles of equal size: one processor bundle and one worker bundle.
+
+Processor memory bundles on the JVM heap are used for query processing and segment generation.
+Each processor bundle also has space reserved for buffering frames from input channels: 1 MB
+per worker from its input stages. Each processor is also allocated an off-heap processing
+buffer of size `druid.processing.buffer.sizeBytes`.
+
+Worker memory bundles on the JVM heap are used for sorting stage output data prior to shuffle.
+Workers can sort more data than fits in memory; in this case, they will switch to using disk.
+
+Increasing maximum heap size can speed up processing in two ways:
+
+- Segment generation will become more efficient, as fewer spills to disk will be required.
+- Sorting stage output data may become more efficient, since available memory affects the
+  number of sorting passes that are required.
+
+Talaria worker tasks also use off-heap ("direct") memory. The amount of direct
+memory available (`-XX:MaxDirectMemorySize`) should be set to at least
+`(druid.processing.numThreads + 1) * druid.processing.buffer.sizeBytes`. Increasing the
+amount of direct memory available beyond the minimum does not speed up processing.
 
 ## Web console
 
@@ -1299,10 +1330,6 @@ LIMIT 1000
 
 - Maximum number of input files. No guardrail today means the
   controller can potentially run out of memory tracking them all. (15020)
-
-- Maximum number of tasks participating in a shuffle. No guardrail
-  today means the mesh of shuffle connections between worker tasks may
-  be too dense, which causes query execution to stall. (15021)
 
 - Maximum amount of local disk space to use for temporary data. No
   guardrail today means worker tasks may exhaust all available

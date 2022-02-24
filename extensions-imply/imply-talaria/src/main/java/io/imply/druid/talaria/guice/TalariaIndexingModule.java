@@ -38,6 +38,7 @@ import io.imply.druid.talaria.indexing.error.TooManyBucketsFault;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyInputFilesFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
+import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSink;
 import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSinkConfig;
@@ -53,15 +54,18 @@ import io.imply.druid.talaria.querykit.groupby.GroupByPostShuffleFrameProcessorF
 import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
 import io.imply.druid.talaria.util.PassthroughAggregatorFactory;
+import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
+import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.DruidProcessingConfig;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 public class TalariaIndexingModule implements DruidModule
 {
@@ -116,6 +120,7 @@ public class TalariaIndexingModule implements DruidModule
             TooManyColumnsFault.class,
             TooManyInputFilesFault.class,
             TooManyPartitionsFault.class,
+            TooManyWorkersFault.class,
             UnknownFault.class,
 
             // Other
@@ -154,7 +159,7 @@ public class TalariaIndexingModule implements DruidModule
 
   @Provides
   @LazySingleton
-  public Bouncer makeBouncer(final DruidProcessingConfig processingConfig)
+  public Bouncer makeBouncer(final DruidProcessingConfig processingConfig, @Self final Set<NodeRole> nodeRoles)
   {
     if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
       // This provider will not be used if none of the other Talaria stuff is bound, so this exception will
@@ -163,7 +168,12 @@ public class TalariaIndexingModule implements DruidModule
       throw new ISE("Not used");
     }
 
-    // TODO(gianm): do bouncer size = 1 on Peons?
-    return new Bouncer(processingConfig.getNumThreads());
+    if (nodeRoles.contains(NodeRole.PEON) && !nodeRoles.contains(NodeRole.INDEXER)) {
+      // CliPeon -> use only one thread regardless of configured # of processing threads. This matches the expected
+      // resource usage pattern for CliPeon-based tasks (one task / one working thread per JVM).
+      return new Bouncer(1);
+    } else {
+      return new Bouncer(processingConfig.getNumThreads());
+    }
   }
 }

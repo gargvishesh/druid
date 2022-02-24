@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.frame.processor.FrameContext;
+import io.imply.druid.talaria.kernel.QueryDefinition;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.server.DruidNode;
 
@@ -34,10 +35,9 @@ public interface WorkerContext
   LeaderClient makeLeaderClient(String leaderId);
   WorkerClient makeWorkerClient(String workerId);
   // TODO(paul): temporary, remove once clients are distributed
-  TalariaTaskClient makeTaskClient(String workerId);
+  TalariaTaskClient makeTaskClient();
   File tempDir();
-  int workerCount();
-  FrameContext frameContext();
+  FrameContext frameContext(QueryDefinition queryDef, int stageNumber);
   int threadCount();
   DruidNode selfNode();
   Bouncer processorBouncer();

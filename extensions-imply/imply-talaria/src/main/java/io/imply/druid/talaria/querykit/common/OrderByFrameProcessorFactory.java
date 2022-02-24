@@ -58,8 +58,7 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
   {
     final List<OutputChannel> outputChannels = new ArrayList<>();
     for (final StagePartition partition : inputChannels.getStagePartitions()) {
-      // TODO(gianm): double-check that the partitionNumber + sorted stuff is good here
-      outputChannels.add(outputChannelFactory.openChannel(partition.getPartitionNumber(), false));
+      outputChannels.add(outputChannelFactory.openChannel(partition.getPartitionNumber()));
     }
 
     final Sequence<Integer> inputSequence =
@@ -71,6 +70,7 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
               try {
                 final StagePartition stagePartition = inputChannels.getStagePartitions().get(i);
 
+                // Note: OrderByFrameProcessor does not use allocator from the outputChannel; it uses unlimited instead.
                 return new OrderByFrameProcessor(
                     inputChannels.openChannel(stagePartition),
                     outputChannels.get(i).getWritableChannel(),
