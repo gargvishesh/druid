@@ -248,7 +248,10 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       @Override
       public int getMaxRowsInMemory()
       {
-        return Math.max(1, tuningConfig.getMaxRowsInMemory() / memoryParameters.getAppenderatorCount());
+        // No need to apportion this amongst memoryParameters.getAppenderatorCount(), because it only exists
+        // to minimize the impact of per-row overheads that are not accounted for by OnheapIncrementalIndex's
+        // maxBytesInMemory handling. For example: overheads related to creating bitmaps during persist.
+        return tuningConfig.getMaxRowsInMemory();
       }
 
       @Override

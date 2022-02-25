@@ -86,21 +86,18 @@ public class WorkerMemoryParameters
   private final int superSorterMaxActiveProcessors;
   private final int superSorterMaxChannelsPerProcessor;
   private final long appenderatorMemory;
-  private final int appenderatorCount;
   private final long broadcastJoinMemory;
 
   public WorkerMemoryParameters(
       final int superSorterMaxActiveProcessors,
       final int superSorterMaxChannelsPerProcessor,
       final long appenderatorMemory,
-      final int appenderatorCount,
       final long broadcastJoinMemory
   )
   {
     this.superSorterMaxActiveProcessors = superSorterMaxActiveProcessors;
     this.superSorterMaxChannelsPerProcessor = superSorterMaxChannelsPerProcessor;
     this.appenderatorMemory = appenderatorMemory;
-    this.appenderatorCount = appenderatorCount;
     this.broadcastJoinMemory = broadcastJoinMemory;
   }
 
@@ -166,7 +163,6 @@ public class WorkerMemoryParameters
         superSorterMaxActiveProcessors,
         superSorterMaxChannelsPerProcessor,
         bundleMemoryForProcessing,
-        numProcessingThreadsInJvm,
         (long) (bundleMemoryForProcessing * BROADCAST_JOIN_MEMORY_FRACTION)
     );
   }
@@ -191,11 +187,6 @@ public class WorkerMemoryParameters
   {
     // Half for indexing, half for merging.
     return Ints.checkedCast(Math.max(2, appenderatorMemory / 2 / APPENDERATOR_MERGE_ROUGH_MEMORY_PER_COLUMN));
-  }
-
-  public int getAppenderatorCount()
-  {
-    return appenderatorCount;
   }
 
   public int getStandardFrameSize()
@@ -225,8 +216,7 @@ public class WorkerMemoryParameters
     WorkerMemoryParameters that = (WorkerMemoryParameters) o;
     return superSorterMaxActiveProcessors == that.superSorterMaxActiveProcessors
            && superSorterMaxChannelsPerProcessor == that.superSorterMaxChannelsPerProcessor
-           && appenderatorMemory == that.appenderatorMemory
-           && appenderatorCount == that.appenderatorCount;
+           && appenderatorMemory == that.appenderatorMemory;
   }
 
   @Override
@@ -235,8 +225,7 @@ public class WorkerMemoryParameters
     return Objects.hash(
         superSorterMaxActiveProcessors,
         superSorterMaxChannelsPerProcessor,
-        appenderatorMemory,
-        appenderatorCount
+        appenderatorMemory
     );
   }
 
@@ -247,7 +236,6 @@ public class WorkerMemoryParameters
            "superSorterMaxActiveProcessors=" + superSorterMaxActiveProcessors +
            ", superSorterMaxChannelsPerProcessor=" + superSorterMaxChannelsPerProcessor +
            ", appenderatorMemory=" + appenderatorMemory +
-           ", appenderatorCount=" + appenderatorCount +
            '}';
   }
 
