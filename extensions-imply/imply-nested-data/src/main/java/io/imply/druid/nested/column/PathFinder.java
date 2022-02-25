@@ -30,17 +30,21 @@ public class PathFinder
       return StructuredDataProcessor.ROOT_LITERAL;
     }
     StringBuilder bob = new StringBuilder();
+    boolean first = true;
     for (PathPartFinder partFinder : paths) {
-      bob.append(".");
       if (partFinder instanceof MapField) {
+        bob.append(".");
         bob.append("\"").append(partFinder.getPartName()).append("\"");
       } else {
+        if (first) {
+          bob.append(".");
+        }
         bob.append("[").append(partFinder.getPartName()).append("]");
       }
+      first = false;
     }
     return bob.toString();
   }
-
 
   /**
    * split a jq path into a series of extractors to find things in stuff
@@ -79,7 +83,30 @@ public class PathFinder
           }
         }
         partMark = i + 1;
-      } else if (dotMark == -1) {
+      } else if (current == '[' && arrayMark < 0 && quoteMark < 0) {
+        if (dotMark == (i - 1) && dotMark != 0) {
+          badFormat(path, "invalid position " + i + " for '[', must not follow '.' or must be contained with '\"'");
+        }
+        if (dotMark >= 0 && i > 1) {
+          parts.add(new MapField(getPathSubstring(path, partMark, i)));
+          dotMark = -1;
+        }
+        arrayMark = i;
+        partMark = i + 1;
+      } else if (current == ']' && arrayMark >= 0 && quoteMark < 0) {
+        String maybeNumber = getPathSubstring(path, partMark, i);
+        Integer index;
+        try {
+          index = Integer.parseInt(maybeNumber);
+          parts.add(new ArrayElement(index));
+          dotMark = -1;
+          arrayMark = -1;
+          partMark = i + 1;
+        }
+        catch (NumberFormatException ignored) {
+          badFormat(path, "expected number for array specifier got " + maybeNumber + " instead. Use \"\" if this value was meant to be a field name");
+        }
+      } else if (dotMark == -1 && arrayMark == -1) {
         badFormat(path, "path parts must be separated with '.'");
       } else if (current == '"' && quoteMark < 0) {
         if (partMark != i) {
@@ -106,25 +133,6 @@ public class PathFinder
           arrayMark = -1;
         } else {
           partMark = i + 1;
-        }
-      } else if (current == '[' && arrayMark < 0 && quoteMark < 0) {
-        if (partMark != i) {
-          badFormat(path, "invalid position " + i + " for '[', must follow '.' or be contained with '\"'");
-        }
-        arrayMark = i;
-        partMark = i + 1;
-      } else if (current == ']' && arrayMark >= 0 && quoteMark < 0) {
-        String maybeNumber = getPathSubstring(path, partMark, i);
-        Integer index;
-        try {
-          index = Integer.parseInt(maybeNumber);
-          parts.add(new ArrayElement(index));
-          dotMark = -1;
-          arrayMark = -1;
-          partMark = i + 1;
-        }
-        catch (NumberFormatException ignored) {
-          badFormat(path, "expected number for array specifier got " + maybeNumber + " instead. Use \"\" if this value was meant to be a field name");
         }
       }
     }

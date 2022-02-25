@@ -22,7 +22,6 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
@@ -34,6 +33,7 @@ import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
+import org.apache.druid.sql.calcite.planner.UnsupportedSQLQueryException;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -88,7 +88,17 @@ public class NestedDataOperatorConversions
       }
       // pre-normalize path so that the same expressions with different jq syntax are collapsed
       final String path = (String) pathExpr.eval(InputBindings.nilBindings()).value();
-      final List<PathFinder.PathPartFinder> parts = PathFinder.parseJqPath(path);
+      final List<PathFinder.PathPartFinder> parts;
+      try {
+        parts = PathFinder.parseJqPath(path);
+      }
+      catch (IllegalArgumentException iae) {
+        throw new UnsupportedSQLQueryException(
+            "Cannot use [%s]: [%s]",
+            call.getOperator().getName(),
+            iae.getMessage()
+        );
+      }
       final String normalized = PathFinder.toNormalizedJqPath(parts);
 
       if (druidExpressions.get(0).isSimpleExtraction()) {
@@ -107,9 +117,9 @@ public class NestedDataOperatorConversions
             )
         );
       }
-      throw new UOE(
+      throw new UnsupportedSQLQueryException(
           "Cannot use [%s] on expression input: [%s]",
-          FUNCTION_NAME,
+          call.getOperator().getName(),
           druidExpressions.get(0).getExpression()
       );
     }
