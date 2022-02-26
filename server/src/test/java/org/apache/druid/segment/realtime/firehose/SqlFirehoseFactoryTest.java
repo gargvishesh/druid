@@ -69,7 +69,9 @@ public class SqlFirehoseFactoryTest
         new TimeAndDimsParseSpec(
             new TimestampSpec("timestamp", "auto", null),
             new DimensionsSpec(
-                DimensionsSpec.getDefaultSchemas(Arrays.asList("timestamp", "a", "b"))
+                DimensionsSpec.getDefaultSchemas(Arrays.asList("timestamp", "a", "b")),
+                new ArrayList<>(),
+                new ArrayList<>()
             )
         )
       )

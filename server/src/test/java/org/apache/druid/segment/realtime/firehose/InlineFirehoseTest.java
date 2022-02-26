@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,11 @@ public class InlineFirehoseTest
               "auto",
               null
           ),
-          new DimensionsSpec(DimensionsSpec.getDefaultSchemas(DIMENSIONS)),
+          new DimensionsSpec(
+              DimensionsSpec.getDefaultSchemas(DIMENSIONS),
+              Collections.emptyList(),
+              Collections.emptyList()
+          ),
           DELIMITER,
           DIMENSIONS,
           false,

@@ -35,6 +35,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -68,7 +69,11 @@ public class ParseSpecTest
             "auto",
             null
         ),
-        new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("a", "b", "a"))),
+        new DimensionsSpec(
+            DimensionsSpec.getDefaultSchemas(Arrays.asList("a", "b", "a")),
+            new ArrayList<>(),
+            new ArrayList<>()
+        ),
         ",",
         " ",
         Arrays.asList("a", "b"),
@@ -87,10 +92,11 @@ public class ParseSpecTest
             "auto",
             null
         ),
-        DimensionsSpec.builder()
-                      .setDimensions(DimensionsSpec.getDefaultSchemas(Arrays.asList("a", "B")))
-                      .setDimensionExclusions(Collections.singletonList("B"))
-                      .build(),
+        new DimensionsSpec(
+            DimensionsSpec.getDefaultSchemas(Arrays.asList("a", "B")),
+            Collections.singletonList("B"),
+            new ArrayList<>()
+        ),
         ",",
         null,
         Arrays.asList("a", "B"),
@@ -109,10 +115,11 @@ public class ParseSpecTest
             "auto",
             null
         ),
-        DimensionsSpec.builder()
-                      .setDimensions(DimensionsSpec.getDefaultSchemas(Collections.singletonList("a")))
-                      .setDimensionExclusions(Lists.newArrayList("B", "B"))
-                      .build(),
+        new DimensionsSpec(
+            DimensionsSpec.getDefaultSchemas(Collections.singletonList("a")),
+            Lists.newArrayList("B", "B"),
+            new ArrayList<>()
+        ),
         ",",
         null,
         Arrays.asList("a", "B"),
@@ -129,10 +136,11 @@ public class ParseSpecTest
     @SuppressWarnings("unused") // expected exception
     final ParseSpec spec = new DelimitedParseSpec(
         null,
-        DimensionsSpec.builder()
-                      .setDimensions(DimensionsSpec.getDefaultSchemas(Collections.singletonList("a")))
-                      .setDimensionExclusions(Lists.newArrayList("B", "B"))
-                      .build(),
+        new DimensionsSpec(
+            DimensionsSpec.getDefaultSchemas(Collections.singletonList("a")),
+            Lists.newArrayList("B", "B"),
+            new ArrayList<>()
+        ),
         ",",
         null,
         Arrays.asList("a", "B"),

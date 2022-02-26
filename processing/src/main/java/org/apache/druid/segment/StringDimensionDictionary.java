@@ -34,7 +34,6 @@ public class StringDimensionDictionary extends DimensionDictionary<String>
    */
   public StringDimensionDictionary(boolean computeOnHeapSize)
   {
-    super(String.class);
     this.computeOnHeapSize = computeOnHeapSize;
   }
 

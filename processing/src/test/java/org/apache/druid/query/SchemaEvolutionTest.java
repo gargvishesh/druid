@@ -92,10 +92,11 @@ public class SchemaEvolutionTest
     final MapInputRowParser parser = new MapInputRowParser(
         new TimeAndDimsParseSpec(
             new TimestampSpec(TIMESTAMP_COLUMN, "iso", null),
-            DimensionsSpec.builder()
-                          .setDimensions(DimensionsSpec.getDefaultSchemas(dimensions))
-                          .setDimensionExclusions(dimensions.isEmpty() ? ImmutableList.of("t", "c1", "c2") : null)
-                          .build()
+            new DimensionsSpec(
+                DimensionsSpec.getDefaultSchemas(dimensions),
+                dimensions.isEmpty() ? ImmutableList.of("t", "c1", "c2") : null,
+                null
+            )
         )
     );
     return ImmutableList.of(

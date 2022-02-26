@@ -50,7 +50,7 @@ public class InputRowParserSerdeTest
     final StringInputRowParser parser = new StringInputRowParser(
         new JSONParseSpec(
             new TimestampSpec("timestamp", "iso", null),
-            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar"))),
+            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")), null, null),
             null,
             null,
             null
@@ -93,10 +93,11 @@ public class InputRowParserSerdeTest
     final MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
             new TimestampSpec("timeposix", "posix", null),
-            DimensionsSpec.builder()
-                          .setDimensions(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")))
-                          .setDimensionExclusions(ImmutableList.of("baz"))
-                          .build(),
+            new DimensionsSpec(
+                DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")),
+                ImmutableList.of("baz"),
+                null
+            ),
             null,
             null,
             null
@@ -126,10 +127,11 @@ public class InputRowParserSerdeTest
     final MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
             new TimestampSpec("timemillis", "millis", null),
-            DimensionsSpec.builder()
-                          .setDimensions(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "values")))
-                          .setDimensionExclusions(ImmutableList.of("toobig", "value"))
-                          .build(),
+            new DimensionsSpec(
+                DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "values")),
+                ImmutableList.of("toobig", "value"),
+                null
+            ),
             null,
             null,
             null
@@ -167,7 +169,7 @@ public class InputRowParserSerdeTest
     final StringInputRowParser parser = new StringInputRowParser(
         new JSONParseSpec(
             new TimestampSpec("timestamp", "iso", null),
-            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar"))),
+            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "bar")), null, null),
             null,
             null,
             null
@@ -208,7 +210,7 @@ public class InputRowParserSerdeTest
     final StringInputRowParser parser = new StringInputRowParser(
         new JSONParseSpec(
             new TimestampSpec("timestamp", "iso", null),
-            DimensionsSpec.EMPTY,
+            new DimensionsSpec(null, null, null),
             flattenSpec,
             null,
             null

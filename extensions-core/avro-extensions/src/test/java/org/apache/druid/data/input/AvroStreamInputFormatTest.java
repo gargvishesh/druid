@@ -57,6 +57,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.druid.data.input.AvroStreamInputRowParserTest.assertInputRowCorrect;
@@ -98,7 +99,7 @@ public class AvroStreamInputFormatTest
   public void before()
   {
     timestampSpec = new TimestampSpec("nested", "millis", null);
-    dimensionsSpec = new DimensionsSpec(DimensionsSpec.getDefaultSchemas(DIMENSIONS));
+    dimensionsSpec = new DimensionsSpec(DimensionsSpec.getDefaultSchemas(DIMENSIONS), Collections.emptyList(), null);
     flattenSpec = new JSONPathSpec(
       true,
       ImmutableList.of(
@@ -248,7 +249,7 @@ public class AvroStreamInputFormatTest
 
       final ByteEntity entity = new ByteEntity(ByteBuffer.wrap(out.toByteArray()));
 
-      InputRow inputRow = inputFormat2.createReader(new InputRowSchema(timestampSpec, DimensionsSpec.EMPTY, null), entity, null).read().next();
+      InputRow inputRow = inputFormat2.createReader(new InputRowSchema(timestampSpec, new DimensionsSpec(null, null, null), null), entity, null).read().next();
 
       assertInputRowCorrect(inputRow, DIMENSIONS_SCHEMALESS, false);
     }

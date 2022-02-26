@@ -82,7 +82,9 @@ public class QueryableIndexColumnCapabilitiesTest extends InitializedNullHandlin
                     .add(new DoubleDimensionSchema("d3"))
                     .add(new FloatDimensionSchema("d4"))
                     .add(new LongDimensionSchema("d5"))
-                    .build()
+                    .build(),
+                null,
+                null
             )
         )
     );

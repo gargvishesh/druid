@@ -293,7 +293,9 @@ public class CalciteTests
       new TimeAndDimsParseSpec(
           new TimestampSpec(TIMESTAMP_COLUMN, "iso", null),
           new DimensionsSpec(
-              DimensionsSpec.getDefaultSchemas(ImmutableList.of("dim1", "dim2", "dim3"))
+              DimensionsSpec.getDefaultSchemas(ImmutableList.of("dim1", "dim2", "dim3")),
+              null,
+              null
           )
       )
   );
@@ -310,7 +312,9 @@ public class CalciteTests
                   .add(new FloatDimensionSchema("f2"))
                   .add(new LongDimensionSchema("l1"))
                   .add(new LongDimensionSchema("l2"))
-                  .build()
+                  .build(),
+              null,
+              null
           )
       )
   );
@@ -333,7 +337,9 @@ public class CalciteTests
                                                  .add("metLongSequential")
                                                  .add("metLongUniform")
                                                  .build()
-              )
+              ),
+              null,
+              null
           )
       )
   );

@@ -137,7 +137,9 @@ public class InputRowSerdeTest
             new LongDimensionSchema("d3"),
             new FloatDimensionSchema("d4"),
             new DoubleDimensionSchema("d5")
-        )
+        ),
+        null,
+        null
     );
 
     byte[] data = InputRowSerde.toBytes(InputRowSerde.getTypeHelperMap(dimensionsSpec), in, aggregatorFactories)
@@ -186,7 +188,9 @@ public class InputRowSerdeTest
             new LongDimensionSchema("d3"),
             new FloatDimensionSchema("d4"),
             new DoubleDimensionSchema("d5")
-        )
+        ),
+        null,
+        null
     );
 
     InputRowSerde.SerializeResult result = InputRowSerde.toBytes(
@@ -216,7 +220,9 @@ public class InputRowSerdeTest
     DimensionsSpec dimensionsSpec = new DimensionsSpec(
         Collections.singletonList(
             new LongDimensionSchema("d1")
-        )
+        ),
+        null,
+        null
     );
     result = InputRowSerde.toBytes(InputRowSerde.getTypeHelperMap(dimensionsSpec), in, aggregatorFactories);
     Assert.assertEquals(
@@ -227,7 +233,9 @@ public class InputRowSerdeTest
     dimensionsSpec = new DimensionsSpec(
         Collections.singletonList(
             new FloatDimensionSchema("d1")
-        )
+        ),
+        null,
+        null
     );
     result = InputRowSerde.toBytes(InputRowSerde.getTypeHelperMap(dimensionsSpec), in, aggregatorFactories);
     Assert.assertEquals(
@@ -238,7 +246,9 @@ public class InputRowSerdeTest
     dimensionsSpec = new DimensionsSpec(
         Collections.singletonList(
             new DoubleDimensionSchema("d1")
-        )
+        ),
+        null,
+        null
     );
     result = InputRowSerde.toBytes(InputRowSerde.getTypeHelperMap(dimensionsSpec), in, aggregatorFactories);
     Assert.assertEquals(
@@ -270,7 +280,9 @@ public class InputRowSerdeTest
             new LongDimensionSchema("d3"),
             new FloatDimensionSchema("d4"),
             new DoubleDimensionSchema("d5")
-        )
+        ),
+        null,
+        null
     );
 
     byte[] result = InputRowSerde.toBytes(InputRowSerde.getTypeHelperMap(dimensionsSpec), in, new AggregatorFactory[0]).getSerializedRow();

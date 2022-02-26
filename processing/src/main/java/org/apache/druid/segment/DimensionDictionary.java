@@ -23,8 +23,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import javax.annotation.Nullable;
-
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -40,7 +38,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class DimensionDictionary<T extends Comparable<T>>
 {
   public static final int ABSENT_VALUE_ID = -1;
-  private final Class<T> cls;
 
   @Nullable
   private T minValue = null;
@@ -54,9 +51,8 @@ public class DimensionDictionary<T extends Comparable<T>>
   private final List<T> idToValue = new ArrayList<>();
   private final ReentrantReadWriteLock lock;
 
-  public DimensionDictionary(Class<T> cls)
+  public DimensionDictionary()
   {
-    this.cls = cls;
     this.lock = new ReentrantReadWriteLock();
     valueToId.defaultReturnValue(ABSENT_VALUE_ID);
   }
@@ -84,22 +80,6 @@ public class DimensionDictionary<T extends Comparable<T>>
         return null;
       }
       return idToValue.get(id);
-    }
-    finally {
-      lock.readLock().unlock();
-    }
-  }
-
-  public T[] getValues(int[] ids)
-  {
-    T[] values = (T[]) Array.newInstance(cls, ids.length);
-
-    lock.readLock().lock();
-    try {
-      for (int i = 0; i < ids.length; i++) {
-        values[i] = (ids[i] == idForNull) ? null : idToValue.get(ids[i]);
-      }
-      return values;
     }
     finally {
       lock.readLock().unlock();

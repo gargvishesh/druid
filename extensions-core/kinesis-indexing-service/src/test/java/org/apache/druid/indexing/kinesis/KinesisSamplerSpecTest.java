@@ -72,7 +72,9 @@ public class KinesisSamplerSpecTest extends EasyMockSupport
               new StringDimensionSchema("dim2"),
               new LongDimensionSchema("dimLong"),
               new FloatDimensionSchema("dimFloat")
-          )
+          ),
+          null,
+          null
       ),
       new AggregatorFactory[]{
           new DoubleSumAggregatorFactory("met1sum", "met1"),

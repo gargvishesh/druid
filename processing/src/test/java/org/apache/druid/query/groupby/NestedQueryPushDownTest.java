@@ -135,7 +135,9 @@ public class NestedQueryPushDownTest
                         new StringDimensionSchema("dimB"),
                         new LongDimensionSchema("metA"),
                         new LongDimensionSchema("metB")
-                    )
+                    ),
+                    null,
+                    null
                 ))
                 .build()
         )

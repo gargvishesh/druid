@@ -122,9 +122,17 @@ public class TestIndex
       new StringDimensionSchema("null_column", null, false)
   );
 
-  public static final DimensionsSpec DIMENSIONS_SPEC = new DimensionsSpec(DIMENSION_SCHEMAS);
+  public static final DimensionsSpec DIMENSIONS_SPEC = new DimensionsSpec(
+      DIMENSION_SCHEMAS,
+      null,
+      null
+  );
 
-  public static final DimensionsSpec DIMENSIONS_SPEC_NO_BITMAPS = new DimensionsSpec(DIMENSION_SCHEMAS_NO_BITMAP);
+  public static final DimensionsSpec DIMENSIONS_SPEC_NO_BITMAPS = new DimensionsSpec(
+      DIMENSION_SCHEMAS_NO_BITMAP,
+      null,
+      null
+  );
 
   public static final String[] DOUBLE_METRICS = new String[]{"index", "indexMin", "indexMaxPlusTen"};
   public static final String[] FLOAT_METRICS = new String[]{"indexFloat", "indexMinFloat", "indexMaxFloat"};
@@ -313,7 +321,7 @@ public class TestIndex
     final StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
             new TimestampSpec("ts", "iso", null),
-            DIMENSIONS_SPEC,
+            new DimensionsSpec(DIMENSION_SCHEMAS, null, null),
             "\t",
             "\u0001",
             Arrays.asList(COLUMNS),

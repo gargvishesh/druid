@@ -119,7 +119,7 @@ public class OpenAndClosedSegmentsAppenderatorTester implements AutoCloseable
         new MapInputRowParser(
             new JSONParseSpec(
                 new TimestampSpec("ts", "auto", null),
-                DimensionsSpec.EMPTY,
+                new DimensionsSpec(null, null, null),
                 null,
                 null,
                 null

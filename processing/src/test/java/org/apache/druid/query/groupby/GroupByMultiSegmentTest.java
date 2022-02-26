@@ -135,7 +135,9 @@ public class GroupByMultiSegmentTest
                     Arrays.asList(
                         new StringDimensionSchema("dimA"),
                         new LongDimensionSchema("metA")
-                    )
+                    ),
+                    null,
+                    null
                 ))
                 .withRollup(withRollup)
                 .build()

@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,7 +55,11 @@ public class InlineFirehoseFactoryTest
               "auto",
               null
           ),
-          new DimensionsSpec(DimensionsSpec.getDefaultSchemas(DIMENSIONS)),
+          new DimensionsSpec(
+              DimensionsSpec.getDefaultSchemas(DIMENSIONS),
+              Collections.emptyList(),
+              Collections.emptyList()
+          ),
           DELIMITER,
           DIMENSIONS,
           false,

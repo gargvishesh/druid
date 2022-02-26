@@ -21,6 +21,7 @@ package org.apache.druid.data.input.impl;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -36,7 +37,11 @@ public class CSVParseSpecTest
             "auto",
             null
         ),
-        new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("a,", "b"))),
+        new DimensionsSpec(
+            DimensionsSpec.getDefaultSchemas(Arrays.asList("a,", "b")),
+            new ArrayList<>(),
+            new ArrayList<>()
+        ),
         ",",
         Collections.singletonList("a,"),
         false,

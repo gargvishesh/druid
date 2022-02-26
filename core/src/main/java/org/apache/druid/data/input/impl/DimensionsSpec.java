@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -47,9 +46,8 @@ public class DimensionsSpec
   private final List<DimensionSchema> dimensions;
   private final Set<String> dimensionExclusions;
   private final Map<String, DimensionSchema> dimensionSchemaMap;
-  private final boolean includeAllDimensions;
 
-  public static final DimensionsSpec EMPTY = new DimensionsSpec(null, null, null, false);
+  public static final DimensionsSpec EMPTY = new DimensionsSpec(null, null, null);
 
   public static List<DimensionSchema> getDefaultSchemas(List<String> dimNames)
   {
@@ -71,22 +69,11 @@ public class DimensionsSpec
     return new NewSpatialDimensionSchema(spatialSchema.getDimName(), spatialSchema.getDims());
   }
 
-  public static Builder builder()
-  {
-    return new Builder();
-  }
-
-  public DimensionsSpec(List<DimensionSchema> dimensions)
-  {
-    this(dimensions, null, null, false);
-  }
-
   @JsonCreator
-  private DimensionsSpec(
+  public DimensionsSpec(
       @JsonProperty("dimensions") List<DimensionSchema> dimensions,
       @JsonProperty("dimensionExclusions") List<String> dimensionExclusions,
-      @Deprecated @JsonProperty("spatialDimensions") List<SpatialDimensionSchema> spatialDimensions,
-      @JsonProperty("includeAllDimensions") boolean includeAllDimensions
+      @Deprecated @JsonProperty("spatialDimensions") List<SpatialDimensionSchema> spatialDimensions
   )
   {
     this.dimensions = dimensions == null
@@ -114,7 +101,11 @@ public class DimensionsSpec
       this.dimensions.add(newSchema);
       dimensionSchemaMap.put(newSchema.getName(), newSchema);
     }
-    this.includeAllDimensions = includeAllDimensions;
+  }
+
+  public DimensionsSpec(List<DimensionSchema> dimensions)
+  {
+    this(dimensions, null, null);
   }
 
   @JsonProperty
@@ -127,12 +118,6 @@ public class DimensionsSpec
   public Set<String> getDimensionExclusions()
   {
     return dimensionExclusions;
-  }
-
-  @JsonProperty
-  public boolean isIncludeAllDimensions()
-  {
-    return includeAllDimensions;
   }
 
   @Deprecated
@@ -188,7 +173,7 @@ public class DimensionsSpec
   @PublicApi
   public DimensionsSpec withDimensions(List<DimensionSchema> dims)
   {
-    return new DimensionsSpec(dims, ImmutableList.copyOf(dimensionExclusions), null, includeAllDimensions);
+    return new DimensionsSpec(dims, ImmutableList.copyOf(dimensionExclusions), null);
   }
 
   public DimensionsSpec withDimensionExclusions(Set<String> dimExs)
@@ -196,15 +181,14 @@ public class DimensionsSpec
     return new DimensionsSpec(
         dimensions,
         ImmutableList.copyOf(Sets.union(dimensionExclusions, dimExs)),
-        null,
-        includeAllDimensions
+        null
     );
   }
 
   @Deprecated
   public DimensionsSpec withSpatialDimensions(List<SpatialDimensionSchema> spatials)
   {
-    return new DimensionsSpec(dimensions, ImmutableList.copyOf(dimensionExclusions), spatials, includeAllDimensions);
+    return new DimensionsSpec(dimensions, ImmutableList.copyOf(dimensionExclusions), spatials);
   }
 
   private void verify(List<SpatialDimensionSchema> spatialDimensions)
@@ -241,16 +225,22 @@ public class DimensionsSpec
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
+
     DimensionsSpec that = (DimensionsSpec) o;
-    return includeAllDimensions == that.includeAllDimensions
-           && Objects.equals(dimensions, that.dimensions)
-           && Objects.equals(dimensionExclusions, that.dimensionExclusions);
+
+    if (!dimensions.equals(that.dimensions)) {
+      return false;
+    }
+
+    return dimensionExclusions.equals(that.dimensionExclusions);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(dimensions, dimensionExclusions, includeAllDimensions);
+    int result = dimensions.hashCode();
+    result = 31 * result + dimensionExclusions.hashCode();
+    return result;
   }
 
   @Override
@@ -259,51 +249,6 @@ public class DimensionsSpec
     return "DimensionsSpec{" +
            "dimensions=" + dimensions +
            ", dimensionExclusions=" + dimensionExclusions +
-           ", includeAllDimensions=" + includeAllDimensions +
            '}';
-  }
-
-  public static final class Builder
-  {
-    private List<DimensionSchema> dimensions;
-    private List<String> dimensionExclusions;
-    private List<SpatialDimensionSchema> spatialDimensions;
-    private boolean includeAllDimensions;
-
-    public Builder setDimensions(List<DimensionSchema> dimensions)
-    {
-      this.dimensions = dimensions;
-      return this;
-    }
-
-    public Builder setDefaultSchemaDimensions(List<String> dimensions)
-    {
-      this.dimensions = getDefaultSchemas(dimensions);
-      return this;
-    }
-
-    public Builder setDimensionExclusions(List<String> dimensionExclusions)
-    {
-      this.dimensionExclusions = dimensionExclusions;
-      return this;
-    }
-
-    @Deprecated
-    public Builder setSpatialDimensions(List<SpatialDimensionSchema> spatialDimensions)
-    {
-      this.spatialDimensions = spatialDimensions;
-      return this;
-    }
-
-    public Builder setIncludeAllDimensions(boolean includeAllDimensions)
-    {
-      this.includeAllDimensions = includeAllDimensions;
-      return this;
-    }
-
-    public DimensionsSpec build()
-    {
-      return new DimensionsSpec(dimensions, dimensionExclusions, spatialDimensions, includeAllDimensions);
-    }
   }
 }
