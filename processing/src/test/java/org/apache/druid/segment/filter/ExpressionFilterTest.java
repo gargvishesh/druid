@@ -74,7 +74,9 @@ public class ExpressionFilterTest extends BaseFilterTest
                   new FloatDimensionSchema("dim2"),
                   new StringDimensionSchema("dim3"),
                   new StringDimensionSchema("dim4")
-              )
+              ),
+              null,
+              null
           )
       )
   );

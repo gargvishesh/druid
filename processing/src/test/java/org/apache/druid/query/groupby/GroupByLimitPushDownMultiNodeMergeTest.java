@@ -153,14 +153,14 @@ public class GroupByLimitPushDownMultiNodeMergeTest
     return new OnheapIncrementalIndex.Builder()
         .setIndexSchema(
             new IncrementalIndexSchema.Builder()
-                .withDimensionsSpec(
-                    new DimensionsSpec(
-                        Arrays.asList(
-                            new StringDimensionSchema("dimA"),
-                            new LongDimensionSchema("metA")
-                        )
-                    )
-                )
+                .withDimensionsSpec(new DimensionsSpec(
+                    Arrays.asList(
+                        new StringDimensionSchema("dimA"),
+                        new LongDimensionSchema("metA")
+                    ),
+                    null,
+                    null
+                ))
                 .withRollup(withRollup)
                 .build()
         )

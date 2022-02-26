@@ -124,10 +124,11 @@ public class DoubleStorageTest
   private static final InputRowParser<Map<String, Object>> ROW_PARSER = new MapInputRowParser(
       new JSONParseSpec(
           new TimestampSpec(TIME_COLUMN, "auto", null),
-          DimensionsSpec.builder()
-                        .setDimensions(DimensionsSpec.getDefaultSchemas(ImmutableList.of(DIM_NAME)))
-                        .setDimensionExclusions(ImmutableList.of(DIM_FLOAT_NAME))
-                        .build(),
+          new DimensionsSpec(
+              DimensionsSpec.getDefaultSchemas(ImmutableList.of(DIM_NAME)),
+              ImmutableList.of(DIM_FLOAT_NAME),
+              ImmutableList.of()
+          ),
           null,
           null,
           null

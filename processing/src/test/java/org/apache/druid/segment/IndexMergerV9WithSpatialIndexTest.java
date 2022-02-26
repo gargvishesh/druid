@@ -109,20 +109,21 @@ public class IndexMergerV9WithSpatialIndexTest extends InitializedNullHandlingTe
                 .withQueryGranularity(Granularities.DAY)
                 .withMetrics(METRIC_AGGS)
                 .withDimensionsSpec(
-                    DimensionsSpec.builder()
-                                  .setSpatialDimensions(
-                                      Arrays.asList(
-                                          new SpatialDimensionSchema(
-                                              "dim.geo",
-                                              Arrays.asList("lat", "long")
-                                          ),
-                                          new SpatialDimensionSchema(
-                                              "spatialIsRad",
-                                              Arrays.asList("lat2", "long2")
-                                          )
-                                      )
-                                  )
-                                  .build()
+                    new DimensionsSpec(
+                        null,
+                        null,
+                        Arrays.asList(
+                            new SpatialDimensionSchema(
+                                "dim.geo",
+                                Arrays.asList("lat", "long")
+                            ),
+                            new SpatialDimensionSchema(
+                                "spatialIsRad",
+                                Arrays.asList("lat2", "long2")
+                            )
+
+                        )
+                    )
                 ).build()
         )
         .setMaxRowCount(NUM_POINTS)
@@ -283,20 +284,21 @@ public class IndexMergerV9WithSpatialIndexTest extends InitializedNullHandlingTe
                   .withQueryGranularity(Granularities.DAY)
                   .withMetrics(METRIC_AGGS)
                   .withDimensionsSpec(
-                      DimensionsSpec.builder()
-                          .setSpatialDimensions(
-                              Arrays.asList(
-                                  new SpatialDimensionSchema(
-                                      "dim.geo",
-                                      Arrays.asList("lat", "long")
-                                  ),
-                                  new SpatialDimensionSchema(
-                                      "spatialIsRad",
-                                      Arrays.asList("lat2", "long2")
-                                  )
+                      new DimensionsSpec(
+                          null,
+                          null,
+                          Arrays.asList(
+                              new SpatialDimensionSchema(
+                                  "dim.geo",
+                                  Arrays.asList("lat", "long")
+                              ),
+                              new SpatialDimensionSchema(
+                                  "spatialIsRad",
+                                  Arrays.asList("lat2", "long2")
                               )
+
                           )
-                          .build()
+                      )
                   ).build()
           )
           .setMaxRowCount(1000)
@@ -309,20 +311,21 @@ public class IndexMergerV9WithSpatialIndexTest extends InitializedNullHandlingTe
                   .withQueryGranularity(Granularities.DAY)
                   .withMetrics(METRIC_AGGS)
                   .withDimensionsSpec(
-                      DimensionsSpec.builder()
-                                    .setSpatialDimensions(
-                                        Arrays.asList(
-                                            new SpatialDimensionSchema(
-                                                "dim.geo",
-                                                Arrays.asList("lat", "long")
-                                            ),
-                                            new SpatialDimensionSchema(
-                                                "spatialIsRad",
-                                                Arrays.asList("lat2", "long2")
-                                            )
-                                        )
-                                    )
-                                    .build()
+                      new DimensionsSpec(
+                          null,
+                          null,
+                          Arrays.asList(
+                              new SpatialDimensionSchema(
+                                  "dim.geo",
+                                  Arrays.asList("lat", "long")
+                              ),
+                              new SpatialDimensionSchema(
+                                  "spatialIsRad",
+                                  Arrays.asList("lat2", "long2")
+                              )
+
+                          )
+                      )
                   ).build()
           )
           .setMaxRowCount(1000)
@@ -335,20 +338,21 @@ public class IndexMergerV9WithSpatialIndexTest extends InitializedNullHandlingTe
                   .withQueryGranularity(Granularities.DAY)
                   .withMetrics(METRIC_AGGS)
                   .withDimensionsSpec(
-                      DimensionsSpec.builder()
-                                    .setSpatialDimensions(
-                                        Arrays.asList(
-                                            new SpatialDimensionSchema(
-                                                "dim.geo",
-                                                Arrays.asList("lat", "long")
-                                            ),
-                                            new SpatialDimensionSchema(
-                                                "spatialIsRad",
-                                                Arrays.asList("lat2", "long2")
-                                            )
-                                        )
-                                    )
-                                    .build()
+                      new DimensionsSpec(
+                          null,
+                          null,
+                          Arrays.asList(
+                              new SpatialDimensionSchema(
+                                  "dim.geo",
+                                  Arrays.asList("lat", "long")
+                              ),
+                              new SpatialDimensionSchema(
+                                  "spatialIsRad",
+                                  Arrays.asList("lat2", "long2")
+                              )
+
+                          )
+                      )
                   ).build()
           )
           .setMaxRowCount(NUM_POINTS)

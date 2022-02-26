@@ -57,7 +57,7 @@ public class OrFilterTest extends BaseFilterTest
   private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(
           new TimestampSpec(TIMESTAMP_COLUMN, "iso", DateTimes.of("2000")),
-          DimensionsSpec.EMPTY
+          new DimensionsSpec(null, null, null)
       )
   );
 

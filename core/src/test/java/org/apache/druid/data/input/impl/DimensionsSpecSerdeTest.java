@@ -45,21 +45,19 @@ public class DimensionsSpecSerdeTest
   @Test
   public void testDimensionsSpecSerde() throws Exception
   {
-    DimensionsSpec expected = DimensionsSpec
-        .builder()
-        .setDimensions(
-            Arrays.asList(
-                new StringDimensionSchema("AAA"),
-                new StringDimensionSchema("BBB"),
-                new FloatDimensionSchema("C++"),
-                new NewSpatialDimensionSchema("DDT", null),
-                new LongDimensionSchema("EEE"),
-                new NewSpatialDimensionSchema("DDT2", Arrays.asList("A", "B")),
-                new NewSpatialDimensionSchema("IMPR", Arrays.asList("S", "P", "Q", "R"))
-            )
-        )
-        .setDimensionExclusions(Arrays.asList("FOO", "HAR"))
-        .build();
+    DimensionsSpec expected = new DimensionsSpec(
+        Arrays.asList(
+            new StringDimensionSchema("AAA"),
+            new StringDimensionSchema("BBB"),
+            new FloatDimensionSchema("C++"),
+            new NewSpatialDimensionSchema("DDT", null),
+            new LongDimensionSchema("EEE"),
+            new NewSpatialDimensionSchema("DDT2", Arrays.asList("A", "B")),
+            new NewSpatialDimensionSchema("IMPR", Arrays.asList("S", "P", "Q", "R"))
+        ),
+        Arrays.asList("FOO", "HAR"),
+        null
+    );
 
     String jsonStr = "{\"dimensions\":"
                      + "[\"AAA\", \"BBB\","

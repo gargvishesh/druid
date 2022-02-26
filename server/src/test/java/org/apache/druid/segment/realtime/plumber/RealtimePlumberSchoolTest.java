@@ -141,7 +141,7 @@ public class RealtimePlumberSchoolTest extends InitializedNullHandlingTest
             new StringInputRowParser(
                 new JSONParseSpec(
                     new TimestampSpec("timestamp", "auto", null),
-                    DimensionsSpec.EMPTY,
+                    new DimensionsSpec(null, null, null),
                     null,
                     null,
                     null
@@ -162,7 +162,7 @@ public class RealtimePlumberSchoolTest extends InitializedNullHandlingTest
             new StringInputRowParser(
                 new JSONParseSpec(
                     new TimestampSpec("timestamp", "auto", null),
-                    DimensionsSpec.EMPTY,
+                    new DimensionsSpec(null, null, null),
                     null,
                     null,
                     null

@@ -639,7 +639,11 @@ public class IndexMergerTestBase extends InitializedNullHandlingTest
   public void testMergeWithDimensionsList() throws Exception
   {
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-        .withDimensionsSpec(new DimensionsSpec(makeDimensionSchemas(Arrays.asList("dimA", "dimB", "dimC"))))
+        .withDimensionsSpec(new DimensionsSpec(
+            makeDimensionSchemas(Arrays.asList("dimA", "dimB", "dimC")),
+            null,
+            null
+        ))
         .withMetrics(new CountAggregatorFactory("count"))
         .build();
 
@@ -1685,7 +1689,7 @@ public class IndexMergerTestBase extends InitializedNullHandlingTest
   private IncrementalIndex getIndexWithDimsFromSchemata(List<DimensionSchema> dims)
   {
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-        .withDimensionsSpec(new DimensionsSpec(dims))
+        .withDimensionsSpec(new DimensionsSpec(dims, null, null))
         .withMetrics(new CountAggregatorFactory("count"))
         .build();
 
@@ -1789,7 +1793,7 @@ public class IndexMergerTestBase extends InitializedNullHandlingTest
   private IncrementalIndex getIndexWithDims(List<String> dims)
   {
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-        .withDimensionsSpec(new DimensionsSpec(makeDimensionSchemas(dims)))
+        .withDimensionsSpec(new DimensionsSpec(makeDimensionSchemas(dims), null, null))
         .withMetrics(new CountAggregatorFactory("count"))
         .build();
 
@@ -2680,7 +2684,7 @@ public class IndexMergerTestBase extends InitializedNullHandlingTest
 
   private QueryableIndex persistAndLoad(List<DimensionSchema> schema, InputRow... rows) throws IOException
   {
-    IncrementalIndex toPersist = IncrementalIndexTest.createIndex(null, new DimensionsSpec(schema));
+    IncrementalIndex toPersist = IncrementalIndexTest.createIndex(null, new DimensionsSpec(schema, null, null));
     for (InputRow row : rows) {
       toPersist.add(row);
     }

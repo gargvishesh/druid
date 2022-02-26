@@ -618,7 +618,7 @@ public class AggregationTestHelper implements Closeable
             new IncrementalIndexSchema.Builder()
                 .withMinTimestamp(minTimestamp)
                 .withQueryGranularity(gran)
-                .withDimensionsSpec(new DimensionsSpec(dimensions))
+                .withDimensionsSpec(new DimensionsSpec(dimensions, null, null))
                 .withMetrics(metrics)
                 .withRollup(rollup)
                 .build()

@@ -676,7 +676,11 @@ public class IncrementalIndexTest extends InitializedNullHandlingTest
                 new IncrementalIndexSchema.Builder()
                     .withMetrics(new CountAggregatorFactory("count"))
                     .withDimensionsSpec(
-                        new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("dim0", "dim1")))
+                        new DimensionsSpec(
+                            DimensionsSpec.getDefaultSchemas(Arrays.asList("dim0", "dim1")),
+                            null,
+                            null
+                        )
                     )
                     .build()
             )

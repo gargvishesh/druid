@@ -136,7 +136,9 @@ public abstract class BaseFilterTest extends InitializedNullHandlingTest
           .add(new DoubleDimensionSchema("d0"))
           .add(new FloatDimensionSchema("f0"))
           .add(new LongDimensionSchema("l0"))
-          .build()
+          .build(),
+      null,
+      null
   );
 
   static final InputRowParser<Map<String, Object>> DEFAULT_PARSER = new MapInputRowParser(

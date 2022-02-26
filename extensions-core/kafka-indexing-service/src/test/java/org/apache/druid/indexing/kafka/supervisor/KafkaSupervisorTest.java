@@ -3937,7 +3937,11 @@ public class KafkaSupervisorTest extends EasyMockSupport
     return new DataSchema(
         dataSource,
         new TimestampSpec("timestamp", "iso", null),
-        new DimensionsSpec(dimensions),
+        new DimensionsSpec(
+            dimensions,
+            null,
+            null
+        ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
         new UniformGranularitySpec(
             Granularities.HOUR,

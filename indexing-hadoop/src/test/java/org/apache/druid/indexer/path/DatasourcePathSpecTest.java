@@ -314,7 +314,7 @@ public class DatasourcePathSpecTest
                     new StringInputRowParser(
                         new CSVParseSpec(
                             new TimestampSpec("timestamp", "yyyyMMddHH", null),
-                            DimensionsSpec.EMPTY,
+                            new DimensionsSpec(null, null, null),
                             null,
                             ImmutableList.of("timestamp", "host", "visited"),
                             false,

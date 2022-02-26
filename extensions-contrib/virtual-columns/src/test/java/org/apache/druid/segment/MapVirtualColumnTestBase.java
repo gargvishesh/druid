@@ -48,7 +48,7 @@ public class MapVirtualColumnTestBase extends InitializedNullHandlingTest
     final StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
             new TimestampSpec("ts", "auto", null),
-            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values"))),
+            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values")), null, null),
             "\t",
             ",",
             Arrays.asList("ts", "dim", "keys", "values"),

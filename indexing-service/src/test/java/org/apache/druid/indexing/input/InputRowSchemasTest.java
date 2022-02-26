@@ -43,7 +43,9 @@ public class InputRowSchemasTest extends NullHandlingTest
     final ColumnsFilter columnsFilter = InputRowSchemas.createColumnsFilter(
         new TimestampSpec("ts", "auto", null),
         new DimensionsSpec(
-            ImmutableList.of(StringDimensionSchema.create("foo"))
+            ImmutableList.of(StringDimensionSchema.create("foo")),
+            ImmutableList.of(),
+            ImmutableList.of()
         ),
         new TransformSpec(
             new SelectorDimFilter("bar", "x", null),
@@ -75,9 +77,11 @@ public class InputRowSchemasTest extends NullHandlingTest
   {
     final ColumnsFilter columnsFilter = InputRowSchemas.createColumnsFilter(
         new TimestampSpec("ts", "auto", null),
-        DimensionsSpec.builder()
-                      .setDimensionExclusions(ImmutableList.of("ts", "foo", "bar", "qux", "bob"))
-                      .build(),
+        new DimensionsSpec(
+            ImmutableList.of(),
+            ImmutableList.of("ts", "foo", "bar", "qux", "bob"),
+            ImmutableList.of()
+        ),
         new TransformSpec(
             new SelectorDimFilter("bar", "x", null),
             ImmutableList.of(

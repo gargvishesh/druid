@@ -1424,7 +1424,9 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
                             new StringDimensionSchema("dim1t"),
                             new LongDimensionSchema("dimLong"),
                             new FloatDimensionSchema("dimFloat")
-                        )
+                        ),
+                        null,
+                        null
                     )
                 )
             ),

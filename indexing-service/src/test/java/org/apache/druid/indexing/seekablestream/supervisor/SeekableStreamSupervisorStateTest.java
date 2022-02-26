@@ -84,6 +84,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -888,7 +889,11 @@ public class SeekableStreamSupervisorStateTest extends EasyMockSupport
     return new DataSchema(
         DATASOURCE,
         new TimestampSpec("timestamp", "iso", null),
-        new DimensionsSpec(dimensions),
+        new DimensionsSpec(
+            dimensions,
+            null,
+            null
+        ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
         new UniformGranularitySpec(
             Granularities.HOUR,

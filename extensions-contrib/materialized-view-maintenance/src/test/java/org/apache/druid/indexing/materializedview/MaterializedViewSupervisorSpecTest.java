@@ -124,7 +124,9 @@ public class MaterializedViewSupervisorSpecTest
                 new StringDimensionSchema("regionIsoCode"),
                 new StringDimensionSchema("regionName"),
                 new StringDimensionSchema("user")
-            )
+            ),
+            null,
+            null
         ),
         new AggregatorFactory[]{
             new CountAggregatorFactory("count"),
@@ -173,7 +175,9 @@ public class MaterializedViewSupervisorSpecTest
                               new StringDimensionSchema("regionIsoCode"),
                               new StringDimensionSchema("regionName"),
                               new StringDimensionSchema("user")
-                      )
+                      ),
+                      null,
+                      null
               ),
               new AggregatorFactory[]{
                   new CountAggregatorFactory("count"),
@@ -303,7 +307,9 @@ public class MaterializedViewSupervisorSpecTest
                 new StringDimensionSchema("regionIsoCode"),
                 new StringDimensionSchema("regionName"),
                 new StringDimensionSchema("user")
-            )
+            ),
+            null,
+            null
         ),
         new AggregatorFactory[]{
             new CountAggregatorFactory("count"),
@@ -348,7 +354,9 @@ public class MaterializedViewSupervisorSpecTest
                 new StringDimensionSchema("regionIsoCode"),
                 new StringDimensionSchema("regionName"),
                 new StringDimensionSchema("user")
-            )
+            ),
+            null,
+            null
         ),
         new AggregatorFactory[]{
             new CountAggregatorFactory("count"),
