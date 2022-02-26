@@ -19,8 +19,8 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Modules;
-import io.imply.druid.security.keycloak.authorization.endpoint.BrokerKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
+import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.state.cache.KeycloakAuthorizerCacheManager;
 import io.imply.druid.security.keycloak.authorization.state.notifier.CoordinatorKeycloakAuthorizerCacheNotifier;
@@ -158,7 +158,7 @@ public class ImplyKeycloakModuleTest
             })
     );
     KeycloakAuthorizerResourceHandler authorizerResourceHandler = injector.getInstance(KeycloakAuthorizerResourceHandler.class);
-    Assert.assertTrue(authorizerResourceHandler instanceof BrokerKeycloakAuthorizerResourceHandler);
+    Assert.assertTrue(authorizerResourceHandler instanceof DefaultKeycloakAuthorizerResourceHandler);
   }
 
   @Test
