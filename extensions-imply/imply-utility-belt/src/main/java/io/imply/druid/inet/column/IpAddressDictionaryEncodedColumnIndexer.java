@@ -47,6 +47,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
 
   public IpAddressDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes, boolean useMaxMemoryEstimates)
   {
+    super(new DimensionDictionary<>(IpAddressBlob.class));
     this.hasBitmapIndexes = hasBitmapIndexes;
     this.useMaxMemoryEstimates = useMaxMemoryEstimates;
   }

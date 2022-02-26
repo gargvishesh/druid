@@ -36,7 +36,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
   protected volatile boolean hasNulls = false;
 
   protected SortedMap<String, FieldIndexer<?>> fieldIndexers = new TreeMap<>();
-  protected final DimensionDictionary<String> dimLookup = new DimensionDictionary<>();
+  protected final DimensionDictionary<String> dimLookup = new DimensionDictionary<>(String.class);
 
   protected final StructuredDataProcessor indexerProcessor = new StructuredDataProcessor()
   {
