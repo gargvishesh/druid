@@ -17,8 +17,8 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
-import io.imply.druid.security.keycloak.authorization.endpoint.BrokerKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.CoordinatorKeycloakAuthorizerResourceHandler;
+import io.imply.druid.security.keycloak.authorization.endpoint.DefaultKeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResource;
 import io.imply.druid.security.keycloak.authorization.endpoint.KeycloakAuthorizerResourceHandler;
 import io.imply.druid.security.keycloak.authorization.state.cache.CoordinatorKeycloakAuthorizerCacheManager;
@@ -121,7 +121,7 @@ public class ImplyKeycloakModule implements DruidModule
     if (isCoordinatorRole(nodeRoles)) {
       return CoordinatorKeycloakAuthorizerResourceHandler.class;
     } else {
-      return BrokerKeycloakAuthorizerResourceHandler.class;
+      return DefaultKeycloakAuthorizerResourceHandler.class;
     }
   }
 
