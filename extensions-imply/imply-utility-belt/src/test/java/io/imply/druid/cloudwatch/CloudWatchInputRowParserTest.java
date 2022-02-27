@@ -9,7 +9,6 @@ package io.imply.druid.cloudwatch;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.BaseEncoding;
 import org.apache.druid.common.config.NullHandlingTest;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.MapBasedInputRow;
@@ -36,30 +35,29 @@ public class CloudWatchInputRowParserTest extends NullHandlingTest
     final CloudWatchInputRowParser parser = new CloudWatchInputRowParser(
         new DelimitedParseSpec(
             new TimestampSpec("start", "posix", null),
-            new DimensionsSpec(
-                ImmutableList.<DimensionSchema>builder()
-                    // CloudWatch dimensions
-                    .add(StringDimensionSchema.create("owner"))
-                    .add(StringDimensionSchema.create("logGroup"))
-                    .add(StringDimensionSchema.create("logStream"))
+            DimensionsSpec.builder()
+                          .setDimensions(ImmutableList.<DimensionSchema>builder()
+                                                      // CloudWatch dimensions
+                                                      .add(StringDimensionSchema.create("owner"))
+                                                      .add(StringDimensionSchema.create("logGroup"))
+                                                      .add(StringDimensionSchema.create("logStream"))
 
-                    // VPC Flow dimensions
-                    .add(StringDimensionSchema.create("version"))
-                    .add(StringDimensionSchema.create("account-id"))
-                    .add(StringDimensionSchema.create("interface-id"))
-                    .add(StringDimensionSchema.create("srcaddr"))
-                    .add(StringDimensionSchema.create("dstaddr"))
-                    .add(StringDimensionSchema.create("srcport"))
-                    .add(StringDimensionSchema.create("dstport"))
-                    .add(StringDimensionSchema.create("protocol"))
-                    .add(new LongDimensionSchema("packets"))
-                    .add(new LongDimensionSchema("bytes"))
-                    .add(new LongDimensionSchema("start"))
-                    .add(new LongDimensionSchema("end"))
-                    .build(),
-                null,
-                null
-            ),
+                                                      // VPC Flow dimensions
+                                                      .add(StringDimensionSchema.create("version"))
+                                                      .add(StringDimensionSchema.create("account-id"))
+                                                      .add(StringDimensionSchema.create("interface-id"))
+                                                      .add(StringDimensionSchema.create("srcaddr"))
+                                                      .add(StringDimensionSchema.create("dstaddr"))
+                                                      .add(StringDimensionSchema.create("srcport"))
+                                                      .add(StringDimensionSchema.create("dstport"))
+                                                      .add(StringDimensionSchema.create("protocol"))
+                                                      .add(new LongDimensionSchema("packets"))
+                                                      .add(new LongDimensionSchema("bytes"))
+                                                      .add(new LongDimensionSchema("start"))
+                                                      .add(new LongDimensionSchema("end"))
+                                                      .build()
+                          ).build()
+            ,
             " ",
             null,
             ImmutableList.of(

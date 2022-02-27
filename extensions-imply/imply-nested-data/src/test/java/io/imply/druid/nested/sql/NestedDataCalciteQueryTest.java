@@ -127,16 +127,14 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(
           new TimestampSpec("t", "iso", null),
-          new DimensionsSpec(
+          DimensionsSpec.builder().setDimensions(
               ImmutableList.<DimensionSchema>builder()
                            .add(new StringDimensionSchema("string"))
                            .add(new NestedDataDimensionSchema("nest"))
                            .add(new NestedDataDimensionSchema("nester"))
                            .add(new LongDimensionSchema("long"))
-                           .build(),
-              null,
-              null
-          )
+                           .build()
+          ).build()
       ));
 
   private static final List<InputRow> ROWS =

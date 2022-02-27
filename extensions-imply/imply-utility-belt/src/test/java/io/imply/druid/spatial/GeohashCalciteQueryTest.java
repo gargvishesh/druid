@@ -77,14 +77,13 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
   private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(
           new TimestampSpec("t", "iso", null),
-          new DimensionsSpec(
-              ImmutableList.<DimensionSchema>builder()
-                           .add(new DoubleDimensionSchema("lon"))
-                           .add(new DoubleDimensionSchema("lat"))
-                           .build(),
-              null,
-              null
-          )
+          DimensionsSpec.builder()
+                        .setDimensions(
+                            ImmutableList.<DimensionSchema>builder()
+                                         .add(new DoubleDimensionSchema("lon"))
+                                         .add(new DoubleDimensionSchema("lat"))
+                                         .build()
+                        ).build()
       ));
 
   private static final List<InputRow> ROWS =

@@ -97,11 +97,9 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
         .schema(
             new IncrementalIndexSchema.Builder()
                 .withDimensionsSpec(
-                    new DimensionsSpec(
-                        DimensionsSpec.getDefaultSchemas(ImmutableList.of(VISITOR_ID)),
-                        null,
-                        null
-                    )
+                    DimensionsSpec.builder()
+                                  .setDimensions(DimensionsSpec.getDefaultSchemas(ImmutableList.of(VISITOR_ID)))
+                                  .build()
                 )
                 .withMetrics(
                     new CountAggregatorFactory("count"),
