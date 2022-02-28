@@ -20,11 +20,11 @@ public class WorkerMemoryParametersTest
   @Test
   public void test_oneWorkerInJvm_alone()
   {
-    Assert.assertEquals(parameters(1, 45, 373_000_000, 1), compute(1_000_000_000, 1, 1, 1));
-    Assert.assertEquals(parameters(2, 14, 248_000_000, 2), compute(1_000_000_000, 1, 2, 1));
-    Assert.assertEquals(parameters(4, 3, 148_000_000, 4), compute(1_000_000_000, 1, 4, 1));
-    Assert.assertEquals(parameters(3, 2, 81_333_333, 8), compute(1_000_000_000, 1, 8, 1));
-    Assert.assertEquals(parameters(1, 4, 42_117_647, 16), compute(1_000_000_000, 1, 16, 1));
+    Assert.assertEquals(parameters(1, 45, 373_000_000), compute(1_000_000_000, 1, 1, 1));
+    Assert.assertEquals(parameters(2, 14, 248_000_000), compute(1_000_000_000, 1, 2, 1));
+    Assert.assertEquals(parameters(4, 3, 148_000_000), compute(1_000_000_000, 1, 4, 1));
+    Assert.assertEquals(parameters(3, 2, 81_333_333), compute(1_000_000_000, 1, 8, 1));
+    Assert.assertEquals(parameters(1, 4, 42_117_647), compute(1_000_000_000, 1, 16, 1));
 
     final TalariaException e = Assert.assertThrows(
         TalariaException.class,
@@ -37,8 +37,8 @@ public class WorkerMemoryParametersTest
   @Test
   public void test_oneWorkerInJvm_twoHundredWorkersInCluster()
   {
-    Assert.assertEquals(parameters(1, 45, 174_000_000, 1), compute(1_000_000_000, 1, 1, 200));
-    Assert.assertEquals(parameters(2, 14, 49_000_000, 2), compute(1_000_000_000, 1, 2, 200));
+    Assert.assertEquals(parameters(1, 45, 174_000_000), compute(1_000_000_000, 1, 1, 200));
+    Assert.assertEquals(parameters(2, 14, 49_000_000), compute(1_000_000_000, 1, 2, 200));
 
     final TalariaException e = Assert.assertThrows(
         TalariaException.class,
@@ -51,11 +51,11 @@ public class WorkerMemoryParametersTest
   @Test
   public void test_fourWorkersInJvm_twoHundredWorkersInCluster()
   {
-    Assert.assertEquals(parameters(1, 149, 999_000_000, 1), compute(8_000_000_000L, 4, 1, 200));
-    Assert.assertEquals(parameters(2, 61, 799_000_000, 2), compute(8_000_000_000L, 4, 2, 200));
-    Assert.assertEquals(parameters(4, 22, 549_000_000, 4), compute(8_000_000_000L, 4, 4, 200));
-    Assert.assertEquals(parameters(4, 14, 299_000_000, 8), compute(8_000_000_000L, 4, 8, 200));
-    Assert.assertEquals(parameters(4, 8, 99_000_000, 16), compute(8_000_000_000L, 4, 16, 200));
+    Assert.assertEquals(parameters(1, 149, 999_000_000), compute(8_000_000_000L, 4, 1, 200));
+    Assert.assertEquals(parameters(2, 61, 799_000_000), compute(8_000_000_000L, 4, 2, 200));
+    Assert.assertEquals(parameters(4, 22, 549_000_000), compute(8_000_000_000L, 4, 4, 200));
+    Assert.assertEquals(parameters(4, 14, 299_000_000), compute(8_000_000_000L, 4, 8, 200));
+    Assert.assertEquals(parameters(4, 8, 99_000_000), compute(8_000_000_000L, 4, 16, 200));
 
     final TalariaException e = Assert.assertThrows(
         TalariaException.class,
@@ -65,21 +65,19 @@ public class WorkerMemoryParametersTest
     Assert.assertEquals(new TooManyWorkersFault(200, 140), e.getFault());
 
     // Make sure 140 actually works. (Verify the error message above.)
-    Assert.assertEquals(parameters(4, 4, 25_666_666, 32), compute(8_000_000_000L, 4, 32, 140));
+    Assert.assertEquals(parameters(4, 4, 25_666_666), compute(8_000_000_000L, 4, 32, 140));
   }
 
   private static WorkerMemoryParameters parameters(
       final int superSorterMaxActiveProcessors,
       final int superSorterMaxChannelsPerProcessor,
-      final long appenderatorMemory,
-      final int appenderatorCount
+      final long appenderatorMemory
   )
   {
     return new WorkerMemoryParameters(
         superSorterMaxActiveProcessors,
         superSorterMaxChannelsPerProcessor,
         appenderatorMemory,
-        appenderatorCount,
         (long) (appenderatorMemory * WorkerMemoryParameters.BROADCAST_JOIN_MEMORY_FRACTION)
     );
   }
