@@ -31,6 +31,15 @@ public class TalariaCounters
   private final ConcurrentHashMap<Integer, WorkerCounters> workerCountersMap = new ConcurrentHashMap<>();
 
   @Nullable
+  public SuperSorterProgressTracker getOrCreateSortProgressTracker(
+      final int workerNumber,
+      final int stageNumber
+  )
+  {
+    return workerCountersMap.get(workerNumber).getOrCreateSortProgressTracker(stageNumber);
+  }
+
+  @Nullable
   public ChannelCounters getChannelCounters(
       final TalariaCounterType counterType,
       final int workerNumber,
@@ -81,6 +90,17 @@ public class TalariaCounters
               channelSnapshot.getBytes()
           );
         }
+        for (TalariaCountersSnapshot.SortProgressTracker sortProgressTrackerEntry : workerSnapshot.getSortProgress()) {
+          // Worker sends one (updated) value of the snapshot per stage to the leader. Therefore, we only need to add or
+          // replace (if present) the present value with the new value for that stage number
+          workerCountersMap.get(workerSnapshot.getWorkerNumber()).sortProgressTrackerMap.compute(
+              sortProgressTrackerEntry.getStageNumber(),
+              (ignored1, ignored2) -> {
+                SuperSorterProgressSnapshot superSorterProgressSnapshot = sortProgressTrackerEntry.getSortProgress();
+                return SuperSorterProgressTracker.createWithSnapshot(superSorterProgressSnapshot);
+              }
+          );
+        }
       }
     }
   }
@@ -126,10 +146,20 @@ public class TalariaCounters
         );
       }
 
+      List<TalariaCountersSnapshot.SortProgressTracker> sortProgressTrackerSnapshotList = new ArrayList<>();
+      for (Map.Entry<Integer, SuperSorterProgressTracker> sortProgressTrackerEntry : workerEntry.getValue().sortProgressTrackerMap.entrySet()) {
+        sortProgressTrackerSnapshotList.add(
+            new TalariaCountersSnapshot.SortProgressTracker(
+                sortProgressTrackerEntry.getKey(), sortProgressTrackerEntry.getValue().snapshot()
+            )
+        );
+      }
+
       workerCountersSnapshot.add(
           new TalariaCountersSnapshot.WorkerCounters(
               workerEntry.getKey(),
-              workerSnapshotMap
+              workerSnapshotMap,
+              sortProgressTrackerSnapshotList
           )
       );
     }
@@ -190,6 +220,9 @@ public class TalariaCounters
     private final ConcurrentHashMap<TalariaCounterType, ConcurrentHashMap<StagePartitionNumber, ChannelCounters>> countersMap =
         new ConcurrentHashMap<>();
 
+    // stage number -> sort progress
+    private final ConcurrentHashMap<Integer, SuperSorterProgressTracker> sortProgressTrackerMap = new ConcurrentHashMap<>();
+
     private WorkerCounters()
     {
       // Only created in this file.
@@ -212,6 +245,16 @@ public class TalariaCounters
       }
 
       return total;
+    }
+
+    public SuperSorterProgressTracker getOrCreateSortProgressTracker(int stageNumber)
+    {
+      return sortProgressTrackerMap.computeIfAbsent(stageNumber, ignored -> new SuperSorterProgressTracker());
+    }
+
+    public Map<Integer, SuperSorterProgressTracker> getSortProgressTrackersMap()
+    {
+      return sortProgressTrackerMap;
     }
   }
 

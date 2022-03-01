@@ -31,6 +31,7 @@ import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
 import io.imply.druid.talaria.util.FutureUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -44,6 +45,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -60,6 +62,7 @@ import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 /**
  * TODO(gianm): Feature to collapse to single level if L0 has # mergers = 1, and # partitions = 1
@@ -72,8 +75,8 @@ import java.util.function.Supplier;
 public class SuperSorter
 {
   private static final Logger log = new Logger(SuperSorter.class);
-  private static final int UNKNOWN_LEVEL = -1;
-  private static final long UNKNOWN_TOTAL = -1;
+  public static final int UNKNOWN_LEVEL = -1;
+  public static final long UNKNOWN_TOTAL = -1;
 
   private final List<ReadableFrameChannel> inputChannels;
   private final FrameReader frameReader;
@@ -128,6 +131,9 @@ public class SuperSorter
   @GuardedBy("runWorkersLock")
   private SettableFuture<OutputChannels> allDone = null;
 
+  @GuardedBy("runWorkersLock")
+  SuperSorterProgressTracker superSorterProgressTracker;
+
   /**
    * See {@link #setNoWorkRunnable}.
    */
@@ -145,7 +151,8 @@ public class SuperSorter
       final Supplier<MemoryAllocator> innerFrameAllocatorMaker,
       final int maxActiveProcessors,
       final int maxChannelsPerProcessor,
-      final long rowLimit
+      final long rowLimit,
+      @Nonnull SuperSorterProgressTracker superSorterProgressTracker
   )
   {
     this.inputChannels = inputChannels;
@@ -159,6 +166,7 @@ public class SuperSorter
     this.maxChannelsPerProcessor = maxChannelsPerProcessor;
     this.maxActiveProcessors = maxActiveProcessors;
     this.rowLimit = rowLimit;
+    this.superSorterProgressTracker = superSorterProgressTracker;
 
     for (int i = 0; i < inputChannels.size(); i++) {
       inputChannelsToRead.add(i);
@@ -184,6 +192,9 @@ public class SuperSorter
         outputPartitionsFuture.addListener(
             () -> {
               synchronized (runWorkersLock) {
+                if (outputPartitionsFuture.isDone()) { // Update the progress tracker
+                  superSorterProgressTracker.setTotalMergersForUltimateLevel(getOutputPartitions().size());
+                }
                 runWorkersIfPossible();
                 setAllDoneIfPossible();
               }
@@ -559,6 +570,7 @@ public class SuperSorter
         synchronized (runWorkersLock) {
           outputsReadyByLevel.computeIfAbsent(level, ignored2 -> new LongRBTreeSet())
                              .add(rank);
+          superSorterProgressTracker.addMergedBatchesForLevel(level, 1);
         }
       });
     }
@@ -607,22 +619,40 @@ public class SuperSorter
     );
   }
 
+  // This also updates the progressTracker's number of total levels, and total mergers for levels. Therefore, if the
+  // progressTracker is present, calling this multiple times will throw an error.
   @GuardedBy("runWorkersLock")
   private void setTotalInputFrames(final long totalInputFrames)
   {
     this.totalInputFrames = totalInputFrames;
 
+    // Mark the progress tracker as trivially complete, if there is nothing to sort.
+    if (totalInputFrames == 0) {
+      superSorterProgressTracker.markTriviallyComplete();
+    }
+
     // Set totalMergingLevels too
     long totalMergersInLevel = totalInputFrames;
-    int level = -1;
+    int level = 0;
 
     while (totalMergersInLevel > maxChannelsPerProcessor) {
-      level++;
       totalMergersInLevel = LongMath.divide(totalMergersInLevel, maxChannelsPerProcessor, RoundingMode.CEILING);
+      superSorterProgressTracker.setTotalMergersForLevel(level, totalMergersInLevel);
+      level++;
     }
 
     // Must have at least three levels. (Zero, penultimate, ultimate.)
-    totalMergingLevels = Math.max(level + 2, 3);
+    totalMergingLevels = Math.max(level + 1, 3);
+
+    // Add remaining levels to the tracker, if required
+    IntStream.range(level, totalMergingLevels)
+             .forEach(curLevel -> {
+               synchronized (runWorkersLock) {
+                 superSorterProgressTracker.setTotalMergersForLevel(curLevel, 1);
+               }
+             });
+
+    superSorterProgressTracker.setTotalMergingLevels(totalMergingLevels);
   }
 
   private ClusterByPartitions getOutputPartitions()
