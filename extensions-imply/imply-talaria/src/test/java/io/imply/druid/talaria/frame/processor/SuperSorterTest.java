@@ -33,6 +33,7 @@ import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
+import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
 import io.imply.druid.talaria.util.SequenceUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -109,6 +110,7 @@ public class SuperSorterTest
       inputChannel.doneWriting();
 
       final SettableFuture<ClusterByPartitions> outputPartitionsFuture = SettableFuture.create();
+      final SuperSorterProgressTracker superSorterProgressTracker = new SuperSorterProgressTracker();
 
       final SuperSorter superSorter = new SuperSorter(
           Collections.singletonList(inputChannel),
@@ -121,7 +123,8 @@ public class SuperSorterTest
           () -> ArenaMemoryAllocator.createOnHeap(FRAME_SIZE),
           2,
           2,
-          -1
+          -1,
+          superSorterProgressTracker
       );
 
       superSorter.setNoWorkRunnable(() -> outputPartitionsFuture.set(ClusterByPartitions.oneUniversalPartition()));
@@ -130,6 +133,7 @@ public class SuperSorterTest
 
       final ReadableFrameChannel channel = Iterables.getOnlyElement(channels.getAllChannels()).getReadableChannel();
       Assert.assertTrue(channel.isFinished());
+      Assert.assertEquals(1.0, superSorterProgressTracker.snapshot().getProgressDigest(), 0.0f);
       channel.doneReading();
     }
   }
@@ -271,6 +275,7 @@ public class SuperSorterTest
     {
       final Comparator<ClusterByKey> keyComparator = clusterBy.keyComparator(signature);
       final SettableFuture<ClusterByPartitions> clusterByPartitionsFuture = SettableFuture.create();
+      final SuperSorterProgressTracker superSorterProgressTracker = new SuperSorterProgressTracker();
 
       final SuperSorter superSorter = new SuperSorter(
           inputChannels,
@@ -283,12 +288,14 @@ public class SuperSorterTest
           () -> ArenaMemoryAllocator.createOnHeap(maxBytesPerFrame),
           maxActiveProcessors / maxChannelsPerProcessor,
           maxChannelsPerProcessor,
-          -1
+          -1,
+          superSorterProgressTracker
       );
 
       superSorter.setNoWorkRunnable(() -> clusterByPartitionsFuture.set(clusterByPartitions));
       final OutputChannels outputChannels = superSorter.run().get();
       Assert.assertEquals(clusterByPartitions.size(), outputChannels.getAllChannels().size());
+      Assert.assertEquals(1.0, superSorterProgressTracker.snapshot().getProgressDigest(), 0.0f);
 
       final int[] clusterByPartColumns = clusterBy.getColumns().stream().mapToInt(
           part -> signature.indexOf(part.columnName())

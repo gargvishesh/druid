@@ -48,6 +48,7 @@ import io.imply.druid.talaria.indexing.CountingInputChannelFactory;
 import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
 import io.imply.druid.talaria.indexing.TalariaClusterByStatisticsCollectionProcessor;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
@@ -734,7 +735,8 @@ public class WorkerImpl implements Worker
             cancellationId,
             frameContext.memoryParameters(),
             context,
-            kernelManipulationQueue
+            kernelManipulationQueue,
+            counters.getOrCreateSortProgressTracker(workerNumber, workOrder.getStageNumber())
         );
       }
     } else {
@@ -864,7 +866,8 @@ public class WorkerImpl implements Worker
       final String cancellationId,
       final WorkerMemoryParameters memoryParameters,
       final WorkerContext context,
-      final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue
+      final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue,
+      final SuperSorterProgressTracker superSorterProgressTracker
   ) throws IOException
   {
     if (!stageDefinition.doesShuffle()) {
@@ -923,7 +926,8 @@ public class WorkerImpl implements Worker
         () -> ArenaMemoryAllocator.createOnHeap(memoryParameters.getLargeFrameSize()),
         memoryParameters.getSuperSorterMaxActiveProcessors(),
         memoryParameters.getSuperSorterMaxChannelsPerProcessor(),
-        -1
+        -1,
+        superSorterProgressTracker
     );
 
     return sorter.run();
