@@ -17,6 +17,7 @@ import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import org.apache.druid.java.util.common.FileUtils;
+import org.apache.druid.java.util.common.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +42,8 @@ public class FileOutputChannelFactory implements OutputChannelFactory
   {
     FileUtils.mkdirp(fileChannelsDirectory);
 
-    final File file = new File(fileChannelsDirectory, UUID.randomUUID().toString());
+    final String fileName = StringUtils.format("part_%06d_%s", partitionNumber, UUID.randomUUID().toString());
+    final File file = new File(fileChannelsDirectory, fileName);
 
     final WritableStreamFrameChannel writableChannel =
         new WritableStreamFrameChannel(

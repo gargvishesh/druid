@@ -212,12 +212,10 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
         partitionNumber
     );
 
-    final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
-    final TalariaFrameChannelConnectionManager connectionManager = new TalariaFrameChannelConnectionManager(
-        StringUtils.format("%s:%s", workerTaskId, path),
-        channel,
-        connectExec
-    );
+    final String channelId = StringUtils.format("%s:%s", workerTaskId, path);
+    final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create(channelId);
+    final TalariaFrameChannelConnectionManager connectionManager =
+        new TalariaFrameChannelConnectionManager(channel, connectExec);
 
     return connectionManager.connect(
         (connectionNumber, offset) ->

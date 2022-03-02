@@ -21,6 +21,7 @@ import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.segment.TestIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.apache.druid.testing.InitializedNullHandlingTest;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,13 +62,13 @@ public class ReadableByteChunksFrameChannelTest
     @Test
     public void testZeroBytes()
     {
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       channel.doneWriting();
 
       Assert.assertTrue(channel.canRead());
 
       expectedException.expect(IllegalStateException.class);
-      expectedException.expectMessage("Incomplete frame at end of stream");
+      expectedException.expectMessage("Incomplete or missing frame at end of stream (id = test, position = 0)");
 
       channel.read().getOrThrow();
     }
@@ -75,7 +76,7 @@ public class ReadableByteChunksFrameChannelTest
     @Test
     public void testZeroBytesWithSpecialError()
     {
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       channel.setError(new IllegalArgumentException("test error"));
       channel.doneWriting();
 
@@ -92,7 +93,7 @@ public class ReadableByteChunksFrameChannelTest
     {
       final File file = FrameTestUtil.writeFrameFile(Sequences.empty(), temporaryFolder.newFile());
 
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       channel.addChunk(Files.toByteArray(file));
       channel.doneWriting();
 
@@ -126,7 +127,7 @@ public class ReadableByteChunksFrameChannelTest
         ByteStreams.readFully(in, truncatedFile);
       }
 
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       channel.addChunk(truncatedFile);
       channel.doneWriting();
 
@@ -139,7 +140,7 @@ public class ReadableByteChunksFrameChannelTest
       Assert.assertTrue(channel.canRead());
 
       expectedException.expect(IllegalStateException.class);
-      expectedException.expectMessage("Incomplete frame at end of stream");
+      expectedException.expectMessage(CoreMatchers.startsWith("Incomplete or missing frame at end of stream"));
       channel.read().getOrThrow();
     }
 
@@ -159,7 +160,7 @@ public class ReadableByteChunksFrameChannelTest
           temporaryFolder.newFile()
       );
 
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       final byte[] fileBytes = Files.toByteArray(file);
       final byte[] chunk1 = new byte[errorAtBytePosition];
       System.arraycopy(fileBytes, 0, chunk1, 0, chunk1.length);
@@ -217,7 +218,7 @@ public class ReadableByteChunksFrameChannelTest
           temporaryFolder.newFile()
       );
 
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       ListenableFuture<?> backpressureFuture = null;
 
       Assert.assertEquals(0, channel.getBytesBuffered());
@@ -265,7 +266,7 @@ public class ReadableByteChunksFrameChannelTest
           temporaryFolder.newFile()
       );
 
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.minimal();
+      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create("test");
       final BlockingQueueFrameChannel outChannel = new BlockingQueueFrameChannel(10_000); // Enough to hold all frames
       ListenableFuture<?> backpressureFuture = null;
 

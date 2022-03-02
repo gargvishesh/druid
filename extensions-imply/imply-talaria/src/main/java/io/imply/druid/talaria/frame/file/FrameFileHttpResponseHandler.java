@@ -23,13 +23,26 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+/**
+ * An {@link HttpResponseHandler} that streams data into a {@link ReadableByteChunksFrameChannel}.
+ *
+ * In the successful case, this class calls {@link ReadableByteChunksFrameChannel#doneWriting()} on the channel.
+ * However, in the unsuccessful case, this class does *not* set an error on the channel. Instead, it calls the
+ * provided {@link #exceptionCallback}. This allows for reconnection and resuming, which is typically managed
+ * by a {@link io.imply.druid.talaria.indexing.TalariaFrameChannelConnectionManager}.
+ *
+ * This class implements backpressure: when {@link ReadableByteChunksFrameChannel#addChunk} returns a backpressure
+ * future, we use the {@link HttpResponseHandler.TrafficCop} mechanism to throttle reading.
+ */
 public class FrameFileHttpResponseHandler
     implements HttpResponseHandler<ReadableByteChunksFrameChannel, ReadableFrameChannel>
 {
   private final ReadableByteChunksFrameChannel channel;
   private final Consumer<Throwable> exceptionCallback;
+  private final AtomicBoolean exceptionCaught = new AtomicBoolean();
 
   private volatile TrafficCop trafficCop;
 
@@ -51,8 +64,9 @@ public class FrameFileHttpResponseHandler
     this.trafficCop = trafficCop;
 
     if (response.getStatus().getCode() != HttpResponseStatus.OK.getCode()) {
-      // TODO(gianm): Nicer error. Use response content? ... Handle chunked error responses?
-      handleException(new ISE("not ok, status = %s", response.getStatus()));
+      // Note: if the error body is chunked, we will discard all future chunks due to setting exceptionCaught here.
+      // This is OK because we don't need the body; just the HTTP status code.
+      handleException(new ISE("Server for [%s] returned [%s]", channel.getId(), response.getStatus()));
       return ClientResponse.finished(channel, true);
     } else {
       return response(channel, response.getContent(), 0);
@@ -73,7 +87,12 @@ public class FrameFileHttpResponseHandler
   public ClientResponse<ReadableFrameChannel> done(final ClientResponse<ReadableByteChunksFrameChannel> clientResponse)
   {
     final ReadableByteChunksFrameChannel channel = clientResponse.getObj();
-    channel.doneWriting();
+
+    if (!exceptionCaught.get()) {
+      // If there was an exception, don't close the channel. The exception callback will do this if it wants to.
+      channel.doneWriting();
+    }
+
     return ClientResponse.finished(channel);
   }
 
@@ -89,6 +108,14 @@ public class FrameFileHttpResponseHandler
       final long chunkNum
   )
   {
+    if (exceptionCaught.get()) {
+      // If there was an exception, exit early without updating "channel". Important because "handleChunk" can be
+      // called after "handleException" in two cases: it can be called after an error "response", if the error body
+      // is chunked; and it can be called when "handleChunk" is called after "exceptionCaught". In neither case do
+      // we want to add that extra chunk to the channel.
+      return ClientResponse.finished(channel, true);
+    }
+
     final byte[] chunk = new byte[content.readableBytes()];
     content.getBytes(content.readerIndex(), chunk);
     final Optional<ListenableFuture<?>> addVal = channel.addChunk(chunk);
@@ -110,14 +137,16 @@ public class FrameFileHttpResponseHandler
 
   private void handleException(final Throwable e)
   {
-    try {
-      exceptionCallback.accept(e);
-    }
-    catch (Throwable e2) {
-      e2.addSuppressed(e);
+    if (exceptionCaught.compareAndSet(false, true)) {
+      try {
+        exceptionCallback.accept(e);
+      }
+      catch (Throwable e2) {
+        e2.addSuppressed(e);
 
-      if (channel != null) {
-        channel.setError(e2);
+        if (channel != null) {
+          channel.setError(e2);
+        }
       }
     }
   }
