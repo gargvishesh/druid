@@ -34,7 +34,8 @@ public class TalariaTasks
       final boolean aggregate
   )
   {
-    final KeyCollectorFactory<?> keyCollectorFactory = KeyCollectors.makeFactory(clusterBy, frameSignature, aggregate);
+    final KeyCollectorFactory<?, ?> keyCollectorFactory =
+        KeyCollectors.makeStandardFactory(clusterBy, frameSignature, aggregate);
 
     final ObjectMapper mapperCopy = mapper.copy();
     mapperCopy.registerModule(new ClusterByKeyDeserializerModule(frameSignature, clusterBy));

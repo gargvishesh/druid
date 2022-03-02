@@ -57,12 +57,12 @@ public class TargetSizeShuffleSpec implements ShuffleSpec
       final int maxNumPartitions
   )
   {
-    final long expectedPartitions = collector.estimatedCount() / targetSize;
+    final long expectedPartitions = collector.estimatedTotalWeight() / targetSize;
 
     if (expectedPartitions > maxNumPartitions) {
       return Either.error(expectedPartitions);
     } else {
-      final ClusterByPartitions generatedPartitions = collector.generatePartitionsWithTargetSize(targetSize);
+      final ClusterByPartitions generatedPartitions = collector.generatePartitionsWithTargetWeight(targetSize);
       if (generatedPartitions.size() <= maxNumPartitions) {
         return Either.value(generatedPartitions);
       } else {

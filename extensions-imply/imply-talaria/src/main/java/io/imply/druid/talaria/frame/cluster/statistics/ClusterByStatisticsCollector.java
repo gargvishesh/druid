@@ -26,8 +26,14 @@ public interface ClusterByStatisticsCollector
 
   /**
    * Add a key to this collector.
+   *
+   * The "weight" parameter must be a positive integer. It should be 1 for "normal" reasonably-sized rows, and a
+   * larger-than-1-but-still-small integer for "jumbo" rows. This allows {@link #generatePartitionsWithTargetWeight}
+   * to behave reasonably when passed a row count for the target weight: if all rows are reasonably sized, weight
+   * is equivalent to rows; however, if rows are jumbo then the generated partition ranges will have fewer rows to
+   * accommodate the extra weight.
    */
-  ClusterByStatisticsCollector add(ClusterByKey key);
+  ClusterByStatisticsCollector add(ClusterByKey key, int weight);
 
   /**
    * Add another collector's data to this collector. Does not modify the other collector.
@@ -40,9 +46,9 @@ public interface ClusterByStatisticsCollector
   ClusterByStatisticsCollector addAll(ClusterByStatisticsSnapshot other);
 
   /**
-   * Estimated number of rows in the dataset, based on what keys have been added so far.
+   * Estimated total amount of row weight in the dataset, based on what keys have been added so far.
    */
-  long estimatedCount();
+  long estimatedTotalWeight();
 
   /**
    * Whether this collector has encountered any multi-valued input at a particular key position.
@@ -57,10 +63,10 @@ public interface ClusterByStatisticsCollector
   ClusterByStatisticsCollector clear();
 
   /**
-   * Generates key ranges, targeting a particular number of rows per range. The actual number of rows per range
+   * Generates key ranges, targeting a particular row weight per range. The actual amount of row weight per range
    * may be higher or lower than the provided target.
    */
-  ClusterByPartitions generatePartitionsWithTargetSize(long targetPartitionSize);
+  ClusterByPartitions generatePartitionsWithTargetWeight(long targetWeight);
 
   /**
    * Generates up to "maxNumPartitions" key ranges. The actual number of generated partitions may be less than the

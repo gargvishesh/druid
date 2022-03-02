@@ -9,33 +9,42 @@
 
 package io.imply.druid.talaria.frame.cluster.statistics;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.math.LongMath;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import io.imply.druid.talaria.frame.cluster.ClusterByKeyDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.objects.Object2IntAVLTreeMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
+import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 
+import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -57,8 +66,9 @@ public class ClusterByStatisticsCollectorImplTest
       1
   );
 
-  private static final int MAX_KEYS = 10000;
-  private static final int MAX_BUCKETS = 10000;
+  // These numbers are roughly 10x lower than authentic production numbers. (See StageDefinition.)
+  private static final int MAX_KEYS = 5000;
+  private static final int MAX_BUCKETS = 1000;
 
   @Test
   public void test_clusterByX_unique()
@@ -69,8 +79,8 @@ public class ClusterByStatisticsCollectorImplTest
     final Iterable<ClusterByKey> keys = () ->
         LongStream.range(0, numRows).mapToObj(ClusterByKey::of).iterator();
 
-    final Object2IntSortedMap<ClusterByKey> sortedKeyCounts =
-        computeSortedKeyCounts(keys, clusterBy.keyComparator(SIGNATURE));
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
 
     doTest(
         clusterBy,
@@ -80,12 +90,12 @@ public class ClusterByStatisticsCollectorImplTest
           Assert.assertEquals(StringUtils.format("%s: tracked bucket count", testName), 1, trackedBuckets(collector));
           Assert.assertEquals(StringUtils.format("%s: tracked row count", testName), numRows, trackedRows(collector));
 
-          for (int targetPartitionSize : new int[]{51111, 65432, (int) numRows + 10}) {
-            verifyPartitionsWithTargetSize(
-                StringUtils.format("%s: generatePartitionsWithTargetSize(%d)", testName, targetPartitionSize),
+          for (int targetPartitionWeight : new int[]{51111, 65432, (int) numRows + 10}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
                 collector,
-                targetPartitionSize,
-                sortedKeyCounts,
+                targetPartitionWeight,
+                sortedKeyWeights,
                 aggregate
             );
           }
@@ -95,10 +105,12 @@ public class ClusterByStatisticsCollectorImplTest
                 StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
                 collector,
                 maxPartitionCount,
-                sortedKeyCounts,
+                sortedKeyWeights,
                 aggregate
             );
           }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
         }
     );
   }
@@ -116,8 +128,8 @@ public class ClusterByStatisticsCollectorImplTest
       keys.add(ClusterByKey.of((long) i));
     }
 
-    final Object2IntSortedMap<ClusterByKey> sortedKeyCounts =
-        computeSortedKeyCounts(keys, clusterBy.keyComparator(SIGNATURE));
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
 
     doTest(
         clusterBy,
@@ -127,12 +139,12 @@ public class ClusterByStatisticsCollectorImplTest
           Assert.assertEquals(StringUtils.format("%s: tracked bucket count", testName), 1, trackedBuckets(collector));
           Assert.assertEquals(StringUtils.format("%s: tracked row count", testName), numRows, trackedRows(collector));
 
-          for (int targetPartitionSize : new int[]{51111, 65432, (int) numRows + 10}) {
-            verifyPartitionsWithTargetSize(
-                StringUtils.format("%s: generatePartitionsWithTargetSize(%d)", testName, targetPartitionSize),
+          for (int targetPartitionWeight : new int[]{51111, 65432, (int) numRows + 10}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
                 collector,
-                targetPartitionSize,
-                sortedKeyCounts,
+                targetPartitionWeight,
+                sortedKeyWeights,
                 aggregate
             );
           }
@@ -142,10 +154,12 @@ public class ClusterByStatisticsCollectorImplTest
                 StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
                 collector,
                 maxPartitionCount,
-                sortedKeyCounts,
+                sortedKeyWeights,
                 aggregate
             );
           }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
         }
     );
   }
@@ -165,8 +179,8 @@ public class ClusterByStatisticsCollectorImplTest
       }
     }
 
-    final Object2IntSortedMap<ClusterByKey> sortedKeyCounts =
-        computeSortedKeyCounts(keys, clusterBy.keyComparator(SIGNATURE));
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
 
     doTest(
         clusterBy,
@@ -183,12 +197,12 @@ public class ClusterByStatisticsCollectorImplTest
               expectedNumRows * .05 // Acceptable estimation error
           );
 
-          for (int targetPartitionSize : new int[]{51111, 65432, (int) numRows + 10}) {
-            verifyPartitionsWithTargetSize(
-                StringUtils.format("%s: generatePartitionsWithTargetSize(%d)", testName, targetPartitionSize),
+          for (int targetPartitionWeight : new int[]{51111, 65432, (int) numRows + 10}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
                 collector,
-                targetPartitionSize,
-                sortedKeyCounts,
+                targetPartitionWeight,
+                sortedKeyWeights,
                 aggregate
             );
           }
@@ -198,10 +212,12 @@ public class ClusterByStatisticsCollectorImplTest
                 StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
                 collector,
                 maxPartitionCount,
-                sortedKeyCounts,
+                sortedKeyWeights,
                 aggregate
             );
           }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
         }
     );
   }
@@ -222,8 +238,8 @@ public class ClusterByStatisticsCollectorImplTest
       keys.add(ClusterByKey.of(key));
     }
 
-    final Object2IntSortedMap<ClusterByKey> sortedKeyCounts =
-        computeSortedKeyCounts(keys, clusterBy.keyComparator(SIGNATURE));
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
 
     doTest(
         clusterBy,
@@ -233,26 +249,176 @@ public class ClusterByStatisticsCollectorImplTest
           Assert.assertEquals(StringUtils.format("%s: bucket count", testName), numBuckets, trackedBuckets(collector));
           Assert.assertEquals(StringUtils.format("%s: row count", testName), numRows, trackedRows(collector));
 
-          for (int targetPartitionSize : new int[]{17001, 23007}) {
-            verifyPartitionsWithTargetSize(
-                StringUtils.format("%s: generatePartitionsWithTargetSize(%d)", testName, targetPartitionSize),
+          for (int targetPartitionWeight : new int[]{17001, 23007}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
                 collector,
-                targetPartitionSize,
-                sortedKeyCounts,
+                targetPartitionWeight,
+                sortedKeyWeights,
                 aggregate
             );
           }
 
-          // TODO(gianm): Tests for maxPartitionCount = 1, 2; should fail because there are too many buckets
-          for (int maxPartitionCount : new int[]{3, 10, 50}) {
-            verifyPartitionsWithMaxCount(
-                StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
+          for (int maxPartitionCount : new int[]{1, 2, 3, 10, 50}) {
+            if (maxPartitionCount < numBuckets) {
+              final IllegalStateException e = Assert.assertThrows(
+                  IllegalStateException.class,
+                  () -> collector.generatePartitionsWithMaxCount(maxPartitionCount)
+              );
+
+              MatcherAssert.assertThat(
+                  e,
+                  ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Unable to compute partition ranges"))
+              );
+            } else {
+              verifyPartitionsWithMaxCount(
+                  StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
+                  collector,
+                  maxPartitionCount,
+                  sortedKeyWeights,
+                  aggregate
+              );
+            }
+          }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
+        }
+    );
+  }
+
+  @Test
+  public void test_clusterByXYbucketByX_maxX_uniqueY()
+  {
+    final int numBuckets = MAX_BUCKETS;
+    final boolean aggregate = false;
+    final long numRows = 1_000_000;
+    final ClusterBy clusterBy = CLUSTER_BY_XY_BUCKET_BY_X;
+    final List<ClusterByKey> keys = new ArrayList<>((int) numRows);
+
+    for (int i = 0; i < numRows; i++) {
+      final Object[] key = new Object[2];
+      key[0] = (long) (i % numBuckets);
+      key[1] = (long) i;
+      keys.add(ClusterByKey.of(key));
+    }
+
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+
+    doTest(
+        clusterBy,
+        aggregate,
+        keys,
+        (testName, collector) -> {
+          Assert.assertEquals(StringUtils.format("%s: bucket count", testName), numBuckets, trackedBuckets(collector));
+
+          for (int targetPartitionWeight : new int[]{17001, 23007}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
                 collector,
-                maxPartitionCount,
-                sortedKeyCounts,
+                targetPartitionWeight,
+                sortedKeyWeights,
                 aggregate
             );
           }
+
+          for (int maxPartitionCount : new int[]{1, 10, numBuckets - 1, numBuckets}) {
+            if (maxPartitionCount < numBuckets) {
+              // Cannot compute partitions ranges when maxPartitionCount < numBuckets, because there must be at
+              // least one partition per bucket.
+              final IllegalStateException e = Assert.assertThrows(
+                  IllegalStateException.class,
+                  () -> verifyPartitionsWithMaxCount(
+                      StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
+                      collector,
+                      maxPartitionCount,
+                      sortedKeyWeights,
+                      aggregate
+                  )
+              );
+
+              MatcherAssert.assertThat(
+                  e,
+                  ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Unable to compute partition ranges"))
+              );
+            } else {
+              verifyPartitionsWithMaxCount(
+                  StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
+                  collector,
+                  maxPartitionCount,
+                  sortedKeyWeights,
+                  aggregate
+              );
+            }
+          }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
+        }
+    );
+  }
+
+  @Test
+  public void test_clusterByXYbucketByX_maxX_lowCardinalityY_withAggregation()
+  {
+    final int numBuckets = MAX_BUCKETS;
+    final boolean aggregate = true;
+    final long numRows = 1_000_000;
+    final ClusterBy clusterBy = CLUSTER_BY_XY_BUCKET_BY_X;
+    final List<ClusterByKey> keys = new ArrayList<>((int) numRows);
+
+    for (int i = 0; i < numRows; i++) {
+      final Object[] key = new Object[2];
+      key[0] = (long) (i % numBuckets);
+      key[1] = (long) (i % 5); // Only five different Ys
+      keys.add(ClusterByKey.of(key));
+    }
+
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+
+    doTest(
+        clusterBy,
+        aggregate,
+        keys,
+        (testName, collector) -> {
+          Assert.assertEquals(StringUtils.format("%s: bucket count", testName), numBuckets, trackedBuckets(collector));
+
+          // trackedRows will equal numBuckets, because the collectors have been downsampled so much
+          Assert.assertEquals(StringUtils.format("%s: row count", testName), numBuckets, trackedRows(collector));
+
+          for (int targetPartitionWeight : new int[]{17001, 23007}) {
+            verifyPartitionsWithTargetWeight(
+                StringUtils.format("%s: generatePartitionsWithTargetWeight(%d)", testName, targetPartitionWeight),
+                collector,
+                targetPartitionWeight,
+                sortedKeyWeights,
+                aggregate
+            );
+          }
+
+          for (int maxPartitionCount : new int[]{1, 10, numBuckets, numBuckets + 1}) {
+            if (maxPartitionCount < numBuckets) {
+              final IllegalStateException e = Assert.assertThrows(
+                  IllegalStateException.class,
+                  () -> collector.generatePartitionsWithMaxCount(maxPartitionCount)
+              );
+
+              MatcherAssert.assertThat(
+                  e,
+                  ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Unable to compute partition ranges"))
+              );
+            } else {
+              verifyPartitionsWithMaxCount(
+                  StringUtils.format("%s: generatePartitionsWithMaxCount(%d)", testName, maxPartitionCount),
+                  collector,
+                  maxPartitionCount,
+                  sortedKeyWeights,
+                  aggregate
+              );
+            }
+          }
+
+          verifySnapshotSerialization(testName, collector, aggregate);
         }
     );
   }
@@ -261,34 +427,34 @@ public class ClusterByStatisticsCollectorImplTest
       final ClusterBy clusterBy,
       final boolean aggregate,
       final Iterable<ClusterByKey> keys,
-      final BiConsumer<String, ClusterByStatisticsCollectorImpl<?>> testFn
+      final BiConsumer<String, ClusterByStatisticsCollectorImpl> testFn
   )
   {
     final Comparator<ClusterByKey> comparator = clusterBy.keyComparator(SIGNATURE);
 
     // Load into single collector, sorted order.
-    final ClusterByStatisticsCollectorImpl<?> sortedCollector = makeCollector(clusterBy, aggregate);
+    final ClusterByStatisticsCollectorImpl sortedCollector = makeCollector(clusterBy, aggregate);
     final List<ClusterByKey> sortedKeys = Lists.newArrayList(keys);
     sortedKeys.sort(comparator);
-    sortedKeys.forEach(sortedCollector::add);
+    sortedKeys.forEach(k -> sortedCollector.add(k, 1));
     testFn.accept("single collector, sorted order", sortedCollector);
 
     // Load into single collector, reverse sorted order.
-    final ClusterByStatisticsCollectorImpl<?> reverseSortedCollector = makeCollector(clusterBy, aggregate);
+    final ClusterByStatisticsCollectorImpl reverseSortedCollector = makeCollector(clusterBy, aggregate);
     final List<ClusterByKey> reverseSortedKeys = Lists.newArrayList(keys);
     reverseSortedKeys.sort(comparator.reversed());
-    reverseSortedKeys.forEach(reverseSortedCollector::add);
+    reverseSortedKeys.forEach(k -> reverseSortedCollector.add(k, 1));
     testFn.accept("single collector, reverse sorted order", reverseSortedCollector);
 
     // Randomized load into single collector.
-    final ClusterByStatisticsCollectorImpl<?> randomizedCollector = makeCollector(clusterBy, aggregate);
+    final ClusterByStatisticsCollectorImpl randomizedCollector = makeCollector(clusterBy, aggregate);
     final List<ClusterByKey> randomizedKeys = Lists.newArrayList(keys);
     Collections.shuffle(randomizedKeys, new Random(7 /* Consistent seed from run to run */));
-    randomizedKeys.forEach(randomizedCollector::add);
+    randomizedKeys.forEach(k -> randomizedCollector.add(k, 1));
     testFn.accept("single collector, random order", randomizedCollector);
 
     // Split randomized load into three collectors of the same size, followed by merge.
-    final List<ClusterByStatisticsCollectorImpl<?>> threeEqualSizedCollectors = new ArrayList<>();
+    final List<ClusterByStatisticsCollectorImpl> threeEqualSizedCollectors = new ArrayList<>();
     threeEqualSizedCollectors.add(makeCollector(clusterBy, aggregate));
     threeEqualSizedCollectors.add(makeCollector(clusterBy, aggregate));
     threeEqualSizedCollectors.add(makeCollector(clusterBy, aggregate));
@@ -296,7 +462,7 @@ public class ClusterByStatisticsCollectorImplTest
     final Iterator<ClusterByKey> iterator1 = randomizedKeys.iterator();
     for (int i = 0; iterator1.hasNext(); i++) {
       final ClusterByKey key = iterator1.next();
-      threeEqualSizedCollectors.get(i % threeEqualSizedCollectors.size()).add(key);
+      threeEqualSizedCollectors.get(i % threeEqualSizedCollectors.size()).add(key, 1);
     }
 
     threeEqualSizedCollectors.get(0).addAll(threeEqualSizedCollectors.get(1)); // Regular add
@@ -305,7 +471,7 @@ public class ClusterByStatisticsCollectorImplTest
     testFn.accept("three merged collectors, equal sizes", threeEqualSizedCollectors.get(0));
 
     // Split randomized load into three collectors of different sizes, followed by merge.
-    final List<ClusterByStatisticsCollectorImpl<?>> threeDifferentlySizedCollectors = new ArrayList<>();
+    final List<ClusterByStatisticsCollectorImpl> threeDifferentlySizedCollectors = new ArrayList<>();
     threeDifferentlySizedCollectors.add(makeCollector(clusterBy, aggregate));
     threeDifferentlySizedCollectors.add(makeCollector(clusterBy, aggregate));
     threeDifferentlySizedCollectors.add(makeCollector(clusterBy, aggregate));
@@ -316,13 +482,13 @@ public class ClusterByStatisticsCollectorImplTest
 
       if (i % 100 < 2) {
         // 2% of space
-        threeDifferentlySizedCollectors.get(0).add(key);
+        threeDifferentlySizedCollectors.get(0).add(key, 1);
       } else if (i % 100 < 20) {
         // 18% of space
-        threeDifferentlySizedCollectors.get(1).add(key);
+        threeDifferentlySizedCollectors.get(1).add(key, 1);
       } else {
         // 80% of space
-        threeDifferentlySizedCollectors.get(2).add(key);
+        threeDifferentlySizedCollectors.get(2).add(key, 1);
       }
     }
 
@@ -332,9 +498,9 @@ public class ClusterByStatisticsCollectorImplTest
     testFn.accept("three merged collectors, different sizes", threeDifferentlySizedCollectors.get(2));
   }
 
-  private ClusterByStatisticsCollectorImpl<?> makeCollector(final ClusterBy clusterBy, final boolean aggregate)
+  private ClusterByStatisticsCollectorImpl makeCollector(final ClusterBy clusterBy, final boolean aggregate)
   {
-    return (ClusterByStatisticsCollectorImpl<?>)
+    return (ClusterByStatisticsCollectorImpl)
         ClusterByStatisticsCollectorImpl.create(clusterBy, SIGNATURE, MAX_KEYS, MAX_BUCKETS, aggregate);
   }
 
@@ -342,39 +508,44 @@ public class ClusterByStatisticsCollectorImplTest
       final String testName,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitions,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts,
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights,
       final boolean aggregate,
       final long expectedPartitionSize
   )
   {
     final int expectedNumberOfBuckets =
-        sortedKeyCounts.keySet()
-                       .stream()
-                       .map(key -> key.trim(clusterBy.getBucketByCount()))
-                       .collect(Collectors.toSet())
-                       .size();
+        sortedKeyWeights.keySet()
+                        .stream()
+                        .map(key -> key.trim(clusterBy.getBucketByCount()))
+                        .collect(Collectors.toSet())
+                        .size();
 
-    verifyPartitionsCoverKeySpace(testName, partitions, sortedKeyCounts, clusterBy.keyComparator(SIGNATURE));
     verifyNumberOfBuckets(testName, clusterBy, partitions, expectedNumberOfBuckets);
-    verifyPartitionsRespectBucketBoundaries(testName, clusterBy, partitions, sortedKeyCounts);
-    verifyPartitionSizes(testName, clusterBy, partitions, sortedKeyCounts, aggregate, expectedPartitionSize);
+    verifyPartitionsRespectBucketBoundaries(testName, clusterBy, partitions, sortedKeyWeights);
+    verifyPartitionsCoverKeySpace(
+        testName,
+        partitions,
+        sortedKeyWeights.firstKey(),
+        clusterBy.keyComparator(SIGNATURE)
+    );
+    verifyPartitionWeights(testName, clusterBy, partitions, sortedKeyWeights, aggregate, expectedPartitionSize);
   }
 
-  private static void verifyPartitionsWithTargetSize(
+  private static void verifyPartitionsWithTargetWeight(
       final String testName,
       final ClusterByStatisticsCollector collector,
-      final int targetPartitionSize,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts,
+      final int targetPartitionWeight,
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights,
       final boolean aggregate
   )
   {
     verifyPartitions(
         testName,
         collector.getClusterBy(),
-        collector.generatePartitionsWithTargetSize(targetPartitionSize),
-        sortedKeyCounts,
+        collector.generatePartitionsWithTargetWeight(targetPartitionWeight),
+        sortedKeyWeights,
         aggregate,
-        targetPartitionSize
+        targetPartitionWeight
     );
   }
 
@@ -382,7 +553,7 @@ public class ClusterByStatisticsCollectorImplTest
       final String testName,
       final ClusterByStatisticsCollector collector,
       final int maxPartitionCount,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts,
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights,
       final boolean aggregate
   )
   {
@@ -392,9 +563,13 @@ public class ClusterByStatisticsCollectorImplTest
         testName,
         collector.getClusterBy(),
         partitions,
-        sortedKeyCounts,
+        sortedKeyWeights,
         aggregate,
-        totalRows(sortedKeyCounts, aggregate) / maxPartitionCount
+        LongMath.divide(
+            totalWeight(sortedKeyWeights, new ClusterByPartition(null, null), aggregate),
+            maxPartitionCount,
+            RoundingMode.CEILING
+        )
     );
 
     MatcherAssert.assertThat(
@@ -430,16 +605,15 @@ public class ClusterByStatisticsCollectorImplTest
    * - The end of the last partition is null
    * - Each partition's end is after its start
    */
-  private static void verifyPartitionsCoverKeySpace(
+  static void verifyPartitionsCoverKeySpace(
       final String testName,
       final ClusterByPartitions partitions,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts,
+      final ClusterByKey expectedMinKey,
       final Comparator<ClusterByKey> comparator
   )
   {
     Assert.assertTrue(StringUtils.format("%s: partitions abutting", testName), partitions.allAbutting());
 
-    final ClusterByKey minKey = sortedKeyCounts.firstKey();
     final List<ClusterByPartition> ranges = partitions.ranges();
 
     for (int i = 0; i < ranges.size(); i++) {
@@ -448,8 +622,8 @@ public class ClusterByStatisticsCollectorImplTest
       // Check expected nullness of the start key.
       if (i == 0) {
         Assert.assertEquals(
-            StringUtils.format("%s: partition %d: start is null", testName, i),
-            minKey,
+            StringUtils.format("%s: partition %d: start is min key", testName, i),
+            expectedMinKey,
             partition.getStart()
         );
       } else {
@@ -490,19 +664,22 @@ public class ClusterByStatisticsCollectorImplTest
       final String testName,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitions,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights
   )
   {
     final List<ClusterByPartition> ranges = partitions.ranges();
 
     for (int i = 0; i < ranges.size(); i++) {
       final ClusterByPartition partition = ranges.get(i);
-      final Object2IntSortedMap<ClusterByKey> partitionKeyCounts = getPartitionKeyCounts(partition, sortedKeyCounts);
-      final ClusterByKey firstBucketKey = partitionKeyCounts.firstKey().trim(clusterBy.getBucketByCount());
-      final ClusterByKey lastBucketKey = partitionKeyCounts.lastKey().trim(clusterBy.getBucketByCount());
+      final ClusterByKey firstBucketKey = partition.getStart().trim(clusterBy.getBucketByCount());
+      final ClusterByKey lastBucketKey =
+          (partition.getEnd() == null
+           ? sortedKeyWeights.lastKey()
+           : sortedKeyWeights.subMap(partition.getStart(), true, partition.getEnd(), false).lastKey())
+              .trim(clusterBy.getBucketByCount());
 
       Assert.assertEquals(
-          StringUtils.format("%s: partition %d: first, last bucket key", testName, i),
+          StringUtils.format("%s: partition %d: first, last bucket key are equal", testName, i),
           firstBucketKey,
           lastBucketKey
       );
@@ -512,11 +689,11 @@ public class ClusterByStatisticsCollectorImplTest
   /**
    * Verify that partitions have "reasonable" sizes.
    */
-  private static void verifyPartitionSizes(
+  static void verifyPartitionWeights(
       final String testName,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitions,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts,
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights,
       final boolean aggregate,
       final long expectedPartitionSize
   )
@@ -529,7 +706,7 @@ public class ClusterByStatisticsCollectorImplTest
     for (final ClusterByPartition partition : partitions) {
       rowsPerPartition.put(
           partition.getStart(),
-          totalRows(getPartitionKeyCounts(partition, sortedKeyCounts), aggregate)
+          totalWeight(sortedKeyWeights, partition, aggregate)
       );
     }
 
@@ -543,11 +720,11 @@ public class ClusterByStatisticsCollectorImplTest
       MatcherAssert.assertThat(
           StringUtils.format("%s: partition #%d: number of rows", testName, i),
           actualNumberOfRows,
-          Matchers.lessThan((long) ((1 + PARTITION_SIZE_LEEWAY) * expectedPartitionSize))
+          Matchers.lessThanOrEqualTo((long) ((1 + PARTITION_SIZE_LEEWAY) * expectedPartitionSize))
       );
 
       // Reasonable minimum number of rows per partition, for all partitions except the last in a bucket.
-      // Our algorithm allows the last partition of each bucketto be extra-small.
+      // Our algorithm allows the last partition of each bucket to be extra-small.
       final boolean isLastInBucket =
           i == partitions.size() - 1
           || !partitions.get(i + 1).getStart().trim(clusterBy.getBucketByCount()).equals(bucketKey);
@@ -562,60 +739,103 @@ public class ClusterByStatisticsCollectorImplTest
     }
   }
 
-  private static Object2IntSortedMap<ClusterByKey> getPartitionKeyCounts(
-      final ClusterByPartition partition,
-      final Object2IntSortedMap<ClusterByKey> sortedKeyCounts
+  static NavigableMap<ClusterByKey, List<Integer>> computeSortedKeyWeightsFromWeightedKeys(
+      final Iterable<Pair<ClusterByKey, Integer>> keys,
+      final Comparator<ClusterByKey> comparator
   )
   {
-    if (partition.getEnd() != null) {
-      return sortedKeyCounts.subMap(partition.getStart(), partition.getEnd());
-    } else {
-      return sortedKeyCounts.tailMap(partition.getStart());
+    final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights = new TreeMap<>(comparator);
+
+    for (final Pair<ClusterByKey, Integer> key : keys) {
+      sortedKeyWeights.computeIfAbsent(key.lhs, k -> new ArrayList<>()).add(key.rhs);
     }
+
+    return sortedKeyWeights;
   }
 
-  private static Object2IntSortedMap<ClusterByKey> computeSortedKeyCounts(
+  static NavigableMap<ClusterByKey, List<Integer>> computeSortedKeyWeightsFromUnweightedKeys(
       final Iterable<ClusterByKey> keys,
       final Comparator<ClusterByKey> comparator
   )
   {
-    final Object2IntSortedMap<ClusterByKey> sortedKeyCounts = new Object2IntAVLTreeMap<>(comparator);
-    sortedKeyCounts.defaultReturnValue(0);
-
-    for (final ClusterByKey key : keys) {
-      sortedKeyCounts.put(key, sortedKeyCounts.getInt(key) + 1);
-    }
-
-    return sortedKeyCounts;
+    return computeSortedKeyWeightsFromWeightedKeys(
+        Iterables.transform(keys, key -> Pair.of(key, 1)),
+        comparator
+    );
   }
 
-  private static long trackedBuckets(final ClusterByStatisticsCollectorImpl<? extends KeyCollector<?>> collector)
+  static long totalWeight(
+      final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights,
+      final ClusterByPartition partition,
+      final boolean aggregate
+  )
+  {
+    final NavigableMap<ClusterByKey, List<Integer>> partitionWeights =
+        sortedKeyWeights.subMap(
+            partition.getStart() == null ? sortedKeyWeights.firstKey() : partition.getStart(),
+            true,
+            partition.getEnd() == null ? sortedKeyWeights.lastKey() : partition.getEnd(),
+            partition.getEnd() == null
+        );
+
+    long retVal = 0;
+
+    for (final Collection<Integer> weights : partitionWeights.values()) {
+      if (aggregate) {
+        retVal += Collections.max(weights);
+      } else {
+        for (int w : weights) {
+          retVal += w;
+        }
+      }
+    }
+
+    return retVal;
+  }
+
+  private static long trackedBuckets(final ClusterByStatisticsCollectorImpl collector)
   {
     return collector.getKeyCollectors().size();
   }
 
-  private static long trackedRows(final ClusterByStatisticsCollectorImpl<? extends KeyCollector<?>> collector)
+  private static long trackedRows(final ClusterByStatisticsCollectorImpl collector)
   {
     long count = 0;
     for (final KeyCollector<?> keyCollector : collector.getKeyCollectors()) {
-      count += keyCollector.estimatedCount();
+      count += keyCollector.estimatedTotalWeight();
     }
     return count;
   }
 
-  private static long totalRows(final Object2IntMap<ClusterByKey> keyCounts, final boolean aggregate)
+  private static void verifySnapshotSerialization(
+      final String testName,
+      final ClusterByStatisticsCollector collector,
+      final boolean aggregate
+  )
   {
-    if (aggregate) {
-      return keyCounts.size();
-    } else {
-      long count = 0;
+    try {
+      final ObjectMapper jsonMapper = TestHelper.makeJsonMapper();
+      jsonMapper.registerModule(new ClusterByKeyDeserializerModule(SIGNATURE, collector.getClusterBy()));
+      jsonMapper.registerModule(
+          new KeyCollectorSnapshotDeserializerModule(
+              KeyCollectors.makeStandardFactory(
+                  collector.getClusterBy(),
+                  SIGNATURE,
+                  aggregate
+              )
+          )
+      );
 
-      final IntIterator iterator = keyCounts.values().iterator();
-      while (iterator.hasNext()) {
-        count += iterator.nextInt();
-      }
+      final ClusterByStatisticsSnapshot snapshot = collector.snapshot();
+      final ClusterByStatisticsSnapshot snapshot2 = jsonMapper.readValue(
+          jsonMapper.writeValueAsString(snapshot),
+          ClusterByStatisticsSnapshot.class
+      );
 
-      return count;
+      Assert.assertEquals(StringUtils.format("%s: snapshot is serializable", testName), snapshot, snapshot2);
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
     }
   }
 }

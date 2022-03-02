@@ -9,10 +9,14 @@
 
 package io.imply.druid.talaria.frame.cluster.statistics;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.smile.databind.SmileMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
@@ -27,10 +31,12 @@ import org.apache.druid.segment.column.RowSignature;
 import java.io.IOException;
 import java.util.Comparator;
 
-public class QuantilesSketchKeyCollectorFactory implements KeyCollectorFactory<QuantilesSketchKeyCollector>
+public class QuantilesSketchKeyCollectorFactory
+    implements KeyCollectorFactory<QuantilesSketchKeyCollector, QuantilesSketchKeyCollectorSnapshot>
 {
   // smallest value with normalized rank error < 0.1%; retain up to ~86k elements
-  private static final int SKETCH_INITIAL_K = 1 << 12;
+  @VisibleForTesting
+  static final int SKETCH_INITIAL_K = 1 << 12;
 
   private final Comparator<ClusterByKey> comparator;
   private final ArrayOfKeysSerDe arrayOfKeysSerDe;
@@ -68,22 +74,30 @@ public class QuantilesSketchKeyCollectorFactory implements KeyCollectorFactory<Q
   }
 
   @Override
-  public Class<? extends KeyCollectorSnapshot> snapshotClass()
+  public JsonDeserializer<QuantilesSketchKeyCollectorSnapshot> snapshotDeserializer()
   {
-    return QuantilesSketchKeyCollectorSnapshot.class;
+    return new JsonDeserializer<QuantilesSketchKeyCollectorSnapshot>()
+    {
+      @Override
+      public QuantilesSketchKeyCollectorSnapshot deserialize(JsonParser jp, DeserializationContext ctxt)
+          throws IOException
+      {
+        return jp.readValueAs(QuantilesSketchKeyCollectorSnapshot.class);
+      }
+    };
   }
 
   @Override
-  public KeyCollectorSnapshot toSnapshot(QuantilesSketchKeyCollector collector)
+  public QuantilesSketchKeyCollectorSnapshot toSnapshot(QuantilesSketchKeyCollector collector)
   {
     final String encodedSketch = StringUtils.encodeBase64String(collector.getSketch().toByteArray(arrayOfKeysSerDe));
     return new QuantilesSketchKeyCollectorSnapshot(encodedSketch);
   }
 
   @Override
-  public QuantilesSketchKeyCollector fromSnapshot(KeyCollectorSnapshot snapshot)
+  public QuantilesSketchKeyCollector fromSnapshot(QuantilesSketchKeyCollectorSnapshot snapshot)
   {
-    final String encodedSketch = ((QuantilesSketchKeyCollectorSnapshot) snapshot).getEncodedSketch();
+    final String encodedSketch = snapshot.getEncodedSketch();
     final byte[] bytes = StringUtils.decodeBase64String(encodedSketch);
     final ItemsSketch<ClusterByKey> sketch =
         ItemsSketch.getInstance(Memory.wrap(bytes), comparator, arrayOfKeysSerDe);

@@ -17,42 +17,61 @@ import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import org.apache.datasketches.quantiles.ItemsSketch;
 import org.apache.datasketches.quantiles.ItemsUnion;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.ISE;
 
+import javax.annotation.Nullable;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+/**
+ * A key collector that is used when not aggregating. It uses a quantiles sketch to track keys.
+ */
 public class QuantilesSketchKeyCollector implements KeyCollector<QuantilesSketchKeyCollector>
 {
   private final Comparator<ClusterByKey> comparator;
   private ItemsSketch<ClusterByKey> sketch;
 
-  QuantilesSketchKeyCollector(final Comparator<ClusterByKey> comparator, final ItemsSketch<ClusterByKey> sketch)
+  QuantilesSketchKeyCollector(
+      final Comparator<ClusterByKey> comparator,
+      @Nullable final ItemsSketch<ClusterByKey> sketch
+  )
   {
     this.comparator = comparator;
     this.sketch = sketch;
   }
 
   @Override
-  public void add(ClusterByKey key)
+  public void add(ClusterByKey key, long weight)
   {
-    sketch.update(key);
+    for (int i = 0; i < weight; i++) {
+      // Add the same key multiple times to make it "heavier".
+      sketch.update(key);
+    }
   }
 
   @Override
   public void addAll(QuantilesSketchKeyCollector other)
   {
-    final ItemsUnion<ClusterByKey> union = ItemsUnion.getInstance(comparator);
+    final ItemsUnion<ClusterByKey> union = ItemsUnion.getInstance(
+        Math.max(sketch.getK(), other.sketch.getK()),
+        comparator
+    );
+
     union.update(sketch);
     union.update(other.sketch);
     sketch = union.getResultAndReset();
   }
 
   @Override
-  public long estimatedCount()
+  public boolean isEmpty()
+  {
+    return sketch.isEmpty();
+  }
+
+  @Override
+  public long estimatedTotalWeight()
   {
     return sketch.getN();
   }
@@ -64,40 +83,47 @@ public class QuantilesSketchKeyCollector implements KeyCollector<QuantilesSketch
     // https://datasketches.apache.org/docs/Quantiles/OrigQuantilesSketch.html.
     final int estimatedMaxRetainedKeys = 11 * sketch.getK();
 
-    // Cast to int is safe because estimatedMaxKeys is always within int range.
+    // Cast to int is safe because estimatedMaxRetainedKeys is always within int range.
     return (int) Math.min(sketch.getN(), estimatedMaxRetainedKeys);
   }
 
   @Override
-  public void downSample()
+  public boolean downSample()
   {
-    if (sketch.getK() == 1) {
-      throw new ISE("Too many keys (estimated = %,d; retained = %,d)", estimatedCount(), sketch.getRetainedItems());
+    if (sketch.getN() <= 1) {
+      return true;
+    } else if (sketch.getK() == 2) {
+      return false;
+    } else {
+      sketch = sketch.downSample(sketch.getK() / 2);
+      return true;
     }
-
-    sketch = sketch.downSample(sketch.getK() / 2);
   }
 
   @Override
   public ClusterByKey minKey()
   {
     final ClusterByKey minValue = sketch.getMinValue();
-    if (minValue == null) {
-      throw new NoSuchElementException();
-    } else {
+
+    if (minValue != null) {
       return minValue;
+    } else {
+      throw new NoSuchElementException();
     }
   }
 
   @Override
-  public ClusterByPartitions generatePartitionsWithTargetSize(long targetPartitionSize)
+  public ClusterByPartitions generatePartitionsWithTargetWeight(final long targetWeight)
   {
-    if (targetPartitionSize <= 0) {
-      throw new IAE("targetPartitionSize must be positive, but was [%d]", targetPartitionSize);
+    if (targetWeight <= 0) {
+      throw new IAE("targetPartitionWeight must be positive, but was [%d]", targetWeight);
     }
 
-    final int numPartitions =
-        Ints.checkedCast(LongMath.divide(sketch.getN(), targetPartitionSize, RoundingMode.CEILING));
+    if (sketch.getN() == 0) {
+      return ClusterByPartitions.oneUniversalPartition();
+    }
+
+    final int numPartitions = Ints.checkedCast(LongMath.divide(sketch.getN(), targetWeight, RoundingMode.CEILING));
 
     // numPartitions + 1, because the final quantile is the max, and we won't build a partition based on that.
     final ClusterByKey[] quantiles = sketch.getQuantiles(numPartitions + 1);

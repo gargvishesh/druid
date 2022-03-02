@@ -30,15 +30,15 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector<CollectorType>>
-    implements ClusterByStatisticsCollector
+public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsCollector
 {
-  // TODO(gianm): 10, 1.05 chosen for no particular reason other than they seemed likely to work.
-  private static final int MAX_COUNT_MAX_ITERATIONS = 10;
+  // Used for generatePartitionsWithMaxCount; see https://github.com/implydata/druid/pull/884 for potentially
+  // better implementation.
+  private static final int MAX_COUNT_MAX_ITERATIONS = 500;
   private static final double MAX_COUNT_ITERATION_GROWTH_FACTOR = 1.05;
 
   private final ClusterBy clusterBy;
-  private final KeyCollectorFactory<CollectorType> keyCollectorFactory;
+  private final KeyCollectorFactory<? extends KeyCollector<?>, ? extends KeyCollectorSnapshot> keyCollectorFactory;
   private final SortedMap<ClusterByKey, BucketHolder> buckets;
 
   // TODO(gianm): this is only really here to make sure we don't generate DimensionRangeShardSpec for multi-value dims.
@@ -53,7 +53,7 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   private ClusterByStatisticsCollectorImpl(
       final ClusterBy clusterBy,
       final Comparator<ClusterByKey> comparator,
-      final KeyCollectorFactory<CollectorType> keyCollectorFactory,
+      final KeyCollectorFactory<?, ?> keyCollectorFactory,
       final int maxRetainedKeys,
       final int maxBuckets
   )
@@ -64,9 +64,12 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
     this.buckets = new TreeMap<>(comparator);
     this.maxBuckets = maxBuckets;
     this.hasMultipleValues = new boolean[clusterBy.getColumns().size()];
+
+    if (maxBuckets > maxRetainedKeys) {
+      throw new IAE("maxBuckets[%s] cannot be larger than maxRetainedKeys[%s]", maxBuckets, maxRetainedKeys);
+    }
   }
 
-  @SuppressWarnings("rawtypes")
   public static ClusterByStatisticsCollector create(
       final ClusterBy clusterBy,
       final RowSignature signature,
@@ -76,9 +79,12 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   )
   {
     final Comparator<ClusterByKey> comparator = clusterBy.keyComparator(signature);
-    final KeyCollectorFactory<?> keyCollectorFactory = KeyCollectors.makeFactory(clusterBy, signature, aggregate);
+    final KeyCollectorFactory<?, ?> keyCollectorFactory = KeyCollectors.makeStandardFactory(
+        clusterBy,
+        signature,
+        aggregate
+    );
 
-    //noinspection unchecked
     return new ClusterByStatisticsCollectorImpl(
         clusterBy,
         comparator,
@@ -95,7 +101,7 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   }
 
   @Override
-  public ClusterByStatisticsCollector add(final ClusterByKey key)
+  public ClusterByStatisticsCollector add(final ClusterByKey key, final int weight)
   {
     // TODO(gianm): hack alert: see note for hasMultipleValues
     for (int i = 0; i < clusterBy.getColumns().size(); i++) {
@@ -104,14 +110,13 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
 
     final BucketHolder bucketHolder = getOrCreateBucketHolder(key.trim(clusterBy.getBucketByCount()));
 
-    bucketHolder.keyCollector.add(key);
+    bucketHolder.keyCollector.add(key, weight);
 
     totalRetainedKeys += bucketHolder.updateRetainedKeys();
     if (totalRetainedKeys > maxRetainedKeys) {
       downSample();
     }
 
-    assertTotalRetainedKeysIsCorrect();
     return this;
   }
 
@@ -119,13 +124,14 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   public ClusterByStatisticsCollector addAll(final ClusterByStatisticsCollector other)
   {
     if (other instanceof ClusterByStatisticsCollectorImpl) {
-      //noinspection unchecked
-      ClusterByStatisticsCollectorImpl<CollectorType> that = (ClusterByStatisticsCollectorImpl<CollectorType>) other;
+      ClusterByStatisticsCollectorImpl that = (ClusterByStatisticsCollectorImpl) other;
 
       // Add all key collectors from the other collector.
       for (Map.Entry<ClusterByKey, BucketHolder> otherBucketEntry : that.buckets.entrySet()) {
         final BucketHolder bucketHolder = getOrCreateBucketHolder(otherBucketEntry.getKey());
-        bucketHolder.keyCollector.addAll(otherBucketEntry.getValue().keyCollector);
+
+        //noinspection rawtypes, unchecked
+        ((KeyCollector) bucketHolder.keyCollector).addAll(otherBucketEntry.getValue().keyCollector);
 
         totalRetainedKeys += bucketHolder.updateRetainedKeys();
         if (totalRetainedKeys > maxRetainedKeys) {
@@ -142,7 +148,6 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
       addAll(other.snapshot());
     }
 
-    assertTotalRetainedKeysIsCorrect();
     return this;
   }
 
@@ -151,9 +156,13 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   {
     // Add all key collectors from the other collector.
     for (ClusterByStatisticsSnapshot.Bucket otherBucket : snapshot.getBuckets()) {
-      final CollectorType otherKeyCollector = keyCollectorFactory.fromSnapshot(otherBucket.getKeyCollectorSnapshot());
+      //noinspection rawtypes, unchecked
+      final KeyCollector<?> otherKeyCollector =
+          ((KeyCollectorFactory) keyCollectorFactory).fromSnapshot(otherBucket.getKeyCollectorSnapshot());
       final BucketHolder bucketHolder = getOrCreateBucketHolder(otherBucket.getBucketKey());
-      bucketHolder.keyCollector.addAll(otherKeyCollector);
+
+      //noinspection rawtypes, unchecked
+      ((KeyCollector) bucketHolder.keyCollector).addAll(otherKeyCollector);
 
       totalRetainedKeys += bucketHolder.updateRetainedKeys();
       if (totalRetainedKeys > maxRetainedKeys) {
@@ -167,16 +176,15 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
       hasMultipleValues[keyPosition] = true;
     }
 
-    assertTotalRetainedKeysIsCorrect();
     return this;
   }
 
   @Override
-  public long estimatedCount()
+  public long estimatedTotalWeight()
   {
     long count = 0L;
     for (final BucketHolder bucketHolder : buckets.values()) {
-      count += bucketHolder.keyCollector.estimatedCount();
+      count += bucketHolder.keyCollector.estimatedTotalWeight();
     }
     return count;
   }
@@ -196,14 +204,18 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   {
     buckets.clear();
     totalRetainedKeys = 0;
-
-    assertTotalRetainedKeysIsCorrect();
     return this;
   }
 
   @Override
-  public ClusterByPartitions generatePartitionsWithTargetSize(final long targetPartitionSize)
+  public ClusterByPartitions generatePartitionsWithTargetWeight(final long targetWeight)
   {
+    if (targetWeight < 1) {
+      throw new IAE("Target weight must be positive");
+    }
+
+    assertRetainedKeyCountsAreTrackedCorrectly();
+
     if (buckets.isEmpty()) {
       return ClusterByPartitions.oneUniversalPartition();
     }
@@ -212,7 +224,7 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
 
     for (final BucketHolder bucket : buckets.values()) {
       final List<ClusterByPartition> bucketPartitions =
-          bucket.keyCollector.generatePartitionsWithTargetSize(targetPartitionSize).ranges();
+          bucket.keyCollector.generatePartitionsWithTargetWeight(targetWeight).ranges();
 
       if (!partitions.isEmpty() && !bucketPartitions.isEmpty()) {
         // Stitch up final partition of previous bucket to match the first partition of this bucket.
@@ -256,15 +268,15 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
       );
     }
 
-    long totalCount = 0;
+    long totalWeight = 0;
 
     for (final BucketHolder bucketHolder : buckets.values()) {
-      totalCount += bucketHolder.keyCollector.estimatedCount();
+      totalWeight += bucketHolder.keyCollector.estimatedTotalWeight();
     }
 
     // Gradually increase targetPartitionSize until we get the right number of partitions.
     ClusterByPartitions ranges;
-    long targetPartitionSize = (long) Math.ceil((double) totalCount / maxNumPartitions);
+    long targetPartitionWeight = (long) Math.ceil((double) totalWeight / maxNumPartitions);
     int iterations = 0;
 
     do {
@@ -274,9 +286,9 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
         throw new ISE("Unable to compute partition ranges");
       }
 
-      ranges = generatePartitionsWithTargetSize(targetPartitionSize);
+      ranges = generatePartitionsWithTargetWeight(targetPartitionWeight);
 
-      targetPartitionSize *= MAX_COUNT_ITERATION_GROWTH_FACTOR;
+      targetPartitionWeight = (long) Math.ceil(targetPartitionWeight * MAX_COUNT_ITERATION_GROWTH_FACTOR);
     } while (ranges.size() > maxNumPartitions);
 
     return ranges;
@@ -285,11 +297,14 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   @Override
   public ClusterByStatisticsSnapshot snapshot()
   {
+    assertRetainedKeyCountsAreTrackedCorrectly();
+
     final List<ClusterByStatisticsSnapshot.Bucket> bucketSnapshots = new ArrayList<>();
 
     for (final Map.Entry<ClusterByKey, BucketHolder> bucketEntry : buckets.entrySet()) {
+      //noinspection rawtypes, unchecked
       final KeyCollectorSnapshot keyCollectorSnapshot =
-          keyCollectorFactory.toSnapshot(bucketEntry.getValue().keyCollector);
+          ((KeyCollectorFactory) keyCollectorFactory).toSnapshot(bucketEntry.getValue().keyCollector);
       bucketSnapshots.add(new ClusterByStatisticsSnapshot.Bucket(bucketEntry.getKey(), keyCollectorSnapshot));
     }
 
@@ -305,7 +320,7 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   }
 
   @VisibleForTesting
-  List<CollectorType> getKeyCollectors()
+  List<KeyCollector<?>> getKeyCollectors()
   {
     return buckets.values().stream().map(holder -> holder.keyCollector).collect(Collectors.toList());
   }
@@ -326,26 +341,36 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
   }
 
   /**
-   * Reduce the number of retained keys by about half.
+   * Reduce the number of retained keys by about half, if possible. May reduce by less than that, or keep the
+   * number the same, if downsampling is not possible. (For example: downsampling is not possible if all buckets
+   * have been downsampled all the way to one key each.)
    */
   private void downSample()
   {
-    if (totalRetainedKeys < buckets.size()) {
-      // TODO(gianm): proper fault for trying to downsample below bucket count (or make it impossible)
-      throw new ISE("Cannot downsample any further");
-    }
-
     int newTotalRetainedKeys = totalRetainedKeys;
     final int targetTotalRetainedKeys = totalRetainedKeys / 2;
 
-    // Iterate in descending order by retainedKeys.
-    final List<BucketHolder> sortedHolders = new ArrayList<>(buckets.values());
-    sortedHolders.sort(Comparator.comparing((BucketHolder holder) -> holder.retainedKeys).reversed());
+    final List<BucketHolder> sortedHolders = new ArrayList<>(buckets.size());
+
+    // Only consider holders with more than one retained key. Holders with a single retained key cannot be downsampled.
+    for (final BucketHolder holder : buckets.values()) {
+      if (holder.retainedKeys > 1) {
+        sortedHolders.add(holder);
+      }
+    }
+
+    // Downsample least-dense buckets first. (They're less likely to need high resolution.)
+    sortedHolders.sort(
+        Comparator.comparing((BucketHolder holder) ->
+                                 (double) holder.keyCollector.estimatedTotalWeight() / holder.retainedKeys)
+    );
 
     int i = 0;
     while (i < sortedHolders.size() && newTotalRetainedKeys > targetTotalRetainedKeys) {
       final BucketHolder bucketHolder = sortedHolders.get(i);
-      // TODO(gianm): fault for "cannot downsample any further"
+
+      // Ignore false return, because we wrap all collectors in DelegateOrMinKeyCollector and can be assured that
+      // it will downsample all the way to one if needed. Can't do better than that.
       bucketHolder.keyCollector.downSample();
       newTotalRetainedKeys += bucketHolder.updateRetainedKeys();
 
@@ -355,21 +380,26 @@ public class ClusterByStatisticsCollectorImpl<CollectorType extends KeyCollector
     }
 
     totalRetainedKeys = newTotalRetainedKeys;
-    assertTotalRetainedKeysIsCorrect();
   }
 
-  private void assertTotalRetainedKeysIsCorrect()
+  private void assertRetainedKeyCountsAreTrackedCorrectly()
   {
+    // Check cached value of retainedKeys in each holder.
+    assert buckets.values()
+                  .stream()
+                  .allMatch(holder -> holder.retainedKeys == holder.keyCollector.estimatedRetainedKeys());
+
+    // Check cached value of totalRetainedKeys.
     assert totalRetainedKeys ==
            buckets.values().stream().mapToInt(holder -> holder.keyCollector.estimatedRetainedKeys()).sum();
   }
 
-  private class BucketHolder
+  private static class BucketHolder
   {
-    private final CollectorType keyCollector;
+    private final KeyCollector<?> keyCollector;
     private int retainedKeys;
 
-    public BucketHolder(final CollectorType keyCollector)
+    public BucketHolder(final KeyCollector<?> keyCollector)
     {
       this.keyCollector = keyCollector;
       this.retainedKeys = keyCollector.estimatedRetainedKeys();

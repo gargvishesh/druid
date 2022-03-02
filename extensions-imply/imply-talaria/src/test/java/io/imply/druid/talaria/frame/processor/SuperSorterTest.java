@@ -505,7 +505,7 @@ public class SuperSorterTest
 
       final ClusterByPartitions partitions =
           gatherClusterByStatistics(adapter, signature, clusterBy)
-              .generatePartitionsWithTargetSize(12);
+              .generatePartitionsWithTargetWeight(12);
 
       Assert.assertEquals(101, partitions.size());
 
@@ -527,7 +527,7 @@ public class SuperSorterTest
 
       final ClusterByPartitions partitions =
           gatherClusterByStatistics(adapter, signature, clusterBy)
-              .generatePartitionsWithTargetSize(1);
+              .generatePartitionsWithTargetWeight(1);
       Assert.assertEquals(1142, partitions.size());
 
       verifySuperSorter(clusterBy, partitions);
@@ -605,7 +605,7 @@ public class SuperSorterTest
               collector.getClusterBy().keyReader(cursor.getColumnSelectorFactory(), signature);
 
           while (!cursor.isDone()) {
-            collector.add(keyReader.get());
+            collector.add(keyReader.get(), 1);
             cursor.advance();
           }
         }

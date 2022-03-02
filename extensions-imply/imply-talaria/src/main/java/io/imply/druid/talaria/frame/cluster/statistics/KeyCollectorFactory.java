@@ -9,13 +9,15 @@
 
 package io.imply.druid.talaria.frame.cluster.statistics;
 
-public interface KeyCollectorFactory<CollectorType extends KeyCollector<CollectorType>>
+import com.fasterxml.jackson.databind.JsonDeserializer;
+
+public interface KeyCollectorFactory<TCollector extends KeyCollector<TCollector>, TSnapshot extends KeyCollectorSnapshot>
 {
-  CollectorType newKeyCollector();
+  TCollector newKeyCollector();
 
-  Class<? extends KeyCollectorSnapshot> snapshotClass();
+  JsonDeserializer<TSnapshot> snapshotDeserializer();
 
-  KeyCollectorSnapshot toSnapshot(CollectorType collector);
+  TSnapshot toSnapshot(TCollector collector);
 
-  CollectorType fromSnapshot(KeyCollectorSnapshot snapshot);
+  TCollector fromSnapshot(TSnapshot snapshot);
 }
