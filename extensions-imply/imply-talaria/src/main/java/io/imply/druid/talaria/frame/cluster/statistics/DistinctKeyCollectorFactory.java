@@ -9,15 +9,20 @@
 
 package io.imply.druid.talaria.frame.cluster.statistics;
 
-import com.google.common.collect.ImmutableList;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import it.unimi.dsi.fastutil.objects.Object2LongRBTreeMap;
+import org.apache.druid.collections.SerializablePair;
 import org.apache.druid.segment.column.RowSignature;
 
+import java.io.IOException;
 import java.util.Comparator;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
-public class DistinctKeyCollectorFactory implements KeyCollectorFactory<DistinctKeyCollector>
+public class DistinctKeyCollectorFactory implements KeyCollectorFactory<DistinctKeyCollector, DistinctKeySnapshot>
 {
   private final Comparator<ClusterByKey> comparator;
 
@@ -41,26 +46,36 @@ public class DistinctKeyCollectorFactory implements KeyCollectorFactory<Distinct
   }
 
   @Override
-  public Class<? extends KeyCollectorSnapshot> snapshotClass()
+  public JsonDeserializer<DistinctKeySnapshot> snapshotDeserializer()
   {
-    return DistinctKeySnapshot.class;
+    return new JsonDeserializer<DistinctKeySnapshot>()
+    {
+      @Override
+      public DistinctKeySnapshot deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+      {
+        return jp.readValueAs(DistinctKeySnapshot.class);
+      }
+    };
   }
 
   @Override
-  public KeyCollectorSnapshot toSnapshot(final DistinctKeyCollector collector)
+  public DistinctKeySnapshot toSnapshot(final DistinctKeyCollector collector)
   {
     return new DistinctKeySnapshot(
-        ImmutableList.copyOf(collector.getRetainedKeys()),
+        collector.getRetainedKeys()
+                 .entrySet()
+                 .stream()
+                 .map(entry -> new SerializablePair<>(entry.getKey(), entry.getValue()))
+                 .collect(Collectors.toList()),
         collector.getSpaceReductionFactor()
     );
   }
 
   @Override
-  public DistinctKeyCollector fromSnapshot(final KeyCollectorSnapshot snapshotObject)
+  public DistinctKeyCollector fromSnapshot(final DistinctKeySnapshot snapshot)
   {
-    final DistinctKeySnapshot snapshot = (DistinctKeySnapshot) snapshotObject;
-    final TreeSet<ClusterByKey> retainedKeys = new TreeSet<>(comparator);
-    retainedKeys.addAll(snapshot.getKeys());
+    final Object2LongRBTreeMap<ClusterByKey> retainedKeys = new Object2LongRBTreeMap<>(comparator);
+    retainedKeys.putAll(snapshot.getKeysAsMap());
     return new DistinctKeyCollector(comparator, retainedKeys, snapshot.getSpaceReductionFactor());
   }
 }

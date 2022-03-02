@@ -25,8 +25,9 @@ public class ClusterByKey
 
   private final Object[] key;
 
-  private int hashCode;
-  private boolean hashCodeComputed;
+  // Cached hashcode. Computed on demand, not in the constructor, to avoid unnecessary computation.
+  private volatile long hashCode;
+  private volatile boolean hashCodeComputed;
 
   private ClusterByKey(Object[] key)
   {
@@ -75,6 +76,19 @@ public class ClusterByKey
     return key;
   }
 
+  public long longHashCode()
+  {
+    // May compute hashCode multiple times if called from different threads, but that's fine. (And unlikely, given
+    // how we use these objects.)
+    if (!hashCodeComputed) {
+      // Use murmur3_128 for dispersion properties needed by DistinctKeyCollector#isKeySelected.
+      hashCode = Hashing.murmur3_128().hashInt(Arrays.hashCode(key)).asLong();
+      hashCodeComputed = true;
+    }
+
+    return hashCode;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -91,15 +105,8 @@ public class ClusterByKey
   @Override
   public int hashCode()
   {
-    // Check is not thread-safe, but that's fine. Even if used by multiple threads, it's ok to write these primitive
-    // fields more than once.
-    if (!hashCodeComputed) {
-      // Use murmur3_32 for dispersion properties needed by DistinctKeyCollector#isKeySelected.
-      hashCode = Hashing.murmur3_32().hashInt(Arrays.hashCode(key)).asInt();
-      hashCodeComputed = true;
-    }
-
-    return hashCode;
+    // Truncation is OK with murmur3_128.
+    return (int) longHashCode();
   }
 
   @Override

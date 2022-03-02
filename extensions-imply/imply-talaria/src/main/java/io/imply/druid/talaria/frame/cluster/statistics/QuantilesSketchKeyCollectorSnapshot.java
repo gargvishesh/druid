@@ -12,6 +12,8 @@ package io.imply.druid.talaria.frame.cluster.statistics;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import java.util.Objects;
+
 public class QuantilesSketchKeyCollectorSnapshot implements KeyCollectorSnapshot
 {
   private final String encodedSketch;
@@ -26,5 +28,24 @@ public class QuantilesSketchKeyCollectorSnapshot implements KeyCollectorSnapshot
   public String getEncodedSketch()
   {
     return encodedSketch;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    QuantilesSketchKeyCollectorSnapshot that = (QuantilesSketchKeyCollectorSnapshot) o;
+    return Objects.equals(encodedSketch, that.encodedSketch);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(encodedSketch);
   }
 }

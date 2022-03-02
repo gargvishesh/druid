@@ -43,7 +43,6 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
   {
     final List<ColumnType> types = new ArrayList<>(clusterBy.getColumns().size());
 
-    //noinspection rawtypes
     for (ClusterByColumn part : clusterBy.getColumns()) {
       final String name = part.columnName();
       final ColumnType type = rowSignature.getColumnType(name)
@@ -61,11 +60,12 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
       final DeserializationContext ctxt
   ) throws IOException
   {
+    int partNum = 0;
     if (jp.isExpectedStartArrayToken()) {
       final Object[] retVal = new Object[types.size()];
 
       boolean encounteredEndArray = false;
-      for (int i = 0; i < types.size(); i++) {
+      for (; partNum < types.size(); partNum++) {
         final JsonToken token = jp.nextToken();
 
         if (token == JsonToken.END_ARRAY) {
@@ -74,35 +74,35 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
           break;
         }
 
-        switch (types.get(i).getType()) {
+        switch (types.get(partNum).getType()) {
           case ARRAY:
-            switch (types.get(i).getElementType().getType()) {
+            switch (types.get(partNum).getElementType().getType()) {
               case STRING:
-                extractString(jp, ctxt, retVal, i, token, true);
+                extractString(jp, ctxt, retVal, partNum, token, true);
                 break;
               default:
-                throw new ISE("Can't handle type [%s]", types.get(i).asTypeString());
+                throw new ISE("Can't handle type [%s]", types.get(partNum).asTypeString());
             }
             break;
 
           case STRING:
-            extractString(jp, ctxt, retVal, i, token, false);
+            extractString(jp, ctxt, retVal, partNum, token, false);
             break;
 
           case LONG:
-            retVal[i] = token == JsonToken.VALUE_NULL ? null : jp.getLongValue();
+            retVal[partNum] = token == JsonToken.VALUE_NULL ? null : jp.getLongValue();
             break;
 
           case FLOAT:
-            retVal[i] = token == JsonToken.VALUE_NULL ? null : jp.getFloatValue();
+            retVal[partNum] = token == JsonToken.VALUE_NULL ? null : jp.getFloatValue();
             break;
 
           case DOUBLE:
-            retVal[i] = token == JsonToken.VALUE_NULL ? null : jp.getDoubleValue();
+            retVal[partNum] = token == JsonToken.VALUE_NULL ? null : jp.getDoubleValue();
             break;
 
           default:
-            throw new ISE("Can't handle type [%s]", types.get(i).asTypeString());
+            throw new ISE("Can't handle type [%s]", types.get(partNum).asTypeString());
         }
       }
 
@@ -110,7 +110,8 @@ public class ClusterByKeyDeserializer extends JsonDeserializer<ClusterByKey>
         throw ctxt.wrongTokenException(jp, ClusterByKey.class, JsonToken.END_ARRAY, null);
       }
 
-      return ClusterByKey.of(retVal);
+      // Trim in case of short key read.
+      return ClusterByKey.of(retVal).trim(partNum);
     } else {
       return (ClusterByKey) ctxt.handleUnexpectedToken(ClusterByKey.class, jp);
     }

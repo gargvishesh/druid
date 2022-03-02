@@ -305,8 +305,7 @@ The Talaria engine accepts additional Druid SQL
 | talariaNumTasks| (SELECT or INSERT)<br /><br />Talaria queries execute using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
-| talariaRowsPerSegment| (INSERT only)<br /><br />Number of rows per segment to target for INSERT queries. The actual number of rows per segment may be somewhat higher or lower than this number.<br /><br />In most cases, you should stick to the default.| 3000000 |
- 
+
 #### Response
 
 ```json
@@ -541,10 +540,10 @@ curl -u 'user:password' \
         "stageNumber": 0,
         "error": {
           "errorCode": "TooManyBuckets",
-          "maxBuckets": 10000,
-          "errorMessage": "Too many partition buckets (max = 10,000); try breaking your query up into smaller queries or using a wider segmentGranularity"
+          "maxBuckets": 5000,
+          "errorMessage": "Too many partition buckets (max = 5,000); try breaking your query up into smaller queries or using a wider segmentGranularity"
         },
-        "exceptionStackTrace": "io.imply.druid.talaria.frame.cluster.statistics.TooManyBucketsException: Too many buckets; maximum is [10000]\n\tat io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl.getOrCreateBucketHolder(ClusterByStatisticsCollectorImpl.java:324)\n"
+        "exceptionStackTrace": "io.imply.druid.talaria.frame.cluster.statistics.TooManyBucketsException: Too many buckets; maximum is [5000]\n\tat io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl.getOrCreateBucketHolder(ClusterByStatisticsCollectorImpl.java:324)\n"
       }
     }
   },
@@ -819,7 +818,7 @@ Queries are subject to the following limits.
 |Limit|Value|Error if exceeded|
 |----|-----------|----|
 | Size of an individual row written into a frame<br/><br/>Note: row size as written to a frame may differ from the original row size | 1 MB | RowTooLarge |
-| Number of segment-granular time chunks encountered during ingestion | 10,000 | TooManyBuckets |
+| Number of segment-granular time chunks encountered during ingestion | 5,000 | TooManyBuckets |
 | Number of output partitions for any one stage<br /> <br /> Number of segments generated during ingestion |25,000  |TooManyPartitions |
 | Number of output columns for any one stage|  2,000| TooManyColumns|
 | Number of workers for any one stage | 1,000 (hard limit)<br /><br />Memory-dependent (soft limit; may be lower) | TooManyWorkers |
@@ -1225,14 +1224,6 @@ LIMIT 1000
 - The [Query details API](#get-query-details) may return
   `500 Server Error` or `404 Not Found` when the controller task is in
   process of starting up or shutting down. (15001)
-
-- In certain cases where the number of partitions is large, queries can
-  fail with a stack trace that includes
-  `org.apache.datasketches.SketchesArgumentException: K must be >= 2 and <= 32768 and a power of 2`.
-  This can happen even if the number of partitions is not in excess of the
-  [TooManyPartitions limit](#limits). This is most common on INSERT queries
-  that ingest a large number of time chunks. If you encounter this issue,
-  consider using a coarser granularity in `PARTITIONED BY`. (14764)
 
 **Issues with SELECT queries.**
 

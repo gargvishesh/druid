@@ -16,12 +16,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
  */
 public class KeyCollectorSnapshotDeserializerModule extends SimpleModule
 {
-  public KeyCollectorSnapshotDeserializerModule(final KeyCollectorFactory<?> keyCollectorFactory)
+  public KeyCollectorSnapshotDeserializerModule(final KeyCollectorFactory<?, ?> keyCollectorFactory)
   {
-    addDeserializer(
-        KeyCollectorSnapshot.class,
-        new KeyCollectorSnapshotDeserializer(keyCollectorFactory)
-    );
+    addDeserializer(KeyCollectorSnapshot.class, keyCollectorFactory.snapshotDeserializer());
   }
 }
 

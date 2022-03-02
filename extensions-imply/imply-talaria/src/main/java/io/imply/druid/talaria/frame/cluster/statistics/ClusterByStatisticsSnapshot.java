@@ -66,10 +66,7 @@ public class ClusterByStatisticsSnapshot
       return false;
     }
     ClusterByStatisticsSnapshot that = (ClusterByStatisticsSnapshot) o;
-    return Objects.equals(buckets, that.buckets) && Objects.equals(
-        hasMultipleValues,
-        that.hasMultipleValues
-    );
+    return Objects.equals(buckets, that.buckets) && Objects.equals(hasMultipleValues, that.hasMultipleValues);
   }
 
   @Override
@@ -84,7 +81,7 @@ public class ClusterByStatisticsSnapshot
     private final KeyCollectorSnapshot keyCollectorSnapshot;
 
     @JsonCreator
-    public Bucket(
+    Bucket(
         @JsonProperty("bucketKey") ClusterByKey bucketKey,
         @JsonProperty("data") KeyCollectorSnapshot keyCollectorSnapshot
     )
@@ -103,6 +100,26 @@ public class ClusterByStatisticsSnapshot
     public KeyCollectorSnapshot getKeyCollectorSnapshot()
     {
       return keyCollectorSnapshot;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Bucket bucket = (Bucket) o;
+      return Objects.equals(bucketKey, bucket.bucketKey)
+             && Objects.equals(keyCollectorSnapshot, bucket.keyCollectorSnapshot);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(bucketKey, keyCollectorSnapshot);
     }
   }
 }

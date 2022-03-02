@@ -14,17 +14,21 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import org.apache.druid.collections.SerializablePair;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class DistinctKeySnapshot implements KeyCollectorSnapshot
 {
-  private final List<ClusterByKey> keys;
+  private final List<SerializablePair<ClusterByKey, Long>> keys;
   private final int spaceReductionFactor;
 
   @JsonCreator
   DistinctKeySnapshot(
-      @JsonProperty("keys") final List<ClusterByKey> keys,
+      @JsonProperty("keys") final List<SerializablePair<ClusterByKey, Long>> keys,
       @JsonProperty("spaceReductionFactor") final int spaceReductionFactor
   )
   {
@@ -33,7 +37,7 @@ public class DistinctKeySnapshot implements KeyCollectorSnapshot
   }
 
   @JsonProperty
-  public List<ClusterByKey> getKeys()
+  public List<SerializablePair<ClusterByKey, Long>> getKeys()
   {
     return keys;
   }
@@ -43,5 +47,38 @@ public class DistinctKeySnapshot implements KeyCollectorSnapshot
   public int getSpaceReductionFactor()
   {
     return spaceReductionFactor;
+  }
+
+  public Map<ClusterByKey, Long> getKeysAsMap()
+  {
+    final Map<ClusterByKey, Long> keysMap = new HashMap<>();
+
+    for (final SerializablePair<ClusterByKey, Long> key : keys) {
+      keysMap.put(key.lhs, key.rhs);
+    }
+
+    return keysMap;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    DistinctKeySnapshot that = (DistinctKeySnapshot) o;
+
+    // Not expected to be called in production, so it's OK that this calls getKeysAsMap() each time.
+    return spaceReductionFactor == that.spaceReductionFactor && Objects.equals(getKeysAsMap(), that.getKeysAsMap());
+  }
+
+  @Override
+  public int hashCode()
+  {
+    // Not expected to be called in production, so it's OK that this calls getKeysAsMap() each time.
+    return Objects.hash(getKeysAsMap(), spaceReductionFactor);
   }
 }

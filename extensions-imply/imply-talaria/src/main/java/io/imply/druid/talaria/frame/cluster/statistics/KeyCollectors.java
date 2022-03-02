@@ -19,16 +19,25 @@ public class KeyCollectors
     // No instantiation.
   }
 
-  public static KeyCollectorFactory<?> makeFactory(
+  /**
+   * Used by {@link ClusterByStatisticsCollectorImpl#create} and anything else that seeks to have the same behavior.
+   */
+  public static KeyCollectorFactory<?, ?> makeStandardFactory(
       final ClusterBy clusterBy,
       final RowSignature signature,
       final boolean aggregate
   )
   {
+    final KeyCollectorFactory<?, ?> baseFactory;
+
     if (aggregate) {
-      return DistinctKeyCollectorFactory.create(clusterBy, signature);
+      baseFactory = DistinctKeyCollectorFactory.create(clusterBy, signature);
     } else {
-      return QuantilesSketchKeyCollectorFactory.create(clusterBy, signature);
+      baseFactory = QuantilesSketchKeyCollectorFactory.create(clusterBy, signature);
     }
+
+    // Wrap in DelegateOrMinKeyCollectorFactory, so we are guaranteed to be able to downsample to a single key. This
+    // is important because it allows us to better handle large numbers of small buckets.
+    return new DelegateOrMinKeyCollectorFactory<>(clusterBy.keyComparator(signature), baseFactory);
   }
 }
