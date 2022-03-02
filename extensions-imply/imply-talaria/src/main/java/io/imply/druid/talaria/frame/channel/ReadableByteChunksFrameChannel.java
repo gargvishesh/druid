@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.frame.channel;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -49,6 +50,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
   }
 
   private final Object lock = new Object();
+  private final String id;
   private final long bytesLimit;
 
   @GuardedBy("lock")
@@ -78,14 +80,15 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
   @GuardedBy("lock")
   private StreamPart streamPart = StreamPart.MAGIC;
 
-  public ReadableByteChunksFrameChannel(long bytesLimit)
+  private ReadableByteChunksFrameChannel(String id, long bytesLimit)
   {
+    this.id = Preconditions.checkNotNull(id, "id");
     this.bytesLimit = bytesLimit;
   }
 
-  public static ReadableByteChunksFrameChannel minimal()
+  public static ReadableByteChunksFrameChannel create(final String id)
   {
-    return new ReadableByteChunksFrameChannel(1);
+    return new ReadableByteChunksFrameChannel(id, 1);
   }
 
   /**
@@ -110,6 +113,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
             // TODO(gianm): Validate footer instead of throwing it away
             chunks.add(Try.value(chunk));
             bytesBuffered += chunk.length;
+            bytesAdded += chunk.length;
           }
 
           updateStreamState();
@@ -123,9 +127,6 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
         if (addChunkBackpressureFuture == null && bytesBuffered >= bytesLimit && canReadFrame()) {
           addChunkBackpressureFuture = SettableFuture.create();
         }
-
-        // Update bytesAdded even if we aren't retaining this chunk, so we can resume properly.
-        bytesAdded += chunk.length;
 
         return Optional.ofNullable(addChunkBackpressureFuture);
       }
@@ -193,10 +194,17 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
       } else if (canReadFrame()) {
         return Try.value(nextFrame());
       } else if (noMoreWrites) {
-        // The last few chunks are an incomplete frame.
+        // The last few chunks are an incomplete or missing frame.
         chunks.clear();
         nextCompressedFrameLength = UNKNOWN_LENGTH;
-        return Try.error(new ISE("Incomplete frame at end of stream"));
+
+        return Try.error(
+            new ISE(
+                "Incomplete or missing frame at end of stream (id = %s, position = %d)",
+                id,
+                bytesAdded - bytesBuffered
+            )
+        );
       } else {
         assert !canRead();
 
@@ -224,11 +232,18 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
   public void doneReading()
   {
     synchronized (lock) {
-      // TODO(gianm): need to close the upstream channel too
+      // TODO(gianm): Setting "noMoreWrites" causes the upstream entity to realize this channel has closed the
+      //    next time it calls "addChunk". It'd be better to propagate this information earlier, so that entity
+      //    can shut itself down more promptly in case of query cancelation or downstream failure.
       noMoreWrites = true;
       chunks.clear();
       nextCompressedFrameLength = UNKNOWN_LENGTH;
     }
+  }
+
+  public String getId()
+  {
+    return id;
   }
 
   public long getBytesAdded()
@@ -291,7 +306,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
           streamPart = StreamPart.FRAMES;
           deleteFromQueuedChunks(FrameFileWriter.MAGIC.length);
         } else {
-          throw new ISE("Invalid stream header");
+          throw new ISE("Invalid stream header (id = %s, position = %d)", id, bytesAdded - bytesBuffered);
         }
       }
     }
@@ -312,7 +327,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
           streamPart = StreamPart.FOOTER;
           nextCompressedFrameLength = UNKNOWN_LENGTH;
         } else {
-          throw new ISE("Invalid midstream marker");
+          throw new ISE("Invalid midstream marker (id = %s, position = %d)", id, bytesAdded - bytesBuffered);
         }
       }
     }

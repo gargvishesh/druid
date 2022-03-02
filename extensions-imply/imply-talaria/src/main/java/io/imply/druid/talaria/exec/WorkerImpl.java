@@ -533,9 +533,9 @@ public class WorkerImpl implements Worker
     };
   }
 
-  private OutputChannelFactory makeFileOutputChannelFactory(final int frameSize)
+  private OutputChannelFactory makeFileOutputChannelFactory(final int stageNumber, final int frameSize)
   {
-    final File fileChannelDirectory = new File(context.tempDir(), "file-channels");
+    final File fileChannelDirectory = new File(context.tempDir(), StringUtils.format("output_stage_%06d", stageNumber));
     return new FileOutputChannelFactory(fileChannelDirectory, frameSize);
   }
 
@@ -639,7 +639,10 @@ public class WorkerImpl implements Worker
     } else {
       // Writing directly to an output file. Use the standard frame size, since we assume this size when computing
       // how much memory is needed to merge output files from different workers.
-      workerOutputChannelFactory = makeFileOutputChannelFactory(frameContext.memoryParameters().getStandardFrameSize());
+      workerOutputChannelFactory = makeFileOutputChannelFactory(
+          stageDef.getStageNumber(),
+          frameContext.memoryParameters().getStandardFrameSize()
+      );
     }
 
     final ResultAndChannels<?> workerResultAndOutputChannels =
@@ -683,7 +686,10 @@ public class WorkerImpl implements Worker
     if (stageDef.doesShuffle()) {
       final CountingOutputChannelFactory shuffleOutputChannelFactory =
           new CountingOutputChannelFactory(
-              makeFileOutputChannelFactory(frameContext.memoryParameters().getStandardFrameSize()),
+              makeFileOutputChannelFactory(
+                  stageDef.getStageNumber(),
+                  frameContext.memoryParameters().getStandardFrameSize()
+              ),
               partitionNumber ->
                   counters.getOrCreateChannelCounters(
                       TalariaCounterType.OUTPUT,

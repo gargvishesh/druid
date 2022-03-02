@@ -24,23 +24,18 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TalariaFrameChannelConnectionManager
 {
   private static final Logger log = new Logger(TalariaFrameChannelConnectionManager.class);
-
-  // TODO(gianm): no
   private static final int MAX_CONNECTION_ATTEMPTS = 10000;
 
-  private final String id;
   private final ReadableByteChunksFrameChannel channel;
   private final ExecutorService connectExec;
   private final AtomicInteger connectionCount = new AtomicInteger(0);
   private final AtomicReference<ConnectFunction> connectFunction = new AtomicReference<>();
 
   public TalariaFrameChannelConnectionManager(
-      String id,
       ReadableByteChunksFrameChannel channel,
       ExecutorService connectExec
   )
   {
-    this.id = Preconditions.checkNotNull(id, "id");
     this.channel = Preconditions.checkNotNull(channel, "channel");
     this.connectExec = Preconditions.checkNotNull(connectExec, "connectExec");
   }
@@ -65,11 +60,12 @@ public class TalariaFrameChannelConnectionManager
       channel.setError(new RE(e, "Maximum number of retries [%d] exhausted", MAX_CONNECTION_ATTEMPTS));
     } else if (!channel.isErrorOrFinished() && connectionCount.compareAndSet(connectionNumber, newConnectionNumber)) {
       log.debug(
-          "Reconnecting channel for [%s], attempt %d/%d (offset = %d)",
-          id,
-          newConnectionNumber,
+          "Reconnecting channel for [%s] (attempt %d/%d, offset = %d, reason = %s)",
+          channel.getId(),
+          newConnectionNumber + 1,
           MAX_CONNECTION_ATTEMPTS,
-          channel.getBytesAdded()
+          channel.getBytesAdded(),
+          e.toString()
       );
 
       connectIfPossible(newConnectionNumber, channel.getBytesAdded());
