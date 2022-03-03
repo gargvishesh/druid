@@ -83,18 +83,16 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isInit() && (
         <>
           {queryString ? (
-            <TitleFrame title="Load data" subtitle="Configure schema">
-              <SchemaStep
-                queryString={queryString}
-                onQueryStringChange={setQueryString}
-                goToQuery={() => goToQuery(queryString)}
-                onBack={() => setQueryString('')}
-                onDone={() => {
-                  console.log('Ingesting:', queryString);
-                  insertQueryManager.runQuery(queryString);
-                }}
-              />
-            </TitleFrame>
+            <SchemaStep
+              queryString={queryString}
+              onQueryStringChange={setQueryString}
+              goToQuery={() => goToQuery(queryString)}
+              onBack={() => setQueryString('')}
+              onDone={() => {
+                console.log('Ingesting:', queryString);
+                insertQueryManager.runQuery(queryString);
+              }}
+            />
           ) : inputFormat && inputSource ? (
             <TitleFrame title="Load data" subtitle="Parse">
               <InputFormatStep

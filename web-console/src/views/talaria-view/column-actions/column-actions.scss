@@ -19,7 +19,7 @@
 @import '~@blueprintjs/core/src/common/colors';
 @import '../../../variables';
 
-.expression-editor {
+.column-actions {
   background: rgba($gray3, 0.15);
   padding: 10px;
   border-radius: $pt-border-radius;
@@ -31,23 +31,7 @@
     cursor: default;
   }
 
-  .talaria-query-input {
-    height: 80px;
-    border: 1px solid gray;
-  }
-
-  .apply-cancel-buttons {
-    position: relative;
-    text-align: right;
-
-    .bp3-button {
-      margin-left: 15px;
-    }
-
-    .delete {
-      position: absolute;
-      left: 0;
-      margin-left: 0;
-    }
+  .bp3-form-group:last-child {
+    margin-bottom: 0;
   }
 }

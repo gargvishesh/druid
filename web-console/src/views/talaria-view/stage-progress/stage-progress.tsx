@@ -52,7 +52,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
           <>
             {' '}
             <span className="cancel" onClick={onCancel}>
-              (cancel)
+              {stages && !queryExecution.isWaitingForQuery() ? '(stop waiting)' : '(cancel)'}
             </span>
           </>
         )}

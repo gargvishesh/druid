@@ -154,9 +154,8 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   });
 
   useEffect(() => {
-    if (queryExecutionState.data || queryExecutionState.error) {
-      TalariaQueryStateCache.storeState(id, queryExecutionState);
-    }
+    if (!queryExecutionState.data) return;
+    TalariaQueryStateCache.storeState(id, queryExecutionState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryExecutionState.data, queryExecutionState.error]);
 

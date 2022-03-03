@@ -164,9 +164,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   });
 
   useEffect(() => {
-    if (queryExecutionState.data || queryExecutionState.error) {
-      TalariaQueryStateCache.storeState(id, queryExecutionState);
-    }
+    if (!queryExecutionState.data) return;
+    TalariaQueryStateCache.storeState(id, queryExecutionState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryExecutionState.data, queryExecutionState.error]);
 
@@ -213,8 +212,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         secondaryInitialSize={
           Number(localStorageGet(LocalStorageKeys.TALARIA_TAB_PANE_SIZE)!) || 40
         }
-        primaryMinSize={30}
-        secondaryMinSize={30}
+        primaryMinSize={20}
+        secondaryMinSize={20}
         onSecondaryPaneSizeChange={handleSecondaryPaneSizeChange}
       >
         <div className="top-section">

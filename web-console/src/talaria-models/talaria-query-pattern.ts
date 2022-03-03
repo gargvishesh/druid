@@ -32,10 +32,15 @@ import * as JSONBig from 'json-bigint-native';
 import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-spec';
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { filterMap, oneOf } from '../utils';
+import { filterMap, getContextFromSqlQuery, oneOf } from '../utils';
+
+function isStringArray(a: any): a is string[] {
+  return Array.isArray(a) && a.every(x => typeof x === 'string');
+}
 
 export const TALARIA_MAX_COLUMNS = 2000;
 
+const TALARIA_REPLACE_TIME_CHUNKS = 'talariaReplaceTimeChunks';
 const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
 
 export interface ExternalConfig {
@@ -160,9 +165,10 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
 }
 
 export function externalConfigToIngestQueryPattern(config: ExternalConfig): IngestQueryPattern {
-  const hasTimeColumn = false; // ToDo
+  const hasTimeColumn = false; // ToDo: actually detect the time column
   return {
-    insertTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
+    destinationTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
+    replaceTimeChunks: 'all',
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
@@ -175,7 +181,8 @@ export function externalConfigToIngestQueryPattern(config: ExternalConfig): Inge
 // --------------------------------------------
 
 export interface IngestQueryPattern {
-  insertTableName: string;
+  destinationTableName: string;
+  replaceTimeChunks?: 'all' | string[];
   mainExternalName: string;
   mainExternalConfig: ExternalConfig;
   filters: readonly SqlExpression[];
@@ -214,10 +221,19 @@ export function getQueryPatternExpressionType(
 export function changeQueryPatternExpression(
   pattern: IngestQueryPattern,
   index: number,
+  type: 'dimension' | 'metric',
   ex: SqlExpression | undefined,
 ): IngestQueryPattern {
   let { dimensions, metrics } = pattern;
-  if (index < dimensions.length) {
+  if (index === -1) {
+    if (ex) {
+      if (type === 'dimension') {
+        dimensions = dimensions.concat(ex);
+      } else if (metrics) {
+        metrics = metrics.concat(ex);
+      }
+    }
+  } else if (index < dimensions.length) {
     dimensions = filterMap(dimensions, (d, i) => (i === index ? ex : d));
   } else if (metrics) {
     const metricIndex = index - dimensions.length;
@@ -234,20 +250,26 @@ function verifyHasOutputName(expression: SqlExpression): void {
 export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   if (query.explainClause) throw new Error(`Can not use EXPLAIN in the data loader flow`);
   if (query.havingClause) throw new Error(`Can not use HAVING in the data loader flow`);
+  if (query.orderByClause) throw new Error(`Can not USE ORDER BY in the data loader flow`);
   if (query.limitClause) throw new Error(`Can not use LIMIT in the data loader flow`);
   if (query.offsetClause) throw new Error(`Can not use OFFSET in the data loader flow`);
   if (query.unionQuery) throw new Error(`Can not use UNION in the data loader flow`);
+
   if (query.hasStarInSelect()) {
     throw new Error(
       `Can not have * in SELECT in the data loader flow, the columns need to be explicitly listed out`,
     );
   }
 
-  // const context = getContextFromSqlQuery(query.toString());
-
-  const insertTableName = query.getInsertIntoTable()?.getTable();
-  if (!insertTableName) {
+  const destinationTableName = query.getInsertIntoTable()?.getTable();
+  if (!destinationTableName) {
     throw new Error(`Must have an INSERT clause`);
+  }
+
+  const context = getContextFromSqlQuery(query.toString());
+  const replaceTimeChunks = context[TALARIA_REPLACE_TIME_CHUNKS];
+  if (replaceTimeChunks && replaceTimeChunks !== 'all' && !isStringArray(replaceTimeChunks)) {
+    throw new Error(`${TALARIA_REPLACE_TIME_CHUNKS} must be 'all' or and array`);
   }
 
   const withParts = query.getWithParts();
@@ -308,18 +330,15 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     return selectIndex;
   });
 
-  if (query.orderByClause) {
-    throw new Error(`Can not have an ORDER BY expression`);
-  }
-
   return {
-    partitionedBy,
-    insertTableName,
+    destinationTableName,
+    replaceTimeChunks,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
+    partitionedBy,
     clusteredBy,
   };
 }
@@ -327,27 +346,28 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
 export function ingestQueryPatternToQuery(
   ingestQueryPattern: IngestQueryPattern,
   preview?: boolean,
+  sampleDatasource?: string,
 ): SqlQuery {
   const {
-    partitionedBy,
-    insertTableName,
+    destinationTableName,
+    replaceTimeChunks,
     mainExternalName,
     mainExternalConfig,
     filters,
     dimensions,
     metrics,
+    partitionedBy,
     clusteredBy,
   } = ingestQueryPattern;
 
-  // ToDo: make this actually work
-  const cacheDatasource =
-    preview &&
-    String(mainExternalConfig.inputSource.uris) ===
-      'https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz_'
-      ? '_tmp_loader_cache_20210101_010102'
-      : undefined;
-
   const initialContextLines: string[] = [];
+  if (replaceTimeChunks) {
+    initialContextLines.push(
+      `--:context ${TALARIA_REPLACE_TIME_CHUNKS}: ${
+        replaceTimeChunks === 'all' ? 'all' : JSONBig.stringify(replaceTimeChunks)
+      }`,
+    );
+  }
   if (metrics) {
     initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
   }
@@ -356,12 +376,12 @@ export function ingestQueryPatternToQuery(
     .applyIf(initialContextLines.length, q =>
       q.changeSpace('initial', initialContextLines.join('\n') + '\n'),
     )
-    .applyIf(!preview, q => q.changeInsertIntoTable(insertTableName))
+    .applyIf(!preview, q => q.changeInsertIntoTable(destinationTableName))
     .changeWithParts([
       SqlWithPart.simple(
         mainExternalName,
-        cacheDatasource
-          ? SqlQuery.create(SqlTableRef.create(cacheDatasource))
+        sampleDatasource
+          ? SqlQuery.create(SqlTableRef.create(sampleDatasource))
           : SqlQuery.create(externalConfigToTableExpression(mainExternalConfig)).applyIf(
               preview,
               q => q.changeLimitValue(10000),
@@ -387,4 +407,16 @@ export function ingestQueryPatternToQuery(
         )
         .changeClusteredByExpressions(clusteredBy.map(p => SqlLiteral.index(p))),
     );
+}
+
+export function ingestQueryPatternToSampleQuery(
+  ingestQueryPattern: IngestQueryPattern,
+  sampleName: string,
+): SqlQuery {
+  const { mainExternalConfig } = ingestQueryPattern;
+
+  return SqlQuery.create(externalConfigToTableExpression(mainExternalConfig))
+    .changeInsertIntoTable(sampleName)
+    .changePartitionedByClause(SqlPartitionedByClause.create(undefined))
+    .changeLimitValue(10000);
 }

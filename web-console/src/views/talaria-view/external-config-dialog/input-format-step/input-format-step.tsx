@@ -77,6 +77,9 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             dataSource: 'sample',
             timestampSpec: PLACEHOLDER_TIMESTAMP_SPEC,
             dimensionsSpec: {},
+            granularitySpec: {
+              rollup: false,
+            },
           },
         },
         samplerConfig: {

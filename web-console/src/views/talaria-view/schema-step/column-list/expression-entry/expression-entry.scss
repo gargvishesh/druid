@@ -23,54 +23,60 @@
   overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
-  padding-bottom: 5px;
+  margin-bottom: 5px;
 
-  &.bp3-popover2-target {
-    display: block;
+  @include card-like;
+  padding: 4px 7px;
+  height: 46px;
+  user-select: none;
+
+  &.timestamp {
+    background: rgba($cobalt3, 0.44);
   }
 
-  .expression-entry-inner {
-    @include card-like;
-    padding: 4px 7px;
-    height: 46px;
-    user-select: none;
+  &.dimension {
+    background: rgba($green3, 0.3);
 
-    &.timestamp {
-      background: rgba($cobalt3, 0.44);
+    &.bigint,
+    &.float,
+    &.double {
+      background: rgba($blue3, 0.3);
     }
+  }
 
-    &.dimension {
-      background: rgba($green3, 0.3);
+  &.metric {
+    background: rgba($rose2, 0.16);
+  }
 
-      &.bigint,
-      &.float,
-      &.double {
-        background: rgba($blue3, 0.3);
-      }
+  .type-icon {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+  }
+
+  .output-name {
+    padding-left: 20px;
+
+    .type-name {
+      opacity: 0.6;
     }
+  }
 
-    &.metric {
-      background: rgba($rose2, 0.16);
-    }
+  .expression {
+    padding-left: 20px;
+    opacity: 0.5;
+    font-family: monospace;
+  }
 
-    .type-icon {
-      position: absolute;
-      top: 6px;
-      left: 6px;
-    }
-
-    .output-name {
-      padding-left: 20px;
-
-      .type-name {
-        opacity: 0.6;
-      }
-    }
-
-    .expression {
-      padding-left: 20px;
-      opacity: 0.5;
-      font-family: monospace;
-    }
+  &.selected::after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    content: '';
+    border: 2px solid $blue4;
+    border-radius: $pt-border-radius;
+    pointer-events: none;
   }
 }

@@ -112,7 +112,7 @@ export class QueryExecution {
     const status = QueryExecution.normalizeAsyncStatus(asyncResult.state);
     return new QueryExecution({
       id: asyncResult.asyncResultId,
-      status,
+      status: asyncResult.error ? 'FAILED' : status,
       sqlQuery,
       queryContext,
       error: asyncResult.error
@@ -138,10 +138,18 @@ export class QueryExecution {
   static fromAsyncDetail(report: any): QueryExecution {
     // Must have status set for a valid report
     const id = deepGet(report, 'talariaStatus.taskId') || deepGet(report, 'talariaTask.payload.id');
-    const status =
-      deepGet(report, 'talariaStatus.payload.status') || (report.error ? 'FAILED' : undefined);
+
+    let status = deepGet(report, 'talariaStatus.payload.status');
+    if (
+      !status &&
+      report.error &&
+      !String(report.error).startsWith(`Can't find chatHandler for handler`) // Ignore this error in particular
+    ) {
+      status = 'FAILED';
+    }
+
     if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
-      throw new Error('invalid status');
+      throw new Error('Invalid payload');
     }
 
     let error: TalariaTaskError | undefined;

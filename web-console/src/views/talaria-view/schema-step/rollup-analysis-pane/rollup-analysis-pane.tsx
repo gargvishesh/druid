@@ -16,21 +16,15 @@
  * limitations under the License.
  */
 
-import { Button, Callout, Intent, Menu, Tag } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, Callout, Intent, Tag } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
 import { CancelToken } from 'axios';
 import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-toolkit';
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
 import { QueryExecution } from '../../../../talaria-models';
-import {
-  filterMap,
-  formatPercentClapped,
-  IntermediateQueryState,
-  QueryAction,
-} from '../../../../utils';
-import { ColumnActionMenu } from '../../column-action-menu/column-action-menu';
+import { filterMap, formatPercentClapped, IntermediateQueryState } from '../../../../utils';
 import { submitAsyncQuery, talariaBackgroundStatusCheck } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';
@@ -134,14 +128,13 @@ interface RollupAnalysisPaneProps {
   seedQuery: SqlQuery;
   queryResult: QueryResult | undefined;
   onEditColumn(columnIndex: number): void;
-  onQueryAction(action: QueryAction): void;
   onClose(): void;
 }
 
 export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
   props: RollupAnalysisPaneProps,
 ) {
-  const { dimensions, seedQuery, queryResult, onEditColumn, onQueryAction, onClose } = props;
+  const { dimensions, seedQuery, queryResult, onEditColumn, onClose } = props;
 
   const [analyzeQueryState, analyzeQueryManager] = useQueryManager<
     AnalyzeQuery,
@@ -218,14 +211,13 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
     if (!analysis) return;
     const rollup = analysis.overall / analysis.count;
     return (
-      <>
-        <p>
-          {`Estimated size after rollup is `}
-          <span className="strong">{formatPercentClapped(rollup)}</span>
-          {` of raw data size.`}
-        </p>
-        <p>{rollup < 0.8 ? 'That is decent.' : 'At this rate rollup is not worth it.'}</p>
-      </>
+      <p>
+        {`Estimated size after rollup is `}
+        <span className="strong">{formatPercentClapped(rollup)}</span>
+        {` of raw data size. ${
+          rollup < 0.8 ? 'That is decent.' : 'At this rate rollup is not worth it.'
+        }`}
+      </p>
     );
   }
 
@@ -234,27 +226,11 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
     const outputName = dimensions[dimensionIndex].getOutputName();
     const headerIndex = queryResult.header.findIndex(c => c.name === outputName);
     if (headerIndex === -1) return;
-    const column = queryResult.header[headerIndex];
 
     return (
-      <Popover2
-        content={
-          <Menu>
-            <ColumnActionMenu
-              column={column}
-              headerIndex={headerIndex}
-              queryResult={queryResult}
-              grouped
-              onEditColumn={onEditColumn}
-              onQueryAction={onQueryAction}
-            />
-          </Menu>
-        }
-      >
-        <Tag interactive intent={Intent.WARNING}>
-          {outputName}
-        </Tag>
-      </Popover2>
+      <Tag interactive intent={Intent.WARNING} onClick={() => onEditColumn(headerIndex)}>
+        {outputName}
+      </Tag>
     );
   }
 
@@ -302,7 +278,8 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
   }
 
   return (
-    <Callout className="rollup-analysis-pane" title="Analyze rollup">
+    <Callout className="rollup-analysis-pane">
+      <Button className="close" icon={IconNames.CROSS} onClick={onClose} minimal />
       {analyzeQueryState.isInit() && (
         <>
           <p>
@@ -311,7 +288,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
           </p>
           <p>
             <Button
-              text="Run analysis"
+              text="Run rollup analysis"
               onClick={() => {
                 analyzeQueryManager.runQuery({ expressions: dimensions, deep: false });
               }}
@@ -348,9 +325,6 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
           </>
         )}
       {analyzeQueryState.isError() && <p>{analyzeQueryState.getErrorMessage()}</p>}
-      <p>
-        <Button text="Close" onClick={onClose} />
-      </p>
     </Callout>
   );
 });

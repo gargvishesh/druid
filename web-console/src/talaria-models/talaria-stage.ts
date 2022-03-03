@@ -20,7 +20,7 @@ import { max, sum } from 'd3-array';
 
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { formatBytes, formatInteger, oneOf } from '../utils';
+import { deepGet, formatBytes, formatInteger, oneOf } from '../utils';
 
 export interface StageDefinition {
   stageNumber: number;
@@ -61,14 +61,18 @@ export interface WorkerCounter {
     preShuffle?: StageCounter[];
     output?: StageCounter[];
   };
+  sortProgress?: {
+    stageNumber: number;
+    sortProgress: SortProgress;
+  }[];
 }
 
 export interface StageCounter {
   stageNumber: number;
   partitionNumber: number;
-  frames: number;
   rows: number;
   bytes: number;
+  frames: number;
 }
 
 export interface SimpleCounter {
@@ -76,6 +80,14 @@ export interface SimpleCounter {
   rows: number;
   bytes: number;
   frames: number;
+}
+
+export interface SortProgress {
+  totalMergingLevels: number;
+  levelToTotalBatches: Record<number, number>;
+  levelToMergedBatches: Record<number, number>;
+  totalMergersForUltimateLevel: number;
+  progressDigest?: number;
 }
 
 export function compareDetailEntries(a: SimpleCounter, b: SimpleCounter): number {
@@ -155,10 +167,25 @@ export function stageProgress(stage: StageDefinition, stages: StageDefinition[])
     }
 
     case 'POST_READING': {
-      const phaseProgress =
-        getTotalCountForStage(stage, 'output', 'rows') /
-        (getTotalCountForStage(stage, 'preShuffle', 'rows') ||
-          getTotalCountForStage(stage, 'input', 'rows'));
+      const outputRows = getTotalCountForStage(stage, 'output', 'rows');
+      const sortedRows = getRowSortProgressForStage(stage);
+
+      let phaseProgress;
+      if (outputRows) {
+        const outputProgress =
+          outputRows /
+          (getTotalCountForStage(stage, 'preShuffle', 'rows') ||
+            getTotalCountForStage(stage, 'input', 'rows'));
+
+        if (sortedRows) {
+          phaseProgress = 0.6 + 0.4 * outputProgress;
+        } else {
+          phaseProgress = outputProgress;
+        }
+      } else {
+        // Assume that sort account for 60% of the stage
+        phaseProgress = (0.6 * sortedRows) / getTotalCountForStage(stage, 'preShuffle', 'rows');
+      }
 
       return 0.55 + 0.35 * phaseProgress;
     }
@@ -177,7 +204,7 @@ export const COUNTER_TYPES: CounterType[] = ['input', 'preShuffle', 'output'];
 
 export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
   input: 'Input',
-  preShuffle: 'Pre shuffle',
+  preShuffle: 'Pre sort',
   output: 'Output',
 };
 
@@ -203,6 +230,12 @@ export function hasCounterTypeForStage(stage: StageDefinition, counterType: Coun
   return stage.workerCounters.some(w => Boolean(w.counters[counterType]));
 }
 
+export function hasSortProgressForStage(stage: StageDefinition): boolean {
+  return stage.workerCounters.some(w =>
+    Boolean(deepGet(w, 'sortProgress.0.sortProgress.progressDigest')),
+  );
+}
+
 export function getNumPartitions(
   stage: StageDefinition,
   counterType: CounterType,
@@ -220,6 +253,15 @@ export function getTotalCountForStage(
   field: 'frames' | 'rows' | 'bytes',
 ): number {
   return sum(stage.workerCounters, w => sum(w.counters[counterType] || [], o => o[field]));
+}
+
+// Compute the known sort progress of each row in the units of sort input rows
+export function getRowSortProgressForStage(stage: StageDefinition): number {
+  return sum(stage.workerCounters, w => {
+    const sortInputRows = sum(w.counters.preShuffle || [], o => o.rows);
+    const progressDigest = deepGet(w, 'sortProgress.0.sortProgress.progressDigest') || 0;
+    return Math.floor(sortInputRows * progressDigest);
+  });
 }
 
 export function getByWorkerCountForStage(
