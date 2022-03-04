@@ -80,8 +80,8 @@ public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
     }
 
     final Frame frame = inputChannel.read().getOrThrow();
+    final Frame truncatedFrame = chopAndProcess(frame, frameReader);
 
-    final Frame truncatedFrame = chop(frame, frameReader);
     if (truncatedFrame != null) {
       outputChannel.write(new FrameWithPartition(truncatedFrame, FrameWithPartition.NO_PARTITION));
     }
@@ -108,7 +108,7 @@ public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
    * or null if no rows from the current frame should be included.
    */
   @Nullable
-  private Frame chop(final Frame frame, final FrameReader frameReader)
+  private Frame chopAndProcess(final Frame frame, final FrameReader frameReader)
   {
     final long startRow = Math.max(0, offset - rowsProcessedSoFar);
     final long endRow = Math.min(frame.numRows(), offset + limit - rowsProcessedSoFar);
@@ -142,6 +142,7 @@ public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
         rowsProcessedSoFarInFrame++;
       }
 
+      rowsProcessedSoFar += rowsProcessedSoFarInFrame;
       return Frame.wrap(frameWriter.toByteArray());
     }
   }
