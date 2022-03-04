@@ -36,25 +36,7 @@ public class TalariaCounters
       final int stageNumber
   )
   {
-    return workerCountersMap.get(workerNumber).getOrCreateSortProgressTracker(stageNumber);
-  }
-
-  @Nullable
-  public ChannelCounters getChannelCounters(
-      final TalariaCounterType counterType,
-      final int workerNumber,
-      final int stageNumber,
-      final int partitionNumber
-  )
-  {
-    final ConcurrentHashMap<StagePartitionNumber, ChannelCounters> countersMap =
-        workerCounters(workerNumber).countersMap.get(counterType);
-
-    if (countersMap == null) {
-      return null;
-    }
-
-    return countersMap.get(new StagePartitionNumber(stageNumber, partitionNumber));
+    return workerCounters(workerNumber).getOrCreateSortProgressTracker(stageNumber);
   }
 
   public ChannelCounters getOrCreateChannelCounters(
