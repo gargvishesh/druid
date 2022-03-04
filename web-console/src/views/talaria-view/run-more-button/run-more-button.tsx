@@ -45,12 +45,15 @@ import {
   setUseCache,
 } from '../../../utils/query-context';
 import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
+import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
 import './run-more-button.scss';
 
-function getParallelism(context: QueryContext): number | undefined {
+const PARALLELISM_OPTIONS = [1, 2, 4, 6, 8, 10, 16, 32, 64];
+
+function getParallelism(context: QueryContext): number {
   const { talariaNumTasks } = context;
-  return typeof talariaNumTasks === 'number' ? talariaNumTasks : undefined;
+  return typeof talariaNumTasks === 'number' ? talariaNumTasks : 1;
 }
 
 function changeParallelism(context: QueryContext, parallelism: number | undefined): QueryContext {
@@ -87,6 +90,7 @@ export interface RunMoreButtonProps {
 export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreButtonProps) {
   const { query, onQueryChange, onRun, loading, small, onExport } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
+  const [customParallelismDialogOpen, setCustomParallelismDialogOpen] = useState(false);
   const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const emptyQuery = query.isEmptyQuery();
@@ -153,17 +157,6 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
   useHotkeys(hotkeys);
 
   const parallelism = getParallelism(queryContext);
-  function renderParallelismMenuItem(p: number | undefined) {
-    return (
-      <MenuItem
-        key={String(p)}
-        icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
-        text={typeof p === 'undefined' ? 'auto' : String(p)}
-        onClick={() => onQueryChange(query.changeQueryContext(changeParallelism(queryContext, p)))}
-      />
-    );
-  }
-
   const queryEngine = query.engine;
   function renderQueryEngineMenuItem(e: DruidEngine | undefined) {
     return (
@@ -172,10 +165,12 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
         icon={e === queryEngine ? IconNames.TICK : IconNames.BLANK}
         text={typeof e === 'undefined' ? 'auto' : e}
         onClick={() => onQueryChange(query.changeEngine(e))}
+        shouldDismissPopover={false}
       />
     );
   }
 
+  const effectiveEngine = query.getEffectiveEngine();
   return (
     <div className="run-more-button">
       <ButtonGroup>
@@ -202,7 +197,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                   <MenuItem
                     icon={IconNames.MANY_TO_MANY}
                     text="Query engine"
-                    label={query.engine || `${query.getEffectiveEngine()} (auto)`}
+                    label={queryEngine || `${effectiveEngine} (auto)`}
                   >
                     <Menu>
                       {(
@@ -217,36 +212,77 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                     onClick={() => setEditContextDialogOpen(true)}
                     label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
                   />
-                  <MenuItem
-                    icon={IconNames.TWO_COLUMNS}
-                    text="Talaria parallelism"
-                    label={String(parallelism || 'auto')}
-                  >
-                    <Menu>
-                      {[undefined, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(renderParallelismMenuItem)}
+                  {effectiveEngine === 'talaria' ? (
+                    <>
                       <MenuItem
-                        icon={Number(parallelism) > 10 ? IconNames.TICK : IconNames.BLANK}
-                        text="More"
+                        icon={IconNames.TWO_COLUMNS}
+                        text="Talaria parallelism"
+                        label={String(parallelism)}
                       >
-                        {renderParallelismMenuItem(11)}
-                        {Number(parallelism) > 11 && renderParallelismMenuItem(parallelism)}
+                        <Menu>
+                          {PARALLELISM_OPTIONS.map(p => (
+                            <MenuItem
+                              key={String(p)}
+                              icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
+                              text={String(p)}
+                              onClick={() =>
+                                onQueryChange(
+                                  query.changeQueryContext(changeParallelism(queryContext, p)),
+                                )
+                              }
+                              shouldDismissPopover={false}
+                            />
+                          ))}
+                          <MenuItem
+                            icon={
+                              PARALLELISM_OPTIONS.includes(parallelism)
+                                ? IconNames.BLANK
+                                : IconNames.TICK
+                            }
+                            text="Custom"
+                            onClick={() => setCustomParallelismDialogOpen(true)}
+                          />
+                        </Menu>
                       </MenuItem>
-                    </Menu>
-                  </MenuItem>
-                  <MenuCheckbox
-                    checked={talariaFinalizeAggregations}
-                    text="Finalize aggregations"
-                    onChange={() => {
-                      onQueryChange(
-                        query.changeQueryContext(
-                          setTalariaFinalizeAggregations(
-                            queryContext,
-                            !talariaFinalizeAggregations,
-                          ),
-                        ),
-                      );
-                    }}
-                  />
+                      <MenuCheckbox
+                        checked={talariaFinalizeAggregations}
+                        text="Finalize aggregations"
+                        onChange={() => {
+                          onQueryChange(
+                            query.changeQueryContext(
+                              setTalariaFinalizeAggregations(
+                                queryContext,
+                                !talariaFinalizeAggregations,
+                              ),
+                            ),
+                          );
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <MenuCheckbox
+                        checked={useCache}
+                        text="Use cache"
+                        onChange={() => {
+                          onQueryChange(
+                            query.changeQueryContext(setUseCache(queryContext, !useCache)),
+                          );
+                        }}
+                      />
+                      <MenuCheckbox
+                        checked={useApproximateTopN}
+                        text="Use approximate TopN"
+                        onChange={() => {
+                          onQueryChange(
+                            query.changeQueryContext(
+                              setUseApproximateTopN(queryContext, !useApproximateTopN),
+                            ),
+                          );
+                        }}
+                      />
+                    </>
+                  )}
                   <MenuCheckbox
                     checked={useApproximateCountDistinct}
                     text="Use approximate COUNT(DISTINCT)"
@@ -259,24 +295,6 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                           ),
                         ),
                       );
-                    }}
-                  />
-                  <MenuCheckbox
-                    checked={useApproximateTopN}
-                    text="Use approximate TopN"
-                    onChange={() => {
-                      onQueryChange(
-                        query.changeQueryContext(
-                          setUseApproximateTopN(queryContext, !useApproximateTopN),
-                        ),
-                      );
-                    }}
-                  />
-                  <MenuCheckbox
-                    checked={useCache}
-                    text="Use cache"
-                    onChange={() => {
-                      onQueryChange(query.changeQueryContext(setUseCache(queryContext, !useCache)));
                     }}
                   />
                   <MenuCheckbox
@@ -329,6 +347,16 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           onClose={() => {
             setEditContextDialogOpen(false);
           }}
+        />
+      )}
+      {customParallelismDialogOpen && (
+        <NumericInputDialog
+          title="Custom parallelism value"
+          initValue={parallelism}
+          onSave={p => {
+            onQueryChange(query.changeQueryContext(changeParallelism(queryContext, p)));
+          }}
+          onClose={() => setCustomParallelismDialogOpen(false)}
         />
       )}
       {explainDialogQuery && (

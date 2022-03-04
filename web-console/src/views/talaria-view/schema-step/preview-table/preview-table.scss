@@ -45,6 +45,7 @@
           content: '';
           border: 2px solid $blue4;
           border-radius: $pt-border-radius;
+          pointer-events: none;
         }
 
         &.timestamp {
@@ -71,6 +72,7 @@
 
         .header-wrapper {
           cursor: pointer;
+          height: 35px;
         }
 
         .output-name {

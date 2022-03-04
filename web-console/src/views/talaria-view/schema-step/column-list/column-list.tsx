@@ -24,7 +24,7 @@ import React, { useMemo } from 'react';
 
 import { PopoverText } from '../../../../components';
 import { getLink } from '../../../../links';
-import { filterMap, QueryAction } from '../../../../utils';
+import { filterMap } from '../../../../utils';
 import { LearnMore } from '../../../load-data-view/learn-more/learn-more';
 
 import { ExpressionEntry } from './expression-entry/expression-entry';
@@ -34,12 +34,12 @@ import './column-list.scss';
 export interface ColumnListProps {
   queryResult: QueryResult;
   columnFilter?(columnName: string): boolean;
+  selectedColumnIndex: number;
   onEditColumn(columnIndex: number): void;
-  onQueryAction(action: QueryAction): void;
 }
 
 export const ColumnList = function ColumnList(props: ColumnListProps) {
-  const { queryResult, onQueryAction, columnFilter, onEditColumn } = props;
+  const { queryResult, columnFilter, selectedColumnIndex, onEditColumn } = props;
 
   const dimensions = useMemo(() => {
     const { sqlQuery } = queryResult;
@@ -102,8 +102,8 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
                 headerIndex={columnIndex}
                 queryResult={queryResult}
                 grouped={metrics ? true : undefined}
+                selected={selectedColumnIndex === columnIndex}
                 onEditColumn={onEditColumn}
-                onQueryAction={onQueryAction}
               />
             );
           })}
@@ -144,15 +144,17 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
                   headerIndex={columnIndex}
                   queryResult={queryResult}
                   grouped={false}
+                  selected={selectedColumnIndex === columnIndex}
                   onEditColumn={onEditColumn}
-                  onQueryAction={onQueryAction}
                 />
               );
             })}
           </div>
         </div>
       ) : (
-        <div />
+        <div className="list-column">
+          <div className="placeholder">Reserved for metrics when in rollup mode</div>
+        </div>
       )}
     </div>
   );

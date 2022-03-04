@@ -37,8 +37,10 @@ import {
   getByWorkerCountForStage,
   getNumPartitions,
   getRowRateFromStage,
+  getRowSortProgressForStage,
   getTotalCountForStage,
   hasCounterTypeForStage,
+  hasSortProgressForStage,
   StageDefinition,
   stagesToColorMap,
   summarizeInputSource,
@@ -204,6 +206,17 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
     );
   }
 
+  function sortProgress(stage: StageDefinition) {
+    if (!hasSortProgressForStage(stage)) return;
+
+    return (
+      <div className="data-transfer" title="Sort...">
+        <div className="counter-type-label">Sort:</div>
+        <BracedText text={formatRows(getRowSortProgressForStage(stage))} braces={rowsValues} />
+      </div>
+    );
+  }
+
   const colorMap = stagesToColorMap(stages);
 
   return (
@@ -287,6 +300,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
               <>
                 {dataTransfer(original, 'input')}
                 {dataTransfer(original, 'preShuffle')}
+                {sortProgress(original)}
                 {dataTransfer(original, 'output')}
               </>
             );

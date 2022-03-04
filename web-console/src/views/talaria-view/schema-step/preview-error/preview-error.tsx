@@ -16,16 +16,26 @@
  * limitations under the License.
  */
 
-@import '../../../../variables';
+import { Button } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
+import React from 'react';
 
-.rollup-analysis-pane {
-  .close {
-    position: absolute;
-    top: 0;
-    right: 0;
-  }
+import './preview-error.scss';
 
-  .strong {
-    color: orange;
-  }
+interface PreviewErrorProps {
+  errorMessage: string;
+  onRevert?: () => void;
 }
+
+export const PreviewError = function PreviewError(props: PreviewErrorProps) {
+  const { errorMessage, onRevert } = props;
+
+  return (
+    <div className="preview-error">
+      <div className="error-message">{errorMessage}</div>
+      {onRevert && (
+        <Button icon={IconNames.UNDO} text="Revert to last working state" onClick={onRevert} />
+      )}
+    </div>
+  );
+};

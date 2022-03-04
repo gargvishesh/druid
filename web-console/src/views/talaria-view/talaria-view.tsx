@@ -384,7 +384,9 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
             return (
               <ButtonGroup key={i} minimal className={classNames('tab-button', { active })}>
                 <AnchorButton
+                  className="tab-name"
                   text={tabEntry.tabName}
+                  title={tabEntry.tabName}
                   href={`#query-next/${currentId}`}
                   onClick={() => {
                     localStorageSet(LocalStorageKeys.TALARIA_LAST_TAB, currentId);

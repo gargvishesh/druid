@@ -16,16 +16,39 @@
  * limitations under the License.
  */
 
-@import '../../../../variables';
+@import '~@blueprintjs/core/src/common/colors';
+@import '../../../variables';
 
-.rollup-analysis-pane {
-  .close {
-    position: absolute;
-    top: 0;
-    right: 0;
+.column-editor {
+  background: rgba($gray3, 0.15);
+  padding: 10px;
+  border-radius: $pt-border-radius;
+  margin-bottom: 15px;
+
+  .title {
+    font-size: 16px;
+    margin-bottom: 10px;
+    cursor: default;
   }
 
-  .strong {
-    color: orange;
+  .talaria-query-input {
+    height: 80px;
+    border: 1px solid $gray2;
+    border-radius: 2px;
+  }
+
+  .apply-cancel-buttons {
+    position: relative;
+    text-align: right;
+
+    .bp3-button {
+      margin-left: 15px;
+    }
+
+    .delete {
+      position: absolute;
+      left: 0;
+      margin-left: 0;
+    }
   }
 }

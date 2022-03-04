@@ -18,15 +18,11 @@
 
 import { Icon } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { Column, QueryResult, SqlRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { Deferred } from '../../../../../components/deferred/deferred';
-import { QueryAction } from '../../../../../utils';
 import { dataTypeToIcon } from '../../../../query-view/query-utils';
-import { ColumnActionMenu } from '../../../column-action-menu/column-action-menu';
 
 import './expression-entry.scss';
 
@@ -34,15 +30,13 @@ interface ExpressionEntryProps {
   column: Column;
   headerIndex: number;
   queryResult: QueryResult;
-  filtered?: boolean;
   grouped?: boolean;
+  selected: boolean;
   onEditColumn(columnIndex: number): void;
-  onQueryAction(action: QueryAction): void;
 }
 
 export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryProps) {
-  const { column, headerIndex, queryResult, filtered, grouped, onEditColumn, onQueryAction } =
-    props;
+  const { column, headerIndex, queryResult, grouped, selected, onEditColumn } = props;
 
   const expression = queryResult.sqlQuery?.getSelectExpressionForIndex(headerIndex);
   if (!expression) return null;
@@ -51,50 +45,29 @@ export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryPr
   const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
 
   return (
-    <Popover2
-      className={classNames('expression-entry')}
-      position={grouped ? 'left' : 'right'}
-      content={
-        <Deferred
-          content={() => (
-            <ColumnActionMenu
-              column={column}
-              headerIndex={headerIndex}
-              queryResult={queryResult}
-              filtered={filtered}
-              grouped={grouped}
-              onEditColumn={onEditColumn}
-              onQueryAction={onQueryAction}
-            />
-          )}
-        />
+    <div
+      className={
+        grouped === false
+          ? classNames('expression-entry', 'metric', { selected })
+          : classNames(
+              'expression-entry',
+              column.isTimeColumn() ? 'timestamp' : 'dimension',
+              column.sqlType?.toLowerCase(),
+              { selected },
+            )
       }
+      onClick={() => onEditColumn(headerIndex)}
     >
-      <div
-        className={
-          grouped === false
-            ? classNames('expression-entry-inner', 'metric')
-            : classNames(
-                'expression-entry-inner',
-                column.isTimeColumn() ? 'timestamp' : 'dimension',
-                column.sqlType?.toLowerCase(),
-              )
-        }
-      >
-        {icon && <Icon className="type-icon" icon={icon} iconSize={14} />}
-        <div className="output-name">
-          {expression.getOutputName() || 'EXPR?'}
-          <span className="type-name">{` :: ${effectiveType}`}</span>
-        </div>
-        {!(expression instanceof SqlRef) && (
-          <div className="expression">
-            {expression
-              .getUnderlyingExpression()
-              .prettify({ keywordCasing: 'preserve' })
-              .toString()}
-          </div>
-        )}
+      {icon && <Icon className="type-icon" icon={icon} iconSize={14} />}
+      <div className="output-name">
+        {expression.getOutputName() || 'EXPR?'}
+        <span className="type-name">{` :: ${effectiveType}`}</span>
       </div>
-    </Popover2>
+      {!(expression instanceof SqlRef) && (
+        <div className="expression">
+          {expression.getUnderlyingExpression().prettify({ keywordCasing: 'preserve' }).toString()}
+        </div>
+      )}
+    </div>
   );
 };

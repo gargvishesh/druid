@@ -257,7 +257,7 @@ export class TalariaQueryInput extends React.PureComponent<
 
     let height: number;
     if (autoHeight) {
-      height = Math.max(queryString.split('\n').length, minRows ?? 2) * 17 + 20;
+      height = Math.max(queryString.split('\n').length, minRows ?? 2) * 18 + 20;
     } else {
       height = editorHeight;
     }

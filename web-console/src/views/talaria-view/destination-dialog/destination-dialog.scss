@@ -16,16 +16,8 @@
  * limitations under the License.
  */
 
-@import '../../../../variables';
-
-.rollup-analysis-pane {
-  .close {
-    position: absolute;
-    top: 0;
-    right: 0;
-  }
-
-  .strong {
-    color: orange;
-  }
+.destination-dialog {
+  position: absolute;
+  top: 20%;
+  margin: 0;
 }
