@@ -28,7 +28,6 @@ import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.jackson.DefaultObjectMapper;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -362,7 +361,7 @@ public class QueryKitUtils
   )
   {
     // Worker number -> input source for that worker.
-    final List<InputSource> workerInputSources;
+    final List<List<InputSource>> workerInputSourcess;
 
     // Figure out input splits for each worker.
     if (inputSource.isSplittable()) {
@@ -372,35 +371,41 @@ public class QueryKitUtils
       try {
         // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
         //  from InputSource#createSplits to avoid materializing the list.
-        workerInputSources =
-            splittableInputSource.createSplits(inputFormat, new MaxNumSplitsSplitHintSpec(maxWorkerCount))
+        workerInputSourcess = SplitUtils.makeSplits(
+            splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
                                  .map(splittableInputSource::withSplit)
-                                 .collect(Collectors.toList());
+                                 .iterator(),
+            maxWorkerCount
+        );
       }
       catch (IOException e) {
         throw new RuntimeException(e);
       }
     } else {
-      workerInputSources = Collections.singletonList(inputSource);
+      workerInputSourcess = Collections.singletonList(Collections.singletonList(inputSource));
     }
 
     // Sanity check. It is a bug in this method if this exception is ever thrown.
-    if (workerInputSources.size() > maxWorkerCount) {
-      throw new ISE("Too many workers");
+    if (workerInputSourcess.size() > maxWorkerCount) {
+      throw new ISE(
+          "Cannot handle more input splits [%d] than max worker count [%d].",
+          workerInputSourcess.size(),
+          maxWorkerCount
+      );
     }
 
     return IntStream.range(0, maxWorkerCount)
                     .mapToObj(
                         workerNumber -> {
-                          final InputSource workerInputSource;
+                          final List<InputSource> workerInputSources;
 
-                          if (workerNumber < workerInputSources.size()) {
-                            workerInputSource = workerInputSources.get(workerNumber);
+                          if (workerNumber < workerInputSourcess.size()) {
+                            workerInputSources = workerInputSourcess.get(workerNumber);
                           } else {
-                            workerInputSource = NilInputSource.instance();
+                            workerInputSources = Collections.emptyList();
                           }
 
-                          return QueryWorkerInputSpec.forInputSource(workerInputSource, inputFormat, signature);
+                          return QueryWorkerInputSpec.forInputSources(workerInputSources, inputFormat, signature);
                         }
                     )
                     .collect(Collectors.toList());
@@ -466,19 +471,14 @@ public class QueryKitUtils
     }
   }
 
-  // TODO(gianm): tests
   @VisibleForTesting
-  static class MaxNumSplitsSplitHintSpec implements SplitHintSpec
+  static class FilePerSplitHintSpec implements SplitHintSpec
   {
-    private final int numSplits;
+    static FilePerSplitHintSpec INSTANCE = new FilePerSplitHintSpec();
 
-    MaxNumSplitsSplitHintSpec(final int numSplits)
+    private FilePerSplitHintSpec()
     {
-      this.numSplits = numSplits;
-
-      if (numSplits <= 0) {
-        throw new IAE("numSplits must be > 0, but was [%d]", numSplits);
-      }
+      // Singleton.
     }
 
     @Override
@@ -487,15 +487,7 @@ public class QueryKitUtils
         final Function<T, InputFileAttribute> inputAttributeExtractor
     )
     {
-      final List<List<T>> splits = SplitUtils.makeSplits(
-          inputIterator,
-          item -> inputAttributeExtractor.apply(item).getSize(),
-          numSplits
-      );
-
-      // Skip empty lists, since InputSources cannot always make empty lists into a valid split.
-      // This works fine because "makeInputSpecsForInputSource" replaces these missing lists with NilInputSource.
-      return Iterators.filter(splits.iterator(), list -> !list.isEmpty());
+      return Iterators.transform(inputIterator, Collections::singletonList);
     }
   }
 }

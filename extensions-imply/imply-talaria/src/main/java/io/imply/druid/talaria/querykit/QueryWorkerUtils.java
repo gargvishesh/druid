@@ -14,7 +14,6 @@ import com.google.common.collect.Iterators;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
-import io.imply.druid.talaria.util.SupplierIterator;
 import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
@@ -94,7 +93,7 @@ public class QueryWorkerUtils
     } else if (inputSpec.type() == QueryWorkerInputType.EXTERNAL) {
       return Iterators.transform(
           inputSourceSegmentIterator(
-              inputSpec.getInputSource(),
+              inputSpec.getInputSources(),
               inputSpec.getInputFormat(),
               inputSpec.getSignature(),
               temporaryDirectory
@@ -134,7 +133,7 @@ public class QueryWorkerUtils
   }
 
   private static Iterator<SegmentWithInterval> inputSourceSegmentIterator(
-      final InputSource inputSource,
+      final List<InputSource> inputSources,
       final InputFormat inputFormat,
       final RowSignature signature,
       final File temporaryDirectory
@@ -158,10 +157,11 @@ public class QueryWorkerUtils
       throw new ISE("Cannot create temporary directory at [%s]", temporaryDirectory);
     }
 
-    final InputSourceReader reader = inputSource.reader(schema, inputFormat, temporaryDirectory);
+    return Iterators.transform(
+        inputSources.iterator(),
+        inputSource -> {
+          final InputSourceReader reader = inputSource.reader(schema, inputFormat, temporaryDirectory);
 
-    return new SupplierIterator<>(
-        () -> {
           final SegmentId segmentId = SegmentId.dummy("dummy");
           final RowBasedSegment<InputRow> segment = new RowBasedSegment<>(
               segmentId,
@@ -173,7 +173,6 @@ public class QueryWorkerUtils
                     {
                       try {
                         // TODO(gianm): parse-exception handling logic like that in FilteringCloseableInputRowIterator
-                        // TODO(gianm): include location (file, lineno) information in parse exceptions
                         return reader.read();
                       }
                       catch (IOException e) {
