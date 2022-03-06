@@ -79,13 +79,23 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       return new ProcessorsAndChannels<>(Sequences.empty(), OutputChannels.none());
     }
 
-    final AtomicReference<Queue<MemoryAllocator>> allocatorQueueRef =
-        new AtomicReference<>(new ArrayDeque<>(maxOutstandingProcessors));
-    final AtomicReference<Queue<WritableFrameChannel>> channelQueueRef =
-        new AtomicReference<>(new ArrayDeque<>(maxOutstandingProcessors));
-    final List<OutputChannel> outputChannels = new ArrayList<>(maxOutstandingProcessors);
+    final int outstandingProcessors;
 
-    for (int i = 0; i < maxOutstandingProcessors; i++) {
+    if (inputSpec.type() == QueryWorkerInputType.EXTERNAL
+        && inputSpec.getInputFormat().getClass().getName().contains("Parquet")) {
+      // Hack alert: workaround for memory use in ParquetFileReader: https://implydata.atlassian.net/browse/IMPLY-17932
+      outstandingProcessors = 1;
+    } else {
+      outstandingProcessors = Math.min(totalProcessors, maxOutstandingProcessors);
+    }
+
+    final AtomicReference<Queue<MemoryAllocator>> allocatorQueueRef =
+        new AtomicReference<>(new ArrayDeque<>(outstandingProcessors));
+    final AtomicReference<Queue<WritableFrameChannel>> channelQueueRef =
+        new AtomicReference<>(new ArrayDeque<>(outstandingProcessors));
+    final List<OutputChannel> outputChannels = new ArrayList<>(outstandingProcessors);
+
+    for (int i = 0; i < outstandingProcessors; i++) {
       final OutputChannel outputChannel = outputChannelFactory.openChannel(FrameWithPartition.NO_PARTITION);
       outputChannels.add(outputChannel);
       channelQueueRef.get().add(outputChannel.getWritableChannel());

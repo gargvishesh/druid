@@ -28,7 +28,7 @@ import java.util.Objects;
 public class QueryWorkerInputSpec
 {
   private final QueryWorkerInputType inputType;
-  private final InputSource inputSource;
+  private final List<InputSource> inputSources;
   private final InputFormat inputFormat;
   private final RowSignature signature;
   private final List<DataSegmentWithInterval> segments;
@@ -37,7 +37,7 @@ public class QueryWorkerInputSpec
   @JsonCreator
   private QueryWorkerInputSpec(
       @JsonProperty("type") final QueryWorkerInputType inputType,
-      @JsonProperty("inputSource") final InputSource inputSource,
+      @JsonProperty("inputSources") final List<InputSource> inputSources,
       @JsonProperty("inputFormat") final InputFormat inputFormat,
       @JsonProperty("signature") final RowSignature signature,
       @JsonProperty("segments") final List<DataSegmentWithInterval> segments,
@@ -45,7 +45,7 @@ public class QueryWorkerInputSpec
   )
   {
     this.inputType = Preconditions.checkNotNull(inputType, "inputType");
-    this.inputSource = inputSource;
+    this.inputSources = inputSources;
     this.inputFormat = inputFormat;
     this.signature = signature;
     this.segments = segments;
@@ -54,7 +54,7 @@ public class QueryWorkerInputSpec
     switch (inputType) {
       case TABLE:
         Preconditions.checkNotNull(segments, "segments");
-        if (inputFormat != null || inputSource != null || signature != null || stageNumber != null) {
+        if (inputFormat != null || inputSources != null || signature != null || stageNumber != null) {
           throw new ISE(
               "Cannot provide 'inputFormat', 'inputSource', 'signature', or 'stageNumber' with type [%s]",
               inputType
@@ -64,7 +64,7 @@ public class QueryWorkerInputSpec
 
       case EXTERNAL:
         Preconditions.checkNotNull(inputFormat, "inputFormat");
-        Preconditions.checkNotNull(inputSource, "inputSource");
+        Preconditions.checkNotNull(inputSources, "inputSource");
         Preconditions.checkNotNull(signature, "signature");
         if (segments != null || stageNumber != null) {
           throw new ISE("Cannot provide 'segments' or 'stageNumber' with type [%s]", inputType);
@@ -73,7 +73,7 @@ public class QueryWorkerInputSpec
 
       case SUBQUERY:
         Preconditions.checkNotNull(stageNumber, "stageNumber");
-        if (inputFormat != null || inputSource != null || signature != null || segments != null) {
+        if (inputFormat != null || inputSources != null || signature != null || segments != null) {
           throw new ISE("Cannot provide any parameters with type [%s]", inputType);
         }
         break;
@@ -88,13 +88,13 @@ public class QueryWorkerInputSpec
     return new QueryWorkerInputSpec(QueryWorkerInputType.TABLE, null, null, null, segments, null);
   }
 
-  public static QueryWorkerInputSpec forInputSource(
-      final InputSource inputSource,
+  public static QueryWorkerInputSpec forInputSources(
+      final List<InputSource> inputSources,
       final InputFormat inputFormat,
       final RowSignature signature
   )
   {
-    return new QueryWorkerInputSpec(QueryWorkerInputType.EXTERNAL, inputSource, inputFormat, signature, null, null);
+    return new QueryWorkerInputSpec(QueryWorkerInputType.EXTERNAL, inputSources, inputFormat, signature, null, null);
   }
 
   public static QueryWorkerInputSpec forSubQuery(final int stageNumber)
@@ -111,9 +111,9 @@ public class QueryWorkerInputSpec
   @Nullable
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public InputSource getInputSource()
+  public List<InputSource> getInputSources()
   {
-    return inputSource;
+    return inputSources;
   }
 
   @Nullable
@@ -160,9 +160,8 @@ public class QueryWorkerInputSpec
     } else if (inputType == QueryWorkerInputType.TABLE) {
       return segments.size();
     } else {
-      // TODO(gianm): Potentially do further splitting of the InputSource
       assert inputType == QueryWorkerInputType.EXTERNAL;
-      return 1;
+      return inputSources.size();
     }
   }
 
@@ -176,7 +175,7 @@ public class QueryWorkerInputSpec
       return false;
     }
     QueryWorkerInputSpec that = (QueryWorkerInputSpec) o;
-    return Objects.equals(inputSource, that.inputSource)
+    return Objects.equals(inputSources, that.inputSources)
            && Objects.equals(inputFormat, that.inputFormat)
            && Objects.equals(signature, that.signature)
            && Objects.equals(segments, that.segments)
@@ -186,7 +185,7 @@ public class QueryWorkerInputSpec
   @Override
   public int hashCode()
   {
-    return Objects.hash(inputSource, inputFormat, signature, segments, stageNumber);
+    return Objects.hash(inputSources, inputFormat, signature, segments, stageNumber);
   }
 
   @Override
@@ -196,9 +195,9 @@ public class QueryWorkerInputSpec
       return "QueryWorkerInput{" +
              "segments=" + segments +
              '}';
-    } else if (inputSource != null) {
+    } else if (inputSources != null) {
       return "QueryWorkerInput{" +
-             "inputSource=" + inputSource +
+             "inputSource=" + inputSources +
              ", inputFormat=" + inputFormat +
              ", signature=" + signature +
              '}';

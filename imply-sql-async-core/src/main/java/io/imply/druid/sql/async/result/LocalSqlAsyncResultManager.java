@@ -80,8 +80,8 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public OutputStream writeResults(final SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    // TODO(gianm): Limit on max result size, to avoid running out of disk
-    // TODO(gianm): Tests for what error happens if the file already exists
+    // Should have a limit on max result size, to avoid running out of disk.
+    // Should have tests for what error happens if the file already exists.
     final FileChannel fileChannel = FileChannel.open(
         makeFile(queryDetails.getAsyncResultId()).toPath(),
         StandardOpenOption.CREATE_NEW,
@@ -112,8 +112,6 @@ public class LocalSqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public boolean deleteResults(final String asyncResultId)
   {
-    // TODO(gianm): Call this in a way that doesn't cause problems when two users happen to issue queries with
-    //  the same manually-specified ID
     File result = makeFile(asyncResultId);
     if (!result.exists()) {
       return true;
