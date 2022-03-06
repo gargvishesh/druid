@@ -36,7 +36,6 @@ import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
-import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
@@ -346,7 +345,6 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   public void testCastAndSumPath() throws Exception
   {
     cannotVectorize();
-    // ideally this should be using the native virtual column
     testQuery(
         "SELECT "
         + "SUM(CAST(JSON_GET_PATH(nest, '.x') as BIGINT)) "
@@ -356,16 +354,8 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                   .dataSource(DATA_SOURCE)
                   .intervals(querySegmentSpec(Filtration.eternity()))
                   .granularity(Granularities.ALL)
-                  .aggregators(
-                      aggregators(
-                          new LongSumAggregatorFactory(
-                              "a0",
-                              null,
-                              "CAST(get_path(\"nest\",'.\"x\"'), 'LONG')",
-                              TestExprMacroTable.INSTANCE
-                          )
-                      )
-                  )
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"x\"", "v0"))
+                  .aggregators(aggregators(new LongSumAggregatorFactory("a0", "v0")))
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
