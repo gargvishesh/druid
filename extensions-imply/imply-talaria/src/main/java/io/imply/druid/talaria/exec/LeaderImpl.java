@@ -61,6 +61,7 @@ import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
+import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
@@ -202,7 +203,7 @@ public class LeaderImpl implements Leader
   private volatile WorkerClient netClient;
 
   public LeaderImpl(
-      TalariaControllerTask task,
+      final TalariaControllerTask task,
       final LeaderContext context
   )
   {
@@ -261,7 +262,7 @@ public class LeaderImpl implements Leader
   {
     QueryDefinition queryDef = null;
     ControllerQueryKernel queryKernel = null;
-    ListenableFuture<TaskState> workerTaskRunnerFuture = null;
+    ListenableFuture<Map<String, TaskState>> workerTaskRunnerFuture = null;
     TalariaCountersSnapshot countersSnapshot = null;
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
@@ -273,7 +274,7 @@ public class LeaderImpl implements Leader
       this.queryStartTime = DateTimes.nowUtc();
       queryDef = initializeState(closer);
 
-      final Pair<ControllerQueryKernel, ListenableFuture<TaskState>> queryRunResult =
+      final Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> queryRunResult =
           runQueryUntilDone(queryDef, closer);
 
       queryKernel = Preconditions.checkNotNull(queryRunResult.lhs);
@@ -410,7 +411,7 @@ public class LeaderImpl implements Leader
     return queryDef;
   }
 
-  private Pair<ControllerQueryKernel, ListenableFuture<TaskState>> runQueryUntilDone(
+  private Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> runQueryUntilDone(
       final QueryDefinition queryDef,
       final Closer closer
   ) throws Exception
@@ -418,16 +419,32 @@ public class LeaderImpl implements Leader
     // Start tasks.
     log.debug("Query [%s] starting tasks.", queryDef.getQueryId());
 
-    final ListenableFuture<TaskState> workerTaskLauncherFuture = workerTaskLauncher.start();
+    final ListenableFuture<Map<String, TaskState>> workerTaskLauncherFuture = workerTaskLauncher.start();
     closer.register(workerTaskLauncher::stop);
 
     workerTaskLauncherFuture.addListener(
         () ->
             kernelManipulationQueue.add(queryKernel -> {
-              final TaskState state = FutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
+              final Map<String, TaskState> workerTaskStates =
+                  FutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
 
-              if (state == TaskState.FAILED) {
-                queryKernel.getActiveStageKernels().forEach(ControllerStageKernel::fail);
+              for (final Map.Entry<String, TaskState> entry : workerTaskStates.entrySet()) {
+                if (entry.getValue() != TaskState.SUCCESS) {
+                  // Some worker task failed. Add its failure to workerErrorRef so that specific task shows up in
+                  // the report.
+                  workerErrorRef.compareAndSet(
+                      null,
+                      TalariaErrorReport.fromFault(
+                          entry.getKey(),
+                          null,
+                          null,
+                          new WorkerFailedFault(entry.getKey())
+                      )
+                  );
+
+                  // Halt the query kernel.
+                  queryKernel.getActiveStageKernels().forEach(ControllerStageKernel::fail);
+                }
               }
             }),
         Execs.directExecutor()

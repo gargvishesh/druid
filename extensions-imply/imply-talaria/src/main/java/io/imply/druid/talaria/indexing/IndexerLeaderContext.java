@@ -81,14 +81,11 @@ public class IndexerLeaderContext implements LeaderContext
   @Override
   public WorkerClient taskClientFor(Leader leader)
   {
-    TalariaControllerTask task = leader.task();
     return new TalariaIndexerTaskClient(
         injector.getInstance(Key.get(HttpClient.class, EscalatedGlobal.class)),
         jsonMapper(),
         new ClientBasedTaskInfoProvider(toolbox.getIndexingServiceClient()),
-        task.getTuningConfig().getChatHandlerTimeout(),
-        leader.id(),
-        task.getTuningConfig().getChatHandlerNumRetries()
+        leader.id()
     );
   }
 

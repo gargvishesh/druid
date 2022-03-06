@@ -40,6 +40,7 @@ import io.imply.druid.talaria.indexing.error.TooManyInputFilesFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
+import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSink;
 import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSinkConfig;
 import io.imply.druid.talaria.indexing.externalsink.NilTalariaExternalSink;
@@ -122,6 +123,7 @@ public class TalariaIndexingModule implements DruidModule
             TooManyPartitionsFault.class,
             TooManyWorkersFault.class,
             UnknownFault.class,
+            WorkerFailedFault.class,
 
             // Other
             PassthroughAggregatorFactory.class,

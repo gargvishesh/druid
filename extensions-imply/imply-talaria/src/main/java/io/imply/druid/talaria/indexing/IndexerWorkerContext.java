@@ -35,7 +35,6 @@ import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.realtime.appenderator.UnifiedIndexerAppenderatorsManager;
 import org.apache.druid.server.DruidNode;
-import org.joda.time.Duration;
 
 import java.io.File;
 
@@ -118,9 +117,7 @@ public class IndexerWorkerContext implements WorkerContext
           injector.getInstance(Key.get(HttpClient.class, EscalatedGlobal.class)),
           jsonMapper(),
           new ClientBasedTaskInfoProvider(toolbox.getIndexingServiceClient()),
-          Duration.standardMinutes(5),
-          taskId,
-          999999 /* TODO(gianm): hardcoded to a very large number until we build proper fault tolerance */
+          taskId
       );
     }
     return taskClient;
