@@ -30,12 +30,17 @@ import java.util.Objects;
  */
 public class WorkerMemoryParameters
 {
-
   /**
    * Percent of memory that we allocate to bundles. It is less than 100% because we need to leave some space
    * left over for miscellaneous other stuff, and to ensure that GC pressure does not get too high.
    */
   private static final double USABLE_MEMORY_FRACTION = 0.75;
+
+  /**
+   * Percent of each bundle's memory that we allocate to appenderators. It is less than 100% because appenderators
+   * unfortunately have a variety of unaccounted-for memory usage.
+   */
+  private static final double APPENDERATOR_MEMORY_FRACTION = 0.67;
 
   /**
    * Size for "standard frames", which are used for most purposes, except inputs to super-sorters.
@@ -162,7 +167,7 @@ public class WorkerMemoryParameters
     return new WorkerMemoryParameters(
         superSorterMaxActiveProcessors,
         superSorterMaxChannelsPerProcessor,
-        bundleMemoryForProcessing,
+        (long) (bundleMemoryForProcessing * APPENDERATOR_MEMORY_FRACTION),
         (long) (bundleMemoryForProcessing * BROADCAST_JOIN_MEMORY_FRACTION)
     );
   }

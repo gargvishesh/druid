@@ -38,7 +38,7 @@
         </dependency>
 
         <!-- include druid-core to prevent older versions of dependencies
-        from being pulled in by airline and dependencies of druid-server -->
+        from being pulled in by dependencies of druid-server -->
         <dependency>
             <groupId>org.apache.druid</groupId>
             <artifactId>druid-core</artifactId>
@@ -76,7 +76,7 @@
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.airlift</groupId>
+            <groupId>com.github.rvesse</groupId>
             <artifactId>airline</artifactId>
         </dependency>
         <dependency>

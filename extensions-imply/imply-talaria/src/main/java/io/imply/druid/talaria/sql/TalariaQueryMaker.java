@@ -72,7 +72,7 @@ public class TalariaQueryMaker implements QueryMaker
 
   // Lower than the default to minimize the impact of per-row overheads that are not accounted for by
   // OnheapIncrementalIndex. For example: overheads related to creating bitmaps during persist.
-  private static final int DEFAULT_ROWS_IN_MEMORY = 150000;
+  private static final int DEFAULT_ROWS_IN_MEMORY = 100000;
 
   private final String targetDataSource;
   private final IndexingServiceClient indexingServiceClient;
