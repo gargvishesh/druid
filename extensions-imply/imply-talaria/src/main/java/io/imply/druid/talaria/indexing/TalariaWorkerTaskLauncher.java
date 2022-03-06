@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.talaria.exec.LeaderContext;
@@ -53,7 +54,7 @@ public class TalariaWorkerTaskLauncher
   // Mutable state meant to be accessible by threads outside the main loop.
   // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
   private final SettableFuture<TalariaTaskList> startFuture = SettableFuture.create();
-  private final SettableFuture<TaskState> stopFuture = SettableFuture.create();
+  private final SettableFuture<Map<String, TaskState>> stopFuture = SettableFuture.create();
   private final AtomicBoolean started = new AtomicBoolean();
   private final AtomicBoolean stopped = new AtomicBoolean();
   private final CountDownLatch stopLatch = new CountDownLatch(1);
@@ -79,7 +80,7 @@ public class TalariaWorkerTaskLauncher
    * Launches tasks, blocking until they are all in RUNNING state. Returns a future that resolves to the collective
    * and final state of the tasks once they are all done.
    */
-  public ListenableFuture<TaskState> start()
+  public ListenableFuture<Map<String, TaskState>> start()
   {
     if (started.compareAndSet(false, true)) {
       exec.submit(() -> {
@@ -142,10 +143,12 @@ public class TalariaWorkerTaskLauncher
       shutdownRemainingTasks();
       waitForTasksToFinish(false);
 
-      if (startedOk && tasks.values().stream().allMatch(v -> v == TaskState.SUCCESS)) {
-        stopFuture.set(TaskState.SUCCESS);
+      if (startedOk) {
+        stopFuture.set(ImmutableMap.copyOf(tasks));
       } else {
-        stopFuture.set(TaskState.FAILED);
+        // Doesn't really matter what we set stopFuture to here, because nobody will ever see it.
+        // (When startedOk = false, "start" would have thrown an exception rather than returning stopFuture.)
+        stopFuture.setException(new ISE("Error while starting"));
       }
     }
     catch (Throwable e) {

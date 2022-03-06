@@ -30,7 +30,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -43,26 +42,27 @@ import java.util.concurrent.ExecutorService;
 public class TalariaIndexerTaskClient extends IndexTaskClient implements TalariaTaskClient
 {
   private static final int NUM_THREADS = 4;
+  private static final Duration HTTP_TIMEOUT = Duration.standardMinutes(5);
 
+  // Hardcoded to a very large number, since until we build proper fault tolerance, we rely on low-level retries.
+  private static final int NUM_RETRIES = 999999;
   private boolean closed;
 
   protected TalariaIndexerTaskClient(
       HttpClient httpClient,
       ObjectMapper objectMapper,
       TaskInfoProvider taskInfoProvider,
-      Duration httpTimeout,
-      String callerId,
-      long numRetries
+      String callerId
   )
   {
     super(
         httpClient,
         objectMapper,
         taskInfoProvider,
-        httpTimeout,
+        HTTP_TIMEOUT,
         callerId,
         NUM_THREADS,
-        numRetries
+        NUM_RETRIES
     );
   }
 
@@ -383,6 +383,7 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
       throw new RuntimeException(e);
     }
   }
+
   /**
    * Client-side method for {@link LeaderChatHandler#httpGetTaskList}.
    */
