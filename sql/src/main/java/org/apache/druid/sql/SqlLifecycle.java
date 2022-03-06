@@ -553,5 +553,16 @@ public class SqlLifecycle
   {
     return plannerContext.getAuthenticationResult();
   }
+
+  /**
+   * Returns whether this lifecycle has been authorized and has also not yet been executed. Lifecycles in this
+   * state are ready for execution.
+   */
+  public boolean isAuthorizedAndReadyToRun()
+  {
+    synchronized (stateLock) {
+      return state == State.AUTHORIZED;
+    }
+  }
   // END: Imply-specific code
 }

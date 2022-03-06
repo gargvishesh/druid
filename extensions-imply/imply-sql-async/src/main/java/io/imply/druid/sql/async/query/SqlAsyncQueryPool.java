@@ -35,6 +35,7 @@ import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
@@ -115,15 +116,26 @@ public class SqlAsyncQueryPool
     closer.close();
   }
 
+  /**
+   * Execute a query asynchronously.
+   *
+   * @param asyncResultId async query result ID (must be globally unique; can be different from the SQL query ID)
+   * @param sqlQuery      the original query request
+   * @param lifecycle     a query lifecycle where {@link SqlLifecycle#isAuthorizedAndReadyToRun()} is true
+   * @param remoteAddr    remote address, for logging and metrics
+   *
+   * @return information about the running query
+   *
+   * @throws AsyncQueryAlreadyExistsException if another query already exists with the same {@param asyncResultId}
+   */
   public SqlAsyncQueryDetails execute(
       final String asyncResultId,
       final SqlQuery sqlQuery,
       final SqlLifecycle lifecycle,
-      final String remoteAddr
+      @Nullable final String remoteAddr
   ) throws AsyncQueryAlreadyExistsException
   {
-    // TODO(gianm): Document precondition: lifecycle must be in AUTHORIZED state. Validate, too?
-    assert lifecycle.getAuthenticationResult() != null;
+    Preconditions.checkState(lifecycle.isAuthorizedAndReadyToRun());
 
     final long timeout = getTimeout(sqlQuery.getContext());
     if (!hasTimeout(timeout)) {
@@ -154,7 +166,8 @@ public class SqlAsyncQueryPool
                 );
               }
 
-              // TODO(gianm): Most of this code is copy-pasted from SqlResource
+              // Most of this code is copy-pasted from SqlResource. It would be nice to consolidate it to lower
+              // the maintenance burden of keeping them in sync.
               lifecycle.plan();
               SqlRowTransformer rowTransformer = lifecycle.createRowTransformer();
               Yielder<Object[]> yielder = Yielders.each(lifecycle.execute());
