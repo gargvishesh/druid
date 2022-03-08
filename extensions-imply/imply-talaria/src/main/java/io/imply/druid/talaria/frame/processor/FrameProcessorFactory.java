@@ -13,8 +13,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
-import org.apache.druid.segment.column.RowSignature;
+import io.imply.druid.talaria.kernel.StageDefinition;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -36,7 +37,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
    *                                 factories use this to determine what work to do
    * @param inputChannels            provider for input channels.
    * @param outputChannelFactory     factory for generating output channels.
-   * @param signature                represents the expected signature of frames written to output channels.
+   * @param stageDefinition          stage definition
    * @param clusterBy                represents the expected ordering of frames written to output channels. If the
    *                                 input is not already sorted this way, then each frame must be sorted using
    *                                 {@link io.imply.druid.talaria.frame.write.FrameWriter#sort} before writing. It is not
@@ -52,10 +53,11 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
       @Nullable ExtraInfoType extra,
       InputChannels inputChannels,
       OutputChannelFactory outputChannelFactory,
-      RowSignature signature,
+      StageDefinition stageDefinition,
       ClusterBy clusterBy,
       FrameContext providerThingy,
-      int maxOutstandingProcessors
+      int maxOutstandingProcessors,
+      TalariaCounters talariaCounters
   ) throws IOException;
 
   TypeReference<R> getAccumulatedResultTypeReference();
@@ -70,4 +72,12 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
 
   @SuppressWarnings("rawtypes")
   ExtraInfoHolder makeExtraInfoHolder(@Nullable ExtraInfoType extra);
+
+  /**
+   * @return total count of the input files.
+   */
+  default int inputFilesCount()
+  {
+    return 0;
+  }
 }

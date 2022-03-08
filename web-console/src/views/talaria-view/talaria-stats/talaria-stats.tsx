@@ -130,6 +130,8 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
     const { phase } = stage;
     return (
       <div className="talaria-detailed-stats-container">
+        {detailedStatsForWorker(stage, 'inputExternal', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'inputDruid', phase === 'READING_INPUT')}
         {detailedStatsForPartition(stage, 'input', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'input', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'preShuffle', phase === 'READING_INPUT')}
@@ -152,7 +154,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
 
     return (
       <TalariaDetailedStats
-        title={`${COUNTER_TYPE_TITLE[counterType]} workers`}
+        title={`${COUNTER_TYPE_TITLE[counterType]} by worker`}
         labelPrefix="W"
         entries={workerEntries}
         inProgress={inProgress}
@@ -174,7 +176,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
 
     return (
       <TalariaDetailedStats
-        title={`${COUNTER_TYPE_TITLE[counterType]} partitions`}
+        title={`${COUNTER_TYPE_TITLE[counterType]} by partition`}
         labelPrefix="P"
         entries={partitionEntries}
         inProgress={inProgress}
@@ -185,6 +187,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
   function dataTransfer(stage: StageDefinition, counterType: CounterType) {
     if (!hasCounterTypeForStage(stage, counterType)) return;
 
+    const bytes = getTotalCountForStage(stage, counterType, 'bytes');
     return (
       <div
         className="data-transfer"
@@ -197,11 +200,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           text={formatRows(getTotalCountForStage(stage, counterType, 'rows'))}
           braces={rowsValues}
         />{' '}
-        &nbsp;{' '}
-        <BracedText
-          text={formatSize(getTotalCountForStage(stage, counterType, 'bytes'))}
-          braces={bytesValues}
-        />
+        &nbsp; {bytes > 0 && <BracedText text={formatSize(bytes)} braces={bytesValues} />}
       </div>
     );
   }
@@ -294,10 +293,12 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           Header: twoLines('Data transferred', <i>rows &nbsp; (size)</i>),
           id: 'data_transferred',
           accessor: row => getTotalCountForStage(row, 'input', 'rows'),
-          width: 280,
+          width: 290,
           Cell({ original }) {
             return (
               <>
+                {dataTransfer(original, 'inputExternal')}
+                {dataTransfer(original, 'inputDruid')}
                 {dataTransfer(original, 'input')}
                 {dataTransfer(original, 'preShuffle')}
                 {sortProgress(original)}
@@ -342,6 +343,22 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           id: 'output_partitions',
           accessor: row => getNumPartitions(row, 'output'),
           width: 75,
+        },
+        {
+          Header: twoLines('Input files', <i>read / total</i>),
+          id: 'input_files',
+          width: 200,
+          Cell({ original }) {
+            if (!original.totalFiles) return null;
+            return (
+              <>
+                {getTotalCountForStage(original, 'input', 'files') +
+                  getTotalCountForStage(original, 'inputExternal', 'files') +
+                  getTotalCountForStage(original, 'inputDruid', 'files')}{' '}
+                / {original.totalFiles}
+              </>
+            );
+          },
         },
         {
           Header: 'Cluster by',

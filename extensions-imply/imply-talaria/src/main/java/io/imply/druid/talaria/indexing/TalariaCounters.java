@@ -69,7 +69,8 @@ public class TalariaCounters
           ).addCounters(
               channelSnapshot.getFrames(),
               channelSnapshot.getRows(),
-              channelSnapshot.getBytes()
+              channelSnapshot.getBytes(),
+              channelSnapshot.getFiles()
           );
         }
         for (TalariaCountersSnapshot.SortProgressTracker sortProgressTrackerEntry : workerSnapshot.getSortProgress()) {
@@ -110,7 +111,8 @@ public class TalariaCounters
                   stagePartitionNumber.getPartitionNumber(),
                   channelCounters.frames.get(),
                   channelCounters.rows.get(),
-                  channelCounters.bytes.get()
+                  channelCounters.bytes.get(),
+                  channelCounters.files.get()
               )
           );
         }
@@ -309,6 +311,7 @@ public class TalariaCounters
     private final AtomicLong frames = new AtomicLong();
     private final AtomicLong rows = new AtomicLong();
     private final AtomicLong bytes = new AtomicLong();
+    private final AtomicLong files = new AtomicLong();
 
     private ChannelCounters()
     {
@@ -322,11 +325,22 @@ public class TalariaCounters
       bytes.addAndGet(frame.numBytes());
     }
 
-    public void addCounters(final long frames, final long rows, final long bytes)
+    public void addCounters(final long frames, final long rows, final long bytes, final long files)
     {
       this.frames.addAndGet(frames);
       this.rows.addAndGet(rows);
       this.bytes.addAndGet(bytes);
+      this.files.addAndGet(files);
+    }
+
+    public void incrementRowCount()
+    {
+      this.rows.incrementAndGet();
+    }
+
+    public void incrementFileCount()
+    {
+      this.files.incrementAndGet();
     }
   }
 }

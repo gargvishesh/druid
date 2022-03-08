@@ -127,6 +127,7 @@ public class TalariaCountersSnapshot
     private final long frames;
     private final long rows;
     private final long bytes;
+    private final long files;
 
     @JsonCreator
     public ChannelCounters(
@@ -134,7 +135,8 @@ public class TalariaCountersSnapshot
         @JsonProperty("partitionNumber") int partitionNumber,
         @JsonProperty("frames") long frames,
         @JsonProperty("rows") long rows,
-        @JsonProperty("bytes") long bytes
+        @JsonProperty("bytes") long bytes,
+        @JsonProperty("files") long files
     )
     {
       this.stageNumber = stageNumber;
@@ -142,6 +144,7 @@ public class TalariaCountersSnapshot
       this.frames = frames;
       this.rows = rows;
       this.bytes = bytes;
+      this.files = files;
     }
 
     @JsonProperty
@@ -172,6 +175,13 @@ public class TalariaCountersSnapshot
     public long getBytes()
     {
       return bytes;
+    }
+
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    public long getFiles()
+    {
+      return files;
     }
   }
 

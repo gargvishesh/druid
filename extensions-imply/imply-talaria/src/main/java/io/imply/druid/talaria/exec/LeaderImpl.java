@@ -195,6 +195,9 @@ public class LeaderImpl implements Leader
   // For live reports. stage number -> runtime interval. Endpoint is eternity's end if the stage is still running.
   private final ConcurrentHashMap<Integer, Interval> stageRuntimesForLiveReports = new ConcurrentHashMap<>();
 
+  // For live reports. stage number -> stage input files
+  private final ConcurrentHashMap<Integer, Integer> stageInputFiles = new ConcurrentHashMap<>();
+
   // For live reports. The time at which the query started
   private volatile DateTime queryStartTime = null;
 
@@ -302,7 +305,14 @@ public class LeaderImpl implements Leader
                        );
 
         reports.add(
-            makeStageTaskReport(id(), queryDef, stagePhaseMap, stageRuntimesForLiveReports, countersSnapshot)
+            makeStageTaskReport(
+                id(),
+                queryDef,
+                stagePhaseMap,
+                stageRuntimesForLiveReports,
+                countersSnapshot,
+                stageInputFiles
+            )
         );
       }
 
@@ -407,6 +417,7 @@ public class LeaderImpl implements Leader
     );
 
     validateQueryDef(queryDef);
+    populateCounters(queryDef);
     queryDefRef.set(queryDef);
     return queryDef;
   }
@@ -703,7 +714,8 @@ public class LeaderImpl implements Leader
             queryDef,
             stagePhasesForLiveReports,
             stageRuntimesForLiveReports,
-            snapshot
+            snapshot,
+            stageInputFiles
         ),
         makeStatusTaskReport(
             id(),
@@ -1499,7 +1511,8 @@ public class LeaderImpl implements Leader
       final QueryDefinition queryDef,
       final Map<Integer, ControllerStagePhase> stagePhaseMap,
       final Map<Integer, Interval> stageRuntimeMap,
-      final TalariaCountersSnapshot countersSnapshot
+      final TalariaCountersSnapshot countersSnapshot,
+      final Map<Integer, Integer> stageInputFiles
   )
   {
     // TODO(gianm): the setup for stageQueryMap is totally a hack; clean up somehow.
@@ -1529,7 +1542,8 @@ public class LeaderImpl implements Leader
             ImmutableMap.copyOf(stagePhaseMap),
             copyOfStageRuntimesEndingAtCurrentTime(stageRuntimeMap),
             stageQueryMap,
-            countersSnapshot
+            countersSnapshot,
+            ImmutableMap.copyOf(stageInputFiles)
         )
     );
   }
@@ -1618,6 +1632,16 @@ public class LeaderImpl implements Leader
                      )
                      .collect(Collectors.joining("; "))
       );
+    }
+  }
+
+  private void populateCounters(QueryDefinition queryDef)
+  {
+    for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
+      int numFiles = stageDefinition.getProcessorFactory().inputFilesCount();
+      if (numFiles != 0) {
+        stageInputFiles.put(stageDefinition.getStageNumber(), numFiles);
+      }
     }
   }
 

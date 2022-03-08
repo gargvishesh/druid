@@ -17,7 +17,9 @@ public enum TalariaCounterType
 {
   INPUT("input"),
   PRESHUFFLE("preShuffle"),
-  OUTPUT("output");
+  OUTPUT("output"),
+  INPUT_EXTERNAL("inputExternal"),
+  INPUT_DRUID("inputDruid");
 
   private final String key;
 

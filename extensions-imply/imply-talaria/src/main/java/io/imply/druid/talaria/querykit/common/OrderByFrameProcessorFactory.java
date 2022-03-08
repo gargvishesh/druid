@@ -20,12 +20,13 @@ import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.segment.VirtualColumns;
-import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -50,10 +51,11 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
       @Nullable Object extra,
       InputChannels inputChannels,
       OutputChannelFactory outputChannelFactory,
-      RowSignature signature,
+      StageDefinition stageDefinition,
       ClusterBy clusterBy,
       FrameContext providerThingy,
-      int maxOutstandingProcessors
+      int maxOutstandingProcessors,
+      TalariaCounters talariaCounters
   ) throws IOException
   {
     final List<OutputChannel> outputChannels = new ArrayList<>();
@@ -76,7 +78,7 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
                     outputChannels.get(i).getWritableChannel(),
                     inputChannels.getFrameReader(stagePartition),
                     virtualColumns,
-                    signature,
+                    stageDefinition.getSignature(),
                     clusterBy
                 );
               }

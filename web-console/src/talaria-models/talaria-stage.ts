@@ -35,6 +35,7 @@ export interface StageDefinition {
   workerCount: number;
   clusterBy?: ClusterBy;
   workerCounters: WorkerCounter[];
+  totalFiles?: number;
 }
 
 export interface DataSource {
@@ -60,6 +61,8 @@ export interface WorkerCounter {
     input?: StageCounter[];
     preShuffle?: StageCounter[];
     output?: StageCounter[];
+    inputExternal?: StageCounter[];
+    inputDruid?: StageCounter[];
   };
   sortProgress?: {
     stageNumber: number;
@@ -72,6 +75,7 @@ export interface StageCounter {
   partitionNumber: number;
   rows: number;
   bytes: number;
+  files: number;
   frames: number;
 }
 
@@ -80,6 +84,7 @@ export interface SimpleCounter {
   rows: number;
   bytes: number;
   frames: number;
+  files: number;
 }
 
 export interface SortProgress {
@@ -147,7 +152,9 @@ export function stageProgress(stage: StageDefinition, stages: StageDefinition[])
   switch (stage.phase) {
     case 'READING_INPUT': {
       const currentInputRows =
-        getTotalCountForStage(stage, 'input', 'rows') ||
+        getTotalCountForStage(stage, 'input', 'rows') +
+          getTotalCountForStage(stage, 'inputExternal', 'rows') +
+          getTotalCountForStage(stage, 'inputDruid', 'rows') ||
         getTotalCountForStage(stage, 'preShuffle', 'rows') ||
         0;
 
@@ -175,7 +182,9 @@ export function stageProgress(stage: StageDefinition, stages: StageDefinition[])
         const outputProgress =
           outputRows /
           (getTotalCountForStage(stage, 'preShuffle', 'rows') ||
-            getTotalCountForStage(stage, 'input', 'rows'));
+            getTotalCountForStage(stage, 'input', 'rows') +
+              getTotalCountForStage(stage, 'inputExternal', 'rows') +
+              getTotalCountForStage(stage, 'inputExternal', 'rows'));
 
         if (sortedRows) {
           phaseProgress = 0.6 + 0.4 * outputProgress;
@@ -198,11 +207,19 @@ export function stageProgress(stage: StageDefinition, stages: StageDefinition[])
   }
 }
 
-export type CounterType = 'input' | 'preShuffle' | 'output';
+export type CounterType = 'input' | 'preShuffle' | 'output' | 'inputExternal' | `inputDruid`;
 
-export const COUNTER_TYPES: CounterType[] = ['input', 'preShuffle', 'output'];
+export const COUNTER_TYPES: CounterType[] = [
+  'input',
+  'preShuffle',
+  'output',
+  'inputExternal',
+  'inputDruid',
+];
 
 export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
+  inputExternal: 'External input',
+  inputDruid: 'Segment input',
   input: 'Input',
   preShuffle: 'Pre sort',
   output: 'Output',
@@ -250,7 +267,7 @@ export function getNumPartitions(
 export function getTotalCountForStage(
   stage: StageDefinition,
   counterType: CounterType,
-  field: 'frames' | 'rows' | 'bytes',
+  field: 'frames' | 'rows' | 'bytes' | 'files',
 ): number {
   return sum(stage.workerCounters, w => sum(w.counters[counterType] || [], o => o[field]));
 }
@@ -281,6 +298,7 @@ export function getByWorkerCountForStage(
         rows: sum(counters, counter => counter.rows),
         bytes: sum(counters, counter => counter.bytes),
         frames: sum(counters, counter => counter.frames),
+        files: sum(counters, counter => counter.files),
       };
     } else {
       simpleCounter = {
@@ -288,6 +306,7 @@ export function getByWorkerCountForStage(
         rows: 0,
         bytes: 0,
         frames: 0,
+        files: 0,
       };
     }
 
@@ -311,6 +330,7 @@ export function getByPartitionCountForStage(
       rows: 0,
       bytes: 0,
       frames: 0,
+      files: 0,
     });
   }
 
@@ -322,6 +342,7 @@ export function getByPartitionCountForStage(
         mySimpleCounter.rows += o.rows;
         mySimpleCounter.bytes += o.bytes;
         mySimpleCounter.frames += o.frames;
+        mySimpleCounter.files += o.files;
       }
     }
   }
@@ -333,6 +354,8 @@ export function getRateCounterType(stage: StageDefinition): CounterType | undefi
   const { workerCounters } = stage;
   const workerCounter = workerCounters[0];
   if (!workerCounter) return;
+  if (workerCounter.counters.inputExternal) return 'inputExternal';
+  if (workerCounter.counters.inputDruid) return 'inputDruid';
   if (workerCounter.counters.input) return 'input';
   if (workerCounter.counters.preShuffle) return 'preShuffle';
   if (workerCounter.counters.output) return 'output';

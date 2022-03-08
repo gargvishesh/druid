@@ -32,6 +32,7 @@ public class QueryWorkerInputSpec
   private final InputFormat inputFormat;
   private final RowSignature signature;
   private final List<DataSegmentWithInterval> segments;
+  // input stage number. Only valid in case the input type is a sub query
   private final Integer stageNumber;
 
   @JsonCreator

@@ -23,6 +23,7 @@ import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
@@ -30,7 +31,6 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.segment.IndexSpec;
-import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.data.CompressionFactory;
 import org.apache.druid.segment.data.CompressionStrategy;
 import org.apache.druid.segment.incremental.AppendableIndexSpec;
@@ -99,10 +99,11 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       final List<SegmentIdWithShardSpec> segmentIdsWithShardSpecs,
       final InputChannels inputChannels,
       final OutputChannelFactory outputChannelFactory,
-      final RowSignature signature,
+      final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
       final FrameContext frameContext,
-      final int maxOutstandingProcessors
+      final int maxOutstandingProcessors,
+      final TalariaCounters talariaCounters
   )
   {
     final RowIngestionMeters meters = frameContext.rowIngestionMeters();

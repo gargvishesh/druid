@@ -47,7 +47,8 @@ public class TalariaStagesTaskReportPayload
       final Map<Integer, ControllerStagePhase> stagePhaseMap,
       final Map<Integer, Interval> stageRuntimeMap,
       final Map<Integer, Query<?>> stageQueryMap,
-      final TalariaCountersSnapshot counters
+      final TalariaCountersSnapshot counters,
+      final Map<Integer, Integer> stageInputFiles
   )
   {
     final List<Stage> stages = new ArrayList<>();
@@ -97,7 +98,8 @@ public class TalariaStagesTaskReportPayload
           stageDuration,
           stageDef.getShuffleSpec().map(ShuffleSpec::getClusterBy).orElse(null),
           countersForStage,
-          stageQueryMap.get(stageNumber)
+          stageQueryMap.get(stageNumber),
+          stageInputFiles.get(stageNumber)
       );
       stages.add(stage);
     }
@@ -120,6 +122,8 @@ public class TalariaStagesTaskReportPayload
     private final int partitionCount;
     private final DateTime startTime;
     private final long duration;
+    @Nullable
+    private final Integer totalFiles;
 
     @Nullable
     private final ControllerStagePhase phase;
@@ -147,7 +151,8 @@ public class TalariaStagesTaskReportPayload
         @JsonProperty("duration") final long duration,
         @JsonProperty("clusterBy") @Nullable final ClusterBy clusterBy,
         @JsonProperty("workerCounters") @Nullable final TalariaCountersSnapshot workerCounters,
-        @JsonProperty("query") @Nullable final Query<?> query
+        @JsonProperty("query") @Nullable final Query<?> query,
+        @JsonProperty("totalFiles") @Nullable final Integer totalFiles
     )
     {
       this.stageNumber = stageNumber;
@@ -161,6 +166,7 @@ public class TalariaStagesTaskReportPayload
       this.clusterBy = clusterBy;
       this.workerCounters = workerCounters;
       this.query = query;
+      this.totalFiles = totalFiles;
     }
 
     @JsonProperty
@@ -240,6 +246,14 @@ public class TalariaStagesTaskReportPayload
     public Query<?> getQuery()
     {
       return query;
+    }
+
+    @Nullable
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Integer getTotalFiles()
+    {
+      return totalFiles;
     }
   }
 }
