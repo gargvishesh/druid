@@ -12,7 +12,11 @@ package io.imply.druid.talaria.querykit;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
+import io.imply.druid.talaria.indexing.CountableInputSourceReader;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounterType;
+import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputFormat;
@@ -55,16 +59,21 @@ public class QueryWorkerUtils
    *
    * Expected to be used by {@link FrameProcessorFactory} implementations.
    *
+   * @param workerNumber        worker number
    * @param inputSpec           worker input specification
+   * @param stageDefinition     stage definition
    * @param inputChannels       worker input channels; only used if inputSpec is type SUBQUERY
    * @param dataSegmentProvider fetcher of segments, used when {@link QueryWorkerInputSpec#getSegments()} is nonnull
    * @param temporaryDirectory  temporary directory used for fetching data from certain {@link InputSource}
    */
   public static Iterator<QueryWorkerInput> inputIterator(
+      final int workerNumber,
       final QueryWorkerInputSpec inputSpec,
+      final StageDefinition stageDefinition,
       final InputChannels inputChannels,
       final DataSegmentProvider dataSegmentProvider,
-      final File temporaryDirectory
+      final File temporaryDirectory,
+      final TalariaCounters talariaCounters
   )
   {
     if (inputSpec.type() == QueryWorkerInputType.SUBQUERY) {
@@ -87,7 +96,16 @@ public class QueryWorkerUtils
       );
     } else if (inputSpec.type() == QueryWorkerInputType.TABLE) {
       return Iterators.transform(
-          dataSegmentIterator(inputSpec.getSegments(), dataSegmentProvider),
+          dataSegmentIterator(
+              inputSpec.getSegments(),
+              dataSegmentProvider,
+              talariaCounters.getOrCreateChannelCounters(
+                  TalariaCounterType.INPUT_DRUID,
+                  workerNumber,
+                  stageDefinition.getStageNumber(),
+                  -1
+              )
+          ),
           QueryWorkerInput::forSegment
       );
     } else if (inputSpec.type() == QueryWorkerInputType.EXTERNAL) {
@@ -96,7 +114,13 @@ public class QueryWorkerUtils
               inputSpec.getInputSources(),
               inputSpec.getInputFormat(),
               inputSpec.getSignature(),
-              temporaryDirectory
+              temporaryDirectory,
+              talariaCounters.getOrCreateChannelCounters(
+                  TalariaCounterType.INPUT_EXTERNAL,
+                  workerNumber,
+                  stageDefinition.getStageNumber(),
+                  -1
+              )
           ),
           QueryWorkerInput::forSegment
       );
@@ -116,12 +140,16 @@ public class QueryWorkerUtils
 
   private static Iterator<SegmentWithInterval> dataSegmentIterator(
       final List<DataSegmentWithInterval> descriptors,
-      final DataSegmentProvider dataSegmentProvider
+      final DataSegmentProvider dataSegmentProvider,
+      final TalariaCounters.ChannelCounters channelCounters
   )
   {
     return descriptors.stream().map(
         descriptor -> {
-          final LazyResourceHolder<Segment> segmentHolder = dataSegmentProvider.fetchSegment(descriptor.getSegment());
+          final LazyResourceHolder<Segment> segmentHolder = dataSegmentProvider.fetchSegment(
+              descriptor.getSegment(),
+              channelCounters
+          );
 
           return new SegmentWithInterval(
               segmentHolder,
@@ -136,7 +164,8 @@ public class QueryWorkerUtils
       final List<InputSource> inputSources,
       final InputFormat inputFormat,
       final RowSignature signature,
-      final File temporaryDirectory
+      final File temporaryDirectory,
+      final TalariaCounters.ChannelCounters inputExternalCounter
   )
   {
     final InputRowSchema schema = new InputRowSchema(
@@ -156,12 +185,21 @@ public class QueryWorkerUtils
     if (!temporaryDirectory.exists() && !temporaryDirectory.mkdir()) {
       throw new ISE("Cannot create temporary directory at [%s]", temporaryDirectory);
     }
-
     return Iterators.transform(
         inputSources.iterator(),
         inputSource -> {
-          final InputSourceReader reader = inputSource.reader(schema, inputFormat, temporaryDirectory);
+          final InputSourceReader reader;
 
+          final boolean incrementCounters = !NilInputSource.instance().equals(inputSource);
+          if (incrementCounters) {
+            reader = new CountableInputSourceReader(inputSource.reader(
+                schema,
+                inputFormat,
+                temporaryDirectory
+            ), inputExternalCounter);
+          } else {
+            reader = inputSource.reader(schema, inputFormat, temporaryDirectory);
+          }
           final SegmentId segmentId = SegmentId.dummy("dummy");
           final RowBasedSegment<InputRow> segment = new RowBasedSegment<>(
               segmentId,
@@ -185,6 +223,13 @@ public class QueryWorkerUtils
                     {
                       try {
                         iterFromMake.close();
+                        // We increment the file count whenever the caller calls clean up. So we can double count here
+                        // if the callers are not carefull.
+                        // This logic only works because we are using FilePerSplitHintSpec. Each input source only
+                        // has one file
+                        if (incrementCounters) {
+                          inputExternalCounter.incrementFileCount();
+                        }
                       }
                       catch (IOException e) {
                         throw new RuntimeException(e);

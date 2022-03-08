@@ -25,6 +25,8 @@ import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -66,10 +68,11 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       @Nullable Object extra,
       InputChannels inputChannels,
       OutputChannelFactory outputChannelFactory,
-      RowSignature signature,
+      StageDefinition stageDefinition,
       ClusterBy clusterBy,
       FrameContext frameContext,
-      int maxOutstandingProcessors
+      int maxOutstandingProcessors,
+      TalariaCounters talariaCounters
   ) throws IOException
   {
     final QueryWorkerInputSpec inputSpec = baseInputSpecs.get(workerNumber);
@@ -108,7 +111,15 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     final Sequence<QueryWorkerInput> processorBaseInputs =
         Sequences.simple(
             () ->
-                QueryWorkerUtils.inputIterator(inputSpec, inputChannels, dataSegmentProvider, temporaryDirectory)
+                QueryWorkerUtils.inputIterator(
+                    workerNumber,
+                    inputSpec,
+                    stageDefinition,
+                    inputChannels,
+                    dataSegmentProvider,
+                    temporaryDirectory,
+                    talariaCounters
+                )
         );
 
     final Sequence<FrameProcessor<Long>> processors = processorBaseInputs.map(
@@ -116,6 +127,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
           // TODO(gianm): this is wasteful: we're opening channels and rebuilding broadcast tables for _every processor_
           final Pair<Int2ObjectMap<ReadableFrameChannel>, Int2ObjectMap<FrameReader>> sideChannels =
               openSideChannels(inputChannels, inputSpec);
+          final TalariaCounters.ChannelCounters channelCounters;
 
           return makeProcessor(
               processorBaseInput,
@@ -132,8 +144,9 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
                     }
                   }
               ),
-              makeLazyResourceHolder(allocatorQueueRef, ignored -> {}),
-              signature,
+              makeLazyResourceHolder(allocatorQueueRef, ignored -> {
+              }),
+              stageDefinition.getSignature(),
               clusterBy,
               frameContext
           );
@@ -246,5 +259,19 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
           );
         }
     );
+  }
+
+  @Override
+  public int inputFilesCount()
+  {
+    int inputFiles = 0;
+    for (QueryWorkerInputSpec inputSpec : baseInputSpecs) {
+      if (inputSpec.getInputSources() != null && inputSpec.type().equals(QueryWorkerInputType.EXTERNAL)) {
+        inputFiles += inputSpec.getInputSources().size();
+      } else if (inputSpec.type().equals(QueryWorkerInputType.TABLE)) {
+        inputFiles += inputSpec.getSegments().size();
+      }
+    }
+    return inputFiles;
   }
 }

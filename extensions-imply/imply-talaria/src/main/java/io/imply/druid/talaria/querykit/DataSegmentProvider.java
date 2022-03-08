@@ -9,10 +9,14 @@
 
 package io.imply.druid.talaria.querykit;
 
+import io.imply.druid.talaria.indexing.TalariaCounters;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.timeline.DataSegment;
 
 public interface DataSegmentProvider
 {
-  LazyResourceHolder<Segment> fetchSegment(DataSegment dataSegment);
+  LazyResourceHolder<Segment> fetchSegment(
+      DataSegment dataSegment,
+      TalariaCounters.ChannelCounters channelCounters
+  );
 }

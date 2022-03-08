@@ -24,13 +24,14 @@ import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
-import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -63,10 +64,11 @@ public class TalariaExternalSinkFrameProcessorFactory
       final Object extraInfoIgnored,
       final InputChannels inputChannels,
       final OutputChannelFactory outputChannelFactory,
-      final RowSignature signature,
+      final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
       final FrameContext providerThingy,
-      final int maxOutstandingProcessors
+      final int maxOutstandingProcessors,
+      final TalariaCounters talariaCounters
   )
   {
     final TalariaExternalSink externalSink = providerThingy.externalSink();

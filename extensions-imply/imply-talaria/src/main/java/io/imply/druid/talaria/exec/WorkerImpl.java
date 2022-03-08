@@ -80,7 +80,6 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.PrioritizedCallable;
 import org.apache.druid.query.PrioritizedRunnable;
 import org.apache.druid.query.QueryProcessingPool;
-import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.server.DruidNode;
 
 import javax.annotation.Nullable;
@@ -671,13 +670,14 @@ public class WorkerImpl implements Worker
                   }
                 }
             ),
-            stageDef.getSignature(),
+            stageDef,
             workOrder.getQueryDefinition().getClusterByForStage(stageDef.getStageNumber()),
             frameContext,
             exec,
             cancellationId,
             parallelism,
-            processorBouncer
+            processorBouncer,
+            counters
         );
 
     final ListenableFuture<ClusterByPartitions> stagePartitionBoundariesFuture;
@@ -815,13 +815,14 @@ public class WorkerImpl implements Worker
       final I processorFactoryExtraInfo,
       final InputChannels inputChannels,
       final OutputChannelFactory outputChannelFactory,
-      final RowSignature signature,
+      final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
       final FrameContext frameContext,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
-      final Bouncer processorBouncer
+      final Bouncer processorBouncer,
+      final TalariaCounters counters
   ) throws IOException
   {
     final ProcessorsAndChannels<WorkerClass, T> processors =
@@ -830,10 +831,11 @@ public class WorkerImpl implements Worker
             processorFactoryExtraInfo,
             inputChannels,
             outputChannelFactory,
-            signature,
+            stageDefinition,
             clusterBy,
             frameContext,
-            parallelism
+            parallelism,
+            counters
         );
 
     final Sequence<WorkerClass> processorSequence = processors.processors();

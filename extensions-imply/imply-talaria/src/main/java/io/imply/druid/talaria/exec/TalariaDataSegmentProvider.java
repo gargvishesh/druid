@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.exec;
 
+import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import io.imply.druid.talaria.querykit.LazyResourceHolder;
 import org.apache.druid.java.util.common.FileUtils;
@@ -40,7 +41,10 @@ public class TalariaDataSegmentProvider implements DataSegmentProvider
   }
 
   @Override
-  public LazyResourceHolder<Segment> fetchSegment(DataSegment dataSegment)
+  public LazyResourceHolder<Segment> fetchSegment(
+      final DataSegment dataSegment,
+      final TalariaCounters.ChannelCounters channelCounters
+  )
   {
     try {
       return new LazyResourceHolder<>(
@@ -51,8 +55,17 @@ public class TalariaDataSegmentProvider implements DataSegmentProvider
               closer.register(() -> FileUtils.deleteDirectory(segmentDir));
 
               final QueryableIndex index = indexIO.loadIndex(segmentDir);
+              final int numRows = index.getNumRows();
+              final long size = dataSegment.getSize();
+              closer.register(() ->
+                                  channelCounters.addCounters(
+                                      0,
+                                      numRows,
+                                      size,
+                                      1
+                                  )
+              );
               closer.register(index);
-
               return Pair.of(new QueryableIndexSegment(index, dataSegment.getId()), closer);
             }
             catch (IOException | SegmentLoadingException e) {

@@ -24,12 +24,13 @@ import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
 import io.imply.druid.talaria.util.SupplierIterator;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
-import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -77,10 +78,11 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
       @Nullable Object extra,
       InputChannels inputChannels,
       OutputChannelFactory outputChannelFactory,
-      RowSignature signature,
+      StageDefinition stageDefinition,
       ClusterBy clusterBy,
       FrameContext providerThingy,
-      int maxOutstandingProcessors
+      int maxOutstandingProcessors,
+      TalariaCounters talariaCounters
   ) throws IOException
   {
     if (workerNumber > 0) {
