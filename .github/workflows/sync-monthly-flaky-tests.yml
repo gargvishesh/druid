@@ -1,0 +1,44 @@
+name: Update implydata/druid monthly with implydata/druid master
+on:
+  schedule:
+    - cron:  '0 */1 * * *' #Every 1 hours
+jobs:
+  updateMonthly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: implydata/druid
+          ref:  monthly-flaky-tests
+          fetch-depth: 0
+          token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
+      - name: rebase implydata/druid  monthly-flaky-tests with implydata/druid monthly
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch
+          git checkout monthly
+          git merge origin/monthly
+          git push
+      - name: Files causing merge conflict
+        if: ${{ failure() }}
+        run: |
+          echo "FILE=$(git diff --name-only --diff-filter=U |head -1)"  >> $GITHUB_ENV
+          echo "ALL_FILES=$(git diff --name-only --diff-filter=U)"  >> $GITHUB_ENV
+      - name: Details of first file causing conflict
+        if: ${{ failure() }}
+        run: |
+          echo "MONTHLY_FLAKY_TEST_COMMIT=$(git log monthly-flaky-tests -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "MONTHLY_FLAKY_TEST_COMMITER=$(git log monthly-flaky-tests -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "MONTHLY_COMMIT=$(git log origin/monthly -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "MONTHLY_COMMITER=$(git log origin/monthly -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
+      - name: Slack Notification for job failed
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_USERNAME: "barista bob"
+          SLACK_ICON_EMOJI: ":barista:"
+          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. `${{ env.ALL_FILES }}` caused the conflict. `${{ env.FILE }}` was last updated in `monthly` by ${{ env.MONTHLY_COMMITER }} with commit [${{ env.MONTHLY_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.MONTHLY_COMMIT }}) and in `monthly-flaky-test` by ${{ env.MONTHLY_FLAKY_TEST_COMMIT }} with commit [${{ env.MONTHLY_FLAKY_TEST_COMMITER }}](https://github.com/implydata/druid/commit/${{ env.MONTHLY_FLAKY_TEST_COMMIT }}). Please resolve conflicts of all the files. See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts"
+          SLACK_TITLE: "[FAILED] Update implydata/druid#monthly-flaky-tests with implydata/druid#monthly"
+          SLACK_COLOR: "danger"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
