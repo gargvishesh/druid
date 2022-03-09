@@ -25,6 +25,15 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Class that tracks query counters.
+ *
+ * Counters are all tracked on a per-worker basis by the {@link #workerCountersMap} object.
+ *
+ * Immutable {@link TalariaCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
+ * worker-to-controller counters propagation (see {@link TalariaIndexerTaskClient#postCounters}) and reporting
+ * to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
+ */
 public class TalariaCounters
 {
   // Worker number -> worker counters
@@ -50,42 +59,6 @@ public class TalariaCounters
         .countersMap
         .computeIfAbsent(counterType, ignored -> new ConcurrentHashMap<>())
         .computeIfAbsent(new StagePartitionNumber(stageNumber, partitionNumber), ignored -> new ChannelCounters());
-  }
-
-  public void addAll(final TalariaCountersSnapshot snapshot)
-  {
-    for (final TalariaCountersSnapshot.WorkerCounters workerSnapshot : snapshot.getWorkerCounters()) {
-      for (Map.Entry<TalariaCounterType, List<TalariaCountersSnapshot.ChannelCounters>> entry :
-          workerSnapshot.getCountersMap().entrySet()) {
-        final TalariaCounterType counterType = entry.getKey();
-        final List<TalariaCountersSnapshot.ChannelCounters> channelSnapshots = entry.getValue();
-
-        for (TalariaCountersSnapshot.ChannelCounters channelSnapshot : channelSnapshots) {
-          getOrCreateChannelCounters(
-              counterType,
-              workerSnapshot.getWorkerNumber(),
-              channelSnapshot.getStageNumber(),
-              channelSnapshot.getPartitionNumber()
-          ).addCounters(
-              channelSnapshot.getFrames(),
-              channelSnapshot.getRows(),
-              channelSnapshot.getBytes(),
-              channelSnapshot.getFiles()
-          );
-        }
-        for (TalariaCountersSnapshot.SortProgressTracker sortProgressTrackerEntry : workerSnapshot.getSortProgress()) {
-          // Worker sends one (updated) value of the snapshot per stage to the leader. Therefore, we only need to add or
-          // replace (if present) the present value with the new value for that stage number
-          workerCountersMap.get(workerSnapshot.getWorkerNumber()).sortProgressTrackerMap.compute(
-              sortProgressTrackerEntry.getStageNumber(),
-              (ignored1, ignored2) -> {
-                SuperSorterProgressSnapshot superSorterProgressSnapshot = sortProgressTrackerEntry.getSortProgress();
-                return SuperSorterProgressTracker.createWithSnapshot(superSorterProgressSnapshot);
-              }
-          );
-        }
-      }
-    }
   }
 
   public TalariaCountersSnapshot snapshot()
@@ -181,17 +154,22 @@ public class TalariaCounters
 
         sb.append(StringUtils.format("S%d:W%d:", stageNumber, workerEntry.getKey()));
 
-        final long inputRows = workerCounters.getTotalRows(TalariaCounterType.INPUT, stageNumber);
-        final long preShuffleRows = workerCounters.getTotalRows(TalariaCounterType.PRESHUFFLE, stageNumber);
-        final long outputRows = workerCounters.getTotalRows(TalariaCounterType.OUTPUT, stageNumber);
+        final long inputRows =
+            workerCounters.getTotalRows(TalariaCounterType.INPUT_STAGE, stageNumber)
+            + workerCounters.getTotalRows(TalariaCounterType.INPUT_EXTERNAL, stageNumber)
+            + workerCounters.getTotalRows(TalariaCounterType.INPUT_DRUID, stageNumber);
+        final long processorRows = workerCounters.getTotalRows(TalariaCounterType.PROCESSOR, stageNumber);
+        final long sortRows = workerCounters.getTotalRows(TalariaCounterType.SORT, stageNumber);
 
         sb.append(inputRows);
 
-        if (preShuffleRows > 0) {
-          sb.append("~").append(preShuffleRows);
-        }
+        if (processorRows > 0) {
+          sb.append("~").append(processorRows);
 
-        sb.append(">").append(outputRows);
+          if (sortRows > 0) {
+            sb.append(">").append(sortRows);
+          }
+        }
       }
     }
 

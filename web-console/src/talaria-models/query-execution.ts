@@ -18,10 +18,18 @@
 
 import { QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
 
-import { deepGet, oneOf } from '../utils';
+import { deepGet, deleteKeys, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
-import { StageDefinition } from './talaria-stage';
+import { Stages } from './talaria-stage';
+
+const IGNORE_CONTEXT_KEYS = [
+  '__asyncIdentity__',
+  'queryId',
+  'sqlQueryId',
+  'sqlInsertSegmentGranularity',
+  'talariaSignature',
+];
 
 // Hack around the concept that we might get back a SqlWithQuery and will need to unpack it
 function parseSqlQuery(queryString: string): SqlQuery | undefined {
@@ -61,7 +69,7 @@ export interface QueryExecutionValue {
   status?: QueryExecutionStatus;
   startTime?: Date;
   duration?: number;
-  stages?: StageDefinition[];
+  stages?: Stages;
   destination?: ExecutionDestination;
   result?: QueryResult;
   error?: TalariaTaskError;
@@ -135,18 +143,13 @@ export class QueryExecution {
     });
   }
 
-  static fromAsyncDetail(report: any): QueryExecution {
+  static fromAsyncDetail(detailPayload: {
+    talaria: { payload: any; task: any; taskId: string };
+    error?: any;
+  }): QueryExecution {
     // Must have status set for a valid report
-    const id = deepGet(report, 'talariaStatus.taskId') || deepGet(report, 'talariaTask.payload.id');
-
-    let status = deepGet(report, 'talariaStatus.payload.status');
-    if (
-      !status &&
-      report.error &&
-      !String(report.error).startsWith(`Can't find chatHandler for handler`) // Ignore this error in particular
-    ) {
-      status = 'FAILED';
-    }
+    const id = deepGet(detailPayload, 'talaria.taskId');
+    const status = deepGet(detailPayload, 'talaria.payload.status.status');
 
     if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
       throw new Error('Invalid payload');
@@ -155,29 +158,31 @@ export class QueryExecution {
     let error: TalariaTaskError | undefined;
     if (status === 'FAILED') {
       error =
-        deepGet(report, 'talariaStatus.payload.errorReport') ||
-        (typeof report.error === 'string'
-          ? { error: { errorCode: 'UnknownError', errorMessage: report.error } }
+        deepGet(detailPayload, 'talaria.payload.status.errorReport') ||
+        (typeof detailPayload.error === 'string'
+          ? { error: { errorCode: 'UnknownError', errorMessage: detailPayload.error } }
           : undefined);
     }
 
-    const stages = deepGet(report, 'talariaStages.payload.stages');
-    const startTime = new Date(deepGet(report, 'talariaStatus.payload.startTime'));
-    const durationMs = deepGet(report, 'talariaStatus.payload.durationMs');
+    const stages = deepGet(detailPayload, 'talaria.payload.stages');
+    const startTime = new Date(deepGet(detailPayload, 'talaria.payload.status.startTime'));
+    const durationMs = deepGet(detailPayload, 'talaria.payload.status.durationMs');
     let res = new QueryExecution({
       id,
       status: QueryExecution.normalizeTaskStatus(status),
       startTime: isNaN(startTime.getTime()) ? undefined : startTime,
       duration: typeof durationMs === 'number' ? durationMs : undefined,
-      stages,
+      stages: Array.isArray(stages)
+        ? new Stages(stages, deepGet(detailPayload, 'talaria.payload.counters'))
+        : undefined,
       error,
-      destination: deepGet(report, 'talariaTask.payload.spec.destination'),
+      destination: deepGet(detailPayload, 'talaria.task.spec.destination'),
     });
 
-    if (deepGet(report, 'talariaTask.payload.sqlQuery')) {
+    if (deepGet(detailPayload, 'talaria.task.sqlQuery')) {
       res = res.changeSqlQuery(
-        deepGet(report, 'talariaTask.payload.sqlQuery'),
-        deepGet(report, 'talariaTask.payload.sqlQueryContext'),
+        deepGet(detailPayload, 'talaria.task.sqlQuery'),
+        deleteKeys(deepGet(detailPayload, 'talaria.task.sqlQueryContext'), IGNORE_CONTEXT_KEYS),
       );
     }
 
@@ -198,7 +203,7 @@ export class QueryExecution {
   public readonly status?: QueryExecutionStatus;
   public readonly startTime?: Date;
   public readonly duration?: number;
-  public readonly stages?: StageDefinition[];
+  public readonly stages?: Stages;
   public readonly destination?: ExecutionDestination;
   public readonly result?: QueryResult;
   public readonly error?: TalariaTaskError;

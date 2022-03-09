@@ -17,10 +17,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Like {@link TalariaCounters}, but immutable.
@@ -40,45 +38,6 @@ public class TalariaCountersSnapshot
   public List<WorkerCounters> getWorkerCounters()
   {
     return workerCounters;
-  }
-
-  public TalariaCountersSnapshot stageSnapshot(final int stageNumber)
-  {
-    final List<WorkerCounters> retVal = new ArrayList<>();
-
-    for (final WorkerCounters workerCounters : workerCounters) {
-      final EnumMap<TalariaCounterType, List<ChannelCounters>> countersMap = workerCounters.getCountersMap();
-      final EnumMap<TalariaCounterType, List<ChannelCounters>> newCountersMap = new EnumMap<>(TalariaCounterType.class);
-
-      List<SortProgressTracker> sortProgressTrackers = new ArrayList<>();
-
-      for (final Map.Entry<TalariaCounterType, List<ChannelCounters>> entry : countersMap.entrySet()) {
-        final TalariaCounterType counterType = entry.getKey();
-        final List<ChannelCounters> channelCountersList = entry.getValue();
-
-        for (final ChannelCounters channelCounters : channelCountersList) {
-          if (channelCounters.getStageNumber() == stageNumber) {
-            newCountersMap.computeIfAbsent(counterType, ignored -> new ArrayList<>()).add(channelCounters);
-          }
-        }
-      }
-
-      for (final SortProgressTracker sortProgressTracker : workerCounters.getSortProgress()) {
-        if (sortProgressTracker.getStageNumber() == stageNumber) {
-          sortProgressTrackers.add(sortProgressTracker);
-        }
-      }
-
-      if (!newCountersMap.isEmpty()) {
-        retVal.add(new WorkerCounters(
-            workerCounters.getWorkerNumber(),
-            newCountersMap,
-            sortProgressTrackers
-        ));
-      }
-    }
-
-    return new TalariaCountersSnapshot(retVal);
   }
 
   public static class WorkerCounters

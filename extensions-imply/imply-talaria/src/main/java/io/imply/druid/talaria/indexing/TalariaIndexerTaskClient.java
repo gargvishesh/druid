@@ -283,7 +283,7 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
   public void postCounters(
       final String supervisorTaskId,
       final String taskId,
-      final TalariaCountersSnapshot snapshot
+      final TalariaCountersSnapshot.WorkerCounters snapshot
   )
   {
     try {

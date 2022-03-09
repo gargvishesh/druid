@@ -1006,7 +1006,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         {showDestinationDialog && ingestQueryPattern && (
           <DestinationDialog
             ingestQueryPattern={ingestQueryPattern}
-            changeIngestQueryPattern={() => {}}
+            changeIngestQueryPattern={updatePattern}
             onClose={() => setShowDestinationDialog(false)}
           />
         )}

@@ -16,17 +16,35 @@
  * limitations under the License.
  */
 
-import { stagesToColorMap } from './talaria-stage';
+import { Stages } from './talaria-stage';
 
-describe('talaria-stage', () => {
-  describe('stagesToColorMap', () => {
+describe('Stages', () => {
+  describe('#stagesToColorMap', () => {
     it('works with single color', () => {
       expect(
-        stagesToColorMap([
-          { stageNumber: 0, inputStages: [], stageType: 'a', workerCount: 1, workerCounters: [] },
-          { stageNumber: 1, inputStages: [0], stageType: 'a', workerCount: 1, workerCounters: [] },
-          { stageNumber: 2, inputStages: [1], stageType: 'a', workerCount: 1, workerCounters: [] },
-        ]),
+        new Stages([
+          {
+            stageNumber: 0,
+            inputStages: [],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+          {
+            stageNumber: 1,
+            inputStages: [0],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+          {
+            stageNumber: 2,
+            inputStages: [1],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+        ]).stagesToColorMap(),
       ).toEqual({
         '0': '#8dd3c7',
         '1': '#8dd3c7',
@@ -36,20 +54,50 @@ describe('talaria-stage', () => {
 
     it('works with multiple colors', () => {
       expect(
-        stagesToColorMap([
-          { stageNumber: 0, inputStages: [], stageType: 'a', workerCount: 1, workerCounters: [] },
-          { stageNumber: 1, inputStages: [0], stageType: 'a', workerCount: 1, workerCounters: [] },
-          { stageNumber: 2, inputStages: [], stageType: 'a', workerCount: 1, workerCounters: [] },
-          { stageNumber: 3, inputStages: [2], stageType: 'a', workerCount: 1, workerCounters: [] },
+        new Stages([
+          {
+            stageNumber: 0,
+            inputStages: [],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+          {
+            stageNumber: 1,
+            inputStages: [0],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+          {
+            stageNumber: 2,
+            inputStages: [],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+          {
+            stageNumber: 3,
+            inputStages: [2],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
           {
             stageNumber: 4,
             inputStages: [3, 1],
-            stageType: 'a',
+            processorType: 'a',
             workerCount: 1,
-            workerCounters: [],
+            partitionCount: 1,
           },
-          { stageNumber: 5, inputStages: [4], stageType: 'a', workerCount: 1, workerCounters: [] },
-        ]),
+          {
+            stageNumber: 5,
+            inputStages: [4],
+            processorType: 'a',
+            workerCount: 1,
+            partitionCount: 1,
+          },
+        ]).stagesToColorMap(),
       ).toEqual({
         '0': '#bebada',
         '1': '#bebada',

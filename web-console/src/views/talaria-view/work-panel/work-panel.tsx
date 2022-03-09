@@ -51,7 +51,7 @@ function statusToColor(status: TaskStatus): string {
     case 'FAILED':
       return '#d5100a';
     default:
-      return '#0a1500';
+      return '#8d8d8d';
   }
 }
 
@@ -88,7 +88,7 @@ export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
     processQuery: async _ => {
       return await queryDruidSql<WorkEntry>({
         query: `SELECT
-  "status" AS "taskStatus",
+  CASE WHEN "error_msg" = 'Shutdown request from user' THEN 'CANCELED' ELSE "status" END AS "taskStatus",
   "task_id" AS "taskId",
   "datasource",
   "created_time" AS "createdTime",

@@ -33,7 +33,7 @@ public interface LeaderClient extends AutoCloseable
   void postCounters(
       String leaderId,
       String workerId,
-      TalariaCountersSnapshot snapshot
+      TalariaCountersSnapshot.WorkerCounters snapshot
   );
   void postResultsComplete(
       String leaderId,

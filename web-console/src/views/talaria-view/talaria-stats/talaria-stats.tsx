@@ -24,25 +24,15 @@ import ReactTable from 'react-table';
 
 import { BracedText } from '../../../components';
 import {
-  cleanStageType,
   ClusterBy,
   compareDetailEntries,
   COUNTER_TYPE_TITLE,
-  COUNTER_TYPES,
   CounterType,
   DataSource,
   formatClusterBy,
-  getByPartitionCountForStage,
-  getByteRateFromStage,
-  getByWorkerCountForStage,
-  getNumPartitions,
-  getRowRateFromStage,
-  getRowSortProgressForStage,
-  getTotalCountForStage,
-  hasCounterTypeForStage,
-  hasSortProgressForStage,
+  INPUT_COUNTERS,
   StageDefinition,
-  stagesToColorMap,
+  Stages,
   summarizeInputSource,
   TalariaTaskError,
 } from '../../../talaria-models';
@@ -51,6 +41,7 @@ import {
   formatDuration,
   formatDurationWithMs,
   formatInteger,
+  formatPercent,
   NumberLike,
 } from '../../../utils';
 
@@ -109,33 +100,39 @@ const formatDurationDynamic = (n: NumberLike) =>
   n < 1000 ? formatDurationWithMs(n) : formatDuration(n);
 
 export interface TalariaStatsProps {
-  stages: StageDefinition[];
+  stages: Stages;
   error?: TalariaTaskError;
 }
 
 export const TalariaStats = React.memo(function TalariaStats(props: TalariaStatsProps) {
   const { stages, error } = props;
 
-  const rowRateValues = stages.map(getRowRateFromStage);
-  const byteRateValues = stages.map(getByteRateFromStage);
+  const rowRateValues = stages.stages.map(s => stages.getRowRateFromStage(s));
+  const byteRateValues = stages.stages.map(s => stages.getByteRateFromStage(s));
 
-  const rowsValues = COUNTER_TYPES.flatMap(counterType =>
-    stages.map(stage => formatRows(getTotalCountForStage(stage, counterType, 'rows'))),
-  );
-  const bytesValues = COUNTER_TYPES.flatMap(counterType =>
-    stages.map(stage => formatSize(getTotalCountForStage(stage, counterType, 'bytes'))),
-  );
+  const rowsValues = stages.stages.flatMap(stage => [
+    formatRows(stages.getTotalInputForStage(stage, 'rows')),
+    formatRows(stages.getTotalCounterForStage(stage, 'processor', 'rows')),
+    formatRows(stages.getTotalCounterForStage(stage, 'sort', 'rows')),
+  ]);
+
+  const bytesAndFilesValues = stages.stages.flatMap(stage => [
+    formatSize(stages.getTotalInputForStage(stage, 'bytes')),
+    formatSize(stages.getTotalCounterForStage(stage, 'processor', 'bytes')),
+    formatSize(stages.getTotalCounterForStage(stage, 'sort', 'bytes')),
+    stage.inputFileCount ? `(${stage.inputFileCount} GB ${stage.inputFileCount})` : '',
+  ]);
 
   function detailedStats(stage: StageDefinition) {
     const { phase } = stage;
     return (
       <div className="talaria-detailed-stats-container">
+        {detailedStatsForPartition(stage, 'input', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'inputExternal', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'inputDruid', phase === 'READING_INPUT')}
-        {detailedStatsForPartition(stage, 'input', phase === 'READING_INPUT')}
-        {detailedStatsForWorker(stage, 'input', phase === 'READING_INPUT')}
-        {detailedStatsForWorker(stage, 'preShuffle', phase === 'READING_INPUT')}
-        {detailedStatsForWorker(stage, 'output', phase !== 'RESULTS_COMPLETE')}
+        {detailedStatsForWorker(stage, 'inputStageChannel', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'processor', phase === 'READING_INPUT')}
+        {detailedStatsForWorker(stage, 'sort', phase !== 'RESULTS_COMPLETE')}
         {detailedStatsForPartition(stage, 'output', phase !== 'RESULTS_COMPLETE')}
       </div>
     );
@@ -146,15 +143,15 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
     counterType: CounterType,
     inProgress: boolean,
   ) {
-    if (!hasCounterTypeForStage(stage, counterType)) return;
+    if (!stages.hasCounterForStage(stage, counterType)) return;
 
-    const workerEntries = getByWorkerCountForStage(stage, counterType);
+    const workerEntries = stages.getByWorkerCountForStage(stage, counterType);
 
     workerEntries.sort(compareDetailEntries);
 
     return (
       <TalariaDetailedStats
-        title={`${COUNTER_TYPE_TITLE[counterType]} by worker`}
+        title={`${COUNTER_TYPE_TITLE[counterType]} counters`}
         labelPrefix="W"
         entries={workerEntries}
         inProgress={inProgress}
@@ -164,19 +161,17 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
 
   function detailedStatsForPartition(
     stage: StageDefinition,
-    counterType: CounterType,
+    type: 'input' | 'output',
     inProgress: boolean,
   ) {
-    if (!hasCounterTypeForStage(stage, counterType)) return;
-
-    const partitionEntries = getByPartitionCountForStage(stage, counterType);
+    const partitionEntries = stages.getByPartitionCountForStage(stage, type);
     if (!partitionEntries) return;
 
     partitionEntries.sort(compareDetailEntries);
 
     return (
       <TalariaDetailedStats
-        title={`${COUNTER_TYPE_TITLE[counterType]} by partition`}
+        title={`${capitalizeFirst(type)} partitions`}
         labelPrefix="P"
         entries={partitionEntries}
         inProgress={inProgress}
@@ -184,51 +179,124 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
     );
   }
 
-  function dataTransfer(stage: StageDefinition, counterType: CounterType) {
-    if (!hasCounterTypeForStage(stage, counterType)) return;
+  function dataProcessedInput(stage: StageDefinition) {
+    if (!stages.hasInputCounterForStage(stage)) return;
+    const inputSizeBytes = stages.getTotalInputForStage(stage, 'bytes');
 
-    const bytes = getTotalCountForStage(stage, counterType, 'bytes');
+    const tooltipLines: string[] = [];
+    INPUT_COUNTERS.forEach(counterType => {
+      if (stages.hasCounterForStage(stage, counterType)) {
+        let tooltipLine = `${COUNTER_TYPE_TITLE[counterType]}: ${formatRows(
+          stages.getTotalCounterForStage(stage, counterType, 'rows'),
+        )} rows`;
+
+        const bytes = stages.getTotalCounterForStage(stage, counterType, 'bytes');
+        if (bytes) {
+          tooltipLine += ` (${formatBytes(bytes)})`;
+        }
+
+        tooltipLines.push(tooltipLine);
+      }
+    });
+
+    return (
+      <div className="data-transfer" title={tooltipLines.join('\n')}>
+        <div className="counter-type-label">Input:</div>
+        <BracedText
+          text={formatRows(stages.getTotalInputForStage(stage, 'rows'))}
+          braces={rowsValues}
+        />
+        {stage.inputFileCount ? (
+          <>
+            {' '}
+            &nbsp;{' '}
+            <BracedText
+              text={`(${formatInteger(stages.getTotalInputForStage(stage, 'files'))} / ${
+                stage.inputFileCount
+              })`}
+              braces={bytesAndFilesValues}
+            />
+          </>
+        ) : inputSizeBytes ? (
+          <>
+            {' '}
+            &nbsp; <BracedText text={formatSize(inputSizeBytes)} braces={bytesAndFilesValues} />
+          </>
+        ) : undefined}
+      </div>
+    );
+  }
+
+  function dataProcessedProcessor(stage: StageDefinition) {
+    if (!stages.hasCounterForStage(stage, 'processor')) return;
+
     return (
       <div
         className="data-transfer"
-        title={`${COUNTER_TYPE_TITLE[counterType]} frames: ${formatFrames(
-          getTotalCountForStage(stage, counterType, 'frames'),
+        title={`${COUNTER_TYPE_TITLE['processor']} frames: ${formatFrames(
+          stages.getTotalCounterForStage(stage, 'processor', 'frames'),
         )}`}
       >
-        <div className="counter-type-label">{COUNTER_TYPE_TITLE[counterType] + ':'}</div>
+        <div className="counter-type-label">{COUNTER_TYPE_TITLE['processor'] + ':'}</div>
         <BracedText
-          text={formatRows(getTotalCountForStage(stage, counterType, 'rows'))}
+          text={formatRows(stages.getTotalCounterForStage(stage, 'processor', 'rows'))}
           braces={rowsValues}
         />{' '}
-        &nbsp; {bytes > 0 && <BracedText text={formatSize(bytes)} braces={bytesValues} />}
+        &nbsp;{' '}
+        <BracedText
+          text={formatSize(stages.getTotalCounterForStage(stage, 'processor', 'bytes'))}
+          braces={bytesAndFilesValues}
+        />
       </div>
     );
   }
 
-  function sortProgress(stage: StageDefinition) {
-    if (!hasSortProgressForStage(stage)) return;
+  function dataProcessedSort(stage: StageDefinition) {
+    const hasCounter = stages.hasCounterForStage(stage, 'sort');
+    const hasProgress = stages.hasSortProgressForStage(stage);
+    if (!hasCounter && !hasProgress) return;
 
+    const sortRows = stages.getTotalCounterForStage(stage, 'sort', 'rows');
+    const sortProgress = stages.getSortProgressForStage(stage);
     return (
-      <div className="data-transfer" title="Sort...">
-        <div className="counter-type-label">Sort:</div>
-        <BracedText text={formatRows(getRowSortProgressForStage(stage))} braces={rowsValues} />
+      <div
+        className="data-transfer"
+        title={`${COUNTER_TYPE_TITLE['sort']} frames: ${formatFrames(
+          stages.getTotalCounterForStage(stage, 'sort', 'frames'),
+        )}`}
+      >
+        <div className="counter-type-label">{COUNTER_TYPE_TITLE['sort'] + ':'}</div>
+        {sortRows ? (
+          <>
+            <BracedText text={formatRows(sortRows)} braces={rowsValues} /> &nbsp;{' '}
+            <BracedText
+              text={formatSize(stages.getTotalCounterForStage(stage, 'sort', 'bytes'))}
+              braces={bytesAndFilesValues}
+            />
+            {0 < sortProgress && sortProgress < 1 && (
+              <div className="sort-percent">{`[${formatPercent(sortProgress)}]`}</div>
+            )}
+          </>
+        ) : (
+          <BracedText text={`[${formatPercent(sortProgress)}]`} braces={rowsValues} />
+        )}
       </div>
     );
   }
 
-  const colorMap = stagesToColorMap(stages);
+  const colorMap = stages.stagesToColorMap();
 
   return (
     <ReactTable
       className="talaria-stats -striped -highlight"
-      data={stages}
+      data={stages.stages}
       loading={false}
       noDataText="No stages"
       sortable={false}
       collapseOnDataChange={false}
       columns={[
         {
-          Header: twoLines('Stage', <i>stage_number = StageType(inputs)</i>),
+          Header: twoLines('Stage', <i>stage_number = Processor(inputs)</i>),
           id: 'stage',
           accessor: 'stageNumber',
           width: 400,
@@ -240,7 +308,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
                 <span
                   style={{ color: colorMap[stage.stageNumber] }}
                 >{`S${stage.stageNumber}`}</span>
-                {` = ${cleanStageType(stage.stageType)}(`}
+                {` = ${Stages.getCleanProcessorType(stage)}(`}
                 {joinElements(
                   (dataSourceStr
                     ? [
@@ -276,33 +344,31 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           },
         },
         {
-          Header: twoLines('Transfer rate', <i>rows/s &nbsp; (data rate)</i>),
-          id: 'transfer_rate',
-          accessor: getRowRateFromStage,
-          width: 200,
+          Header: twoLines('Data processed', <i>rows &nbsp; (size or files)</i>),
+          id: 'data_processed',
+          accessor: () => null,
+          width: 310,
           Cell({ original }) {
             return (
               <>
-                <BracedText text={getRowRateFromStage(original)} braces={rowRateValues} /> &nbsp;{' '}
-                <BracedText text={getByteRateFromStage(original)} braces={byteRateValues} />
+                {dataProcessedInput(original)}
+                {dataProcessedProcessor(original)}
+                {dataProcessedSort(original)}
               </>
             );
           },
         },
         {
-          Header: twoLines('Data transferred', <i>rows &nbsp; (size)</i>),
-          id: 'data_transferred',
-          accessor: row => getTotalCountForStage(row, 'input', 'rows'),
-          width: 290,
+          Header: twoLines('Data processing rate', <i>rows/s &nbsp; (data rate)</i>),
+          id: 'data_processing_rate',
+          accessor: s => stages.getRowRateFromStage(s),
+          width: 200,
           Cell({ original }) {
             return (
               <>
-                {dataTransfer(original, 'inputExternal')}
-                {dataTransfer(original, 'inputDruid')}
-                {dataTransfer(original, 'input')}
-                {dataTransfer(original, 'preShuffle')}
-                {sortProgress(original)}
-                {dataTransfer(original, 'output')}
+                <BracedText text={stages.getRowRateFromStage(original)} braces={rowRateValues} />{' '}
+                &nbsp;{' '}
+                <BracedText text={stages.getByteRateFromStage(original)} braces={byteRateValues} />
               </>
             );
           },
@@ -340,25 +406,8 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
         },
         {
           Header: twoLines('Output', 'partitions'),
-          id: 'output_partitions',
-          accessor: row => getNumPartitions(row, 'output'),
+          accessor: 'partitionCount',
           width: 75,
-        },
-        {
-          Header: twoLines('Input files', <i>read / total</i>),
-          id: 'input_files',
-          width: 200,
-          Cell({ original }) {
-            if (!original.totalFiles) return null;
-            return (
-              <>
-                {getTotalCountForStage(original, 'input', 'files') +
-                  getTotalCountForStage(original, 'inputExternal', 'files') +
-                  getTotalCountForStage(original, 'inputDruid', 'files')}{' '}
-                / {original.totalFiles}
-              </>
-            );
-          },
         },
         {
           Header: 'Cluster by',
@@ -382,7 +431,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
       ]}
       SubComponent={({ original }) => detailedStats(original)}
       defaultPageSize={20}
-      showPagination={stages.length > 20}
+      showPagination={stages.stageCount() > 20}
     />
   );
 });

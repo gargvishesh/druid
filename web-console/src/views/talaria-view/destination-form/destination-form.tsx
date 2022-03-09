@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { FormGroup, Icon, InputGroup, Radio, RadioGroup } from '@blueprintjs/core';
+import { FormGroup, HTMLSelect, Icon, InputGroup, Radio, RadioGroup } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import React, { useState } from 'react';
@@ -92,6 +92,23 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
               ))}
           </RadioGroup>
         </>
+      )}
+      {destinationInfo.mode === 'replace' && (
+        <FormGroup label="Table name">
+          <HTMLSelect
+            fill
+            value={destinationInfo.table}
+            onChange={e => {
+              changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });
+            }}
+          >
+            {existingTables.map(table => (
+              <option key={table} value={table}>
+                {table}
+              </option>
+            ))}
+          </HTMLSelect>
+        </FormGroup>
       )}
     </div>
   );

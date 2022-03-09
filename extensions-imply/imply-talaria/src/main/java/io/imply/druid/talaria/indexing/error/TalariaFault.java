@@ -28,8 +28,10 @@ public interface TalariaFault
 
   default String getCodeWithMessage()
   {
-    if (getErrorMessage() != null) {
-      return getErrorCode() + ": " + getErrorMessage();
+    final String message = getErrorMessage();
+
+    if (message != null && !message.isEmpty()) {
+      return getErrorCode() + ": " + message;
     } else {
       return getErrorCode();
     }

@@ -18,6 +18,7 @@ import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskReport;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -94,9 +95,9 @@ public interface Leader
   void workerError(TalariaErrorReport errorReport);
 
   /**
-   * Periodic update of {@link TalariaCountersSnapshot} from subtasks.
+   * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.
    */
-  void updateCounters(String taskId, TalariaCountersSnapshot countersSnapshot);
+  void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot);
 
   /**
    * Reports that results are ready for a subtask.
@@ -114,6 +115,7 @@ public interface Leader
    */
   Optional<List<String>> getTaskIds();
 
+  @Nullable
   Map<String, TaskReport> liveReports();
 
 }

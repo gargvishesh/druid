@@ -15,11 +15,11 @@ import org.apache.druid.java.util.common.IAE;
 
 public enum TalariaCounterType
 {
-  INPUT("input"),
-  PRESHUFFLE("preShuffle"),
-  OUTPUT("output"),
+  INPUT_STAGE("inputStageChannel"),
   INPUT_EXTERNAL("inputExternal"),
-  INPUT_DRUID("inputDruid");
+  INPUT_DRUID("inputDruid"),
+  PROCESSOR("processor"),
+  SORT("sort");
 
   private final String key;
 

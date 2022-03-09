@@ -35,16 +35,9 @@ import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.indexing.ExternalTalariaDestination;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
-import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
-import io.imply.druid.talaria.indexing.TalariaResultsTaskReport;
-import io.imply.druid.talaria.indexing.TalariaResultsTaskReportPayload;
 import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFactory;
-import io.imply.druid.talaria.indexing.TalariaStagesTaskReport;
-import io.imply.druid.talaria.indexing.TalariaStagesTaskReportPayload;
-import io.imply.druid.talaria.indexing.TalariaStatusTaskReport;
-import io.imply.druid.talaria.indexing.TalariaStatusTaskReportPayload;
 import io.imply.druid.talaria.indexing.TalariaTaskList;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.TaskReportTalariaDestination;
@@ -63,6 +56,11 @@ import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
+import io.imply.druid.talaria.indexing.report.TalariaStagesReport;
+import io.imply.druid.talaria.indexing.report.TalariaStatusReport;
+import io.imply.druid.talaria.indexing.report.TalariaTaskReport;
+import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -187,7 +185,7 @@ public class LeaderImpl implements Leader
   private final AtomicReference<QueryDefinition> queryDefRef = new AtomicReference<>();
 
   // For live reports. task ID -> last reported counters snapshot
-  private final ConcurrentHashMap<String, TalariaCountersSnapshot> taskCountersForLiveReports = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, TalariaCountersSnapshot.WorkerCounters> taskCountersForLiveReports = new ConcurrentHashMap<>();
 
   // For live reports. stage number -> stage phase
   private final ConcurrentHashMap<Integer, ControllerStagePhase> stagePhasesForLiveReports = new ConcurrentHashMap<>();
@@ -195,8 +193,11 @@ public class LeaderImpl implements Leader
   // For live reports. stage number -> runtime interval. Endpoint is eternity's end if the stage is still running.
   private final ConcurrentHashMap<Integer, Interval> stageRuntimesForLiveReports = new ConcurrentHashMap<>();
 
-  // For live reports. stage number -> stage input files
-  private final ConcurrentHashMap<Integer, Integer> stageInputFiles = new ConcurrentHashMap<>();
+  // For live reports. stage number -> worker count. Only set for stages that have started.
+  private final ConcurrentHashMap<Integer, Integer> stageWorkerCountsForLiveReports = new ConcurrentHashMap<>();
+
+  // For live reports. stage number -> partition count. Only set for stages that have started.
+  private final ConcurrentHashMap<Integer, Integer> stagePartitionCountsForLiveReports = new ConcurrentHashMap<>();
 
   // For live reports. The time at which the query started
   private volatile DateTime queryStartTime = null;
@@ -242,6 +243,9 @@ public class LeaderImpl implements Leader
         e.addSuppressed(e2);
       }
 
+      // We really don't expect this to error out. runTask should handle everything nicely. If it doesn't, something
+      // strange happened, so log it.
+      log.warn(e, "Encountered unhandled controller exception.");
       return TaskStatus.failure(id(), e.toString());
     }
     finally {
@@ -270,8 +274,8 @@ public class LeaderImpl implements Leader
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
 
-    final TaskState taskStateForReport;
-    final TalariaErrorReport errorForReport;
+    TaskState taskStateForReport = null;
+    TalariaErrorReport errorForReport = null;
 
     try {
       this.queryStartTime = DateTimes.nowUtc();
@@ -289,50 +293,54 @@ public class LeaderImpl implements Leader
     catch (Throwable e) {
       exceptionEncountered = e;
     }
-    finally {
+
+    try {
       // Write report even if something went wrong.
-      final List<TaskReport> reports = new ArrayList<>();
+      final TalariaStagesReport stagesReport;
+      final TalariaResultsReport resultsReport;
 
-      if (queryDef != null && countersSnapshot != null) {
-        final Map<Integer, ControllerStagePhase> stagePhaseMap =
-            queryKernel.getActiveStageKernels()
-                       .stream()
-                       .collect(
-                           Collectors.toMap(
-                               stageKernel -> stageKernel.getStageDefinition().getStageNumber(),
-                               ControllerStageKernel::getPhase
-                           )
-                       );
+      if (queryDef != null) {
+        final Map<Integer, ControllerStagePhase> stagePhaseMap;
 
-        reports.add(
-            makeStageTaskReport(
-                id(),
-                queryDef,
-                stagePhaseMap,
-                stageRuntimesForLiveReports,
-                countersSnapshot,
-                stageInputFiles
-            )
+        if (queryKernel != null) {
+          stagePhaseMap = queryKernel.getActiveStageKernels()
+                                     .stream()
+                                     .collect(
+                                         Collectors.toMap(
+                                             stageKernel -> stageKernel.getStageDefinition().getStageNumber(),
+                                             ControllerStageKernel::getPhase
+                                         )
+                                     );
+        } else {
+          stagePhaseMap = Collections.emptyMap();
+        }
+
+        stagesReport = makeStageReport(
+            queryDef,
+            stagePhaseMap,
+            stageRuntimesForLiveReports,
+            stageWorkerCountsForLiveReports,
+            stagePartitionCountsForLiveReports
         );
+      } else {
+        stagesReport = null;
       }
 
       if (resultsYielder != null) {
-        reports.add(
-            makeResultsTaskReport(
-                id(),
-                queryDef,
-                resultsYielder,
-                task.getQuerySpec().getColumnMappings(),
-                task.getSqlTypeNames()
-            )
+        resultsReport = makeResultsTaskReport(
+            queryDef,
+            resultsYielder,
+            task.getQuerySpec().getColumnMappings(),
+            task.getSqlTypeNames()
         );
+      } else {
+        resultsReport = null;
       }
 
       // There are cases where this is SUCCESS, but we exit with TaskStatus FAILED. This can happen because we need
       // to write out the task report *before* doing final cleanup, and something might go wrong with final cleanup.
       if (queryKernel != null && queryKernel.isSuccess() && exceptionEncountered == null) {
         taskStateForReport = TaskState.SUCCESS;
-        errorForReport = null;
       } else {
         taskStateForReport = TaskState.FAILED;
 
@@ -358,20 +366,25 @@ public class LeaderImpl implements Leader
         }
       }
 
-      reports.add(
-          makeStatusTaskReport(
-              id(),
+      final TalariaTaskReportPayload taskReportPayload = new TalariaTaskReportPayload(
+          makeStatusReport(
               taskStateForReport,
               errorForReport,
               queryStartTime,
               new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
-          )
+          ),
+          stagesReport,
+          countersSnapshot,
+          resultsReport
       );
 
       context.writeReports(
           id(),
-          TaskReport.buildTaskReports(reports.toArray(new TaskReport[0]))
+          TaskReport.buildTaskReports(new TalariaTaskReport(id(), taskReportPayload))
       );
+    }
+    catch (Throwable e) {
+      log.warn(e, "Error encountered while writing task report. Skipping.");
     }
 
     if (queryKernel != null && queryKernel.isSuccess()) {
@@ -390,7 +403,19 @@ public class LeaderImpl implements Leader
     if (taskStateForReport == TaskState.SUCCESS) {
       return TaskStatus.success(id());
     } else {
-      return TaskStatus.failure(id(), errorForReport.getFault().getCodeWithMessage());
+      final String message;
+
+      if (errorForReport != null) {
+        message = errorForReport.getFault().getCodeWithMessage();
+      } else if (exceptionEncountered != null) {
+        // Problem writing task report, but we have a proper exception from earlier.
+        message = exceptionEncountered.toString();
+      } else {
+        // Problem writing task report, and no proper exception from earlier. No idea what went wrong.
+        message = UnknownFault.instance().getCodeWithMessage();
+      }
+
+      return TaskStatus.failure(id(), message);
     }
   }
 
@@ -417,7 +442,6 @@ public class LeaderImpl implements Leader
     );
 
     validateQueryDef(queryDef);
-    populateCounters(queryDef);
     queryDefRef.set(queryDef);
     return queryDef;
   }
@@ -571,9 +595,19 @@ public class LeaderImpl implements Leader
 
       logKernelStatus(queryDef.getQueryId(), queryKernel);
 
-      // Live reports: update stage phases.
+      // Live reports: update stage phases, worker counts, partition counts.
       for (ControllerStageKernel stageKernel : queryKernel.getActiveStageKernels()) {
-        stagePhasesForLiveReports.put(stageKernel.getStageDefinition().getStageNumber(), stageKernel.getPhase());
+        final int stageNumber = stageKernel.getStageDefinition().getStageNumber();
+        stagePhasesForLiveReports.put(stageNumber, stageKernel.getPhase());
+
+        if (stageKernel.hasResultPartitions()) {
+          stagePartitionCountsForLiveReports.computeIfAbsent(
+              stageNumber,
+              k -> Iterators.size(stageKernel.getResultPartitions().iterator())
+          );
+        }
+
+        stageWorkerCountsForLiveReports.putIfAbsent(stageNumber, stageKernel.getWorkerInputs().size());
       }
 
       // Live reports: update stage end times for any stages that just ended.
@@ -662,10 +696,9 @@ public class LeaderImpl implements Leader
    * Periodic update of {@link TalariaCountersSnapshot} from subtasks.
    */
   @Override
-  public void updateCounters(String taskId, TalariaCountersSnapshot countersSnapshot)
+  public void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot)
   {
-    // TODO(gianm): expire old counters when tasks fail
-    taskCountersForLiveReports.put(taskId, countersSnapshot);
+    taskCountersForLiveReports.put(workerTaskId, workerSnapshot);
   }
 
   /**
@@ -698,6 +731,7 @@ public class LeaderImpl implements Leader
   }
 
   @Override
+  @Nullable
   public Map<String, TaskReport> liveReports()
   {
     final QueryDefinition queryDef = queryDefRef.get();
@@ -706,23 +740,26 @@ public class LeaderImpl implements Leader
       return null;
     }
 
-    final TalariaCountersSnapshot snapshot = makeCountersSnapshotForLiveReports();
-
     return TaskReport.buildTaskReports(
-        makeStageTaskReport(
+        new TalariaTaskReport(
             id(),
-            queryDef,
-            stagePhasesForLiveReports,
-            stageRuntimesForLiveReports,
-            snapshot,
-            stageInputFiles
-        ),
-        makeStatusTaskReport(
-            id(),
-            TaskState.RUNNING,
-            null,
-            queryStartTime,
-            queryStartTime == null ? -1L : new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
+            new TalariaTaskReportPayload(
+                makeStatusReport(
+                    TaskState.RUNNING,
+                    null,
+                    queryStartTime,
+                    queryStartTime == null ? -1L : new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
+                ),
+                makeStageReport(
+                    queryDef,
+                    stagePhasesForLiveReports,
+                    stageRuntimesForLiveReports,
+                    stageWorkerCountsForLiveReports,
+                    stagePartitionCountsForLiveReports
+                ),
+                makeCountersSnapshotForLiveReports(),
+                null
+            )
         )
     );
   }
@@ -1083,19 +1120,21 @@ public class LeaderImpl implements Leader
 
   private TalariaCountersSnapshot getCountersFromAllTasks()
   {
-    final TalariaCounters counters = new TalariaCounters();
+    final List<TalariaCountersSnapshot.WorkerCounters> workerSnapshots = new ArrayList<>();
 
     workerTaskLauncher.getTaskList().ifPresent(
         taskList -> {
           for (String taskId : taskList.getTaskIds()) {
-            // TODO(gianm): handle duplication/retries when updating counters (attempt #? task id?)
-            final TalariaCountersSnapshot snapshot = netClient.getCounters(taskId);
-            counters.addAll(snapshot);
+            // Each task has a unique workerNumber.
+            final TalariaCountersSnapshot.WorkerCounters workerSnapshot =
+                Iterables.getOnlyElement(netClient.getCounters(taskId).getWorkerCounters());
+
+            workerSnapshots.add(workerSnapshot);
           }
         }
     );
 
-    return counters.snapshot();
+    return new TalariaCountersSnapshot(workerSnapshots);
   }
 
   private void postFinishToAllTasks()
@@ -1111,13 +1150,7 @@ public class LeaderImpl implements Leader
 
   private TalariaCountersSnapshot makeCountersSnapshotForLiveReports()
   {
-    final TalariaCounters counters = new TalariaCounters();
-
-    for (final TalariaCountersSnapshot snapshot : taskCountersForLiveReports.values()) {
-      counters.addAll(snapshot);
-    }
-
-    return counters.snapshot();
+    return new TalariaCountersSnapshot(new ArrayList<>(taskCountersForLiveReports.values()));
   }
 
   private TalariaCountersSnapshot getFinalCountersSnapshot(final ControllerQueryKernel queryKernel)
@@ -1506,13 +1539,12 @@ public class LeaderImpl implements Leader
     }
   }
 
-  private static TalariaStagesTaskReport makeStageTaskReport(
-      final String taskId,
+  private static TalariaStagesReport makeStageReport(
       final QueryDefinition queryDef,
       final Map<Integer, ControllerStagePhase> stagePhaseMap,
       final Map<Integer, Interval> stageRuntimeMap,
-      final TalariaCountersSnapshot countersSnapshot,
-      final Map<Integer, Integer> stageInputFiles
+      final Map<Integer, Integer> stageWorkerCountMap,
+      final Map<Integer, Integer> stagePartitionCountMap
   )
   {
     // TODO(gianm): the setup for stageQueryMap is totally a hack; clean up somehow.
@@ -1535,21 +1567,17 @@ public class LeaderImpl implements Leader
       }
     }
 
-    return new TalariaStagesTaskReport(
-        taskId,
-        TalariaStagesTaskReportPayload.create(
-            queryDef,
-            ImmutableMap.copyOf(stagePhaseMap),
-            copyOfStageRuntimesEndingAtCurrentTime(stageRuntimeMap),
-            stageQueryMap,
-            countersSnapshot,
-            ImmutableMap.copyOf(stageInputFiles)
-        )
+    return TalariaStagesReport.create(
+        queryDef,
+        ImmutableMap.copyOf(stagePhaseMap),
+        copyOfStageRuntimesEndingAtCurrentTime(stageRuntimeMap),
+        stageQueryMap,
+        stageWorkerCountMap,
+        stagePartitionCountMap
     );
   }
 
-  private static TalariaResultsTaskReport makeResultsTaskReport(
-      final String taskId,
+  private static TalariaResultsReport makeResultsTaskReport(
       final QueryDefinition queryDef,
       final Yielder<Object[]> resultsYielder,
       final ColumnMappings columnMappings,
@@ -1566,24 +1594,17 @@ public class LeaderImpl implements Leader
       );
     }
 
-    return new TalariaResultsTaskReport(
-        taskId,
-        new TalariaResultsTaskReportPayload(mappedSignature.build(), sqlTypeNames, resultsYielder)
-    );
+    return new TalariaResultsReport(mappedSignature.build(), sqlTypeNames, resultsYielder);
   }
 
-  private static TalariaStatusTaskReport makeStatusTaskReport(
-      final String taskId,
+  private static TalariaStatusReport makeStatusReport(
       final TaskState taskState,
       @Nullable final TalariaErrorReport errorReport,
       @Nullable final DateTime queryStartTime,
       final long queryDuration
   )
   {
-    return new TalariaStatusTaskReport(
-        taskId,
-        new TalariaStatusTaskReportPayload(taskState, errorReport, queryStartTime, queryDuration)
-    );
+    return new TalariaStatusReport(taskState, errorReport, queryStartTime, queryDuration);
   }
 
   private static Map<Integer, Interval> copyOfStageRuntimesEndingAtCurrentTime(
@@ -1632,16 +1653,6 @@ public class LeaderImpl implements Leader
                      )
                      .collect(Collectors.joining("; "))
       );
-    }
-  }
-
-  private void populateCounters(QueryDefinition queryDef)
-  {
-    for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
-      int numFiles = stageDefinition.getProcessorFactory().inputFilesCount();
-      if (numFiles != 0) {
-        stageInputFiles.put(stageDefinition.getStageNumber(), numFiles);
-      }
     }
   }
 

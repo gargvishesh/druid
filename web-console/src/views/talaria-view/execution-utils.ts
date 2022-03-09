@@ -18,10 +18,9 @@
 
 import { AxiosResponse, CancelToken } from 'axios';
 import { QueryResult, SqlLiteral } from 'druid-query-toolkit';
-import * as JSONBig from 'json-bigint-native';
 
 import { Api } from '../../singletons';
-import { getNumPartitions, QueryExecution } from '../../talaria-models';
+import { QueryExecution } from '../../talaria-models';
 import {
   deepGet,
   downloadHref,
@@ -158,7 +157,7 @@ export async function getAsyncExecution(
     });
   } catch {}
 
-  let execution: QueryExecution;
+  let execution: QueryExecution | undefined;
   if (detailResp) {
     try {
       execution = QueryExecution.fromAsyncDetail(detailResp.data);
@@ -166,22 +165,26 @@ export async function getAsyncExecution(
       // We got a bad payload, wait a bit and try to get the payload again (also log it)
       // This whole catch block is a hack, and we should make the detail route more robust
       console.error(
-        `Got unusable response from the detail endpoint (/druid/v2/sql/async/${encodedId}) going to retry: ${JSONBig.stringify(
-          detailResp.data,
-          undefined,
-          2,
-        )}`,
+        `Got unusable response from the detail endpoint (/druid/v2/sql/async/${encodedId}) going to retry`,
       );
+      console.log(detailResp.data);
       await wait(500);
-      execution = QueryExecution.fromAsyncDetail(
-        (
-          await Api.instance.get(`/druid/v2/sql/async/${encodedId}`, {
-            cancelToken,
-          })
-        ).data,
-      );
+
+      try {
+        execution = QueryExecution.fromAsyncDetail(
+          (
+            await Api.instance.get(`/druid/v2/sql/async/${encodedId}`, {
+              cancelToken,
+            })
+          ).data,
+        );
+      } catch {
+        console.error(`Falling back to status call`);
+      }
     }
-  } else {
+  }
+
+  if (!execution) {
     const statusResp = await Api.instance.get(`/druid/v2/sql/async/${encodedId}/status`, {
       cancelToken,
     });
@@ -246,9 +249,9 @@ WHERE datasource = ${SqlLiteral.create(execution.destination.dataSource)} AND is
   // There appear to be no segments either nothing was written out or they have not shown up in the metadata yet
   if (numSegments === 0) {
     const { stages } = execution;
-    if (Array.isArray(stages)) {
-      const lastStage = stages[stages.length - 1];
-      if (getNumPartitions(lastStage, 'output') === 0) {
+    if (stages) {
+      const lastStage = stages.getStage(stages.stageCount() - 1);
+      if (lastStage.partitionCount === 0) {
         // No data was meant to be written anyway
         return execution.markDestinationDatasourceExists();
       }

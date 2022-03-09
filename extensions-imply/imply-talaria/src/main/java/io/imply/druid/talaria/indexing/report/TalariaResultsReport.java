@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.indexing;
+package io.imply.druid.talaria.indexing.report;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -19,14 +19,14 @@ import org.apache.druid.segment.column.RowSignature;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class TalariaResultsTaskReportPayload
+public class TalariaResultsReport
 {
   private final RowSignature signature;
   @Nullable
   private final List<String> sqlTypeNames;
   private final Yielder<Object[]> resultYielder;
 
-  public TalariaResultsTaskReportPayload(
+  public TalariaResultsReport(
       final RowSignature signature,
       @Nullable final List<String> sqlTypeNames,
       final Yielder<Object[]> resultYielder
@@ -41,7 +41,7 @@ public class TalariaResultsTaskReportPayload
    * Method that prevents Jackson deserialization, because serialization is one-way for this class.
    */
   @JsonCreator
-  static TalariaResultsTaskReportPayload dontCreate()
+  static TalariaResultsReport dontCreate()
   {
     throw new UnsupportedOperationException();
   }

@@ -19,12 +19,7 @@
 import { Intent, Label, ProgressBar } from '@blueprintjs/core';
 import React from 'react';
 
-import {
-  currentStageIndex,
-  overallProgress,
-  QueryExecution,
-  stageProgress,
-} from '../../../talaria-models';
+import { QueryExecution } from '../../../talaria-models';
 
 import './stage-progress.scss';
 
@@ -39,7 +34,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
   const { queryExecution, onCancel, onToggleLiveReports, showLiveReports } = props;
   const stages = queryExecution?.stages;
 
-  const idx = currentStageIndex(stages);
+  const idx = stages ? stages.currentStageIndex() : -1;
   return (
     <div className="stage-progress">
       <Label>
@@ -61,15 +56,15 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
         className="overall"
         key={stages ? 'actual' : 'pending'}
         intent={stages ? Intent.PRIMARY : undefined}
-        value={stages && queryExecution.isWaitingForQuery() ? overallProgress(stages) : undefined}
+        value={stages && queryExecution.isWaitingForQuery() ? stages.overallProgress() : undefined}
       />
       {stages && idx >= 0 && (
         <>
-          <Label>{`Current stage (${idx + 1} of ${stages.length})`}</Label>
+          <Label>{`Current stage (${idx + 1} of ${stages.stageCount()})`}</Label>
           <ProgressBar
             className="stage"
             stripes={false}
-            value={stageProgress(stages[idx], stages)}
+            value={stages.stageProgress(stages.getStage(idx))}
           />
           {onToggleLiveReports && (
             <Label className="toggle-live-reports" onClick={onToggleLiveReports}>

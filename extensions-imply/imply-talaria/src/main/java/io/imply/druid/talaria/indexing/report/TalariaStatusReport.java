@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.indexing;
+package io.imply.druid.talaria.indexing.report;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -19,7 +19,7 @@ import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 
-public class TalariaStatusTaskReportPayload
+public class TalariaStatusReport
 {
   private final TaskState status;
 
@@ -33,7 +33,7 @@ public class TalariaStatusTaskReportPayload
 
 
   @JsonCreator
-  public TalariaStatusTaskReportPayload(
+  public TalariaStatusReport(
       @JsonProperty("status") TaskState status,
       @JsonProperty("error") @Nullable TalariaErrorReport errorReport,
       @JsonProperty("startTime") @Nullable DateTime startTime,
