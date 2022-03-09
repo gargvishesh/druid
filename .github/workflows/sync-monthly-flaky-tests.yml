@@ -1,4 +1,4 @@
-name: Update implydata/druid monthly with implydata/druid master
+name: Update implydata/druid monthly-flaky-tests with implydata/druid monthly
 on:
   schedule:
     - cron:  '0 */1 * * *' #Every 1 hours
@@ -17,7 +17,7 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git fetch
-          git checkout monthly
+          git checkout monthly-flaky-tests
           git merge origin/monthly
           git push
       - name: Files causing merge conflict
