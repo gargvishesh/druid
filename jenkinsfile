@@ -631,7 +631,7 @@ pipeline {
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
         EXPECTED_SHA1_RUN_DRUID = "d47a0a0a3886fc3fa26f98c02f35a3ffba848437"
-        EXPECTED_SHA1_VERIFY_JAVA = "3e181b1d0c49d8d6a3db55da8c5337a548e0b37b"
+        EXPECTED_SHA1_VERIFY_JAVA = "2adffa7d6baeae93c48038816311e691e3b01932"
         EXPECTED_SHA1_RUN_ZK = "ee4c4f10bb721a69738d49c4835d81456992e295"
 
     }
@@ -1356,8 +1356,8 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
-                    when {
-                        expression { "skip this from monthly to unblock building artifact" == "run" }
+                when {
+                        expression { "disabling in monthly/master and added it to monthly-flaky-tests"  == "OK" }
                     }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
