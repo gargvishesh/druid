@@ -968,10 +968,6 @@ pipeline {
                 }
 
                 stage('web-console end-to-end test') {
-                    when {
-                        expression { env.BRANCH_NAME != 'monthly' }
-                        beforeAgent true
-                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -1336,9 +1332,6 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test') {
-                    when {
-                        expression { "skip this from monthly to unblock building artifact" == "run" }
-                    }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { s3DeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
