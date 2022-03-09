@@ -21,6 +21,7 @@ package org.apache.druid.indexer;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.druid.indexer.updater.MetadataStorageUpdaterJobSpec;
+import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -49,6 +50,7 @@ public class MetadataStorageUpdaterJobTest
   @Test
   public void test_run()
   {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
     metadataUpdateSpec = mock(MetadataStorageUpdaterJobSpec.class);
     ioConfig = mock(HadoopIOConfig.class);
     spec = mock(HadoopIngestionSpec.class);

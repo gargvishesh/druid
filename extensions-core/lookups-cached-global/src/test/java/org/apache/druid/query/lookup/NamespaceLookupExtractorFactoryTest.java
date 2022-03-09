@@ -46,6 +46,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.Assume;
 import org.junit.rules.TemporaryFolder;
 
 import javax.ws.rs.core.Response;
@@ -83,6 +84,7 @@ public class NamespaceLookupExtractorFactoryTest
   @Before
   public void setUp()
   {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
     mapper.setInjectableValues(
         new InjectableValues()
         {
