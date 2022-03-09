@@ -1360,6 +1360,9 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
+                when {
+                        expression { "disabling in monthly/master and added it to monthly-flaky-tests"  == "OK" }
+                    }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
