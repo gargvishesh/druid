@@ -658,20 +658,6 @@ pipeline {
                 DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
             }
             parallel {
-                stage('(openjdk8) maven install') {
-                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
-                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
-                    steps {
-                        mavenInstall()
-                        mavenDockerBackup()
-                    }
-                    post {
-                        cleanup {
-                            resetWs()
-                            dockerCleanup()
-                        }
-                    }
-                }
 
                 stage('(openjdk11) maven install') {
                     agent {docker {image "${IMAGE_JDK11}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
