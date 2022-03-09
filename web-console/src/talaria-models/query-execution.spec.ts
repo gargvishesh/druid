@@ -63,7 +63,7 @@ describe('QueryExecution', () => {
         QueryExecution.fromAsyncDetail({
           asyncResultId: 'talaria-sql-1392d806-c17f-4937-94ee-8fa0a3ce1566',
           error: null,
-        }),
+        } as any),
       ).toThrowError('Invalid payload');
     });
 
@@ -79,155 +79,599 @@ describe('QueryExecution', () => {
               id: 'talaria-sql-9ce6cbec-b826-48fe-80c1-4fc44f78f0d6',
             },
           },
-        }),
+        } as any),
       ).toThrowError('Invalid payload');
     });
 
     it('works in a general case', () => {
       expect(
         QueryExecution.fromAsyncDetail({
-          talariaStatus: {
-            taskId: 'talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
+          talaria: {
+            taskId: 'talaria-sql-kttm_etl-54ba7c52-f620-48ee-93b5-90f09d3c045a',
             payload: {
-              status: 'FAILED',
-              startTime: '2022-02-05T18:17:16.289Z',
-              durationMs: 3835,
-              errorReport: {
-                taskId: 'talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
-                host: 'localhost:8091',
-                error: {
-                  errorCode: 'InsertCannotBeEmpty',
-                  dataSource: 'kttm_part1',
-                  errorMessage: 'No rows to insert for dataSource [kttm_part1]',
-                },
-
-                exceptionStackTrace:
-                  'io.imply.druid.talaria.indexing.error.TalariaException: InsertCannotBeEmpty: No rows to insert for dataSource [kttm_part1]\n\tat io.imply.druid.talaria.exec.LeaderImpl.runQueryUntilDone(LeaderImpl.java:474)\n\tat io.imply.druid.talaria.exec.LeaderImpl.runTask(LeaderImpl.java:276)\n\tat io.imply.druid.talaria.exec.LeaderImpl.run(LeaderImpl.java:230)\n\tat io.imply.druid.talaria.indexing.TalariaControllerTask.run(TalariaControllerTask.java:156)\n\tat org.apache.druid.indexing.overlord.ThreadingTaskRunner$1.call(ThreadingTaskRunner.java:210)\n\tat org.apache.druid.indexing.overlord.ThreadingTaskRunner$1.call(ThreadingTaskRunner.java:152)\n\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n\tat java.base/java.lang.Thread.run(Thread.java:829)\n',
+              status: {
+                status: 'RUNNING',
+                startTime: '2022-03-05T00:46:25.079Z',
+                durationMs: 2588,
               },
-            },
-          },
 
-          talariaTask: {
-            task: 'talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
-            payload: {
-              type: 'talaria0',
-              id: 'talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
-              spec: {
-                query: {
-                  queryType: 'dont-care',
+              stages: [
+                {
+                  stageNumber: 0,
+                  inputStages: [],
+                  stageType: 'ScanQueryFrameProcessorFactory',
+                  phase: 'RESULTS_COMPLETE',
+                  workerCount: 2,
+                  partitionCount: 2,
+                  startTime: '2022-03-05T00:46:25.488Z',
+                  duration: 147,
+                  clusterBy: {
+                    columns: [{ columnName: '__bucket' }, { columnName: '__boost' }],
+                    bucketByCount: 1,
+                  },
+
+                  query: {},
                 },
 
-                columnMappings: ['dont-care'],
+                {
+                  stageNumber: 1,
+                  inputStages: [0],
+                  stageType: 'GroupByPreShuffleFrameProcessorFactory',
+                  phase: 'READING_INPUT',
+                  workerCount: 2,
+                  startTime: '2022-03-05T00:46:25.610Z',
+                  duration: 2057,
+                  clusterBy: {
+                    columns: [
+                      { columnName: 'd0' },
+                      { columnName: 'd1' },
+                      { columnName: 'd2' },
+                      { columnName: 'd3' },
+                      { columnName: 'd4' },
+                      { columnName: 'd5' },
+                      { columnName: 'd6' },
+                      { columnName: 'd7' },
+                      { columnName: 'd8' },
+                      { columnName: 'd9' },
+                      { columnName: 'd10' },
+                      { columnName: 'd11' },
+                      { columnName: 'd12' },
+                    ],
+                  },
+
+                  query: {},
+                },
+
+                {
+                  stageNumber: 2,
+                  inputStages: [1],
+                  stageType: 'GroupByPostShuffleFrameProcessorFactory',
+                },
+
+                {
+                  stageNumber: 3,
+                  inputStages: [2],
+                  stageType: 'OrderByFrameProcessorFactory',
+                  clusterBy: {
+                    columns: [
+                      { columnName: '__bucket' },
+                      { columnName: 'd4' },
+                      { columnName: 'd1' },
+                    ],
+
+                    bucketByCount: 1,
+                  },
+                },
+
+                {
+                  stageNumber: 4,
+                  inputStages: [3],
+                  stageType: 'TalariaSegmentGeneratorFrameProcessorFactory',
+                },
+              ],
+
+              counters: [
+                {
+                  workerNumber: 0,
+                  counters: {
+                    input: [
+                      { stageNumber: 1, partitionNumber: 0, frames: 1, rows: 98, bytes: 5824 },
+                    ],
+
+                    processor: [
+                      { stageNumber: 0, partitionNumber: -1, frames: 1, rows: 197, bytes: 12547 },
+                      { stageNumber: 1, partitionNumber: -1, frames: 0, rows: 0, bytes: 0 },
+                    ],
+
+                    output: [
+                      { stageNumber: 0, partitionNumber: 0, frames: 1, rows: 98, bytes: 5824 },
+                      { stageNumber: 0, partitionNumber: 1, frames: 1, rows: 99, bytes: 6003 },
+                    ],
+                  },
+
+                  sortProgress: [
+                    {
+                      stageNumber: 0,
+                      sortProgress: {
+                        totalMergingLevels: 3,
+                        levelToTotalBatches: { '0': 1, '1': 1, '2': 2 },
+                        levelToMergedBatches: { '0': 1, '1': 1, '2': 2 },
+                        totalMergersForUltimateLevel: 2,
+                        progressDigest: 1.0,
+                      },
+                    },
+
+                    {
+                      stageNumber: 1,
+                      sortProgress: {
+                        totalMergingLevels: -1,
+                        levelToTotalBatches: {},
+                        levelToMergedBatches: {},
+                        totalMergersForUltimateLevel: -1,
+                      },
+                    },
+                  ],
+                },
+
+                {
+                  workerNumber: 1,
+                  counters: {
+                    input: [
+                      { stageNumber: 1, partitionNumber: 0, frames: 1, rows: 98, bytes: 5824 },
+                      { stageNumber: 1, partitionNumber: 1, frames: 1, rows: 99, bytes: 6003 },
+                    ],
+
+                    processor: [
+                      { stageNumber: 0, partitionNumber: -1, frames: 0, rows: 0, bytes: 0 },
+                      { stageNumber: 1, partitionNumber: -1, frames: 0, rows: 0, bytes: 0 },
+                    ],
+
+                    output: [
+                      { stageNumber: 0, partitionNumber: 0, frames: 0, rows: 0, bytes: 0 },
+                      { stageNumber: 0, partitionNumber: 1, frames: 0, rows: 0, bytes: 0 },
+                    ],
+                  },
+                  sortProgress: [
+                    {
+                      stageNumber: 0,
+                      sortProgress: {
+                        totalMergingLevels: -1,
+                        levelToTotalBatches: {},
+                        levelToMergedBatches: {},
+                        totalMergersForUltimateLevel: -1,
+                        triviallyComplete: true,
+                        progressDigest: 1.0,
+                      },
+                    },
+                    {
+                      stageNumber: 1,
+                      sortProgress: {
+                        totalMergingLevels: -1,
+                        levelToTotalBatches: {},
+                        levelToMergedBatches: {},
+                        totalMergersForUltimateLevel: -1,
+                        triviallyComplete: true,
+                        progressDigest: 1.0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+
+            task: {
+              type: 'talaria0',
+              id: 'talaria-sql-kttm_etl-54ba7c52-f620-48ee-93b5-90f09d3c045a',
+              spec: {
+                query: {},
+                columnMappings: [
+                  { queryColumn: 'd0', outputColumn: '__time' },
+                  { queryColumn: 'd1', outputColumn: 'session' },
+                  { queryColumn: 'd2', outputColumn: 'agent_category' },
+                  { queryColumn: 'd3', outputColumn: 'agent_type' },
+                  { queryColumn: 'd4', outputColumn: 'browser' },
+                  { queryColumn: 'd5', outputColumn: 'browser_version' },
+                  { queryColumn: 'd6', outputColumn: 'browser_major' },
+                  { queryColumn: 'd7', outputColumn: 'os' },
+                  { queryColumn: 'd8', outputColumn: 'city' },
+                  { queryColumn: 'd9', outputColumn: 'country' },
+                  { queryColumn: 'd10', outputColumn: 'capital' },
+                  { queryColumn: 'd11', outputColumn: 'iso3' },
+                  { queryColumn: 'd12', outputColumn: 'ip_address' },
+                  { queryColumn: 'a0', outputColumn: 'cnt' },
+                  { queryColumn: 'a1', outputColumn: 'session_length' },
+                  { queryColumn: 'a2', outputColumn: 'unique_event_types' },
+                ],
+
                 destination: {
                   type: 'dataSource',
-                  dataSource: 'kttm_part1',
-                  segmentGranularity: 'DAY',
+                  dataSource: 'kttm_etl',
+                  segmentGranularity: 'HOUR',
                   replaceTimeChunks: [
                     '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z',
                   ],
                 },
 
-                tuningConfig: {
-                  type: 'dont-care',
-                },
+                tuningConfig: {},
               },
 
               sqlQuery:
-                '--:context talariaReplaceTimeChunks: all\n--:context talariaRowsPerSegment: 40000\nINSERT INTO "kttm_part1"\n\nWITH kttm_data AS (\nSELECT * FROM TABLE(\n  EXTERN(\n    \'{"type":"http","uris":["https://file.com/file"]}\',\n    \'{"type":"json"}\',\n    \'[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]\'\n  )\n))\n\nSELECT\n  TIME_PARSE("timestamp") AS __time,\n  session,\n  agent_category,\n  agent_type,\n  browser,\n  browser_version,\n  city,\n  continent,\n  country,\n  region,\n  adblock_list,\n  forwarded_for,\n  os,\n  path,\n  platform,\n  referrer,\n  referrer_host,\n  remote_address,\n  screen\nFROM kttm_data\nWHERE session = \'woop\'\nORDER BY browser, browser_version -- Secondary partitioning',
+                '--:context talariaReplaceTimeChunks: all\n--:context talariaFinalizeAggregations: false\nINSERT INTO "kttm_etl"\nWITH\nkttm_data AS (\nSELECT * FROM TABLE(\n  EXTERN(\n    \'{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz"]}\',\n    \'{"type":"json"}\',\n    \'[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]\'\n  )\n)),\ncountry_lookup AS (\nSELECT * FROM TABLE(\n  EXTERN(\n    \'{"type":"http","uris":["https://static.imply.io/lookup/country.tsv"]}\',\n    \'{"type":"tsv","findColumnsFromHeader":true}\',\n    \'[{"name":"Country","type":"string"},{"name":"Capital","type":"string"},{"name":"ISO3","type":"string"},{"name":"ISO2","type":"string"}]\'\n  )\n))\n\nSELECT\n  FLOOR(TIME_PARSE("timestamp") TO MINUTE) AS __time,\n  session,\n  agent_category,\n  agent_type,\n  browser,\n  browser_version,\n  CAST(REGEXP_EXTRACT(browser_version, \'^(\\d+)\') AS BIGINT) AS browser_major,\n  os,\n  city,\n  country,\n  country_lookup.Capital AS capital,\n  country_lookup.ISO3 AS iso3,\n  forwarded_for AS ip_address,\n\n  COUNT(*) AS "cnt",\n  SUM(session_length) AS session_length,\n  APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types\nFROM kttm_data\nLEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country\nWHERE os = \'iOS\'\nGROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\nPARTITIONED BY HOUR\nCLUSTERED BY browser, session',
               sqlQueryContext: {
                 talaria: true,
-                talariaRowsPerSegment: 40000,
-                sqlQueryId: 'cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60',
+                sqlQueryId: '54ba7c52-f620-48ee-93b5-90f09d3c045a',
                 talariaNumTasks: 2,
+                talariaFinalizeAggregations: false,
+                sqlInsertSegmentGranularity: '"HOUR"',
                 talariaReplaceTimeChunks: 'all',
               },
 
-              sqlTypeNames: ['TIMESTAMP'],
+              sqlTypeNames: [
+                'TIMESTAMP',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'BIGINT',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'VARCHAR',
+                'OTHER',
+                'OTHER',
+                'OTHER',
+              ],
 
-              dataSource: 'kttm_part1',
+              context: { forceTimeChunkLock: true, useLineageBasedSegmentAllocation: true },
+              groupId: 'talaria-sql-kttm_etl-54ba7c52-f620-48ee-93b5-90f09d3c045a',
+              dataSource: 'kttm_etl',
+              resource: {
+                availabilityGroup: 'talaria-sql-kttm_etl-54ba7c52-f620-48ee-93b5-90f09d3c045a',
+                requiredCapacity: 1,
+              },
             },
           },
         }),
       ).toMatchInlineSnapshot(`
         QueryExecution {
           "destination": Object {
-            "dataSource": "kttm_part1",
+            "dataSource": "kttm_etl",
             "replaceTimeChunks": Array [
               "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z",
             ],
-            "segmentGranularity": "DAY",
+            "segmentGranularity": "HOUR",
             "type": "dataSource",
           },
-          "duration": 3835,
-          "error": Object {
-            "error": Object {
-              "dataSource": "kttm_part1",
-              "errorCode": "InsertCannotBeEmpty",
-              "errorMessage": "No rows to insert for dataSource [kttm_part1]",
-            },
-            "exceptionStackTrace": "io.imply.druid.talaria.indexing.error.TalariaException: InsertCannotBeEmpty: No rows to insert for dataSource [kttm_part1]
-        	at io.imply.druid.talaria.exec.LeaderImpl.runQueryUntilDone(LeaderImpl.java:474)
-        	at io.imply.druid.talaria.exec.LeaderImpl.runTask(LeaderImpl.java:276)
-        	at io.imply.druid.talaria.exec.LeaderImpl.run(LeaderImpl.java:230)
-        	at io.imply.druid.talaria.indexing.TalariaControllerTask.run(TalariaControllerTask.java:156)
-        	at org.apache.druid.indexing.overlord.ThreadingTaskRunner$1.call(ThreadingTaskRunner.java:210)
-        	at org.apache.druid.indexing.overlord.ThreadingTaskRunner$1.call(ThreadingTaskRunner.java:152)
-        	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-        	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
-        	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
-        	at java.base/java.lang.Thread.run(Thread.java:829)
-        ",
-            "host": "localhost:8091",
-            "taskId": "talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60",
-          },
-          "id": "talaria-sql-kttm_part1-cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60",
+          "duration": 2588,
+          "error": undefined,
+          "id": "talaria-sql-kttm_etl-54ba7c52-f620-48ee-93b5-90f09d3c045a",
           "queryContext": Object {
-            "sqlQueryId": "cf1515b5-ec2a-4c25-8a3a-d7e2a2531a60",
             "talaria": true,
+            "talariaFinalizeAggregations": false,
             "talariaNumTasks": 2,
             "talariaReplaceTimeChunks": "all",
-            "talariaRowsPerSegment": 40000,
           },
           "result": undefined,
           "sqlQuery": "--:context talariaReplaceTimeChunks: all
-        --:context talariaRowsPerSegment: 40000
-        INSERT INTO \\"kttm_part1\\"
-
-        WITH kttm_data AS (
+        --:context talariaFinalizeAggregations: false
+        INSERT INTO \\"kttm_etl\\"
+        WITH
+        kttm_data AS (
         SELECT * FROM TABLE(
           EXTERN(
-            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://file.com/file\\"]}',
+            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz\\"]}',
             '{\\"type\\":\\"json\\"}',
             '[{\\"name\\":\\"timestamp\\",\\"type\\":\\"string\\"},{\\"name\\":\\"agent_category\\",\\"type\\":\\"string\\"},{\\"name\\":\\"agent_type\\",\\"type\\":\\"string\\"},{\\"name\\":\\"browser\\",\\"type\\":\\"string\\"},{\\"name\\":\\"browser_version\\",\\"type\\":\\"string\\"},{\\"name\\":\\"city\\",\\"type\\":\\"string\\"},{\\"name\\":\\"continent\\",\\"type\\":\\"string\\"},{\\"name\\":\\"country\\",\\"type\\":\\"string\\"},{\\"name\\":\\"version\\",\\"type\\":\\"string\\"},{\\"name\\":\\"event_type\\",\\"type\\":\\"string\\"},{\\"name\\":\\"event_subtype\\",\\"type\\":\\"string\\"},{\\"name\\":\\"loaded_image\\",\\"type\\":\\"string\\"},{\\"name\\":\\"adblock_list\\",\\"type\\":\\"string\\"},{\\"name\\":\\"forwarded_for\\",\\"type\\":\\"string\\"},{\\"name\\":\\"language\\",\\"type\\":\\"string\\"},{\\"name\\":\\"number\\",\\"type\\":\\"long\\"},{\\"name\\":\\"os\\",\\"type\\":\\"string\\"},{\\"name\\":\\"path\\",\\"type\\":\\"string\\"},{\\"name\\":\\"platform\\",\\"type\\":\\"string\\"},{\\"name\\":\\"referrer\\",\\"type\\":\\"string\\"},{\\"name\\":\\"referrer_host\\",\\"type\\":\\"string\\"},{\\"name\\":\\"region\\",\\"type\\":\\"string\\"},{\\"name\\":\\"remote_address\\",\\"type\\":\\"string\\"},{\\"name\\":\\"screen\\",\\"type\\":\\"string\\"},{\\"name\\":\\"session\\",\\"type\\":\\"string\\"},{\\"name\\":\\"session_length\\",\\"type\\":\\"long\\"},{\\"name\\":\\"timezone\\",\\"type\\":\\"string\\"},{\\"name\\":\\"timezone_offset\\",\\"type\\":\\"long\\"},{\\"name\\":\\"window\\",\\"type\\":\\"string\\"}]'
+          )
+        )),
+        country_lookup AS (
+        SELECT * FROM TABLE(
+          EXTERN(
+            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/lookup/country.tsv\\"]}',
+            '{\\"type\\":\\"tsv\\",\\"findColumnsFromHeader\\":true}',
+            '[{\\"name\\":\\"Country\\",\\"type\\":\\"string\\"},{\\"name\\":\\"Capital\\",\\"type\\":\\"string\\"},{\\"name\\":\\"ISO3\\",\\"type\\":\\"string\\"},{\\"name\\":\\"ISO2\\",\\"type\\":\\"string\\"}]'
           )
         ))
 
         SELECT
-          TIME_PARSE(\\"timestamp\\") AS __time,
+          FLOOR(TIME_PARSE(\\"timestamp\\") TO MINUTE) AS __time,
           session,
           agent_category,
           agent_type,
           browser,
           browser_version,
-          city,
-          continent,
-          country,
-          region,
-          adblock_list,
-          forwarded_for,
+          CAST(REGEXP_EXTRACT(browser_version, '^(\\\\d+)') AS BIGINT) AS browser_major,
           os,
-          path,
-          platform,
-          referrer,
-          referrer_host,
-          remote_address,
-          screen
+          city,
+          country,
+          country_lookup.Capital AS capital,
+          country_lookup.ISO3 AS iso3,
+          forwarded_for AS ip_address,
+
+          COUNT(*) AS \\"cnt\\",
+          SUM(session_length) AS session_length,
+          APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
         FROM kttm_data
-        WHERE session = 'woop'
-        ORDER BY browser, browser_version -- Secondary partitioning",
-          "stages": undefined,
-          "startTime": 2022-02-05T18:17:16.289Z,
-          "status": "FAILED",
+        LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
+        WHERE os = 'iOS'
+        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+        PARTITIONED BY HOUR
+        CLUSTERED BY browser, session",
+          "stages": Stages {
+            "counters": Array [
+              Object {
+                "counters": Object {
+                  "input": Array [
+                    Object {
+                      "bytes": 5824,
+                      "frames": 1,
+                      "partitionNumber": 0,
+                      "rows": 98,
+                      "stageNumber": 1,
+                    },
+                  ],
+                  "output": Array [
+                    Object {
+                      "bytes": 5824,
+                      "frames": 1,
+                      "partitionNumber": 0,
+                      "rows": 98,
+                      "stageNumber": 0,
+                    },
+                    Object {
+                      "bytes": 6003,
+                      "frames": 1,
+                      "partitionNumber": 1,
+                      "rows": 99,
+                      "stageNumber": 0,
+                    },
+                  ],
+                  "processor": Array [
+                    Object {
+                      "bytes": 12547,
+                      "frames": 1,
+                      "partitionNumber": -1,
+                      "rows": 197,
+                      "stageNumber": 0,
+                    },
+                    Object {
+                      "bytes": 0,
+                      "frames": 0,
+                      "partitionNumber": -1,
+                      "rows": 0,
+                      "stageNumber": 1,
+                    },
+                  ],
+                },
+                "sortProgress": Array [
+                  Object {
+                    "sortProgress": Object {
+                      "levelToMergedBatches": Object {
+                        "0": 1,
+                        "1": 1,
+                        "2": 2,
+                      },
+                      "levelToTotalBatches": Object {
+                        "0": 1,
+                        "1": 1,
+                        "2": 2,
+                      },
+                      "progressDigest": 1,
+                      "totalMergersForUltimateLevel": 2,
+                      "totalMergingLevels": 3,
+                    },
+                    "stageNumber": 0,
+                  },
+                  Object {
+                    "sortProgress": Object {
+                      "levelToMergedBatches": Object {},
+                      "levelToTotalBatches": Object {},
+                      "totalMergersForUltimateLevel": -1,
+                      "totalMergingLevels": -1,
+                    },
+                    "stageNumber": 1,
+                  },
+                ],
+                "workerNumber": 0,
+              },
+              Object {
+                "counters": Object {
+                  "input": Array [
+                    Object {
+                      "bytes": 5824,
+                      "frames": 1,
+                      "partitionNumber": 0,
+                      "rows": 98,
+                      "stageNumber": 1,
+                    },
+                    Object {
+                      "bytes": 6003,
+                      "frames": 1,
+                      "partitionNumber": 1,
+                      "rows": 99,
+                      "stageNumber": 1,
+                    },
+                  ],
+                  "output": Array [
+                    Object {
+                      "bytes": 0,
+                      "frames": 0,
+                      "partitionNumber": 0,
+                      "rows": 0,
+                      "stageNumber": 0,
+                    },
+                    Object {
+                      "bytes": 0,
+                      "frames": 0,
+                      "partitionNumber": 1,
+                      "rows": 0,
+                      "stageNumber": 0,
+                    },
+                  ],
+                  "processor": Array [
+                    Object {
+                      "bytes": 0,
+                      "frames": 0,
+                      "partitionNumber": -1,
+                      "rows": 0,
+                      "stageNumber": 0,
+                    },
+                    Object {
+                      "bytes": 0,
+                      "frames": 0,
+                      "partitionNumber": -1,
+                      "rows": 0,
+                      "stageNumber": 1,
+                    },
+                  ],
+                },
+                "sortProgress": Array [
+                  Object {
+                    "sortProgress": Object {
+                      "levelToMergedBatches": Object {},
+                      "levelToTotalBatches": Object {},
+                      "progressDigest": 1,
+                      "totalMergersForUltimateLevel": -1,
+                      "totalMergingLevels": -1,
+                      "triviallyComplete": true,
+                    },
+                    "stageNumber": 0,
+                  },
+                  Object {
+                    "sortProgress": Object {
+                      "levelToMergedBatches": Object {},
+                      "levelToTotalBatches": Object {},
+                      "progressDigest": 1,
+                      "totalMergersForUltimateLevel": -1,
+                      "totalMergingLevels": -1,
+                      "triviallyComplete": true,
+                    },
+                    "stageNumber": 1,
+                  },
+                ],
+                "workerNumber": 1,
+              },
+            ],
+            "stages": Array [
+              Object {
+                "clusterBy": Object {
+                  "bucketByCount": 1,
+                  "columns": Array [
+                    Object {
+                      "columnName": "__bucket",
+                    },
+                    Object {
+                      "columnName": "__boost",
+                    },
+                  ],
+                },
+                "duration": 147,
+                "inputStages": Array [],
+                "partitionCount": 2,
+                "phase": "RESULTS_COMPLETE",
+                "query": Object {},
+                "stageNumber": 0,
+                "stageType": "ScanQueryFrameProcessorFactory",
+                "startTime": "2022-03-05T00:46:25.488Z",
+                "workerCount": 2,
+              },
+              Object {
+                "clusterBy": Object {
+                  "columns": Array [
+                    Object {
+                      "columnName": "d0",
+                    },
+                    Object {
+                      "columnName": "d1",
+                    },
+                    Object {
+                      "columnName": "d2",
+                    },
+                    Object {
+                      "columnName": "d3",
+                    },
+                    Object {
+                      "columnName": "d4",
+                    },
+                    Object {
+                      "columnName": "d5",
+                    },
+                    Object {
+                      "columnName": "d6",
+                    },
+                    Object {
+                      "columnName": "d7",
+                    },
+                    Object {
+                      "columnName": "d8",
+                    },
+                    Object {
+                      "columnName": "d9",
+                    },
+                    Object {
+                      "columnName": "d10",
+                    },
+                    Object {
+                      "columnName": "d11",
+                    },
+                    Object {
+                      "columnName": "d12",
+                    },
+                  ],
+                },
+                "duration": 2057,
+                "inputStages": Array [
+                  0,
+                ],
+                "phase": "READING_INPUT",
+                "query": Object {},
+                "stageNumber": 1,
+                "stageType": "GroupByPreShuffleFrameProcessorFactory",
+                "startTime": "2022-03-05T00:46:25.610Z",
+                "workerCount": 2,
+              },
+              Object {
+                "inputStages": Array [
+                  1,
+                ],
+                "stageNumber": 2,
+                "stageType": "GroupByPostShuffleFrameProcessorFactory",
+              },
+              Object {
+                "clusterBy": Object {
+                  "bucketByCount": 1,
+                  "columns": Array [
+                    Object {
+                      "columnName": "__bucket",
+                    },
+                    Object {
+                      "columnName": "d4",
+                    },
+                    Object {
+                      "columnName": "d1",
+                    },
+                  ],
+                },
+                "inputStages": Array [
+                  2,
+                ],
+                "stageNumber": 3,
+                "stageType": "OrderByFrameProcessorFactory",
+              },
+              Object {
+                "inputStages": Array [
+                  3,
+                ],
+                "stageNumber": 4,
+                "stageType": "TalariaSegmentGeneratorFrameProcessorFactory",
+              },
+            ],
+          },
+          "startTime": 2022-03-05T00:46:25.079Z,
+          "status": "RUNNING",
         }
       `);
     });

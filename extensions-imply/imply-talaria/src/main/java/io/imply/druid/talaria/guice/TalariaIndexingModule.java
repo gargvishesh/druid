@@ -18,10 +18,7 @@ import com.google.inject.Provides;
 import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
-import io.imply.druid.talaria.indexing.TalariaResultsTaskReport;
 import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFactory;
-import io.imply.druid.talaria.indexing.TalariaStagesTaskReport;
-import io.imply.druid.talaria.indexing.TalariaStatusTaskReport;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
@@ -46,6 +43,7 @@ import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSinkConf
 import io.imply.druid.talaria.indexing.externalsink.NilTalariaExternalSink;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSink;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.report.TalariaTaskReport;
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
 import io.imply.druid.talaria.querykit.InputStageDataSource;
 import io.imply.druid.talaria.querykit.NilInputSource;
@@ -101,9 +99,7 @@ public class TalariaIndexingModule implements DruidModule
             InputStageDataSource.class,
 
             // TaskReport classes
-            TalariaStagesTaskReport.class,
-            TalariaStatusTaskReport.class,
-            TalariaResultsTaskReport.class,
+            TalariaTaskReport.class,
 
             // TalariaFault classes
             BroadcastTablesTooLargeFault.class,

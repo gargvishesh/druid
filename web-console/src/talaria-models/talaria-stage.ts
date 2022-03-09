@@ -16,26 +16,46 @@
  * limitations under the License.
  */
 
-import { max, sum } from 'd3-array';
+import { sum } from 'd3-array';
 
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { deepGet, formatBytes, formatInteger, oneOf } from '../utils';
+import { formatBytes, formatInteger, oneOf } from '../utils';
+
+const PALETTE = [
+  '#8dd3c7',
+  '#ffffb3',
+  '#bebada',
+  '#fb8072',
+  '#80b1d3',
+  '#fdb462',
+  '#b3de69',
+  '#fccde5',
+  '#d9d9d9',
+  '#bc80bd',
+  '#ccebc5',
+  '#ffed6f',
+];
+
+function zeroDivide(a: number, b: number): number {
+  if (b === 0) return 0;
+  return a / b;
+}
 
 export interface StageDefinition {
   stageNumber: number;
   inputStages: number[];
-  stageType: string;
+  inputFileCount?: number;
+  processorType: string;
   query?: {
     dataSource: DataSource;
   };
   startTime?: string;
   duration?: number;
-  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_COMPLETE' | 'FAILED';
+  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_COMPLETE' | 'FINISHED' | 'FAILED';
   workerCount: number;
+  partitionCount: number;
   clusterBy?: ClusterBy;
-  workerCounters: WorkerCounter[];
-  totalFiles?: number;
 }
 
 export interface DataSource {
@@ -55,176 +75,6 @@ export interface ClusterBy {
   bucketByCount?: number;
 }
 
-export interface WorkerCounter {
-  workerNumber: number;
-  counters: {
-    input?: StageCounter[];
-    preShuffle?: StageCounter[];
-    output?: StageCounter[];
-    inputExternal?: StageCounter[];
-    inputDruid?: StageCounter[];
-  };
-  sortProgress?: {
-    stageNumber: number;
-    sortProgress: SortProgress;
-  }[];
-}
-
-export interface StageCounter {
-  stageNumber: number;
-  partitionNumber: number;
-  rows: number;
-  bytes: number;
-  files: number;
-  frames: number;
-}
-
-export interface SimpleCounter {
-  index: number;
-  rows: number;
-  bytes: number;
-  frames: number;
-  files: number;
-}
-
-export interface SortProgress {
-  totalMergingLevels: number;
-  levelToTotalBatches: Record<number, number>;
-  levelToMergedBatches: Record<number, number>;
-  totalMergersForUltimateLevel: number;
-  progressDigest?: number;
-}
-
-export function compareDetailEntries(a: SimpleCounter, b: SimpleCounter): number {
-  const diff = b.rows - a.rows;
-  if (diff) return diff;
-  return a.index - b.index;
-}
-
-const QUERY_START_FACTOR = 0.1;
-const QUERY_END_FACTOR = 0.1;
-
-const CLEAN_STAGE_TYPE_META_INFO: Record<string, { weight: number; hasPostReading: boolean }> = {
-  ScanQuery: { weight: 0.9, hasPostReading: true },
-  GroupByPreShuffle: { weight: 1.5, hasPostReading: true },
-  GroupByPostShuffle: { weight: 1.5, hasPostReading: true },
-  OrderBy: { weight: 1, hasPostReading: true },
-  Limit: { weight: 0.1, hasPostReading: true },
-  TalariaSegmentGenerator: { weight: 1.1, hasPostReading: false },
-};
-
-export function cleanStageType(stageType: string): string {
-  return stageType.replace(/FrameProcessorFactory$/, '');
-}
-
-function stageWeight(stage: StageDefinition): number {
-  return CLEAN_STAGE_TYPE_META_INFO[cleanStageType(stage.stageType)]?.weight || 1;
-}
-
-function stageHasPostReading(stage: StageDefinition): boolean {
-  return CLEAN_STAGE_TYPE_META_INFO[cleanStageType(stage.stageType)]?.hasPostReading ?? true;
-}
-
-export function overallProgress(stages: StageDefinition[] | undefined): number {
-  let progress = 0;
-  let total = QUERY_END_FACTOR;
-  if (stages && stages.length) {
-    progress += QUERY_START_FACTOR + sum(stages, s => stageProgress(s, stages) * stageWeight(s));
-    total += QUERY_START_FACTOR + sum(stages, stageWeight);
-  }
-  return progress / total;
-}
-
-export function currentStageIndex(stages: StageDefinition[] | undefined): number {
-  if (stages) {
-    for (let i = 0; i < stages.length; i++) {
-      if (oneOf(stages[i].phase, 'READING_INPUT', 'POST_READING')) return i;
-    }
-  }
-  return -1;
-}
-
-function zeno(steps: number): number {
-  return 1 - Math.pow(0.5, steps);
-}
-
-export function stageProgress(stage: StageDefinition, stages: StageDefinition[]): number {
-  switch (stage.phase) {
-    case 'READING_INPUT': {
-      const currentInputRows =
-        getTotalCountForStage(stage, 'input', 'rows') +
-          getTotalCountForStage(stage, 'inputExternal', 'rows') +
-          getTotalCountForStage(stage, 'inputDruid', 'rows') ||
-        getTotalCountForStage(stage, 'preShuffle', 'rows') ||
-        0;
-
-      const expectedInputRows = sum(stage.inputStages, i =>
-        getTotalCountForStage(stages[i], 'output', 'rows'),
-      );
-
-      const phaseProgress = expectedInputRows
-        ? currentInputRows / expectedInputRows
-        : zeno(currentInputRows / (100e6 * Math.max(stage.workerCount || 0, 1)));
-
-      if (stageHasPostReading(stage)) {
-        return 0.45 * phaseProgress;
-      } else {
-        return 0.9 * phaseProgress;
-      }
-    }
-
-    case 'POST_READING': {
-      const outputRows = getTotalCountForStage(stage, 'output', 'rows');
-      const sortedRows = getRowSortProgressForStage(stage);
-
-      let phaseProgress;
-      if (outputRows) {
-        const outputProgress =
-          outputRows /
-          (getTotalCountForStage(stage, 'preShuffle', 'rows') ||
-            getTotalCountForStage(stage, 'input', 'rows') +
-              getTotalCountForStage(stage, 'inputExternal', 'rows') +
-              getTotalCountForStage(stage, 'inputExternal', 'rows'));
-
-        if (sortedRows) {
-          phaseProgress = 0.6 + 0.4 * outputProgress;
-        } else {
-          phaseProgress = outputProgress;
-        }
-      } else {
-        // Assume that sort account for 60% of the stage
-        phaseProgress = (0.6 * sortedRows) / getTotalCountForStage(stage, 'preShuffle', 'rows');
-      }
-
-      return 0.55 + 0.35 * phaseProgress;
-    }
-
-    case 'RESULTS_COMPLETE':
-      return 1;
-
-    default:
-      return 0;
-  }
-}
-
-export type CounterType = 'input' | 'preShuffle' | 'output' | 'inputExternal' | `inputDruid`;
-
-export const COUNTER_TYPES: CounterType[] = [
-  'input',
-  'preShuffle',
-  'output',
-  'inputExternal',
-  'inputDruid',
-];
-
-export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
-  inputExternal: 'External input',
-  inputDruid: 'Segment input',
-  input: 'Input',
-  preShuffle: 'Pre sort',
-  output: 'Output',
-};
-
 export function formatClusterBy(
   clusterBy: ClusterBy | undefined,
   part: 'all' | 'partition' | 'cluster' = 'all',
@@ -243,175 +93,361 @@ export function formatClusterBy(
   return columns.map(part => part.columnName + (part.descending ? ' DESC' : '')).join(', ');
 }
 
-export function hasCounterTypeForStage(stage: StageDefinition, counterType: CounterType): boolean {
-  return stage.workerCounters.some(w => Boolean(w.counters[counterType]));
+export type CounterType =
+  | 'inputExternal'
+  | 'inputDruid'
+  | 'inputStageChannel'
+  | 'processor'
+  | 'sort';
+
+export const INPUT_COUNTERS: CounterType[] = ['inputExternal', 'inputDruid', 'inputStageChannel'];
+
+export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
+  inputExternal: 'Input external',
+  inputDruid: 'Input druid',
+  inputStageChannel: 'Input stage',
+  processor: 'Processed',
+  sort: 'Sorted',
+};
+
+export interface WorkerCounter {
+  workerNumber: number;
+  counters: Record<CounterType, StageCounter[]>;
+  sortProgress: {
+    stageNumber: number;
+    sortProgress: SortProgress;
+  }[];
 }
 
-export function hasSortProgressForStage(stage: StageDefinition): boolean {
-  return stage.workerCounters.some(w =>
-    Boolean(deepGet(w, 'sortProgress.0.sortProgress.progressDigest')),
-  );
+export interface StageCounter {
+  stageNumber: number;
+  partitionNumber: number;
+  rows: number;
+  bytes: number;
+  frames: number;
+  files?: number; // only present on inputExternal
 }
 
-export function getNumPartitions(
-  stage: StageDefinition,
-  counterType: CounterType,
-): number | undefined {
-  const { workerCounters } = stage;
-  if (!workerCounters.length) return;
-  const m = max(workerCounters, w => max(w.counters[counterType] || [], o => o.partitionNumber));
-  if (typeof m === 'undefined') return;
-  return m + 1;
+export interface SimpleCounter {
+  index: number;
+  rows: number;
+  bytes: number;
+  frames: number;
 }
 
-export function getTotalCountForStage(
-  stage: StageDefinition,
-  counterType: CounterType,
-  field: 'frames' | 'rows' | 'bytes' | 'files',
-): number {
-  return sum(stage.workerCounters, w => sum(w.counters[counterType] || [], o => o[field]));
+export interface SortProgress {
+  totalMergingLevels: number;
+  levelToTotalBatches: Record<number, number>;
+  levelToMergedBatches: Record<number, number>;
+  totalMergersForUltimateLevel: number;
+  progressDigest?: number;
+  triviallyComplete?: boolean;
 }
 
-// Compute the known sort progress of each row in the units of sort input rows
-export function getRowSortProgressForStage(stage: StageDefinition): number {
-  return sum(stage.workerCounters, w => {
-    const sortInputRows = sum(w.counters.preShuffle || [], o => o.rows);
-    const progressDigest = deepGet(w, 'sortProgress.0.sortProgress.progressDigest') || 0;
-    return Math.floor(sortInputRows * progressDigest);
-  });
+export function compareDetailEntries(a: SimpleCounter, b: SimpleCounter): number {
+  const diff = b.rows - a.rows;
+  if (diff) return diff;
+  return a.index - b.index;
 }
 
-export function getByWorkerCountForStage(
-  stage: StageDefinition,
-  counterType: CounterType,
-): SimpleCounter[] {
-  const numWorkers = stage.workerCount;
+export class Stages {
+  static readonly QUERY_START_FACTOR = 0.05;
+  static readonly QUERY_END_FACTOR = 0.05;
 
-  const simpleCounters = [];
-  for (let i = 0; i < numWorkers; i++) {
-    let simpleCounter: SimpleCounter;
+  static getCleanProcessorType(stage: StageDefinition): string {
+    return String(stage.processorType)
+      .replace(/^Talaria/, '')
+      .replace(/FrameProcessorFactory$/, '');
+  }
 
-    const counters = stage.workerCounters[i]?.counters?.[counterType];
-    if (counters) {
-      simpleCounter = {
-        index: i,
-        rows: sum(counters, counter => counter.rows),
-        bytes: sum(counters, counter => counter.bytes),
-        frames: sum(counters, counter => counter.frames),
-        files: sum(counters, counter => counter.files),
-      };
+  static stageWeight(stage: StageDefinition): number {
+    return stage.processorType === 'OffsetLimitFrameProcessorFactory' ? 0.1 : 1;
+  }
+
+  static stageHasSort(stage: StageDefinition): boolean {
+    return (stage.clusterBy?.columns?.length || 0) > 0;
+  }
+
+  static stageOutputCounterType(stage: StageDefinition): CounterType {
+    return Stages.stageHasSort(stage) ? 'sort' : 'processor';
+  }
+
+  public readonly stages: StageDefinition[];
+  private readonly counters?: WorkerCounter[];
+
+  constructor(stages: StageDefinition[], counters?: WorkerCounter[]) {
+    this.stages = stages;
+    this.counters = counters;
+  }
+
+  stageCount(): number {
+    return this.stages.length;
+  }
+
+  getStage(stageNumber: number): StageDefinition {
+    return this.stages[stageNumber];
+  }
+
+  getLastStage(): StageDefinition | undefined {
+    return this.stages[this.stages.length - 1];
+  }
+
+  overallProgress(): number {
+    const { stages } = this;
+    let progress = 0;
+    let total = Stages.QUERY_END_FACTOR;
+    if (stages.length) {
+      progress +=
+        Stages.QUERY_START_FACTOR + sum(stages, s => this.stageProgress(s) * Stages.stageWeight(s));
+      total += Stages.QUERY_START_FACTOR + sum(stages, Stages.stageWeight);
+    }
+    return zeroDivide(progress, total);
+  }
+
+  stageProgress(stage: StageDefinition): number {
+    switch (stage.phase) {
+      case 'READING_INPUT':
+        return (Stages.stageHasSort(stage) ? 0.5 : 1) * this.readingInputPhaseProgress(stage);
+
+      case 'POST_READING':
+        return 0.5 + 0.5 * this.postReadingPhaseProgress(stage);
+
+      case 'RESULTS_COMPLETE':
+      case 'FINISHED':
+        return 1;
+
+      default:
+        return 0;
+    }
+  }
+
+  readingInputPhaseProgress(stage: StageDefinition): number {
+    const { stages } = this;
+
+    if (stage.inputFileCount) {
+      // If we know how many files there are base the progress on how many files were read
+      return this.getTotalCounterForStage(stage, 'inputExternal', 'files') / stage.inputFileCount;
     } else {
-      simpleCounter = {
+      // Otherwise, base it on the stage input divided by the output of all input stages
+      const expectedInputStageRows = sum(stage.inputStages, i =>
+        this.getTotalOutputForStage(stages[i], 'rows'),
+      );
+
+      return zeroDivide(
+        this.getTotalCounterForStage(stage, 'inputStageChannel', 'rows'),
+        expectedInputStageRows,
+      );
+    }
+  }
+
+  postReadingPhaseProgress(stage: StageDefinition): number {
+    return this.getSortProgressForStage(stage);
+  }
+
+  currentStageIndex(): number {
+    const { stages } = this;
+    for (let i = 0; i < stages.length; i++) {
+      if (oneOf(stages[i].phase, 'READING_INPUT', 'POST_READING')) return i;
+    }
+    return -1;
+  }
+
+  hasCounterForStage(stage: StageDefinition, counterType: CounterType): boolean {
+    const { counters } = this;
+    if (!counters) return false;
+    const { stageNumber } = stage;
+    return counters.some(w =>
+      Boolean(w.counters[counterType]?.some(c => c.stageNumber === stageNumber)),
+    );
+  }
+
+  hasInputCounterForStage(stage: StageDefinition): boolean {
+    return (
+      this.hasCounterForStage(stage, 'inputExternal') ||
+      this.hasCounterForStage(stage, 'inputDruid') ||
+      this.hasCounterForStage(stage, 'inputStageChannel')
+    );
+  }
+
+  hasSortProgressForStage(stage: StageDefinition): boolean {
+    const { counters } = this;
+    if (!counters) return false;
+    const { stageNumber } = stage;
+    return counters.some(w =>
+      Boolean(
+        w.sortProgress.some(
+          s =>
+            s.stageNumber === stageNumber &&
+            s.sortProgress.progressDigest &&
+            !s.sortProgress.triviallyComplete,
+        ),
+      ),
+    );
+  }
+
+  getTotalCounterForStage(
+    stage: StageDefinition,
+    counterType: CounterType,
+    field: 'frames' | 'rows' | 'bytes' | 'files',
+  ): number {
+    const { counters } = this;
+    if (!counters) return 0;
+    const { stageNumber } = stage;
+    return sum(counters, w =>
+      sum(w.counters[counterType] || [], o => (o.stageNumber === stageNumber ? o[field] : 0)),
+    );
+  }
+
+  getTotalInputForStage(
+    stage: StageDefinition,
+    field: 'frames' | 'rows' | 'bytes' | 'files',
+  ): number {
+    return (
+      this.getTotalCounterForStage(stage, 'inputExternal', field) +
+      this.getTotalCounterForStage(stage, 'inputDruid', field) +
+      this.getTotalCounterForStage(stage, 'inputStageChannel', field)
+    );
+  }
+
+  getTotalOutputForStage(stage: StageDefinition, field: 'frames' | 'rows' | 'bytes'): number {
+    return this.getTotalCounterForStage(stage, Stages.stageOutputCounterType(stage), field);
+  }
+
+  getSortProgressForStage(stage: StageDefinition): number {
+    const { counters } = this;
+    if (!counters) return 0;
+    const { stageNumber } = stage;
+    return zeroDivide(
+      sum(counters, w => {
+        const sortInputRows = sum(w.counters.processor || [], o =>
+          o.stageNumber === stageNumber ? o.rows : 0,
+        );
+        const progressDigest =
+          w.sortProgress.find(sp => sp.stageNumber === stageNumber)?.sortProgress?.progressDigest ||
+          0;
+        return Math.floor(sortInputRows * progressDigest);
+      }),
+      this.getTotalCounterForStage(stage, 'processor', 'rows'),
+    );
+  }
+
+  getByWorkerCountForStage(stage: StageDefinition, counterType: CounterType): SimpleCounter[] {
+    const { counters } = this;
+    const { workerCount, stageNumber } = stage;
+
+    const simpleCounters = [];
+    for (let i = 0; i < workerCount; i++) {
+      let simpleCounter: SimpleCounter;
+
+      const specificCounters = counters?.[i]?.counters?.[counterType];
+      if (specificCounters) {
+        simpleCounter = {
+          index: i,
+          rows: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.rows : 0)),
+          bytes: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.bytes : 0)),
+          frames: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.frames : 0)),
+        };
+      } else {
+        simpleCounter = {
+          index: i,
+          rows: 0,
+          bytes: 0,
+          frames: 0,
+        };
+      }
+
+      simpleCounters.push(simpleCounter);
+    }
+
+    return simpleCounters;
+  }
+
+  getByPartitionCountForStage(
+    stage: StageDefinition,
+    type: 'input' | 'output',
+  ): SimpleCounter[] | undefined {
+    const { counters } = this;
+    const { partitionCount, stageNumber } = stage;
+    const counterType: CounterType =
+      type === 'input' ? 'inputStageChannel' : Stages.stageOutputCounterType(stage);
+
+    if (!this.hasCounterForStage(stage, counterType)) return;
+
+    const simpleCounters = [];
+    for (let i = 0; i < partitionCount; i++) {
+      simpleCounters.push({
         index: i,
         rows: 0,
         bytes: 0,
         frames: 0,
-        files: 0,
-      };
+      });
     }
 
-    simpleCounters.push(simpleCounter);
-  }
-
-  return simpleCounters;
-}
-
-export function getByPartitionCountForStage(
-  stage: StageDefinition,
-  counterType: CounterType,
-): SimpleCounter[] | undefined {
-  const numPartitions = getNumPartitions(stage, counterType);
-  if (!numPartitions) return;
-
-  const simpleCounters = [];
-  for (let i = 0; i < numPartitions; i++) {
-    simpleCounters.push({
-      index: i,
-      rows: 0,
-      bytes: 0,
-      frames: 0,
-      files: 0,
-    });
-  }
-
-  for (const w of stage.workerCounters) {
-    const counters = w.counters[counterType];
     if (counters) {
-      for (const o of counters) {
-        const mySimpleCounter = simpleCounters[o.partitionNumber];
-        mySimpleCounter.rows += o.rows;
-        mySimpleCounter.bytes += o.bytes;
-        mySimpleCounter.frames += o.frames;
-        mySimpleCounter.files += o.files;
+      for (const counter of counters) {
+        const specificCounters = counter.counters[counterType];
+        if (specificCounters) {
+          for (const c of specificCounters) {
+            const mySimpleCounter = simpleCounters[c.partitionNumber];
+            if (mySimpleCounter && c.stageNumber === stageNumber) {
+              mySimpleCounter.rows += c.rows;
+              mySimpleCounter.bytes += c.bytes;
+              mySimpleCounter.frames += c.frames;
+            }
+          }
+        }
       }
     }
+
+    return simpleCounters;
   }
 
-  return simpleCounters;
-}
+  getRateCounterType(stage: StageDefinition): CounterType | undefined {
+    if (!this.counters) return;
+    if (this.hasCounterForStage(stage, 'inputStageChannel')) return 'inputStageChannel';
+    if (this.hasCounterForStage(stage, 'processor')) return 'processor';
+    if (this.hasCounterForStage(stage, 'sort')) return 'sort';
+    return;
+  }
 
-export function getRateCounterType(stage: StageDefinition): CounterType | undefined {
-  const { workerCounters } = stage;
-  const workerCounter = workerCounters[0];
-  if (!workerCounter) return;
-  if (workerCounter.counters.inputExternal) return 'inputExternal';
-  if (workerCounter.counters.inputDruid) return 'inputDruid';
-  if (workerCounter.counters.input) return 'input';
-  if (workerCounter.counters.preShuffle) return 'preShuffle';
-  if (workerCounter.counters.output) return 'output';
-  return;
-}
+  getRowRateFromStage(stage: StageDefinition): string {
+    const rateCounterType = this.getRateCounterType(stage);
+    if (!rateCounterType || !stage.duration) return '';
+    return formatInteger(
+      Math.round(
+        (this.getTotalCounterForStage(stage, rateCounterType, 'rows') * 1000) / stage.duration,
+      ),
+    );
+  }
 
-export function getRowRateFromStage(stage: StageDefinition): string {
-  const rateCounterType = getRateCounterType(stage);
-  if (!rateCounterType || !stage.duration) return '';
-  return formatInteger(
-    Math.round((getTotalCountForStage(stage, rateCounterType, 'rows') * 1000) / stage.duration),
-  );
-}
+  getByteRateFromStage(stage: StageDefinition): string {
+    const rateCounterType = this.getRateCounterType(stage);
+    if (!rateCounterType || !stage.duration) return '';
+    return `(${formatBytes(
+      (this.getTotalCounterForStage(stage, rateCounterType, 'bytes') * 1000) / stage.duration,
+    )}/s)`;
+  }
 
-export function getByteRateFromStage(stage: StageDefinition): string {
-  const rateCounterType = getRateCounterType(stage);
-  if (!rateCounterType || !stage.duration) return '';
-  return `(${formatBytes(
-    (getTotalCountForStage(stage, rateCounterType, 'bytes') * 1000) / stage.duration,
-  )}/s)`;
-}
-
-const PALETTE = [
-  '#8dd3c7',
-  '#ffffb3',
-  '#bebada',
-  '#fb8072',
-  '#80b1d3',
-  '#fdb462',
-  '#b3de69',
-  '#fccde5',
-  '#d9d9d9',
-  '#bc80bd',
-  '#ccebc5',
-  '#ffed6f',
-];
-
-export function stagesToColorMap(stages: StageDefinition[]): Record<number, string> {
-  let paletteIndex = 0;
-  const colorMap: Record<number, string> = {};
-  for (let i = stages.length - 1; i >= 0; i--) {
-    const { stageNumber, inputStages } = stages[i];
-    if (!colorMap[stageNumber]) {
-      colorMap[stageNumber] = PALETTE[paletteIndex];
-      paletteIndex = (paletteIndex + 1) % PALETTE.length;
-    }
-    if (inputStages.length > 1) {
-      inputStages.forEach(inputStage => {
-        colorMap[inputStage] = PALETTE[paletteIndex];
+  stagesToColorMap(): Record<number, string> {
+    let paletteIndex = 0;
+    const colorMap: Record<number, string> = {};
+    for (let i = this.stages.length - 1; i >= 0; i--) {
+      const { stageNumber, inputStages } = this.stages[i];
+      if (!colorMap[stageNumber]) {
+        colorMap[stageNumber] = PALETTE[paletteIndex];
         paletteIndex = (paletteIndex + 1) % PALETTE.length;
-      });
-    } else {
-      inputStages.forEach(inputStage => {
-        colorMap[inputStage] = colorMap[stageNumber];
-      });
+      }
+      if (inputStages.length > 1) {
+        inputStages.forEach(inputStage => {
+          colorMap[inputStage] = PALETTE[paletteIndex];
+          paletteIndex = (paletteIndex + 1) % PALETTE.length;
+        });
+      } else {
+        inputStages.forEach(inputStage => {
+          colorMap[inputStage] = colorMap[stageNumber];
+        });
+      }
     }
+    return colorMap;
   }
-  return colorMap;
 }

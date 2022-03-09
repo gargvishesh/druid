@@ -25,6 +25,7 @@ import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.ISE;
@@ -189,17 +190,17 @@ public class QueryWorkerUtils
         inputSources.iterator(),
         inputSource -> {
           final InputSourceReader reader;
+          final boolean incrementCounters = isFileBasedInputSource(inputSource);
 
-          final boolean incrementCounters = !NilInputSource.instance().equals(inputSource);
           if (incrementCounters) {
-            reader = new CountableInputSourceReader(inputSource.reader(
-                schema,
-                inputFormat,
-                temporaryDirectory
-            ), inputExternalCounter);
+            reader = new CountableInputSourceReader(
+                inputSource.reader(schema, inputFormat, temporaryDirectory),
+                inputExternalCounter
+            );
           } else {
             reader = inputSource.reader(schema, inputFormat, temporaryDirectory);
           }
+
           final SegmentId segmentId = SegmentId.dummy("dummy");
           final RowBasedSegment<InputRow> segment = new RowBasedSegment<>(
               segmentId,
@@ -248,5 +249,10 @@ public class QueryWorkerUtils
           );
         }
     );
+  }
+
+  static boolean isFileBasedInputSource(final InputSource inputSource)
+  {
+    return !(inputSource instanceof NilInputSource) && !(inputSource instanceof InlineInputSource);
   }
 }

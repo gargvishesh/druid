@@ -97,13 +97,13 @@ public class LeaderChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostCounters(
-      final TalariaCountersSnapshot countersSnapshot,
+      final TalariaCountersSnapshot.WorkerCounters workerSnapshot,
       @PathParam("taskId") final String taskId,
       @Context final HttpServletRequest req
   )
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
-    leader.updateCounters(taskId, countersSnapshot);
+    leader.updateCounters(taskId, workerSnapshot);
     return Response.status(Response.Status.OK).build();
   }
 

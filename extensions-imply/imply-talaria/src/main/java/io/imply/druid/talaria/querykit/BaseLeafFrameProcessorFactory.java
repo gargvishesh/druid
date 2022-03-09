@@ -262,12 +262,12 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
   }
 
   @Override
-  public int inputFilesCount()
+  public int inputFileCount()
   {
     int inputFiles = 0;
     for (QueryWorkerInputSpec inputSpec : baseInputSpecs) {
       if (inputSpec.getInputSources() != null && inputSpec.type().equals(QueryWorkerInputType.EXTERNAL)) {
-        inputFiles += inputSpec.getInputSources().size();
+        inputFiles += inputSpec.getInputSources().stream().filter(QueryWorkerUtils::isFileBasedInputSource).count();
       } else if (inputSpec.type().equals(QueryWorkerInputType.TABLE)) {
         inputFiles += inputSpec.getSegments().size();
       }

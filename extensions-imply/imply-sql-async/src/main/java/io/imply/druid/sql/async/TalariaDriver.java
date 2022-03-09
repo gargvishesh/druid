@@ -44,7 +44,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,7 +91,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   @Override
   public Response submit(
       final SqlQuery sqlQuery,
-      final HttpServletRequest req)
+      final HttpServletRequest req
+  )
   {
     // This check should never fail or the delegating driver
     // did something wrong.
@@ -101,7 +101,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
           Response.Status.INTERNAL_SERVER_ERROR,
           "Internal error",
           "Query does not have the \"talaria\" context flag set",
-          null);
+          null
+      );
     }
 
     // The lifeycle authorizes, but we need the user identity now.
@@ -140,7 +141,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
               Response.Status.INTERNAL_SERVER_ERROR,
               "Internal error",
               "Talaria failed to return a query ID",
-               null);
+              null
+          );
         }
         return Response
             .status(Response.Status.ACCEPTED)
@@ -150,7 +152,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
                 ResultFormat.ARRAY,
                 0,
                 null,
-                ENGINE_NAME))
+                ENGINE_NAME
+            ))
             .build();
       }
       finally {
@@ -178,11 +181,13 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
     }
     catch (ForbiddenException e) {
       throw (ForbiddenException) context.serverConfig.getErrorResponseTransformStrategy()
-                                             .transformIfNeeded(e); // let ForbiddenExceptionMapper handle this
+                                                     .transformIfNeeded(e); // let ForbiddenExceptionMapper handle this
     }
     catch (RelOptPlanner.CannotPlanException e) {
-      SqlPlanningException spe = new SqlPlanningException(SqlPlanningException.PlanningError.UNSUPPORTED_SQL_ERROR,
-          e.getMessage());
+      SqlPlanningException spe = new SqlPlanningException(
+          SqlPlanningException.PlanningError.UNSUPPORTED_SQL_ERROR,
+          e.getMessage()
+      );
       return buildNonOkResponse(BadQueryException.STATUS_CODE, spe, sqlQueryId);
     }
     // calcite throws a java.lang.AssertionError which is type error not exception. using throwable will catch all
@@ -225,7 +230,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
             null,
             0,
             cleaned,
-            ENGINE_NAME))
+            ENGINE_NAME
+        ))
         .build();
   }
 
@@ -329,7 +335,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
           ResultFormat.ARRAY,
           0,
           null,
-          ENGINE_NAME);
+          ENGINE_NAME
+      );
       return Response
           .ok()
           .entity(asyncResponse)
@@ -354,8 +361,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
         return Response.status(Response.Status.NOT_FOUND).build();
       }
       Map<String, Object> report = context.overlordClient.getTaskReport(id);
-      removeResults(report);
-      report.put("talariaTask", taskInfo);
+      addTaskAndRemoveResults(report, getMap(taskInfo, "payload"));
+
       return Response
           .ok()
           .entity(report)
@@ -383,7 +390,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
             Response.Status.NOT_FOUND,
             "Not found",
             "Query produced no results. INSERT query?",
-            id);
+            id
+        );
       }
       return Response
           .ok()
@@ -435,7 +443,8 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
             Response.Status.NOT_FOUND,
             "Not found",
             m.group(1),
-            id);
+            id
+        );
       }
     }
     // Else, if we have a clean exception, just use it.
@@ -443,12 +452,20 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
         Response.Status.INTERNAL_SERVER_ERROR,
         e.getMessage(),
         e.getMessage(),
-        id);
+        id
+    );
   }
 
-  private void removeResults(Map<String, Object> results)
+  /**
+   * Adds {@code taskPaylaod} to {@code report}, and removes the results.
+   */
+  private void addTaskAndRemoveResults(Map<String, Object> report, Map<String, Object> taskPayload)
   {
-    Map<String, Object> talaria = getMap(results, "talariaResults");
+    Map<String, Object> talaria = getMap(report, "talaria");
+    if (talaria != null) {
+      talaria.put("task", taskPayload);
+    }
+
     Map<String, Object> payload = getMap(talaria, "payload");
     if (payload != null) {
       payload.remove("results");
@@ -471,15 +488,17 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
   @SuppressWarnings("unchecked")
   private List<Object> getResults(Map<String, Object> results)
   {
-    Map<String, Object> talaria = getMap(results, "talariaResults");
+    Map<String, Object> talaria = getMap(results, "talaria");
     Map<String, Object> payload = getMap(talaria, "payload");
-    if (payload == null) {
+    Map<String, Object> resultsHolder = getMap(payload, "results");
+
+    if (resultsHolder == null) {
       return Collections.emptyList();
     }
 
-    List<Object> data = (List<Object>) payload.get("results");
-    final List<String> sqlTypes = (List<String>) payload.get("sqlTypeNames");
-    List<Map<String, Object>> sigList = (List<Map<String, Object>>) payload.get("signature");
+    List<Object> data = (List<Object>) resultsHolder.get("results");
+    List<String> sqlTypes = (List<String>) resultsHolder.get("sqlTypeNames");
+    List<Map<String, Object>> sigList = (List<Map<String, Object>>) resultsHolder.get("signature");
     int len = 0;
     if (data != null) {
       len = data.size();

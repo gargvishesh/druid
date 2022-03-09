@@ -20,7 +20,7 @@ import React from 'react';
 
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
-import { QueryExecution } from '../../../talaria-models';
+import { QueryExecution, Stages } from '../../../talaria-models';
 import { getAsyncExecution } from '../execution-utils';
 import { TalariaStats } from '../talaria-stats/talaria-stats';
 
@@ -50,7 +50,7 @@ export const TalariaStatsLoader = React.memo(function TalariaStatsLoader(
 
   const report = reportState.getSomeData();
   if (report) {
-    return <TalariaStats stages={report.stages || []} error={report.error} />;
+    return <TalariaStats stages={report.stages || new Stages([])} error={report.error} />;
   } else if (reportState.isLoading()) {
     return <Loader className="talaria-stats" />;
   } else if (reportState.isError()) {

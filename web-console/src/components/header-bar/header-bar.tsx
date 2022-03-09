@@ -66,7 +66,7 @@ export type HeaderActiveTab =
   | 'services'
   | 'query'
   | 'query-next'
-  | 'loader-v2'
+  | 'sqloader'
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -346,7 +346,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         )
       ) {
         AppToaster.show({
-          message: 'Talaria module is not loaded (imply-talaria)',
+          message: `'imply-talaria' module needs to be loaded to enable the multi-stage query engine capable query view.`,
           intent: Intent.DANGER,
         });
         return;
@@ -358,7 +358,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         )
       ) {
         AppToaster.show({
-          message: 'SQL async module is not loaded (imply-sql-async)',
+          message: `'imply-sql-async' module needs to be loaded to enable the multi-stage query engine capable query view.`,
           intent: Intent.DANGER,
         });
         return;
@@ -368,14 +368,22 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     setShowTalaria(!nextShowTalaria);
     localStorageSetJson(LocalStorageKeys.TALARIA_SHOW, nextShowTalaria);
     AppToaster.show({
-      message: nextShowTalaria
-        ? 'It is dangerous to go alone! Take this.'
-        : 'Talaria bids you farewell',
+      message: nextShowTalaria ? (
+        <>
+          <p>You have enabled the multi-stage query engine capable query view.</p>
+          <p>
+            The multi-stage query engine is an Alpha feature only available as part of the Imply
+            distribution of Druid.
+          </p>
+          <p>Please share any feedback with your Imply Account Team.</p>
+        </>
+      ) : (
+        'You have disabled the multi-stage query engine capable query view.'
+      ),
       intent: Intent.SUCCESS,
-      timeout: 3000,
+      timeout: 5000,
     });
-    location.hash = nextShowTalaria ? '#query-next' : '#';
-    if (!nextShowTalaria) location.reload();
+    location.hash = nextShowTalaria ? '#query-next' : '#query';
   });
   // END: Imply-modified code for Talaria execution
 
@@ -455,10 +463,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         {showTalaria === 'loader' && (
           <AnchorButton
             minimal
-            active={active === 'loader-v2'}
+            active={active === 'sqloader'}
             icon={IconNames.CLOUD_UPLOAD}
-            text="Loader v2"
-            href="#loader-v2"
+            text="SQLoader"
+            href="#sqloader"
             disabled={!capabilities.hasQuerying()}
           />
         )}

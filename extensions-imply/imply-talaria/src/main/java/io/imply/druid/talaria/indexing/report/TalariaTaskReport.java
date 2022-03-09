@@ -7,25 +7,25 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.indexing;
+package io.imply.druid.talaria.indexing.report;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.druid.indexing.common.TaskReport;
 
-@JsonTypeName(TalariaResultsTaskReport.REPORT_KEY)
-public class TalariaResultsTaskReport implements TaskReport
+@JsonTypeName(TalariaTaskReport.REPORT_KEY)
+public class TalariaTaskReport implements TaskReport
 {
-  public static final String REPORT_KEY = "talariaResults";
+  public static final String REPORT_KEY = "talaria";
 
   private final String taskId;
-  private final TalariaResultsTaskReportPayload payload;
+  private final TalariaTaskReportPayload payload;
 
   @JsonCreator
-  public TalariaResultsTaskReport(
+  public TalariaTaskReport(
       @JsonProperty("taskId") final String taskId,
-      @JsonProperty("payload") final TalariaResultsTaskReportPayload payload
+      @JsonProperty("payload") final TalariaTaskReportPayload payload
   )
   {
     this.taskId = taskId;

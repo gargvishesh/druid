@@ -76,7 +76,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
   /**
    * @return total count of the input files.
    */
-  default int inputFilesCount()
+  default int inputFileCount()
   {
     return 0;
   }

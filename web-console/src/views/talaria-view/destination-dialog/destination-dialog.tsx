@@ -17,7 +17,7 @@
  */
 
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useQueryManager } from '../../../hooks';
 import { IngestQueryPattern, TalariaQuery } from '../../../talaria-models';
@@ -35,7 +35,7 @@ interface DestinationDialogProps {
 export const DestinationDialog = React.memo(function DestinationDialog(
   props: DestinationDialogProps,
 ) {
-  const { onClose } = props;
+  const { ingestQueryPattern, changeIngestQueryPattern, onClose } = props;
 
   const [existingTableState] = useQueryManager<string, string[]>({
     initQuery: '',
@@ -49,8 +49,21 @@ export const DestinationDialog = React.memo(function DestinationDialog(
       return tables.map(t => t[0]);
     },
   });
+  const existingTables = existingTableState.data;
 
-  const [info, setInfo] = useState<DestinationInfo>({ mode: 'new', table: '' });
+  const [info, setInfo] = useState<DestinationInfo | undefined>();
+
+  useEffect(() => {
+    if (!existingTables) return;
+    setInfo({
+      mode: existingTables.includes(ingestQueryPattern.destinationTableName)
+        ? ingestQueryPattern.replaceTimeChunks
+          ? 'replace'
+          : 'append'
+        : 'new',
+      table: ingestQueryPattern.destinationTableName,
+    });
+  }, [existingTables]);
 
   return (
     <Dialog
@@ -60,10 +73,10 @@ export const DestinationDialog = React.memo(function DestinationDialog(
       title="Destination"
       canOutsideClickClose={false}
     >
-      {existingTableState.data && (
+      {existingTables && info && (
         <DestinationForm
           className={Classes.DIALOG_BODY}
-          existingTables={existingTableState.data}
+          existingTables={existingTables}
           destinationInfo={info}
           changeDestinationInfo={setInfo}
         />
@@ -71,7 +84,26 @@ export const DestinationDialog = React.memo(function DestinationDialog(
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
           <Button text="Close" onClick={onClose} />
-          <Button text="Save" intent={Intent.PRIMARY} />
+          <Button
+            text="Save"
+            intent={Intent.PRIMARY}
+            disabled={
+              !existingTables ||
+              !info ||
+              (info.mode === 'new' && existingTables.includes(info.table)) ||
+              (info.mode !== 'new' && !existingTables.includes(info.table))
+            }
+            onClick={() => {
+              if (!info || !existingTables) return;
+
+              changeIngestQueryPattern({
+                ...ingestQueryPattern,
+                replaceTimeChunks: info.mode === 'append' ? undefined : 'all',
+                destinationTableName: info.table,
+              });
+              onClose();
+            }}
+          />
         </div>
       </div>
     </Dialog>

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -252,7 +253,6 @@ public class WorkerImpl implements Worker
           }
 
           // Start working on this stage immediately.
-          // TODO(gianm): Resource control -- may not be able to start up these channels immediately
           kernel.startReading();
           final SettableFuture<ClusterByPartitions> partitionBoundariesFuture =
               startWorkOrder(
@@ -339,7 +339,13 @@ public class WorkerImpl implements Worker
           }
 
           if (!queryDefinitionMap.isEmpty()) {
-            leaderClient.postCounters(task.getControllerTaskId(), id(), talariaCounters.snapshot());
+            // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
+            // If this "Iterables.getOnlyElement" fails it is because we were assigned multiple worker numbers for
+            // different work orders, which is not expected.
+            final TalariaCountersSnapshot.WorkerCounters snapshot =
+                Iterables.getOnlyElement(talariaCounters.snapshot().getWorkerCounters());
+
+            leaderClient.postCounters(task.getControllerTaskId(), id(), snapshot);
           }
         } while ((nextCommand = kernelManipulationQueue.poll(5, TimeUnit.SECONDS)) == null);
 
@@ -615,7 +621,7 @@ public class WorkerImpl implements Worker
                 inputChannelFactory,
                 partitionNumber ->
                     counters.getOrCreateChannelCounters(
-                        TalariaCounterType.INPUT,
+                        TalariaCounterType.INPUT_STAGE,
                         workerNumber,
                         stageDef.getStageNumber(),
                         partitionNumber
@@ -652,23 +658,13 @@ public class WorkerImpl implements Worker
             inputChannels,
             new CountingOutputChannelFactory(
                 workerOutputChannelFactory,
-                partitionNumber -> {
-                  if (stageDef.doesShuffle()) {
-                    return counters.getOrCreateChannelCounters(
-                        TalariaCounterType.PRESHUFFLE,
+                partitionNumber ->
+                    counters.getOrCreateChannelCounters(
+                        TalariaCounterType.PROCESSOR,
                         workerNumber,
                         stageDef.getStageNumber(),
                         partitionNumber
-                    );
-                  } else {
-                    return counters.getOrCreateChannelCounters(
-                        TalariaCounterType.OUTPUT,
-                        workerNumber,
-                        stageDef.getStageNumber(),
-                        partitionNumber
-                    );
-                  }
-                }
+                    )
             ),
             stageDef,
             workOrder.getQueryDefinition().getClusterByForStage(stageDef.getStageNumber()),
@@ -692,7 +688,7 @@ public class WorkerImpl implements Worker
               ),
               partitionNumber ->
                   counters.getOrCreateChannelCounters(
-                      TalariaCounterType.OUTPUT,
+                      TalariaCounterType.SORT,
                       workerNumber,
                       stageDef.getStageNumber(),
                       partitionNumber

@@ -19,7 +19,7 @@
 import { SqlTableRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { getTotalCountForStage, QueryExecution } from '../../../talaria-models';
+import { QueryExecution } from '../../../talaria-models';
 import { formatDuration, pluralIfNeeded } from '../../../utils';
 
 import './insert-success.scss';
@@ -34,16 +34,21 @@ export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSucc
   const { insertQueryExecution, onStats, onQueryChange } = props;
 
   const datasource = insertQueryExecution.getInsertDatasource();
-  if (!datasource || !insertQueryExecution.stages) return null;
+  if (!datasource) return null;
 
-  const lastStage = insertQueryExecution.stages[insertQueryExecution.stages.length - 1];
-  const rows = getTotalCountForStage(lastStage, 'input', 'rows');
+  const { stages } = insertQueryExecution;
+  const lastStage = stages?.getLastStage();
+  if (!lastStage) return null;
+  const rows =
+    lastStage && stages
+      ? stages.getTotalCounterForStage(lastStage, 'inputStageChannel', 'rows')
+      : -1;
   const table = SqlTableRef.create(datasource);
 
   const duration = insertQueryExecution.duration;
   return (
     <div className="insert-success">
-      <p>{`${pluralIfNeeded(rows, 'row')} inserted into ${datasource}.`}</p>
+      <p>{`${rows < 0 ? 'Data' : pluralIfNeeded(rows, 'row')} inserted into ${datasource}.`}</p>
       <p>
         {duration ? `Insert query took ${formatDuration(duration)}. ` : `Insert query completed. `}
         <span className="action" onClick={onStats}>
