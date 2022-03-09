@@ -20,6 +20,7 @@
 package org.apache.druid.indexer;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -39,6 +40,7 @@ public class HadoopDruidIndexerJobTest
   @Test
   public void test_run()
   {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
     HadoopDruidIndexerConfig config = mock(HadoopDruidIndexerConfig.class);
     MetadataStorageUpdaterJobHandler handler = mock(MetadataStorageUpdaterJobHandler.class);
     try (MockedStatic<JobHelper> jobHelperMock = Mockito.mockStatic(JobHelper.class)) {
