@@ -1,7 +1,7 @@
 name: Update implydata/druid monthly with implydata/druid master
 on:
   schedule:
-    - cron:  '0 */1 * * *' #Every 1 hours
+    - cron:  '0 */3 * * *' #Every 3 hours
 jobs:
   updateMonthly:
     runs-on: ubuntu-latest
