@@ -43,9 +43,11 @@ import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.lookup.namespace.cache.CacheScheduler;
 import org.joda.time.Period;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.Assume;
 import org.junit.rules.TemporaryFolder;
 
 import javax.ws.rs.core.Response;
@@ -68,6 +70,11 @@ public class NamespaceLookupExtractorFactoryTest
 {
   static {
     NullHandling.initializeForTests();
+  }
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
   }
   
   private final ObjectMapper mapper = new DefaultObjectMapper();

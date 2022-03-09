@@ -29,6 +29,7 @@ import org.apache.druid.timeline.partition.HashBasedNumberedShardSpec;
 import org.apache.druid.timeline.partition.HashPartitionFunction;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -42,6 +43,7 @@ public class HadoopDruidDetermineConfigurationJobTest
   @Test
   public void testRunWithHashedPartitionsSpecCreateHashBasedNumberedShardSpecWithHashPartitionFunction()
   {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
     final Set<Interval> intervals = ImmutableSet.of(
         Intervals.of("2020-01-01/P1D"),
         Intervals.of("2020-01-02/P1D"),
@@ -89,6 +91,7 @@ public class HadoopDruidDetermineConfigurationJobTest
   @Test
   public void testRunWithSingleDimensionPartitionsSpecCreateHashBasedNumberedShardSpecWithoutHashPartitionFunction()
   {
+    Assume.assumeTrue(System.getProperty("java.version").startsWith("1.8"));
     final Set<Interval> intervals = ImmutableSet.of(
         Intervals.of("2020-01-01/P1D"),
         Intervals.of("2020-01-02/P1D"),
