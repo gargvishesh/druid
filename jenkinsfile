@@ -1227,9 +1227,6 @@ pipeline {
                 }
 
                 stage('(openjdk11) indexing modules test') {
-                    when {
-                        expression { "skip this from monthly to unblock building artifact" == "run" }
-                    }
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
                         MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
@@ -1240,9 +1237,6 @@ pipeline {
                 }
 
                 stage('(openjdk11) indexing modules test (SQL Compatibility)') {
-                 when {
-                    expression { "skip this from monthly to unblock building artifact" == "run" }
-                 }
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
                         MAVEN_PROJECTS = "indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
@@ -1273,9 +1267,6 @@ pipeline {
                 }
 
                 stage('(openjdk11) other modules test') {
-                when {
-                    expression { "skip this from monthly to unblock building artifact" == "run" }
-                }
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
                         MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
@@ -1286,9 +1277,6 @@ pipeline {
                 }
 
                 stage('(openjdk11) other modules test (SQL Compatibility)') {
-                when {
-                    expression { "skip this from monthly to unblock building artifact" == "run" }
-                }
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
                         MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
