@@ -140,7 +140,7 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
       {
         while (currIndex < end) {
           IpAddressBlob blob = IpAddressBlob.ofByteBuffer(dictionary.get(currIndex));
-          String blobString = blob == null ? blob.asCompressedString() : null;
+          String blobString = blob == null ? null : blob.asCompressedString();
           if (indexMatcher.test(blobString)) {
             break;
           }
