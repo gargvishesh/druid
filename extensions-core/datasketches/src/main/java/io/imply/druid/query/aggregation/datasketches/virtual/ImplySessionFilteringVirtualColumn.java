@@ -257,112 +257,13 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
         Predicate<String> matcher
     )
     {
-      int startIndex, endIndex;
-      if (startValue == null) {
-        startIndex = 0;
-      } else {
-        final int found = getIndex(NullHandling.emptyToNullIfNeeded(startValue));
-        if (found >= 0) {
-          startIndex = startStrict ? found + 1 : found;
-        } else {
-          startIndex = -(found + 1);
-        }
-      }
-
-      if (endValue == null) {
-        endIndex = getCardinality();
-      } else {
-        final int found = getIndex(NullHandling.emptyToNullIfNeeded(endValue));
-        if (found >= 0) {
-          endIndex = endStrict ? found : found + 1;
-        } else {
-          endIndex = -(found + 1);
-        }
-      }
-
-      endIndex = Math.max(startIndex, endIndex);
-      final int start = startIndex, end = endIndex;
-      return () -> new Iterator<ImmutableBitmap>()
-      {
-        int currIndex = start;
-        int found;
-        {
-          found = findNext();
-        }
-
-        private int findNext()
-        {
-          while (currIndex < end && !matcher.test(getValue(currIndex))) {
-            currIndex++;
-          }
-
-          if (currIndex < end) {
-            return currIndex++;
-          } else {
-            return -1;
-          }
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-          return found != -1;
-        }
-
-        @Override
-        public ImmutableBitmap next()
-        {
-          int cur = found;
-
-          if (cur == -1) {
-            throw new NoSuchElementException();
-          }
-
-          found = findNext();
-          return getBitmap(cur);
-        }
-      };
+      throw new UnsupportedOperationException("Session filtering doesn't support range filtering");
     }
 
     @Override
     public Iterable<ImmutableBitmap> getBitmapsForValues(Set<String> values)
     {
-      return () -> new Iterator<ImmutableBitmap>()
-      {
-        final Iterator<String> iterator = values.iterator();
-        int next = -1;
-
-        @Override
-        public boolean hasNext()
-        {
-          if (next < 0) {
-            findNext();
-          }
-          return next >= 0;
-        }
-
-        @Override
-        public ImmutableBitmap next()
-        {
-          if (next < 0) {
-            findNext();
-            if (next < 0) {
-              throw new NoSuchElementException();
-            }
-          }
-          final int swap = next;
-          next = -1;
-          return getBitmap(swap);
-        }
-
-        private void findNext()
-        {
-          while (next < 0 && iterator.hasNext()) {
-            String nextValue = iterator.next();
-            next = getIndex(nextValue);
-          }
-        }
-      };
+      throw new UnsupportedOperationException("Session filtering doesn't support set filtering");
     }
 
     @Override
