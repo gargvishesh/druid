@@ -640,7 +640,10 @@ pipeline {
         stage('Cancel old builds, check labels') {
             steps {
                 script {
-                    cancelPreviousBuilds()
+                    // Do not cancel previous monthly builds
+                    if (env.BRANCH_NAME != 'monthly') {
+                        cancelPreviousBuilds()
+                    }
                     if (env.CHANGE_ID && pullRequest.labels.contains("Don't Build")) {
                         currentBuild.result = 'ABORTED'
                         error("Tagged Don't Build")
