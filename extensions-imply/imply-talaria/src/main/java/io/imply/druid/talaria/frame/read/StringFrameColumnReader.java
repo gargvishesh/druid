@@ -21,9 +21,12 @@ import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.BaseSingleValueDimensionSelector;
+import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.DimensionSelectorUtils;
 import org.apache.druid.segment.IdLookup;
+import org.apache.druid.segment.ObjectColumnSelector;
+import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnType;
@@ -46,10 +49,12 @@ import java.util.List;
 public class StringFrameColumnReader implements FrameColumnReader
 {
   private final int columnNumber;
+  private final boolean asArray;
 
-  StringFrameColumnReader(int columnNumber)
+  StringFrameColumnReader(int columnNumber, boolean asArray)
   {
     this.columnNumber = columnNumber;
+    this.asArray = asArray;
   }
 
   @Override
@@ -62,10 +67,30 @@ public class StringFrameColumnReader implements FrameColumnReader
     final long startOfStringLengthSection = getStartOfStringLengthSection(frame.numRows(), multiValue);
     final long startOfStringDataSection = getStartOfStringDataSection(memoryRange, frame.numRows(), multiValue);
 
+    final BaseColumn baseColumn;
+
+    if (asArray) {
+      baseColumn = new StringArrayFrameColumn(
+          frame,
+          multiValue,
+          memoryRange,
+          startOfStringLengthSection,
+          startOfStringDataSection
+      );
+    } else {
+      baseColumn = new StringFrameColumn(
+          frame,
+          multiValue,
+          memoryRange,
+          startOfStringLengthSection,
+          startOfStringDataSection
+      );
+    }
+
     return new ColumnPlus(
-        new StringFrameColumn(frame, multiValue, memoryRange, startOfStringLengthSection, startOfStringDataSection),
-        new ColumnCapabilitiesImpl().setType(ColumnType.STRING)
-                                    .setHasMultipleValues(multiValue)
+        baseColumn,
+        new ColumnCapabilitiesImpl().setType(asArray ? ColumnType.STRING_ARRAY : ColumnType.STRING)
+                                    .setHasMultipleValues(!asArray && multiValue)
                                     .setDictionaryEncoded(false)
                                     .setHasBitmapIndexes(false)
                                     .setHasSpatialIndexes(false)
@@ -506,6 +531,72 @@ public class StringFrameColumnReader implements FrameColumnReader
       } else {
         return Collections.singletonList((ByteBuffer) object);
       }
+    }
+  }
+
+  static class StringArrayFrameColumn implements BaseColumn
+  {
+    private final StringFrameColumn delegate;
+
+    private StringArrayFrameColumn(
+        Frame frame,
+        boolean multiValue,
+        MemoryWithRange<Memory> memoryRange,
+        long startOfStringLengthSection,
+        long startOfStringDataSection
+    )
+    {
+      this.delegate = new StringFrameColumn(
+          frame,
+          multiValue,
+          memoryRange,
+          startOfStringLengthSection,
+          startOfStringDataSection
+      );
+    }
+
+    @Override
+    @SuppressWarnings("rawtypes")
+    public ColumnValueSelector<List> makeColumnValueSelector(ReadableOffset offset)
+    {
+      final ColumnValueSelector<?> delegateSelector = delegate.makeColumnValueSelector(offset);
+
+      return new ObjectColumnSelector<List>()
+      {
+        @Nullable
+        @Override
+        public List getObject()
+        {
+          Object obj = delegateSelector.getObject();
+
+          if (null == obj) {
+            return null;
+          } else if (obj instanceof String) {
+            return Collections.singletonList((String) obj);
+          } else {
+            // Guaranteed to be List<String>.
+            return (List) obj;
+          }
+        }
+
+        @Override
+        public Class<List> classOfObject()
+        {
+          return List.class;
+        }
+
+        @Override
+        public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+        {
+          delegateSelector.inspectRuntimeShape(inspector);
+        }
+      };
+    }
+
+    @Override
+    public void close()
+    {
+      // do nothing
     }
   }
 }

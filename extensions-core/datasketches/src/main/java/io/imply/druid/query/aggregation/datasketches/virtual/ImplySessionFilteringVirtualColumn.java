@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ImplySessionFilteringVirtualColumn implements VirtualColumn
@@ -236,6 +237,30 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
         return bitmapFactory.union(bitmaps);
       }
       throw new UOE("Unexpected index %d for bitmap lookup", idx);
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapForValue(@Nullable String value)
+    {
+      return getBitmap(getIndex(value));
+    }
+
+    @Override
+    public Iterable<ImmutableBitmap> getBitmapsInRange(
+        @Nullable String startValue,
+        boolean startStrict,
+        @Nullable String endValue,
+        boolean endStrict,
+        Predicate<String> matcher
+    )
+    {
+      throw new UnsupportedOperationException("Session filtering doesn't support range filtering");
+    }
+
+    @Override
+    public Iterable<ImmutableBitmap> getBitmapsForValues(Set<String> values)
+    {
+      throw new UnsupportedOperationException("Session filtering doesn't support set filtering");
     }
 
     @Override
