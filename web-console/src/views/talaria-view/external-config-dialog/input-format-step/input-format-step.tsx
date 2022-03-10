@@ -23,6 +23,7 @@ import React, { useState } from 'react';
 import { AutoForm, CenterMessage, Loader } from '../../../../components';
 import {
   guessColumnTypeFromHeaderAndRows,
+  guessIsArrayFromHeaderAndRows,
   INPUT_FORMAT_FIELDS,
   InputFormat,
   inputFormatOutputsNumericStrings,
@@ -50,7 +51,7 @@ export interface InputFormatStepProps {
   inputSource: InputSource;
   initInputFormat: Partial<InputFormat>;
   doneButton: boolean;
-  onSet(inputFormat: InputFormat, columns: ExternalConfigColumn[]): void;
+  onSet(inputFormat: InputFormat, columns: ExternalConfigColumn[], isArrays: boolean[]): void;
   onBack(): void;
 }
 
@@ -159,6 +160,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
                   inputFormatOutputsNumericStrings(inputFormat),
                 ),
               })),
+              sampleData.header.map(name => guessIsArrayFromHeaderAndRows(sampleData, name)),
             );
           }}
         />

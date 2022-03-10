@@ -27,11 +27,12 @@ export function getDemoQueries(): TabEntry[] {
       tabName: 'Demo 1',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+--:context talariaReplaceTimeChunks: all
 INSERT INTO "kttm_simple"
 SELECT *
 FROM TABLE(
   EXTERN(
-    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz"]}',
+    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"]}',
     '{"type":"json"}',
     '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
   )
@@ -47,12 +48,13 @@ PARTITIONED BY ALL TIME
         `
 --:context talariaReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_rollup"
 
 WITH kttm_data AS (
 SELECT * FROM TABLE(
   EXTERN(
-    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz"]}',
+    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"]}',
     '{"type":"json"}',
     '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
   )
@@ -65,6 +67,7 @@ SELECT
   agent_type,
   browser,
   browser_version,
+  MV_TO_ARRAY("language") AS "language",
   os,
   city,
   country,
@@ -75,7 +78,7 @@ SELECT
   APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_data
 WHERE os = 'iOS'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 PARTITIONED BY HOUR
 CLUSTERED BY browser, session
 `.trim(),
@@ -88,12 +91,13 @@ CLUSTERED BY browser, session
         `
 --:context talariaReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_etl"
 WITH
 kttm_data AS (
 SELECT * FROM TABLE(
   EXTERN(
-    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz"]}',
+    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"]}',
     '{"type":"json"}',
     '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
   )
@@ -115,6 +119,7 @@ SELECT
   browser,
   browser_version,
   CAST(REGEXP_EXTRACT(browser_version, '^(\\d+)') AS BIGINT) AS browser_major,
+  MV_TO_ARRAY("language") AS "language",
   os,
   city,
   country,
@@ -128,7 +133,7 @@ SELECT
 FROM kttm_data
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
 WHERE os = 'iOS'
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 PARTITIONED BY HOUR
 CLUSTERED BY browser, session
 `.trim(),
@@ -141,6 +146,7 @@ CLUSTERED BY browser, session
         `
 --:context talariaReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_reingest"
 WITH
 country_lookup AS (
@@ -160,6 +166,7 @@ SELECT
   browser,
   browser_version,
   CAST(REGEXP_EXTRACT(browser_version, '^(\\d+)') AS BIGINT) AS browser_major,
+  MV_TO_ARRAY("language") AS "language",
   os,
   city,
   country,
@@ -172,7 +179,8 @@ SELECT
   APPROX_COUNT_DISTINCT_DS_HLL(event_type) AS unique_event_types
 FROM kttm_simple
 LEFT JOIN country_lookup ON country_lookup.Country = kttm_simple.country
-GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+WHERE os = 'iOS'
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 PARTITIONED BY HOUR
 CLUSTERED BY browser, session
 `.trim(),
@@ -201,7 +209,7 @@ WITH
 kttm_data AS (
 SELECT * FROM TABLE(
   EXTERN(
-    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz"]}',
+    '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"]}',
     '{"type":"json"}',
     '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
   )
@@ -237,6 +245,7 @@ SELECT
   number,
   browser,
   browser_version,
+  "language",
   event_type,
   event_subtype
 FROM "kttm_simple"

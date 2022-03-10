@@ -239,8 +239,10 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
     return (
       <ExternalConfigDialog
-        onSetExternalConfig={externalConfig => {
-          this.handleQueryChange(this.getCurrentQuery().insertExternalPanel(externalConfig));
+        onSetExternalConfig={(externalConfig, isArrays) => {
+          this.handleQueryChange(
+            this.getCurrentQuery().insertExternalPanel(externalConfig, isArrays),
+          );
         }}
         onClose={() => {
           this.setState({ initExternalConfig: false });

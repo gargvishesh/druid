@@ -2279,6 +2279,13 @@ function inputFormatFromType(options: InputFormatFromTypeOptions): InputFormat {
 
 // ------------------------
 
+export function guessIsArrayFromHeaderAndRows(
+  headerAndRows: SampleHeaderAndRows,
+  column: string,
+): boolean {
+  return headerAndRows.rows.some(r => Array.isArray(r.input?.[column]));
+}
+
 export function guessColumnTypeFromInput(
   sampleValues: any[],
   guessNumericStringsAsNumbers: boolean,

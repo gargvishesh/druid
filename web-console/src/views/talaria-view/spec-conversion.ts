@@ -126,7 +126,10 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   }
 
   if (rollup) {
-    lines.push(`--:context talariaFinalizeAggregations: false`);
+    lines.push(
+      `--:context talariaFinalizeAggregations: false`,
+      `--:context groupByEnableMultiValueUnnesting: false`,
+    );
   }
 
   const dataSource = deepGet(spec, 'spec.dataSchema.dataSource');
