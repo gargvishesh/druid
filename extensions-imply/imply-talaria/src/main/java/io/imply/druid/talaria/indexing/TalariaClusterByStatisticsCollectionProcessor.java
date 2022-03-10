@@ -216,17 +216,17 @@ public class TalariaClusterByStatisticsCollectionProcessor implements FrameProce
       final String columnName
   )
   {
-    final BaseObjectColumnValueSelector<Object[]> selector =
+    final BaseObjectColumnValueSelector<List<Object>> selector =
         columnSelectorFactory.makeColumnValueSelector(columnName);
 
     return () -> {
-      final Object[] arr = selector.getObject();
+      final List<Object> arr = selector.getObject();
 
       if (arr == null) {
         return 0;
       }
 
-      int bytes = Integer.BYTES * (arr.length + 1);
+      int bytes = Integer.BYTES * (arr.size() + 1);
 
       for (final Object o : arr) {
         // Not 100% correct; ideally we'd use UTF8 size, not the number of characters. But this estimate

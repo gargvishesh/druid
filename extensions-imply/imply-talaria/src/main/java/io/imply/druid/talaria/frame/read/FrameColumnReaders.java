@@ -31,12 +31,12 @@ public class FrameColumnReaders
         return new DoubleFrameColumnReader(columnNumber);
 
       case STRING:
-        return new StringFrameColumnReader(columnNumber);
+        return new StringFrameColumnReader(columnNumber, false);
 
       case ARRAY:
         switch (columnType.getElementType().getType()) {
           case STRING:
-            return new StringFrameColumnReader(columnNumber);
+            return new StringFrameColumnReader(columnNumber, true);
           default:
             return new ComplexFrameColumnReader(columnNumber);
         }
