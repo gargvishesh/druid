@@ -1947,7 +1947,7 @@
                                 <exclude>**/dependency-reduced-pom.xml</exclude>
                                 <exclude>.editorconfig</exclude>
                                 <exclude>**/hadoop.indexer.libs.version</exclude>
-                                <exclude>docs/talaria/**</exclude>
+                                <exclude>docs/multi-stage-query/**</exclude>
                                 <exclude>**/codegen/**</exclude>
                             </excludes>
                         </configuration>
