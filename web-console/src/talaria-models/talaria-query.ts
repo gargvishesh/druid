@@ -448,7 +448,7 @@ export class TalariaQuery {
     return this.changeQueryParts(queryParts.filter((_, i) => i !== index));
   }
 
-  public insertExternalPanel(externalConfig: ExternalConfig): TalariaQuery {
+  public insertExternalPanel(externalConfig: ExternalConfig, isArrays: boolean[]): TalariaQuery {
     const { queryParts } = this;
 
     const newQueryPart = TalariaQueryPart.fromQueryString(
@@ -459,7 +459,11 @@ export class TalariaQuery {
     let last = this.getLastPart();
     if (last.isEmptyQuery()) {
       last = last.changeQueryString(
-        externalConfigToInitQuery(String(newQueryPart.queryName), externalConfig).toString(),
+        externalConfigToInitQuery(
+          String(newQueryPart.queryName),
+          externalConfig,
+          isArrays,
+        ).toString(),
       );
     }
 

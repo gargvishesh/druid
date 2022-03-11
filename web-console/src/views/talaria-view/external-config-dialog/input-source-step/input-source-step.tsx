@@ -75,7 +75,7 @@ const EXAMPLE_INPUT_SOURCES: ExampleInputSource[] = [
     description: 'JSON data representing one day of events from KoalasToTheMax.com',
     inputSource: {
       type: 'http',
-      uris: ['https://static.imply.io/data/kttm/kttm-2019-08-25.json.gz'],
+      uris: ['https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz'],
     },
   },
 ];

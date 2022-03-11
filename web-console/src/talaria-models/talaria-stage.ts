@@ -20,7 +20,7 @@ import { sum } from 'd3-array';
 
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { formatBytes, formatInteger, oneOf } from '../utils';
+import { oneOf } from '../utils';
 
 const PALETTE = [
   '#8dd3c7',
@@ -36,6 +36,9 @@ const PALETTE = [
   '#ccebc5',
   '#ffed6f',
 ];
+
+const SORT_WEIGHT = 0.5;
+const READING_INPUT_WITH_SORT_WEIGHT = 1 - SORT_WEIGHT;
 
 function zeroDivide(a: number, b: number): number {
   if (b === 0) return 0;
@@ -207,10 +210,13 @@ export class Stages {
   stageProgress(stage: StageDefinition): number {
     switch (stage.phase) {
       case 'READING_INPUT':
-        return (Stages.stageHasSort(stage) ? 0.5 : 1) * this.readingInputPhaseProgress(stage);
+        return (
+          (Stages.stageHasSort(stage) ? READING_INPUT_WITH_SORT_WEIGHT : 1) *
+          this.readingInputPhaseProgress(stage)
+        );
 
       case 'POST_READING':
-        return 0.5 + 0.5 * this.postReadingPhaseProgress(stage);
+        return READING_INPUT_WITH_SORT_WEIGHT + SORT_WEIGHT * this.postReadingPhaseProgress(stage);
 
       case 'RESULTS_COMPLETE':
       case 'FINISHED':
@@ -245,11 +251,7 @@ export class Stages {
   }
 
   currentStageIndex(): number {
-    const { stages } = this;
-    for (let i = 0; i < stages.length; i++) {
-      if (oneOf(stages[i].phase, 'READING_INPUT', 'POST_READING')) return i;
-    }
-    return -1;
+    return this.stages.findIndex(({ phase }) => oneOf(phase, 'READING_INPUT', 'POST_READING'));
   }
 
   hasCounterForStage(stage: StageDefinition, counterType: CounterType): boolean {
@@ -272,7 +274,9 @@ export class Stages {
   hasSortProgressForStage(stage: StageDefinition): boolean {
     const { counters } = this;
     if (!counters) return false;
-    const { stageNumber } = stage;
+    const { stageNumber, phase } = stage;
+    if (phase === 'READING_INPUT') return false;
+
     return counters.some(w =>
       Boolean(
         w.sortProgress.some(
@@ -402,30 +406,22 @@ export class Stages {
     return simpleCounters;
   }
 
-  getRateCounterType(stage: StageDefinition): CounterType | undefined {
-    if (!this.counters) return;
-    if (this.hasCounterForStage(stage, 'inputStageChannel')) return 'inputStageChannel';
-    if (this.hasCounterForStage(stage, 'processor')) return 'processor';
-    if (this.hasCounterForStage(stage, 'sort')) return 'sort';
-    return;
+  getRowRateFromStage(stage: StageDefinition): number | undefined {
+    if (!stage.duration) return;
+    return Math.round(this.getTotalInputForStage(stage, 'rows') / (stage.duration / 1000));
   }
 
-  getRowRateFromStage(stage: StageDefinition): string {
-    const rateCounterType = this.getRateCounterType(stage);
-    if (!rateCounterType || !stage.duration) return '';
-    return formatInteger(
-      Math.round(
-        (this.getTotalCounterForStage(stage, rateCounterType, 'rows') * 1000) / stage.duration,
-      ),
+  getByteRateFromStage(stage: StageDefinition): number | undefined {
+    if (
+      !stage.duration ||
+      this.hasCounterForStage(stage, 'inputExternal') ||
+      this.hasCounterForStage(stage, 'inputDruid')
+    ) {
+      return; // If re have inputs that do not report bytes, don't show a rate
+    }
+    return (
+      this.getTotalCounterForStage(stage, 'inputStageChannel', 'bytes') / (stage.duration / 1000)
     );
-  }
-
-  getByteRateFromStage(stage: StageDefinition): string {
-    const rateCounterType = this.getRateCounterType(stage);
-    if (!rateCounterType || !stage.duration) return '';
-    return `(${formatBytes(
-      (this.getTotalCounterForStage(stage, rateCounterType, 'bytes') * 1000) / stage.duration,
-    )}/s)`;
   }
 
   stagesToColorMap(): Record<number, string> {

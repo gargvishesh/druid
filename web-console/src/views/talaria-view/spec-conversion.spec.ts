@@ -238,6 +238,7 @@ describe('talaria-utils', () => {
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaReplaceTimeChunks: all
       --:context talariaFinalizeAggregations: false
+      --:context groupByEnableMultiValueUnnesting: false
       INSERT INTO wikipedia_rollup
       WITH ioConfigExtern AS (SELECT * FROM TABLE(
         EXTERN(
