@@ -99,10 +99,13 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
                 inputSource={inputSource}
                 initInputFormat={inputFormat}
                 doneButton={false}
-                onSet={(inputFormat, columns) => {
+                onSet={(inputFormat, columns, isArrays) => {
                   setQueryString(
                     ingestQueryPatternToQuery(
-                      externalConfigToIngestQueryPattern({ inputSource, inputFormat, columns }),
+                      externalConfigToIngestQueryPattern(
+                        { inputSource, inputFormat, columns },
+                        isArrays,
+                      ),
                     ).toString(),
                   );
                 }}

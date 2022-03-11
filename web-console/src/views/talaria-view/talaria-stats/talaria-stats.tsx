@@ -94,7 +94,9 @@ function joinElements(elements: ReactNode[], separator = ', '): ReactNode[] {
 }
 
 const formatRows = formatInteger;
+const formatRowRate = formatInteger;
 const formatSize = (bytes: number) => `(${formatBytes(bytes)})`;
+const formatByteRate = (byteRate: number) => `(${formatBytes(byteRate)}/s)`;
 const formatFrames = formatInteger;
 const formatDurationDynamic = (n: NumberLike) =>
   n < 1000 ? formatDurationWithMs(n) : formatDuration(n);
@@ -107,8 +109,10 @@ export interface TalariaStatsProps {
 export const TalariaStats = React.memo(function TalariaStats(props: TalariaStatsProps) {
   const { stages, error } = props;
 
-  const rowRateValues = stages.stages.map(s => stages.getRowRateFromStage(s));
-  const byteRateValues = stages.stages.map(s => stages.getByteRateFromStage(s));
+  const rowRateValues = stages.stages.map(s => formatRowRate(stages.getRowRateFromStage(s) || 0));
+  const byteRateValues = stages.stages.map(s =>
+    formatByteRate(stages.getByteRateFromStage(s) || 0),
+  );
 
   const rowsValues = stages.stages.flatMap(stage => [
     formatRows(stages.getTotalInputForStage(stage, 'rows')),
@@ -364,11 +368,19 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           accessor: s => stages.getRowRateFromStage(s),
           width: 200,
           Cell({ original }) {
+            const rowRate = stages.getRowRateFromStage(original);
+            if (typeof rowRate !== 'number') return null;
+
+            const byteRate = stages.getByteRateFromStage(original);
             return (
               <>
-                <BracedText text={stages.getRowRateFromStage(original)} braces={rowRateValues} />{' '}
-                &nbsp;{' '}
-                <BracedText text={stages.getByteRateFromStage(original)} braces={byteRateValues} />
+                <BracedText text={formatRowRate(rowRate)} braces={rowRateValues} />
+                {byteRate && (
+                  <>
+                    {' '}
+                    &nbsp; <BracedText text={formatByteRate(byteRate)} braces={byteRateValues} />
+                  </>
+                )}
               </>
             );
           },

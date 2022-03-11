@@ -42,6 +42,7 @@ export const TALARIA_MAX_COLUMNS = 2000;
 
 const TALARIA_REPLACE_TIME_CHUNKS = 'talariaReplaceTimeChunks';
 const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
+const GROUP_BY_ENABLE_MULTI_VALUE_UNNESTING = 'groupByEnableMultiValueUnnesting';
 
 export interface ExternalConfig {
   inputSource: InputSource;
@@ -76,7 +77,7 @@ export function summarizeInputSource(inputSource: InputSource): string {
       return inputSource.paths?.[0] || '?';
 
     default:
-      return inputSource.type + '()';
+      return inputSource.type + '(...)';
   }
 }
 
@@ -103,16 +104,25 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 const INITIAL_CONTEXT_LINES = [
   `--:context talariaReplaceTimeChunks: all`,
   `--:context talariaFinalizeAggregations: false`,
+  `--:context groupByEnableMultiValueUnnesting: false`,
 ];
 
 export function externalConfigToInitQuery(
   externalConfigName: string,
   config: ExternalConfig,
+  isArrays: boolean[],
 ): SqlQuery {
   return SqlQuery.create(SqlTableRef.create(externalConfigName))
     .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
-      config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
+      config.columns
+        .slice(0, TALARIA_MAX_COLUMNS)
+        .map(({ name }, i) =>
+          SqlRef.column(name).applyIf(
+            isArrays[i],
+            ex => SqlFunction.simple('MV_TO_ARRAY', [ex]).as(name) as any,
+          ),
+        ),
     )
     .changeInsertIntoTable(SqlTableRef.create(externalConfigName))
     .changePartitionedByClause(SqlPartitionedByClause.create(undefined));
@@ -164,7 +174,10 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
   };
 }
 
-export function externalConfigToIngestQueryPattern(config: ExternalConfig): IngestQueryPattern {
+export function externalConfigToIngestQueryPattern(
+  config: ExternalConfig,
+  isArrays: boolean[],
+): IngestQueryPattern {
   const hasTimeColumn = false; // ToDo: actually detect the time column
   return {
     destinationTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
@@ -172,7 +185,14 @@ export function externalConfigToIngestQueryPattern(config: ExternalConfig): Inge
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
-    dimensions: config.columns.slice(0, TALARIA_MAX_COLUMNS).map(({ name }) => SqlRef.column(name)),
+    dimensions: config.columns
+      .slice(0, TALARIA_MAX_COLUMNS)
+      .map(({ name }, i) =>
+        SqlRef.column(name).applyIf(
+          isArrays[i],
+          ex => SqlFunction.simple('MV_TO_ARRAY', [ex]).as(name) as any,
+        ),
+      ),
     partitionedBy: hasTimeColumn ? 'day' : 'all',
     clusteredBy: [],
   };
@@ -369,7 +389,10 @@ export function ingestQueryPatternToQuery(
     );
   }
   if (metrics) {
-    initialContextLines.push(`--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`);
+    initialContextLines.push(
+      `--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`,
+      `--:context ${GROUP_BY_ENABLE_MULTI_VALUE_UNNESTING}: false`,
+    );
   }
 
   return SqlQuery.from(SqlTableRef.create(mainExternalName))

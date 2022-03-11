@@ -28,7 +28,7 @@ import './external-config-dialog.scss';
 
 export interface ExternalConfigDialogProps {
   initExternalConfig?: Partial<ExternalConfig>;
-  onSetExternalConfig(config: ExternalConfig): void;
+  onSetExternalConfig(config: ExternalConfig, isArrays: boolean[]): void;
   onClose(): void;
 }
 
@@ -56,8 +56,8 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
             inputSource={inputSource}
             initInputFormat={inputFormat}
             doneButton
-            onSet={(inputFormat, columns) => {
-              onSetExternalConfig({ inputSource, inputFormat, columns });
+            onSet={(inputFormat, columns, isArrays) => {
+              onSetExternalConfig({ inputSource, inputFormat, columns }, isArrays);
               onClose();
             }}
             onBack={() => {
