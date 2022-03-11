@@ -213,11 +213,6 @@ public class TalariaCounters
     {
       return sortProgressTrackerMap.computeIfAbsent(stageNumber, ignored -> new SuperSorterProgressTracker());
     }
-
-    public Map<Integer, SuperSorterProgressTracker> getSortProgressTrackersMap()
-    {
-      return sortProgressTrackerMap;
-    }
   }
 
   /**

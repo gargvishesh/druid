@@ -67,44 +67,10 @@ public class SuperSorterProgressTracker
       true
   );
 
-  /**
-   * Converts {@link SuperSorterProgressSnapshot} to {@link SuperSorterProgressTracker}
-   */
-  public static SuperSorterProgressTracker createWithSnapshot(
-      SuperSorterProgressSnapshot snapshot
-  )
-  {
-    return new SuperSorterProgressTracker(
-        snapshot.getTotalMergingLevels(),
-        snapshot.getLevelToTotalBatches(),
-        snapshot.getLevelToMergedBatches(),
-        snapshot.getTotalMergersForUltimateLevel(),
-        snapshot.isTriviallyComplete()
-    );
-  }
-
   public SuperSorterProgressTracker()
   {
     this.levelToMergedBatches = new HashMap<>();
     this.levelToTotalBatches = new HashMap<>();
-  }
-
-  /**
-   * Only for internal use when we know that the parameters in the correctors have been verified
-   */
-  private SuperSorterProgressTracker(
-      final int totalMergingLevels,
-      final Map<Integer, Long> levelToTotalBatches,
-      final Map<Integer, Long> levelToMergedBatches,
-      final long totalMergersForUltimateLevel,
-      final boolean isTriviallyComplete
-  )
-  {
-    this.totalMergingLevels = totalMergingLevels;
-    this.levelToMergedBatches = new HashMap<>(levelToMergedBatches);
-    this.levelToTotalBatches = new HashMap<>(levelToTotalBatches);
-    this.totalMergersForUltimateLevel = totalMergersForUltimateLevel;
-    this.isTriviallyComplete = isTriviallyComplete;
   }
 
   /**
