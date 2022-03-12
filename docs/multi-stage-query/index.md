@@ -916,67 +916,61 @@ did not issue, as long as those other users have permissions on the associated d
 There is a view added to the console specifically to support multi-stage query workflows. Please see
 the annotated screenshot below.
 
-![annotated multi-stage query view](../assets/multi-stage-query/ui-view-annotated.png)
+![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
 
-1. The Query view is where all the new functionality is contained. All
-other views are unchanged from their OSS versions.
+1. The multi-stage, tab-enabled, Query view is where all the new functionality is contained.
+All other views are unchanged from their OSS versions. You can still access the original Query view by navigating to `#query` in the URL.
+The tabs (3) serve as an indication that you are in the milti-stage query capable query view.
+You can activate and deactivate this Query view by holding down `alt` (or `option`) and clicking the Druid logo in the top left corner of the console.
 
-2. The resources view shows all schema, datasources, and columns just
-like in the Query view.
+2. The resources view shows the available schemas, datasources, and columns just like in the original Query view.
 
 3. Query tabs allow you to save, run, and manage several queries at once.
-Tabs can be manipulated via the '...' button on each tab.
+New tabs can be added via the `+` button.
+Existing tabs can be manipulated via the `...` button on each tab.
 
-4. The tab bar contains some helpful tools including a "Connect external
-data" button that creates an `extern` helper query via sampling.
+4. The tab bar contains some helpful tools including a "Connect external data" button that creates an `EXTERN` helper query by sampling the data.
 
-5. The tab bar wrench button contains miscellaneous tools that are yet
-to find a perfect home. You can materialize and reabsorb the helper SQL
-queries (7), (8) and show/hide the Work history panel (7)
+5. The tab bar wrench button contains miscellaneous tools that are yet to find a perfect home.
+You can show/hide the Work history panel (6) and materialize and reabsorb the 
+helper SQL queries (8).
 
-6. The "Work history" panel lets you see previous queries executed by the multi-stage engine. It is
-equivalent to the task view in the Ingestion tab with the filter of `type='talaria0'`. You can click
-on each entry to show: results, query stats, query (SQL and native), and download the report. Work
-history panel can be shown/hidden from the toolbar (6).
+6. The "Work history" panel lets you see previous queries executed by all users in the cluster.
+It is equivalent to the task view in the Ingestion tab with the filter of `
+type=’talaria0’`.
+Work history panel can be shown/hidden from the toolbar wrench button (5).
 
-7. The query helpers let you define notebook-style queries that can be
-referenced from the main query as if they were defined as WITH clauses.
-You can refer to this external source by name anywhere in the SQL query
-where you could use a table.
+7. You can click on each query entry to attach to that query to track its progress.
+Additionally you can also show results, query stats, and the query that was issued.
 
-8. The query controls let you add the current query as a helper query.
+8. The query helpers let you define notebook-style queries that can be reference from the main query as if they were defined as `WITH` clauses. You can refer to this extern 
+by name anywhere in the SQL query where you could use a table.
+They are essentially UI driven views that only exist within the given query tab.
 
-9. Context comments can be inserted anywhere in the query to set
-context parameters via text. This is not part of Druid's API (although
-it might be one day). These comments are parsed out of the query string
-and added to the context object in the API payload.
+9. Context comments can be inserted anywhere in the query to set context parameters via the query text.
+This is not part of Druid’s API (although something similar might be 
+one day). These comments are parsed out of the query text and added to the context object in the API payload.
 
-10. The Preview button runs the query inline and with an added LIMIT.
-This make the query run much quicker although it might return incomplete
-results.
+10. The `Run` button’s more menu (`...`) lets you export the data as well as define the context for the query including the parallelism for the query.
 
-11. The Run button more menu (`...`) lets you export the data as well
-as define the context for the query including the parallelism for the
-job.
+11. The `Preview` button runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries.
+The added LIMITs make the query run faster but could cause incomplete results.
+The preview feature is only intended to show you the general shape of the data before inserting it.
 
-12. The `(cancel)` link cancels the currently running query by killing
-the relevant task.
+12. The query timer indicates how long the query has been running for overall.
 
-13. The progress bar shows the overall progress of the job. The
-progress is computed from the various counters in the live reports (16).
+13. The `(cancel)` link cancels the currently running query.
 
-14. The stage progress bar shows the progress for the currently running
-stage (and which stage is currently executing). If several stages are
-executing concurrently it conservatively shows the information for the
-earlier stage.
+14. The main progress bar shows the overall progress of the query.
+The progress is computed from the various counters in the live reports (16).
 
-15. The live query reports show detailed information of all the stages
-(past, present, and future). The live reports are shown while the query
-is running (can be hidden). After the query finished they are available
-by clicking on the query time indicator or from the Work history panel (6)
+15. The `Current stage` progress bar shows the progress for the currently running query stage.
+If several stages are executing concurrently it conservatively shows the information for the earliest executing stage.
 
-16. Each stage of the live query reports can be expanded by clicking on
-the triangle to show per worker and per partition statistics.
+16. The live query reports show detailed information of all the stages (past, present, and future). The live reports are shown while the query is running (can be hidden). 
+After the query finished they are available by clicking on the query time indicator or from the Work history panel (6)
+
+17. Each stage of the live query reports can be expanded by clicking on the triangle to show per worker and per partition statistics.
 
 ## Example queries
 
