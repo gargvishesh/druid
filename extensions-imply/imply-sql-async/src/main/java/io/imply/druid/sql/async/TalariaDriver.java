@@ -192,7 +192,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
     }
     // calcite throws a java.lang.AssertionError which is type error not exception. using throwable will catch all
     catch (Throwable e) {
-      log.warn(e, "Failed to handle query: %s", sqlQuery);
+      log.noStackTrace().warn(e, "Failed to handle query [%s].", sqlQueryId);
 
       return buildNonOkResponse(
           Status.INTERNAL_SERVER_ERROR.getStatusCode(),
