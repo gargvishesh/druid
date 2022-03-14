@@ -1434,6 +1434,28 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <!-- This sanity check is intentionally not running as a part of the maven enforcer plugin
+                         as the enforcer plugin is skippable. -->
+                    <execution>
+                        <id>dev-env-sanity-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${project.basedir}/hooks/install-and-check-imply-hooks.sh</executable>
+                            <arguments>
+                              <argument>${project.basedir}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+              </executions>
+              <inherited>false</inherited>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
