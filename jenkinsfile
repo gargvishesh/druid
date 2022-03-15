@@ -977,7 +977,7 @@ pipeline {
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+                            label "${DOCKER_AGENT_LABEL}"
                         }
                     }
                     steps {
