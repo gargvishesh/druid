@@ -55,8 +55,9 @@ import java.util.Optional;
 
 public class TalariaQueryMaker implements QueryMaker
 {
+  public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
+
   private static final String CTX_DESTINATION = "talariaDestination";
-  private static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
   private static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
   private static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
   private static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";

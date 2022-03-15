@@ -23,4 +23,9 @@ public class Limits
    * Maximum number of workers that can be used in a stage, regardless of available memory.
    */
   public static final int MAX_WORKERS = 1000;
+
+  /**
+   * Maximum number of input files per worker
+   */
+  public static final int MAX_INPUT_FILES_PER_WORKER = 10_000;
 }
