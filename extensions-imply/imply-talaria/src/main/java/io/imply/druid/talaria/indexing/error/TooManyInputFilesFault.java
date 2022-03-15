@@ -12,25 +12,55 @@ package io.imply.druid.talaria.indexing.error;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.imply.druid.talaria.sql.TalariaQueryMaker;
 
-// TODO(gianm): use this somewhere
 @JsonTypeName(TooManyInputFilesFault.CODE)
 public class TooManyInputFilesFault extends BaseTalariaFault
 {
   static final String CODE = "TooManyInputFiles";
 
+  private final int numInputFiles;
   private final int maxInputFiles;
+  private final int minNumWorkers;
+
 
   @JsonCreator
-  public TooManyInputFilesFault(@JsonProperty("maxInputFiles") final int maxInputFiles)
+  public TooManyInputFilesFault(
+      @JsonProperty("numInputFiles") final int numInputFiles,
+      @JsonProperty("maxInputFiles") final int maxInputFiles,
+      @JsonProperty("minNumWorkers") final int minNumWorkers
+  )
   {
-    super(CODE, "Too many input files (max = %,d); try breaking your query up into smaller queries", maxInputFiles);
+    super(
+        CODE,
+        "Too many input files/segments %d encounterd. Maximum input files/segments per worker is set to %d. Try breaking"
+        + " your query up into smaller queries or increasing the number of workers to atleast %d by setting %s in"
+        + " query context",
+        numInputFiles,
+        maxInputFiles,
+        minNumWorkers,
+        TalariaQueryMaker.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+    );
+    this.numInputFiles = numInputFiles;
     this.maxInputFiles = maxInputFiles;
+    this.minNumWorkers = minNumWorkers;
+  }
+
+  @JsonProperty
+  public int getNumInputFiles()
+  {
+    return numInputFiles;
   }
 
   @JsonProperty
   public int getMaxInputFiles()
   {
     return maxInputFiles;
+  }
+
+  @JsonProperty
+  public int getMinNumWorkers()
+  {
+    return minNumWorkers;
   }
 }

@@ -50,9 +50,7 @@ import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
-import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
-import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
@@ -441,7 +439,7 @@ public class LeaderImpl implements Leader
         task.getQuerySpec()
     );
 
-    validateQueryDef(queryDef);
+    QueryDefinitionValidator.validateQueryDef(queryDef);
     queryDefRef.set(queryDef);
     return queryDef;
   }
@@ -1260,34 +1258,6 @@ public class LeaderImpl implements Leader
       final Set<DataSegment> segments = (Set<DataSegment>) finalStageKernel.getResultObject();
       log.info("Query [%s] publishing %d segments.", queryDef.getQueryId(), segments.size());
       publishAllSegments(segments);
-    }
-  }
-
-  private void validateQueryDef(final QueryDefinition queryDef)
-  {
-    validateQueryDefColumnCount(queryDef);
-    validateQueryDefWorkerCount(queryDef);
-  }
-
-  private void validateQueryDefColumnCount(final QueryDefinition queryDef)
-  {
-    for (final StageDefinition stageDef : queryDef.getStageDefinitions()) {
-      final int numColumns = stageDef.getSignature().size();
-
-      if (numColumns > Limits.MAX_FRAME_COLUMNS) {
-        throw new TalariaException(new TooManyColumnsFault(numColumns, Limits.MAX_FRAME_COLUMNS));
-      }
-    }
-  }
-
-  private void validateQueryDefWorkerCount(final QueryDefinition queryDef)
-  {
-    for (final StageDefinition stageDef : queryDef.getStageDefinitions()) {
-      final int numWorkers = stageDef.getMaxWorkerCount();
-
-      if (numWorkers > Limits.MAX_WORKERS) {
-        throw new TalariaException(new TooManyWorkersFault(numWorkers, Limits.MAX_WORKERS));
-      }
     }
   }
 
