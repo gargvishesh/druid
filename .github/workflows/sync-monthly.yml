@@ -23,7 +23,7 @@ jobs:
           git push
       - name: Install xmllint
         if: ${{ success() }}
-        run: sudo apt-get install -y libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - name: get fix version
         if: ${{ success() }}
         run: |
