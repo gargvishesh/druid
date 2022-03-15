@@ -767,10 +767,10 @@ pipeline {
                     }
                 }
 
-                stage('(openjdk8) strict compilation') {
+                stage('(openjdk11) strict compilation') {
                     agent {
                         docker {
-                            image "${IMAGE_JDK8}"
+                            image "${IMAGE_JDK11}"
                             args "${DOCKER_AGENT_ARGS}"
                             registryUrl "${RT_REGISTRY_URL}"
                             registryCredentialsId "${RT_REGISTRY_CREDS}"
