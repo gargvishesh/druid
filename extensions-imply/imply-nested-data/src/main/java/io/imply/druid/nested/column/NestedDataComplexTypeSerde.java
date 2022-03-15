@@ -75,6 +75,10 @@ public class NestedDataComplexTypeSerde extends ComplexMetricSerde
   )
   {
     NestedDataColumnSupplier supplier = new NestedDataColumnSupplier(buffer, builder, columnConfig, OBJECT_MAPPER);
+    // this is a cheese fix to set some stuff in column capabilities (dictionary encoded, etc)
+    // calling setComplexColumnSupplier later will overwrite the column supplier of the builder with the correct
+    // column supplier
+    builder.setDictionaryEncodedColumnSupplier(() -> null);
     builder.setComplexTypeName(TYPE_NAME);
     builder.setComplexColumnSupplier(supplier);
   }

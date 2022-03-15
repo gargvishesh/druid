@@ -28,6 +28,7 @@ import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.vector.NilVectorSelector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
@@ -276,12 +277,22 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Override
   public ColumnCapabilities capabilities(String columnName)
   {
-    return ColumnCapabilitiesImpl.createSimpleSingleValueStringColumnCapabilities()
-                                 .setDictionaryEncoded(true)
-                                 .setHasMultipleValues(false)
-                                 .setDictionaryValuesUnique(true)
-                                 .setDictionaryValuesSorted(true)
-                                 .setHasBitmapIndexes(true);
+    return ColumnCapabilitiesImpl.createSimpleSingleValueStringColumnCapabilities();
+  }
+
+  @Override
+  public ColumnCapabilities capabilities(ColumnInspector inspector, String columnName)
+  {
+    final ColumnCapabilities complexCapabilites = inspector.getColumnCapabilities(this.columnName);
+    if (complexCapabilites.isDictionaryEncoded().isTrue()) {
+      return ColumnCapabilitiesImpl.createDefault()
+                                   .setType(ColumnType.STRING)
+                                   .setDictionaryEncoded(true)
+                                   .setDictionaryValuesSorted(true)
+                                   .setDictionaryValuesUnique(true)
+                                   .setHasBitmapIndexes(true);
+    }
+    return capabilities(columnName);
   }
 
   @Override

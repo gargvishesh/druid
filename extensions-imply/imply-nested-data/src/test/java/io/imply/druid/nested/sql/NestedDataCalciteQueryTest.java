@@ -37,6 +37,9 @@ import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.groupby.GroupByQuery;
+import org.apache.druid.query.ordering.StringComparators;
+import org.apache.druid.query.topn.DimensionTopNMetricSpec;
+import org.apache.druid.query.topn.TopNQueryBuilder;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.column.ColumnType;
@@ -227,6 +230,38 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
                         .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 5L},
+            new Object[]{"100", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testTopNPath() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1 LIMIT 10",
+        ImmutableList.of(
+            new TopNQueryBuilder()
+                        .dataSource(DATA_SOURCE)
+                        .intervals(querySegmentSpec(Filtration.eternity()))
+                        .granularity(Granularities.ALL)
+                        .virtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0")
+                        )
+                        .dimension(
+                            new DefaultDimensionSpec("v0", "d0")
+                        )
+                        .aggregators(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                        .threshold(10)
+                        .context(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
         ImmutableList.of(
