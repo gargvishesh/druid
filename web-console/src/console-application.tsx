@@ -33,12 +33,12 @@ import {
   IngestionView,
   LoadDataView,
   LookupsView,
+  MultiQueryView,
   QueryView,
   SegmentsView,
   ServicesView,
+  TalariaLoadDataView,
 } from './views';
-import { TalariaLoadDataView } from './views/talaria-view/talaria-load-data-view';
-import { TalariaView } from './views/talaria-view/talaria-view';
 
 import './console-application.scss';
 
@@ -222,11 +222,16 @@ export class ConsoleApplication extends React.PureComponent<
 
     return this.wrapInViewContainer(
       'query-next',
-      <TalariaView
+      <MultiQueryView
         tabId={p.match.params.tabId}
+        onTabChange={newTabId => {
+          location.hash = `#query-next/${newTabId}`;
+        }}
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
+        enableAsync
+        enableMultiStage={false}
       />,
       'thin',
     );

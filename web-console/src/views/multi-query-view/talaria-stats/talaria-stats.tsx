@@ -124,7 +124,9 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
     formatSize(stages.getTotalInputForStage(stage, 'bytes')),
     formatSize(stages.getTotalCounterForStage(stage, 'processor', 'bytes')),
     formatSize(stages.getTotalCounterForStage(stage, 'sort', 'bytes')),
-    stage.inputFileCount ? `(${stage.inputFileCount} GB ${stage.inputFileCount})` : '',
+    stage.inputFileCount
+      ? `(${formatInteger(stage.inputFileCount)} GB ${formatInteger(stage.inputFileCount)})`
+      : '',
   ]);
 
   function detailedStats(stage: StageDefinition) {
@@ -215,9 +217,9 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
             {' '}
             &nbsp;{' '}
             <BracedText
-              text={`(${formatInteger(stages.getTotalInputForStage(stage, 'files'))} / ${
-                stage.inputFileCount
-              })`}
+              text={`(${formatInteger(
+                stages.getTotalInputForStage(stage, 'files'),
+              )} / ${formatInteger(stage.inputFileCount)})`}
               braces={bytesAndFilesValues}
             />
           </>
