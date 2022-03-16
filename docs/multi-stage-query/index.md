@@ -53,15 +53,7 @@ Add two entries:
 **Feature flags**
 
 - Enable *HTTP-based task management.* This is recommended in all cases.
-- Disable *Use Indexers instead of Middle Managers.* Middle Managers are recommended for all PoC and
-  production workloads.
-
-> Indexers have lower task launching overhead than Middle Managers, so you may prefer to enable *Use
-> Indexers instead of Middle Managers* in demo environments where it is important that a series of
-> fast-executing queries completes quickly. However, at this time, Middle Managers are more
-> battle-tested and are therefore recommended for PoCs and production.
->
-> Once all worker tasks are launched, throughput is similar between Indexers and Middle Managers.
+- Disable *Use Indexers instead of Middle Managers.* Middle Managers are recommended for all workloads.
 
 **Common**
 
