@@ -38,7 +38,7 @@ To try out the multi-stage query engine in Imply Enterprise Hybrid, launch a clu
 
 **Imply version**
 
-2022.01 or later.
+We recommend using the latest STS release. The minimum version is 2022.01 STS.
 
 Note: the multi-stage query engine is only available for STS versions of Imply at this time. It is
 not available in 2022.01 LTS.
@@ -53,13 +53,15 @@ Add two entries:
 **Feature flags**
 
 - Enable *HTTP-based task management.* This is recommended in all cases.
-- Consider enabling *Use Indexers instead of Middle Managers.* This is recommended for demo and PoC
-  clusters if you do not need to run any classic batch or streaming ingestion jobs, and if you do
-  not need to enable auto-compaction. Indexers have a lower task launching overhead than Middle
-  Managers, and are able to provide a larger shared thread pool, which improves the responsiveness
-and user experience of multi-stage queries. However, in production environments, we recommend
-disabling this option and sticking with Middle Managers, because Middle Managers are better-suited
-for mixed workloads.
+- Disable *Use Indexers instead of Middle Managers.* Middle Managers are recommended for all PoC and
+  production workloads.
+
+> Indexers have lower task launching overhead than Middle Managers, so you may prefer to enable *Use
+> Indexers instead of Middle Managers* in demo environments where it is important that a series of
+> fast-executing queries completes quickly. However, at this time, Middle Managers are more
+> battle-tested and are therefore recommended for PoCs and production.
+>
+> Once all worker tasks are launched, throughput is similar between Indexers and Middle Managers.
 
 **Common**
 
@@ -78,8 +80,9 @@ druid.query.async.storage.local.directory=/mnt/tmp/async-query
 **Indexer** or **Middle Manager**
 
 ```bash
-druid.server.http.numThreads=2000
-druid.global.http.numConnections=1000
+druid.server.http.numThreads=1025
+druid.indexer.fork.property.druid.server.http.numThreads=1025
+druid.global.http.numConnections=50
 druid.global.http.eagerInitialization=false
 
 # Required for Java 11
@@ -985,6 +988,9 @@ the triangle to show per worker and per partition statistics.
 ### INSERT with no rollup <a href="#example-insert" name="example-insert">#</a>
 
 ```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
 INSERT INTO w000
 SELECT
   TIME_PARSE("timestamp") AS __time,
@@ -1045,6 +1051,7 @@ CLUSTERED BY browser, session
 This query rolls up data from w000 and inserts the result into w002.
 
 ```sql
+--:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO w002
@@ -1099,6 +1106,9 @@ CLUSTERED BY page
 ### INSERT with JOIN <a href="#example-insert-join" name="example-insert-join">#</a>
 
 ```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
 INSERT INTO w003
 WITH wikidata AS (
   SELECT * FROM TABLE(
@@ -1132,6 +1142,9 @@ PARTITIONED BY HOUR
 ### SELECT with EXTERN and JOIN <a href="#example-select-extern-join" name="example-select-extern-join">#</a>
 
 ```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
 WITH flights AS (
   SELECT * FROM TABLE(
   EXTERN(
