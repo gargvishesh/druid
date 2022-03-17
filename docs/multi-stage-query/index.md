@@ -69,7 +69,7 @@ druid.query.async.storage.type=local
 druid.query.async.storage.local.directory=/mnt/tmp/async-query
 ```
 
-**Indexer** or **Middle Manager**
+**Middle Manager**
 
 ```bash
 druid.server.http.numThreads=1025
@@ -294,7 +294,7 @@ The multi-stage query engine accepts additional Druid SQL
 |Parameter|Description|Default value|
 |----|-----------|----|
 | talaria| True to execute using the multi-stage query engine; false to execute using Druid's native query engine| false|
-| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager / Indexer. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
+| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
@@ -807,29 +807,23 @@ action.
 
 The main driver of performance is parallelism. The most relevant considerations are:
 
-- The [`talariaNumTasks`](#context) query parameter determines the maximum number of
-  worker tasks your query will use. Generally, queries will perform better with more workers.
-- The EXTERN operator cannot split large files across different worker tasks. If you are reading a
-  small number of large files, you can increase the parallelism of your worker tasks by splitting
-  input files up beforehand.
-- The `druid.worker.capacity`] server property on each Indexer or Middle Manager determines the
-  maximum number of worker tasks that can run on that server at once.
-- The `druid.processing.numThreads` server property on Indexers determines the maximum number of
-  input files, partitions, or segments that can be processed at once on that server. This is unique
-  to the Indexer. On Middle Managers, each worker task always runs in a single thread.
-
-On Indexers, the processing thread pool is shared across all tasks running on the same server. This
-has two important implications:
-
-1. A single task, if it has enough input files, partitions, or segments, can access the full CPU
-power of the server. For this reason, when using Indexers, adding more worker tasks on the same
-server does not necessarily improve performance.
-2. When multiple worker tasks for different queries run simultaneously on the same Indexer, each
-worker task does not get guaranteed resources. For this reason, worker tasks for different queries
-may need to wait for each other before gaining execution time on the shared processing thread pool.
-
-Neither of these considerations apply to Middle Managers, since they do not use a shared processing
-thread pool.
+- The [`talariaNumTasks`](#context) query parameter determines the maximum number of worker tasks
+  your query will use. Generally, queries will perform better with more workers. The highest
+  possible value of `talariaNumTasks` is one less than the number of free task slots in your
+  cluster.
+- The EXTERN operator cannot split large files across different worker tasks. If you have fewer
+  input files than worker tasks, you can increase query parallelism by splitting up your input
+  files such that you have at least one input file per worker task.
+- The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
+  of worker tasks that can run on that server at once. Each task runs single-threaded, so this also
+  determines the maximum number of processors on the server that can contribute towards multi-stage
+  queries. In Imply Enterprise, where data servers are shared between Historicals and Middle
+  Managers, the default setting for `druid.worker.capacity` is lower than the number of processors
+  on the server. On high-memory instance types, such as the AWS r5 or i3 families, or the GCP
+  n1-highmem family, you can increase multi-stage query engine parallelism by setting
+  `druid.worker.capacity` to one less than the number of processors on the server. This override
+  leads to additional memory usage, which may affect performance of the core query engine. It may
+  also cause instability on non-high-memory instance types due to lack of available memory.
 
 A secondary driver of performance is available memory. In two important cases — producer-side sort
 as part of shuffle, and segment generation — more memory can reduce the number of passes required
@@ -841,18 +835,16 @@ usage](#memory-usage) section.
 Worker tasks launched by the multi-stage query engine use both JVM heap memory as well as off-heap
 ("direct") memory.
 
-The bulk of the JVM heap (75%) is split up into equally-sized bundles. On Indexers, there is
-one bundle for each processing thread (`druid.processing.numThreads`) and one bundle for each
-worker that may run in the JVM (`druid.worker.capacity`). On Peons launched by MiddleManagers,
-there are two bundles of equal size: one processor bundle and one worker bundle.
+On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up into two
+equally-sized bundles: one processor bundle and one worker bundle. Each one comprises 37.5% of the
+available JVM heap.
 
-Processor memory bundles on the JVM heap are used for query processing and segment generation.
-Each processor bundle also has space reserved for buffering frames from input channels: 1 MB
-per worker from its input stages. Each processor is also allocated an off-heap processing
-buffer of size `druid.processing.buffer.sizeBytes`.
+The processor memory bundle is used for query processing and segment generation. Each processor
+bundle also has space reserved for buffering frames from input channels: 1 MB per worker from its
+input stages.
 
-Worker memory bundles on the JVM heap are used for sorting stage output data prior to shuffle.
-Workers can sort more data than fits in memory; in this case, they will switch to using disk.
+The worker memory bundle is used for sorting stage output data prior to shuffle. Workers can sort
+more data than fits in memory; in this case, they will switch to using disk.
 
 Increasing maximum heap size can speed up processing in two ways:
 
