@@ -65,7 +65,7 @@ export type HeaderActiveTab =
   | 'segments'
   | 'services'
   | 'query'
-  | 'mulit-query'
+  | 'workbench'
   | 'sqloader'
   | 'lookups';
 
@@ -383,7 +383,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       intent: Intent.SUCCESS,
       timeout: 5000,
     });
-    location.hash = nextShowTalaria ? '#mulit-query' : '#query';
+    location.hash = nextShowTalaria ? '#workbench' : '#query';
   });
   // END: Imply-modified code for Talaria execution
 
@@ -443,10 +443,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         {showTalaria ? (
           <AnchorButton
             minimal
-            active={active === 'mulit-query'}
+            active={active === 'workbench'}
             icon={IconNames.APPLICATION}
             text="Query"
-            href="#mulit-query"
+            href="#workbench"
             disabled={!capabilities.hasQuerying()}
           />
         ) : (

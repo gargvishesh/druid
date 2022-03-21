@@ -33,11 +33,11 @@ import {
   IngestionView,
   LoadDataView,
   LookupsView,
-  MultiQueryView,
   QueryView,
   SegmentsView,
   ServicesView,
   TalariaLoadDataView,
+  WorkbenchView,
 } from './views';
 
 import './console-application.scss';
@@ -160,9 +160,7 @@ export class ConsoleApplication extends React.PureComponent<
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
     window.location.hash =
-      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
-        ? 'mulit-query'
-        : 'query';
+      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW) ? 'workbench' : 'query';
     this.resetInitialsWithDelay();
   };
 
@@ -221,11 +219,11 @@ export class ConsoleApplication extends React.PureComponent<
     if (!TALARIA_ENABLED) return null;
 
     return this.wrapInViewContainer(
-      'mulit-query',
-      <MultiQueryView
+      'workbench',
+      <WorkbenchView
         tabId={p.match.params.tabId}
         onTabChange={newTabId => {
-          location.hash = `#mulit-query/${newTabId}`;
+          location.hash = `#workbench/${newTabId}`;
         }}
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
@@ -329,7 +327,7 @@ export class ConsoleApplication extends React.PureComponent<
               {/* BEGIN: Imply-added code for Talaria execution */}
               {TALARIA_ENABLED && (
                 <Route
-                  path={['/mulit-query/:tabId', '/mulit-query']}
+                  path={['/workbench/:tabId', '/workbench']}
                   component={this.wrappedQueryNextView}
                 />
               )}

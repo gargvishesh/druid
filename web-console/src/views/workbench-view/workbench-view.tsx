@@ -58,7 +58,7 @@ import { TalariaQueryStateCache } from './talaria-query-state-cache';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
 import { WorkPanel } from './work-panel/work-panel';
 
-import './multi-query-view.scss';
+import './workbench-view.scss';
 
 function cleanupTabEntry(tabEntry: TabEntry): void {
   const discardedIds = tabEntry.query.getIds();
@@ -96,7 +96,7 @@ export interface TalariaViewState {
   showWorkHistory: boolean;
 }
 
-export class MultiQueryView extends React.PureComponent<MultiQueryViewProps, TalariaViewState> {
+export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, TalariaViewState> {
   private readonly metadataQueryManager: QueryManager<null, ColumnMetadata[]>;
 
   constructor(props: MultiQueryViewProps, context: any) {
@@ -553,7 +553,7 @@ export class MultiQueryView extends React.PureComponent<MultiQueryViewProps, Tal
 
     return (
       <div
-        className={classNames('multi-query-view app-view', {
+        className={classNames('workbench-view app-view', {
           'hide-column-tree': columnMetadataState.isError(),
           'hide-work-history': !showWorkHistory,
         })}
