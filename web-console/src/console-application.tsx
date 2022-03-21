@@ -161,7 +161,7 @@ export class ConsoleApplication extends React.PureComponent<
     this.initQuery = initQuery;
     window.location.hash =
       TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
-        ? 'query-next'
+        ? 'mulit-query'
         : 'query';
     this.resetInitialsWithDelay();
   };
@@ -221,11 +221,11 @@ export class ConsoleApplication extends React.PureComponent<
     if (!TALARIA_ENABLED) return null;
 
     return this.wrapInViewContainer(
-      'query-next',
+      'mulit-query',
       <MultiQueryView
         tabId={p.match.params.tabId}
         onTabChange={newTabId => {
-          location.hash = `#query-next/${newTabId}`;
+          location.hash = `#mulit-query/${newTabId}`;
         }}
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
@@ -329,7 +329,7 @@ export class ConsoleApplication extends React.PureComponent<
               {/* BEGIN: Imply-added code for Talaria execution */}
               {TALARIA_ENABLED && (
                 <Route
-                  path={['/query-next/:tabId', '/query-next']}
+                  path={['/mulit-query/:tabId', '/mulit-query']}
                   component={this.wrappedQueryNextView}
                 />
               )}
