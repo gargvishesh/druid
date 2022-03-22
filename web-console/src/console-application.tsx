@@ -36,9 +36,9 @@ import {
   QueryView,
   SegmentsView,
   ServicesView,
+  TalariaLoadDataView,
+  WorkbenchView,
 } from './views';
-import { TalariaLoadDataView } from './views/talaria-view/talaria-load-data-view';
-import { TalariaView } from './views/talaria-view/talaria-view';
 
 import './console-application.scss';
 
@@ -160,9 +160,7 @@ export class ConsoleApplication extends React.PureComponent<
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
     window.location.hash =
-      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW)
-        ? 'query-next'
-        : 'query';
+      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW) ? 'workbench' : 'query';
     this.resetInitialsWithDelay();
   };
 
@@ -221,12 +219,17 @@ export class ConsoleApplication extends React.PureComponent<
     if (!TALARIA_ENABLED) return null;
 
     return this.wrapInViewContainer(
-      'query-next',
-      <TalariaView
+      'workbench',
+      <WorkbenchView
         tabId={p.match.params.tabId}
+        onTabChange={newTabId => {
+          location.hash = `#workbench/${newTabId}`;
+        }}
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
+        enableAsync
+        enableMultiStage={false}
       />,
       'thin',
     );
@@ -324,7 +327,7 @@ export class ConsoleApplication extends React.PureComponent<
               {/* BEGIN: Imply-added code for Talaria execution */}
               {TALARIA_ENABLED && (
                 <Route
-                  path={['/query-next/:tabId', '/query-next']}
+                  path={['/workbench/:tabId', '/workbench']}
                   component={this.wrappedQueryNextView}
                 />
               )}

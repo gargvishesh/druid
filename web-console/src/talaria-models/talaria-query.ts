@@ -21,7 +21,7 @@ import Hjson from 'hjson';
 import { v4 as uuidv4 } from 'uuid';
 
 import { guessDataSourceNameFromInputSource } from '../druid-models/ingestion-spec';
-import { ColumnMetadata, getContextFromSqlQuery } from '../utils';
+import { ColumnMetadata, deepDelete, getContextFromSqlQuery } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
 import { TalariaQueryPart } from './talaria-query-part';
@@ -106,6 +106,10 @@ export class TalariaQuery {
       /((?:^|\n)\s*)((?:INSERT\s+INTO)|(?:PARTITIONED\s+BY)|(?:CLUSTERED\s+BY))/gi,
       (_, spaces, thing) => `${spaces}--${thing.substr(2)}`,
     );
+  }
+
+  static commentOutTalariaNumTasks(sqlString: string): string {
+    return sqlString.replace(/--:(context\s+talariaNumTasks\s*:)/g, '--$1');
   }
 
   public readonly queryParts: TalariaQueryPart[];
@@ -272,6 +276,7 @@ export class TalariaQuery {
 
     let ret: TalariaQuery = this;
 
+    // Limit all the helper queries
     const parsedQuery = this.getParsedQuery();
     if (parsedQuery) {
       const fromExpression = parsedQuery.getFirstFromExpression();
@@ -285,15 +290,22 @@ export class TalariaQuery {
       }
     }
 
-    return ret.changeQueryString(
-      parsedQuery
-        ? parsedQuery
-            .changeInsertClause(undefined)
-            .changePartitionedByClause(undefined)
-            .changeClusteredByClause(undefined)
-            .toString()
-        : TalariaQuery.commentOutInsertInto(this.getQueryString()),
-    );
+    // Remove talariaNumTasks from the context if it exists
+    if (typeof this.queryContext.talariaNumTasks !== 'undefined') {
+      ret = ret.changeQueryContext(deepDelete(this.queryContext, 'talariaNumTasks'));
+    }
+
+    // Remove everything pertaining to INSERT INTO from the query string
+    const newQueryString = parsedQuery
+      ? parsedQuery
+          .changeInsertClause(undefined)
+          .changePartitionedByClause(undefined)
+          .changeClusteredByClause(undefined)
+          .toString()
+      : TalariaQuery.commentOutInsertInto(this.getQueryString());
+
+    // Remove talariaNumTasks from the query string if it exists
+    return ret.changeQueryString(TalariaQuery.commentOutTalariaNumTasks(newQueryString));
   }
 
   public getEffectiveQueryAndContext(): {

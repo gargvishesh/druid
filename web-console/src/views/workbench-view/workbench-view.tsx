@@ -16,15 +16,7 @@
  * limitations under the License.
  */
 
-import {
-  AnchorButton,
-  Button,
-  ButtonGroup,
-  Intent,
-  Menu,
-  MenuDivider,
-  MenuItem,
-} from '@blueprintjs/core';
+import { Button, ButtonGroup, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -66,7 +58,7 @@ import { TalariaQueryStateCache } from './talaria-query-state-cache';
 import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
 import { WorkPanel } from './work-panel/work-panel';
 
-import './talaria-view.scss';
+import './workbench-view.scss';
 
 function cleanupTabEntry(tabEntry: TabEntry): void {
   const discardedIds = tabEntry.query.getIds();
@@ -74,11 +66,14 @@ function cleanupTabEntry(tabEntry: TabEntry): void {
   AceEditorStateCache.deleteStates(discardedIds);
 }
 
-export interface TalariaViewProps {
+export interface MultiQueryViewProps {
   tabId: string | undefined;
+  onTabChange(newTabId: string): void;
   initQuery: string | undefined;
   defaultQueryContext?: Record<string, any>;
   mandatoryQueryContext?: Record<string, any>;
+  enableAsync: boolean;
+  enableMultiStage: boolean;
 }
 
 export interface TalariaViewState {
@@ -101,10 +96,10 @@ export interface TalariaViewState {
   showWorkHistory: boolean;
 }
 
-export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaViewState> {
+export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, TalariaViewState> {
   private readonly metadataQueryManager: QueryManager<null, ColumnMetadata[]>;
 
-  constructor(props: TalariaViewProps, context: any) {
+  constructor(props: MultiQueryViewProps, context: any) {
     super(props, context);
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.TALARIA_QUERIES);
@@ -113,7 +108,9 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
       ? possibleLiveQueryMode
       : 'auto';
 
-    const showWorkHistory = Boolean(localStorageGetJson(LocalStorageKeys.TALARIA_WORK_HISTORY));
+    const showWorkHistory = Boolean(
+      props.enableMultiStage && localStorageGetJson(LocalStorageKeys.TALARIA_WORK_HISTORY),
+    );
 
     const tabEntries =
       Array.isArray(possibleTabEntries) && possibleTabEntries.length
@@ -303,6 +300,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   }
 
   private renderToolbarMoreMenu() {
+    const { enableMultiStage } = this.props;
     const { showWorkHistory } = this.state;
     const query = this.getCurrentQuery();
 
@@ -323,19 +321,23 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
           text="Query history"
           onClick={() => this.setState({ historyDialogOpen: true })}
         />
-        <MenuItem
-          icon={IconNames.TEXT_HIGHLIGHT}
-          text="Convert ingestion spec to SQL"
-          onClick={() => this.setState({ specDialogOpen: true })}
-        />
-        <MenuCheckbox
-          checked={showWorkHistory}
-          text="Show work history"
-          onChange={() => {
-            this.setState({ showWorkHistory: !showWorkHistory });
-            localStorageSetJson(LocalStorageKeys.TALARIA_WORK_HISTORY, !showWorkHistory);
-          }}
-        />
+        {enableMultiStage && (
+          <>
+            <MenuItem
+              icon={IconNames.TEXT_HIGHLIGHT}
+              text="Convert ingestion spec to SQL"
+              onClick={() => this.setState({ specDialogOpen: true })}
+            />
+            <MenuCheckbox
+              checked={showWorkHistory}
+              text="Show work history"
+              onChange={() => {
+                this.setState({ showWorkHistory: !showWorkHistory });
+                localStorageSetJson(LocalStorageKeys.TALARIA_WORK_HISTORY, !showWorkHistory);
+              }}
+            />
+          </>
+        )}
         <MenuDivider />
         <MenuItem
           icon={IconNames.HELP}
@@ -348,22 +350,26 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   }
 
   private renderToolbar() {
+    const { enableMultiStage } = this.props;
+
     return (
       <div className="toolbar">
-        <Button
-          icon={IconNames.TH_DERIVED}
-          text="Connect external data"
-          onClick={e => {
-            if (e.shiftKey && e.altKey) {
-              this.handleQueriesChange(getDemoQueries());
-            } else {
-              this.setState({
-                initExternalConfig: true,
-              });
-            }
-          }}
-          minimal
-        />
+        {enableMultiStage && (
+          <Button
+            icon={IconNames.TH_DERIVED}
+            text="Connect external data"
+            onClick={e => {
+              if (e.shiftKey && e.altKey) {
+                this.handleQueriesChange(getDemoQueries());
+              } else {
+                this.setState({
+                  initExternalConfig: true,
+                });
+              }
+            }}
+            minimal
+          />
+        )}
         <Popover2 content={this.renderToolbarMoreMenu()}>
           <Button icon={IconNames.WRENCH} minimal />
         </Popover2>
@@ -372,7 +378,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   }
 
   private renderCenterPanel() {
-    const { mandatoryQueryContext } = this.props;
+    const { onTabChange, mandatoryQueryContext } = this.props;
     const { columnMetadataState, tabEntries } = this.state;
     const currentTabEntry = this.getCurrentTabEntry();
 
@@ -385,13 +391,13 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
             const disabled = tabEntries.length <= 1;
             return (
               <ButtonGroup key={i} minimal className={classNames('tab-button', { active })}>
-                <AnchorButton
+                <Button
                   className="tab-name"
                   text={tabEntry.tabName}
                   title={tabEntry.tabName}
-                  href={`#query-next/${currentId}`}
                   onClick={() => {
                     localStorageSet(LocalStorageKeys.TALARIA_LAST_TAB, currentId);
+                    onTabChange(currentId);
                   }}
                   onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
                 />
@@ -418,13 +424,13 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                           this.handleQueriesChange(
                             tabEntries.slice(0, i + 1).concat(newTabEntry, tabEntries.slice(i + 1)),
                             () => {
-                              location.hash = `#query-next/${newTabEntry.id}`;
+                              onTabChange(newTabEntry.id);
                             },
                           );
                         }}
                       />
                       <MenuItem
-                        icon={IconNames.TRASH}
+                        icon={IconNames.CROSS}
                         text="Close tab"
                         intent={Intent.DANGER}
                         disabled={disabled}
@@ -434,13 +440,13 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                             tabEntries.filter(({ id }) => id !== currentId),
                             () => {
                               if (!active) return;
-                              location.hash = `#query-next/${tabEntries[Math.max(0, i - 1)].id}`;
+                              onTabChange(tabEntries[Math.max(0, i - 1)].id);
                             },
                           );
                         }}
                       />
                       <MenuItem
-                        icon={IconNames.TRASH}
+                        icon={IconNames.CROSS}
                         text="Close other tabs"
                         intent={Intent.DANGER}
                         disabled={disabled}
@@ -453,7 +459,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
                             tabEntries.filter(({ id }) => id === currentId),
                             () => {
                               if (!active) return;
-                              location.hash = `#query-next/${tabEntry.id}`;
+                              onTabChange(tabEntry.id);
                             },
                           );
                         }}
@@ -520,6 +526,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
   };
 
   private readonly handleNewTab = (talariaQuery: TalariaQuery, tabName?: string) => {
+    const { onTabChange } = this.props;
     const { tabEntries } = this.state;
     const id = generate8HexId();
     const newTabEntry: TabEntry = {
@@ -528,7 +535,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
       query: talariaQuery,
     };
     this.handleQueriesChange(tabEntries.concat(newTabEntry), () => {
-      location.hash = `#query-next/${newTabEntry.id}`;
+      onTabChange(newTabEntry.id);
     });
   };
 
@@ -546,7 +553,7 @@ export class TalariaView extends React.PureComponent<TalariaViewProps, TalariaVi
 
     return (
       <div
-        className={classNames('talaria-view app-view', {
+        className={classNames('workbench-view app-view', {
           'hide-column-tree': columnMetadataState.isError(),
           'hide-work-history': !showWorkHistory,
         })}
