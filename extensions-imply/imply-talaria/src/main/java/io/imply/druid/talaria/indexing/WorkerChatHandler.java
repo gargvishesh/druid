@@ -11,6 +11,7 @@ package io.imply.druid.talaria.indexing;
 
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerImpl;
+import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
@@ -98,6 +99,22 @@ public class WorkerChatHandler implements ChatHandler
   }
 
   /**
+   * See {@link io.imply.druid.talaria.exec.WorkerClient#postCleanupStage} for the client-side code that calls this API.
+   */
+  @POST
+  @Path("/cleanupStage/{queryId}/{stageNumber}")
+  public Response httpPostCleanupStage(
+      @PathParam("queryId") final String queryId,
+      @PathParam("stageNumber") final int stageNumber,
+      @Context final HttpServletRequest req
+  )
+  {
+    ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
+    worker.postCleanupStage(new StageId(queryId, stageNumber));
+    return Response.status(Response.Status.ACCEPTED).build();
+  }
+
+  /**
    * See {@link io.imply.druid.talaria.exec.WorkerClient#postFinish} for the client-side code that calls this API.
    */
   @POST
@@ -108,6 +125,7 @@ public class WorkerChatHandler implements ChatHandler
     worker.postFinish();
     return Response.status(Response.Status.ACCEPTED).build();
   }
+
 
   /**
    * See {@link io.imply.druid.talaria.exec.WorkerClient#getCounters} for the client-side code that calls this API.

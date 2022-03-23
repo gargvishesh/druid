@@ -23,9 +23,12 @@ public class QueryDefinitionBuilder
   private String queryId = UUID.randomUUID().toString();
   private final List<StageDefinitionBuilder> stageBuilders = new ArrayList<>();
 
+  /**
+   * Nothing to do, but we want to avoid having a public constructor. Callers should use {@link QueryDefinition#builder()}
+   * instead
+   */
   QueryDefinitionBuilder()
   {
-    // Nothing to do, but we want to avoid having a public constructor.
   }
 
   public QueryDefinitionBuilder queryId(final String queryId)

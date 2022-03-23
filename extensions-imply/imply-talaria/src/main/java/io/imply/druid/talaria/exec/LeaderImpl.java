@@ -70,7 +70,6 @@ import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.kernel.TargetSizeShuffleSpec;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.kernel.controller.ControllerQueryKernel;
-import io.imply.druid.talaria.kernel.controller.ControllerStageKernel;
 import io.imply.druid.talaria.kernel.controller.ControllerStagePhase;
 import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.MultiQueryKit;
@@ -301,13 +300,13 @@ public class LeaderImpl implements Leader
         final Map<Integer, ControllerStagePhase> stagePhaseMap;
 
         if (queryKernel != null) {
-          stagePhaseMap = queryKernel.getActiveStageKernels()
+          // Once the query finishes, cleanup would have happened for all the stages that were successful
+          // Therefore we mark it as done to make the reports prettier and more accurate
+          queryKernel.markSuccessfulTerminalStagesAsFinished();
+          stagePhaseMap = queryKernel.getActiveStages()
                                      .stream()
                                      .collect(
-                                         Collectors.toMap(
-                                             stageKernel -> stageKernel.getStageDefinition().getStageNumber(),
-                                             ControllerStageKernel::getPhase
-                                         )
+                                         Collectors.toMap(StageId::getStageNumber, queryKernel::getStagePhase)
                                      );
         } else {
           stagePhaseMap = Collections.emptyMap();
@@ -476,7 +475,7 @@ public class LeaderImpl implements Leader
                   );
 
                   // Halt the query kernel.
-                  queryKernel.getActiveStageKernels().forEach(ControllerStageKernel::fail);
+                  queryKernel.getActiveStages().forEach(queryKernel::failStage);
                 }
               }
             }),
@@ -496,32 +495,29 @@ public class LeaderImpl implements Leader
     while (!queryKernel.isDone()) {
       // Start stages that need to be started.
       logKernelStatus(queryDef.getQueryId(), queryKernel);
-      for (final ControllerStageKernel stageKernel : queryKernel.getNewStageKernels()) {
-        final StageId stageId = stageKernel.getStageDefinition().getId();
-        stageKernel.start();
+      for (final StageId stageId : queryKernel.createAndGetNewStageIds()) {
+        queryKernel.startStage(stageId);
 
         // Allocate segments, if this is the final stage of an ingestion.
         if (TalariaControllerTask.isIngestion(task.getQuerySpec())
             && stageId.getStageNumber() == queryDef.getFinalStageDefinition().getStageNumber()) {
           // We need to find the shuffle details (like partition ranges) to generate segments. Generally this is
           // going to correspond to the stage immediately prior to the final segment-generator stage.
-          ControllerStageKernel shuffleStageKernel = queryKernel.getStageKernel(
-              Iterables.getOnlyElement(queryDef.getFinalStageDefinition().getInputStageIds())
-          );
+          StageId shuffleStageId = Iterables.getOnlyElement(queryDef.getFinalStageDefinition().getInputStageIds());
 
           // TODO(gianm): But sometimes it won't! for example, queries that end in GROUP BY with no ORDER BY
           //    (the final stage is not a shuffle.) The below logic supports this, but it isn't necessarily
           //    always OK! It assumes that stages without shuffling will retain the partition boundaries and
           //    signature of the prior stages, which isn't necessarily guaranteed. (although I think it's true
           //    for QueryKit-generated queries.)
-          while (!shuffleStageKernel.getStageDefinition().doesShuffle()) {
-            final StageId priorStageId =
-                Iterables.getOnlyElement(shuffleStageKernel.getStageDefinition().getInputStageIds());
-            shuffleStageKernel = queryKernel.getStageKernel(priorStageId);
+          while (!queryKernel.getStageDefinition(shuffleStageId).doesShuffle()) {
+            shuffleStageId = Iterables.getOnlyElement(queryKernel.getStageDefinition(shuffleStageId)
+                                                                 .getInputStageIds());
           }
 
           final boolean isTimeBucketed = isTimeBucketedIngestion(task.getQuerySpec());
-          final ClusterByPartitions partitionBoundaries = shuffleStageKernel.getResultPartitionBoundaries();
+          final ClusterByPartitions partitionBoundaries = queryKernel.getResultPartitionBoundariesForStage(
+              shuffleStageId);
 
           if (isTimeBucketed && partitionBoundaries.equals(ClusterByPartitions.oneUniversalPartition())) {
             // TODO(gianm): Properly handle the case where there is no data and remove EmptyInsertFault.
@@ -533,13 +529,13 @@ public class LeaderImpl implements Leader
           }
 
           final boolean mayHaveMultiValuedClusterByFields =
-              !shuffleStageKernel.getStageDefinition().mustGatherResultKeyStatistics()
-              || shuffleStageKernel.collectorEncounteredAnyMultiValueField();
+              !queryKernel.getStageDefinition(shuffleStageId).mustGatherResultKeyStatistics()
+              || queryKernel.hasStageCollectorEncounteredAnyMultiValueField(shuffleStageId);
 
           segmentsToGenerate = generateSegmentIdsWithShardSpecs(
               (DataSourceTalariaDestination) task.getQuerySpec().getDestination(),
-              shuffleStageKernel.getStageDefinition().getSignature(),
-              shuffleStageKernel.getStageDefinition().getShuffleSpec().get().getClusterBy(),
+              queryKernel.getStageDefinition(shuffleStageId).getSignature(),
+              queryKernel.getStageDefinition(shuffleStageId).getShuffleSpec().get().getClusterBy(),
               partitionBoundaries,
               mayHaveMultiValuedClusterByFields
           );
@@ -548,7 +544,7 @@ public class LeaderImpl implements Leader
         log.info(
             "Query [%s] starting %d workers for stage %d.",
             stageId.getQueryId(),
-            stageKernel.getWorkerInputs().size(),
+            queryKernel.getWorkerInputsForStage(stageId).size(),
             stageId.getStageNumber()
         );
 
@@ -558,14 +554,13 @@ public class LeaderImpl implements Leader
 
       // Send partition boundaries to tasks, if the time is right.
       logKernelStatus(queryDef.getQueryId(), queryKernel);
-      for (final ControllerStageKernel stageKernel : queryKernel.getActiveStageKernels()) {
-        final StageId stageId = stageKernel.getStageDefinition().getId();
+      for (final StageId stageId : queryKernel.getActiveStages()) {
 
-        if (stageKernel.getStageDefinition().mustGatherResultKeyStatistics()
-            && stageKernel.hasResultPartitions()
+        if (queryKernel.getStageDefinition(stageId).mustGatherResultKeyStatistics()
+            && queryKernel.doesStageHaveResultPartitions(stageId)
             && stageResultPartitionBoundariesSent.add(stageId)) {
           if (log.isDebugEnabled()) {
-            final ClusterByPartitions partitions = stageKernel.getResultPartitionBoundaries();
+            final ClusterByPartitions partitions = queryKernel.getResultPartitionBoundariesForStage(stageId);
             log.debug(
                 "Query [%s] sending out partition boundaries for stage %d: %s",
                 stageId.getQueryId(),
@@ -585,8 +580,8 @@ public class LeaderImpl implements Leader
           postResultPartitionBoundariesForStage(
               queryDef,
               stageId.getStageNumber(),
-              stageKernel.getResultPartitionBoundaries(),
-              stageKernel.getWorkerInputs().size()
+              queryKernel.getResultPartitionBoundariesForStage(stageId),
+              queryKernel.getWorkerInputsForStage(stageId).size()
           );
         }
       }
@@ -594,25 +589,25 @@ public class LeaderImpl implements Leader
       logKernelStatus(queryDef.getQueryId(), queryKernel);
 
       // Live reports: update stage phases, worker counts, partition counts.
-      for (ControllerStageKernel stageKernel : queryKernel.getActiveStageKernels()) {
-        final int stageNumber = stageKernel.getStageDefinition().getStageNumber();
-        stagePhasesForLiveReports.put(stageNumber, stageKernel.getPhase());
+      for (StageId stageId : queryKernel.getActiveStages()) {
+        final int stageNumber = stageId.getStageNumber();
+        stagePhasesForLiveReports.put(stageNumber, queryKernel.getStagePhase(stageId));
 
-        if (stageKernel.hasResultPartitions()) {
+        if (queryKernel.doesStageHaveResultPartitions(stageId)) {
           stagePartitionCountsForLiveReports.computeIfAbsent(
               stageNumber,
-              k -> Iterators.size(stageKernel.getResultPartitions().iterator())
+              k -> Iterators.size(queryKernel.getResultPartitionsForStage(stageId).iterator())
           );
         }
 
-        stageWorkerCountsForLiveReports.putIfAbsent(stageNumber, stageKernel.getWorkerInputs().size());
+        stageWorkerCountsForLiveReports.putIfAbsent(stageNumber, queryKernel.getWorkerInputsForStage(stageId).size());
       }
 
       // Live reports: update stage end times for any stages that just ended.
-      for (ControllerStageKernel stageKernel : queryKernel.getActiveStageKernels()) {
-        if (stageKernel.getPhase() == ControllerStagePhase.RESULTS_COMPLETE) {
+      for (StageId stageId : queryKernel.getActiveStages()) {
+        if (ControllerStagePhase.isSuccessfulTerminalPhase(queryKernel.getStagePhase(stageId))) {
           stageRuntimesForLiveReports.compute(
-              stageKernel.getStageDefinition().getStageNumber(),
+              queryKernel.getStageDefinition(stageId).getStageNumber(),
               (k, currentValue) -> {
                 if (currentValue.getEnd().equals(DateTimes.MAX)) {
                   return new Interval(currentValue.getStart(), DateTimes.nowUtc());
@@ -624,6 +619,16 @@ public class LeaderImpl implements Leader
         }
       }
 
+      // Notify the workers to clean up the stages which can be marked as finished.
+      for (final StageId stageId : queryKernel.getEffectivelyFinishedStageIds()) {
+        log.info("Issued cleanup order for stage [%s]", stageId);
+        contactWorkersForStage(
+            (netClient, taskId, workerNumber) -> netClient.postCleanupStage(taskId, stageId),
+            queryKernel.getWorkerInputsForStage(stageId).size()
+        );
+        queryKernel.finishStage(stageId, true);
+      }
+
       if (!queryKernel.isDone()) {
         // Wait for next command, run it, then look through the query tracker again.
         kernelManipulationQueue.take().accept(queryKernel);
@@ -632,12 +637,12 @@ public class LeaderImpl implements Leader
 
     if (!queryKernel.isSuccess()) {
       // Look for a known failure reason and throw a meaningful exception.
-      for (final ControllerStageKernel stageKernel : queryKernel.getActiveStageKernels()) {
-        if (stageKernel.getPhase() == ControllerStagePhase.FAILED) {
-          switch (stageKernel.getFailureReason()) {
+      for (final StageId stageId : queryKernel.getActiveStages()) {
+        if (queryKernel.getStagePhase(stageId) == ControllerStagePhase.FAILED) {
+          switch (queryKernel.getFailureReasonForStage(stageId)) {
             case TOO_MANY_PARTITIONS:
               throw new TalariaException(
-                  new TooManyPartitionsFault(stageKernel.getStageDefinition().getMaxPartitionCount())
+                  new TooManyPartitionsFault(queryKernel.getStageDefinition(stageId).getMaxPartitionCount())
               );
 
             default:
@@ -659,10 +664,10 @@ public class LeaderImpl implements Leader
     kernelManipulationQueue.add(
         queryKernel -> {
           // TODO(gianm): don't blow up with NPE if given nonexistent stageid
-          final ControllerStageKernel kernel = queryKernel.getStageKernel(stageNumber);
+          final StageId stageId = queryKernel.getStageId(stageNumber);
 
           // We need a specially-decorated ObjectMapper to deserialize key statistics.
-          final StageDefinition stageDef = kernel.getStageDefinition();
+          final StageDefinition stageDef = queryKernel.getStageDefinition(stageId);
           final ObjectMapper mapper = TalariaTasks.decorateObjectMapperForClusterByKey(
               context.jsonMapper(),
               stageDef.getSignature(),
@@ -674,7 +679,7 @@ public class LeaderImpl implements Leader
           final ClusterByStatisticsSnapshot keyStatistics =
               mapper.convertValue(keyStatisticsObject, ClusterByStatisticsSnapshot.class);
 
-          kernel.addResultKeyStatisticsForWorker(workerNumber, keyStatistics);
+          queryKernel.addResultKeyStatisticsForStageAndWorker(stageId, workerNumber, keyStatistics);
         }
     );
   }
@@ -714,16 +719,16 @@ public class LeaderImpl implements Leader
     kernelManipulationQueue.add(
         queryKernel -> {
           // TODO(gianm): don't blow up with NPE if given nonexistent stageid
-          final ControllerStageKernel kernel = queryKernel.getStageKernel(new StageId(queryId, stageNumber));
+          final StageId stageId = new StageId(queryId, stageNumber);
 
           // TODO(gianm): do something useful if this conversion fails
           //noinspection unchecked
           final Object convertedResultObject = context.jsonMapper().convertValue(
               resultObject,
-              kernel.getStageDefinition().getProcessorFactory().getAccumulatedResultTypeReference()
+              queryKernel.getStageDefinition(stageId).getProcessorFactory().getAccumulatedResultTypeReference()
           );
 
-          kernel.setResultsCompleteForWorker(workerNumber, convertedResultObject);
+          queryKernel.setResultsCompleteForStageAndWorker(stageId, workerNumber, convertedResultObject);
         }
     );
   }
@@ -1010,7 +1015,7 @@ public class LeaderImpl implements Leader
     final List<Object> extraInfos = makeWorkerFactoryInfosForStage(
         queryDef,
         stageNumber,
-        queryKernel.getStageKernel(stageNumber).getWorkerInputs(),
+        queryKernel.getWorkerInputsForStage(queryKernel.getStageId(stageNumber)),
         segmentsToGenerate
     );
 
@@ -1167,8 +1172,7 @@ public class LeaderImpl implements Leader
   )
   {
     if (queryKernel.isSuccess() && isInlineResults(task.getQuerySpec())) {
-      final ControllerStageKernel finalStageKernel =
-          queryKernel.getStageKernel(queryDef.getFinalStageDefinition().getStageNumber());
+      final StageId finalStageId = queryKernel.getStageId(queryDef.getFinalStageDefinition().getStageNumber());
 
       final List<String> taskIds = getTaskIds().get();
 
@@ -1177,8 +1181,8 @@ public class LeaderImpl implements Leader
 
       final InputChannels inputChannels = InputChannels.create(
           queryDef,
-          new int[]{finalStageKernel.getStageDefinition().getStageNumber()},
-          finalStageKernel.getResultPartitions(),
+          new int[]{queryKernel.getStageDefinition(finalStageId).getStageNumber()},
+          queryKernel.getResultPartitionsForStage(finalStageId),
           (stageId, workerNumber, partitionNumber) ->
               netClient.getChannelData(taskIds.get(workerNumber), stageId, partitionNumber, resultReaderExec),
           () -> ArenaMemoryAllocator.createOnHeap(5_000_000),
@@ -1188,14 +1192,14 @@ public class LeaderImpl implements Leader
 
       return Yielders.each(
           Sequences.concat(
-              StreamSupport.stream(finalStageKernel.getResultPartitions().spliterator(), false)
+              StreamSupport.stream(queryKernel.getResultPartitionsForStage(finalStageId).spliterator(), false)
                            .map(
                                readablePartition -> {
                                  try {
                                    return new FrameChannelSequence(
                                        inputChannels.openChannel(
                                            new StagePartition(
-                                               finalStageKernel.getStageDefinition().getId(),
+                                               queryKernel.getStageDefinition(finalStageId).getId(),
                                                readablePartition.getPartitionNumber()
                                            )
                                        )
@@ -1210,7 +1214,7 @@ public class LeaderImpl implements Leader
               frame -> {
                 final Cursor cursor = FrameProcessors.makeCursor(
                     frame,
-                    finalStageKernel.getStageDefinition().getFrameReader()
+                    queryKernel.getStageDefinition(finalStageId).getFrameReader()
                 );
 
                 final ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
@@ -1250,12 +1254,11 @@ public class LeaderImpl implements Leader
   ) throws IOException
   {
     if (queryKernel.isSuccess() && TalariaControllerTask.isIngestion(task.getQuerySpec())) {
-      final ControllerStageKernel finalStageKernel =
-          queryKernel.getStageKernel(queryDef.getFinalStageDefinition().getStageNumber());
+      final StageId finalStageId = queryKernel.getStageId(queryDef.getFinalStageDefinition().getStageNumber());
 
       //noinspection unchecked
       @SuppressWarnings("unchecked")
-      final Set<DataSegment> segments = (Set<DataSegment>) finalStageKernel.getResultObject();
+      final Set<DataSegment> segments = (Set<DataSegment>) queryKernel.getResultObjectForStage(finalStageId);
       log.info("Query [%s] publishing %d segments.", queryDef.getQueryId(), segments.size());
       publishAllSegments(segments);
     }
@@ -1603,22 +1606,24 @@ public class LeaderImpl implements Leader
       log.debug(
           "Query [%s] kernel state: %s",
           queryId,
-          queryKernel.getActiveStageKernels()
+          queryKernel.getActiveStages()
                      .stream()
-                     .sorted(Comparator.comparing(k -> k.getStageDefinition().getStageNumber()))
-                     .map(k -> StringUtils.format(
+                     .sorted(Comparator.comparing(id -> queryKernel.getStageDefinition(id).getStageNumber()))
+                     .map(id -> StringUtils.format(
                               "%d:%d[%s:%s]:%d>%d",
-                              k.getStageDefinition().getStageNumber(),
-                              k.getWorkerInputs().size(),
-                              k.getStageDefinition().doesShuffle() ? "SHUFFLE" : "RETAIN",
-                              k.getPhase(),
-                              k.getWorkerInputs()
-                               .stream()
-                               .flatMap(rp -> StreamSupport.stream(rp.spliterator(), false))
-                               .mapToInt(ReadablePartition::getPartitionNumber)
-                               .distinct()
-                               .count(),
-                              k.hasResultPartitions() ? Iterators.size(k.getResultPartitions().iterator()) : -1
+                              queryKernel.getStageDefinition(id).getStageNumber(),
+                              queryKernel.getWorkerInputsForStage(id).size(),
+                              queryKernel.getStageDefinition(id).doesShuffle() ? "SHUFFLE" : "RETAIN",
+                              queryKernel.getStagePhase(id),
+                              queryKernel.getWorkerInputsForStage(id)
+                                         .stream()
+                                         .flatMap(rp -> StreamSupport.stream(rp.spliterator(), false))
+                                         .mapToInt(ReadablePartition::getPartitionNumber)
+                                         .distinct()
+                                         .count(),
+                              queryKernel.doesStageHaveResultPartitions(id)
+                              ? Iterators.size(queryKernel.getResultPartitionsForStage(id).iterator())
+                              : -1
                           )
                      )
                      .collect(Collectors.joining("; "))
