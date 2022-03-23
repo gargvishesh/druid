@@ -377,12 +377,12 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
             return (
               <>
                 <BracedText text={formatRowRate(rowRate)} braces={rowRateValues} />
-                {byteRate && (
+                {byteRate ? (
                   <>
                     {' '}
                     &nbsp; <BracedText text={formatByteRate(byteRate)} braces={byteRateValues} />
                   </>
-                )}
+                ) : undefined}
               </>
             );
           },
