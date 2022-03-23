@@ -122,7 +122,7 @@ public class WorkerStageKernel
   @Nullable
   public Object getResultObject()
   {
-    if (phase == WorkerStagePhase.RESULTS_READY) {
+    if (phase == WorkerStagePhase.RESULTS_READY || phase == WorkerStagePhase.FINISHED) {
       return resultObject;
     } else {
       throw new ISE("Results are not ready yet");
@@ -146,6 +146,11 @@ public class WorkerStageKernel
 
     transitionTo(WorkerStagePhase.RESULTS_READY);
     this.resultObject = resultObject;
+  }
+
+  public void setStageFinished()
+  {
+    transitionTo(WorkerStagePhase.FINISHED);
   }
 
   public void fail(Throwable t)

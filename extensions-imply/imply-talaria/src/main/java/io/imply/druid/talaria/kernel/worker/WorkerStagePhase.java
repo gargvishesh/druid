@@ -56,6 +56,14 @@ public enum WorkerStagePhase
     }
   },
 
+  FINISHED {
+    @Override
+    public boolean canTransitionFrom(final WorkerStagePhase priorPhase)
+    {
+      return priorPhase == RESULTS_READY;
+    }
+  },
+
   // Something went wrong.
   FAILED {
     @Override

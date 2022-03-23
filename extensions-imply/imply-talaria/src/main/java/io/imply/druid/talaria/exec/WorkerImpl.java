@@ -68,7 +68,6 @@ import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.kernel.worker.WorkerStageKernel;
 import io.imply.druid.talaria.kernel.worker.WorkerStagePhase;
 import io.imply.druid.talaria.util.DecoratedExecutorService;
-import io.imply.druid.talaria.util.FutureUtils;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.ISE;
@@ -125,7 +124,7 @@ public class WorkerImpl implements Worker
 
   private final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue = new LinkedBlockingDeque<>();
   private final ConcurrentMap<String, QueryDefinition> queryDefinitionMap = new ConcurrentHashMap<>();
-  private final ConcurrentMap<StagePartition, OutputChannel> outputChannelMap = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<StageId, ConcurrentHashMap<Integer, ReadableFrameChannel>> stageOutputs = new ConcurrentHashMap<>();
   private final TalariaCounters talariaCounters = new TalariaCounters();
 
   private volatile DruidNode selfDruidNode;
@@ -218,6 +217,15 @@ public class WorkerImpl implements Worker
     final String cancellationId = id();
 
     final FrameProcessorExecutor workerExec = new FrameProcessorExecutor(makeProcessingPool());
+
+    // Delete all the stage outputs
+    closer.register(() -> {
+      for (final StageId stageId : stageOutputs.keySet()) {
+        cleanStageOutput(stageId);
+      }
+    });
+
+    // Close stage output processors and running futures (if present)
     closer.register(() -> workerExec.cancel(cancellationId));
 
     // TODO(gianm): consider using a different thread pool for connecting
@@ -373,26 +381,20 @@ public class WorkerImpl implements Worker
       final long offset
   )
   {
-    final StagePartition stagePartition = new StagePartition(new StageId(queryId, stageNumber), partitionNumber);
-    final OutputChannel channel = outputChannelMap.get(stagePartition);
+    final StageId stageId = new StageId(queryId, stageNumber);
+    final StagePartition stagePartition = new StagePartition(stageId, partitionNumber);
+    final ConcurrentHashMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.get(stageId);
+
+    if (partitionOutputsForStage == null) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
+    final ReadableFrameChannel channel = partitionOutputsForStage.get(partitionNumber);
 
     if (channel == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
 
-    final ReadableFrameChannel actualChannel;
-    try {
-      actualChannel = channel.getReadableChannel();
-    }
-    catch (Exception e) {
-      // TODO(gianm): not sure if this response makes sense.
-      log.noStackTrace()
-         .warn(e, "Returned server error to client because channel for [%s] could not be acquired", stagePartition);
-
-      return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
-    }
-
-    if (actualChannel instanceof ReadableNilFrameChannel) {
+    if (channel instanceof ReadableNilFrameChannel) {
       // TODO(gianm): support "offset" for nil channels
       return Response.ok(
           (StreamingOutput) outputStream -> {
@@ -409,10 +411,10 @@ public class WorkerImpl implements Worker
             ByteStreams.copy(in, outputStream);
           }
       ).build();
-    } else if (actualChannel instanceof ReadableFileFrameChannel) {
+    } else if (channel instanceof ReadableFileFrameChannel) {
       return Response.ok(
           (StreamingOutput) outputStream -> {
-            try (final FrameFile frameFile = ((ReadableFileFrameChannel) actualChannel).getFrameFileReference();
+            try (final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
                  final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r")) {
               randomAccessFile.seek(offset);
 
@@ -425,7 +427,7 @@ public class WorkerImpl implements Worker
       log.warn(
           "Returned server error to client because channel for [%s] is not nil or file-based (class = %s)",
           stagePartition,
-          actualChannel.getClass().getName()
+          channel.getClass().getName()
       );
 
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -491,6 +493,19 @@ public class WorkerImpl implements Worker
   }
 
   @Override
+  public void postCleanupStage(final StageId stageId)
+  {
+    log.info("Cleanup order for stage: [%s] received", stageId);
+    kernelManipulationQueue.add(
+        holder -> {
+          cleanStageOutput(stageId);
+          // Mark the stage as FINISHED
+          holder.getStageKernelMap().get(stageId).setStageFinished();
+        }
+    );
+  }
+
+  @Override
   public void postFinish()
   {
     kernelManipulationQueue.add(KernelHolder::setDone);
@@ -518,8 +533,11 @@ public class WorkerImpl implements Worker
       {
         final String taskId = taskList.get().get(workerNumber);
         if (taskId.equals(id())) {
-          final ReadableFrameChannel myChannel =
-              outputChannelMap.get(new StagePartition(stageId, partitionNumber)).getReadableChannel();
+          final ConcurrentMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.get(stageId);
+          if (partitionOutputsForStage == null) {
+            throw new ISE("Unable to find outputs for stage: [%s]", stageId);
+          }
+          final ReadableFrameChannel myChannel = partitionOutputsForStage.get(partitionNumber);
 
           if (myChannel instanceof ReadableFileFrameChannel) {
             // Must duplicate the channel to avoid double-closure upon task cleanup.
@@ -528,8 +546,8 @@ public class WorkerImpl implements Worker
           } else if (myChannel instanceof ReadableNilFrameChannel) {
             return myChannel;
           } else {
-            // TODO(gianm): eek
-            throw new UnsupportedOperationException();
+            throw new ISE("Output for stage: [%s] are stored in an instance of %s which is not "
+                          + "supported", stageId, myChannel.getClass());
           }
         } else {
           return workerClient.getChannelData(taskId, stageId, partitionNumber, connectExec);
@@ -592,6 +610,29 @@ public class WorkerImpl implements Worker
           }
         }
     );
+  }
+
+  /**
+   * Cleans up the stage outputs corresponding to the provided stage id. It essentially calls {@code doneReading()} on
+   * the readable channels corresponding to all the partitions for that stage, and removes it from the {@code stageOutputs}
+   * map
+   */
+  private void cleanStageOutput(final StageId stageId)
+  {
+    // This code is thread-safe because remove() on ConcurrentHashMap will remove and return the removed channel only for
+    // one thread. For the other threads it will return null, therefore we will call doneReading for a channel only once
+    final ConcurrentHashMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.remove(stageId);
+    // Check for null, this can be the case if this method is called simultaneously from multiple threads.
+    if (partitionOutputsForStage == null) {
+      return;
+    }
+    for (final int partition : partitionOutputsForStage.keySet()) {
+      final ReadableFrameChannel output = partitionOutputsForStage.remove(partition);
+      if (output == null) {
+        continue;
+      }
+      output.doneReading();
+    }
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -759,14 +800,6 @@ public class WorkerImpl implements Worker
                       public OutputChannels apply(final OutputChannels channels)
                       {
                         sanityCheckOutputChannels(channels);
-
-                        for (OutputChannel channel : channels.getAllChannels()) {
-                          outputChannelMap.putIfAbsent(
-                              new StagePartition(stageDef.getId(), channel.getPartitionNumber()),
-                              channel
-                          );
-                        }
-
                         return channels;
                       }
                     }
@@ -776,16 +809,18 @@ public class WorkerImpl implements Worker
         new FutureCallback<List<Object>>()
         {
           @Override
-          public void onSuccess(final List<Object> ignored)
+          public void onSuccess(final List<Object> workerResultAndOutputChannelsResolved)
           {
-            kernelManipulationQueue.add(
-                holder ->
-                    holder.getStageKernelMap()
-                          .get(stageDef.getId())
-                          .setResultsComplete(
-                              FutureUtils.getUncheckedImmediately(workerResultAndOutputChannels.getResultFuture())
-                          )
-            );
+            Object resultObject = workerResultAndOutputChannelsResolved.get(0);
+            final OutputChannels outputChannels = (OutputChannels) workerResultAndOutputChannelsResolved.get(1);
+
+            for (OutputChannel channel : outputChannels.getAllChannels()) {
+              stageOutputs.computeIfAbsent(stageDef.getId(), ignored1 -> new ConcurrentHashMap<>())
+                          .computeIfAbsent(channel.getPartitionNumber(), ignored2 -> channel.getReadableChannel());
+            }
+            kernelManipulationQueue.add(holder -> holder.getStageKernelMap()
+                                                        .get(stageDef.getId())
+                                                        .setResultsComplete(resultObject));
           }
 
           @Override

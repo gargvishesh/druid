@@ -30,9 +30,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
+ * Kernel for each stage. This is a package-private class because a stage kernel must be owned by a
+ * {@link ControllerQueryKernel} and all the methods of this class must be invoked via the corresponding methods of
+ * {@link ControllerQueryKernel}. This is to ensure that a query has a global view of all the phases of its stages.
+ *
  * TODO(gianm): handle worker failures by tracking phase for each indiv. worker & allowing phase rollback
  */
-public class ControllerStageKernel
+class ControllerStageKernel
 {
   private final StageDefinition stageDef;
   private final int workerCount;
@@ -81,7 +85,7 @@ public class ControllerStageKernel
   /**
    * TODO(gianm): Javadoc. Note that this is the method that decides how many workers to use.
    */
-  public static ControllerStageKernel create(
+  static ControllerStageKernel create(
       final StageDefinition stageDef,
       final List<ControllerStageKernel> inputTrackers
   )
@@ -179,29 +183,44 @@ public class ControllerStageKernel
     return new ControllerStageKernel(stageDef, workerInputs);
   }
 
-  public StageDefinition getStageDefinition()
+  /**
+   * @return StageDefinition associated with the stage represented by this kernel
+   */
+  StageDefinition getStageDefinition()
   {
     return stageDef;
   }
 
-  public ControllerStagePhase getPhase()
+  /**
+   * @return The phase this stageKernel is in
+   */
+  ControllerStagePhase getPhase()
   {
     return phase;
   }
 
-  public boolean canReadResults()
+  /**
+   * @return true if the results of this stage are ready for consumption i.e. the corresponding phase is RESULTS_READY
+   */
+  boolean canReadResults()
   {
     // TODO(gianm): want to support running streamable stages in a pipeline, but can't yet since links between
     //   stages are done as files on the worker side
-    return phase == ControllerStagePhase.RESULTS_COMPLETE;
+    return phase == ControllerStagePhase.RESULTS_READY;
   }
 
-  public boolean hasResultPartitions()
+  /**
+   * @return if partitions for the results of this stage have been set
+   */
+  boolean hasResultPartitions()
   {
     return resultPartitions != null;
   }
 
-  public ReadablePartitions getResultPartitions()
+  /**
+   * @return partitions for the results of the stage associated with this kernel
+   */
+  ReadablePartitions getResultPartitions()
   {
     if (resultPartitions == null) {
       throw new ISE("Result partition information is not ready yet");
@@ -210,7 +229,10 @@ public class ControllerStageKernel
     }
   }
 
-  public ClusterByPartitions getResultPartitionBoundaries()
+  /**
+   * @return Partition boundaries for the results of this stage
+   */
+  ClusterByPartitions getResultPartitionBoundaries()
   {
     if (!getStageDefinition().doesShuffle()) {
       throw new ISE("Result partition information is not relevant to this stage because it does not shuffle");
@@ -224,7 +246,7 @@ public class ControllerStageKernel
   /**
    * TODO(gianm): hack alert: see note for hasMultipleValues in ClusterByStatisticsCollectorImpl
    */
-  public boolean collectorEncounteredAnyMultiValueField()
+  boolean collectorEncounteredAnyMultiValueField()
   {
     if (resultKeyStatisticsCollector == null) {
       throw new ISE("Stage does not gather result key statistics");
@@ -241,9 +263,14 @@ public class ControllerStageKernel
     }
   }
 
-  public Object getResultObject()
+  /**
+   * @return Result object associated with this stage
+   */
+  Object getResultObject()
   {
-    if (phase != ControllerStagePhase.RESULTS_COMPLETE) {
+    if (phase == ControllerStagePhase.FINISHED) {
+      throw new ISE("Result object has been cleaned up prematurely");
+    } else if (phase != ControllerStagePhase.RESULTS_READY) {
       throw new ISE("Result object is not ready yet");
     } else if (resultObject == null) {
       throw new NullPointerException("resultObject was unexpectedly null");
@@ -252,12 +279,27 @@ public class ControllerStageKernel
     }
   }
 
-  public void start()
+  /**
+   * Marks that the stage is no longer NEW and has started reading inputs (and doing work)
+   */
+  void start()
   {
     transitionTo(ControllerStagePhase.READING_INPUT);
   }
 
-  public List<ReadablePartitions> getWorkerInputs()
+  /**
+   * Marks that the stage is finished and its results must not be used as they could have cleaned up.
+   */
+  void finish()
+  {
+    transitionTo(ControllerStagePhase.FINISHED);
+  }
+
+  /**
+   * @return Inputs to each worker for this particular stage, represented as ReadablePartitions. As a convention,
+   * i-th readable partition represents the input to i-th worker.
+   */
+  List<ReadablePartitions> getWorkerInputs()
   {
     return workerInputs;
   }
@@ -269,7 +311,7 @@ public class ControllerStageKernel
    * @param workerNumber the worker
    * @param snapshot     worker statistics
    */
-  public void addResultKeyStatisticsForWorker(final int workerNumber, final ClusterByStatisticsSnapshot snapshot)
+  ControllerStagePhase addResultKeyStatisticsForWorker(final int workerNumber, final ClusterByStatisticsSnapshot snapshot)
   {
     if (resultKeyStatisticsCollector == null) {
       throw new ISE("Stage does not gather result key statistics");
@@ -302,10 +344,15 @@ public class ControllerStageKernel
       fail();
       throw e;
     }
+    return getPhase();
   }
 
+  /**
+   * Accepts and sets the results that each worker produces for this particular stage
+   * @return true if the results for this stage have been gathered from all the workers, else false
+   */
   @SuppressWarnings("unchecked")
-  public void setResultsCompleteForWorker(final int workerNumber, final Object resultObject)
+  boolean setResultsCompleteForWorker(final int workerNumber, final Object resultObject)
   {
     if (workerNumber < 0 || workerNumber >= workerCount) {
       throw new IAE("Invalid workerNumber [%s]", workerNumber);
@@ -328,11 +375,16 @@ public class ControllerStageKernel
     }
 
     if (workersWithResultsComplete.size() == workerCount) {
-      transitionTo(ControllerStagePhase.RESULTS_COMPLETE);
+      transitionTo(ControllerStagePhase.RESULTS_READY);
+      return true;
     }
+    return false;
   }
 
-  public ControllerStageFailureReason getFailureReason()
+  /**
+   * @return Reason for failure of the stage
+   */
+  ControllerStageFailureReason getFailureReason()
   {
     if (phase != ControllerStagePhase.FAILED) {
       throw new ISE("No failure");
@@ -341,7 +393,10 @@ public class ControllerStageKernel
     return failureReason;
   }
 
-  public void fail()
+  /**
+   * Marks the stage as failed, and sets the reason to {@code OTHER}
+   */
+  void fail()
   {
     failForReason(ControllerStageFailureReason.OTHER);
   }
@@ -390,6 +445,10 @@ public class ControllerStageKernel
     }
   }
 
+  /**
+   * Marks the stage as failed and sets the reason for the same
+   * @param reason reason for which this stage has failed
+   */
   private void failForReason(final ControllerStageFailureReason reason)
   {
     transitionTo(ControllerStagePhase.FAILED);
@@ -401,7 +460,7 @@ public class ControllerStageKernel
     }
   }
 
-  private void transitionTo(final ControllerStagePhase newPhase)
+  void transitionTo(final ControllerStagePhase newPhase)
   {
     if (newPhase.canTransitionFrom(phase)) {
       phase = newPhase;

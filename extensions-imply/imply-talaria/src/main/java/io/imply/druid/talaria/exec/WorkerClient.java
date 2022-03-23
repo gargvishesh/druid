@@ -28,6 +28,7 @@ public interface WorkerClient extends AutoCloseable
       StageId stageId,
       ClusterByPartitions partitionBoundaries
   );
+  void postCleanupStage(String workerTaskId, StageId stageId);
   void postFinish(String taskId);
   TalariaCountersSnapshot getCounters(String taskId);
   ReadableFrameChannel getChannelData(

@@ -26,6 +26,9 @@ public class StageDefinitionBuilder
   private int maxWorkerCount = 1;
   private ShuffleSpec shuffleSpec = null;
 
+  /**
+   * Callers should use {@link StageDefinition#builder(int)} instead of directly using this constructor
+   */
   StageDefinitionBuilder(final int stageNumber)
   {
     this.stageNumber = stageNumber;

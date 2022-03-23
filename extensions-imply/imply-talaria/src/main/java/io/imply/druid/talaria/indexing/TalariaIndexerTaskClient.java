@@ -135,6 +135,42 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
   }
 
   /**
+   * Client-side method for {@link WorkerChatHandler#httpPostCleanupStage}.
+   */
+  @Override
+  public void postCleanupStage(
+      final String workerTaskId,
+      final StageId stageId
+  )
+  {
+    try {
+      final StringFullResponseHolder response = submitJsonRequest(
+          workerTaskId,
+          HttpMethod.POST,
+          StringUtils.format(
+              "cleanupStage/%s/%d",
+              StringUtils.urlEncode(stageId.getQueryId()),
+              stageId.getStageNumber()
+          ),
+          null,
+          ByteArrays.EMPTY_ARRAY,
+          true
+      );
+
+      if (!isSuccess(response)) {
+        throw new ISE(
+            "Failed to send cleanup stage order to task [%s]; HTTP response was [%s]",
+            workerTaskId,
+            response.getStatus()
+        );
+      }
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
    * Client-side method for {@link WorkerChatHandler#httpPostFinish}.
    */
   @Override
