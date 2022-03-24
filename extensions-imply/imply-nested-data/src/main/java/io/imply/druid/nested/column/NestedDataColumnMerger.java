@@ -267,7 +267,7 @@ public class NestedDataColumnMerger implements DimensionMergerV9
   }
 
   @Override
-  public boolean canSkip()
+  public boolean hasOnlyNulls()
   {
     return false;
   }
