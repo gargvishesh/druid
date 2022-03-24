@@ -21,8 +21,6 @@ import { SqlExpression, SqlFunction, SqlLiteral, SqlRef, SqlStar } from 'druid-q
 export function timeFormatToSql(timeFormat: string): SqlExpression | undefined {
   switch (timeFormat) {
     case 'auto':
-      return undefined;
-
     case 'iso':
       return SqlExpression.parse('TIME_PARSE(?)');
 
