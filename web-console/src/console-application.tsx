@@ -229,7 +229,7 @@ export class ConsoleApplication extends React.PureComponent<
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
         enableAsync
-        enableMultiStage={false}
+        enableMultiStage
       />,
       'thin',
     );
