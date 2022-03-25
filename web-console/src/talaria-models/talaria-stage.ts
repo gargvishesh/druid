@@ -51,11 +51,13 @@ export interface StageDefinition {
   inputFileCount?: number;
   processorType: string;
   query?: {
+    queryType: string;
     dataSource: DataSource;
+    [k: string]: any;
   };
   startTime?: string;
   duration?: number;
-  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_COMPLETE' | 'FINISHED' | 'FAILED';
+  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_READY' | 'FINISHED' | 'FAILED';
   workerCount: number;
   partitionCount: number;
   clusterBy?: ClusterBy;
@@ -63,17 +65,18 @@ export interface StageDefinition {
 
 export interface DataSource {
   type: 'external' | 'stage' | 'table' | 'join';
-  name: string;
+  name?: string;
   inputSource: InputSource;
   inputFormat: InputFormat;
-  left: DataSource;
-  right: DataSource;
+  left?: DataSource;
+  right?: DataSource;
+  signature?: { name: string; type: string }[];
 }
 
 export interface ClusterBy {
   columns: {
     columnName: string;
-    descending: boolean;
+    descending?: boolean;
   }[];
   bucketByCount?: number;
 }
@@ -115,7 +118,7 @@ export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
 
 export interface WorkerCounter {
   workerNumber: number;
-  counters: Record<CounterType, StageCounter[]>;
+  counters: Partial<Record<CounterType, StageCounter[]>>;
   sortProgress: {
     stageNumber: number;
     sortProgress: SortProgress;
@@ -218,7 +221,7 @@ export class Stages {
       case 'POST_READING':
         return READING_INPUT_WITH_SORT_WEIGHT + SORT_WEIGHT * this.postReadingPhaseProgress(stage);
 
-      case 'RESULTS_COMPLETE':
+      case 'RESULTS_READY':
       case 'FINISHED':
         return 1;
 

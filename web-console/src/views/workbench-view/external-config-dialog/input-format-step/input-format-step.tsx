@@ -89,9 +89,13 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
         },
       };
 
-      const sampleResponse = await postToSampler(sampleSpec, 'should-be-talaria');
+      const sampleResponse = await postToSampler(sampleSpec, 'should-use-multi-stage-query');
 
-      return headerAndRowsFromSampleResponse({ sampleResponse, ignoreTimeColumn: true });
+      return headerAndRowsFromSampleResponse({
+        sampleResponse,
+        ignoreTimeColumn: true,
+        useInput: true,
+      });
     },
   });
 
@@ -116,6 +120,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             flattenedColumnsOnly={false}
             flattenFields={EMPTY_ARRAY}
             onFlattenFieldSelect={noop}
+            useInput
           />
         )}
       </div>

@@ -67,37 +67,42 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   let timeExpression: string;
   const column = timestampSpec.column || 'timestamp';
+  const columnRef = SqlRef.column(column);
   const format = timestampSpec.format || 'auto';
   switch (format) {
     case 'auto':
+      columns.unshift({ name: column, type: 'string' });
+      timeExpression = `CASE WHEN CAST(${columnRef} AS BIGINT) > 0 THEN MILLIS_TO_TIMESTAMP(CAST(${columnRef} AS BIGINT)) ELSE TIME_PARSE(${columnRef}) END`;
+      break;
+
     case 'iso':
       columns.unshift({ name: column, type: 'string' });
-      timeExpression = `TIME_PARSE(${SqlRef.column(column)})`;
+      timeExpression = `TIME_PARSE(${columnRef})`;
       break;
 
     case 'posix':
       columns.unshift({ name: column, type: 'long' });
-      timeExpression = `MILLIS_TO_TIMESTAMP(${SqlRef.column(column)} * 1000)`;
+      timeExpression = `MILLIS_TO_TIMESTAMP(${columnRef} * 1000)`;
       break;
 
     case 'millis':
       columns.unshift({ name: column, type: 'long' });
-      timeExpression = `MILLIS_TO_TIMESTAMP(${SqlRef.column(column)})`;
+      timeExpression = `MILLIS_TO_TIMESTAMP(${columnRef})`;
       break;
 
     case 'micro':
       columns.unshift({ name: column, type: 'long' });
-      timeExpression = `MILLIS_TO_TIMESTAMP(${SqlRef.column(column)} / 1000)`;
+      timeExpression = `MILLIS_TO_TIMESTAMP(${columnRef} / 1000)`;
       break;
 
     case 'nano':
       columns.unshift({ name: column, type: 'long' });
-      timeExpression = `MILLIS_TO_TIMESTAMP(${SqlRef.column(column)} / 1000000)`;
+      timeExpression = `MILLIS_TO_TIMESTAMP(${columnRef} / 1000000)`;
       break;
 
     default:
       columns.unshift({ name: column, type: 'string' });
-      timeExpression = `TIME_PARSE(${SqlRef.column(column)}, ${SqlLiteral.create(format)})`;
+      timeExpression = `TIME_PARSE(${columnRef}, ${SqlLiteral.create(format)})`;
       break;
   }
 
@@ -112,7 +117,11 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     deepGet(spec, 'spec.dataSchema.granularitySpec.queryGranularity'),
   );
 
-  lines.push(`-- This SQL query was auto generated from an ingestion spec`);
+  lines.push(
+    `-- This SQL query was auto generated from an ingestion spec`,
+    `--:context talariaFinalizeAggregations: false`,
+    `--:context groupByEnableMultiValueUnnesting: false`,
+  );
 
   if (!deepGet(spec, 'spec.ioConfig.appendToExisting')) {
     lines.push(`--:context talariaReplaceTimeChunks: all`);
@@ -122,13 +131,6 @@ export function convertSpecToSql(spec: IngestionSpec): string {
       `-- spec.ioConfig.dropExisting was set but not converted, 'intervals' was set to ${JSONBig.stringify(
         deepGet(spec, 'spec.dataSchema.granularitySpec.intervals'),
       )}`,
-    );
-  }
-
-  if (rollup) {
-    lines.push(
-      `--:context talariaFinalizeAggregations: false`,
-      `--:context groupByEnableMultiValueUnnesting: false`,
     );
   }
 

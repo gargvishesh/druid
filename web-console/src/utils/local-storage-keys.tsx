@@ -40,15 +40,15 @@ export const LocalStorageKeys = {
   QUERY_HISTORY: 'query-history' as const,
   LIVE_QUERY_MODE: 'live-query-mode' as const,
 
-  // BEGIN: Imply-added code for Talaria execution
-  TALARIA_SHOW: 'talaria-show' as const,
-  TALARIA_QUERIES: 'talaria-queries' as const,
-  TALARIA_LAST_TAB: 'talaria-last-tab' as const,
-  TALARIA_TAB_PANE_SIZE: 'talaria-tab-pane-size' as const,
-  TALARIA_HISTORY: 'talaria-history2' as const,
-  TALARIA_LIVE_MODE: 'talaria-live-mode' as const,
-  TALARIA_WORK_HISTORY: 'talaria-work-history' as const,
-  TALARIA_LOADER_QUERY: 'loader-query' as const,
+  // BEGIN: Imply-added code for the multi-stage query engine
+  WORKBENCH_SHOW: 'talaria-show' as const,
+  WORKBENCH_QUERIES: 'talaria-queries' as const,
+  WORKBENCH_LAST_TAB: 'talaria-last-tab' as const,
+  WORKBENCH_TAB_PANE_SIZE: 'talaria-tab-pane-size' as const,
+  WORKBENCH_HISTORY: 'talaria-history2' as const,
+  WORKBENCH_LIVE_MODE: 'talaria-live-mode' as const,
+  WORKBENCH_WORK_PANEL: 'talaria-work-history' as const,
+  SQLOADER_QUERY: 'sqloader-query' as const,
   // END: Imply-modified code for Talaria execution
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];

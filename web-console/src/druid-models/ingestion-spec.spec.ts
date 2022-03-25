@@ -545,8 +545,26 @@ describe('ingestion-spec', () => {
       expect(guessInputFormat(['Obj1lol']).type).toEqual('regex');
     });
 
-    it('works for JSON', () => {
-      expect(guessInputFormat(['{"a":1}']).type).toEqual('json');
+    it('works for JSON (strict)', () => {
+      expect(guessInputFormat(['{"a":1}'])).toEqual({ type: 'json' });
+    });
+
+    it('works for JSON (lax)', () => {
+      expect(guessInputFormat([`{hello:'world'}`])).toEqual({
+        type: 'json',
+        featureSpec: {
+          ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER: true,
+          ALLOW_COMMENTS: true,
+          ALLOW_MISSING_VALUES: true,
+          ALLOW_NON_NUMERIC_NUMBERS: true,
+          ALLOW_NUMERIC_LEADING_ZEROS: true,
+          ALLOW_SINGLE_QUOTES: true,
+          ALLOW_TRAILING_COMMA: true,
+          ALLOW_UNQUOTED_CONTROL_CHARS: true,
+          ALLOW_UNQUOTED_FIELD_NAMES: true,
+          ALLOW_YAML_COMMENTS: true,
+        },
+      });
     });
 
     it('works for CSV (with header)', () => {
@@ -675,8 +693,12 @@ describe('spec utils', () => {
       expect(guessColumnTypeFromInput([1, [2], 3], false)).toEqual('string');
     });
 
+    it('works for strange json', () => {
+      expect(guessColumnTypeFromInput([1, { hello: 'world' }, 3], false)).toEqual('COMPLEX<json>');
+    });
+
     it('works for strange input (object with no prototype)', () => {
-      expect(guessColumnTypeFromInput([1, Object.create(null), 3], false)).toEqual('string');
+      expect(guessColumnTypeFromInput([1, Object.create(null), 3], false)).toEqual('COMPLEX<json>');
     });
   });
 

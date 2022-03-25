@@ -2192,7 +2192,27 @@ export function guessInputFormat(sampleData: string[]): InputFormat {
 
     // If the string starts and ends with curly braces assume JSON
     if (sampleDatum.startsWith('{') && sampleDatum.endsWith('}')) {
-      return inputFormatFromType({ type: 'json' });
+      try {
+        JSON.parse(sampleDatum);
+        return { type: 'json' };
+      } catch {
+        // If the standard JSON parse does not parse then try setting a very lax parsing style
+        return {
+          type: 'json',
+          featureSpec: {
+            ALLOW_COMMENTS: true,
+            ALLOW_YAML_COMMENTS: true,
+            ALLOW_UNQUOTED_FIELD_NAMES: true,
+            ALLOW_SINGLE_QUOTES: true,
+            ALLOW_UNQUOTED_CONTROL_CHARS: true,
+            ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER: true,
+            ALLOW_NUMERIC_LEADING_ZEROS: true,
+            ALLOW_NON_NUMERIC_NUMBERS: true,
+            ALLOW_MISSING_VALUES: true,
+            ALLOW_TRAILING_COMMA: true,
+          },
+        };
+      }
     }
 
     // Contains more than 3 tabs assume TSV
@@ -2298,6 +2318,9 @@ export function guessColumnTypeFromInput(
 
   // If we see any arrays in the input this is a multi-value dimension that must be a string
   if (definedValues.some(v => Array.isArray(v))) return 'string';
+
+  // If we see any JSON objects in the input assume COMPLEX<json>
+  if (definedValues.some(v => v && typeof v === 'object')) return 'COMPLEX<json>';
 
   if (
     definedValues.every(v => {

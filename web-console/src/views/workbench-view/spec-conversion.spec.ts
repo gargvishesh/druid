@@ -45,7 +45,7 @@ describe('talaria-utils', () => {
             dataSource: 'wikipedia',
             timestampSpec: {
               column: 'timestamp',
-              format: 'iso',
+              format: 'auto',
             },
             dimensionsSpec: {
               dimensions: [
@@ -103,6 +103,8 @@ describe('talaria-utils', () => {
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
+      --:context talariaFinalizeAggregations: false
+      --:context groupByEnableMultiValueUnnesting: false
       --:context talariaReplaceTimeChunks: all
       INSERT INTO wikipedia
       WITH ioConfigExtern AS (SELECT * FROM TABLE(
@@ -113,7 +115,7 @@ describe('talaria-utils', () => {
         )
       ))
       SELECT
-        TIME_PARSE("timestamp") AS __time,
+        CASE WHEN CAST("timestamp" AS BIGINT) > 0 THEN MILLIS_TO_TIMESTAMP(CAST("timestamp" AS BIGINT)) ELSE TIME_PARSE("timestamp") END AS __time,
         "isRobot",
         "channel",
         "flags",
@@ -236,9 +238,9 @@ describe('talaria-utils', () => {
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
-      --:context talariaReplaceTimeChunks: all
       --:context talariaFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
+      --:context talariaReplaceTimeChunks: all
       INSERT INTO wikipedia_rollup
       WITH ioConfigExtern AS (SELECT * FROM TABLE(
         EXTERN(

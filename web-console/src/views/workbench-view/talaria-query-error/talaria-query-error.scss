@@ -36,6 +36,11 @@
       text-decoration: underline;
     }
   }
+
+  .error-message-text {
+    max-height: 75px;
+    overflow: auto;
+  }
 }
 
 .click-to-copy {

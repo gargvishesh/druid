@@ -17,7 +17,7 @@
  */
 
 import { Icon, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
+import { IconName, IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import copy from 'copy-to-clipboard';
@@ -28,34 +28,34 @@ import React, { useState } from 'react';
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { Api, AppToaster } from '../../../singletons';
-import { TalariaQuery } from '../../../talaria-models';
-import { formatDuration, queryDruidSql } from '../../../utils';
+import { QueryExecution, TalariaQuery } from '../../../talaria-models';
+import { deepGet, formatDuration, queryDruidSql } from '../../../utils';
+import { cancelAsyncQuery, getAsyncExecution } from '../execution-utils';
 import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
 import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
 import { useWorkStateStore } from '../work-state-store';
 
 import './work-panel.scss';
 
-const REPORT_DATASOURCE = '__you_have_been_visited_by_talaria';
+type TaskStatus = 'RUNNING' | 'WAITING' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
 
-function statusToColor(status: TaskStatus): string {
+function statusToIconAndColor(status: TaskStatus): [IconName, string] {
   switch (status) {
     case 'RUNNING':
-      return '#2167d5';
+      return [IconNames.REFRESH, '#2167d5'];
     case 'WAITING':
-      return '#d5631a';
     case 'PENDING':
-      return '#ffbf00';
+      return [IconNames.CIRCLE, '#d5631a'];
     case 'SUCCESS':
-      return '#57d500';
+      return [IconNames.TICK_CIRCLE, '#57d500'];
     case 'FAILED':
-      return '#d5100a';
+      return [IconNames.DELETE, '#d5100a'];
+    case 'CANCELED':
+      return [IconNames.DISABLE, '#8d8d8d'];
     default:
-      return '#8d8d8d';
+      return [IconNames.CIRCLE, '#8d8d8d'];
   }
 }
-
-type TaskStatus = 'RUNNING' | 'WAITING' | 'PENDING' | 'SUCCESS' | 'FAILED';
 
 interface WorkEntry {
   taskStatus: TaskStatus;
@@ -120,26 +120,34 @@ LIMIT 100`,
                 <MenuItem
                   text="Attach in new tab"
                   onClick={async () => {
+                    let execution: QueryExecution;
                     try {
-                      const payloadResp = await Api.instance.get(
-                        `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
-                      );
-                      const payload = payloadResp.data.payload;
-                      onNewTab(
-                        TalariaQuery.fromEffectiveQueryAndContext(
-                          payload.sqlQuery,
-                          payload.sqlQueryContext,
-                        )
-                          .explodeQuery()
-                          .changeLastQueryId(w.taskId),
-                        'Attached',
-                      );
+                      execution = await getAsyncExecution(w.taskId);
                     } catch {
                       AppToaster.show({
                         message: 'Could not get payload',
                         intent: Intent.DANGER,
                       });
+                      return;
                     }
+
+                    if (!execution.sqlQuery || !execution.queryContext) {
+                      AppToaster.show({
+                        message: 'Could not get query',
+                        intent: Intent.DANGER,
+                      });
+                      return;
+                    }
+
+                    onNewTab(
+                      TalariaQuery.fromEffectiveQueryAndContext(
+                        execution.sqlQuery,
+                        execution.queryContext,
+                      )
+                        .explodeQuery()
+                        .changeLastQueryId(w.taskId),
+                      'Attached',
+                    );
                   }}
                 />
                 <MenuItem
@@ -165,10 +173,9 @@ LIMIT 100`,
                     setLoadValue({
                       title: 'SQL query',
                       work: async () => {
-                        const payloadResp = await Api.instance.get(
-                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
-                        );
-                        return payloadResp.data.payload.sqlQuery;
+                        const execution = await getAsyncExecution(w.taskId);
+                        if (!execution.sqlQuery) throw new Error('Could not get query');
+                        return execution.sqlQuery;
                       },
                     });
                   }}
@@ -180,15 +187,18 @@ LIMIT 100`,
                       title: 'Native query',
                       work: async () => {
                         const payloadResp = await Api.instance.get(
-                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
+                          `/druid/v2/sql/async/${Api.encodePath(w.taskId)}`,
                         );
-                        return JSONBig.stringify(payloadResp.data.payload.spec.query, undefined, 2);
+                        const nativeQuery = deepGet(payloadResp, 'data.talaria.task.spec.query');
+                        return nativeQuery
+                          ? JSONBig.stringify(nativeQuery, undefined, 2)
+                          : 'Could not extract native query';
                       },
                     });
                   }}
                 />
                 {w.taskStatus === 'SUCCESS' &&
-                  (w.datasource === REPORT_DATASOURCE ? (
+                  (w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER ? (
                     <MenuItem text="Show results" onClick={() => setResultsTaskId(w.taskId)} />
                   ) : (
                     <MenuItem
@@ -202,22 +212,19 @@ LIMIT 100`,
                   <>
                     <MenuDivider />
                     <MenuItem
-                      text="Cancel task"
+                      text="Cancel query"
                       intent={Intent.DANGER}
                       onClick={async () => {
                         try {
-                          await Api.instance.post(
-                            `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}/shutdown`,
-                            {},
-                          );
+                          await cancelAsyncQuery(w.taskId);
                           AppToaster.show({
-                            message: 'Task canceled',
+                            message: 'Query canceled',
                             intent: Intent.SUCCESS,
                           });
                           incrementWorkVersion();
                         } catch {
                           AppToaster.show({
-                            message: 'Could not cancel task',
+                            message: 'Could not cancel query',
                             intent: Intent.DANGER,
                           });
                         }
@@ -228,13 +235,12 @@ LIMIT 100`,
               </Menu>
             );
 
+            const [icon, color] = statusToIconAndColor(w.taskStatus);
             return (
               <Popover2 className="work-entry" key={w.taskId} position="left" content={menu}>
                 <div title={w.errorMessage}>
                   <div className="line1">
-                    <div className="status-dot" style={{ color: statusToColor(w.taskStatus) }}>
-                      &#x25cf;
-                    </div>
+                    <Icon className="status-icon" icon={icon} style={{ color }} />
                     <div className="timing">
                       {w.createdTime.replace('T', ' ').replace(/\.\d\d\dZ$/, '') +
                         (w.duration > 0 ? ` (${formatDuration(w.duration)})` : '')}
@@ -244,17 +250,19 @@ LIMIT 100`,
                     <Icon
                       className="output-icon"
                       icon={
-                        w.datasource === REPORT_DATASOURCE
+                        w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER
                           ? IconNames.APPLICATION
                           : IconNames.CLOUD_UPLOAD
                       }
                     />
                     <div
                       className={classNames('output-datasource', {
-                        query: w.datasource === REPORT_DATASOURCE,
+                        query: w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER,
                       })}
                     >
-                      {w.datasource === REPORT_DATASOURCE ? 'data in report' : w.datasource}
+                      {w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER
+                        ? 'data in report'
+                        : w.datasource}
                     </div>
                   </div>
                 </div>
