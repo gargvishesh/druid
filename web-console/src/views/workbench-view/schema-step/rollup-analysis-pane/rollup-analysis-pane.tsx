@@ -214,9 +214,14 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       <p>
         {`Estimated size after rollup is `}
         <span className="strong">{formatPercentClapped(rollup)}</span>
-        {` of raw data size. ${
-          rollup < 0.8 ? 'That is decent.' : 'At this rate rollup is not worth it.'
-        }`}
+        {` of raw data size. `}
+        {rollup < 0.8 ? (
+          <span className="strong">That is decent.</span>
+        ) : (
+          <>
+            At this rate rollup is <span className="strong">not worth it</span>.
+          </>
+        )}
       </p>
     );
   }
@@ -244,10 +249,10 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       const variability = c / count;
       if (variability < 0.8) return;
       return (
-        <p key={`single_${i}`}>
+        <span className="suggestion" key={`single_${i}`}>
           {renderDimension(i)}
           {` has variability of ${formatPercentClapped(variability)}`}
-        </p>
+        </span>
       );
     });
 
@@ -256,23 +261,23 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       const variability = pairCounts[index] / count;
       if (variability < 0.8) return;
       return (
-        <p key={`pair_${index}`}>
+        <span className="suggestion" key={`pair_${index}`}>
           {renderDimension(i)}
           {' together with '}
           {renderDimension(j)}
           {` has variability of ${formatPercentClapped(variability)}`}
-        </p>
+        </span>
       );
     });
 
     implicationSuggestions = filterMap(dimensions, (_d, i) => {
       if (implications.some(imp => imp.type === 'imply' && imp.b === i)) return;
       return (
-        <p key={`imply_${i}`}>
+        <span className="suggestion" key={`imply_${i}`}>
           {'Remove '}
           {renderDimension(i)}
           {` (variability of ${formatPercentClapped(counts[i] / count)})`}
-        </p>
+        </span>
       );
     });
   }
@@ -311,8 +316,10 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       {(singleDimensionSuggestions.length || pairDimensionSuggestions.length > 0) && (
         <>
           <p>Poor rollup is caused by:</p>
-          {singleDimensionSuggestions}
-          {pairDimensionSuggestions}
+          <p>
+            {singleDimensionSuggestions}
+            {pairDimensionSuggestions}
+          </p>
         </>
       )}
       {analysis?.deep &&
@@ -321,7 +328,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         implicationSuggestions.length > 0 && (
           <>
             <p>Possible actions to improve rollup:</p>
-            {implicationSuggestions}
+            <p>{implicationSuggestions}</p>
           </>
         )}
       {analyzeQueryState.isError() && <p>{analyzeQueryState.getErrorMessage()}</p>}
