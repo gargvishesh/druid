@@ -92,9 +92,9 @@ public class QueryDefinitionValidatorTest
     int inputFiles = numWorkers * Limits.MAX_INPUT_FILES_PER_WORKER + 1;
     expectedException.expect(TalariaException.class);
     expectedException.expectMessage(StringUtils.format(
-        "Too many input files/segments %d encounterd. Maximum input files/segments per worker is set to %d. "
-        + "Try breaking your query up into smaller queries or increasing the number of workers to atleast %d by "
-        + "setting %s in query context",
+        "Too many input files/segments [%d] encountered. Maximum input files/segments per worker is set to [%d]. Try"
+        + " breaking your query up into smaller queries, or increasing the number of workers to at least [%d] by"
+        + " setting %s in your query context",
         inputFiles,
         Limits.MAX_INPUT_FILES_PER_WORKER,
         numWorkers + 1,
