@@ -51,7 +51,6 @@ import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
-import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
@@ -271,8 +270,8 @@ public class LeaderImpl implements Leader
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
 
-    TaskState taskStateForReport = null;
-    TalariaErrorReport errorForReport = null;
+    final TaskState taskStateForReport;
+    final TalariaErrorReport errorForReport;
 
     try {
       this.queryStartTime = DateTimes.nowUtc();
@@ -289,6 +288,31 @@ public class LeaderImpl implements Leader
     }
     catch (Throwable e) {
       exceptionEncountered = e;
+    }
+
+    if (queryKernel != null && queryKernel.isSuccess() && exceptionEncountered == null) {
+      taskStateForReport = TaskState.SUCCESS;
+      errorForReport = null;
+    } else {
+      // Query failure. Generate an error report and log the error(s) we encountered.
+      final String selfHost = TalariaTasks.getHostFromSelfNode(selfDruidNode);
+      final TalariaErrorReport controllerError =
+          exceptionEncountered != null
+          ? TalariaErrorReport.fromException(id(), selfHost, null, exceptionEncountered)
+          : null;
+      final TalariaErrorReport workerError = workerErrorRef.get();
+
+      taskStateForReport = TaskState.FAILED;
+      errorForReport = TalariaTasks.makeErrorReport(id(), selfHost, controllerError, workerError);
+
+      // Log the errors we encountered.
+      if (controllerError != null) {
+        log.warn("Controller: %s", TalariaTasks.errorReportToLogMessage(controllerError));
+      }
+
+      if (workerError != null) {
+        log.warn("Worker: %s", TalariaTasks.errorReportToLogMessage(workerError));
+      }
     }
 
     try {
@@ -334,35 +358,6 @@ public class LeaderImpl implements Leader
         resultsReport = null;
       }
 
-      // There are cases where this is SUCCESS, but we exit with TaskStatus FAILED. This can happen because we need
-      // to write out the task report *before* doing final cleanup, and something might go wrong with final cleanup.
-      if (queryKernel != null && queryKernel.isSuccess() && exceptionEncountered == null) {
-        taskStateForReport = TaskState.SUCCESS;
-      } else {
-        taskStateForReport = TaskState.FAILED;
-
-        if (exceptionEncountered != null) {
-          // Controller kernel loop threw an exception.
-          errorForReport = TalariaErrorReport.fromException(
-              id(),
-              TalariaTasks.getHostFromSelfNode(selfDruidNode),
-              null,
-              exceptionEncountered
-          );
-        } else if (workerErrorRef.get() != null) {
-          // Look for an error reported by a worker.
-          errorForReport = workerErrorRef.get();
-        } else {
-          // Query failed with no explanation.
-          errorForReport = TalariaErrorReport.fromFault(
-              id(),
-              TalariaTasks.getHostFromSelfNode(selfDruidNode),
-              null,
-              UnknownFault.INSTANCE
-          );
-        }
-      }
-
       final TalariaTaskReportPayload taskReportPayload = new TalariaTaskReportPayload(
           makeStatusReport(
               taskStateForReport,
@@ -400,19 +395,8 @@ public class LeaderImpl implements Leader
     if (taskStateForReport == TaskState.SUCCESS) {
       return TaskStatus.success(id());
     } else {
-      final String message;
-
-      if (errorForReport != null) {
-        message = errorForReport.getFault().getCodeWithMessage();
-      } else if (exceptionEncountered != null) {
-        // Problem writing task report, but we have a proper exception from earlier.
-        message = exceptionEncountered.toString();
-      } else {
-        // Problem writing task report, and no proper exception from earlier. No idea what went wrong.
-        message = UnknownFault.instance().getCodeWithMessage();
-      }
-
-      return TaskStatus.failure(id(), message);
+      // errorForReport is nonnull when taskStateForReport != SUCCESS. Use that message.
+      return TaskStatus.failure(id(), errorForReport.getFault().getCodeWithMessage());
     }
   }
 
@@ -421,7 +405,7 @@ public class LeaderImpl implements Leader
     this.selfDruidNode = context.selfNode();
     context.registerLeader(this, closer);
 
-    this.netClient = context.taskClientFor(this);
+    this.netClient = new ExceptionWrappingWorkerClient(context.taskClientFor(this));
     closer.register(netClient::close);
 
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(

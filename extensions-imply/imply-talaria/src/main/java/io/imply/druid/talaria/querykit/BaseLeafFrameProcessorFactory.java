@@ -127,7 +127,6 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
           // TODO(gianm): this is wasteful: we're opening channels and rebuilding broadcast tables for _every processor_
           final Pair<Int2ObjectMap<ReadableFrameChannel>, Int2ObjectMap<FrameReader>> sideChannels =
               openSideChannels(inputChannels, inputSpec);
-          final TalariaCounters.ChannelCounters channelCounters;
 
           return makeProcessor(
               processorBaseInput,

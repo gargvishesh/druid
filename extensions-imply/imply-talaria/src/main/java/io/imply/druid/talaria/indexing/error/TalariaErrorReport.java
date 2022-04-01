@@ -180,6 +180,6 @@ public class TalariaErrorReport
       }
     }
 
-    return UnknownFault.INSTANCE;
+    return UnknownFault.forException(e);
   }
 }
