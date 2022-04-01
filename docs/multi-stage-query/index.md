@@ -72,8 +72,12 @@ druid.query.async.storage.local.directory=/mnt/tmp/async-query
 **Middle Manager**
 
 ```bash
-druid.server.http.numThreads=1025
+# Should be set to the maximum number of tasks you will use per job plus 25.
+# Here, we go with 1025 because the hard limit for tasks per job is 1000.
+# You can set this lower if you do not intend to use this many tasks.
 druid.indexer.fork.property.druid.server.http.numThreads=1025
+
+# Lazy initialization of the connection pool that will be used for shuffle.
 druid.global.http.numConnections=50
 druid.global.http.eagerInitialization=false
 
@@ -854,18 +858,19 @@ The main driver of performance is parallelism. The most relevant considerations 
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
 - The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
-  of worker tasks that can run on that server at once. Each task runs single-threaded, so this also
-  determines the maximum number of processors on the server that can contribute towards multi-stage
-  queries. In Imply Enterprise, where data servers are shared between Historicals and Middle
-  Managers, the default setting for `druid.worker.capacity` is lower than the number of processors
-  on the server. On high-memory instance types, such as the AWS r5 or i3 families, or the GCP
-  n1-highmem family, you can increase multi-stage query engine parallelism by setting
-  `druid.worker.capacity` to one less than the number of processors on the server. This override
-  leads to additional memory usage, which may affect performance of the core query engine. It may
-  also cause instability on non-high-memory instance types due to lack of available memory.
+  of worker tasks that can run on each server at once. Worker tasks run single-threaded, so this
+  also determines the maximum number of processors on the server that can contribute towards
+  multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
+  Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
+  processors on the server. Advanced users may consider enhancing parallelism by increasing this
+  value to one less than the number of processors on the server. In most cases, this increase must
+  be accompanied by an adjustment of the memory allotment of the Historical process,
+  Middle-Manager-launched tasks, or both, to avoid memory overcommitment and server instability. If
+  you are not comfortable tuning these memory usage parameters to avoid overcommitment, it is best
+  to stick with the default `druid.worker.capacity`.
 
 A secondary driver of performance is available memory. In two important cases — producer-side sort
-as part of shuffle, and segment generation — more memory can reduce the number of passes required
+as part of shuffle, and segment generation — more memory can reduce the number of passes required
 through the data and therefore improve performance. For details, see the [Memory
 usage](#memory-usage) section.
 
