@@ -1297,15 +1297,17 @@ public class LeaderImpl implements Leader
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
     if (TalariaControllerTask.isIngestion(querySpec)) {
+      final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
       final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
           makeDimensionsAndAggregatorsForIngestion(
               querySignature,
               queryClusterBy,
+              destination.getSegmentSortOrder(),
               columnMappings
           );
 
       final DataSchema dataSchema = new DataSchema(
-          ((DataSourceTalariaDestination) querySpec.getDestination()).getDataSource(),
+          destination.getDataSource(),
           new TimestampSpec(ColumnHolder.TIME_COLUMN_NAME, "millis", null),
           new DimensionsSpec(dimensionsAndAggregators.lhs),
           dimensionsAndAggregators.rhs.toArray(new AggregatorFactory[0]),
@@ -1435,15 +1437,22 @@ public class LeaderImpl implements Leader
   private static Pair<List<DimensionSchema>, List<AggregatorFactory>> makeDimensionsAndAggregatorsForIngestion(
       final RowSignature querySignature,
       final ClusterBy queryClusterBy,
+      final List<String> segmentSortOrder,
       final ColumnMappings columnMappings
   )
   {
     final List<DimensionSchema> dimensions = new ArrayList<>();
     final List<AggregatorFactory> aggregators = new ArrayList<>();
 
-    // TODO(gianm): this doesn't work when ordering by something that is not selected!
-    final Set<String> outputColumnsInOrder = new LinkedHashSet<>();
+    // During ingestion, segment sort order is determined by the order of fields in the DimensionsSchema. We want
+    // this to match user intent as dictated by the declared segment sort order and CLUSTERED BY, so add things in
+    // that order.
 
+    // Start with segmentSortOrder.
+    final Set<String> outputColumnsInOrder = new LinkedHashSet<>(segmentSortOrder);
+
+    // Then the query-level CLUSTERED BY.
+    // Note: this doesn't work when CLUSTERED BY specifies an expression that is not being selected.
     for (final ClusterByColumn clusterByColumn : queryClusterBy.getColumns()) {
       if (clusterByColumn.descending()) {
         throw new TalariaException(new InsertCannotOrderByDescendingFault(clusterByColumn.columnName()));
@@ -1452,6 +1461,7 @@ public class LeaderImpl implements Leader
       outputColumnsInOrder.addAll(columnMappings.getOutputColumnsForQueryColumn(clusterByColumn.columnName()));
     }
 
+    // Then all other columns.
     outputColumnsInOrder.addAll(columnMappings.getOutputColumnNames());
 
     for (final String outputColumn : outputColumnsInOrder) {
