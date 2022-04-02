@@ -19,6 +19,7 @@ import org.apache.druid.java.util.common.granularity.Granularity;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,6 +29,7 @@ public class DataSourceTalariaDestination implements TalariaDestination
 
   private final String dataSource;
   private final Granularity segmentGranularity;
+  private final List<String> segmentSortOrder;
 
   @Nullable
   private final List<Interval> replaceTimeChunks;
@@ -36,11 +38,13 @@ public class DataSourceTalariaDestination implements TalariaDestination
   public DataSourceTalariaDestination(
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
+      @JsonProperty("segmentSortOrder") List<String> segmentSortOrder,
       @JsonProperty("replaceTimeChunks") @Nullable List<Interval> replaceTimeChunks
   )
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.segmentGranularity = Preconditions.checkNotNull(segmentGranularity, "segmentGranularity");
+    this.segmentSortOrder = segmentSortOrder != null ? segmentSortOrder : Collections.emptyList();
     this.replaceTimeChunks = replaceTimeChunks;
 
     if (replaceTimeChunks != null) {
@@ -85,6 +89,13 @@ public class DataSourceTalariaDestination implements TalariaDestination
     return segmentGranularity;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getSegmentSortOrder()
+  {
+    return segmentSortOrder;
+  }
+
   /**
    * Returns the list of time chunks to replace, or null if {@link #isReplaceTimeChunks()} is false.
    *
@@ -119,13 +130,14 @@ public class DataSourceTalariaDestination implements TalariaDestination
     DataSourceTalariaDestination that = (DataSourceTalariaDestination) o;
     return Objects.equals(dataSource, that.dataSource)
            && Objects.equals(segmentGranularity, that.segmentGranularity)
+           && Objects.equals(segmentSortOrder, that.segmentSortOrder)
            && Objects.equals(replaceTimeChunks, that.replaceTimeChunks);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(dataSource, segmentGranularity, replaceTimeChunks);
+    return Objects.hash(dataSource, segmentGranularity, segmentSortOrder, replaceTimeChunks);
   }
 
   @Override
@@ -134,6 +146,7 @@ public class DataSourceTalariaDestination implements TalariaDestination
     return "DataSourceTalariaDestination{" +
            "dataSource='" + dataSource + '\'' +
            ", segmentGranularity=" + segmentGranularity +
+           ", segmentSortOrder=" + segmentSortOrder +
            ", replaceTimeChunks=" + replaceTimeChunks +
            '}';
   }

@@ -15,6 +15,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
+import io.imply.druid.talaria.indexing.TalariaInsertContextKeys;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -47,11 +48,15 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class TalariaQueryMaker implements QueryMaker
 {
@@ -245,8 +250,22 @@ public class TalariaQueryMaker implements QueryMaker
         throw new ISE("Unable to convert %s to a segment granularity", segmentGranularity);
       }
 
+      final List<String> segmentSortOrder = TalariaInsertContextKeys.decodeSortOrder(
+          (String) plannerContext.getQueryContext().get(TalariaInsertContextKeys.CTX_SORT_ORDER)
+      );
+
+      validateSegmentSortOrder(
+          segmentSortOrder,
+          fieldMapping.stream().map(f -> f.right).collect(Collectors.toList())
+      );
+
       destinationSpec = jsonMapper.convertValue(
-          new DataSourceTalariaDestination(targetDataSource, segmentGranularityObject, replaceTimeChunks),
+          new DataSourceTalariaDestination(
+              targetDataSource,
+              segmentGranularityObject,
+              segmentSortOrder,
+              replaceTimeChunks
+          ),
           JacksonUtils.TYPE_REFERENCE_MAP_STRING_OBJECT
       );
     } else {
@@ -322,5 +341,22 @@ public class TalariaQueryMaker implements QueryMaker
     }
 
     return retVal;
+  }
+
+  static void validateSegmentSortOrder(final List<String> sortOrder, final Collection<String> allOutputColumns)
+  {
+    final Set<String> allOutputColumnsSet = new HashSet<>(allOutputColumns);
+
+    for (final String column : sortOrder) {
+      if (!allOutputColumnsSet.contains(column)) {
+        throw new IAE("Column [%s] in segment sort order does not appear in the query output", column);
+      }
+    }
+
+    if (sortOrder.size() > 0
+        && allOutputColumns.contains(ColumnHolder.TIME_COLUMN_NAME)
+        && !ColumnHolder.TIME_COLUMN_NAME.equals(sortOrder.get(0))) {
+      throw new IAE("Segment sort order must begin with column [%s]", ColumnHolder.TIME_COLUMN_NAME);
+    }
   }
 }

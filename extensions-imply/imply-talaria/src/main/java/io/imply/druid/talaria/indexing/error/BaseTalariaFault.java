@@ -17,6 +17,13 @@ import org.apache.druid.java.util.common.StringUtils;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
+/**
+ * Base implementation of {@link TalariaFault}.
+ *
+ * Implements {@link #equals}, {@link #hashCode()}, and {@link #toString()} using {@link #errorCode} and
+ * {@link #errorMessage}, so faults must either encode all relevant information in the message, or provide
+ * their own implementation of these methods.
+ */
 public abstract class BaseTalariaFault implements TalariaFault
 {
   private final String errorCode;

@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -56,7 +55,6 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
-import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -154,37 +152,21 @@ public class WorkerImpl implements Worker
   public TaskStatus run() throws Exception
   {
     try (final Closer closer = Closer.create()) {
-      Throwable exceptionEncountered = null;
-      Optional<TalariaErrorReport> runTaskResult;
+      Optional<TalariaErrorReport> maybeErrorReport;
 
       try {
-        runTaskResult = runTask(closer);
+        maybeErrorReport = runTask(closer);
       }
       catch (Throwable e) {
-        exceptionEncountered = e;
-        runTaskResult = Optional.of(
+        maybeErrorReport = Optional.of(
             TalariaErrorReport.fromException(id(), TalariaTasks.getHostFromSelfNode(selfDruidNode), null, e)
         );
       }
 
-      if (runTaskResult.isPresent()) {
-        final TalariaErrorReport errorReport = runTaskResult.get();
-
-        final StringBuilder logMessage = new StringBuilder("Work failed");
-        if (errorReport.getStageNumber() != null) {
-          logMessage.append(" (stage ").append(errorReport.getStageNumber()).append(")");
-        }
-        logMessage.append(": ").append(errorReport.getFault().getCodeWithMessage());
-
-        if (exceptionEncountered == null) {
-          log.warn(logMessage.toString());
-        } else if (errorReport.getFault().getErrorCode().equals(UnknownFault.INSTANCE.getErrorCode())) {
-          // Log full stack trace for unknown faults.
-          log.warn(exceptionEncountered, logMessage.toString());
-        } else {
-          // Log error message only for known faults, to avoid polluting logs.
-          log.noStackTrace().warn(exceptionEncountered, logMessage.toString());
-        }
+      if (maybeErrorReport.isPresent()) {
+        final TalariaErrorReport errorReport = maybeErrorReport.get();
+        final String errorLogMessage = TalariaTasks.errorReportToLogMessage(errorReport);
+        log.warn(errorLogMessage);
 
         closer.register(() -> {
           if (leaderClient != null && selfDruidNode != null) {
@@ -203,13 +185,17 @@ public class WorkerImpl implements Worker
     }
   }
 
+  /**
+   * Runs worker logic. Returns an empty Optional on success. On failure, returns an error report for errors that
+   * happened in other threads; throws exceptions for errors that happened in the main worker loop.
+   */
   public Optional<TalariaErrorReport> runTask(final Closer closer) throws Exception
   {
     context.registerWorker(this, closer);
     this.selfDruidNode = context.selfNode();
     this.leaderClient = context.makeLeaderClient(id());
     closer.register(leaderClient::close);
-    this.workerClient = context.makeWorkerClient(id());
+    this.workerClient = new ExceptionWrappingWorkerClient(context.makeWorkerClient(id()));
     closer.register(workerClient::close);
     this.processorBouncer = context.processorBouncer();
 
@@ -320,7 +306,7 @@ public class WorkerImpl implements Worker
         }
 
         if (kernel.getPhase() == WorkerStagePhase.FAILED) {
-          // TODO(gianm): Enable retries, somehow?
+          // Better than throwing an exception, because we can include the stage number.
           return Optional.of(
               TalariaErrorReport.fromException(
                   id(),
@@ -339,6 +325,7 @@ public class WorkerImpl implements Worker
 
         do {
           if (log.isDebugEnabled()) {
+            // Log counters, but only if they've changed.
             final String nextCountersString = talariaCounters.stateString();
             if (!nextCountersString.equals(countersString)) {
               log.debug("Counters: %s", nextCountersString);
@@ -346,15 +333,7 @@ public class WorkerImpl implements Worker
             }
           }
 
-          if (!queryDefinitionMap.isEmpty()) {
-            // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
-            // If this "Iterables.getOnlyElement" fails it is because we were assigned multiple worker numbers for
-            // different work orders, which is not expected.
-            final TalariaCountersSnapshot.WorkerCounters snapshot =
-                Iterables.getOnlyElement(talariaCounters.snapshot().getWorkerCounters());
-
-            leaderClient.postCounters(task.getControllerTaskId(), id(), snapshot);
-          }
+          postCountersToController();
         } while ((nextCommand = kernelManipulationQueue.poll(5, TimeUnit.SECONDS)) == null);
 
         nextCommand.accept(kernelHolder);
@@ -610,6 +589,34 @@ public class WorkerImpl implements Worker
           }
         }
     );
+  }
+
+  /**
+   * Posts all counters for this worker to the controller.
+   */
+  private void postCountersToController()
+  {
+    if (!queryDefinitionMap.isEmpty()) {
+      // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
+      // If this "Iterables.getOnlyElement" fails it is because we were assigned multiple worker numbers for
+      // different work orders, which is not expected.
+
+      List<TalariaCountersSnapshot.WorkerCounters> workerCounters =
+          talariaCounters.snapshot().getWorkerCounters();
+
+      if (workerCounters != null) {
+        if (workerCounters.size() > 1) {
+          throw new ISE(
+              "Multiple worker numbers [%s] for different work orders were assinged, which is not expected.",
+              workerCounters.stream()
+                            .map(TalariaCountersSnapshot.WorkerCounters::getWorkerNumber)
+                            .collect(Collectors.toList())
+          );
+        } else {
+          leaderClient.postCounters(task.getControllerTaskId(), id(), workerCounters.get(0));
+        }
+      }
+    }
   }
 
   /**
@@ -1060,33 +1067,49 @@ public class WorkerImpl implements Worker
     }
   }
 
+  /**
+   * Log (at DEBUG level) a string explaining the status of all work assigned to this worker.
+   */
   private static void logKernelStatus(final Collection<WorkerStageKernel> kernels)
   {
     if (log.isDebugEnabled()) {
       log.debug(
           "Stages: %s",
-          kernels
-              .stream()
-              .sorted(Comparator.comparing(k -> k.getStageDefinition().getStageNumber()))
-              .map(k -> StringUtils.format(
-                       "S%d:W%d:P[%s]%s:%s:%s",
-                       k.getStageDefinition().getStageNumber(),
-                       k.getWorkOrder().getWorkerNumber(),
-                       StreamSupport.stream(k.getWorkOrder().getInputPartitions().spliterator(), false)
-                                    .map(ReadablePartition::getPartitionNumber)
-                                    .sorted()
-                                    .map(String::valueOf)
-                                    .collect(Collectors.joining(",")),
-                       k.getStageDefinition().doesShuffle()
-                       ? ">" + (k.hasResultPartitionBoundaries() ? k.getResultPartitionBoundaries().size() : "?")
-                       : "",
-                       k.getStageDefinition().doesShuffle() ? "SHUFFLE" : "RETAIN",
-                       k.getPhase()
-                   )
-              )
-              .collect(Collectors.joining("; "))
+          kernels.stream()
+                 .sorted(Comparator.comparing(k -> k.getStageDefinition().getStageNumber()))
+                 .map(WorkerImpl::makeKernelStageStatusString)
+                 .collect(Collectors.joining("; "))
       );
     }
+  }
+
+  /**
+   * Helper used by {@link #logKernelStatus}.
+   */
+  private static String makeKernelStageStatusString(final WorkerStageKernel kernel)
+  {
+    final String inputPartitionNumbers =
+        StreamSupport.stream(kernel.getWorkOrder().getInputPartitions().spliterator(), false)
+                     .map(ReadablePartition::getPartitionNumber)
+                     .sorted()
+                     .map(String::valueOf)
+                     .collect(Collectors.joining(","));
+
+    // String like ">50" if shuffling to 50 partitions, ">?" if shuffling to unknown number of partitions.
+    final String shuffleStatus =
+        kernel.getStageDefinition().doesShuffle()
+        ? ">" + (kernel.hasResultPartitionBoundaries() ? kernel.getResultPartitionBoundaries().size() : "?")
+        : "";
+
+    return StringUtils.format(
+        "S%d:W%d:P[%s]%s:%s:%s",
+        kernel.getStageDefinition().getStageNumber(),
+        kernel.getWorkOrder().getWorkerNumber(),
+        inputPartitionNumbers,
+        shuffleStatus,
+        kernel.getStageDefinition().doesShuffle() ? "SHUFFLE" : "RETAIN",
+        kernel.getPhase()
+    );
   }
 
   private static class KernelHolder

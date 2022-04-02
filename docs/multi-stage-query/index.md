@@ -72,8 +72,12 @@ druid.query.async.storage.local.directory=/mnt/tmp/async-query
 **Middle Manager**
 
 ```bash
-druid.server.http.numThreads=1025
+# Should be set to the maximum number of tasks you will use per job plus 25.
+# Here, we go with 1025 because the hard limit for tasks per job is 1000.
+# You can set this lower if you do not intend to use this many tasks.
 druid.indexer.fork.property.druid.server.http.numThreads=1025
+
+# Lazy initialization of the connection pool that will be used for shuffle.
 druid.global.http.numConnections=50
 druid.global.http.eagerInitialization=false
 
@@ -298,6 +302,7 @@ The multi-stage query engine accepts additional Druid SQL
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
+| talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
 
 #### Response
 
@@ -605,6 +610,7 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 |  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
 |  NotEnoughMemory  |  Not enough memory to launch a stage.  |  &bull;&nbsp;serverMemory: the amount of memory available to a single process<br /><br />&bull;&nbsp;serverWorkers: the number of workers running in a single process<br /><br />&bull;&nbsp;serverThreads: the number of threads in a single process  |
 |  WorkerFailed  |  A worker task failed unexpectedly.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
+|  WorkerRpcFailed  |  A remote procedure call to a worker task failed unrecoverably.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
 |  UnknownError   |  All other errors.  |    |
 
 #### Request
@@ -724,27 +730,64 @@ in your Druid table with all timestamps set to 1970-01-01 00:00:00.
 
 ### PARTITIONED BY
 
-Time-based partitioning is determined by the PARTITIONED BY clause.
-This clause is required for INSERT queries. Possible arguments include:
+Time-based partitioning is determined by the PARTITIONED BY clause. This clause is required for
+INSERT queries. Possible arguments include:
 
 - Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
-- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like 'PT1H'. The first argument must be `__time`.
-- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR function](https://druid.apache.org/docs/latest/querying/sql.html#time-functions). The first argument must be `__time`.
-- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single time chunk.
+- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like
+  'PT1H'. The first argument must be `__time`.
+- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR
+  function](https://druid.apache.org/docs/latest/querying/sql.html#time-functions). The first
+  argument must be `__time`.
+- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single
+  time chunk.
 
-If `PARTITIONED BY` is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or OFFSET at the outer level of your query.
+PARTITIONED BY has several benefits:
+
+1. Better query performance due to time-based segment pruning, which removes segments from
+   consideration when they do not contain any data for a query's time filter.
+2. More efficient data management, as data can be rewritten for each time partition individually
+   rather than the whole table.
+
+If PARTITIONED BY is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or
+OFFSET at the outer level of your INSERT INTO … SELECT query.
 
 ### CLUSTERED BY
 
-Secondary partitioning within a time chunk is determined by the `CLUSTERED BY`
-clause. `CLUSTERED BY` can partition by any number of columns or expressions.
+Secondary partitioning within a time chunk is determined by the CLUSTERED BY
+clause. CLUSTERED BY can partition by any number of columns or expressions.
+
+CLUSTERED BY has several benefits:
+
+1. Lower storage footprint due to combining similar data into the same segments, which improves
+   compressibility.
+2. Better query performance due to dimension-based segment pruning, which removes segments from
+   consideration when they cannot possibly contain data matching a query's filter.
+
+For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be singly-valued
+string columns and the [`talariaReplaceTimeChunks`](#context) parameter must be provided as part of
+the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
+columns, or if `talariaReplaceTimeChunks` is not provided, then Druid will still cluster data during
+ingestion but it will not be able to perform dimension-based segment pruning at query time.
+
+You can tell if dimension-based segment pruning is possible by using the `sys.segments` table to
+inspect the `shard_spec` for the segments that are generated by an INSERT query. If they are of type
+`range` or `single`, then dimension-based segment pruning is possible. Otherwise, it is not. The
+shard spec type is also available in the web console's "Segments" view under the "Partitioning"
+column.
+
+In addition, only certain filters support dimension-based segment pruning. This includes:
+
+- Equality to string literals, like `x = 'foo'` or `x IN ('foo', 'bar')`.
+- Comparison to string literals, like `x < 'foo'` or other comparisons involving `<`, `>`, `<=`, or `>=`.
+
+This differs from multi-dimension range based partitioning in classic batch ingestion, where both
+string and numeric columns support Broker-level pruning. With multi-stage-query-based ingestion,
+only string columns support Broker-level pruning.
 
 It is OK to mix time partitioning with secondary partitioning. For example, you can
 combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
 time partitioning by hour and secondary partitioning by channel within each hour.
-
-INSERT INTO … SELECT queries cannot include `ORDER BY` as part of the SELECT.
-Similar functionality can be achieved by using `CLUSTERED BY` instead.
 
 ### Rollup
 
@@ -815,18 +858,19 @@ The main driver of performance is parallelism. The most relevant considerations 
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
 - The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
-  of worker tasks that can run on that server at once. Each task runs single-threaded, so this also
-  determines the maximum number of processors on the server that can contribute towards multi-stage
-  queries. In Imply Enterprise, where data servers are shared between Historicals and Middle
-  Managers, the default setting for `druid.worker.capacity` is lower than the number of processors
-  on the server. On high-memory instance types, such as the AWS r5 or i3 families, or the GCP
-  n1-highmem family, you can increase multi-stage query engine parallelism by setting
-  `druid.worker.capacity` to one less than the number of processors on the server. This override
-  leads to additional memory usage, which may affect performance of the core query engine. It may
-  also cause instability on non-high-memory instance types due to lack of available memory.
+  of worker tasks that can run on each server at once. Worker tasks run single-threaded, so this
+  also determines the maximum number of processors on the server that can contribute towards
+  multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
+  Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
+  processors on the server. Advanced users may consider enhancing parallelism by increasing this
+  value to one less than the number of processors on the server. In most cases, this increase must
+  be accompanied by an adjustment of the memory allotment of the Historical process,
+  Middle-Manager-launched tasks, or both, to avoid memory overcommitment and server instability. If
+  you are not comfortable tuning these memory usage parameters to avoid overcommitment, it is best
+  to stick with the default `druid.worker.capacity`.
 
 A secondary driver of performance is available memory. In two important cases — producer-side sort
-as part of shuffle, and segment generation — more memory can reduce the number of passes required
+as part of shuffle, and segment generation — more memory can reduce the number of passes required
 through the data and therefore improve performance. For details, see the [Memory
 usage](#memory-usage) section.
 
