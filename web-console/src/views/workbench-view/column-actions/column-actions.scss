@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-@import '~@blueprintjs/core/src/common/colors';
 @import '../../../variables';
 
 .column-actions {
@@ -31,7 +30,7 @@
     cursor: default;
   }
 
-  .bp3-form-group:last-child {
+  .#{$bp-ns}-form-group:last-child {
     margin-bottom: 0;
   }
 }

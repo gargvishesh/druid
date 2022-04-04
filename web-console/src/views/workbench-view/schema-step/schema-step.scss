@@ -93,7 +93,7 @@ $gap: 15px;
       width: $controls-width;
 
       .time-column-warning {
-        .bp3-heading {
+        .#{$bp-ns}-heading {
           margin-bottom: 15px;
         }
       }

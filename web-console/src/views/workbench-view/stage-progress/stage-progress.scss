@@ -29,11 +29,11 @@
     }
   }
 
-  .bp3-label {
+  .#{$bp-ns}-label {
     margin: 8px 0;
   }
 
-  .bp3-progress-meter {
+  .#{$bp-ns}-progress-meter {
     animation-duration: 0.9s !important;
     animation-direction: normal !important;
   }

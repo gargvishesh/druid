@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .export-dialog {
-  .bp3-dialog-body {
+  .#{$bp-ns}-dialog-body {
     min-height: 190px;
 
-    .bp3-progress-bar {
+    .#{$bp-ns}-progress-bar {
       margin-bottom: 15px;
     }
 
-    .bp3-progress-meter {
+    .#{$bp-ns}-progress-meter {
       animation-duration: 0.9s !important;
       animation-direction: normal !important;
     }

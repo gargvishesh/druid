@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .talaria-history-dialog {
-  &.bp3-dialog {
+  &.#{$bp-ns}-dialog {
     width: 90vw;
     height: 90vh;
   }
@@ -25,7 +27,7 @@
   .version-tabs {
     height: 100%;
 
-    .bp3-tab-panel {
+    .#{$bp-ns}-tab-panel {
       position: relative;
       flex: 1;
     }
@@ -49,7 +51,7 @@
           margin-right: 10px;
         }
 
-        .bp3-switch {
+        .#{$bp-ns}-switch {
           margin-top: 3px;
         }
       }
