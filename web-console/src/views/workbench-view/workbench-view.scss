@@ -65,7 +65,7 @@ $work-panel-width: 250px;
           border-bottom: 2px solid #a1a6ba;
         }
 
-        .tab-name .bp3-button-text {
+        .tab-name .#{$bp-ns}-button-text {
           max-width: 240px;
           overflow: hidden;
           text-overflow: ellipsis;

@@ -35,7 +35,7 @@ $druid-brand-background: #1c1c26;
   background: $white;
   border-radius: $pt-border-radius;
 
-  .bp3-dark & {
+  .#{$bp-ns}-dark & {
     background: $dark-gray3;
   }
 }

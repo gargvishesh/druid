@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-@import '../../../blueprint-overrides/common/colors';
+@import '../../../variables';
 
 .talaria-query-error {
   padding: 20px 22px;
 
-  .bp3-dark & {
+  .#{$bp-ns}-dark & {
     background: $dark-gray3;
   }
 
