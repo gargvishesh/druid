@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .expression-editor-dialog {
-  .bp3-dialog-body {
+  .#{$bp-ns}-dialog-body {
     min-height: 100px;
 
     .talaria-query-input {
@@ -26,7 +28,7 @@
     }
   }
 
-  .bp3-dialog-footer-actions {
+  .#{$bp-ns}-dialog-footer-actions {
     position: relative;
 
     .delete-button {

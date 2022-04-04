@@ -59,7 +59,7 @@ $config-width: 400px;
         grid-template-columns: 1fr;
       }
 
-      .bp3-card {
+      .#{$bp-ns}-card {
         position: relative;
         display: inline-block;
         vertical-align: top;
@@ -80,7 +80,7 @@ $config-width: 400px;
           border: 2px solid $blue3;
           border-radius: $pt-border-radius;
 
-          .bp3-dark & {
+          .#{$bp-ns}-dark & {
             border: 2px solid $blue4;
           }
         }

@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .talaria-results-dialog {
-  &.bp3-dialog {
+  &.#{$bp-ns}-dialog {
     width: 95vw;
   }
 
-  .bp3-dialog-body {
+  .#{$bp-ns}-dialog-body {
     height: 80vh;
 
     .query-output2 {

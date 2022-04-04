@@ -16,19 +16,21 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .show-async-value-dialog {
-  &.bp3-dialog {
+  &.#{$bp-ns}-dialog {
     width: 90vw;
     height: 90vh;
     padding-bottom: 10px;
   }
 
-  .bp3-input {
+  .#{$bp-ns}-input {
     margin: 10px;
     flex: 1;
   }
 
-  .bp3-dialog-footer-actions {
+  .#{$bp-ns}-dialog-footer-actions {
     padding-right: 10px;
   }
 }
