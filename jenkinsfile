@@ -570,6 +570,35 @@ def runUnitTest() {
     }
 }
 
+def getCodeChanges() {
+    script {
+        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
+        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
+            sh script: '''#!/bin/bash -eux
+                                files=$(curl -u  ${GIT_CREDS_USR}:${GIT_CREDS_PSW} \
+                                https://api.github.com/repos/implydata/druid/pulls/${CHANGE_ID}/files \
+                                | jq '.[] | .filename' |  tr '\\n' ',' )
+                                any_docs=$(python3 check_test_suite_jenkins.py docs $files)
+                                any_console=$(python3 check_test_suite_jenkins.py 'web console' $files)
+                                any_java=$(python3 check_test_suite_jenkins.py any_java $files)
+                                echo ${any_java} > any_java.info
+                                echo ${any_docs} > any_docs.info
+                                echo ${any_console} > any_console.info
+                            '''
+        }
+    }
+    script {
+        env.JAVA_CODE_CHANGES = sh(script: 'head -n 1 any_java.info', returnStdout: true).trim()
+    }
+    script {
+        env.DOC_CODE_CHANGES = sh(script: 'head -n 1 any_docs.info', returnStdout: true).trim()
+    }
+    script {
+        env.CONSOLE_CODE_CHANGES = sh(script: 'head -n 1 any_console.info', returnStdout: true).trim()
+    }
+    sh 'printenv | sort'
+}
+
 @NonCPS
 def cancelPreviousBuilds() {
     println("Checking to see if any previous builds need to be aborted.")
@@ -620,7 +649,7 @@ pipeline {
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
         RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
 
-        IMAGE_JDK8 = "docker/druid-ci-jdk8:1620827975"
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1647252999"
         IMAGE_JDK11 = "docker/druid-ci-jdk11:1620827975"
         IMAGE_JDK15 = "docker/druid-ci-jdk15:1625878101"
         DOCKER_TAG = "${BUILD_TAG}".replaceAll(~/[^A-Za-z0-9_-]/,'_')
@@ -648,6 +677,10 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                         error("Tagged Don't Build")
                     }
+                    // Set initial value of JAVA_CODE_CHANGES here because value set in env block cannot be changed
+                    env.JAVA_CODE_CHANGES = "True"
+                    env.DOC_CODE_CHANGES  =  "True"
+                    env.CONSOLE_CODE_CHANGES = "True"
                 }
             }
         }
@@ -690,6 +723,15 @@ pipeline {
                         }
                     }
                 }
+                stage('Verify code changes in PR') {
+                    when {
+                        beforeAgent true
+                        changeRequest()
+                    }
+                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}-multi-exec"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
+                    steps { getCodeChanges() }
+                }
             }
         }
 
@@ -703,36 +745,60 @@ pipeline {
             }
             parallel {
                 stage('animal sniffer checks') {
+                    when {
+                        expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS && env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('checkstyle') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} checkstyle:checkstyle --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('enforcer checks') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} enforcer:enforce --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('forbidden api checks') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} forbiddenapis:check forbiddenapis:testCheck --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('pmd checks') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} pmd:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
                 stage('spotbugs checks') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
                     steps { mavenCacheRestore(); sh "${MVN} spotbugs:check --fail-at-end -pl '!benchmarks'" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
@@ -766,8 +832,11 @@ pipeline {
                         cleanup { resetWs() }
                     }
                 }
-
                 stage('(openjdk11) strict compilation') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK11}"
@@ -794,6 +863,10 @@ pipeline {
                 }
 
                 stage('analyze dependencies') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -837,6 +910,10 @@ pipeline {
                 }
 
                 stage('analyze hadoop 3 dependencies"') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -880,6 +957,10 @@ pipeline {
                 }
 
                 stage('intellij inspections') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -942,7 +1023,37 @@ pipeline {
                     }
                 }
 
+                stage('(openjdk11) packaging check') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK11}-${DOCKER_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}-multi-exec"
+                        }
+                    }
+                    environment {
+                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
+                    }
+                    steps {
+                        setupMavenSettings()
+                        sh script: '''
+                            MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
+                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
+                        '''
+                    }
+                    post {
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        cleanup { resetWs() }
+                    }
+                }
+
                 stage('web console') {
+                    when {
+                        expression { env.CONSOLE_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
@@ -972,7 +1083,7 @@ pipeline {
 
                 stage('web-console end-to-end test') {
                     when {
-                        expression { env.BRANCH_NAME != 'monthly' }
+                        expression { env.CONSOLE_CODE_CHANGES == "True" }
                         beforeAgent true
                     }
                     agent {
@@ -1003,6 +1114,12 @@ pipeline {
                 }
 
                 stage('docs') {
+                    // Run this stage when it is not a PR or in case of PR only run when there is a change in
+                    // docs and website directory
+                    when {
+                        expression { env.DOC_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}"
@@ -1037,6 +1154,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) processing module test') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="processing"
@@ -1047,6 +1168,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) processing module test (SQL Compatibility)') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="processing"
@@ -1057,6 +1182,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) indexing modules test') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
@@ -1067,6 +1196,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) indexing modules test (SQL Compatibility)') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service"
@@ -1077,6 +1210,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) server module test') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="server"
@@ -1087,6 +1224,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) server module test (SQL Compatibility)') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="server"
@@ -1097,6 +1238,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) other modules test') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
@@ -1107,6 +1252,10 @@ pipeline {
                 }
 
                 stage('(openjdk8) other modules test (SQL Compatibility)') {
+                    when {
+                        expression { env.JAVA_CODE_CHANGES == "True" }
+                        beforeAgent true
+                    }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
                         MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests"
@@ -1120,7 +1269,7 @@ pipeline {
 
         stage('Tests - phase 2') {
             when {
-                expression { !params.SKIP_JENKINS_INTEGRATION_TESTS && !params.SKIP_ALL_JENKINS_TESTS }
+                expression { !params.SKIP_JENKINS_INTEGRATION_TESTS && !params.SKIP_ALL_JENKINS_TESTS && env.JAVA_CODE_CHANGES == "True" }
                 beforeAgent true
             }
             environment {
@@ -1182,31 +1331,6 @@ pipeline {
                         label: 'dependency check'
                     }
                     post { cleanup { resetWs() } }
-                }
-                stage('(openjdk11) packaging check') {
-                    agent {
-                        docker {
-                            image "${IMAGE_JDK11}-${DOCKER_TAG}"
-                            args "${DOCKER_AGENT_ARGS}"
-                            registryUrl "${RT_REGISTRY_URL}"
-                            registryCredentialsId "${RT_REGISTRY_CREDS}"
-                            label "${DOCKER_AGENT_LABEL}-multi-exec"
-                        }
-                    }
-                    environment {
-                        MAVEN_OPTS = "-Xms4g -Xmx8g -XX:MaxDirectMemorySize=2048m"
-                    }
-                    steps {
-                        setupMavenSettings()
-                        sh script: '''
-                            MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false -T1C
-                        '''
-                    }
-                    post {
-                        always { buildArtifacts(env.STAGE_NAME) }
-                        cleanup { resetWs() }
-                    }
                 }
 
                 stage('(openjdk11) processing module test') {
