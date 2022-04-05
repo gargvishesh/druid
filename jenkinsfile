@@ -556,7 +556,7 @@ def runUnitTest() {
                 # Set MAVEN_OPTS for Surefire launcher. Skip remoteresources to avoid intermittent connection timeouts when
                 # resolving the SIGAR dependency.
                 export BUILD_STATUS=0
-                MAVEN_OPTS='-Xmx1100m' ${MVN} test -pl ${MAVEN_PROJECTS:-processing} \
+                MAVEN_OPTS='-Xmx2048m' ${MVN} test -pl ${MAVEN_PROJECTS:-processing} \
                     ${MAVEN_SKIP} -Dremoteresources.skip=true -Ddruid.generic.useDefaultValueForNull=${DRUID_USE_DEFAULT_VALUE_FOR_NULL:-true} \
                     || export BUILD_STATUS=1
 
