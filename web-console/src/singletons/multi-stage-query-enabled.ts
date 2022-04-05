@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-// Set this to `false` to cripple all Talaria code in the console
-export const TALARIA_ENABLED = true;
+// Set this to `false` to cripple all multi-stage query code in the console
+export const MULTI_STAGE_QUERY_ENABLED = true;

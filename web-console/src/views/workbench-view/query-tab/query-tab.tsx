@@ -42,9 +42,9 @@ import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { AnchoredQueryTimer } from '../anchored-query-timer/anchored-query-timer';
 import {
+  executionBackgroundStatusCheck,
   reattachAsyncQuery,
   submitAsyncQuery,
-  talariaBackgroundStatusCheck,
 } from '../execution-utils';
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { HelperQuery } from '../helper-query/helper-query';
@@ -92,7 +92,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   });
 
   const handleSecondaryPaneSizeChange = useCallback((secondaryPaneSize: number) => {
-    localStorageSet(LocalStorageKeys.TALARIA_TAB_PANE_SIZE, String(secondaryPaneSize));
+    localStorageSet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE, String(secondaryPaneSize));
   }, []);
 
   const queryInputRef = useRef<TalariaQueryInput | null>(null);
@@ -160,7 +160,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         });
       }
     },
-    backgroundStatusCheck: talariaBackgroundStatusCheck,
+    backgroundStatusCheck: executionBackgroundStatusCheck,
   });
 
   useEffect(() => {
@@ -210,7 +210,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         vertical
         percentage
         secondaryInitialSize={
-          Number(localStorageGet(LocalStorageKeys.TALARIA_TAB_PANE_SIZE)!) || 40
+          Number(localStorageGet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE)!) || 40
         }
         primaryMinSize={20}
         secondaryMinSize={20}

@@ -30,7 +30,7 @@ import {
 } from '../../talaria-models';
 import { getContextFromSqlQuery, LocalStorageKeys } from '../../utils';
 
-import { submitAsyncQuery, talariaBackgroundStatusCheck } from './execution-utils';
+import { executionBackgroundStatusCheck, submitAsyncQuery } from './execution-utils';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
@@ -50,7 +50,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
   const { goToQuery } = props;
   const [externalConfigStep, setExternalConfigStep] = useState<Partial<ExternalConfig>>({});
   const [queryString, setQueryString] = useLocalStorageState<string>(
-    LocalStorageKeys.TALARIA_LOADER_QUERY,
+    LocalStorageKeys.SQLOADER_QUERY,
     '',
   );
   const [showLiveReports, setShowLiveReports] = useState(false);
@@ -75,7 +75,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
         cancelToken,
       });
     },
-    backgroundStatusCheck: talariaBackgroundStatusCheck,
+    backgroundStatusCheck: executionBackgroundStatusCheck,
   });
 
   return (

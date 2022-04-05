@@ -265,6 +265,8 @@ export const ColumnActions = React.memo(function ExpressionEditor(props: ColumnA
     }
   }
 
+  if (!transformMenuItems.length && !removeFilterButton && !convertButton) return null;
+
   return (
     <div className="column-actions">
       <div className="title">Column actions</div>

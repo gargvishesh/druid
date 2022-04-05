@@ -302,6 +302,15 @@ export class QueryExecution {
     });
   }
 
+  public isProcessingData(): boolean {
+    const { status, stages } = this;
+    return Boolean(
+      status === 'RUNNING' &&
+        stages &&
+        stages.getTotalInputForStage(stages.getStage(0), 'rows') > 0,
+    );
+  }
+
   public isWaitingForQuery(): boolean {
     const { status } = this;
     return status !== 'SUCCESS' && status !== 'FAILED';

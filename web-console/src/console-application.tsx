@@ -25,7 +25,7 @@ import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
 import { AppToaster } from './singletons';
-import { TALARIA_ENABLED } from './singletons/talaria-enabled';
+import { MULTI_STAGE_QUERY_ENABLED } from './singletons/multi-stage-query-enabled';
 import { Capabilities, localStorageGetJson, LocalStorageKeys, QueryManager } from './utils';
 import {
   DatasourcesView,
@@ -160,7 +160,9 @@ export class ConsoleApplication extends React.PureComponent<
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
     window.location.hash =
-      TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW) ? 'workbench' : 'query';
+      MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW)
+        ? 'workbench'
+        : 'query';
     this.resetInitialsWithDelay();
   };
 
@@ -216,7 +218,7 @@ export class ConsoleApplication extends React.PureComponent<
   // BEGIN: Imply-added code for Talaria execution
   private readonly wrappedQueryNextView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
-    if (!TALARIA_ENABLED) return null;
+    if (!MULTI_STAGE_QUERY_ENABLED) return null;
 
     return this.wrapInViewContainer(
       'workbench',
@@ -325,13 +327,13 @@ export class ConsoleApplication extends React.PureComponent<
               <Route path="/query" component={this.wrappedQueryView} />
 
               {/* BEGIN: Imply-added code for Talaria execution */}
-              {TALARIA_ENABLED && (
+              {MULTI_STAGE_QUERY_ENABLED && (
                 <Route
                   path={['/workbench/:tabId', '/workbench']}
                   component={this.wrappedQueryNextView}
                 />
               )}
-              {TALARIA_ENABLED && (
+              {MULTI_STAGE_QUERY_ENABLED && (
                 <Route path="/sqloader" component={this.wrappedTalariaLoadDataView} />
               )}
               {/* END: Imply-modified code for Talaria execution */}

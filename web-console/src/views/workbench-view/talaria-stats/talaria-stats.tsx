@@ -68,7 +68,7 @@ function formatDataSource(dataSource: DataSource | undefined): string {
 
   switch (dataSource.type) {
     case 'table':
-      return dataSource.name;
+      return String(dataSource.name);
 
     case 'external':
       return summarizeInputSource(dataSource.inputSource);
@@ -138,8 +138,8 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
         {detailedStatsForWorker(stage, 'inputDruid', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'inputStageChannel', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'processor', phase === 'READING_INPUT')}
-        {detailedStatsForWorker(stage, 'sort', phase !== 'RESULTS_COMPLETE')}
-        {detailedStatsForPartition(stage, 'output', phase !== 'RESULTS_COMPLETE')}
+        {detailedStatsForWorker(stage, 'sort', phase !== 'RESULTS_READY')}
+        {detailedStatsForPartition(stage, 'output', phase !== 'RESULTS_READY')}
       </div>
     );
   }

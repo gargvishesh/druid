@@ -107,7 +107,7 @@ export async function submitAsyncQuery(
   if (execution.isFullyComplete()) return execution;
 
   if (cancelToken) {
-    deleteAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
+    cancelAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
   }
 
   return new IntermediateQueryState(execution);
@@ -130,7 +130,7 @@ export async function reattachAsyncQuery(
   if (execution.isFullyComplete()) return execution;
 
   if (cancelToken) {
-    deleteAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
+    cancelAsyncQueryOnCancel(execution.id, cancelToken, Boolean(preserveOnTermination));
   }
 
   return new IntermediateQueryState(execution);
@@ -272,7 +272,7 @@ WHERE datasource = ${SqlLiteral.create(execution.destination.dataSource)} AND is
   return execution.markDestinationDatasourceExists();
 }
 
-function deleteAsyncQueryOnCancel(
+function cancelAsyncQueryOnCancel(
   id: string,
   cancelToken: CancelToken,
   preserveOnTermination = false,
@@ -280,9 +280,13 @@ function deleteAsyncQueryOnCancel(
   void cancelToken.promise
     .then(cancel => {
       if (preserveOnTermination && cancel.message === QueryManager.TERMINATION_MESSAGE) return;
-      return Api.instance.delete(`/druid/v2/sql/async/${Api.encodePath(id)}`);
+      return cancelAsyncQuery(id);
     })
     .catch(() => {});
+}
+
+export function cancelAsyncQuery(id: string): Promise<void> {
+  return Api.instance.delete(`/druid/v2/sql/async/${Api.encodePath(id)}`);
 }
 
 export async function getAsyncResult(id: string, cancelToken?: CancelToken): Promise<QueryResult> {
@@ -299,7 +303,7 @@ export async function getAsyncResult(id: string, cancelToken?: CancelToken): Pro
   ).inflateDatesFromSqlTypes();
 }
 
-export async function talariaBackgroundStatusCheck(
+export async function executionBackgroundStatusCheck(
   execution: QueryExecution,
   _query: any,
   cancelToken: CancelToken,
@@ -312,12 +316,12 @@ export async function talariaBackgroundStatusCheck(
   return execution;
 }
 
-export async function talariaBackgroundResultStatusCheck(
+export async function executionBackgroundResultStatusCheck(
   execution: QueryExecution,
   query: any,
   cancelToken: CancelToken,
 ): Promise<QueryResult | IntermediateQueryState<QueryExecution>> {
-  return extractQueryResults(await talariaBackgroundStatusCheck(execution, query, cancelToken));
+  return extractQueryResults(await executionBackgroundStatusCheck(execution, query, cancelToken));
 }
 
 export function extractQueryResults(

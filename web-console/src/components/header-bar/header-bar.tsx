@@ -42,7 +42,7 @@ import {
 import { usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
 import { Api, AppToaster } from '../../singletons';
-import { TALARIA_ENABLED } from '../../singletons/talaria-enabled';
+import { MULTI_STAGE_QUERY_ENABLED } from '../../singletons/multi-stage-query-enabled';
 import {
   Capabilities,
   localStorageGetJson,
@@ -217,7 +217,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
 
   // BEGIN: Imply-added code for Talaria execution
   const [showTalaria, setShowTalaria] = useState<any>(
-    TALARIA_ENABLED && localStorageGetJson(LocalStorageKeys.TALARIA_SHOW),
+    MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW),
   );
   // END: Imply-added code for Talaria execution
 
@@ -315,7 +315,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
 
   // BEGIN: Imply-added code for Talaria execution
   const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
-    if (!TALARIA_ENABLED || !e.altKey) return;
+    if (!MULTI_STAGE_QUERY_ENABLED || !e.altKey) return;
     e.preventDefault();
     const nextShowTalaria = e.shiftKey ? (showTalaria ? false : 'loader') : !showTalaria;
 
@@ -366,7 +366,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     }
 
     setShowTalaria(!nextShowTalaria);
-    localStorageSetJson(LocalStorageKeys.TALARIA_SHOW, nextShowTalaria);
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_SHOW, nextShowTalaria);
     AppToaster.show({
       message: nextShowTalaria ? (
         <>

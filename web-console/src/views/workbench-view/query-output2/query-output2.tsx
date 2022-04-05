@@ -729,7 +729,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                   </div>
                 );
               },
-              width: column.isTimeColumn() ? 180 : 100,
+              minWidth: column.isTimeColumn() ? 180 : 100,
               className:
                 parsedQuery && parsedQuery.isAggregateOutputColumn(h)
                   ? 'aggregate-column'

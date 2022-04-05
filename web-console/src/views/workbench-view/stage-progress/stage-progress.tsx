@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import { Intent, Label, ProgressBar } from '@blueprintjs/core';
-import React from 'react';
+import { Alert, Intent, Label, ProgressBar } from '@blueprintjs/core';
+import React, { useState } from 'react';
 
 import { QueryExecution } from '../../../talaria-models';
 
@@ -32,7 +32,18 @@ export interface StageProgressProps {
 
 export const StageProgress = React.memo(function StageProgress(props: StageProgressProps) {
   const { queryExecution, onCancel, onToggleLiveReports, showLiveReports } = props;
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
   const stages = queryExecution?.stages;
+
+  function cancelMaybeConfirm() {
+    if (!onCancel) return;
+    if (queryExecution?.isProcessingData()) {
+      setShowCancelConfirm(true);
+    } else {
+      onCancel();
+    }
+  }
 
   const idx = stages ? stages.currentStageIndex() : -1;
   return (
@@ -46,7 +57,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
         {onCancel && (
           <>
             {' '}
-            <span className="cancel" onClick={onCancel}>
+            <span className="cancel" onClick={cancelMaybeConfirm}>
               {stages && !queryExecution.isWaitingForQuery() ? '(stop waiting)' : '(cancel)'}
             </span>
           </>
@@ -73,6 +84,19 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
           )}
         </>
       )}
+      <Alert
+        intent={Intent.DANGER}
+        isOpen={showCancelConfirm}
+        cancelButtonText="Continue running query"
+        confirmButtonText="Cancel query"
+        canOutsideClickCancel
+        canEscapeKeyCancel
+        onCancel={() => setShowCancelConfirm(false)}
+        onConfirm={() => onCancel?.()}
+      >
+        <p>Are you sure you want to cancel this query?</p>
+        <p>You can&apos;t undo this action.</p>
+      </Alert>
     </div>
   );
 });

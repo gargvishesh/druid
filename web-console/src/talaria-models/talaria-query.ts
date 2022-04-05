@@ -56,6 +56,7 @@ export interface TalariaQueryValue {
 export class TalariaQuery {
   static PREVIEW_LIMIT = 10000;
   static TMP_PREFIX = '_tmp_';
+  static INLINE_DATASOURCE_MARKER = '__you_have_been_visited_by_talaria';
 
   static blank(): TalariaQuery {
     return new TalariaQuery({

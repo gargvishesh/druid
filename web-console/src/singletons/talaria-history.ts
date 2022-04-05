@@ -35,7 +35,7 @@ export class TalariaHistory {
   }
 
   static getHistory(): TalariaQueryHistoryEntry[] {
-    const possibleQueryHistory = localStorageGetJson(LocalStorageKeys.TALARIA_HISTORY);
+    const possibleQueryHistory = localStorageGetJson(LocalStorageKeys.WORKBENCH_HISTORY);
     return Array.isArray(possibleQueryHistory)
       ? possibleQueryHistory
           .filter(h => h.query)
@@ -47,7 +47,7 @@ export class TalariaHistory {
   }
 
   private static setHistory(history: TalariaQueryHistoryEntry[]): void {
-    localStorageSetJson(LocalStorageKeys.TALARIA_HISTORY, history);
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_HISTORY, history);
   }
 
   static getLastQuery(): TalariaQuery | undefined {

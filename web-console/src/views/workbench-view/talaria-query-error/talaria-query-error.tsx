@@ -59,7 +59,7 @@ export const TalariaQueryError = React.memo(function TalariaQueryError(
 
   return (
     <div className="talaria-query-error">
-      <p>
+      <p className="error-message-text">
         {error.errorCode && <>{`${error.errorCode}: `}</>}
         {error.errorMessage || (exceptionStackTrace || '').split('\n')[0]}
         {exceptionStackTrace && (
@@ -76,14 +76,19 @@ export const TalariaQueryError = React.memo(function TalariaQueryError(
           </>
         )}
       </p>
-      {taskId && (
+      {(taskId || host) && (
         <p>
-          Failed task ID: <ClickToCopy text={taskId} />
-        </p>
-      )}
-      {host && (
-        <p>
-          On host: <ClickToCopy text={host} />
+          {taskId && (
+            <>
+              Failed task ID: <ClickToCopy text={taskId} />
+              &nbsp;
+            </>
+          )}
+          {host && (
+            <>
+              On host: <ClickToCopy text={host} />
+            </>
+          )}
         </p>
       )}
       {stackToShow && (

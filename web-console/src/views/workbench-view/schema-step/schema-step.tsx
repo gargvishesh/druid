@@ -22,7 +22,6 @@ import {
   ButtonGroup,
   Callout,
   FormGroup,
-  InputGroup,
   Intent,
   Menu,
   MenuDivider,
@@ -45,7 +44,7 @@ import {
 } from 'druid-query-toolkit';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { Loader } from '../../../components';
+import { ClearableInput, Loader } from '../../../components';
 import { AsyncActionDialog } from '../../../dialogs';
 import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models';
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
@@ -84,10 +83,10 @@ import { ColumnActions } from '../column-actions/column-actions';
 import { ColumnEditor } from '../column-editor/column-editor';
 import { DestinationDialog } from '../destination-dialog/destination-dialog';
 import {
+  executionBackgroundResultStatusCheck,
+  executionBackgroundStatusCheck,
   extractQueryResults,
   submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
-  talariaBackgroundStatusCheck,
 } from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
@@ -406,7 +405,11 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       sampleDatasourceName: string,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(execution, sampleDatasourceName, cancelToken);
+      const res = await executionBackgroundStatusCheck(
+        execution,
+        sampleDatasourceName,
+        cancelToken,
+      );
       if (res instanceof IntermediateQueryState) return res;
 
       return sampleDatasourceName;
@@ -452,7 +455,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         return result;
       }
     },
-    backgroundStatusCheck: talariaBackgroundResultStatusCheck,
+    backgroundStatusCheck: executionBackgroundResultStatusCheck,
   });
 
   useEffect(() => {
@@ -764,13 +767,11 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               >
                 <Button className="add-column" icon={IconNames.PLUS} text="Add column" />
               </Popover2>
-              <InputGroup
+              <ClearableInput
                 className="column-filter-control"
                 value={columnSearch}
                 placeholder="Search columns"
-                onChange={e => {
-                  setColumnSearch(e.target.value);
-                }}
+                onChange={setColumnSearch}
               />
             </div>
           )}

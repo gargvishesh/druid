@@ -37,9 +37,9 @@ import { QueryContext } from '../../../utils/query-context';
 import { QueryError } from '../../query-view/query-error/query-error';
 import { QueryTimer } from '../../query-view/query-timer/query-timer';
 import {
+  executionBackgroundStatusCheck,
   reattachAsyncQuery,
   submitAsyncQuery,
-  talariaBackgroundStatusCheck,
 } from '../execution-utils';
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { InsertSuccess } from '../insert-success/insert-success';
@@ -150,7 +150,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
         });
       }
     },
-    backgroundStatusCheck: talariaBackgroundStatusCheck,
+    backgroundStatusCheck: executionBackgroundStatusCheck,
   });
 
   useEffect(() => {

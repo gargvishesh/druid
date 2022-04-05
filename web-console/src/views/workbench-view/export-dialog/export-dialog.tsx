@@ -35,8 +35,8 @@ import { QueryExecution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
 import {
   downloadQueryResults,
+  executionBackgroundStatusCheck,
   submitAsyncQuery,
-  talariaBackgroundStatusCheck,
 } from '../execution-utils';
 
 import './export-dialog.scss';
@@ -132,7 +132,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(execution, asyncDownloadParams, cancelToken);
+      const res = await executionBackgroundStatusCheck(execution, asyncDownloadParams, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (asyncDownloadParams.local) {

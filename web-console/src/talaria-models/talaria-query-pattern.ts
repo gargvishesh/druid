@@ -71,6 +71,7 @@ export function summarizeInputSource(inputSource: InputSource): string {
       return inputSource.uris?.[0] || '?';
 
     case 's3':
+    case 'google':
       return (inputSource.uris || inputSource.prefixes)?.[0] || '?';
 
     case 'hdfs':

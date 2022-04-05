@@ -102,14 +102,14 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
   constructor(props: MultiQueryViewProps, context: any) {
     super(props, context);
 
-    const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.TALARIA_QUERIES);
-    const possibleLiveQueryMode = localStorageGetJson(LocalStorageKeys.TALARIA_LIVE_MODE);
+    const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
+    const possibleLiveQueryMode = localStorageGetJson(LocalStorageKeys.WORKBENCH_LIVE_MODE);
     const liveQueryMode = LIVE_QUERY_MODES.includes(possibleLiveQueryMode)
       ? possibleLiveQueryMode
       : 'auto';
 
     const showWorkHistory = Boolean(
-      props.enableMultiStage && localStorageGetJson(LocalStorageKeys.TALARIA_WORK_HISTORY),
+      props.enableMultiStage && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
     );
 
     const tabEntries =
@@ -189,7 +189,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     const { tabId, initQuery } = this.props;
     if (tabId) return tabId;
     if (initQuery) return; // If initialized from a query go to the first tab, forget about the last opened tab
-    return localStorageGet(LocalStorageKeys.TALARIA_LAST_TAB);
+    return localStorageGet(LocalStorageKeys.WORKBENCH_LAST_TAB);
   }
 
   private getCurrentTabEntry() {
@@ -333,7 +333,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
               text="Show work history"
               onChange={() => {
                 this.setState({ showWorkHistory: !showWorkHistory });
-                localStorageSetJson(LocalStorageKeys.TALARIA_WORK_HISTORY, !showWorkHistory);
+                localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, !showWorkHistory);
               }}
             />
           </>
@@ -396,7 +396,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
                   text={tabEntry.tabName}
                   title={tabEntry.tabName}
                   onClick={() => {
-                    localStorageSet(LocalStorageKeys.TALARIA_LAST_TAB, currentId);
+                    localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
                     onTabChange(currentId);
                   }}
                   onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
@@ -495,7 +495,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
   }
 
   private readonly handleQueriesChange = (newQueries: TabEntry[], callback?: () => void) => {
-    localStorageSetJson(LocalStorageKeys.TALARIA_QUERIES, newQueries);
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_QUERIES, newQueries);
     this.setState({ tabEntries: newQueries }, callback);
   };
 

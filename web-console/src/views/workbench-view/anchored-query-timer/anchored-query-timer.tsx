@@ -21,6 +21,7 @@ import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
 import { useInterval } from '../../../hooks';
+import { formatDurationHybrid } from '../../../utils';
 
 import './anchored-query-timer.scss';
 
@@ -42,7 +43,7 @@ export const AnchoredQueryTimer = React.memo(function AnchoredQueryTimer(
   if (elapsed <= 0) return null;
   return (
     <div className="anchored-query-timer">
-      {`${(elapsed / 1000).toFixed(2)}s`}
+      {formatDurationHybrid(elapsed)}
       <Button icon={IconNames.STOPWATCH} minimal />
     </div>
   );
