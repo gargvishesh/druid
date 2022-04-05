@@ -25,7 +25,7 @@ import React, { useEffect } from 'react';
 import { useQueryManager } from '../../../../hooks';
 import { QueryExecution } from '../../../../talaria-models';
 import { filterMap, formatPercentClapped, IntermediateQueryState } from '../../../../utils';
-import { submitAsyncQuery, talariaBackgroundStatusCheck } from '../../execution-utils';
+import { executionBackgroundStatusCheck, submitAsyncQuery } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';
 
@@ -188,7 +188,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {
-      const res = await talariaBackgroundStatusCheck(execution, analyzeQuery, cancelToken);
+      const res = await executionBackgroundStatusCheck(execution, analyzeQuery, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
       if (res.result) {

@@ -30,8 +30,8 @@ import { TalariaStatsLoader } from '../talaria-stats-loader/talaria-stats-loader
 import './talaria-history-dialog.scss';
 
 export interface TalariaHistoryDialogProps {
-  setQueryString: (query: TalariaQuery) => void;
-  onClose: () => void;
+  setQueryString(query: TalariaQuery): void;
+  onClose(): void;
 }
 
 export const TalariaHistoryDialog = React.memo(function TalariaHistoryDialog(

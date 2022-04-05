@@ -46,9 +46,9 @@ import {
   QueryExecution,
 } from '../../../../talaria-models';
 import {
+  executionBackgroundResultStatusCheck,
   extractQueryResults,
   submitAsyncQuery,
-  talariaBackgroundResultStatusCheck,
 } from '../../execution-utils';
 
 import { InputSourceInfo } from './input-source-info';
@@ -120,7 +120,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         }),
       );
     },
-    backgroundStatusCheck: talariaBackgroundResultStatusCheck,
+    backgroundStatusCheck: executionBackgroundResultStatusCheck,
   });
 
   useEffect(() => {

@@ -210,7 +210,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
                 </div>
               );
             },
-            width: column.isTimeColumn() ? 180 : 120,
+            minWidth: column.isTimeColumn() ? 180 : 120,
           };
         })}
       />
