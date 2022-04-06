@@ -33,9 +33,12 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
+import org.apache.druid.query.filter.InDimFilter;
+import org.apache.druid.query.filter.LikeDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.ordering.StringComparators;
 import org.apache.druid.query.topn.DimensionTopNMetricSpec;
@@ -85,7 +88,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "aaa")
-                  .put("nest", ImmutableMap.of("x", 100L, "y", 200L, "z", 300L))
+                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "300"))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", "hello")))
                   .put("long", 5L)
                   .build(),
@@ -98,6 +101,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "ccc")
+                  .put("nest", ImmutableMap.of("x", 200L, "y", 3.03, "z", "abcdef"))
                   .put("long", 3L)
                   .build(),
       ImmutableMap.<String, Object>builder()
@@ -114,7 +118,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-02")
                   .put("string", "aaa")
-                  .put("nest", ImmutableMap.of("x", 100L, "y", 200L, "z", 300L))
+                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "400"))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", "hello")))
                   .put("long", 5L)
                   .build(),
@@ -221,7 +225,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest", ".x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
                         )
                         .setDimensions(
                             dimensions(
@@ -233,8 +237,9 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), 5L},
-            new Object[]{"100", 2L}
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
         )
     );
   }
@@ -253,7 +258,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .intervals(querySegmentSpec(Filtration.eternity()))
                         .granularity(Granularities.ALL)
                         .virtualColumns(
-                            new NestedFieldVirtualColumn("nest", ".x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
                         )
                         .dimension(
                             new DefaultDimensionSpec("v0", "d0")
@@ -265,8 +270,9 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), 5L},
-            new Object[]{"100", 2L}
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
         )
     );
   }
@@ -285,7 +291,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nester", ".", "v0")
+                            new NestedFieldVirtualColumn("nester", ".", "v0", ColumnType.STRING)
                         )
                         .setDimensions(
                             dimensions(
@@ -321,7 +327,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest", ".\"x\"", "v0")
+                            new NestedFieldVirtualColumn("nest", ".\"x\"", "v0", ColumnType.STRING)
                         )
                         .setDimensions(
                             dimensions(
@@ -335,8 +341,9 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), 5L},
-            new Object[]{"100", "100", "100", 2L}
+            new Object[]{NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", "100", "100", 2L},
+            new Object[]{"200", "200", "200", 1L}
         )
     );
   }
@@ -355,7 +362,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nest", ".x", "v0")
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
                         )
                         .setDimensions(
                             dimensions(
@@ -377,9 +384,499 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByPathBoundFilterLong() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') >= '100' AND GET_PATH(nest, '.x') <= '300' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "100", "300", false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterLongNoUpper() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') >= '100' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "100", null, false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterLongNoLower() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') <= '100' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", null, "100", false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterLongNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') >= 100 AND GET_PATH(nest, '.x') <= 300 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.LONG),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "100", "300", false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterLongNoUpperNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') >= 100 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.LONG),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "100", null, false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterLongNoLowerNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') <= 100 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.LONG),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", null, "100", false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"100", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterDouble() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') >= '1.01' AND GET_PATH(nest, '.y') <= '3.03' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "1.01", "3.03", false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"2.02", 2L},
+            new Object[]{"3.03", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterDoubleNoUpper() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') >= '1.01' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "1.01", null, false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"2.02", 2L},
+            new Object[]{"3.03", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterDoubleNoLower() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') <= '2.02' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", null, "2.02", false, false, null, StringComparators.LEXICOGRAPHIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"2.02", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundDoubleFilterNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') >= 2.0 AND GET_PATH(nest, '.y') <= 3.5 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.DOUBLE),
+                            new NestedFieldVirtualColumn("nest", ".y", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "2.0", "3.5", false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"2.02", 2L},
+            new Object[]{"3.03", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterDoubleNoUpperNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') >= 1.0 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.DOUBLE),
+                            new NestedFieldVirtualColumn("nest", ".y", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", "1.0", null, false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"2.02", 2L},
+            new Object[]{"3.03", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathBoundFilterDoubleNoLowerNumeric() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.y'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.y') <= 2.02 GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".y", "v0", ColumnType.DOUBLE),
+                            new NestedFieldVirtualColumn("nest", ".y", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(bound("v0", null, "2.02", false, false, null, StringComparators.NUMERIC))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{NullHandling.defaultStringValue(), 4L},
+            new Object[]{"2.02", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathLikeFilter() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') LIKE '10%' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(new LikeDimFilter("v0", "10%", null, null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathInFilter() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.x') in (100, 200) GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".x", "v0", ColumnType.LONG),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(new InDimFilter("v0", ImmutableSet.of("100", "200")))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testSumPath() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.x')) "
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"x\"", "v0", ColumnType.DOUBLE))
+                  .aggregators(aggregators(new DoubleSumAggregatorFactory("a0", "v0")))
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{400.0}
+        )
+    );
+  }
+
+  @Test
   public void testCastAndSumPath() throws Exception
   {
-    cannotVectorize();
     testQuery(
         "SELECT "
         + "SUM(CAST(JSON_GET_PATH(nest, '.x') as BIGINT)) "
@@ -389,13 +886,13 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                   .dataSource(DATA_SOURCE)
                   .intervals(querySegmentSpec(Filtration.eternity()))
                   .granularity(Granularities.ALL)
-                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"x\"", "v0"))
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"x\"", "v0", ColumnType.LONG))
                   .aggregators(aggregators(new LongSumAggregatorFactory("a0", "v0")))
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{200L}
+            new Object[]{400L}
         )
     );
   }
@@ -480,7 +977,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setInterval(querySegmentSpec(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            new NestedFieldVirtualColumn("nester", ".array[1]", "v0")
+                            new NestedFieldVirtualColumn("nester", ".array[1]", "v0", ColumnType.STRING)
                         )
                         .setDimensions(
                             dimensions(

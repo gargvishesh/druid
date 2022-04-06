@@ -119,13 +119,19 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
   @Test
   public void testGetPathExpression()
   {
-    Expr expr = Parser.parse("get_path(nester, '.x')", MACRO_TABLE);
+    Expr expr = Parser.parse("get_path(nest, '.x')", MACRO_TABLE);
     ExprEval eval = expr.eval(inputBindings);
+    Assert.assertEquals(100L, eval.value());
+    Assert.assertEquals(ExpressionType.LONG, eval.type());
+
+    expr = Parser.parse("get_path(nester, '.x')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
     Assert.assertNull(eval.value());
 
     expr = Parser.parse("get_path(nester, '.x[1]')", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals("b", eval.value());
+    Assert.assertEquals(ExpressionType.STRING, eval.type());
 
     expr = Parser.parse("get_path(nester, '.x[23]')", MACRO_TABLE);
     eval = expr.eval(inputBindings);
@@ -142,6 +148,7 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
     expr = Parser.parse("get_path(nester, '.y.a')", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals("hello", eval.value());
+    Assert.assertEquals(ExpressionType.STRING, eval.type());
 
     expr = Parser.parse("get_path(nester, '.y.a.b.c[12]')", MACRO_TABLE);
     eval = expr.eval(inputBindings);

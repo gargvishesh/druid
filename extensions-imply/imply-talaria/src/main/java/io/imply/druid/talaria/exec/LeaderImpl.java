@@ -123,6 +123,7 @@ import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.Cursor;
+import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -1472,8 +1473,15 @@ public class LeaderImpl implements Leader
 
       if (!outputColumn.equals(ColumnHolder.TIME_COLUMN_NAME)) {
         if (type.is(ValueType.COMPLEX)) {
-          // TODO(gianm): hack to workaround the fact that aggregators are required for transferring complex types
-          aggregators.add(new PassthroughAggregatorFactory(outputColumn, type.getComplexTypeName()));
+          if (DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.containsKey(type.getComplexTypeName())) {
+            // todo(clint): this upstream method should be reworked to be less explody maybe, so we don't have to look
+            //               at providers directly
+            dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
+          } else {
+            // TODO(gianm): hack to workaround the fact that aggregators are required for transferring complex types
+            //              that do not have a dimension handler
+            aggregators.add(new PassthroughAggregatorFactory(outputColumn, type.getComplexTypeName()));
+          }
         } else {
           dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
         }

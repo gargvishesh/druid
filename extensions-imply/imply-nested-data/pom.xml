@@ -125,6 +125,11 @@
       <artifactId>netty-common</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- test -->
     <dependency>

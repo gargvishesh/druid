@@ -39,6 +39,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.BitSet;
 
+/**
+ * Prototype nested string literal column format
+ *
+ * This and other 'V0' prototype implementations can be removed as soon as we are certain we no longer need it
+ */
+@Deprecated
 public class NestedFieldStringDictionaryEncodedColumn implements DictionaryEncodedColumn<String>
 {
   private final ColumnarInts column;

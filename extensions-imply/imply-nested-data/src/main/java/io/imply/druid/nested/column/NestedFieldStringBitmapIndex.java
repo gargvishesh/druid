@@ -25,6 +25,12 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Predicate;
 
+/**
+ * Prototype nested string literal bitmap index format
+ *
+ * This and other 'V0' prototype implementations can be removed as soon as we are certain we no longer need it
+ */
+@Deprecated
 public class NestedFieldStringBitmapIndex implements BitmapIndex
 {
   private final BitmapFactory bitmapFactory;

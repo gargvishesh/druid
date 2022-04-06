@@ -112,9 +112,8 @@ public class NestedDataExpressions
         {
           ExprEval input = args.get(0).eval(bindings);
           checkArg0NestedType(name, args, input);
-          return ExprEval.ofType(
-              ExpressionType.STRING,
-              PathFinder.findStringLiteral(maybeUnwrapStructuredData(input), parts)
+          return ExprEval.bestEffortOf(
+              PathFinder.findLiteral(maybeUnwrapStructuredData(input), parts)
           );
         }
 
@@ -176,7 +175,6 @@ public class NestedDataExpressions
               processor.processFields(maybeUnwrapStructuredData(input))
           );
         }
-
 
         @Override
         public Expr visit(Shuttle shuttle)
@@ -245,9 +243,6 @@ public class NestedDataExpressions
       }
       return new ListKeysExpr(args);
     }
-
-
-
   }
 
   @Nullable

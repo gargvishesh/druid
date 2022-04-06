@@ -35,9 +35,7 @@ public class JsonColumnIndexer extends NestedDataColumnIndexer
           || Character.isDigit(stringValue.charAt(0))) {
         try {
           final Object deserialized = JSON_MAPPER.readValue(stringValue, Object.class);
-          indexerProcessor.processFields(deserialized);
-          final StructuredData data = new StructuredData(deserialized);
-          return new EncodedKeyComponent<>(data, data.estimateSize());
+          return super.processRowValsToUnsortedEncodedKeyComponent(deserialized, reportParseExceptions);
         }
         catch (JsonProcessingException e) {
           throw new RE(e, "Failed to deserialize [%s] as JSON", stringValue);
