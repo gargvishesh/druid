@@ -577,10 +577,10 @@ def getCodeChanges() {
             sh script: '''#!/bin/bash -eux
                                 files=$(curl -u  ${GIT_CREDS_USR}:${GIT_CREDS_PSW} \
                                 https://api.github.com/repos/implydata/druid/pulls/${CHANGE_ID}/files \
-                                | jq '.[] | .filename' |  tr '\\n' ',' )
-                                any_docs=$(python3 check_test_suite_jenkins.py docs $files)
-                                any_console=$(python3 check_test_suite_jenkins.py 'web console' $files)
-                                any_java=$(python3 check_test_suite_jenkins.py any_java $files)
+                                | jq -r '.[] | .filename' |  tr '\\n' ',' | sed 's/.$//'  )
+                                any_docs=$(python3 check_test_suite_jenkins.py docs $files|tail -1)
+                                any_console=$(python3 check_test_suite_jenkins.py 'web console' $files|tail -1)
+                                any_java=$(python3 check_test_suite_jenkins.py any_java $files|tail -1)
                                 echo ${any_java} > any_java.info
                                 echo ${any_docs} > any_docs.info
                                 echo ${any_console} > any_console.info
@@ -731,6 +731,12 @@ pipeline {
                     agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}-multi-exec"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
                     environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
                     steps { getCodeChanges() }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
                 }
             }
         }
