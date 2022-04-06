@@ -15,6 +15,9 @@ import org.apache.druid.data.input.impl.FloatDimensionSchema;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.segment.DimensionHandlerUtils;
+import org.apache.druid.segment.column.ColumnCapabilities;
+import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
@@ -49,7 +52,9 @@ public class DimensionSchemaUtils
             throw new ISE("Cannot create dimension for type [%s]", type.toString());
         }
       default:
-        throw new ISE("Cannot create dimension for type [%s]", type.toString());
+        final ColumnCapabilities capabilities = ColumnCapabilitiesImpl.createDefault().setType(type);
+        return DimensionHandlerUtils.getHandlerFromCapabilities(column, capabilities, null)
+                                    .getDimensionSchema(capabilities);
     }
   }
 }

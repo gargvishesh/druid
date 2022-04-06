@@ -12,6 +12,7 @@ package io.imply.druid.nested.column;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.druid.java.util.common.guava.Comparators;
 
+import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,15 @@ public class StructuredData implements Comparable<StructuredData>
   public static final Comparator<StructuredData> COMPARATOR = Comparators.naturalNullsFirst();
 
   private final Object value;
+
+  @Nullable
+  public static StructuredData possiblyWrap(@Nullable Object value)
+  {
+    if (value == null || value instanceof StructuredData) {
+      return (StructuredData) value;
+    }
+    return new StructuredData(value);
+  }
 
   @JsonCreator
   public static StructuredData create(Object value)

@@ -84,26 +84,26 @@ public class NestedDataComplexTypeSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy<StructuredData> getObjectStrategy()
+  public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<StructuredData>()
+    return new ObjectStrategy<Object>()
     {
 
       @Override
-      public int compare(StructuredData o1, StructuredData o2)
+      public int compare(Object o1, Object o2)
       {
-        return Comparators.<StructuredData>naturalNullsFirst().compare(o1, o2);
+        return Comparators.<StructuredData>naturalNullsFirst().compare(StructuredData.possiblyWrap(o1), StructuredData.possiblyWrap(o2));
       }
 
       @Override
-      public Class<? extends StructuredData> getClazz()
+      public Class<? extends Object> getClazz()
       {
         return StructuredData.class;
       }
 
       @Nullable
       @Override
-      public StructuredData fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         final byte[] bytes = new byte[numBytes];
         buffer.get(bytes, 0, numBytes);
@@ -117,7 +117,7 @@ public class NestedDataComplexTypeSerde extends ComplexMetricSerde
 
       @Nullable
       @Override
-      public byte[] toBytes(@Nullable StructuredData val)
+      public byte[] toBytes(@Nullable Object val)
       {
         if (val == null) {
           return new byte[0];

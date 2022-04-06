@@ -11,10 +11,11 @@ package io.imply.druid.nested.column;
 
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.MutableBitmap;
+import org.apache.druid.math.expr.ExprEval;
+import org.apache.druid.math.expr.ExpressionType;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.DimensionDictionary;
 import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.DimensionIndexer;
 import org.apache.druid.segment.DimensionSelector;
@@ -22,6 +23,7 @@ import org.apache.druid.segment.EncodedKeyComponent;
 import org.apache.druid.segment.ObjectColumnSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.data.CloseableIndexed;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexRowHolder;
@@ -35,20 +37,19 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
 {
   protected volatile boolean hasNulls = false;
 
-  protected SortedMap<String, FieldIndexer<?>> fieldIndexers = new TreeMap<>();
-  protected final DimensionDictionary<String> dimLookup = new DimensionDictionary<>(String.class);
+  protected SortedMap<String, LiteralFieldIndexer> fieldIndexers = new TreeMap<>();
+  protected final GlobalDimensionDictionary globalDictionary = new GlobalDimensionDictionary();
 
   protected final StructuredDataProcessor indexerProcessor = new StructuredDataProcessor()
   {
     @Override
     public void processLiteralField(String fieldName, Object fieldValue)
     {
-      FieldIndexer<?> indexer = fieldIndexers.computeIfAbsent(
+      FieldIndexer newIndexer = fieldIndexers.computeIfAbsent(
           fieldName,
-          (field) -> new StringFieldIndexer(dimLookup)
+          (field) -> new LiteralFieldIndexer(globalDictionary)
       );
-
-      indexer.processValue(fieldValue);
+      newIndexer.processValue(fieldValue);
     }
   };
   
@@ -67,7 +68,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
     } else {
       data = new StructuredData(dimValues);
     }
-    indexerProcessor.processFields(dimValues);
+    indexerProcessor.processFields(data == null ? null : data.getValue());
     return new EncodedKeyComponent<>(data, data == null ? 0 : data.estimateSize());
   }
 
@@ -202,30 +203,48 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
     throw new UnsupportedOperationException("Not supported");
   }
 
-  interface FieldIndexer<T>
+  interface FieldIndexer
   {
     void processValue(@Nullable Object value);
   }
 
-  static class StringFieldIndexer implements FieldIndexer<String>
+  static class LiteralFieldIndexer implements FieldIndexer
   {
-    private final DimensionDictionary<String> sharedDictionary;
+    private final GlobalDimensionDictionary globalDimensionDictionary;
+    private final NestedLiteralTypeInfo.MutableTypeSet typeSet;
 
-    StringFieldIndexer(DimensionDictionary<String> sharedDictionary)
+    LiteralFieldIndexer(GlobalDimensionDictionary globalDimensionDictionary)
     {
-      this.sharedDictionary = sharedDictionary;
+      this.globalDimensionDictionary = globalDimensionDictionary;
+      this.typeSet = new NestedLiteralTypeInfo.MutableTypeSet();
     }
 
     @Override
     public void processValue(@Nullable Object value)
     {
-      if (value == null) {
-        sharedDictionary.add(null);
-      } else if (value instanceof String) {
-        sharedDictionary.add((String) value);
-      } else {
-        sharedDictionary.add(String.valueOf(value));
+      // null value is always added to the global dictionary as id 0, so we can ignore them here
+      if (value != null) {
+        // why not
+        ExprEval<?> eval = ExprEval.bestEffortOf(value);
+        final ColumnType columnType = ExpressionType.toColumnType(eval.type());
+        typeSet.add(columnType);
+        switch (columnType.getType()) {
+          case LONG:
+            globalDimensionDictionary.addLongValue(eval.asLong());
+            break;
+          case DOUBLE:
+            globalDimensionDictionary.addDoubleValue(eval.asDouble());
+            break;
+          case STRING:
+          default:
+            globalDimensionDictionary.addStringValue(eval.asString());
+        }
       }
+    }
+
+    public NestedLiteralTypeInfo.MutableTypeSet getTypes()
+    {
+      return typeSet;
     }
   }
 }

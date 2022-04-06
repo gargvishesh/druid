@@ -11,6 +11,7 @@ package io.imply.druid.nested.virtual;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.nested.column.NestedDataComplexColumn;
 import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.column.StructuredData;
@@ -34,6 +35,7 @@ import org.apache.druid.segment.vector.NilVectorSelector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.VectorObjectSelector;
+import org.apache.druid.segment.vector.VectorValueSelector;
 import org.apache.druid.segment.virtual.VirtualColumnCacheHelper;
 
 import javax.annotation.Nullable;
@@ -47,23 +49,47 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   private final String path;
   private final String outputName;
   private final List<PathFinder.PathPartFinder> parts;
+  /**
+   * type information for nested fields is completely absent in the SQL planner, so it guesses the best it can
+   * from the context of how something is being used. This might not be the same as if it had actual type information,
+   * but, we try to stick with whatever we chose there to do the best we can for now
+   */
+  @Nullable
+  private final ColumnType expectedType;
 
   @JsonCreator
   public NestedFieldVirtualColumn(
       @JsonProperty("columnName") String columnName,
       @JsonProperty("path") String path,
-      @JsonProperty("outputName") String outputName
+      @JsonProperty("outputName") String outputName,
+      @JsonProperty("expectedType") @Nullable ColumnType expectedType
   )
   {
     this.columnName = columnName;
     this.outputName = outputName;
     this.parts = PathFinder.parseJqPath(path);
     this.path = PathFinder.toNormalizedJqPath(parts);
+    this.expectedType = expectedType;
+  }
+
+  @VisibleForTesting
+  public NestedFieldVirtualColumn(
+      String columnName,
+      String path,
+      String outputName
+  )
+  {
+    this.columnName = columnName;
+    this.outputName = outputName;
+    this.parts = PathFinder.parseJqPath(path);
+    this.path = PathFinder.toNormalizedJqPath(parts);
+    this.expectedType = null;
   }
 
   public NestedFieldVirtualColumn(
       String columnName,
       String outputName,
+      ColumnType expectedType,
       List<PathFinder.PathPartFinder> parts,
       String normalizedPath
   )
@@ -72,6 +98,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     this.outputName = outputName;
     this.parts = parts;
     this.path = normalizedPath;
+    this.expectedType = expectedType;
   }
 
   @Override
@@ -102,6 +129,12 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     return path;
   }
 
+  @JsonProperty
+  public ColumnType getExpectedType()
+  {
+    return expectedType;
+  }
+
   @Override
   public DimensionSelector makeDimensionSelector(
       DimensionSpec dimensionSpec,
@@ -123,10 +156,10 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       protected String getValue()
       {
         Object val = valueSelector.getObject();
-        if (val instanceof String) {
+        if (val == null || val instanceof String) {
           return (String) val;
         }
-        return null;
+        return String.valueOf(val);
       }
     }
     return new FieldDimensionSelector();
@@ -145,19 +178,31 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       @Override
       public double getDouble()
       {
-        throw new UnsupportedOperationException();
+        Object o = getObject();
+        if (o instanceof Number) {
+          return ((Number) o).doubleValue();
+        }
+        return 0.0;
       }
 
       @Override
       public float getFloat()
       {
-        throw new UnsupportedOperationException();
+        Object o = getObject();
+        if (o instanceof Number) {
+          return ((Number) o).floatValue();
+        }
+        return 0f;
       }
 
       @Override
       public long getLong()
       {
-        throw new UnsupportedOperationException();
+        Object o = getObject();
+        if (o instanceof Number) {
+          return ((Number) o).longValue();
+        }
+        return 0L;
       }
 
       @Override
@@ -169,15 +214,15 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       @Override
       public boolean isNull()
       {
-        return baseSelector.isNull();
+        return !(getObject() instanceof Number);
       }
 
       @Nullable
       @Override
       public Object getObject()
       {
-        StructuredData data = (StructuredData) baseSelector.getObject();
-        return PathFinder.findStringLiteral(
+        StructuredData data = StructuredData.possiblyWrap(baseSelector.getObject());
+        return PathFinder.findLiteral(
             data == null ? null : data.getValue(),
             parts
         );
@@ -261,6 +306,21 @@ public class NestedFieldVirtualColumn implements VirtualColumn
 
   @Nullable
   @Override
+  public VectorValueSelector makeVectorValueSelector(
+      String columnName,
+      ColumnSelector columnSelector,
+      ReadableVectorOffset offset
+  )
+  {
+    final NestedDataComplexColumn column = NestedDataComplexColumn.fromColumnSelector(columnSelector, this.columnName);
+    if (column == null) {
+      return NilVectorSelector.create(offset);
+    }
+    return column.makeVectorValueSelector(path, offset);
+  }
+
+  @Nullable
+  @Override
   public BitmapIndex getBitmapIndex(
       String columnName,
       ColumnSelector selector
@@ -277,16 +337,17 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Override
   public ColumnCapabilities capabilities(String columnName)
   {
-    return ColumnCapabilitiesImpl.createSimpleSingleValueStringColumnCapabilities();
+    return ColumnCapabilitiesImpl.createDefault()
+                                 .setType(expectedType != null ? expectedType : ColumnType.STRING);
   }
 
   @Override
   public ColumnCapabilities capabilities(ColumnInspector inspector, String columnName)
   {
     final ColumnCapabilities complexCapabilites = inspector.getColumnCapabilities(this.columnName);
-    if (complexCapabilites.isDictionaryEncoded().isTrue()) {
+    if (complexCapabilites != null && complexCapabilites.isDictionaryEncoded().isTrue()) {
       return ColumnCapabilitiesImpl.createDefault()
-                                   .setType(ColumnType.STRING)
+                                   .setType(expectedType != null ? expectedType : ColumnType.STRING)
                                    .setDictionaryEncoded(true)
                                    .setDictionaryValuesSorted(true)
                                    .setDictionaryValuesUnique(true)
@@ -317,13 +378,14 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       return false;
     }
     NestedFieldVirtualColumn that = (NestedFieldVirtualColumn) o;
-    return columnName.equals(that.columnName) && outputName.equals(that.outputName) && path.equals(that.path);
+    return columnName.equals(that.columnName) && outputName.equals(that.outputName) && path.equals(that.path)
+           && Objects.equals(expectedType, that.expectedType);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(columnName, path, outputName);
+    return Objects.hash(columnName, path, outputName, expectedType);
   }
 
   @Override
@@ -333,6 +395,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
            "columnName='" + columnName + '\'' +
            ", path='" + path + '\'' +
            ", outputName='" + outputName + '\'' +
+           ", typeHint='" + expectedType + '\'' +
            '}';
   }
 }

@@ -15,36 +15,46 @@ import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.data.GenericIndexed;
 
-/**
- * Prototype nested string literal bitmap index format supplier
- *
- * This and other 'V0' prototype implementations can be removed as soon as we are certain we no longer need it
- */
-@Deprecated
-public class NestedFieldStringBitmapIndexSupplier implements Supplier<BitmapIndex>
+public class NestedFieldLiteralBitmapIndexSupplier implements Supplier<BitmapIndex>
 {
+  private final NestedLiteralTypeInfo.TypeSet types;
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
-  private final GenericIndexed<Integer> dictionary;
+  private final FixedIndexed<Integer> dictionary;
   private final GenericIndexed<String> globalDictionary;
+  private final FixedIndexed<Long> globalLongDictionary;
+  private final FixedIndexed<Double> globalDoubleDictionary;
 
-
-  public NestedFieldStringBitmapIndexSupplier(
+  public NestedFieldLiteralBitmapIndexSupplier(
+      NestedLiteralTypeInfo.TypeSet types,
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
-      GenericIndexed<Integer> dictionary,
-      GenericIndexed<String> globalDictionary
+      FixedIndexed<Integer> dictionary,
+      GenericIndexed<String> globalDictionary,
+      FixedIndexed<Long> globalLongDictionary,
+      FixedIndexed<Double> globalDoubleDictionary
   )
   {
+    this.types = types;
     this.bitmapFactory = bitmapFactory;
     this.bitmaps = bitmaps;
     this.dictionary = dictionary;
     this.globalDictionary = globalDictionary;
+    this.globalLongDictionary = globalLongDictionary;
+    this.globalDoubleDictionary = globalDoubleDictionary;
   }
 
   @Override
   public BitmapIndex get()
   {
-    return new NestedFieldStringBitmapIndex(bitmapFactory, bitmaps, dictionary, globalDictionary);
+    return new NestedFieldLiteralBitmapIndex(
+        types,
+        bitmapFactory,
+        bitmaps,
+        dictionary,
+        globalDictionary,
+        globalLongDictionary,
+        globalDoubleDictionary
+    );
   }
 }

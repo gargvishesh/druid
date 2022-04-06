@@ -182,6 +182,21 @@ public class PathFinder
   }
 
   @Nullable
+  public static Object findLiteral(@Nullable Object data, List<PathPartFinder> path)
+  {
+    Object currentObject = find(data, path);
+    if (currentObject instanceof Map || currentObject instanceof List || currentObject instanceof Object[]) {
+      return null;
+    } else {
+      // a literal of some sort, huzzah!
+      if (currentObject == null) {
+        return null;
+      }
+      return currentObject;
+    }
+  }
+
+  @Nullable
   public static Object[] findKeys(@Nullable Object data, List<PathPartFinder> path)
   {
     Object currentObject = find(data, path);

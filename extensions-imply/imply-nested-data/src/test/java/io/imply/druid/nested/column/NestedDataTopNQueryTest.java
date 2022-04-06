@@ -12,15 +12,20 @@ package io.imply.druid.nested.column;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.nested.NestedDataModule;
 import io.imply.druid.nested.virtual.NestedFieldVirtualColumn;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
+import org.apache.druid.java.util.common.guava.nary.TrinaryFn;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.ordering.StringComparators;
 import org.apache.druid.query.topn.DimensionTopNMetricSpec;
 import org.apache.druid.query.topn.TopNQuery;
@@ -29,7 +34,9 @@ import org.apache.druid.query.topn.TopNQueryConfig;
 import org.apache.druid.query.topn.TopNQueryQueryToolChest;
 import org.apache.druid.query.topn.TopNResultValue;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.testing.InitializedNullHandlingTest;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,12 +44,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.BiFunction;
 
 @RunWith(Parameterized.class)
 public class NestedDataTopNQueryTest extends InitializedNullHandlingTest
@@ -53,10 +60,11 @@ public class NestedDataTopNQueryTest extends InitializedNullHandlingTest
   public final TemporaryFolder tempFolder = new TemporaryFolder();
 
   private final AggregationTestHelper helper;
-  private final BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> segmentsGenerator;
+  private final TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>> segmentsGenerator;
+  private final Closer closer;
 
   public NestedDataTopNQueryTest(
-      BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> segmentGenerator
+      TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>> segmentGenerator
   )
   {
     NestedDataModule.registerHandlersAndSerde();
@@ -65,84 +73,26 @@ public class NestedDataTopNQueryTest extends InitializedNullHandlingTest
         tempFolder
     );
     this.segmentsGenerator = segmentGenerator;
+    this.closer = Closer.create();
   }
 
   @Parameterized.Parameters(name = "segments = {0}")
   public static Collection<?> constructorFeeder()
   {
     final List<Object[]> constructors = new ArrayList<>();
-    final List<BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>> segmentsGenerators = new ArrayList<>();
-    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
-    {
-      @Override
-      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
-      {
-        try {
-          return ImmutableList.<Segment>builder()
-                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
-                              .add(NestedDataTestUtils.createDefaultHourlyIncrementalIndex())
-                              .build();
-        }
-        catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
+    final List<TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>> segmentsGenerators =
+        NestedDataTestUtils.getSegmentGenerators();
 
-      @Override
-      public String toString()
-      {
-        return "mixed";
-      }
-    });
-    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
-    {
-      @Override
-      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
-      {
-        try {
-          return ImmutableList.of(
-              NestedDataTestUtils.createDefaultHourlyIncrementalIndex(),
-              NestedDataTestUtils.createDefaultHourlyIncrementalIndex()
-          );
-        }
-        catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-
-      @Override
-      public String toString()
-      {
-        return "incremental";
-      }
-    });
-    segmentsGenerators.add(new BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>>()
-    {
-      @Override
-      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder)
-      {
-        try {
-          return ImmutableList.<Segment>builder()
-                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
-                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder))
-                              .build();
-        }
-        catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-
-      @Override
-      public String toString()
-      {
-        return "segments";
-      }
-    });
-
-    for (BiFunction<AggregationTestHelper, TemporaryFolder, List<Segment>> generatorFn : segmentsGenerators) {
+    for (TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>> generatorFn : segmentsGenerators) {
       constructors.add(new Object[]{generatorFn});
     }
     return constructors;
+  }
+
+  @After
+  public void teardown() throws IOException
+  {
+    closer.close();
   }
 
   @Test
@@ -159,7 +109,7 @@ public class NestedDataTopNQueryTest extends InitializedNullHandlingTest
                                            .build();
 
 
-    Sequence<Result<TopNResultValue>> seq = helper.runQueryOnSegmentsObjs(segmentsGenerator.apply(helper, tempFolder), topN);
+    Sequence<Result<TopNResultValue>> seq = helper.runQueryOnSegmentsObjs(segmentsGenerator.apply(helper, tempFolder, closer), topN);
 
     Sequence<Object[]> resultsSeq = new TopNQueryQueryToolChest(new TopNQueryConfig()).resultsAsArrays(topN, seq);
 
@@ -172,6 +122,40 @@ public class NestedDataTopNQueryTest extends InitializedNullHandlingTest
             new Object[]{1609459200000L, "100", 2L},
             new Object[]{1609459200000L, "200", 2L},
             new Object[]{1609459200000L, "300", 4L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupBySomeFieldAggregateSomeField()
+  {
+    TopNQuery topN = new TopNQueryBuilder().dataSource("test_datasource")
+                                           .granularity(Granularities.ALL)
+                                           .intervals(Collections.singletonList(Intervals.ETERNITY))
+                                           .dimension(DefaultDimensionSpec.of("v0"))
+                                           .virtualColumns(
+                                               new NestedFieldVirtualColumn("nest", ".x", "v0"),
+                                               new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.DOUBLE)
+                                           )
+                                           .aggregators(new DoubleSumAggregatorFactory("a0", "v1", null, TestExprMacroTable.INSTANCE))
+                                           .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                                           .threshold(10)
+                                           .build();
+
+
+    Sequence<Result<TopNResultValue>> seq = helper.runQueryOnSegmentsObjs(segmentsGenerator.apply(helper, tempFolder, closer), topN);
+
+    Sequence<Object[]> resultsSeq = new TopNQueryQueryToolChest(new TopNQueryConfig()).resultsAsArrays(topN, seq);
+
+    List<Object[]> results = resultsSeq.toList();
+
+    verifyResults(
+        results,
+        ImmutableList.of(
+            new Object[]{1609459200000L, null, NullHandling.defaultDoubleValue()},
+            new Object[]{1609459200000L, "100", 200.0},
+            new Object[]{1609459200000L, "200", 400.0},
+            new Object[]{1609459200000L, "300", 1200.0}
         )
     );
   }

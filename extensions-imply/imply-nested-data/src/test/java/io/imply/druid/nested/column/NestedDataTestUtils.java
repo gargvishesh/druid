@@ -20,6 +20,8 @@ import org.apache.commons.io.LineIterator;
 import org.apache.druid.data.input.impl.StringInputRowParser;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.java.util.common.guava.nary.TrinaryFn;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.IncrementalIndexSegment;
@@ -34,15 +36,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 public class NestedDataTestUtils
 {
-  private static final String SIMPLE_DATA_FILE = "simple-nested-test-data.json";
-  private static final String SIMPLE_DATA_TSV_FILE = "simple-nested-test-data.tsv";
-  private static final String SIMPLE_PARSER_FILE = "simple-nested-test-data-parser.json";
-  private static final String SIMPLE_PARSER_TSV_FILE = "simple-nested-test-data-tsv-parser.json";
-  private static final String SIMPLE_AGG_FILE = "simple-nested-test-data-aggs.json";
+  public static final String SIMPLE_DATA_FILE = "simple-nested-test-data.json";
+  public static final String SIMPLE_PARSER_FILE = "simple-nested-test-data-parser.json";
+  public static final String SIMPLE_DATA_TSV_FILE = "simple-nested-test-data.tsv";
+  public static final String SIMPLE_PARSER_TSV_FILE = "simple-nested-test-data-tsv-parser.json";
+  public static final String SIMPLE_AGG_FILE = "simple-nested-test-data-aggs.json";
+
+  public static final String NUMERIC_DATA_FILE = "numeric-nested-test-data.json";
+  public static final String NUMERIC_PARSER_FILE = "numeric-nested-test-data-parser.json";
 
   public static final ObjectMapper JSON_MAPPER;
 
@@ -51,10 +57,10 @@ public class NestedDataTestUtils
     JSON_MAPPER.registerModules(NestedDataModule.getJacksonModulesList());
   }
 
-
   public static List<Segment> createSegments(
       AggregationTestHelper helper,
       TemporaryFolder tempFolder,
+      Closer closer,
       Granularity granularity,
       boolean rollup,
       int maxRowCount
@@ -63,6 +69,7 @@ public class NestedDataTestUtils
     return createSegments(
         helper,
         tempFolder,
+        closer,
         SIMPLE_DATA_FILE,
         SIMPLE_PARSER_FILE,
         SIMPLE_AGG_FILE,
@@ -75,6 +82,7 @@ public class NestedDataTestUtils
   public static List<Segment> createTsvSegments(
       AggregationTestHelper helper,
       TemporaryFolder tempFolder,
+      Closer closer,
       Granularity granularity,
       boolean rollup,
       int maxRowCount
@@ -83,6 +91,7 @@ public class NestedDataTestUtils
     return createSegments(
         helper,
         tempFolder,
+        closer,
         SIMPLE_DATA_TSV_FILE,
         SIMPLE_PARSER_TSV_FILE,
         SIMPLE_AGG_FILE,
@@ -114,6 +123,7 @@ public class NestedDataTestUtils
   public static List<Segment> createSegments(
       AggregationTestHelper helper,
       TemporaryFolder tempFolder,
+      Closer closer,
       String inputFileName,
       String parserJsonFileName,
       String aggJsonFileName,
@@ -143,7 +153,7 @@ public class NestedDataTestUtils
         ImmutableList.of(segmentDir),
         dir -> {
           try {
-            return new QueryableIndexSegment(helper.getIndexIO().loadIndex(dir), SegmentId.dummy(""));
+            return closer.register(new QueryableIndexSegment(helper.getIndexIO().loadIndex(dir), SegmentId.dummy("")));
           }
           catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -202,36 +212,39 @@ public class NestedDataTestUtils
     return createIncrementalIndex(Granularities.DAY, true, true, 1000);
   }
 
-  public static List<Segment> createDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+  public static List<Segment> createDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
       throws Exception
   {
     return createSegments(
         helper,
         tempFolder,
+        closer,
         Granularities.HOUR,
         true,
         1000
     );
   }
 
-  public static List<Segment> createDefaultHourlySegmentsTsv(AggregationTestHelper helper, TemporaryFolder tempFolder)
+  public static List<Segment> createDefaultHourlySegmentsTsv(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
       throws Exception
   {
     return createTsvSegments(
         helper,
         tempFolder,
+        closer,
         Granularities.HOUR,
         true,
         1000
     );
   }
 
-  public static List<Segment> createDefaultDaySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+  public static List<Segment> createDefaultDaySegments(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
       throws Exception
   {
     return createSegments(
         helper,
         tempFolder,
+        closer,
         Granularities.DAY,
         true,
         1000
@@ -246,5 +259,77 @@ public class NestedDataTestUtils
   public static String readFileFromClasspathAsString(String fileName) throws IOException
   {
     return Files.asCharSource(readFileFromClasspath(fileName), StandardCharsets.UTF_8).read();
+  }
+
+  public static List<TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>> getSegmentGenerators()
+  {
+    final List<TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>> segmentsGenerators = new ArrayList<>();
+    segmentsGenerators.add(new TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
+      {
+        try {
+          return ImmutableList.<Segment>builder()
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder, closer))
+                              .add(NestedDataTestUtils.createDefaultHourlyIncrementalIndex())
+                              .build();
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "mixed";
+      }
+    });
+    segmentsGenerators.add(new TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
+      {
+        try {
+          return ImmutableList.of(
+              NestedDataTestUtils.createDefaultHourlyIncrementalIndex(),
+              NestedDataTestUtils.createDefaultHourlyIncrementalIndex()
+          );
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "incremental";
+      }
+    });
+    segmentsGenerators.add(new TrinaryFn<AggregationTestHelper, TemporaryFolder, Closer, List<Segment>>()
+    {
+      @Override
+      public List<Segment> apply(AggregationTestHelper helper, TemporaryFolder tempFolder, Closer closer)
+      {
+        try {
+          return ImmutableList.<Segment>builder()
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder, closer))
+                              .addAll(NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder, closer))
+                              .build();
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String toString()
+      {
+        return "segments";
+      }
+    });
+    return segmentsGenerators;
   }
 }
