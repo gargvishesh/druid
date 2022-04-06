@@ -98,6 +98,6 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
         }
     );
 
-    return new ProcessorsAndChannels<>(processors, OutputChannels.wrap(outputChannels));
+    return new ProcessorsAndChannels<>(processors, OutputChannels.wrapReadOnly(outputChannels));
   }
 }

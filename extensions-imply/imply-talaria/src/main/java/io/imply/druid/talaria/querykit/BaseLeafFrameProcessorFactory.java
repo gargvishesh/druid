@@ -170,7 +170,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
         }
     );
 
-    return new ProcessorsAndChannels<>(processors, OutputChannels.wrap(outputChannels));
+    return new ProcessorsAndChannels<>(processors, OutputChannels.wrapReadOnly(outputChannels));
   }
 
   private static Pair<Int2ObjectMap<ReadableFrameChannel>, Int2ObjectMap<FrameReader>> openSideChannels(

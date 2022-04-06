@@ -306,12 +306,14 @@ public class SuperSorter
         channels.add(outputChannelFactory.openNilChannel(partitionNum));
       }
 
+      // OK to use wrap, not wrapReadOnly, because nil channels are already read-only.
       allDone.set(OutputChannels.wrap(channels));
     } else if (totalMergingLevels != UNKNOWN_LEVEL
                && outputsReadyByLevel.containsKey(totalMergingLevels - 1)
                && outputsReadyByLevel.get(totalMergingLevels - 1).size() == getOutputPartitions().size()) {
       // We're done!!
       try {
+        // OK to use wrap, not wrapReadOnly, because all channels in this list are already read-only.
         allDone.set(OutputChannels.wrap(outputChannels));
       }
       catch (Throwable e) {
@@ -539,7 +541,7 @@ public class SuperSorter
       if (totalMergingLevels != UNKNOWN_LEVEL && level == totalMergingLevels - 1) {
         final int intRank = Ints.checkedCast(rank);
         final OutputChannel outputChannel = outputChannelFactory.openChannel(intRank);
-        outputChannels.set(intRank, outputChannel);
+        outputChannels.set(intRank, outputChannel.readOnly());
         writableChannel = outputChannel.getWritableChannel();
         frameAllocator = outputChannel.getFrameMemoryAllocator();
       } else {

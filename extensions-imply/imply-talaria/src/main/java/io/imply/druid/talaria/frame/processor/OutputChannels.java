@@ -16,6 +16,7 @@ import it.unimi.dsi.fastutil.ints.IntSortedSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class OutputChannels
 {
@@ -39,9 +40,21 @@ public class OutputChannels
     return wrap(Collections.emptyList());
   }
 
+  /**
+   * Creates an instance wrapping all the provided channels.
+   */
   public static OutputChannels wrap(final List<OutputChannel> outputChannels)
   {
     return new OutputChannels(outputChannels);
+  }
+
+  /**
+   * Creates an instance wrapping read-only versions (see {@link OutputChannel#readOnly()}) of all the
+   * provided channels.
+   */
+  public static OutputChannels wrapReadOnly(final List<OutputChannel> outputChannels)
+  {
+    return new OutputChannels(outputChannels.stream().map(OutputChannel::readOnly).collect(Collectors.toList()));
   }
 
   public IntSortedSet getPartitionNumbers()
@@ -63,5 +76,14 @@ public class OutputChannels
     } else {
       return Collections.emptyList();
     }
+  }
+
+  /**
+   * Returns a read-only version of this instance. Each individual output channel is replaced with its
+   * read-only version ({@link OutputChannel#readOnly()}, which reduces memory usage.
+   */
+  public OutputChannels readOnly()
+  {
+    return wrapReadOnly(outputChannels);
   }
 }
