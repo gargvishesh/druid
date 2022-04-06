@@ -62,7 +62,9 @@ import { useWorkStateStore } from '../work-state-store';
 
 import './query-tab.scss';
 
-const queryRunner = new QueryRunner();
+const queryRunner = new QueryRunner({
+  inflateDateStrategy: 'none',
+});
 
 export interface QueryTabProps {
   query: TalariaQuery;

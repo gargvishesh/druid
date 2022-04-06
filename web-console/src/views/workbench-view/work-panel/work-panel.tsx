@@ -29,7 +29,8 @@ import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { Api, AppToaster } from '../../../singletons';
 import { QueryExecution, TalariaQuery } from '../../../talaria-models';
-import { deepGet, formatDuration, queryDruidSql } from '../../../utils';
+import { deepGet, downloadQueryProfile, formatDuration, queryDruidSql } from '../../../utils';
+import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 import { cancelAsyncQuery, getAsyncExecution } from '../execution-utils';
 import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
 import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
@@ -49,7 +50,7 @@ function statusToIconAndColor(status: TaskStatus): [IconName, string] {
     case 'SUCCESS':
       return [IconNames.TICK_CIRCLE, '#57d500'];
     case 'FAILED':
-      return [IconNames.DELETE, '#d5100a'];
+      return [IconNames.DELETE, '#9f0d0a'];
     case 'CANCELED':
       return [IconNames.DISABLE, '#8d8d8d'];
     default:
@@ -78,6 +79,7 @@ export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
   const [loadValue, setLoadValue] = useState<
     { title: string; work: () => Promise<string> } | undefined
   >();
+  const [confirmCancelId, setConfirmCancelId] = useState<string | undefined>();
 
   const [resultsTaskId, setResultsTaskId] = useState<string | undefined>();
 
@@ -114,6 +116,7 @@ LIMIT 100`,
       <div className="title">Work history</div>
       {workEntries ? (
         <div className="work-entries">
+          {workEntries.length === 0 && <div className="empty-placeholder">No recent queries</div>}
           {workEntries.map(w => {
             const menu = (
               <Menu>
@@ -208,27 +211,36 @@ LIMIT 100`,
                       }
                     />
                   ))}
+                {w.taskStatus === 'FAILED' && (
+                  <MenuItem
+                    text="Show error"
+                    onClick={() => {
+                      setLoadValue({
+                        title: 'Query error',
+                        work: async () => {
+                          const execution = await getAsyncExecution(w.taskId);
+                          const { error } = execution;
+                          if (!error) return String(w.errorMessage);
+                          return `${error.error.errorCode}: ${
+                            error.error.errorMessage ||
+                            (error.exceptionStackTrace || '').split('\n')[0]
+                          }`;
+                        },
+                      });
+                    }}
+                  />
+                )}
+                <MenuItem
+                  text="Download query profile"
+                  onClick={() => downloadQueryProfile(w.taskId)}
+                />
                 {w.taskStatus === 'RUNNING' && (
                   <>
                     <MenuDivider />
                     <MenuItem
                       text="Cancel query"
                       intent={Intent.DANGER}
-                      onClick={async () => {
-                        try {
-                          await cancelAsyncQuery(w.taskId);
-                          AppToaster.show({
-                            message: 'Query canceled',
-                            intent: Intent.SUCCESS,
-                          });
-                          incrementWorkVersion();
-                        } catch {
-                          AppToaster.show({
-                            message: 'Could not cancel query',
-                            intent: Intent.DANGER,
-                          });
-                        }
-                      }}
+                      onClick={() => setConfirmCancelId(w.taskId)}
                     />
                   </>
                 )}
@@ -240,7 +252,11 @@ LIMIT 100`,
               <Popover2 className="work-entry" key={w.taskId} position="left" content={menu}>
                 <div title={w.errorMessage}>
                   <div className="line1">
-                    <Icon className="status-icon" icon={icon} style={{ color }} />
+                    <Icon
+                      className={'status-icon ' + w.taskStatus.toLowerCase()}
+                      icon={icon}
+                      style={{ color }}
+                    />
                     <div className="timing">
                       {w.createdTime.replace('T', ' ').replace(/\.\d\d\dZ$/, '') +
                         (w.duration > 0 ? ` (${formatDuration(w.duration)})` : '')}
@@ -282,6 +298,27 @@ LIMIT 100`,
       )}
       {resultsTaskId && (
         <TalariaResultsDialog id={resultsTaskId} onClose={() => setResultsTaskId(undefined)} />
+      )}
+      {confirmCancelId && (
+        <CancelQueryDialog
+          onCancel={async () => {
+            if (!confirmCancelId) return;
+            try {
+              await cancelAsyncQuery(confirmCancelId);
+              AppToaster.show({
+                message: 'Query canceled',
+                intent: Intent.SUCCESS,
+              });
+              incrementWorkVersion();
+            } catch {
+              AppToaster.show({
+                message: 'Could not cancel query',
+                intent: Intent.DANGER,
+              });
+            }
+          }}
+          onDismiss={() => setConfirmCancelId(undefined)}
+        />
       )}
     </div>
   );

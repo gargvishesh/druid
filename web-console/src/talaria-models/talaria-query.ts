@@ -343,7 +343,7 @@ export class TalariaQuery {
       return {
         query,
         context,
-        isAsync: engine !== 'async',
+        isAsync: engine !== 'broker',
         isSql,
         cancelQueryId,
       };
