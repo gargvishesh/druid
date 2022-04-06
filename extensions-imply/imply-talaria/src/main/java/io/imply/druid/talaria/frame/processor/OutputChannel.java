@@ -140,4 +140,13 @@ public class OutputChannel
       );
     }
   }
+
+  /**
+   * Returns a read-only version of this instance. Read-only versions have neither {@link #getWritableChannel()} nor
+   * {@link #getFrameMemoryAllocator()}, and therefore require substantially less memory.
+   */
+  public OutputChannel readOnly()
+  {
+    return new OutputChannel(null, null, readableChannelSupplier, partitionNumber);
+  }
 }

@@ -764,7 +764,7 @@ public class WorkerImpl implements Worker
         //noinspection unchecked, rawtypes
         outputChannelsFuture = Futures.transform(
             exec.runFully(muxer, cancellationId),
-            (Function) ignored -> OutputChannels.wrap(Collections.singletonList(outputChannel))
+            (Function) ignored -> OutputChannels.wrap(Collections.singletonList(outputChannel.readOnly()))
         );
 
         stagePartitionBoundariesFuture = null;
@@ -791,7 +791,9 @@ public class WorkerImpl implements Worker
       }
     } else {
       stagePartitionBoundariesFuture = null;
-      outputChannelsFuture = Futures.immediateFuture(workerResultAndOutputChannels.getOutputChannels());
+
+      // Retain read-only versions to reduce memory footprint.
+      outputChannelsFuture = Futures.immediateFuture(workerResultAndOutputChannels.getOutputChannels().readOnly());
     }
 
     // Output channels and future are all constructed. Sanity check, record them, and set up callbacks.

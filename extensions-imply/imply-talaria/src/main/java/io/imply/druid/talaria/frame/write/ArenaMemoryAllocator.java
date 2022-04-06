@@ -34,11 +34,19 @@ public class ArenaMemoryAllocator implements MemoryAllocator
     this.arena = Preconditions.checkNotNull(arena, "arena");
   }
 
+  /**
+   * Creates an allocator based on a specific {@link ByteBuffer}. The buffer is never freed, so to ensure proper
+   * cleanup when the allocator is discarded, this buffer must be on-heap (so it can be garbage collected) rather
+   * than off-heap.
+   */
   public static ArenaMemoryAllocator create(final ByteBuffer buffer)
   {
     return new ArenaMemoryAllocator(WritableMemory.writableWrap(buffer));
   }
 
+  /**
+   * Creates an allocator of a specific size using an on-heap {@link ByteBuffer}.
+   */
   public static ArenaMemoryAllocator createOnHeap(final int capacity)
   {
     return create(ByteBuffer.allocate(capacity));

@@ -88,6 +88,6 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
             }
         );
 
-    return new ProcessorsAndChannels<>(processors, OutputChannels.wrap(outputChannels));
+    return new ProcessorsAndChannels<>(processors, OutputChannels.wrapReadOnly(outputChannels));
   }
 }

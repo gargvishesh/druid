@@ -130,6 +130,9 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
     final Sequence<FrameProcessor<Long>> processors =
         Sequences.simple(() -> new SupplierIterator<>(workerSupplier));
 
-    return new ProcessorsAndChannels<>(processors, OutputChannels.wrap(Collections.singletonList(outputChannel)));
+    return new ProcessorsAndChannels<>(
+        processors,
+        OutputChannels.wrapReadOnly(Collections.singletonList(outputChannel))
+    );
   }
 }
