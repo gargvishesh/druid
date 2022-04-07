@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.inet.IpAddressModule;
+import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
@@ -61,6 +62,35 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                                      Collections.singletonList(Intervals.ETERNITY)
                                                  )
                                              )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
+    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> results = seq.toList();
+    Assert.assertEquals(1, results.size());
+    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+  }
+
+  @Test
+  public void testIngestIpAndScanSegmentsWithIpStringify() throws Exception
+  {
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .virtualColumns(new IpAddressFormatVirtualColumn(
+                                                 "v0",
+                                                 "ipv4",
+                                                 true,
+                                                 false
+                                             ))
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                              .limit(100)
                                              .context(ImmutableMap.of())
@@ -203,6 +233,36 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .context(ImmutableMap.of())
                                              .build();
 
+    Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(
+        ImmutableList.of(index),
+        scanQuery
+    );
+    List<ScanResultValue> results = seq.toList();
+    Assert.assertEquals(1, results.size());
+    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+  }
+
+  @Test
+  public void testIngestIpAndScanIncrementalIndexWithIpStringify() throws Exception
+  {
+    Segment index = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .virtualColumns(new IpAddressFormatVirtualColumn(
+                                                 "v0",
+                                                 "ipv4",
+                                                 true,
+                                                 false
+                                             ))
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
     Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(
         ImmutableList.of(index),
         scanQuery

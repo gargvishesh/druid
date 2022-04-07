@@ -21,7 +21,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -117,7 +116,85 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory
   )
   {
-    throw new UOE("Dimension selector for [%s] should only be created with column selector and offsets");
+    final DimensionSelector delegateSelector = dimensionSpec.decorate(factory.makeDimensionSelector(new DefaultDimensionSpec(field, field)));
+    class StringifyIpDimensionSelector extends AbstractDimensionSelector
+    {
+
+      @Override
+      public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+      {
+        inspector.visit("selector", delegateSelector);
+      }
+
+      @Override
+      public Class<?> classOfObject()
+      {
+        return String.class;
+      }
+
+      @Override
+      public Object getObject()
+      {
+        IpAddressBlob blob = (IpAddressBlob) delegateSelector.getObject();
+        return blob == null ? null : blob.stringify(compact, forceV6);
+      }
+
+      @Override
+      public int getValueCardinality()
+      {
+        return delegateSelector.getValueCardinality();
+      }
+
+      @Nullable
+      @Override
+      public String lookupName(int id)
+      {
+        String value = delegateSelector.lookupName(id);
+        if (value == null) {
+          return null;
+        } else {
+          IpAddressBlob blob = IpAddressBlob.ofString(value);
+          if (blob == null) {
+            return null;
+          } else {
+            return blob.stringify(compact, forceV6);
+          }
+        }
+      }
+
+      @Override
+      public boolean nameLookupPossibleInAdvance()
+      {
+        return delegateSelector.nameLookupPossibleInAdvance();
+      }
+
+      @Nullable
+      @Override
+      public IdLookup idLookup()
+      {
+        return delegateSelector.idLookup();
+      }
+
+      @Override
+      public IndexedInts getRow()
+      {
+        return delegateSelector.getRow();
+      }
+
+      @Override
+      public ValueMatcher makeValueMatcher(final @Nullable String value)
+      {
+        return delegateSelector.makeValueMatcher(value);
+      }
+
+      @Override
+      public ValueMatcher makeValueMatcher(final Predicate<String> predicate)
+      {
+        return delegateSelector.makeValueMatcher(predicate);
+      }
+    }
+
+    return new StringifyIpDimensionSelector();
   }
 
   @Nullable
@@ -277,7 +354,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory
   )
   {
-    throw new UOE("Column value selector for [%s] should only be created with column selector and offsets");
+    return makeDimensionSelector(DefaultDimensionSpec.of(field), factory);
   }
 
   @Nullable

@@ -15,13 +15,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
+import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.segment.ColumnSelectorFactory;
+import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.SimpleAscendingOffset;
+import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.TestHelper;
+import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.vector.NoFilterVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
@@ -112,6 +117,50 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
       IndexedInts row = selector.getRow();
       results.add(selector.lookupName(row.get(0)));
       offset.increment();
+    }
+    Assert.assertEquals(
+        Arrays.asList(
+            "1.2.3.4",
+            "5.6.7.8",
+            "10.10.10.11",
+            "22.22.23.24",
+            "100.200.123.12",
+            null,
+            "1.2.3.4",
+            "10.10.10.11",
+            "22.22.23.24",
+            "100.200.123.12"
+        ),
+        results
+    );
+  }
+
+  @Test
+  public void testDimensionSelectorWithColumnSelectorFactory() throws Exception
+  {
+    Segment segment = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
+
+    IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
+        "stringifyV4",
+        "ipv4",
+        true,
+        false
+    );
+
+    StorageAdapter storageAdapter = segment.asStorageAdapter();
+    Cursor cursor = storageAdapter.makeCursors(null, storageAdapter.getInterval(), VirtualColumns.EMPTY, Granularities.ALL, false, null)
+                                  .toList()
+                                  .get(0);
+    ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
+
+    DimensionSelector selector = virtualColumn.makeDimensionSelector(DefaultDimensionSpec.of("ipv4"), columnSelectorFactory);
+    Assert.assertTrue(selector.nameLookupPossibleInAdvance());
+    Assert.assertEquals(6, selector.getValueCardinality());
+    List<Object> results = new ArrayList<>();
+    while (!cursor.isDone()) {
+      IndexedInts row = selector.getRow();
+      results.add(selector.lookupName(row.get(0)));
+      cursor.advance();
     }
     Assert.assertEquals(
         Arrays.asList(
