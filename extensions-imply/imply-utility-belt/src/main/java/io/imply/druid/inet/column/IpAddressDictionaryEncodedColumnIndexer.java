@@ -239,7 +239,11 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
           throw new ISE("id[%d] >= maxId[%d]", id, maxId);
         }
         final IpAddressBlob strValue = getActualValue(id, false);
-        return extractionFn == null ? strValue.asCompressedString() : extractionFn.apply(strValue);
+        String valueAsCompressedString = null;
+        if (strValue != null) {
+          valueAsCompressedString = strValue.asCompressedString();
+        }
+        return extractionFn == null ? valueAsCompressedString : extractionFn.apply(valueAsCompressedString);
       }
 
       @Override

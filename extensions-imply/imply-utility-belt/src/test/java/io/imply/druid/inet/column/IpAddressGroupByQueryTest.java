@@ -60,8 +60,10 @@ public class IpAddressGroupByQueryTest
   private final GroupByQueryConfig config;
   private final QueryContexts.Vectorize vectorize;
   private final AggregationTestHelper helper;
+  private final List<Segment> segments;
+  private final boolean useRealtimeSegments;
 
-  public IpAddressGroupByQueryTest(GroupByQueryConfig config, String vectorize)
+  public IpAddressGroupByQueryTest(GroupByQueryConfig config, String vectorize, boolean useRealtimeSegments) throws Exception
   {
     IpAddressModule.registerHandlersAndSerde();
     this.config = config;
@@ -71,6 +73,13 @@ public class IpAddressGroupByQueryTest
         config,
         tempFolder
     );
+    this.useRealtimeSegments = useRealtimeSegments;
+    if (useRealtimeSegments) {
+      this.segments = ImmutableList.of(IpAddressTestUtils.createDefaultHourlyIncrementalIndex());
+    } else {
+      tempFolder.create();
+      this.segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    }
   }
 
   public Map<String, Object> getContext()
@@ -81,21 +90,30 @@ public class IpAddressGroupByQueryTest
     );
   }
 
-  @Parameterized.Parameters(name = "config = {0}, vectorize = {1}")
+  @Parameterized.Parameters(name = "config = {0}, vectorize = {1}, useRealtimeSegments = {2}")
   public static Collection<?> constructorFeeder()
   {
     final List<Object[]> constructors = new ArrayList<>();
     for (GroupByQueryConfig config : GroupByQueryRunnerTest.testConfigs()) {
       for (String vectorize : new String[]{"false", "true", "force"}) {
-        constructors.add(new Object[]{config, vectorize});
+        for (boolean useRealtimeSegments : new boolean[]{true, false}) {
+          constructors.add(new Object[]{config, vectorize, useRealtimeSegments});
+        }
       }
     }
     return constructors;
   }
 
   @Test
-  public void testGroupBy() throws Exception
+  public void testGroupBy()
   {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
+
     // this is pretty wack, but just documenting the cuurrent behavior
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
@@ -106,14 +124,14 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
     if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy()) ||
-        vectorize == QueryContexts.Vectorize.FALSE) {
+        vectorize == QueryContexts.Vectorize.FALSE ||
+        useRealtimeSegments
+    ) {
       // since we happen to implement a string dimension selector so that we can re-use dictionary encoded column
       // indexing, group by v1 and v2 work because of the "we'll do it live! fuck it!" principle
       verifyResults(
@@ -141,7 +159,7 @@ public class IpAddressGroupByQueryTest
   }
 
   @Test
-  public void testGroupByStringify() throws Exception
+  public void testGroupByStringify()
   {
     if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
       expectedException.expect(RuntimeException.class);
@@ -176,9 +194,7 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
@@ -197,7 +213,7 @@ public class IpAddressGroupByQueryTest
   }
 
   @Test
-  public void testGroupByTypedDimSpec() throws Exception
+  public void testGroupByTypedDimSpec()
   {
     // if the correct type is used, then everything fails as expected
     if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
@@ -218,16 +234,21 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    helper.runQueryOnSegmentsObjs(segs, groupQuery).toList();
+    helper.runQueryOnSegmentsObjs(segments, groupQuery).toList();
 
     Assert.fail();
   }
 
   @Test
-  public void testGroupByStringifyVirtualColumn() throws Exception
+  public void testGroupByStringifyVirtualColumn()
   {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
+
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
@@ -245,9 +266,7 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
@@ -266,8 +285,14 @@ public class IpAddressGroupByQueryTest
   }
 
   @Test
-  public void testGroupByStringifyVirtualColumnSelectorFilter() throws Exception
+  public void testGroupByStringifyVirtualColumnSelectorFilter()
   {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
@@ -299,9 +324,7 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
@@ -316,8 +339,15 @@ public class IpAddressGroupByQueryTest
   }
 
   @Test
-  public void testGroupByStringifyVirtualColumnBoundFilter() throws Exception
+  public void testGroupByStringifyVirtualColumnBoundFilter()
   {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
+
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
@@ -338,7 +368,7 @@ public class IpAddressGroupByQueryTest
                                                   "25.35.45.55",
                                                   true,
                                                   true,
-                                                  null,
+                                                  true,
                                                   null,
                                                   null
                                               )
@@ -347,9 +377,7 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
@@ -364,8 +392,15 @@ public class IpAddressGroupByQueryTest
   }
 
   @Test
-  public void testGroupByStringifyVirtualColumnForcev6Compact() throws Exception
+  public void testGroupByStringifyVirtualColumnForcev6Compact()
   {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
+
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
@@ -383,9 +418,7 @@ public class IpAddressGroupByQueryTest
                                           .setContext(getContext())
                                           .build();
 
-    List<Segment> segs = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
-
-    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segs, groupQuery);
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
 
     List<ResultRow> results = seq.toList();
 
