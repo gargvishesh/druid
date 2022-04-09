@@ -25,10 +25,8 @@ import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnDescriptor;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.Indexed;
-import org.apache.druid.segment.data.ListIndexed;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexAdapter;
 import org.apache.druid.segment.serde.ComplexColumnPartSerde;
@@ -37,7 +35,6 @@ import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.IntBuffer;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -165,7 +162,8 @@ public class NestedDataColumnMerger implements DimensionMergerV9
     }
     final NestedDataColumnIndexer indexer = (NestedDataColumnIndexer) dim.getIndexer();
     for (Map.Entry<String, NestedDataColumnIndexer.LiteralFieldIndexer> entry : indexer.fieldIndexers.entrySet()) {
-      if (entry.getValue().getTypes().getValue() > 0) {
+      // skip adding the field if no types are in the set, meaning only null values have been processed
+      if (!entry.getValue().getTypes().isEmpty()) {
         mergedFields.put(entry.getKey(), entry.getValue().getTypes());
       }
     }
@@ -187,37 +185,11 @@ public class NestedDataColumnMerger implements DimensionMergerV9
     final BaseColumn col = columnHolder.getColumn();
 
     closer.register(col);
-    if (col instanceof NestedDataComplexColumnV0) {
-      return getSortedIndexFromV0QueryableAdapter(mergedFields, col);
-    }
 
     if (col instanceof NestedDataComplexColumnV1) {
       return getSortedIndexFromV1QueryableAdapter(mergedFields, col);
     }
     return null;
-  }
-
-  private GlobalDictionarySortedCollector getSortedIndexFromV0QueryableAdapter(
-      SortedMap<String, NestedLiteralTypeInfo.MutableTypeSet> mergedFields,
-      BaseColumn col
-  )
-  {
-    @SuppressWarnings("unchecked")
-    NestedDataComplexColumnV0 column = (NestedDataComplexColumnV0) col;
-
-    for (String s : column.fields) {
-      mergedFields.compute(s, (k, v) -> {
-        if (v == null) {
-          v = new NestedLiteralTypeInfo.MutableTypeSet().add(ColumnType.STRING);
-        }
-        return v;
-      });
-    }
-    return new GlobalDictionarySortedCollector(
-        column.dictionary,
-        new ListIndexed<>(Collections.emptyList()),
-        new ListIndexed<>(Collections.emptyList())
-    );
   }
 
   private GlobalDictionarySortedCollector getSortedIndexFromV1QueryableAdapter(
@@ -233,9 +205,9 @@ public class NestedDataColumnMerger implements DimensionMergerV9
       NestedLiteralTypeInfo.TypeSet types = column.fieldInfo.getTypes(i);
       mergedFields.compute(fieldPath, (k, v) -> {
         if (v == null) {
-          return new NestedLiteralTypeInfo.MutableTypeSet(types.getValue());
+          return new NestedLiteralTypeInfo.MutableTypeSet(types.getByteValue());
         }
-        return v.merge(types.getValue());
+        return v.merge(types.getByteValue());
       });
     }
     return new GlobalDictionarySortedCollector(column.stringDictionary, column.longDictionary, column.doubleDictionary);

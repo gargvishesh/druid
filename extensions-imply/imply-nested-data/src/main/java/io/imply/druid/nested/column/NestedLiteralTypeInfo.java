@@ -72,7 +72,7 @@ public class NestedLiteralTypeInfo
       return NestedLiteralTypeInfo.getSingleType(types);
     }
 
-    public byte getValue()
+    public byte getByteValue()
     {
       return types;
     }
@@ -128,7 +128,13 @@ public class NestedLiteralTypeInfo
       return NestedLiteralTypeInfo.getSingleType(types);
     }
 
-    public byte getValue()
+    public boolean isEmpty()
+    {
+      return types == 0x00;
+    }
+
+
+    public byte getByteValue()
     {
       return types;
     }
@@ -159,7 +165,7 @@ public class NestedLiteralTypeInfo
 
     public void write(NestedLiteralTypeInfo.MutableTypeSet types) throws IOException
     {
-      valuesOut.write(types.getValue());
+      valuesOut.write(types.getByteValue());
       numWritten++;
     }
 

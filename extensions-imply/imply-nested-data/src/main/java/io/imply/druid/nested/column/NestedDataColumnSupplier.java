@@ -104,27 +104,16 @@ public class NestedDataColumnSupplier implements Supplier<ComplexColumn>
   @Override
   public ComplexColumn get()
   {
-    if (longDictionary != null) {
-      return new NestedDataComplexColumnV1(
-          metadata,
-          columnConfig,
-          raw,
-          nullValues,
-          fields,
-          fieldInfo,
-          dictionary,
-          longDictionary,
-          doubleDictionary,
-          fileMapper
-      );
-    }
-    return new NestedDataComplexColumnV0(
+    return new NestedDataComplexColumnV1(
         metadata,
+        columnConfig,
         raw,
         nullValues,
         fields,
+        fieldInfo,
         dictionary,
-        columnConfig,
+        longDictionary,
+        doubleDictionary,
         fileMapper
     );
   }
