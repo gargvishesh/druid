@@ -40,9 +40,7 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
       return null;
     }
     BaseColumn theColumn = holder.getColumn();
-    if (theColumn instanceof NestedDataComplexColumnV0) {
-      return (NestedDataComplexColumnV0) theColumn;
-    } else if (theColumn instanceof NestedDataComplexColumnV1) {
+    if (theColumn instanceof NestedDataComplexColumnV1) {
       return (NestedDataComplexColumnV1) theColumn;
     }
     throw new IAE(
