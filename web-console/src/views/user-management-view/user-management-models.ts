@@ -16,13 +16,23 @@
  * limitations under the License.
  */
 
+export type PermissionType = 'DATASOURCE' | 'VIEW' | 'CONFIG' | 'STATE' | 'SYSTEM_TABLE';
+
 export interface Permission {
   resource: {
-    type: 'DATASOURCE' | 'CONFIG' | 'STATE' | 'SYSTEM_TABLE';
+    type: PermissionType;
     name: string;
   };
   action: 'READ' | 'WRITE';
 }
+
+export const PERMISSION_TYPES: PermissionType[] = [
+  'DATASOURCE',
+  'VIEW',
+  'CONFIG',
+  'STATE',
+  'SYSTEM_TABLE',
+];
 
 export function formatPermission(permission: Permission): string {
   return `${permission.action} ${permission.resource.type}: ${permission.resource.name}`;
@@ -80,6 +90,20 @@ export const ALL_PERMISSIONS: Permission[] = [
     resource: {
       name: '.*',
       type: 'DATASOURCE',
+    },
+    action: 'WRITE',
+  },
+  {
+    resource: {
+      name: '.*',
+      type: 'VIEW',
+    },
+    action: 'READ',
+  },
+  {
+    resource: {
+      name: '.*',
+      type: 'VIEW',
     },
     action: 'WRITE',
   },

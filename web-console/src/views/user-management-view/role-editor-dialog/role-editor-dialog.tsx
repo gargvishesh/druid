@@ -30,7 +30,12 @@ import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
 import { deepSet } from '../../../utils';
-import { ALL_PERMISSIONS, Permission, RoleEntry } from '../user-management-models';
+import {
+  ALL_PERMISSIONS,
+  Permission,
+  PERMISSION_TYPES,
+  RoleEntry,
+} from '../user-management-models';
 
 import './role-editor-dialog.scss';
 
@@ -87,10 +92,11 @@ export const RoleEditorDialog = React.memo(function RoleEditorDialog(props: Role
                   )
                 }
               >
-                <option value="DATASOURCE">DATASOURCE</option>
-                <option value="CONFIG">CONFIG</option>
-                <option value="STATE">STATE</option>
-                <option value="SYSTEM_TABLE">SYSTEM_TABLE</option>
+                {PERMISSION_TYPES.map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </HTMLSelect>
               <InputGroup
                 value={permission.resource.name}
