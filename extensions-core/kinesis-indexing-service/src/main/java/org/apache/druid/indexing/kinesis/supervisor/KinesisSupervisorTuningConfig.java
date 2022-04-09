@@ -168,7 +168,7 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         offsetFetchPeriod,
         DEFAULT_OFFSET_FETCH_PERIOD
     );
-    this.useListShards = (useListShards != null ? useListShards : false);
+    this.useListShards = (useListShards != null ? useListShards : true);
     this.skipIgnorableShards = (skipIgnorableShards != null ? skipIgnorableShards : false);
   }
 
