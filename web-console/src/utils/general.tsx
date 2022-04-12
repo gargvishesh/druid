@@ -527,3 +527,7 @@ export function hashJoaat(str: string): number {
 export function objectHash(obj: any): string {
   return hashJoaat(JSONBig.stringify(obj)).toString(16).padStart(8);
 }
+
+export function hasPopoverOpen(): boolean {
+  return Boolean(document.querySelector('.bp4-portal .bp4-overlay .bp4-popover2'));
+}

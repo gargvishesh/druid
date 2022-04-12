@@ -17,4 +17,5 @@
  */
 
 export * from './download';
+export * from './download-query-profile';
 export * from './druid-query-context';
