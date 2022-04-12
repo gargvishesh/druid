@@ -56,7 +56,9 @@ import { useWorkStateStore } from '../work-state-store';
 
 import './helper-query.scss';
 
-const queryRunner = new QueryRunner();
+const queryRunner = new QueryRunner({
+  inflateDateStrategy: 'none',
+});
 
 export interface HelperQueryProps {
   query: TalariaQuery;

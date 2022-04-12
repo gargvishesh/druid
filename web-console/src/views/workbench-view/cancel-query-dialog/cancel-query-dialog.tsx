@@ -16,14 +16,33 @@
  * limitations under the License.
  */
 
-.destination-form {
-  .table-icon {
-    opacity: 0.5;
-    margin-right: 5px;
-  }
+import { Alert, Intent } from '@blueprintjs/core';
+import React from 'react';
 
-  .table-radios {
-    max-height: 400px;
-    overflow: auto;
-  }
+export interface CancelQueryDialogProps {
+  onDismiss(): void;
+  onCancel(): void;
 }
+
+export const CancelQueryDialog = function CancelQueryDialog(props: CancelQueryDialogProps) {
+  const { onDismiss, onCancel } = props;
+
+  return (
+    <Alert
+      intent={Intent.DANGER}
+      isOpen
+      cancelButtonText="Continue running query"
+      confirmButtonText="Cancel query"
+      canOutsideClickCancel
+      canEscapeKeyCancel
+      onCancel={onDismiss}
+      onConfirm={() => {
+        onCancel();
+        onDismiss();
+      }}
+    >
+      <p>Are you sure you want to cancel this query?</p>
+      <p>You can&apos;t undo this action.</p>
+    </Alert>
+  );
+};

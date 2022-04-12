@@ -444,3 +444,31 @@ export function ingestQueryPatternToSampleQuery(
     .changePartitionedByClause(SqlPartitionedByClause.create(undefined))
     .changeLimitValue(10000);
 }
+
+export type DestinationMode = 'new' | 'replace' | 'append';
+
+export interface DestinationInfo {
+  mode: DestinationMode;
+  table: string;
+}
+
+export function getDestinationMode(
+  ingestQueryPattern: IngestQueryPattern,
+  existingTables: string[],
+): DestinationMode {
+  return existingTables.includes(ingestQueryPattern.destinationTableName)
+    ? ingestQueryPattern.replaceTimeChunks
+      ? 'replace'
+      : 'append'
+    : 'new';
+}
+
+export function getDestinationInfo(
+  ingestQueryPattern: IngestQueryPattern,
+  existingTables: string[],
+): DestinationInfo {
+  return {
+    mode: getDestinationMode(ingestQueryPattern, existingTables),
+    table: ingestQueryPattern.destinationTableName,
+  };
+}

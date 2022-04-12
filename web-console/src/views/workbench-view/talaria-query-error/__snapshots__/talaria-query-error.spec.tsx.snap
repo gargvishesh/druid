@@ -27,6 +27,15 @@ exports[`TalariaQueryError matches snapshot 1`] = `
     <Memo(ClickToCopy)
       text="ip-10-3-228-20.ec2.internal:8100"
     />
+     
+    Debug:
+     
+    <span
+      className="download-infopack"
+      onClick={[Function]}
+    >
+      download query profile
+    </span>
   </p>
 </div>
 `;
