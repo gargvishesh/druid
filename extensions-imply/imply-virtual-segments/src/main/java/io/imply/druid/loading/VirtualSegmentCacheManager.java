@@ -17,6 +17,7 @@ import org.apache.druid.timeline.DataSegment;
 import javax.inject.Inject;
 
 import java.io.File;
+import java.util.concurrent.ExecutorService;
 
 /**
  * This class does everything same as {@link SegmentLocalCacheManager} except {@link #isSegmentCached(DataSegment)}. This
@@ -63,5 +64,11 @@ public class VirtualSegmentCacheManager implements SegmentCacheManager
   public void cleanup(DataSegment segment)
   {
     physicalSegmentCacheManager.cleanup(segment);
+  }
+
+  @Override
+  public void loadSegmentIntoPageCache(DataSegment segment, ExecutorService exec)
+  {
+    // do nothing, this is contrary to virtual segments
   }
 }
