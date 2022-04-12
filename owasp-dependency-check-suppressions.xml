@@ -409,6 +409,15 @@
   </suppress>
 
   <suppress>
+      ~ This CVE is reported for the zookeeper server. Druid ships the zookeeper client.
+      -->
+    <notes><![CDATA[
+    file name: zookeeper-3.4.14.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.zookeeper@3.4.14$</packageUrl>
+    <cve>CVE-2021-28165</cve>
+  </suppress>
+  <suppress>
     <!-- Transitive dependency from apache-ranger, latest ranger version 2.1.0 still uses solr 7.7.1-->
     <notes><![CDATA[
      file name: solr-solrj-7.7.1.jar
