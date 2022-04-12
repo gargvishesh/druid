@@ -741,6 +741,179 @@ pipeline {
             }
         }
 
+        stage("Build and publish pre test") {
+            when {
+                  anyOf {
+                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
+                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
+                      expression { params.PUBLISH_ON_ANY_BRANCH }
+                  }
+                  beforeAgent true
+            }
+            matrix {
+                axes {
+                    axis {
+                        name 'BUILD_PROFILE'
+                        values 'dist', 'imply-saas', 'imply-experimental'
+                    }
+                }
+                stages {
+                    stage('profile build and upload') {
+                        environment {
+                            GIT_ASKPASS = "/tmp/askpass.sh"
+                            GITHUB_NETRC = "/tmp/github-netrc"
+                            STAGING_BASE_DIR= "/tmp/druid-build/stage"
+                            TMP_DIR = "/tmp/druid-build/tmp"
+                            BUILD_DIR = "/tmp/druid-build"
+                            ARTIFACT_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid-saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid-experimental"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
+                            ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid.saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid.experimental"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
+                        }
+                        agent {
+                            docker {
+                                image 'docker/buildabear:20200923'
+                                args '-u root:root'
+                                label "${DOCKER_AGENT_LABEL}"
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            }
+                        }
+                        stages {
+                            stage('prepare to build') {
+                                steps {
+                                    script {
+                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
+                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
+                                            sh script:'''#!/bin/bash -eux
+                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                                                chmod u+x /usr/bin/mvn
+
+                                                cat <<EOF > "${GIT_ASKPASS}"
+                                                #!/bin/sh
+                                                case "\\$1" in
+                                                    Username*) echo "${GIT_CREDS_USR}" ;;
+                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
+                                                esac
+                                                EOF
+
+                                                cat <<EOF > "${GITHUB_NETRC}"
+                                                machine api.github.com
+                                                login ${GIT_CREDS_USR}
+                                                password ${GIT_CREDS_PSW}
+                                                EOF
+
+                                                chmod u+x "${GIT_ASKPASS}"
+                                                chmod 400 "${GITHUB_NETRC}"
+                                            '''.replaceAll(/\n\s+/, "\n"),
+                                            label: 'prepare for build'
+                                        }
+                                    }
+                                }
+                            }
+                            stage('prepare upload') {
+                                steps {
+                                    setupMavenSettings()
+                                    sh script:'''#!/bin/bash -eux
+                                        COMMIT_SHA=$(git rev-parse HEAD)
+                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                        else
+                                            COMMIT_SHA=$(git rev-parse HEAD^)
+                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                            else
+                                                echo "head branch commit SHA is not found"
+                                                exit 1
+                                            fi
+                                        fi
+
+                                        cd $WORKSPACE
+
+                                        # remove snapshot suffix from pom files
+                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+
+                                        # Stage Druid
+                                        export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
+
+
+                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
+
+                                    '''.replaceAll(/\n\s+/, "\n"),
+                                    label: 'build druid and verify'
+                                } // end of steps
+                            } // end of stage('build')
+
+                            stage('upload') {
+                                steps {
+                                    script {
+                                        def release_version = "None"
+                                        def headBranch = env.CHANGE_BRANCH ?: env.BRANCH_NAME
+                                        if(headBranch ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX)) {
+                                            release_version = (headBranch =~ env.RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
+                                        } else if(headBranch ==~ env.ACTIVE_DEV_BRANCH_REGEX) {
+                                            release_version = sh(
+                                                script: '''#!/bin/bash -e
+                                                    curl -s --netrc-file ${GITHUB_NETRC} \
+                                                    -H "Accept: application/vnd.github.v3.raw" \
+                                                    https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
+                                                    tee /dev/stderr
+                                                ''',
+                                                returnStdout: true
+                                            ).trim()
+                                        }
+                                        def artifact_build_version = sh(
+                                            script: 'cat build.version',
+                                            returnStdout: true
+                                        ).trim()
+                                        def repo_url = sh(
+                                            script: 'git config --get remote.origin.url',
+                                            returnStdout: true
+                                        ).trim()
+                                        rtUpload (
+                                            serverId: "${RT_SERVER_ID}",
+                                            spec: """{
+                                                "files": [
+                                                    {
+                                                      "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
+                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
+                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
+                                                    }
+                                                ]
+                                            }""",
+                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
+                                            buildNumber: "${BUILD_NUMBER}"
+                                        )
+                                    }
+                                }
+                            } // end of stage('upload')
+                        } // end of stages
+                        post {
+                            cleanup {
+                                resetWs()
+                            }
+                        }
+                    } // end of stage('profile build and upload')
+                } // end of stages
+            } // end of matrix
+        } // end of stage("Build and publish")
+
         stage('Tests - phase 1') {
             when {
                 expression { !params.SKIP_JENKINS_UNIT_TESTS_AND_CHECKS && !params.SKIP_ALL_JENKINS_TESTS }
@@ -1108,7 +1281,7 @@ pipeline {
                                 echo 'Starting nvm install...'
                                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
                                 [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
-                                nvm install 14.19.0                                
+                                nvm install 14.19.0
                                 web-console/script/druid start
                                 cd web-console && npm run test-e2e
                             '''
@@ -1829,7 +2002,7 @@ pipeline {
             } // end of parallel
         } // end of stage('Checks')
 
-        stage("Build and publish") {
+        stage("Tag verified builds") {
             when {
                 anyOf {
                     expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
@@ -1883,37 +2056,6 @@ pipeline {
                             }
                         }
                         stages {
-                            stage('prepare to build') {
-                                steps {
-                                    script {
-                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
-                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
-                                            sh script:'''#!/bin/bash -eux
-                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                                                chmod u+x /usr/bin/mvn
-
-                                                cat <<EOF > "${GIT_ASKPASS}"
-                                                #!/bin/sh
-                                                case "\\$1" in
-                                                    Username*) echo "${GIT_CREDS_USR}" ;;
-                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
-                                                esac
-                                                EOF
-
-                                                cat <<EOF > "${GITHUB_NETRC}"
-                                                machine api.github.com
-                                                login ${GIT_CREDS_USR}
-                                                password ${GIT_CREDS_PSW}
-                                                EOF
-
-                                                chmod u+x "${GIT_ASKPASS}"
-                                                chmod 400 "${GITHUB_NETRC}"
-                                            '''.replaceAll(/\n\s+/, "\n"),
-                                            label: 'prepare for build'
-                                        }
-                                    }
-                                }
-                            }
                             stage('build') {
                                 steps {
                                     setupMavenSettings()
@@ -2052,7 +2194,6 @@ pipeline {
                                     label: 'build druid and verify'
                                 } // end of steps
                             } // end of stage('build')
-
                             stage('upload') {
                                 steps {
                                     script {
@@ -2075,23 +2216,18 @@ pipeline {
                                             script: 'cat build.version',
                                             returnStdout: true
                                         ).trim()
-                                        def repo_url = sh(
-                                            script: 'git config --get remote.origin.url',
-                                            returnStdout: true
-                                        ).trim()
-                                        rtUpload (
+                                        rtSetProps (
                                             serverId: "${RT_SERVER_ID}",
                                             spec: """{
                                                 "files": [
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
-                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
-                                            buildNumber: "${BUILD_NUMBER}"
+                                            props: 'jenkins-verified=true',
+                                            failNoOp: true
                                         )
                                     }
                                 }
@@ -2128,4 +2264,3 @@ pipeline {
         }
     }
 }
-
