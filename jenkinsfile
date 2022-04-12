@@ -2228,6 +2228,7 @@ pipeline {
                                     label: 'build druid and verify'
                                 } // end of steps
                             } // end of stage('Populate build properties')
+
                             stage('Set jenkins-verified property') {
                                 steps {
                                     script {
@@ -2298,3 +2299,4 @@ pipeline {
         }
     }
 }
+
