@@ -34,6 +34,7 @@ import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.guava.BaseSequence;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
+import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.segment.RowAdapters;
 import org.apache.druid.segment.RowBasedSegment;
 import org.apache.druid.segment.Segment;
@@ -212,7 +213,34 @@ public class QueryWorkerUtils
                     {
                       try {
                         // TODO(gianm): parse-exception handling logic like that in FilteringCloseableInputRowIterator
-                        return reader.read();
+//                        return reader.read();
+                        CloseableIterator<InputRow> baseIterator = reader.read();
+                        return new CloseableIterator<InputRow>()
+                        {
+                          private InputRow next;
+                          @Override
+                          public void close() throws IOException
+                          {
+                            baseIterator.close();
+                          }
+
+                          @Override
+                          public boolean hasNext()
+                          {
+                            while (true) {
+                              try {
+                              } catch (ParseException e) {
+                                // TODO: Handle parse exceptions here
+                              }
+                            }
+                          }
+
+                          @Override
+                          public InputRow next()
+                          {
+                            return null;
+                          }
+                        };
                       }
                       catch (IOException e) {
                         throw new RuntimeException(e);
