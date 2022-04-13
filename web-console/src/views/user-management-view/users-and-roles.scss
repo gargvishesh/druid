@@ -16,14 +16,28 @@
  * limitations under the License.
  */
 
-export * from './datasource-view/datasource-view';
-export * from './home-view/home-view';
-export * from './ingestion-view/ingestion-view';
-export * from './load-data-view/load-data-view';
-export * from './lookups-view/lookups-view';
-export * from './query-view/query-view';
-export * from './segments-view/segments-view';
-export * from './services-view/services-view';
-export * from './user-management-view/user-management-view';
-export * from './workbench-view/talaria-load-data-view';
-export * from './workbench-view/workbench-view';
+@import '../../variables';
+
+.users-and-roles {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+
+  .user-panel,
+  .role-panel {
+    position: relative;
+    flex: 1;
+  }
+
+  .view-control-bar {
+    margin-bottom: $standard-padding;
+  }
+
+  .ReactTable {
+    position: absolute;
+    top: $view-control-bar-height + $standard-padding;
+    bottom: 0;
+    width: 100%;
+  }
+}

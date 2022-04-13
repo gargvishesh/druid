@@ -37,6 +37,7 @@ import {
   SegmentsView,
   ServicesView,
   TalariaLoadDataView,
+  UserManagementView,
   WorkbenchView,
 } from './views';
 
@@ -242,6 +243,10 @@ export class ConsoleApplication extends React.PureComponent<
   };
   // END: Imply-modified code for Talaria execution
 
+  private readonly wrappedUserManagementView = () => {
+    return this.wrapInViewContainer('user-management', <UserManagementView />);
+  };
+
   private readonly wrappedDatasourcesView = () => {
     const { capabilities } = this.state;
     return this.wrapInViewContainer(
@@ -337,6 +342,10 @@ export class ConsoleApplication extends React.PureComponent<
                 <Route path="/sqloader" component={this.wrappedTalariaLoadDataView} />
               )}
               {/* END: Imply-modified code for Talaria execution */}
+
+              {/* BEGIN: Imply-added code for user management */}
+              <Route path="/user-management" component={this.wrappedUserManagementView} />
+              {/* END: Imply-modified code for user management */}
 
               <Route path="/lookups" component={this.wrappedLookupsView} />
               <Route component={this.wrappedHomeView} />

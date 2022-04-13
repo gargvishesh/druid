@@ -50,6 +50,9 @@ export const LocalStorageKeys = {
   WORKBENCH_WORK_PANEL: 'talaria-work-history' as const,
   SQLOADER_QUERY: 'sqloader-query' as const,
   // END: Imply-modified code for Talaria execution
+
+  USERS_REFRESH_RATE: 'users-refresh-rate' as const,
+  ROLES_REFRESH_RATE: 'roles-refresh-rate' as const,
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
 

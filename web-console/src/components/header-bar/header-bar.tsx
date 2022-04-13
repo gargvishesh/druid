@@ -67,6 +67,7 @@ export type HeaderActiveTab =
   | 'query'
   | 'workbench'
   | 'sqloader'
+  | 'user-management'
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -283,6 +284,17 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         href="#lookups"
         disabled={!capabilities.hasCoordinatorAccess()}
       />
+
+      {/* BEGIN: Imply-modified code for user management */}
+      <MenuItem
+        icon={IconNames.PEOPLE}
+        active={active === 'user-management'}
+        text="User management"
+        href="#user-management"
+        disabled={!capabilities.hasCoordinatorAccess()}
+      />
+      {/* END: Imply-modified code for user management */}
+
       <MenuDivider />
       <MenuItem icon={IconNames.COG} text="Console options">
         {capabilitiesOverride ? (
