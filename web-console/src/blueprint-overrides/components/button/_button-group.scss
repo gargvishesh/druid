@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-export * from './datasource-view/datasource-view';
-export * from './home-view/home-view';
-export * from './ingestion-view/ingestion-view';
-export * from './load-data-view/load-data-view';
-export * from './lookups-view/lookups-view';
-export * from './query-view/query-view';
-export * from './segments-view/segments-view';
-export * from './services-view/services-view';
-export * from './user-management-view/user-management-view';
-export * from './workbench-view/talaria-load-data-view';
-export * from './workbench-view/workbench-view';
+// Add body to make the selector more specific than what is in
+// node_modules/@blueprintjs/core/src/components/button/_button-group.scss
+body .#{$ns}-button-group {
+  &:not(.#{$ns}-minimal) {
+    > .#{$ns}-popover-wrapper:not(:last-child) .#{$ns}-button,
+    > .#{$ns}-button:not(:last-child) {
+      // Due to our flat styling this in needed to override the -1px that blueprint tries to set
+      margin-right: 1px;
+    }
+  }
+}
