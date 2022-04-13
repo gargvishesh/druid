@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-@import 'common/colors';
-@import 'common/color-aliases';
-@import 'common/variables';
-@import 'components/button/common';
-@import 'components/button/button-group';
-@import 'components/forms/common';
-@import 'components/navbar/navbar';
-@import 'components/card/card';
+// Add body to make the selector more specific than what is in
+// node_modules/@blueprintjs/core/src/components/button/_button-group.scss
+body .#{$ns}-button-group {
+  &:not(.#{$ns}-minimal) {
+    > .#{$ns}-popover-wrapper:not(:last-child) .#{$ns}-button,
+    > .#{$ns}-button:not(:last-child) {
+      // Due to our flat styling this in needed to override the -1px that blueprint tries to set
+      margin-right: 1px;
+    }
+  }
+}
