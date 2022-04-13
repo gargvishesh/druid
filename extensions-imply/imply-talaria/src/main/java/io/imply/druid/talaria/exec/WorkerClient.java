@@ -22,21 +22,21 @@ import java.util.concurrent.ExecutorService;
  */
 public interface WorkerClient extends AutoCloseable
 {
-  void postWorkOrder(String workerTaskId, WorkOrder workOrder);
+  void postWorkOrder(String workerId, WorkOrder workOrder) throws TaskNotFoundException;
   void postResultPartitionBoundaries(
       String workerTaskId,
       StageId stageId,
       ClusterByPartitions partitionBoundaries
-  );
-  void postCleanupStage(String workerTaskId, StageId stageId);
-  void postFinish(String taskId);
-  TalariaCountersSnapshot getCounters(String taskId);
+  ) throws TaskNotFoundException;
+  void postFinish(String workerId) throws TaskNotFoundException;
+  TalariaCountersSnapshot getCounters(String workerId) throws TaskNotFoundException;
+  void postCleanupStage(String workerTaskId, StageId stageId) throws TaskNotFoundException;
   ReadableFrameChannel getChannelData(
       String workerTaskId,
       StageId stageId,
       int partitionNumber,
       ExecutorService connectExec
-  );
+  ) throws TaskNotFoundException;
   @Override
   void close();
 }
