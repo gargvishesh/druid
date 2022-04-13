@@ -23,14 +23,13 @@ import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
-import org.apache.druid.segment.realtime.firehose.ChatHandler;
 
 import javax.annotation.Nullable;
 
 import java.util.Map;
 
 @JsonTypeName(TalariaWorkerTask.TYPE)
-public class TalariaWorkerTask extends AbstractTask implements ChatHandler
+public class TalariaWorkerTask extends AbstractTask
 {
   public static final String TYPE = "talaria1";
 

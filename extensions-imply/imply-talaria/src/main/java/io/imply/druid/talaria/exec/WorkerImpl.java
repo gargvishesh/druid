@@ -130,6 +130,8 @@ public class WorkerImpl implements Worker
   private volatile WorkerClient workerClient;
   private volatile Bouncer processorBouncer;
 
+  private volatile boolean leaderAlive = true;
+
   public WorkerImpl(TalariaWorkerTask task, WorkerContext context)
   {
     this.task = task;
@@ -169,7 +171,7 @@ public class WorkerImpl implements Worker
         log.warn(errorLogMessage);
 
         closer.register(() -> {
-          if (leaderClient != null && selfDruidNode != null) {
+          if (leaderAlive && leaderClient != null && selfDruidNode != null) {
             leaderClient.postWorkerError(
                 task.getControllerTaskId(),
                 id(),
@@ -271,13 +273,14 @@ public class WorkerImpl implements Worker
 
         if (kernel.getPhase() == WorkerStagePhase.READING_INPUT && kernel.hasResultKeyStatisticsSnapshot()) {
           // TODO(gianm): Do this in a different thread?
-          leaderClient.postKeyStatistics(
-              task.getControllerTaskId(),
-              stageDefinition.getId(),
-              kernel.getWorkOrder().getWorkerNumber(),
-              kernel.getResultKeyStatisticsSnapshot()
-          );
-
+          if (leaderAlive) {
+            leaderClient.postKeyStatistics(
+                task.getControllerTaskId(),
+                stageDefinition.getId(),
+                kernel.getWorkOrder().getWorkerNumber(),
+                kernel.getResultKeyStatisticsSnapshot()
+            );
+          }
           kernel.startPreshuffleWaitingForResultPartitionBoundaries();
 
           didSomething = true;
@@ -297,12 +300,14 @@ public class WorkerImpl implements Worker
         if (kernel.getPhase() == WorkerStagePhase.RESULTS_READY
             && postedResultsComplete.add(Pair.of(stageDefinition.getId(), kernel.getWorkOrder().getWorkerNumber()))) {
           // TODO(gianm): Do this in a different thread?
-          leaderClient.postResultsComplete(
-              task.getControllerTaskId(),
-              stageDefinition.getId(),
-              kernel.getWorkOrder().getWorkerNumber(),
-              kernel.getResultObject()
-          );
+          if (leaderAlive) {
+            leaderClient.postResultsComplete(
+                task.getControllerTaskId(),
+                stageDefinition.getId(),
+                kernel.getWorkOrder().getWorkerNumber(),
+                kernel.getResultObject()
+            );
+          }
         }
 
         if (kernel.getPhase() == WorkerStagePhase.FAILED) {
@@ -332,7 +337,6 @@ public class WorkerImpl implements Worker
               countersString = nextCountersString;
             }
           }
-
           postCountersToController();
         } while ((nextCommand = kernelManipulationQueue.poll(5, TimeUnit.SECONDS)) == null);
 
@@ -350,6 +354,13 @@ public class WorkerImpl implements Worker
   {
     // TODO(gianm): Do something else, since this doesn't seem right
     kernelManipulationQueue.add(KernelHolder::setDone);
+  }
+
+  @Override
+  public void leaderFailed()
+  {
+    leaderAlive = false;
+    stopGracefully();
   }
 
   @Override
@@ -613,7 +624,9 @@ public class WorkerImpl implements Worker
                             .collect(Collectors.toList())
           );
         } else {
-          leaderClient.postCounters(task.getControllerTaskId(), id(), workerCounters.get(0));
+          if (leaderAlive) {
+            leaderClient.postCounters(task.getControllerTaskId(), id(), workerCounters.get(0));
+          }
         }
       }
     }
