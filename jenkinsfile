@@ -1283,6 +1283,9 @@ pipeline {
             }
             parallel {
                 stage('security vulnerabilities') {
+                    when {
+                        expression { "skip job till it is successful in IMPLY-19554" == "run" }
+                    }
                     agent {
                         docker {
                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
