@@ -409,10 +409,11 @@
   </suppress>
 
   <suppress>
+    <!--
       ~ This CVE is reported for the zookeeper server. Druid ships the zookeeper client.
       -->
     <notes><![CDATA[
-    file name: zookeeper-3.4.14.jar
+    file name: zookeeper-3.5.9.jar
     ]]></notes>
     <cve>CVE-2021-28165</cve>
   </suppress>
