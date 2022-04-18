@@ -3,6 +3,8 @@ id: index
 title: Multi-stage query engine
 ---
 
+## Overview
+
 > The multi-stage query engine is an alpha feature available in Imply 2022.01 and later. All
 > functionality documented on this page is subject to change or removal at any time. Alpha features
 > are provided "as is" and are not subject to Imply SLAs.
@@ -32,81 +34,97 @@ The engine is code-named "Talaria". During the alpha, you'll see this term in ce
 in the name of the extension. The name comes from Mercury’s winged sandals, representing the
 exchange of data between servers.
 
+## Requirements
+
+To use multi-stage query engine, make sure you meet the following requirements:
+
+- An Imply Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
+- A license that has an entitlement for multi-stage query engine. The snippet `talaria` should be listed in the `features` section of your license string.
+
 ## Setup
 
-To try out the multi-stage query engine in Imply Enterprise Hybrid, launch a cluster with the following settings.
+Turning multi-stage query engine on is a two part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [loading the UI](#load-the-ui).
 
-**Imply version**
+### Enable multi-stage query engine
 
-We recommend using the latest STS release. The minimum version is 2022.01 STS.
+In Imply Manager, perform the following steps to enable multi-stage query engine:
 
-Note: the multi-stage query engine is only available for STS versions of Imply at this time. It is
-not available in 2022.01 LTS.
+1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. Multi-stage query engine is enabled on each cluster .
+2. Go to **Setup** and expand the **Advanced config** options.
+3. Add the following custom extensions:
 
-**Custom extensions**
+   | Name  | S3 path or url |
+   |---|---|
+   | `imply-sql-async`  | Leave this blank. This extension is bundled with the Imply distribution.  |
+   | `imply-talaria`  | Leave this blank. This extension is bundled with the Imply distribution.  |
 
-Add two entries:
+4. Change the following feature flags by clicking on the pencil icon:
 
-1. Name `imply-talaria`, and "S3 path or url" blank.
-2. Name `imply-sql-async`, and "S3 path or url" blank.
+   - Select **HTTP-based task management**. 
+   - Clear **Use Indexers instead of Middle Managers**.
 
-**Feature flags**
+   Although these features aren't required for multi-stage query engine, they can improve performance.
 
-- Enable *HTTP-based task management.* This is recommended in all cases.
-- Disable *Use Indexers instead of Middle Managers.* Middle Managers are recommended for all workloads.
 
-**Common**
+5. Add the following **Service properties**:
 
-In the Common property overrides, add an Imply license string that includes
-the `talaria` feature, and configure the `imply-sql-async` extension.
+   **Common** service properties include your multi-stage query engine entitled license and the configuration for the `imply-sql-async` extension:
 
-```
-imply.license=<license string>
+   ```bash
+   imply.license=<license string>
+   
+   # Configure imply-sql-async extension.
+   # Note: this setup only works for multi-stage query; for regular async query you must use storage type "s3".
+   druid.query.async.storage.type=local
+   druid.query.async.storage.local.directory=/mnt/tmp/async-query
+   ```
 
-# Configure imply-sql-async extension.
-# Note: this setup only works for multi-stage query; for regular async query you must use storage type "s3".
-druid.query.async.storage.type=local
-druid.query.async.storage.local.directory=/mnt/tmp/async-query
-```
+   **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart  to match your usage.
 
-**Middle Manager**
+   ```bash
+   # Set this property to the maximum number of tasks you will use per job plus 25.
+   # The upper limit for tasks per job is 1000, so 1000 + 25.
+   # Set this lower if you do not intend to use this many tasks.
+   druid.indexer.fork.property.druid.server.http.numThreads=1025
+   
+   # Lazy initialization of the connection pool that used for shuffle.
+   druid.global.http.numConnections=50
+   druid.global.http.eagerInitialization=false
+   
+   # Required for Java 11
+   jvm.config.dsmmap=--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
+   druid.indexer.runner.javaOptsArray=["--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"]
+   ```
 
-```bash
-# Should be set to the maximum number of tasks you will use per job plus 25.
-# Here, we go with 1025 because the hard limit for tasks per job is 1000.
-# You can set this lower if you do not intend to use this many tasks.
-druid.indexer.fork.property.druid.server.http.numThreads=1025
+   **Broker** service properties control how the Broker routes queries. Set your SQL executor to `imply`.
 
-# Lazy initialization of the connection pool that will be used for shuffle.
-druid.global.http.numConnections=50
-druid.global.http.eagerInitialization=false
+   ```bash
+   druid.sql.executor.type=imply
+   ```
 
-# Required for Java 11
-jvm.config.dsmmap=--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
-druid.indexer.runner.javaOptsArray=["--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"]
-```
-
-**Broker**
-
-```bash
-druid.sql.executor.type=imply
-```
-
-## Quickstart
-
-Before running through this quickstart, run through [Setup](#setup) to get a cluster started. Once
-you've done that, the best way to start running multi-stage queries is with the enhanced query view
-in the Druid web console.
+### Load the UI
 
 To get started with this view:
 
-1. Select **Manage data** in Imply Enterprise Hybrid to open the Druid console.
-2. Select **Query** from the top menu.
-3. Click the dots "..." next to *Run* and select **talaria** from the **Query engine** menu. If you
-don't see this menu, try alt- or option-clicking the Druid logo first.
+1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
+2. Option (or alt) click on the Druid logo. You need to do this if you are turning on multi-stage query engine for the first time.
+   
+   This loads the UI for multi-stage query engine (referred to as Talaria in the UI).
 
-Notice that the SQL editing field appears in a tab. If you like, you can
-open multiple tabs to run queries simultaneously.
+3. Go to the **Query** tab. 
+4. Click the ellipsis (...) next to **Run**. 
+5. For **Query engine**, select **talaria**. If you do not see **talaria** listed as an option, verify the following:
+
+   - In Imply Manager, review **Setup > Advanced configs** to make sure they match the properties listed in [Enable multi-stage query engine](#enable-multi-stage-query-engine).
+   - Your license includes an entitlement for multi-stage query engine ("talaria").
+   - In the Druid console, you option (or alt) clicked on the Druid logo to load the UI.
+
+You're ready to start running queries using multi-stage query engine.
+
+## Run queries
+
+The best way to start running multi-stage queries is with the enhanced query view
+in the Druid web console.
 
 ![Empty UI](../assets/multi-stage-query/ui-empty.png)
 
@@ -142,6 +160,8 @@ FROM TABLE(
 )
 PARTITIONED BY DAY
 ```
+
+The query returns information including the number of rows inserted into the table named "wikipedia" and how long the query took.
 
 The `PARTITIONED BY DAY` clause specifies day-based segment granularity. The
 data is inserted into the `wikipedia` table.
@@ -272,6 +292,12 @@ curl -XPOST -H'Content-Type: application/json' \
   https://IMPLY-ENDPOINT/druid/v2/sql/async/ \
   -u 'user:password' \
   --data-binary '{"query":"SELECT 1 + 1","context":{"talaria":true}}'
+```
+
+The API call returns information similar to the following:
+
+```JSON
+{"asyncResultId":"talaria-sql-4ef77f18-8200-4954-83a0-5b01220b22b3","state":"RUNNING","resultFormat":"array","engine":"Talaria-Indexer"}%
 ```
 
 **Query syntax**
