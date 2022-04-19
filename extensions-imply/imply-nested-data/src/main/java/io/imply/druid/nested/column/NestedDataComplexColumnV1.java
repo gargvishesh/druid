@@ -22,6 +22,7 @@ import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
 import org.apache.druid.segment.column.BaseColumn;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnHolder;
@@ -181,11 +182,14 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
     }
   }
 
+  @Nullable
   @Override
   public ColumnHolder readNestedFieldColumn(String field)
   {
     try {
-
+      if (fields.indexOf(field) < 0) {
+        return null;
+      }
       final NestedLiteralTypeInfo.TypeSet types = fieldInfo.getTypes(fields.indexOf(field));
       final ByteBuffer dataBuffer = fileMapper.mapFile(
           NestedDataColumnSerializer.getFieldFileName(
@@ -274,5 +278,15 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
     catch (IOException ex) {
       throw new RE(ex, "Failed to read data for [%s]", field);
     }
+  }
+
+  @Nullable
+  @Override
+  public BitmapIndex makeBitmapIndex(String field)
+  {
+    if (fields.indexOf(field) < 0) {
+      return null;
+    }
+    return getColumnHolder(field).getBitmapIndex();
   }
 }

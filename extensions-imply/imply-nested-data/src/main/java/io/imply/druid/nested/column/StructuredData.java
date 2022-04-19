@@ -14,8 +14,6 @@ import org.apache.druid.java.util.common.guava.Comparators;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 public class StructuredData implements Comparable<StructuredData>
@@ -85,18 +83,5 @@ public class StructuredData implements Comparable<StructuredData>
     return "StructuredData{" +
            "value=" + value +
            '}';
-  }
-
-  public long estimateSize()
-  {
-    // oh no... who knows ~16 bytes per top level object, this could be way off if object is nested deeply... or way
-    // overkill if it isn't nested at all
-    if (value instanceof Map) {
-      return ((Map) value).size() * (2 * Long.BYTES + 256);
-    }
-    if (value instanceof List) {
-      return ((List) value).size() * (2 * Long.BYTES + 256);
-    }
-    return 0;
   }
 }
