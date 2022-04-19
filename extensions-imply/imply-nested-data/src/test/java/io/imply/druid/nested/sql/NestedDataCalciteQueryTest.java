@@ -384,6 +384,37 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByPathSelectorFilterNonExistent() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "GET_PATH(nest, '.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE GET_PATH(nest, '.missing') = 'no way' GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".missing", "v0", ColumnType.STRING),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(selector("v0", "no way", null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of()
+    );
+  }
+
+  @Test
   public void testGroupByPathBoundFilterLong() throws Exception
   {
     testQuery(

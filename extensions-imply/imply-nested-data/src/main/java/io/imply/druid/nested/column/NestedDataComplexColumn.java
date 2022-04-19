@@ -63,6 +63,8 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
   public abstract VectorValueSelector makeVectorValueSelector(String field, ReadableVectorOffset readableOffset);
   public abstract ColumnHolder readNestedFieldColumn(String field);
 
+  @Nullable
+  public abstract BitmapIndex makeBitmapIndex(String field);
   @Override
   public Class<?> getClazz()
   {
@@ -73,11 +75,6 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
   public String getTypeName()
   {
     return NestedDataComplexTypeSerde.TYPE_NAME;
-  }
-
-  public BitmapIndex makeBitmapIndex(String field)
-  {
-    return getColumnHolder(field).getBitmapIndex();
   }
 
   protected ColumnHolder getColumnHolder(String field)
