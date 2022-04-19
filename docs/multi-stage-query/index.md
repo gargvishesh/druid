@@ -43,7 +43,7 @@ To use the multi-stage query engine, make sure you meet the following requiremen
 
 ## Setup
 
-Turning the multi-stage query engine on is a two-part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [loading the UI](#load-the-ui).
+Turning the multi-stage query engine on is a two-part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [enabling the enhanced Query view in the Druid console](#enable-the-enhanced-query-view).
 
 ### Enable multi-stage query engine
 
@@ -102,22 +102,18 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
    druid.sql.executor.type=imply
    ```
 
-### Load the UI
+### Enable the enhanced Query view
 
-To get started with this view:
+To use the multi-stage query engine with the Druid console, you need to enable an enhanced version of the Query view. To enable this view, perform the following steps:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
-2. Option (or alt) click on the Druid logo. You need to do this if you are turning the multi-stage query engine on for the first time.
-   
-   This loads the UI for the multi-stage query engine (referred to as Talaria in the UI).
+2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
+
+   If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine (#enable-multi-stage-query-engine).
 
 3. Go to the **Query** tab. 
-4. Click the ellipsis (...) next to **Run**. 
-5. For **Query engine**, select **talaria**. If you do not see **talaria** listed as an option, verify the following:
-
-   - In Imply Manager, review **Setup > Advanced configs** to make sure they match the properties listed in [Enable multi-stage query engine](#enable-multi-stage-query-engine).
-   - Your license includes an entitlement for the multi-stage query engine ("talaria").
-   - In the Druid console, you option (or alt) clicked on the Druid logo to load the UI.
+4. Click the ellipsis (...) next to **Run**.
+5. For **Query engine**, select **talaria**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
 
 You're ready to start running queries using the multi-stage query engine.
 
