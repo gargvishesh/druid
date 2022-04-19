@@ -34,22 +34,22 @@ The engine is code-named "Talaria". During the alpha, you'll see this term in ce
 in the name of the extension. The name comes from Mercury’s winged sandals, representing the
 exchange of data between servers.
 
-## Requirements
+## Prerequisites
 
-To use multi-stage query engine, make sure you meet the following requirements:
+To use the multi-stage query engine, make sure you meet the following requirements:
 
 - An Imply Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
-- A license that has an entitlement for multi-stage query engine. The snippet `talaria` should be listed in the `features` section of your license string.
+- A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
 
 ## Setup
 
-Turning multi-stage query engine on is a two part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [loading the UI](#load-the-ui).
+Turning the multi-stage query engine on is a two-part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [loading the UI](#load-the-ui).
 
 ### Enable multi-stage query engine
 
-In Imply Manager, perform the following steps to enable multi-stage query engine:
+In Imply Manager, perform the following steps to enable the multi-stage query engine:
 
-1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. Multi-stage query engine is enabled on each cluster .
+1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You enable the multi-stage query engine on each cluster .
 2. Go to **Setup** and expand the **Advanced config** options.
 3. Add the following custom extensions:
 
@@ -58,12 +58,12 @@ In Imply Manager, perform the following steps to enable multi-stage query engine
    | `imply-sql-async`  | Leave this blank. This extension is bundled with the Imply distribution.  |
    | `imply-talaria`  | Leave this blank. This extension is bundled with the Imply distribution.  |
 
-4. Change the following feature flags by clicking on the pencil icon:
+4. Change the following feature flags by clicking the pencil icon:
 
    - Select **HTTP-based task management**. 
    - Clear **Use Indexers instead of Middle Managers**.
 
-   Although these features aren't required for multi-stage query engine, they can improve performance.
+   Although these features aren't required for the multi-stage query engine, they can improve performance.
 
 
 5. Add the following **Service properties**:
@@ -79,10 +79,10 @@ In Imply Manager, perform the following steps to enable multi-stage query engine
    druid.query.async.storage.local.directory=/mnt/tmp/async-query
    ```
 
-   **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart  to match your usage.
+   **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart to match your usage.
 
    ```bash
-   # Set this property to the maximum number of tasks you will use per job plus 25.
+   # Set this property to the maximum number of tasks per job plus 25.
    # The upper limit for tasks per job is 1000, so 1000 + 25.
    # Set this lower if you do not intend to use this many tasks.
    druid.indexer.fork.property.druid.server.http.numThreads=1025
@@ -107,19 +107,19 @@ In Imply Manager, perform the following steps to enable multi-stage query engine
 To get started with this view:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
-2. Option (or alt) click on the Druid logo. You need to do this if you are turning on multi-stage query engine for the first time.
+2. Option (or alt) click on the Druid logo. You need to do this if you are turning the multi-stage query engine on for the first time.
    
-   This loads the UI for multi-stage query engine (referred to as Talaria in the UI).
+   This loads the UI for the multi-stage query engine (referred to as Talaria in the UI).
 
 3. Go to the **Query** tab. 
 4. Click the ellipsis (...) next to **Run**. 
 5. For **Query engine**, select **talaria**. If you do not see **talaria** listed as an option, verify the following:
 
    - In Imply Manager, review **Setup > Advanced configs** to make sure they match the properties listed in [Enable multi-stage query engine](#enable-multi-stage-query-engine).
-   - Your license includes an entitlement for multi-stage query engine ("talaria").
+   - Your license includes an entitlement for the multi-stage query engine ("talaria").
    - In the Druid console, you option (or alt) clicked on the Druid logo to load the UI.
 
-You're ready to start running queries using multi-stage query engine.
+You're ready to start running queries using the multi-stage query engine.
 
 ## Run queries
 
