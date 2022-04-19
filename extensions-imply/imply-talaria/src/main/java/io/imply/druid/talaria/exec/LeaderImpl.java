@@ -50,6 +50,7 @@ import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
@@ -158,6 +159,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -177,6 +179,9 @@ public class LeaderImpl implements Leader
 
   // For system error reporting. This is the very first error we got from a worker. (We only report that one.)
   private final AtomicReference<TalariaErrorReport> workerErrorRef = new AtomicReference<>();
+
+  // For system warning reporting
+  private final ConcurrentLinkedQueue<TalariaWarningReport> workerWarnings = new ConcurrentLinkedQueue<>();
 
   // For live reports.
   private final AtomicReference<QueryDefinition> queryDefRef = new AtomicReference<>();
@@ -678,6 +683,12 @@ public class LeaderImpl implements Leader
   public void workerError(TalariaErrorReport errorReport)
   {
     workerErrorRef.compareAndSet(null, errorReport);
+  }
+
+  @Override
+  public void workerWarning(TalariaWarningReport warningReport)
+  {
+    workerWarnings.add(warningReport);
   }
 
   /**

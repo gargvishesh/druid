@@ -12,6 +12,7 @@ package io.imply.druid.talaria.indexing;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
@@ -86,6 +87,27 @@ public class LeaderChatHandler implements ChatHandler
     leader.workerError(errorReport);
     return Response.status(Response.Status.ACCEPTED).build();
   }
+
+  /**
+   * Used by subtasks to post system warnings.
+   *
+   * See {@link io.imply.druid.talaria.exec.LeaderClient#postWorkerWarning} for the client-side code that calls this API.
+   */
+  @POST
+  @Path("/workerWarning/{taskId}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Response httpPostWorkerWarning(
+      final TalariaWarningReport warningReport,
+      @PathParam("taskId") final String taskId,
+      @Context final HttpServletRequest req
+  )
+  {
+    ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
+    leader.workerWarning(warningReport);
+    return Response.status(Response.Status.ACCEPTED).build();
+  }
+
 
   /**
    * Used by subtasks to post {@link TalariaCountersSnapshot} periodically.

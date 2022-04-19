@@ -25,6 +25,7 @@ import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
 import io.imply.druid.talaria.kernel.StageDefinition;
@@ -68,7 +69,8 @@ public class TalariaExternalSinkFrameProcessorFactory
       final ClusterBy clusterBy,
       final FrameContext providerThingy,
       final int maxOutstandingProcessors,
-      final TalariaCounters talariaCounters
+      final TalariaCounters talariaCounters,
+      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     final TalariaExternalSink externalSink = providerThingy.externalSink();

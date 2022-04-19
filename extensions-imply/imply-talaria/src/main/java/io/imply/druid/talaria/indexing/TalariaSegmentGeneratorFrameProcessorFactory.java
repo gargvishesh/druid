@@ -22,6 +22,7 @@ import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
@@ -103,7 +104,8 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       final ClusterBy clusterBy,
       final FrameContext frameContext,
       final int maxOutstandingProcessors,
-      final TalariaCounters talariaCounters
+      final TalariaCounters talariaCounters,
+      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     final RowIngestionMeters meters = frameContext.rowIngestionMeters();

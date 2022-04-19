@@ -16,6 +16,7 @@ import io.imply.druid.talaria.indexing.CountableInputSourceReader;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import org.apache.druid.data.input.ColumnsFilter;
@@ -33,6 +34,7 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.guava.BaseSequence;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.segment.RowAdapters;
@@ -46,6 +48,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 public class QueryWorkerUtils
@@ -75,7 +78,8 @@ public class QueryWorkerUtils
       final InputChannels inputChannels,
       final DataSegmentProvider dataSegmentProvider,
       final File temporaryDirectory,
-      final TalariaCounters talariaCounters
+      final TalariaCounters talariaCounters,
+      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     if (inputSpec.type() == QueryWorkerInputType.SUBQUERY) {
@@ -122,7 +126,8 @@ public class QueryWorkerUtils
                   workerNumber,
                   stageDefinition.getStageNumber(),
                   -1
-              )
+              ),
+              talariaWarningReportPublisher
           ),
           QueryWorkerInput::forSegment
       );
@@ -167,7 +172,8 @@ public class QueryWorkerUtils
       final InputFormat inputFormat,
       final RowSignature signature,
       final File temporaryDirectory,
-      final TalariaCounters.ChannelCounters inputExternalCounter
+      final TalariaCounters.ChannelCounters inputExternalCounter,
+      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     final InputRowSchema schema = new InputRowSchema(
@@ -212,12 +218,11 @@ public class QueryWorkerUtils
                     public CloseableIterator<InputRow> make()
                     {
                       try {
-                        // TODO(gianm): parse-exception handling logic like that in FilteringCloseableInputRowIterator
-//                        return reader.read();
                         CloseableIterator<InputRow> baseIterator = reader.read();
                         return new CloseableIterator<InputRow>()
                         {
-                          private InputRow next;
+                          private InputRow next = null;
+
                           @Override
                           public void close() throws IOException
                           {
@@ -229,16 +234,29 @@ public class QueryWorkerUtils
                           {
                             while (true) {
                               try {
-                              } catch (ParseException e) {
+                                while (next == null && baseIterator.hasNext()) {
+                                  next = baseIterator.next();
+                                }
+                                break;
+                              }
+                              catch (ParseException e) {
                                 // TODO: Handle parse exceptions here
+                                new Logger(this.getClass().getName()).warn(e, "From the inside");
+                                talariaWarningReportPublisher.publish("ParseException", e.toString(), 1);
                               }
                             }
+                            return next != null;
                           }
 
                           @Override
                           public InputRow next()
                           {
-                            return null;
+                            if (!hasNext()) {
+                              throw new NoSuchElementException();
+                            }
+                            final InputRow row = next;
+                            next = null;
+                            return row;
                           }
                         };
                       }
@@ -271,7 +289,8 @@ public class QueryWorkerUtils
           );
 
           return new SegmentWithInterval(
-              new LazyResourceHolder<>(() -> Pair.of(segment, () -> {})),
+              new LazyResourceHolder<>(() -> Pair.of(segment, () -> {
+              })),
               segmentId,
               Intervals.ETERNITY
           );

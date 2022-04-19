@@ -12,6 +12,7 @@ package io.imply.druid.talaria.exec;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import io.imply.druid.talaria.kernel.StageId;
 
 import javax.annotation.Nullable;
@@ -45,6 +46,11 @@ public interface LeaderClient extends AutoCloseable
       String leaderId,
       String workerId,
       TalariaErrorReport errorWrapper
+  );
+  void postWorkerWarning(
+      String leaderId,
+      String workerId,
+      TalariaWarningReport warningReport
   );
   Optional<List<String>> getTaskList(String leaderId);
 

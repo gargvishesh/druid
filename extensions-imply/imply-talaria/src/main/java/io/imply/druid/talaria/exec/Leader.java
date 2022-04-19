@@ -15,6 +15,7 @@ import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapsh
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskReport;
 
@@ -93,6 +94,13 @@ public interface Leader
    * with a task rather than a specific query/stage/worker execution context.
    */
   void workerError(TalariaErrorReport errorReport);
+
+  /**
+   * System warning reported by a subtask
+   *
+   * @param warningReport
+   */
+  void workerWarning(TalariaWarningReport warningReport);
 
   /**
    * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.

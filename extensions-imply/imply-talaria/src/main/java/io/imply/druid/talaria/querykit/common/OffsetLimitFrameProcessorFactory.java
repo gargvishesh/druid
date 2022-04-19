@@ -25,6 +25,7 @@ import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
 import io.imply.druid.talaria.util.SupplierIterator;
@@ -82,7 +83,8 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
       ClusterBy clusterBy,
       FrameContext providerThingy,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters
+      TalariaCounters talariaCounters,
+      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     if (workerNumber > 0) {

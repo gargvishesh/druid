@@ -17,6 +17,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.frame.file.FrameFileHttpResponseHandler;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
@@ -410,6 +411,39 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
       if (!isSuccess(response)) {
         throw new ISE(
             "Failed to send system error to supervisor task [%s]; HTTP response was [%s]",
+            supervisorTaskId,
+            response.getStatus()
+        );
+      }
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Client-side method for {@link LeaderChatHandler#httpPostWorkerWarning}.
+   */
+  @Override
+  public void postWorkerWarning(
+      final String supervisorTaskId,
+      final String taskId,
+      final TalariaWarningReport warningReport
+  )
+  {
+    try {
+      final StringFullResponseHolder response = submitJsonRequest(
+          supervisorTaskId,
+          HttpMethod.POST,
+          StringUtils.format("workerWarning/%s", StringUtils.urlEncode(taskId)),
+          null,
+          serialize(warningReport),
+          true
+      );
+
+      if (!isSuccess(response)) {
+        throw new ISE(
+            "Failed to send system warning to supervisor task [%s]; HTTP response was [%s]",
             supervisorTaskId,
             response.getStatus()
         );

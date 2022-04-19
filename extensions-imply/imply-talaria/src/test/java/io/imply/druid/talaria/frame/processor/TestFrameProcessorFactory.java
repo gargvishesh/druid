@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.StageDefinition;
 
@@ -37,7 +38,8 @@ public class TestFrameProcessorFactory implements FrameProcessorFactory
       ClusterBy clusterBy,
       FrameContext providerThingy,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters
+      TalariaCounters talariaCounters,
+      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     return null;

@@ -55,6 +55,7 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -721,7 +722,15 @@ public class WorkerImpl implements Worker
             cancellationId,
             parallelism,
             processorBouncer,
-            counters
+            counters,
+            new TalariaWarningReportPublisher(
+                task.getControllerTaskId(),
+                id(),
+                leaderClient,
+                id(),
+                TalariaTasks.getHostFromSelfNode(selfDruidNode),
+                stageDef.getStageNumber()
+            )
         );
 
     final ListenableFuture<ClusterByPartitions> stagePartitionBoundariesFuture;
@@ -862,7 +871,8 @@ public class WorkerImpl implements Worker
       final String cancellationId,
       final int parallelism,
       final Bouncer processorBouncer,
-      final TalariaCounters counters
+      final TalariaCounters counters,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final ProcessorsAndChannels<WorkerClass, T> processors =
@@ -875,7 +885,8 @@ public class WorkerImpl implements Worker
             clusterBy,
             frameContext,
             parallelism,
-            counters
+            counters,
+            talariaWarningReportPublisher
         );
 
     final Sequence<WorkerClass> processorSequence = processors.processors();

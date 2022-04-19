@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.StageDefinition;
 
@@ -46,6 +47,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
    * @param providerThingy           Context which provides services needed by frame processors
    * @param maxOutstandingProcessors maximum number of processors that will be active at once
    *
+   * @param talariaWarningReportPublisher
    * @return a processor iterator, which may be computed lazily; and a list of output channels.
    */
   ProcessorsAndChannels<ProcessorType, T> makeProcessors(
@@ -57,7 +59,8 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
       ClusterBy clusterBy,
       FrameContext providerThingy,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters
+      TalariaCounters talariaCounters,
+      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException;
 
   TypeReference<R> getAccumulatedResultTypeReference();
