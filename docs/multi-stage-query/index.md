@@ -38,7 +38,7 @@ exchange of data between servers.
 
 To use the multi-stage query engine, make sure you meet the following requirements:
 
-- An Imply Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
+- An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
 - A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
 
 ## Setup
