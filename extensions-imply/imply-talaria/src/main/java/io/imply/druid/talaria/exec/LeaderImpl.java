@@ -1316,7 +1316,7 @@ public class LeaderImpl implements Leader
           new DimensionsSpec(dimensionsAndAggregators.lhs),
           dimensionsAndAggregators.rhs.toArray(new AggregatorFactory[0]),
           new ArbitraryGranularitySpec(Granularities.NONE, false, Intervals.ONLY_ETERNITY),
-          new TransformSpec(null, Collections.emptyList())
+          new TransformSpec(querySpec.getQuery().getFilter(), Collections.emptyList())
       );
 
       return QueryDefinition
