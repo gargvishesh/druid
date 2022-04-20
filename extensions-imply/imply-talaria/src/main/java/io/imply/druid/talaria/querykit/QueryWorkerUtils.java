@@ -240,8 +240,6 @@ public class QueryWorkerUtils
                                 break;
                               }
                               catch (ParseException e) {
-                                // TODO: Handle parse exceptions here
-                                new Logger(this.getClass().getName()).warn(e, "From the inside");
                                 talariaWarningReportPublisher.publish("ParseException", e.toString(), 1);
                               }
                             }
