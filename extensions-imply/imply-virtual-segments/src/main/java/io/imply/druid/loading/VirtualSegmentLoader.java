@@ -48,6 +48,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -339,6 +340,12 @@ public class VirtualSegmentLoader implements SegmentLoader
       // callback should be quick and submit a task to cleanup threadpool.
       segmentReference.whenNotActive(() -> cleanupExecutor.execute(new SegmentCleanupRunnable(segment)));
     }
+  }
+
+  @Override
+  public void loadSegmentIntoPageCache(DataSegment segment, ExecutorService exec)
+  {
+    // nothing to do
   }
 
   public Map<String, Number> getWorkersGauges()

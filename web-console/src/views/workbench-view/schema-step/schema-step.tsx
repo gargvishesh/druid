@@ -52,15 +52,15 @@ import { getLink } from '../../../links';
 import { AppToaster } from '../../../singletons';
 import {
   changeQueryPatternExpression,
-  ExternalConfig,
+  DestinationMode,
   fitIngestQueryPattern,
+  getDestinationMode,
   getQueryPatternExpression,
   getQueryPatternExpressionType,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   ingestQueryPatternToSampleQuery,
   QueryExecution,
-  summarizeExternalConfig,
   TalariaQuery,
 } from '../../../talaria-models';
 import {
@@ -102,6 +102,12 @@ import { RollupAnalysisPane } from './rollup-analysis-pane/rollup-analysis-pane'
 import './schema-step.scss';
 
 const queryRunner = new QueryRunner();
+
+const destinationModeTitle: Record<DestinationMode, string> = {
+  new: 'Create new',
+  replace: 'Replace',
+  append: 'Append',
+};
 
 function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
@@ -259,7 +265,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [mode, setMode] = useState<Mode>('table');
   const [columnSearch, setColumnSearch] = useState('');
   const [showAddExternal, setShowAddExternal] = useState(false);
-  const [externalInEditor, setExternalInEditor] = useState<ExternalConfig | undefined>();
   const [editorColumn, setEditorColumn] = useState<EditorColumn | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
@@ -368,8 +373,21 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     }
   }
 
+  const [existingTableState] = useQueryManager<string, string[]>({
+    initQuery: '',
+    processQuery: async (_: string, _cancelToken) => {
+      // Check if datasource already exists
+      const tables = await queryDruidSql({
+        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME NOT LIKE '${TalariaQuery.TMP_PREFIX}%' ORDER BY TABLE_NAME ASC`,
+        resultFormat: 'array',
+      });
+
+      return tables.map(t => t[0]);
+    },
+  });
+
   const sampleDatasourceName = useLastDefined(
-    ingestQueryPattern
+    ingestQueryPattern && mode !== 'sql' // Only sample the data if we are not in the SQL tab live editing the SQL
       ? `${TalariaQuery.TMP_PREFIX}${objectHash(ingestQueryPattern.mainExternalConfig)}`
       : undefined,
   );
@@ -415,8 +433,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       return sampleDatasourceName;
     },
   });
-
-  // console.log(sampleState);
 
   const previewQueryString = useLastDefined(
     ingestQueryPattern && mode !== 'sql'
@@ -489,35 +505,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       subtitle="Configure schema"
       toolbar={
         <>
-          <Popover2
-            position="bottom"
-            content={
-              <Menu>
-                {ingestQueryPattern && (
-                  <>
-                    <MenuItem
-                      icon={IconNames.DATABASE}
-                      text={summarizeExternalConfig(ingestQueryPattern.mainExternalConfig)}
-                      onClick={() => setExternalInEditor(ingestQueryPattern.mainExternalConfig)}
-                    />
-                    <MenuDivider />
-                  </>
-                )}
-                <MenuItem
-                  icon={IconNames.PLUS}
-                  text="Add source"
-                  onClick={() => setShowAddExternal(true)}
-                />
-              </Menu>
-            }
-          >
-            <Button icon={IconNames.DATABASE} minimal>
-              Inputs &nbsp;
-              <Tag minimal round>
-                1
-              </Tag>
-            </Button>
-          </Popover2>
           <Popover2
             position="bottom"
             content={
@@ -658,20 +645,20 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               {ingestQueryPattern?.metrics ? 'On' : 'Off'}
             </Tag>
           </Button>
-          {ingestQueryPattern?.destinationTableName && (
+          {ingestQueryPattern && existingTableState.data && (
             <Button
               icon={IconNames.TH_DERIVED}
               minimal
               onClick={() => setShowDestinationDialog(true)}
             >
-              {ingestQueryPattern.replaceTimeChunks
-                ? ingestQueryPattern.replaceTimeChunks === 'all'
-                  ? 'Replace'
-                  : 'Replace part'
-                : 'Append'}{' '}
+              {
+                destinationModeTitle[
+                  getDestinationMode(ingestQueryPattern, existingTableState.data)
+                ]
+              }{' '}
               &nbsp;
               <Tag minimal round>
-                {ingestQueryPattern?.destinationTableName}
+                {ingestQueryPattern.destinationTableName}
               </Tag>
             </Button>
           )}
@@ -946,13 +933,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             onClose={() => setShowAddExternal(false)}
           />
         )}
-        {externalInEditor && (
-          <ExternalConfigDialog
-            initExternalConfig={externalInEditor}
-            onSetExternalConfig={() => {}}
-            onClose={() => setExternalInEditor(undefined)}
-          />
-        )}
         {showAddFilterEditor && ingestQueryPattern && (
           <ExpressionEditorDialog
             title="Add filter"
@@ -1004,8 +984,9 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             <p>Making this change will reset any work you have done in this section.</p>
           </AsyncActionDialog>
         )}
-        {showDestinationDialog && ingestQueryPattern && (
+        {showDestinationDialog && ingestQueryPattern && existingTableState.data && (
           <DestinationDialog
+            existingTables={existingTableState.data}
             ingestQueryPattern={ingestQueryPattern}
             changeIngestQueryPattern={updatePattern}
             onClose={() => setShowDestinationDialog(false)}

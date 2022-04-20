@@ -16,19 +16,24 @@
  * limitations under the License.
  */
 
-import { FormGroup, HTMLSelect, Icon, InputGroup, Radio, RadioGroup } from '@blueprintjs/core';
+import {
+  Button,
+  FormGroup,
+  HTMLSelect,
+  Icon,
+  InputGroup,
+  Intent,
+  Radio,
+  RadioGroup,
+} from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import React, { useState } from 'react';
 
+import { DestinationInfo } from '../../../talaria-models';
+
 import './destination-form.scss';
-
-export type DestinationMode = 'new' | 'replace' | 'append';
-
-export interface DestinationInfo {
-  mode: DestinationMode;
-  table: string;
-}
 
 interface DestinationFormProps {
   className?: string;
@@ -62,6 +67,13 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
               changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });
             }}
             placeholder="Choose a name"
+            rightElement={
+              existingTables.includes(destinationInfo.table) ? (
+                <Tooltip2 content="Table name already exists">
+                  <Button icon={IconNames.DELETE} intent={Intent.DANGER} minimal />
+                </Tooltip2>
+              ) : undefined
+            }
           />
         </FormGroup>
       )}
@@ -77,6 +89,7 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
             />
           </FormGroup>
           <RadioGroup
+            className="table-radios"
             selectedValue={destinationInfo.table}
             onChange={e => {
               changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });

@@ -41,9 +41,11 @@ public interface WorkerManagerClient
    * {@code Optional.absent()} if the task could not be found
    */
   // TODO(paul): Remove: workers should be ephemeral.
-  Optional<TaskStatus> status(String workerId);
+  Optional<TaskStatus> status(String workerId) throws TaskNotFoundException;
   // TODO(paul): Remove: workers should be ephemeral.
-  Map<String, org.apache.druid.client.indexing.TaskStatus> statuses(Set<String> taskIds) throws InterruptedException;
-  String cancel(String workerId);
+  Map<String, org.apache.druid.client.indexing.TaskStatus>
+      statuses(Set<String> taskIds
+      ) throws InterruptedException, TaskNotFoundException;
+  String cancel(String workerId) throws TaskNotFoundException;
   void close();
 }

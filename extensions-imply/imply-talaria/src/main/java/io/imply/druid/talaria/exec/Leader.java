@@ -97,13 +97,29 @@ public interface Leader
 
   /**
    * System warning reported by a subtask
-   *
-   * @param warningReport
    */
   void workerWarning(TalariaWarningReport warningReport);
 
   /**
    * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.
+   * Indicates a hard failure of the worker: fatal exception, the worker's
+   * host dropped out of ZK, etc. The worker should be presumed dead. Restart
+   * a new one if possible. If, due to a split network, the worker does
+   * send subsequent message, the leader must return a status saying that
+   * the worker is zombie and should stop execution immediately.
+   * <p>
+   * Due to inherent race conditions, it is possible that a worker fails
+   * after it has successfully completed its work. In this case, the leader
+   * can ignore the message, but must not attempt to later communicate with
+   * the worker to, say, submit another work order: the worker will be gone.
+   *
+   * Till the fault tolerance is properly figured out for Talaria, if a worker encounters an error, all the worker nodes
+   * and the stages that they are executing are marked as failed.
+   */
+  void workerFailed(String workerId);
+
+  /**
+   * Periodic update of {@link TalariaCountersSnapshot} from subtasks.
    */
   void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot);
 

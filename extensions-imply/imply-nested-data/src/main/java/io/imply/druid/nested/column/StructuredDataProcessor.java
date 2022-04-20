@@ -9,89 +9,91 @@
 
 package io.imply.druid.nested.column;
 
-import io.netty.util.SuppressForbidden;
-
+import javax.annotation.Nullable;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-@SuppressForbidden(reason = "Lists#newLinkedList")
 public abstract class StructuredDataProcessor
 {
   public static final String ROOT_LITERAL = ".";
   private static final List<String> ROOT_LITERAL_FIELDS = Collections.singletonList(ROOT_LITERAL);
 
-  public abstract void processLiteralField(String fieldName, Object fieldValue);
+  public abstract int processLiteralField(String fieldName, Object fieldValue);
 
   /**
    * Process fields, returning a list of all "normalized" 'jq' paths to literal fields, consistent with the output of
    * {@link PathFinder#toNormalizedJqPath(List)}.
    */
-  public List<String> processFields(Object raw)
+  public ProcessResults processFields(Object raw)
   {
-    Queue<Field> toProcess = new LinkedList<>();
+    Queue<Field> toProcess = new ArrayDeque<>();
     if (raw instanceof Map) {
       toProcess.add(new MapField("", (Map<String, ?>) raw));
     } else if (raw instanceof List) {
       toProcess.add(new ListField(ROOT_LITERAL, (List<?>) raw));
     } else {
-      processLiteralField(ROOT_LITERAL, raw);
-      return ROOT_LITERAL_FIELDS;
+      return new ProcessResults().withFields(ROOT_LITERAL_FIELDS).withSize(processLiteralField(ROOT_LITERAL, raw));
     }
 
-    List<String> fields = new LinkedList<>();
+    ProcessResults accumulator = new ProcessResults();
 
     while (!toProcess.isEmpty()) {
       Field next = toProcess.poll();
       if (next instanceof MapField) {
-        fields.addAll(processMapField(toProcess, (MapField) next));
+        accumulator.merge(processMapField(toProcess, (MapField) next));
       } else if (next instanceof ListField) {
-        fields.addAll(processListField(toProcess, (ListField) next));
+        accumulator.merge(processListField(toProcess, (ListField) next));
       }
     }
-    return fields;
+    return accumulator;
   }
 
-  private List<String> processMapField(Queue<Field> toProcess, MapField map)
+  private ProcessResults processMapField(Queue<Field> toProcess, MapField map)
   {
-    List<String> fields = new LinkedList<>();
+    // just guessing a size for a Map as some constant, it might be bigger than this...
+    ProcessResults processResults = new ProcessResults().withSize(16);
     for (Map.Entry<String, ?> entry : map.getMap().entrySet()) {
+      // add estimated size of string key
+      processResults.addSize(estimateStringSize(entry.getKey()));
       final String fieldName = map.getName() + ".\"" + entry.getKey() + "\"";
+      // lists and maps go back in the queue
       if (entry.getValue() instanceof List) {
         List<?> theList = (List<?>) entry.getValue();
         toProcess.add(new ListField(fieldName, theList));
       } else if (entry.getValue() instanceof Map) {
         toProcess.add(new MapField(fieldName, (Map<String, ?>) entry.getValue()));
       } else {
-        fields.add(fieldName);
-        // must be a literal
-        processLiteralField(fieldName, entry.getValue());
+        // literals get processed
+        processResults.addLiteralField(fieldName, processLiteralField(fieldName, entry.getValue()));
       }
     }
-    return fields;
+    return processResults;
   }
 
-  private List<String> processListField(Queue<Field> toProcess, ListField list)
+  private ProcessResults processListField(Queue<Field> toProcess, ListField list)
   {
-    List<String> fields = new LinkedList<>();
+    // start with object reference, is probably a bit bigger than this...
+    ProcessResults results = new ProcessResults().withSize(8);
     final List<?> theList = list.getList();
     for (int i = 0; i < theList.size(); i++) {
       final String listFieldName = list.getName() + "[" + i + "]";
       final Object element = theList.get(i);
+      // maps and lists go back into the queue
       if (element instanceof Map) {
         toProcess.add(new MapField(listFieldName, (Map<String, ?>) element));
       } else if (element instanceof List) {
         toProcess.add(new ListField(listFieldName, (List<?>) element));
       } else {
-        fields.add(listFieldName);
-        processLiteralField(listFieldName, element);
+        // literals get processed
+        results.addLiteralField(listFieldName, processLiteralField(listFieldName, element));
       }
     }
-    return fields;
+    return results;
   }
-
 
   interface Field
   {
@@ -142,5 +144,82 @@ public abstract class StructuredDataProcessor
     {
       return map;
     }
+  }
+
+  /**
+   * Accumulates the list of literal field paths and a rough size estimation for {@link StructuredDataProcessor}
+   */
+  public static class ProcessResults
+  {
+    private List<String> literalFields;
+    private int estimatedSize;
+
+    public ProcessResults()
+    {
+      literalFields = new ArrayList<>();
+      estimatedSize = 0;
+    }
+
+    public List<String> getLiteralFields()
+    {
+      return literalFields;
+    }
+
+    public int getEstimatedSize()
+    {
+      return estimatedSize;
+    }
+
+    public ProcessResults addSize(int size)
+    {
+      this.estimatedSize += size;
+      return this;
+    }
+
+    public ProcessResults addLiteralField(String fieldName, int sizeOfValue)
+    {
+      literalFields.add(fieldName);
+      this.estimatedSize += sizeOfValue;
+      return this;
+    }
+
+    public ProcessResults withFields(List<String> fields)
+    {
+      this.literalFields = fields;
+      return this;
+    }
+
+    public ProcessResults withSize(int size)
+    {
+      this.estimatedSize = size;
+      return this;
+    }
+
+    public ProcessResults merge(ProcessResults other)
+    {
+      this.literalFields.addAll(other.literalFields);
+      this.estimatedSize += other.estimatedSize;
+      return this;
+    }
+  }
+
+  /**
+   * this is copied from {@link org.apache.druid.segment.StringDimensionDictionary#estimateSizeOfValue(String)}
+   */
+  public static int estimateStringSize(@Nullable String value)
+  {
+    return value == null ? 0 : 28 + 16 + (2 * value.length());
+  }
+
+  public static int getLongObjectEstimateSize()
+  {
+    // object reference + size of long
+    return 8 + Long.BYTES;
+  }
+
+  public static int getDoubleObjectEstimateSize()
+  {
+    // object reference + size of double
+    return 8 + Double.BYTES;
   }
 }

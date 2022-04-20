@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-import { Alert, Intent, Label, ProgressBar } from '@blueprintjs/core';
+import { Intent, Label, ProgressBar } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
 import { QueryExecution } from '../../../talaria-models';
+import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
 import './stage-progress.scss';
 
@@ -84,19 +85,9 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
           )}
         </>
       )}
-      <Alert
-        intent={Intent.DANGER}
-        isOpen={showCancelConfirm}
-        cancelButtonText="Continue running query"
-        confirmButtonText="Cancel query"
-        canOutsideClickCancel
-        canEscapeKeyCancel
-        onCancel={() => setShowCancelConfirm(false)}
-        onConfirm={() => onCancel?.()}
-      >
-        <p>Are you sure you want to cancel this query?</p>
-        <p>You can&apos;t undo this action.</p>
-      </Alert>
+      {showCancelConfirm && onCancel && (
+        <CancelQueryDialog onCancel={onCancel} onDismiss={() => setShowCancelConfirm(false)} />
+      )}
     </div>
   );
 });

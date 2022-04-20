@@ -152,9 +152,10 @@ public class NestedDataExpressions
       final StructuredDataProcessor processor = new StructuredDataProcessor()
       {
         @Override
-        public void processLiteralField(String fieldName, Object fieldValue)
+        public int processLiteralField(String fieldName, Object fieldValue)
         {
-          // do nothing, we only want the list of fields returned by this method;
+          // do nothing, we only want the list of fields returned by this processor
+          return 0;
         }
       };
 
@@ -170,9 +171,10 @@ public class NestedDataExpressions
         {
           ExprEval input = args.get(0).eval(bindings);
           checkArg0NestedType(name, args, input);
+          StructuredDataProcessor.ProcessResults info = processor.processFields(maybeUnwrapStructuredData(input));
           return ExprEval.ofType(
               ExpressionType.STRING_ARRAY,
-              processor.processFields(maybeUnwrapStructuredData(input))
+              info.getLiteralFields()
           );
         }
 

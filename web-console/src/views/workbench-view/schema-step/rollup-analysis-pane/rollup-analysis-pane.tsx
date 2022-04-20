@@ -30,11 +30,20 @@ import { executionBackgroundStatusCheck, submitAsyncQuery } from '../../executio
 import './rollup-analysis-pane.scss';
 
 const CAST_AS_VARCHAR_TEMPLATE = SqlExpression.parse(`NVL(CAST(? AS VARCHAR), '__NULL__')`);
+const CAST_TIMESTAMP_TEMPLATE = SqlExpression.parse(`CAST(TIMESTAMP_TO_MILLIS(?) AS VARCHAR)`);
+const CAST_ARRAY_TEMPLATE = SqlExpression.parse(`MV_TO_STRING(?, ',')`);
 
 function expressionCastToString(ex: SqlExpression): SqlExpression {
-  if (ex instanceof SqlFunction && ex.getEffectiveFunctionName() === 'TIME_PARSE') {
-    ex = SqlFunction.simple('TIMESTAMP_TO_MILLIS', [ex]);
+  if (ex instanceof SqlFunction) {
+    switch (ex.getEffectiveFunctionName()) {
+      case 'TIME_PARSE':
+        return CAST_TIMESTAMP_TEMPLATE.fillPlaceholders([ex]);
+
+      case 'MV_TO_ARRAY':
+        return CAST_ARRAY_TEMPLATE.fillPlaceholders([ex]);
+    }
   }
+
   return CAST_AS_VARCHAR_TEMPLATE.fillPlaceholders([ex]);
 }
 
