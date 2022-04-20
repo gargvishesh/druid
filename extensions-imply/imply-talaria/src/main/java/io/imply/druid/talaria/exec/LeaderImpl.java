@@ -156,6 +156,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -368,6 +369,7 @@ public class LeaderImpl implements Leader
           makeStatusReport(
               taskStateForReport,
               errorForReport,
+              workerWarnings,
               queryStartTime,
               new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
           ),
@@ -748,6 +750,7 @@ public class LeaderImpl implements Leader
                 makeStatusReport(
                     TaskState.RUNNING,
                     null,
+                    workerWarnings,
                     queryStartTime,
                     queryStartTime == null ? -1L : new Interval(queryStartTime, DateTimes.nowUtc()).toDurationMillis()
                 ),
@@ -1588,11 +1591,12 @@ public class LeaderImpl implements Leader
   private static TalariaStatusReport makeStatusReport(
       final TaskState taskState,
       @Nullable final TalariaErrorReport errorReport,
+      final Queue<TalariaWarningReport> warningReports,
       @Nullable final DateTime queryStartTime,
       final long queryDuration
   )
   {
-    return new TalariaStatusReport(taskState, errorReport, queryStartTime, queryDuration);
+    return new TalariaStatusReport(taskState, errorReport, warningReports, queryStartTime, queryDuration);
   }
 
   private static Map<Integer, Interval> copyOfStageRuntimesEndingAtCurrentTime(
