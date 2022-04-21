@@ -40,6 +40,14 @@ public interface Worker
    */
   void stopGracefully();
 
+  /**
+   * Report that the leader has failed: a hard fault or the leader's
+   * host dropped out of ZK. The worker must cease work immediately.
+   * Cleanup then exit. Do not send final messages to the leader:
+   * there will be no one home at the other end.
+   */
+  void leaderFailed();
+
   // Leader-to-worker, and worker-to-worker messages
 
   /**

@@ -449,17 +449,10 @@ public class LeaderImpl implements Leader
                 if (entry.getValue() != TaskState.SUCCESS) {
                   // Some worker task failed. Add its failure to workerErrorRef so that specific task shows up in
                   // the report.
-                  workerErrorRef.compareAndSet(
-                      null,
-                      TalariaErrorReport.fromFault(
-                          entry.getKey(),
-                          null,
-                          null,
-                          new WorkerFailedFault(entry.getKey())
-                      )
-                  );
+                  // Also, we fail each of the stages that are currently active
+                  workerFailed(entry.getKey());
 
-                  // Halt the query kernel.
+                  // Halt the query kernel
                   queryKernel.getActiveStages().forEach(queryKernel::failStage);
                 }
               }
@@ -669,15 +662,25 @@ public class LeaderImpl implements Leader
     );
   }
 
-  /**
-   * System error reported by a subtask. Note that the errors are organized by
-   * taskId, not by query/stage/worker, because system errors are associated
-   * with a task rather than a specific query/stage/worker execution context.
-   */
   @Override
   public void workerError(TalariaErrorReport errorReport)
   {
     workerErrorRef.compareAndSet(null, errorReport);
+  }
+
+
+  @Override
+  public void workerFailed(String workerId)
+  {
+    workerErrorRef.compareAndSet(
+        null,
+        TalariaErrorReport.fromFault(
+            workerId,
+            null,
+            null,
+            new WorkerFailedFault(workerId)
+        )
+    );
   }
 
   /**

@@ -23,6 +23,15 @@
   @include card-like;
   overflow: auto;
 
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .title {
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     padding: 8px 10px;
@@ -36,6 +45,13 @@
     right: 0;
     bottom: 0;
     padding: 10px;
+
+    .empty-placeholder {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
 
     .work-entry {
       display: block;
@@ -54,6 +70,15 @@
         .status-icon {
           display: inline-block;
           margin-right: 5px;
+
+          &.running {
+            svg {
+              animation-name: spin;
+              animation-duration: 10s;
+              animation-iteration-count: infinite;
+              animation-timing-function: linear;
+            }
+          }
         }
 
         .timing {

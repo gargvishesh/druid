@@ -60,7 +60,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -95,12 +94,14 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   private final StructuredDataProcessor fieldProcessor = new StructuredDataProcessor()
   {
     @Override
-    public void processLiteralField(String fieldName, Object fieldValue)
+    public int processLiteralField(String fieldName, Object fieldValue)
     {
       final GlobalDictionaryEncodedFieldColumnWriter<?> writer = fieldWriters.get(fieldName);
       try {
         ExprEval<?> eval = ExprEval.bestEffortOf(fieldValue);
         writer.addValue(eval.value());
+        // serializer doesn't use size estimate
+        return 0;
       }
       catch (IOException e) {
         throw new RuntimeException(":(");
@@ -228,8 +229,8 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     }
     rawWriter.write(data);
     if (data != null) {
-      List<String> processed = fieldProcessor.processFields(data.getValue());
-      Set<String> set = ImmutableSet.copyOf(processed);
+      StructuredDataProcessor.ProcessResults processed = fieldProcessor.processFields(data.getValue());
+      Set<String> set = ImmutableSet.copyOf(processed.getLiteralFields());
       Set<String> missing = new HashSet<>();
       for (String field : fields.keySet()) {
         if (!set.contains(field)) {

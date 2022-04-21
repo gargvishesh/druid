@@ -19,14 +19,13 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import React, { useEffect, useState } from 'react';
 
-import { useQueryManager } from '../../../hooks';
-import { IngestQueryPattern, TalariaQuery } from '../../../talaria-models';
-import { queryDruidSql } from '../../../utils';
-import { DestinationForm, DestinationInfo } from '../destination-form/destination-form';
+import { DestinationInfo, getDestinationInfo, IngestQueryPattern } from '../../../talaria-models';
+import { DestinationForm } from '../destination-form/destination-form';
 
 import './destination-dialog.scss';
 
 interface DestinationDialogProps {
+  existingTables: string[];
   ingestQueryPattern: IngestQueryPattern;
   changeIngestQueryPattern(ingestQueryPattern: IngestQueryPattern): void;
   onClose(): void;
@@ -35,34 +34,13 @@ interface DestinationDialogProps {
 export const DestinationDialog = React.memo(function DestinationDialog(
   props: DestinationDialogProps,
 ) {
-  const { ingestQueryPattern, changeIngestQueryPattern, onClose } = props;
-
-  const [existingTableState] = useQueryManager<string, string[]>({
-    initQuery: '',
-    processQuery: async (_: string, _cancelToken) => {
-      // Check if datasource already exists
-      const tables = await queryDruidSql({
-        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME NOT LIKE '${TalariaQuery.TMP_PREFIX}%' ORDER BY TABLE_NAME ASC`,
-        resultFormat: 'array',
-      });
-
-      return tables.map(t => t[0]);
-    },
-  });
-  const existingTables = existingTableState.data;
+  const { ingestQueryPattern, changeIngestQueryPattern, existingTables, onClose } = props;
 
   const [info, setInfo] = useState<DestinationInfo | undefined>();
 
   useEffect(() => {
     if (!existingTables) return;
-    setInfo({
-      mode: existingTables.includes(ingestQueryPattern.destinationTableName)
-        ? ingestQueryPattern.replaceTimeChunks
-          ? 'replace'
-          : 'append'
-        : 'new',
-      table: ingestQueryPattern.destinationTableName,
-    });
+    setInfo(getDestinationInfo(ingestQueryPattern, existingTables));
   }, [existingTables]);
 
   return (

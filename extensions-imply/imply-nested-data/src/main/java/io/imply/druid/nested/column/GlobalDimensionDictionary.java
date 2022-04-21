@@ -31,9 +31,27 @@ public class GlobalDimensionDictionary
 
   public GlobalDimensionDictionary()
   {
-    this.stringDictionary = new ComparatorDimensionDictionary<>(ColumnType.STRING.getNullableStrategy());
-    this.longDictionary = new ComparatorDimensionDictionary<>(ColumnType.LONG.getNullableStrategy());
-    this.doubleDictionary = new ComparatorDimensionDictionary<>(ColumnType.DOUBLE.getNullableStrategy());
+    this.stringDictionary = new ComparatorDimensionDictionary<String>(ColumnType.STRING.getNullableStrategy()) {
+      @Override
+      public long estimateSizeOfValue(String value)
+      {
+        return StructuredDataProcessor.estimateStringSize(value);
+      }
+    };
+    this.longDictionary = new ComparatorDimensionDictionary<Long>(ColumnType.LONG.getNullableStrategy()) {
+      @Override
+      public long estimateSizeOfValue(Long value)
+      {
+        return StructuredDataProcessor.getLongObjectEstimateSize();
+      }
+    };
+    this.doubleDictionary = new ComparatorDimensionDictionary<Double>(ColumnType.DOUBLE.getNullableStrategy()) {
+      @Override
+      public long estimateSizeOfValue(Double value)
+      {
+        return StructuredDataProcessor.getDoubleObjectEstimateSize();
+      }
+    };
   }
 
   public void addLongValue(@Nullable Long value)
@@ -168,5 +186,15 @@ public class GlobalDimensionDictionary
       }
     };
     return new GlobalDictionarySortedCollector(strings, longs, doubles);
+  }
+
+  public long sizeInBytes()
+  {
+    return stringDictionary.sizeInBytes() + longDictionary.sizeInBytes() + doubleDictionary.sizeInBytes();
+  }
+
+  public int getCardinality()
+  {
+    return stringDictionary.size() + longDictionary.size() + doubleDictionary.size();
   }
 }

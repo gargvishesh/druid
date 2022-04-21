@@ -23,6 +23,7 @@ import React, { useState } from 'react';
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import { AppToaster } from '../../../singletons';
 import { TalariaTaskError } from '../../../talaria-models';
+import { downloadQueryProfile } from '../../../utils';
 
 import './talaria-query-error.scss';
 
@@ -87,10 +88,26 @@ export const TalariaQueryError = React.memo(function TalariaQueryError(
           {host && (
             <>
               On host: <ClickToCopy text={host} />
+              &nbsp;
+            </>
+          )}
+          {taskId && (
+            <>
+              Debug:{' '}
+              <span
+                className="download-infopack"
+                onClick={() => {
+                  if (!taskId) return;
+                  void downloadQueryProfile(taskId);
+                }}
+              >
+                download query profile
+              </span>
             </>
           )}
         </p>
       )}
+
       {stackToShow && (
         <ShowValueDialog size="large" onClose={() => setStackToShow(undefined)} str={stackToShow} />
       )}

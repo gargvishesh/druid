@@ -24,5 +24,6 @@ export * from './lookups-view/lookups-view';
 export * from './query-view/query-view';
 export * from './segments-view/segments-view';
 export * from './services-view/services-view';
+export * from './user-management-view/user-management-view';
 export * from './workbench-view/talaria-load-data-view';
 export * from './workbench-view/workbench-view';

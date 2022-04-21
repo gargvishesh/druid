@@ -16,7 +16,6 @@ import org.apache.druid.math.expr.ExpressionType;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
-import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.DimensionIndexer;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.EncodedKeyComponent;
@@ -40,16 +39,20 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
   protected SortedMap<String, LiteralFieldIndexer> fieldIndexers = new TreeMap<>();
   protected final GlobalDimensionDictionary globalDictionary = new GlobalDimensionDictionary();
 
+  int estimatedFieldKeySize = 0;
+
   protected final StructuredDataProcessor indexerProcessor = new StructuredDataProcessor()
   {
     @Override
-    public void processLiteralField(String fieldName, Object fieldValue)
+    public int processLiteralField(String fieldName, Object fieldValue)
     {
-      FieldIndexer newIndexer = fieldIndexers.computeIfAbsent(
-          fieldName,
-          (field) -> new LiteralFieldIndexer(globalDictionary)
-      );
-      newIndexer.processValue(fieldValue);
+      LiteralFieldIndexer fieldIndexer = fieldIndexers.get(fieldName);
+      if (fieldIndexer == null) {
+        estimatedFieldKeySize += StructuredDataProcessor.estimateStringSize(fieldName);
+        fieldIndexer = new LiteralFieldIndexer(globalDictionary);
+        fieldIndexers.put(fieldName, fieldIndexer);
+      }
+      return fieldIndexer.processValue(fieldValue);
     }
   };
   
@@ -59,6 +62,8 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
       boolean reportParseExceptions
   )
   {
+    final long oldDictSizeInBytes = globalDictionary.sizeInBytes();
+    final int oldFieldKeySize = estimatedFieldKeySize;
     final StructuredData data;
     if (dimValues == null) {
       hasNulls = true;
@@ -68,8 +73,14 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
     } else {
       data = new StructuredData(dimValues);
     }
-    indexerProcessor.processFields(data == null ? null : data.getValue());
-    return new EncodedKeyComponent<>(data, data == null ? 0 : data.estimateSize());
+    StructuredDataProcessor.ProcessResults info = indexerProcessor.processFields(data == null ? null : data.getValue());
+    // 'raw' data is currently preserved 'as-is', and not replaced with object references to the global dictionaries
+    long effectiveSizeBytes = info.getEstimatedSize();
+    // then, we add the delta of size change to the global dictionaries to account for any new space added by the
+    // 'raw' data
+    effectiveSizeBytes += (globalDictionary.sizeInBytes() - oldDictSizeInBytes);
+    effectiveSizeBytes += (estimatedFieldKeySize - oldFieldKeySize);
+    return new EncodedKeyComponent<>(data, effectiveSizeBytes);
   }
 
   @Override
@@ -105,7 +116,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
   @Override
   public int getCardinality()
   {
-    return DimensionDictionarySelector.CARDINALITY_UNKNOWN;
+    return globalDictionary.getCardinality();
   }
 
   @Override
@@ -205,7 +216,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
 
   interface FieldIndexer
   {
-    void processValue(@Nullable Object value);
+    int processValue(@Nullable Object value);
   }
 
   static class LiteralFieldIndexer implements FieldIndexer
@@ -220,7 +231,7 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
     }
 
     @Override
-    public void processValue(@Nullable Object value)
+    public int processValue(@Nullable Object value)
     {
       // null value is always added to the global dictionary as id 0, so we can ignore them here
       if (value != null) {
@@ -231,15 +242,18 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
         switch (columnType.getType()) {
           case LONG:
             globalDimensionDictionary.addLongValue(eval.asLong());
-            break;
+            return StructuredDataProcessor.getLongObjectEstimateSize();
           case DOUBLE:
             globalDimensionDictionary.addDoubleValue(eval.asDouble());
-            break;
+            return StructuredDataProcessor.getDoubleObjectEstimateSize();
           case STRING:
           default:
-            globalDimensionDictionary.addStringValue(eval.asString());
+            final String asString = eval.asString();
+            globalDimensionDictionary.addStringValue(asString);
+            return StructuredDataProcessor.estimateStringSize(asString);
         }
       }
+      return 0;
     }
 
     public NestedLiteralTypeInfo.MutableTypeSet getTypes()

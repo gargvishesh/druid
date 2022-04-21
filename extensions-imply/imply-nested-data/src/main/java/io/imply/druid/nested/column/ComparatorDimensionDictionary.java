@@ -99,10 +99,6 @@ public class ComparatorDimensionDictionary<T>
    */
   public long sizeInBytes()
   {
-    if (!computeOnHeapSize()) {
-      throw new IllegalStateException("On-heap size computation is disabled");
-    }
-
     return sizeInBytes.get();
   }
 
@@ -125,10 +121,8 @@ public class ComparatorDimensionDictionary<T>
       valueToId.put(originalValue, index);
       idToValue.add(originalValue);
 
-      if (computeOnHeapSize()) {
-        // Add size of new dim value and 2 references (valueToId and idToValue)
-        sizeInBytes.addAndGet(estimateSizeOfValue(originalValue) + 2L * Long.BYTES);
-      }
+      // Add size of new dim value and 2 references (valueToId and idToValue)
+      sizeInBytes.addAndGet(estimateSizeOfValue(originalValue) + (2L * Long.BYTES));
 
       minValue = minValue == null || comparator.compare(minValue, originalValue) > 0 ? originalValue : minValue;
       maxValue = maxValue == null || comparator.compare(maxValue, originalValue) < 0 ? originalValue : maxValue;
@@ -187,16 +181,5 @@ public class ComparatorDimensionDictionary<T>
   public long estimateSizeOfValue(T value)
   {
     throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Whether on-heap size of this dictionary should be computed.
-   *
-   * @return false, by default. Implementations that want to estimate memory
-   * must override this method.
-   */
-  public boolean computeOnHeapSize()
-  {
-    return false;
   }
 }
