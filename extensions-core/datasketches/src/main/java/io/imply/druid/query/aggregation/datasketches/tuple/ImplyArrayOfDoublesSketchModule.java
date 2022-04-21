@@ -42,7 +42,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
   static final String SESSION_AVG_SCORE = "sessionAvgScore";
   static final String SESSION_AVG_SCORE_HISTOGRAM = "sessionAvgScoreHistogram";
   static final String SESSION_AVG_SCORE_HISTOGRAM_FILTERING = "sessionAvgScoreHistogramFiltering";
-  static final String SESSION_FILTERING_VIRTUAL_COLUMN = "session-filtering";
+  public static final String SESSION_FILTERING_VIRTUAL_COLUMN = "session-filtering";
   private ImplyLicenseManager implyLicenseManager;
   private final Logger log = new Logger(ImplyArrayOfDoublesSketchModule.class);
 
@@ -55,11 +55,12 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
+    ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3Macro.class);
+    ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3_64Macro.class);
+
     if (implyLicenseManager.isFeatureEnabled(SAMPLED_AVG_SCORE_FEATURE_NAME) ||
         implyLicenseManager.isFeatureEnabled(SESSIONIZATION_FEATURE_NAME)) {
       configureSessionAvgScore(binder);
-      ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3Macro.class);
-      ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3_64Macro.class);
       ExpressionModule.addExprMacro(binder, SessionizeExprMacro.class);
     }
 
@@ -81,7 +82,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     if (implyLicenseManager.isFeatureEnabled(SAMPLED_AVG_SCORE_FEATURE_NAME) ||
         implyLicenseManager.isFeatureEnabled(SESSIONIZATION_FEATURE_NAME)) {
       log.info("The %s feature is enabled", SAMPLED_AVG_SCORE_FEATURE_NAME);
-      jacksonModules.add(sessiondAvgScoreJacksonModule());
+      jacksonModules.add(sessionAvgScoreJacksonModule());
     }
     if (implyLicenseManager.isFeatureEnabled(AD_TECH_AGGREGATORS_FEATURE_NAME) ||
         implyLicenseManager.isFeatureEnabled(SESSIONIZATION_FEATURE_NAME)) {
@@ -108,7 +109,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     SqlBindings.addAggregator(binder, AdTechInventorySqlAggregator.class);
   }
 
-  private SimpleModule sessiondAvgScoreJacksonModule()
+  private SimpleModule sessionAvgScoreJacksonModule()
   {
     return new SimpleModule(SESSIONIZATION_FEATURE_NAME).registerSubtypes(
         new NamedType(SessionAvgScoreAggregatorFactory.class, SESSION_AVG_SCORE),
