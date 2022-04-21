@@ -167,8 +167,9 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
     final Granularity segmentGranularity;
 
     try {
-      segmentGranularity = QueryKitUtils.getSegmentGranularityFromContext(plannerContext.getQueryContext()
-                                                                                        .getMergedParams());
+      segmentGranularity = QueryKitUtils.getSegmentGranularityFromContext(
+          plannerContext.getQueryContext().getMergedParams()
+      );
     }
     catch (Exception e) {
       throw new ValidationException(

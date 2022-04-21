@@ -846,11 +846,6 @@ public abstract class AbstractAuthConfigurationTest
 
   protected void verifyInvalidAuthNameFails(String endpoint)
   {
-    HttpClient adminClient = new CredentialedHttpClient(
-        new BasicCredentials("admin", "priest"),
-        httpClient
-    );
-
     HttpUtil.makeRequestWithExpectedStatus(
         getHttpClient(User.ADMIN),
         HttpMethod.POST,
