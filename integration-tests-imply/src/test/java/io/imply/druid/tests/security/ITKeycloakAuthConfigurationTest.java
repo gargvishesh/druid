@@ -56,6 +56,7 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -83,6 +84,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   private static final String KEYCLOAK_AUTHORIZER = "ImplyKeycloakAuthorizer";
 
   private static final String EXPECTED_AVATICA_AUTH_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: ForbiddenException: Authentication failed.";
+  private static final String EXPECTED_AVATICA_AUTHZ_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: RuntimeException: org.apache.druid.server.security.ForbiddenException: Allowed:false, Message: -> ForbiddenException: Allowed:false, Message:";
 
   @Inject
   IntegrationTestingConfig config;
@@ -106,7 +108,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   public void test_systemSchemaAccess_admin_staleToken() throws Exception
   {
     // check that admin access works on all nodes
-    checkNodeAccess(adminClient);
+    checkNodeAccess(getHttpClient(User.ADMIN));
     int notBefore = Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000);
     LOG.info("Setting keycloak not-before policy to %s", notBefore);
     setKeycloakClientNotBefore(notBefore);
@@ -118,7 +120,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       LOG.info("Checking sys.segments query as admin fails with token issued prior to not-before policy...");
       Map<String, Object> queryMap = ImmutableMap.of("query", SYS_SCHEMA_SERVERS_QUERY);
       StatusResponseHolder responseHolder = HttpUtil.makeRequestWithExpectedStatus(
-          adminClient,
+          getHttpClient(User.ADMIN),
           HttpMethod.POST,
           this.config.getBrokerUrl() + "/druid/v2/sql",
           this.jsonMapper.writeValueAsBytes(queryMap),
@@ -135,10 +137,10 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     }
   }
 
-  @Test(expectedExceptions = { RuntimeException.class })
+  @Test(expectedExceptions = {RuntimeException.class})
   public void test_nonExistent_fails()
   {
-    buildHttpClientForUser("doesNotExist", "bogus");
+    setupHttpClientForUser("doesNotExist", "bogus");
   }
 
   @Test
@@ -156,13 +158,13 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     createRolesWithPermissions(ImmutableMap.of(roleName, resourceActions));
 
     // get roles and ensure that the role is there
-    StatusResponseHolder responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
+    StatusResponseHolder responseHolder = makeGetRolesRequest(getHttpClient(User.ADMIN), HttpResponseStatus.OK);
     String content = responseHolder.getContent();
     Set<String> roles = jsonMapper.readValue(content, ROLES_RESULTS_TYPE_REFERENCE);
     Assert.assertTrue(roles.contains(roleName));
 
     // get role permissions and ensure that they match what is expected
-    responseHolder = makeGetRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    responseHolder = makeGetRoleRequest(getHttpClient(User.ADMIN), roleName, HttpResponseStatus.OK);
     content = responseHolder.getContent();
     KeycloakAuthorizerRoleSimplifiedPermissions roleWithPermissions = jsonMapper.readValue(
         content,
@@ -182,8 +184,8 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
             Action.WRITE
         )
     );
-    makeUpdateRoleRequest(adminClient, roleName, updatedResourceActions, HttpResponseStatus.OK);
-    responseHolder = makeGetRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
+    makeUpdateRoleRequest(getHttpClient(User.ADMIN), roleName, updatedResourceActions, HttpResponseStatus.OK);
+    responseHolder = makeGetRoleRequest(getHttpClient(User.ADMIN), roleName, HttpResponseStatus.OK);
     content = responseHolder.getContent();
     roleWithPermissions = jsonMapper.readValue(
         content,
@@ -197,7 +199,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         .stream()
         .map(r -> new KeycloakAuthorizerPermission(r, Pattern.compile(r.getResource().getName())))
         .collect(Collectors.toList());
-    responseHolder = makeGetRolePermissionsRequest(adminClient, roleName, HttpResponseStatus.OK);
+    responseHolder = makeGetRolePermissionsRequest(getHttpClient(User.ADMIN), roleName, HttpResponseStatus.OK);
     content = responseHolder.getContent();
     List<KeycloakAuthorizerPermission> actualPermissions = jsonMapper.readValue(
         content,
@@ -206,8 +208,8 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     Assert.assertEquals(expectedPermissions, actualPermissions);
 
     // delete role and ensure that it is no longer there
-    makeDeleteRoleRequest(adminClient, roleName, HttpResponseStatus.OK);
-    responseHolder = makeGetRolesRequest(adminClient, HttpResponseStatus.OK);
+    makeDeleteRoleRequest(getHttpClient(User.ADMIN), roleName, HttpResponseStatus.OK);
+    responseHolder = makeGetRolesRequest(getHttpClient(User.ADMIN), HttpResponseStatus.OK);
     content = responseHolder.getContent();
     roles = jsonMapper.readValue(content, ROLES_RESULTS_TYPE_REFERENCE);
     Assert.assertFalse(roles.contains(roleName));
@@ -221,18 +223,24 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Override
-  protected Properties getAvaticaConnectionProperties()
+  protected Properties getAvaticaConnectionPropertiesForUser(User user)
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty("password", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    connectionProperties.setProperty(
+        "password",
+        ((KeycloakedHttpClient) getHttpClient(User.ADMIN)).getAccessTokenString()
+    );
     return connectionProperties;
   }
 
   @Override
-  protected Properties getAvaticaConnectionPropertiesFailure()
+  protected Properties getAvaticaConnectionPropertiesForInvalidAdmin()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
+    connectionProperties.setProperty(
+        "Bearer",
+        ((KeycloakedHttpClient) getHttpClient(User.ADMIN)).getAccessTokenString()
+    );
     return connectionProperties;
   }
 
@@ -241,6 +249,12 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   {
 
     createRolesWithPermissions(ImmutableMap.of("datasourceOnlyRole", DATASOURCE_ONLY_PERMISSIONS));
+  }
+
+  @Override
+  protected void setupDatasourceAndContextParamsUser() throws Exception
+  {
+
   }
 
   @Override
@@ -264,11 +278,6 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Override
   protected void setupTestSpecificHttpClients()
   {
-    adminClient = buildHttpClientForUser("admin", "priest");
-    datasourceOnlyUserClient = buildHttpClientForUser("datasourceonlyuser", "helloworld");
-    datasourceAndSysUserClient = buildHttpClientForUser("datasourcewithsysuser", "helloworld");
-    datasourceWithStateUserClient = buildHttpClientForUser("datasourcewithstateuser", "helloworld");
-    stateOnlyUserClient = buildHttpClientForUser("stateonlyuser", "helloworld");
   }
 
   @Override
@@ -289,10 +298,16 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     return EXPECTED_AVATICA_AUTH_ERROR;
   }
 
+  @Override
+  protected String getExpectedAvaticaAuthzError()
+  {
+    return EXPECTED_AVATICA_AUTHZ_ERROR;
+  }
+
   private void createRolesWithPermissions(Map<String, List<ResourceAction>> roleTopermissions) throws Exception
   {
     roleTopermissions.keySet().forEach(role -> HttpUtil.makeRequest(
-        adminClient,
+        getHttpClient(User.ADMIN),
         HttpMethod.POST,
         StringUtils.format(
             "%s/druid-ext/keycloak-security/authorization/roles/%s",
@@ -307,7 +322,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       List<ResourceAction> permissions = entry.getValue();
       byte[] permissionsBytes = jsonMapper.writeValueAsBytes(permissions);
       HttpUtil.makeRequest(
-          adminClient,
+          getHttpClient(User.ADMIN),
           HttpMethod.POST,
           StringUtils.format(
               "%s/druid-ext/keycloak-security/authorization/roles/%s/permissions",
@@ -319,11 +334,13 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     }
   }
 
-  private KeycloakedHttpClient buildHttpClientForUser(
+  @Override
+  protected HttpClient setupHttpClientForUser(
       String username,
       String password
   )
   {
+    username = username.toLowerCase(Locale.ROOT);
     try {
       AdapterConfig userConfig = new AdapterConfig();
       userConfig.setAuthServerUrl("http://localhost:8080/auth");

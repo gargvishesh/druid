@@ -156,6 +156,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
     queryPool = poolProvider.get();
     final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(
         new PlannerConfig(),
+        new AuthConfig(),
         createOperatorTable(),
         createMacroTable(),
         CalciteTests.TEST_AUTHORIZER_MAPPER,
