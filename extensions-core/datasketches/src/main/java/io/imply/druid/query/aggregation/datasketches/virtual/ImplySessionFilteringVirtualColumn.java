@@ -13,10 +13,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
+import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.cache.CacheKeyBuilder;
@@ -95,7 +97,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory
   )
   {
-    throw new UOE("Cannot make a dimension selector");
+    throw new UOE("Session filtering doesn't support creating a dimension selector");
   }
 
   @Override
@@ -104,7 +106,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory
   )
   {
-    throw new UOE("Cannot make a dimension selector");
+    throw new UOE("Session filtering doesn't support creating a value selector");
   }
 
   @Override
@@ -143,11 +145,19 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
   {
     final ColumnHolder holder = selector.getColumnHolder(field);
     if (holder == null) {
-      return null;
+      throw new RE(
+          "%s column doesn't exist for creating %s virtual column",
+          field,
+          ImplyArrayOfDoublesSketchModule.SESSION_FILTERING_VIRTUAL_COLUMN
+      );
     }
     final BitmapIndex underlyingIndex = holder.getBitmapIndex();
     if (underlyingIndex == null) {
-      return null;
+      throw new UOE(
+          "Bitmap index doesn't exist for %s column. "
+          + "Session filtering can only be used for a column with bitmap index",
+          field
+      );
     }
     return new ImplyListFilteredBitmapIndex(underlyingIndex);
   }
