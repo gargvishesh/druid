@@ -1032,7 +1032,7 @@ pipeline {
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=inProgress;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
+                                                      "props": "release.version=${release_version};testing=inProgress;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
@@ -2286,11 +2286,11 @@ pipeline {
                                                 "files": [
                                                     {
                                                       "pattern": "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
-                                                      "props": "BVT=inProgress"
+                                                      "props": "testing=inProgress"
                                                     }
                                                 ]
                                             }""",
-                                            props: 'BVT=Pass',
+                                            props: 'testing=Pass',
                                             failNoOp: true
                                         )
                                     }
