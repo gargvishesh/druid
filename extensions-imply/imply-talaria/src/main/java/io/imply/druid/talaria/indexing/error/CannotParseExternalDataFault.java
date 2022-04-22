@@ -16,7 +16,7 @@ import com.google.common.base.Preconditions;
 @JsonTypeName(CannotParseExternalDataFault.CODE)
 public class CannotParseExternalDataFault extends BaseTalariaFault
 {
-  static final String CODE = "CannotParseExternalData";
+  static public final String CODE = "CannotParseExternalData";
 
   public CannotParseExternalDataFault(@JsonProperty("errorMessage") String message)
   {

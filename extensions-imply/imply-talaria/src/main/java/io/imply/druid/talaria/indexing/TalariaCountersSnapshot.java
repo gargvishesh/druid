@@ -46,17 +46,20 @@ public class TalariaCountersSnapshot
     private final EnumMap<TalariaCounterType, List<ChannelCounters>> countersMap;
 
     private final List<SortProgressTracker> sortProgress;
+    private final List<WarningCounters> warningCounters;
 
     @JsonCreator
     public WorkerCounters(
         @JsonProperty("workerNumber") Integer workerNumber,
         @JsonProperty("counters") EnumMap<TalariaCounterType, List<ChannelCounters>> countersMap,
-        @Nullable @JsonProperty("sortProgress") List<SortProgressTracker> sortProgress
+        @Nullable @JsonProperty("sortProgress") List<SortProgressTracker> sortProgress,
+        @JsonProperty ("warningCounters") List<WarningCounters> warningCounters
     )
     {
       this.workerNumber = Preconditions.checkNotNull(workerNumber, "workerNumber");
       this.countersMap = Preconditions.checkNotNull(countersMap, "countersMap");
       this.sortProgress = Preconditions.checkNotNull(sortProgress, "sortProgress");
+      this.warningCounters = Preconditions.checkNotNull(warningCounters, "warningCounters");
     }
 
     @JsonProperty
@@ -76,6 +79,40 @@ public class TalariaCountersSnapshot
     public List<SortProgressTracker> getSortProgress()
     {
       return sortProgress;
+    }
+
+    @JsonProperty("warningCounters")
+    public List<WarningCounters> getWarningCounters()
+    {
+      return warningCounters;
+    }
+  }
+
+  public static class WarningCounters
+  {
+    private final WarningCountersSnapshot warningCountersSnapshot;
+    private final int stageNumber;
+
+    @JsonCreator
+    public WarningCounters(
+        @JsonProperty("stageNumber") int stageNumber,
+        @JsonProperty("warningCounters") WarningCountersSnapshot warningCountersSnapshot
+    )
+    {
+      this.stageNumber = stageNumber;
+      this.warningCountersSnapshot = warningCountersSnapshot;
+    }
+
+    @JsonProperty("warningCounters")
+    public WarningCountersSnapshot getWarningCountersSnapshot()
+    {
+      return warningCountersSnapshot;
+    }
+
+    @JsonProperty("stageNumber")
+    public int getStageNumber()
+    {
+      return stageNumber;
     }
   }
 

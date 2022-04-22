@@ -40,20 +40,9 @@ public class TalariaWarningReportPublisher
     this.stageNumber = stageNumber;
   }
 
-  public void publish(
-      final String warning,
-      @Nullable final String exceptionStackTrace,
-      final Integer priority
-  )
+  public void publishException(Throwable e)
   {
-    TalariaWarningReport talariaWarningReport = new TalariaWarningReport(
-        taskId,
-        host,
-        stageNumber,
-        warning,
-        exceptionStackTrace,
-        priority
-    );
-    leaderClient.postWorkerWarning(leaderId, workerId, talariaWarningReport);
+    // TODO: Chomp the exception stack trace if it is more than a predetermined size
+    leaderClient.postWorkerWarning(leaderId, workerId, TalariaErrorReport.fromException(taskId, host, stageNumber, e));
   }
 }

@@ -61,6 +61,14 @@ public class TalariaCounters
         .computeIfAbsent(new StagePartitionNumber(stageNumber, partitionNumber), ignored -> new ChannelCounters());
   }
 
+  public WarningCounters getOrCreateWarningCounters(
+      final int workerNumber,
+      final int stageNumber
+  )
+  {
+    return workerCounters(workerNumber).getOrCreateWarningCounters(stageNumber);
+  }
+
   public TalariaCountersSnapshot snapshot()
   {
     final List<TalariaCountersSnapshot.WorkerCounters> workerCountersSnapshot = new ArrayList<>();
@@ -112,11 +120,21 @@ public class TalariaCounters
         );
       }
 
+      List<TalariaCountersSnapshot.WarningCounters> warningCountersList = new ArrayList<>();
+      for (Map.Entry<Integer, WarningCounters> warningCountersEntry :workerEntry.getValue().warningCountersMap.entrySet()){
+        warningCountersList.add(
+            new TalariaCountersSnapshot.WarningCounters(
+                warningCountersEntry.getKey(), warningCountersEntry.getValue().snapshot()
+            )
+        );
+      }
+
       workerCountersSnapshot.add(
           new TalariaCountersSnapshot.WorkerCounters(
               workerEntry.getKey(),
               workerSnapshotMap,
-              sortProgressTrackerSnapshotList
+              sortProgressTrackerSnapshotList,
+              warningCountersList
           )
       );
     }
@@ -160,6 +178,7 @@ public class TalariaCounters
             + workerCounters.getTotalRows(TalariaCounterType.INPUT_DRUID, stageNumber);
         final long processorRows = workerCounters.getTotalRows(TalariaCounterType.PROCESSOR, stageNumber);
         final long sortRows = workerCounters.getTotalRows(TalariaCounterType.SORT, stageNumber);
+        final long workerWarnings = workerCounters.getOrCreateWarningCounters(stageNumber).totalErrorCount();
 
         sb.append(inputRows);
 
@@ -169,6 +188,10 @@ public class TalariaCounters
           if (sortRows > 0) {
             sb.append(">").append(sortRows);
           }
+        }
+
+        if (workerWarnings > 0) {
+          sb.append("!").append(workerWarnings);
         }
       }
     }
@@ -184,6 +207,9 @@ public class TalariaCounters
 
     // stage number -> sort progress
     private final ConcurrentHashMap<Integer, SuperSorterProgressTracker> sortProgressTrackerMap = new ConcurrentHashMap<>();
+
+    // stage number -> warnings
+    private final ConcurrentHashMap<Integer, WarningCounters> warningCountersMap = new ConcurrentHashMap<>();
 
     private WorkerCounters()
     {
@@ -212,6 +238,11 @@ public class TalariaCounters
     public SuperSorterProgressTracker getOrCreateSortProgressTracker(int stageNumber)
     {
       return sortProgressTrackerMap.computeIfAbsent(stageNumber, ignored -> new SuperSorterProgressTracker());
+    }
+
+    public WarningCounters getOrCreateWarningCounters(int stageNumber)
+    {
+      return warningCountersMap.computeIfAbsent(stageNumber, ignored -> new WarningCounters());
     }
   }
 

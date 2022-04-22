@@ -47,7 +47,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
    * @param providerThingy           Context which provides services needed by frame processors
    * @param maxOutstandingProcessors maximum number of processors that will be active at once
    *
-   * @param talariaWarningReportPublisher
+   * @param talariaWarningReportPublisher Allows sending warning generated during
    * @return a processor iterator, which may be computed lazily; and a list of output channels.
    */
   ProcessorsAndChannels<ProcessorType, T> makeProcessors(

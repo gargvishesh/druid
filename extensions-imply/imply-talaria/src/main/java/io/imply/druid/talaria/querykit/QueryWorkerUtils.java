@@ -16,6 +16,8 @@ import io.imply.druid.talaria.indexing.CountableInputSourceReader;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.WarningCounters;
+import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
@@ -34,7 +36,6 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.guava.BaseSequence;
-import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.segment.RowAdapters;
@@ -127,6 +128,7 @@ public class QueryWorkerUtils
                   stageDefinition.getStageNumber(),
                   -1
               ),
+              talariaCounters.getOrCreateWarningCounters(workerNumber, stageDefinition.getStageNumber()),
               talariaWarningReportPublisher
           ),
           QueryWorkerInput::forSegment
@@ -173,6 +175,7 @@ public class QueryWorkerUtils
       final RowSignature signature,
       final File temporaryDirectory,
       final TalariaCounters.ChannelCounters inputExternalCounter,
+      final WarningCounters warningCounters,
       @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
@@ -240,7 +243,10 @@ public class QueryWorkerUtils
                                 break;
                               }
                               catch (ParseException e) {
-                                talariaWarningReportPublisher.publish("ParseException", e.toString(), 1);
+                                warningCounters.incrementErrorCount(CannotParseExternalDataFault.CODE);
+                                if (talariaWarningReportPublisher != null) {
+                                  talariaWarningReportPublisher.publishException(e);
+                                }
                               }
                             }
                             return next != null;
