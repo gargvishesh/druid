@@ -39,6 +39,13 @@ public class TalariaQuerySpec
     this.tuningConfig = Preconditions.checkNotNull(tuningConfig, "tuningConfig");
   }
 
+
+  public static Builder builder()
+  {
+    return new Builder();
+  }
+
+
   @JsonProperty
   public Query<?> getQuery()
   {
@@ -99,5 +106,48 @@ public class TalariaQuerySpec
            ", destination=" + destination +
            ", tuningConfig=" + tuningConfig +
            '}';
+  }
+
+  public static class Builder
+  {
+    private Query<?> query;
+    private ColumnMappings columnMappings;
+    private TalariaDestination destination;
+    private ParallelIndexTuningConfig tuningConfig;
+
+
+    public Builder setQuery(Query<?> query)
+    {
+      this.query = query;
+      return this;
+    }
+
+    public Builder setColumnMappings(ColumnMappings columnMappings)
+    {
+      this.columnMappings = columnMappings;
+      return this;
+    }
+
+    public Builder setTalariaDestination(TalariaDestination talariaDestination)
+    {
+      this.destination = talariaDestination;
+      return this;
+    }
+
+    public Builder setTuningConfig(ParallelIndexTuningConfig tuningConfig)
+    {
+      this.tuningConfig = tuningConfig;
+      return this;
+    }
+
+    public TalariaQuerySpec build()
+    {
+      if (destination == null) {
+        destination = TaskReportTalariaDestination.instance();
+      }
+      return new TalariaQuerySpec(query, columnMappings, destination, tuningConfig);
+    }
+
+
   }
 }

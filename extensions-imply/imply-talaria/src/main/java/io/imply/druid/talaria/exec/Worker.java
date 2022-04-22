@@ -15,7 +15,9 @@ import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.indexer.TaskStatus;
 
-import javax.ws.rs.core.Response;
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
 
 public interface Worker
 {
@@ -67,16 +69,22 @@ public interface Worker
   );
 
   /**
-   * Returns a response object containing the worker output for a particular queryId, stageNumber and partitionNumber.
+   * Returns an InputStream of the worker output for a particular queryId, stageNumber and partitionNumber.
    * Offset indicates the number of bytes to skip the channel data, and is used to prevent re-reading the same data
    * during retry in case of a connection error
+   * <p>
+   * Returns a null if the workerOutput for a particular queryId, stageNumber and partitionNumber is not found.
+   *
+   * @throws IOException when the worker output is found but there is an error while reading it.
    */
-  Response readChannel(
+
+  @Nullable
+  InputStream readChannel(
       String queryId,
       int stageNumber,
       int partitionNumber,
       long offset
-  );
+  ) throws IOException;
 
   /**
    * Returns the snapshot of the worker counters

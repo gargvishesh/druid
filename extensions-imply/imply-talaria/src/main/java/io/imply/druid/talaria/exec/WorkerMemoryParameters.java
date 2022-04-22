@@ -62,7 +62,7 @@ public class WorkerMemoryParameters
    * needed for input channels). This memory is guaranteed to be available for things like segment generation
    * and broadcast data.
    */
-  private static final long PROCESSING_MINIMUM_BYTES = 25_000_000;
+  public static final long PROCESSING_MINIMUM_BYTES = 25_000_000;
 
   /**
    * Maximum amount of parallelism for the super-sorter. Higher amounts of concurrency tend to be wasteful.

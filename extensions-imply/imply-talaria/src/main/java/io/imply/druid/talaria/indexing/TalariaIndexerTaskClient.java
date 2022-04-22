@@ -29,6 +29,7 @@ import org.apache.druid.java.util.http.client.response.StringFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.Duration;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
@@ -241,14 +242,8 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
       final ExecutorService connectExec
   )
   {
-    final String path = StringUtils.format(
-        "channels/%s/%d/%d",
-        StringUtils.urlEncode(stageId.getQueryId()),
-        stageId.getStageNumber(),
-        partitionNumber
-    );
-
-    final String channelId = StringUtils.format("%s:%s", workerTaskId, path);
+    final String path = getStagePartitionPath(stageId, partitionNumber);
+    final String channelId = getChannelId(workerTaskId, path);
     final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create(channelId);
     final TalariaFrameChannelConnectionManager connectionManager =
         new TalariaFrameChannelConnectionManager(channel, connectExec);
@@ -268,6 +263,23 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
                 ),
                 true
             )
+    );
+  }
+
+  @Nonnull
+  public static String getChannelId(String workerTaskId, String path)
+  {
+    return StringUtils.format("%s:%s", workerTaskId, path);
+  }
+
+  @Nonnull
+  public static String getStagePartitionPath(StageId stageId, int partitionNumber)
+  {
+    return StringUtils.format(
+        "channels/%s/%d/%d",
+        StringUtils.urlEncode(stageId.getQueryId()),
+        stageId.getStageNumber(),
+        partitionNumber
     );
   }
 
