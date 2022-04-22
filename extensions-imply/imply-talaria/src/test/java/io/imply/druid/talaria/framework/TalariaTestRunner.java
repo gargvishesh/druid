@@ -29,15 +29,19 @@ import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import io.imply.druid.talaria.querykit.LazyResourceHolder;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
+import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.druid.client.indexing.IndexingService;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
+import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.GuiceInjectors;
 import org.apache.druid.guice.IndexingServiceTuningConfigModule;
 import org.apache.druid.guice.annotations.Self;
+import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.task.CompactionTask;
 import org.apache.druid.indexing.common.task.IndexTask;
@@ -45,13 +49,17 @@ import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningC
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.ForwardingQueryProcessingPool;
 import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryProcessingPool;
+import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.FloatSumAggregatorFactory;
@@ -66,7 +74,6 @@ import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.StorageAdapter;
-import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.join.JoinableFactory;
@@ -80,6 +87,7 @@ import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.server.coordination.DataSegmentAnnouncer;
 import org.apache.druid.server.coordination.NoopDataSegmentAnnouncer;
+import org.apache.druid.server.security.AuthTestUtils;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
@@ -148,6 +156,18 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                                                                 .put("talaria", true)
                                                                                 .build();
 
+  public static final Map<String, Object>
+      REPLACE_TIME_CHUCKS_CONTEXT = ImmutableMap.<String, Object>builder()
+                                                .putAll(DEFAULT_TALARIA_CONTEXT)
+                                                .put(TalariaQueryMaker.CTX_REPLACE_TIME_CHUNKS, "ALL")
+                                                .build();
+
+  public static final Map<String, Object>
+      ROLLUP_CONTEXT = ImmutableMap.<String, Object>builder()
+                                   .putAll(DEFAULT_TALARIA_CONTEXT)
+                                   .put(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, false)
+                                   .build();
+
   public final boolean useDefault = NullHandling.replaceWithDefault();
   private static final Logger log = new Logger(TalariaTestRunner.class);
   private PlannerFactory plannerFactory;
@@ -158,7 +178,6 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
   private TalariaTestSegmentManager segmentManager;
   private SegmentCacheManager segmentCacheManager;
-
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -168,14 +187,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     Injector secondInjector = GuiceInjectors.makeStartupInjector();
 
     ObjectMapper secondMapper = setupObjectMapper(secondInjector);
-    indexIO = new IndexIO(secondMapper, new ColumnConfig()
-    {
-      @Override
-      public int columnCacheSizeBytes()
-      {
-        return 0;
-      }
-    });
+    indexIO = new IndexIO(secondMapper, () -> 0);
 
     try {
       segmentCacheManager = new SegmentCacheManagerFactory(secondMapper).manufacturate(temporaryFolder.newFolder("test"));
@@ -183,6 +195,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     catch (IOException exception) {
       throw new ISE(exception, "Unable to create segmentCacheManager");
     }
+
+    TalariaTestSqlModule sqlModule = new TalariaTestSqlModule();
 
     segmentManager = new TalariaTestSegmentManager(segmentCacheManager, indexIO);
 
@@ -232,13 +246,19 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
+            binder.bind(DruidLeaderClient.class).annotatedWith(IndexingService.class).
+                  toInstance(new DruidLeaderClient(null, null, null, null));
+
           }
         },
         new IndexingServiceTuningConfigModule(),
-        new TalariaTestIndexingModule()
+        new TalariaTestIndexingModule(),
+        sqlModule
+
     ));
 
     objectMapper = setupObjectMapper(injector);
+    objectMapper.registerModules(sqlModule.getJacksonModules());
 
     indexingServiceClient = new TalariaTestIndexingServiceClient(
         objectMapper,
@@ -255,7 +275,6 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         CalciteTests.TEST_AUTHORIZER_MAPPER
     );
 
-
     this.plannerFactory = new PlannerFactory(
         rootSchema,
         new ImplyQueryMakerFactory(
@@ -266,8 +285,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         PLANNER_CONFIG_DEFAULT,
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        queryJsonMapper,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+        objectMapper,
         CalciteTests.DRUID_SCHEMA_NAME
     );
 
@@ -413,10 +432,11 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                                        ));
     mapper.setInjectableValues(
         new InjectableValues.Std()
-            .addValue(ObjectMapper.class, objectMapper).addValue(Injector.class, injector).addValue(
-                DataSegment.PruneSpecsHolder.class,
-                DataSegment.PruneSpecsHolder.DEFAULT
-            ).addValue(LocalDataSegmentPuller.class, new LocalDataSegmentPuller())
+            .addValue(ObjectMapper.class, mapper)
+            .addValue(Injector.class, injector)
+            .addValue(DataSegment.PruneSpecsHolder.class, DataSegment.PruneSpecsHolder.DEFAULT)
+            .addValue(LocalDataSegmentPuller.class, new LocalDataSegmentPuller())
+            .addValue(ExprMacroTable.class, CalciteTests.createExprMacroTable())
     );
 
     mapper.registerSubtypes(new NamedType(LocalLoadSpec.class, "local"));
@@ -470,7 +490,12 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
   private void assertTalariaSpec(TalariaQuerySpec expectedTalariaQuerySpec, TalariaQuerySpec querySpecForTask)
   {
-    // TODO: Add the implementaion
+
+    Assert.assertEquals(
+        expectedTalariaQuerySpec.getQuery().withOverriddenContext(querySpecForTask.getQuery().getContext()),
+        querySpecForTask.getQuery()
+    );
+    // TODO: Add remaining asserts
     return;
   }
 
@@ -504,10 +529,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected String sql = null;
     protected Map<String, Object> queryContext = DEFAULT_TALARIA_CONTEXT;
     protected RowSignature expectedRowSignature = null;
-    protected TalariaQuerySpec talariaQuerySpec = null;
+    protected TalariaQuerySpec expectedTalariaQuerySpec = null;
     protected List<Object[]> expectedResultRows = null;
-    protected Matcher<Throwable> validationErrorMatcher = null;
-    protected Matcher<Throwable> executionErrorMatcher = null;
+    protected Matcher<Throwable> expectedValidationErrorMatcher = null;
+    protected Matcher<Throwable> expectedExecutionErrorMatcher = null;
 
     private boolean hasRun = false;
 
@@ -538,29 +563,29 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     }
 
 
-    public Builder setTalariaQuerySpec(TalariaQuerySpec talariaQuerySpec)
+    public Builder setExpectedTalariaQuerySpec(TalariaQuerySpec expectedTalariaQuerySpec)
     {
-      this.talariaQuerySpec = talariaQuerySpec;
+      this.expectedTalariaQuerySpec = expectedTalariaQuerySpec;
       return (Builder) this;
     }
 
 
-    public Builder setValidationErrorMatcher(Matcher<Throwable> validationErrorMatcher)
+    public Builder setExpectedValidationErrorMatcher(Matcher<Throwable> expectedValidationErrorMatcher)
     {
-      this.validationErrorMatcher = validationErrorMatcher;
+      this.expectedValidationErrorMatcher = expectedValidationErrorMatcher;
       return (Builder) this;
     }
 
-    public Builder setExecutionErrorMatcher(Matcher<Throwable> executionErrorMatcher)
+    public Builder setExpectedExecutionErrorMatcher(Matcher<Throwable> expectedExecutionErrorMatcher)
     {
-      this.executionErrorMatcher = executionErrorMatcher;
+      this.expectedExecutionErrorMatcher = expectedExecutionErrorMatcher;
       return (Builder) this;
     }
 
     public void verifyPlanningErrors()
     {
 
-      Preconditions.checkArgument(validationErrorMatcher != null, "Validation error matcher cannot be null");
+      Preconditions.checkArgument(expectedValidationErrorMatcher != null, "Validation error matcher cannot be null");
       Preconditions.checkArgument(sql != null, "Sql cannot be null");
       readyToRun();
       try {
@@ -570,7 +595,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         }
       }
       catch (Exception e) {
-        MatcherAssert.assertThat(e, validationErrorMatcher);
+        MatcherAssert.assertThat(e, expectedValidationErrorMatcher);
       }
     }
 
@@ -586,9 +611,15 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
   public class InsertQueryTester extends TalariaTestRunner.TalariaQueryTester<InsertQueryTester>
   {
-    private String dataSource;
+    private String expectedDataSource;
 
-    private Class<? extends ShardSpec> shardSpecClass = NumberedShardSpec.class;
+    private Class<? extends ShardSpec> expectedShardSpec = NumberedShardSpec.class;
+
+    private boolean expectedRollup = false;
+
+    private Granularity expectedQueryGranularity = Granularities.NONE;
+
+    private List<AggregatorFactory> expectedAggregatorFactories = new ArrayList<>();
 
     private InsertQueryTester()
     {
@@ -596,15 +627,33 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     }
 
 
-    public InsertQueryTester setDataSource(String dataSource)
+    public InsertQueryTester setExpectedDataSource(String expectedDataSource)
     {
-      this.dataSource = dataSource;
+      this.expectedDataSource = expectedDataSource;
       return this;
     }
 
-    public InsertQueryTester setShardSpecClass(Class<? extends ShardSpec> shardSpecClass)
+    public InsertQueryTester setExpectedShardSpec(Class<? extends ShardSpec> expectedShardSpec)
     {
-      this.shardSpecClass = shardSpecClass;
+      this.expectedShardSpec = expectedShardSpec;
+      return this;
+    }
+
+    public InsertQueryTester setExpectedRollup(boolean expectedRollup)
+    {
+      this.expectedRollup = expectedRollup;
+      return this;
+    }
+
+    public InsertQueryTester setExpectedQueryGranularity(Granularity expectedQueryGranularity)
+    {
+      this.expectedQueryGranularity = expectedQueryGranularity;
+      return this;
+    }
+
+    public InsertQueryTester addExpectedAggregatorFactory(AggregatorFactory aggregatorFactory)
+    {
+      expectedAggregatorFactories.add(aggregatorFactory);
       return this;
     }
 
@@ -612,10 +661,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     {
       Preconditions.checkArgument(sql != null, "sql cannot be null");
       Preconditions.checkArgument(queryContext != null, "queryContext cannot be null");
-      Preconditions.checkArgument(dataSource != null, "dataSource cannot be null");
+      Preconditions.checkArgument(expectedDataSource != null, "dataSource cannot be null");
       Preconditions.checkArgument(expectedRowSignature != null, "expectedRowSignature cannot be null");
       Preconditions.checkArgument(expectedResultRows != null, "expectedResultRows cannot be null");
-      Preconditions.checkArgument(shardSpecClass != null, "shardSpecClass cannot be null");
+      Preconditions.checkArgument(expectedShardSpec != null, "shardSpecClass cannot be null");
       readyToRun();
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
@@ -635,7 +684,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         for (DataSegment dataSegment : segmentManager.getAllDataSegments()) {
 
           //Assert shard spec class
-          Assert.assertEquals(shardSpecClass, dataSegment.getShardSpec().getClass());
+          Assert.assertEquals(expectedShardSpec, dataSegment.getShardSpec().getClass());
           if (foundDataSource == null) {
             foundDataSource = dataSegment.getDataSource();
 
@@ -646,12 +695,24 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                 dataSegment.getDataSource()
             );
           }
-
-          StorageAdapter storageAdapter = new QueryableIndexStorageAdapter(indexIO.loadIndex(segmentCacheManager.getSegmentFiles(
-              dataSegment)));
+          final QueryableIndex queryableIndex = indexIO.loadIndex(segmentCacheManager.getSegmentFiles(
+              dataSegment));
+          final StorageAdapter storageAdapter = new QueryableIndexStorageAdapter(queryableIndex);
 
           // assert rowSignature
           Assert.assertEquals(expectedRowSignature, storageAdapter.getRowSignature());
+
+          // assert rollup
+          Assert.assertEquals(expectedRollup, queryableIndex.getMetadata().isRollup());
+
+          // asset query granulariy
+          Assert.assertEquals(expectedQueryGranularity, queryableIndex.getMetadata().getQueryGranularity());
+
+          // assert aggregator factories
+          Assert.assertArrayEquals(
+              expectedAggregatorFactories.toArray(new AggregatorFactory[0]),
+              queryableIndex.getMetadata().getAggregators()
+          );
 
           for (List<Object> row : FrameTestUtil.readRowsFromAdapter(storageAdapter, null, false).toList()) {
             foundResultRows.add(row.toArray());
@@ -668,12 +729,27 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         );
 
 
+        // tranforming rows for sketch assertions
+        List<Object[]> tansformedOutputRows = foundResultRows.stream().map(row -> {
+          Object[] tranformedRow = new Object[row.length];
+          for (int i = 0; i < row.length; i++) {
+            if (row[i] instanceof HyperLogLogCollector) {
+              tranformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinality();
+            } else {
+              tranformedRow[i] = row[i];
+            }
+          }
+          return tranformedRow;
+        }).collect(Collectors.toList());
+
         // assert data source name
-        Assert.assertEquals(dataSource, foundDataSource);
+        Assert.assertEquals(expectedDataSource, foundDataSource);
         // assert spec
-        assertTalariaSpec(talariaQuerySpec, foundSpec);
+        if (expectedTalariaQuerySpec != null) {
+          assertTalariaSpec(expectedTalariaQuerySpec, foundSpec);
+        }
         // assert results
-        assertResultsEquals(sql, expectedResultRows, foundResultRows);
+        assertResultsEquals(sql, expectedResultRows, tansformedOutputRows);
       }
       catch (Exception e) {
         throw new ISE(e, "Query %s failed", sql);
@@ -688,8 +764,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       // nothing to do
     }
 
-    // Made the visibility default to aid adding ut's easily with minimum parameters to set.
-    Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> runQueryWithResult()
+    // Made the visibility public to aid adding ut's easily with minimum parameters to set.
+    public Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> runQueryWithResult()
     {
       readyToRun();
       Preconditions.checkArgument(sql != null, "sql cannot be null");
@@ -711,18 +787,19 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                                  .map(row -> Arrays.toString(row))
                                                  .collect(Collectors.joining("\n")));
 
-
+          TalariaQuerySpec spec = indexingServiceClient.getQuerySpecForTask(controllerId);
+          log.info("found spec %s", spec);
           return new Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>>(
-              indexingServiceClient.getQuerySpecForTask(controllerId),
+              spec,
               rowSignatureListPair.get()
           );
         }
       }
       catch (Exception e) {
-        if (executionErrorMatcher == null) {
+        if (expectedExecutionErrorMatcher == null) {
           throw new ISE(e, "Query %s failed", sql);
         }
-        MatcherAssert.assertThat(e, executionErrorMatcher);
+        MatcherAssert.assertThat(e, expectedExecutionErrorMatcher);
         return null;
       }
     }
@@ -731,17 +808,17 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     {
       Preconditions.checkArgument(expectedResultRows != null, "Result rows cannot be null");
       Preconditions.checkArgument(expectedRowSignature != null, "Row signature cannot be null");
-      Preconditions.checkArgument(talariaQuerySpec != null, "Talaria Query spec not ");
+      Preconditions.checkArgument(expectedTalariaQuerySpec != null, "Talaria Query spec not ");
       Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> specAndResults = runQueryWithResult();
 
       Assert.assertEquals(expectedRowSignature, specAndResults.rhs.lhs);
       assertResultsEquals(sql, expectedResultRows, specAndResults.rhs.rhs);
-      assertTalariaSpec(talariaQuerySpec, specAndResults.lhs);
+      assertTalariaSpec(expectedTalariaQuerySpec, specAndResults.lhs);
     }
 
     public void verifyExecutionError()
     {
-      Preconditions.checkArgument(executionErrorMatcher != null, "Execution error matcher cannot be null");
+      Preconditions.checkArgument(expectedExecutionErrorMatcher != null, "Execution error matcher cannot be null");
       if (runQueryWithResult() != null) {
         throw new ISE("Query %s did not throw an exception", sql);
       }
