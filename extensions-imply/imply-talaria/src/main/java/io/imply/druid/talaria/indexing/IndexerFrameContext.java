@@ -10,7 +10,6 @@
 package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.talaria.exec.TalariaDataSegmentProvider;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSink;
@@ -28,13 +27,13 @@ public class IndexerFrameContext implements FrameContext
 {
   private final IndexerWorkerContext context;
   private final IndexIO indexIO;
-  private final TalariaDataSegmentProvider dataSegmentProvider;
+  private final DataSegmentProvider dataSegmentProvider;
   private final WorkerMemoryParameters memoryParameters;
 
-  IndexerFrameContext(
+  public IndexerFrameContext(
       IndexerWorkerContext context,
       IndexIO indexIO,
-      TalariaDataSegmentProvider dataSegmentProvider,
+      DataSegmentProvider dataSegmentProvider,
       WorkerMemoryParameters memoryParameters
   )
   {

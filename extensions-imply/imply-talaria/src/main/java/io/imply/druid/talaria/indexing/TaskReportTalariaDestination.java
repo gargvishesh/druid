@@ -26,4 +26,10 @@ public class TaskReportTalariaDestination implements TalariaDestination
   {
     return INSTANCE;
   }
+
+  @Override
+  public String toString()
+  {
+    return "TaskReportTalariaDestination{}";
+  }
 }
