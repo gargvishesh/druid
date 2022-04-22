@@ -46,7 +46,7 @@ public class TalariaTestIndexingServiceClient implements IndexingServiceClient
   private final Injector injector;
   private final ObjectMapper objectMapper;
   private final TaskActionClient taskActionClient;
-  private Map<String, Leader> inMemmoryLeaders = new HashMap<>();
+  private Map<String, Leader> inMemoryLeaders = new HashMap<>();
   private Map<String, Map<String, TaskReport>> reports = new HashMap<>();
   private Map<String, TalariaQuerySpec> talariaQuerySpec = new HashMap<>();
 
@@ -119,7 +119,7 @@ public class TalariaTestIndexingServiceClient implements IndexingServiceClient
           talariaTestLeaderContext
       );
 
-      inMemmoryLeaders.put(cTask.getId(), leader);
+      inMemoryLeaders.put(cTask.getId(), leader);
       status = leader.run();
 
 
@@ -139,7 +139,7 @@ public class TalariaTestIndexingServiceClient implements IndexingServiceClient
   @Override
   public String cancelTask(String taskId)
   {
-    inMemmoryLeaders.get(taskId).stopGracefully();
+    inMemoryLeaders.get(taskId).stopGracefully();
     return taskId;
   }
 
@@ -180,7 +180,7 @@ public class TalariaTestIndexingServiceClient implements IndexingServiceClient
   @Override
   public Map<String, Object> getTaskReport(String taskId)
   {
-    return (Map) inMemmoryLeaders.get(taskId).liveReports();
+    return (Map) inMemoryLeaders.get(taskId).liveReports();
   }
 
   @Override

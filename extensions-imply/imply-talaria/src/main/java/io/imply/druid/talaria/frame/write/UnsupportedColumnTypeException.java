@@ -30,7 +30,7 @@ public class UnsupportedColumnTypeException extends RuntimeException
   public static String message(final String columnName, @Nullable final ColumnType columnType)
   {
     return columnType == null
-           ? StringUtils.format("Cannot handle olumn [%s] with unknown type", columnName)
+           ? StringUtils.format("Cannot handle column [%s] with unknown type", columnName)
            : StringUtils.format("Cannot handle column [%s] with type [%s]", columnName, columnType);
   }
 

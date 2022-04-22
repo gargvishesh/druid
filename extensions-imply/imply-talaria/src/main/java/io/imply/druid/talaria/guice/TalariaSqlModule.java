@@ -11,6 +11,7 @@ package io.imply.druid.talaria.guice;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -48,7 +49,7 @@ public class TalariaSqlModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
+    if (!isLicensed()) {
       return Collections.emptyList();
     }
 
@@ -68,7 +69,7 @@ public class TalariaSqlModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
+    if (!isLicensed()) {
       return;
     }
 
@@ -91,7 +92,7 @@ public class TalariaSqlModule implements DruidModule
   @Talaria
   public QueryMakerFactory buildTalariaQueryMakerFactory(final Injector injector)
   {
-    if (!implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME)) {
+    if (!isLicensed()) {
       // This provider will not be used if none of the other Talaria stuff is bound, so this exception will
       // not actually be reached in production. But include it here anyway, to make it clear that it is only
       // expected to be used in concert with the rest of the extension.
@@ -102,4 +103,11 @@ public class TalariaSqlModule implements DruidModule
       return new NoopQueryMakerFactory();
     }
   }
+
+  @VisibleForTesting
+  protected boolean isLicensed()
+  {
+    return implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME);
+  }
+
 }
