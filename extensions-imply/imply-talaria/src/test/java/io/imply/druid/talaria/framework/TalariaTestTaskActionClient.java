@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
+package io.imply.druid.talaria.framework;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import org.apache.druid.indexing.common.TaskLockType;
+import org.apache.druid.indexing.common.TimeChunkLock;
+import org.apache.druid.indexing.common.actions.LockListAction;
+import org.apache.druid.indexing.common.actions.RetrieveUsedSegmentsAction;
+import org.apache.druid.indexing.common.actions.SegmentAllocateAction;
+import org.apache.druid.indexing.common.actions.TaskAction;
+import org.apache.druid.indexing.common.actions.TaskActionClient;
+import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class TalariaTestTaskActionClient implements TaskActionClient
+{
+
+  private static final String VERSION = "test";
+  private final ObjectMapper mapper;
+  private AtomicInteger counter = new AtomicInteger(-1);
+
+  public TalariaTestTaskActionClient(ObjectMapper mapper)
+  {
+    this.mapper = mapper;
+  }
+
+  @Override
+  public <RetType> RetType submit(TaskAction<RetType> taskAction)
+  {
+    if (taskAction instanceof SegmentAllocateAction) {
+      SegmentAllocateAction segmentAllocateAction = (SegmentAllocateAction) taskAction;
+
+      // TODO: remove the hardcoded partition logic.
+      return (RetType) new SegmentIdWithShardSpec(
+          segmentAllocateAction.getDataSource(),
+          Intervals.ETERNITY,
+          VERSION,
+          segmentAllocateAction.getPartialShardSpec().complete(mapper, counter.addAndGet(1), 100)
+      );
+    } else if (taskAction instanceof LockListAction) {
+      return (RetType) ImmutableList.of(new TimeChunkLock(
+          TaskLockType.EXCLUSIVE,
+          "group",
+          "ds",
+          Intervals.ETERNITY,
+          VERSION,
+          0
+      ));
+    } else if (taskAction instanceof RetrieveUsedSegmentsAction) {
+      return (RetType) ImmutableSet.of();
+    } else {
+      return null;
+    }
+  }
+}
