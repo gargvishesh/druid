@@ -49,6 +49,7 @@ import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.JoinDataSource;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.dimension.DimensionSpec;
@@ -920,7 +921,7 @@ public class DruidQuery
     if (!Granularities.ALL.equals(queryGranularity) || grouping.hasGroupingDimensionsDropped()) {
       theContext.put(TimeseriesQuery.SKIP_EMPTY_BUCKETS, true);
     }
-    theContext.putAll(plannerContext.getQueryContext());
+    theContext.putAll(plannerContext.getQueryContext().getMergedParams());
 
     final Pair<DataSource, Filtration> dataSourceFiltrationPair = getFiltration(
         dataSource,
@@ -1040,7 +1041,7 @@ public class DruidQuery
         Granularities.ALL,
         grouping.getAggregatorFactories(),
         postAggregators,
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        ImmutableSortedMap.copyOf(plannerContext.getQueryContext().getMergedParams())
     );
   }
 
@@ -1097,7 +1098,7 @@ public class DruidQuery
         havingSpec,
         Optional.ofNullable(sorting).orElse(Sorting.none()).limitSpec(),
         grouping.getSubtotals().toSubtotalsSpec(grouping.getDimensionSpecs()),
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        ImmutableSortedMap.copyOf(plannerContext.getQueryContext().getMergedParams())
     );
     // We don't apply timestamp computation optimization yet when limit is pushed down. Maybe someday.
     if (query.getLimitSpec() instanceof DefaultLimitSpec && query.isApplyLimitPushDown()) {
@@ -1256,14 +1257,12 @@ public class DruidQuery
         filtration.getDimFilter(),
         scanColumnsList,
         false,
-        ImmutableSortedMap.copyOf(
-            withScanSignatureIfNeeded(
-                virtualColumns,
-                scanColumnsList,
-                queryFeatureInspector,
-                plannerContext.getQueryContext()
-            )
-        )
+        withScanSignatureIfNeeded(
+            virtualColumns,
+            scanColumnsList,
+            queryFeatureInspector,
+            plannerContext.getQueryContext()
+        ).getMergedParams()
     );
     // END: Imply-modified code for Talaria execution
   }
@@ -1273,11 +1272,11 @@ public class DruidQuery
    * Returns a copy of "queryContext" with {@link #CTX_TALARIA_SCAN_SIGNATURE} added if this query is running
    * under a Talaria executor.
    */
-  private Map<String, Object> withScanSignatureIfNeeded(
+  private QueryContext withScanSignatureIfNeeded(
       final VirtualColumns virtualColumns,
       final List<String> scanColumns,
       final QueryFeatureInspector queryFeatureInspector,
-      final Map<String, Object> queryContext
+      final QueryContext queryContext
   )
   {
     if (queryFeatureInspector.getClass().getName().equals("io.imply.druid.talaria.sql.TalariaQueryMaker")) {
@@ -1299,9 +1298,11 @@ public class DruidQuery
       final RowSignature signature = scanSignatureBuilder.build();
 
       try {
-        final Map<String, Object> newMap = new HashMap<>(queryContext);
-        newMap.put(CTX_TALARIA_SCAN_SIGNATURE, plannerContext.getJsonMapper().writeValueAsString(signature));
-        return newMap;
+        queryContext.addSystemParam(
+            CTX_TALARIA_SCAN_SIGNATURE,
+            plannerContext.getJsonMapper().writeValueAsString(signature)
+        );
+        return queryContext;
       }
       catch (JsonProcessingException e) {
         throw new RuntimeException(e);
