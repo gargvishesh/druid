@@ -217,6 +217,18 @@ public class WorkerImpl implements Worker
     // Close stage output processors and running futures (if present)
     closer.register(() -> workerExec.cancel(cancellationId));
 
+
+
+    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportPublisher(
+        task.getControllerTaskId(),
+        id(),
+        leaderClient,
+        id(),
+        TalariaTasks.getHostFromSelfNode(selfDruidNode),
+        1000 * 2
+    );
+    closer.register(talariaWarningReportPublisher::close);
+
     // TODO(gianm): consider using a different thread pool for connecting
     final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(workerExec.getExecutorService());
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
@@ -259,7 +271,8 @@ public class WorkerImpl implements Worker
                   workerExec,
                   cancellationId,
                   context.threadCount(),
-                  stageFrameContexts.get(stageDefinition.getId())
+                  stageFrameContexts.get(stageDefinition.getId()),
+                  talariaWarningReportPublisher
               );
 
           if (partitionBoundariesFuture != null) {
@@ -665,7 +678,8 @@ public class WorkerImpl implements Worker
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
-      final FrameContext frameContext
+      final FrameContext frameContext,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final WorkOrder workOrder = kernel.getWorkOrder();
@@ -736,14 +750,7 @@ public class WorkerImpl implements Worker
             parallelism,
             processorBouncer,
             counters,
-            new TalariaWarningReportPublisher(
-                task.getControllerTaskId(),
-                id(),
-                leaderClient,
-                id(),
-                TalariaTasks.getHostFromSelfNode(selfDruidNode),
-                stageDef.getStageNumber()
-            )
+            talariaWarningReportPublisher
         );
 
     final ListenableFuture<ClusterByPartitions> stagePartitionBoundariesFuture;

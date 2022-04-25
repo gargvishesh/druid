@@ -33,7 +33,6 @@ public class TalariaWarningReportPublisher implements Closeable
   private final String taskId;
   @Nullable
   private final String host;
-  private final Integer stageNumber;
   private final LeaderClient leaderClient;
   @Nullable
   private ExecutorService periodicWarningsFlusherExec = null;
@@ -46,7 +45,6 @@ public class TalariaWarningReportPublisher implements Closeable
       final LeaderClient leaderClient,
       final String taskId,
       @Nullable final String host,
-      final Integer stageNumber,
       final long flushIntervalMs
   )
   {
@@ -55,7 +53,6 @@ public class TalariaWarningReportPublisher implements Closeable
     this.leaderClient = leaderClient;
     this.taskId = taskId;
     this.host = host;
-    this.stageNumber = stageNumber;
 
     if (flushIntervalMs != -1) {
       if (flushIntervalMs <= 0) {
@@ -64,11 +61,7 @@ public class TalariaWarningReportPublisher implements Closeable
       }
 
       this.periodicWarningsFlusherExec = Execs.singleThreaded("periodic-warnings-flusher-%s");
-      periodicWarningsFlusherExec.submit(() -> {
-        while (true) {
-
-        }
-      });
+      periodicWarningsFlusherExec.submit(() -> periodicWarningsFlusherRunnable(flushIntervalMs));
     }
   }
 
@@ -81,6 +74,10 @@ public class TalariaWarningReportPublisher implements Closeable
         sleepTimeMillis += ThreadLocalRandom.current()
                                             .nextLong(-FREQUENCY_CHECK_JITTER_MS, 2 * FREQUENCY_CHECK_JITTER_MS);
       }
+      synchronized (lock) {
+        leaderClient.postWorkerWarning(leaderId, workerId, unflushedReports);
+        unflushedReports.clear();
+      }
 
       try {
         Thread.sleep(sleepTimeMillis);
@@ -91,7 +88,7 @@ public class TalariaWarningReportPublisher implements Closeable
     }
   }
 
-  public void publishException(Throwable e)
+  public void publishException(final int stageNumber, Throwable e)
   {
     // TODO: Chomp the exception stack trace if it is more than a predetermined size
     synchronized (lock) {
@@ -112,5 +109,8 @@ public class TalariaWarningReportPublisher implements Closeable
   public void close()
   {
     flush();
+    if (periodicWarningsFlusherExec != null) {
+      periodicWarningsFlusherExec.shutdownNow();
+    }
   }
 }

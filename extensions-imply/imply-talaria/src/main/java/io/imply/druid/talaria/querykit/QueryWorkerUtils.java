@@ -129,7 +129,8 @@ public class QueryWorkerUtils
                   -1
               ),
               talariaCounters.getOrCreateWarningCounters(workerNumber, stageDefinition.getStageNumber()),
-              talariaWarningReportPublisher
+              talariaWarningReportPublisher,
+              stageDefinition.getStageNumber()
           ),
           QueryWorkerInput::forSegment
       );
@@ -176,7 +177,8 @@ public class QueryWorkerUtils
       final File temporaryDirectory,
       final TalariaCounters.ChannelCounters inputExternalCounter,
       final WarningCounters warningCounters,
-      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
+      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher,
+      final int stageNumber
   )
   {
     final InputRowSchema schema = new InputRowSchema(
@@ -245,7 +247,7 @@ public class QueryWorkerUtils
                               catch (ParseException e) {
                                 warningCounters.incrementErrorCount(CannotParseExternalDataFault.CODE);
                                 if (talariaWarningReportPublisher != null) {
-                                  talariaWarningReportPublisher.publishException(e);
+                                  talariaWarningReportPublisher.publishException(stageNumber, e);
                                 }
                               }
                             }
