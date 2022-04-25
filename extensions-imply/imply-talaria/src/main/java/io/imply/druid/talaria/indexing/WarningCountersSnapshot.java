@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class WarningCountersSnapshot
 {
-  final private Map<String, Long> warningCount;
+  private final Map<String, Long> warningCount;
 
   @JsonCreator
   public WarningCountersSnapshot(

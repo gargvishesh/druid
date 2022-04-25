@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class WarningCounters
 {
-  final private ConcurrentHashMap<String, Long> count = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Long> count = new ConcurrentHashMap<>();
 
   public void incrementErrorCount(String errorCode)
   {
@@ -27,7 +27,7 @@ public class WarningCounters
     return count.getOrDefault(errorCode, 0L);
   }
 
-  synchronized public long totalErrorCount()
+  public synchronized long totalErrorCount()
   {
     return count.values().stream().reduce(0L, Long::sum);
   }

@@ -694,9 +694,9 @@ public class LeaderImpl implements Leader
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
     boolean faultsExceeded = faultsExceededChecker.addFaults(errorReports.stream()
-                                                .map(TalariaErrorReport::getFault)
-                                                .collect(Collectors.toList()));
-    if(faultsExceeded) {
+                                                                         .map(TalariaErrorReport::getFault)
+                                                                         .collect(Collectors.toList()));
+    if (faultsExceeded) {
       // TODO: Add a new fault and set the error
     }
     workerWarnings.addAll(errorReports);

@@ -25,20 +25,20 @@ import java.util.concurrent.ThreadLocalRandom;
 public class TalariaWarningReportPublisher implements Closeable
 {
   @GuardedBy("lock")
-  final private List<TalariaErrorReport> unflushedReports = new ArrayList<>();
-  final private Object lock = new Object();
+  private final List<TalariaErrorReport> unflushedReports = new ArrayList<>();
+  private final Object lock = new Object();
 
-  final private String leaderId;
-  final private String workerId;
-  final private String taskId;
+  private final String leaderId;
+  private final String workerId;
+  private final String taskId;
   @Nullable
-  final private String host;
-  final private Integer stageNumber;
-  final private LeaderClient leaderClient;
+  private final String host;
+  private final Integer stageNumber;
+  private final LeaderClient leaderClient;
   @Nullable
   private ExecutorService periodicWarningsFlusherExec = null;
 
-  final private long FREQUENCY_CHECK_JITTER_MS = 30;
+  private final long FREQUENCY_CHECK_JITTER_MS = 30L;
 
   public TalariaWarningReportPublisher(
       final String leaderId,
@@ -83,9 +83,9 @@ public class TalariaWarningReportPublisher implements Closeable
       }
 
       try {
-
         Thread.sleep(sleepTimeMillis);
-      } catch (InterruptedException e) {
+      }
+      catch (InterruptedException e) {
         break;
       }
     }

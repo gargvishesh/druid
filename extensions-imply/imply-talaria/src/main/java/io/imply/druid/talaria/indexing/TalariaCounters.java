@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Class that tracks query counters.
- *
+ * <p>
  * Counters are all tracked on a per-worker basis by the {@link #workerCountersMap} object.
- *
+ * <p>
  * Immutable {@link TalariaCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
  * worker-to-controller counters propagation (see {@link TalariaIndexerTaskClient#postCounters}) and reporting
  * to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
@@ -121,7 +121,7 @@ public class TalariaCounters
       }
 
       List<TalariaCountersSnapshot.WarningCounters> warningCountersList = new ArrayList<>();
-      for (Map.Entry<Integer, WarningCounters> warningCountersEntry :workerEntry.getValue().warningCountersMap.entrySet()){
+      for (Map.Entry<Integer, WarningCounters> warningCountersEntry : workerEntry.getValue().warningCountersMap.entrySet()) {
         warningCountersList.add(
             new TalariaCountersSnapshot.WarningCounters(
                 warningCountersEntry.getKey(), warningCountersEntry.getValue().snapshot()

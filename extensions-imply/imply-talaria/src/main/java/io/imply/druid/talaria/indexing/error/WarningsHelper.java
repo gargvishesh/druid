@@ -17,8 +17,8 @@ import java.util.Map;
 
 public class WarningsHelper
 {
-  static public final String CTX_MAX_PARSE_EXCEPTIONS_ALLOWED = "maxParseExceptions";
-  static public final Long DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED = -1L;
+  public static final String CTX_MAX_PARSE_EXCEPTIONS_ALLOWED = "maxParseExceptions";
+  public static final Long DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED = -1L;
 
   public static class FaultsExceededChecker
   {
