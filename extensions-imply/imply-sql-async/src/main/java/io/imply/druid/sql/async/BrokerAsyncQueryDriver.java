@@ -22,6 +22,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.server.security.AuthenticationResult;
@@ -34,7 +35,6 @@ import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
@@ -70,7 +70,10 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
             ImmutableMap.of(FEATURE_NAME, FEATURE_VALUE),
             sqlQuery.getContext()));
 
-    final String sqlQueryId = lifecycle.initialize(updatedSqlQuery.getQuery(), updatedSqlQuery.getContext());
+    final String sqlQueryId = lifecycle.initialize(
+        updatedSqlQuery.getQuery(),
+        new QueryContext(updatedSqlQuery.getContext())
+    );
     final String asyncResultId = SqlAsyncUtil.createAsyncResultId(context.brokerId, sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
