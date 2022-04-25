@@ -52,6 +52,7 @@ import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
+import io.imply.druid.talaria.indexing.error.WarningsHelper;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
@@ -210,6 +211,7 @@ public class LeaderImpl implements Leader
   private volatile WorkerClient netClient;
 
   private long maxParseExceptions = -1;
+  private volatile WarningsHelper.FaultsExceededChecker faultsExceededChecker = null;
 
   public LeaderImpl(
       final TalariaControllerTask task,
@@ -425,7 +427,16 @@ public class LeaderImpl implements Leader
         task.getTuningConfig().getMaxNumConcurrentSubTasks()
     );
 
-    this.maxParseExceptions = task.getSqlQueryContext().getOrDefault("maxParseExceptions", -1).toString();
+    if (task.getSqlQueryContext() != null) {
+      this.maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
+                                                        .get(WarningsHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
+                                        .map(DimensionHandlerUtils::convertObjectToLong)
+                                        .orElse(WarningsHelper.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
+    }
+
+    this.faultsExceededChecker = new WarningsHelper.FaultsExceededChecker(
+        ImmutableMap.of(CannotParseExternalDataFault.class, maxParseExceptions)
+    );
 
     final QueryDefinition queryDef = makeQueryDefinition(
         id(),
@@ -682,6 +693,12 @@ public class LeaderImpl implements Leader
   @Override
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
+    boolean faultsExceeded = faultsExceededChecker.addFaults(errorReports.stream()
+                                                .map(TalariaErrorReport::getFault)
+                                                .collect(Collectors.toList()));
+    if(faultsExceeded) {
+      // TODO: Add a new fault and set the error
+    }
     workerWarnings.addAll(errorReports);
   }
 
