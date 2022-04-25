@@ -40,7 +40,6 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Authenticator;
 import org.apache.druid.server.security.AuthenticatorMapper;
@@ -54,11 +53,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -97,9 +94,6 @@ public class DruidMeta extends MetaImpl
   }
 
   private static final Logger LOG = new Logger(DruidMeta.class);
-  private static final Set<String> SENSITIVE_CONTEXT_FIELDS = ImmutableSet.of(
-      "user", "password"
-  );
 
   private final SqlLifecycleFactory sqlLifecycleFactory;
   private final ScheduledExecutorService exec;
@@ -146,21 +140,15 @@ public class DruidMeta extends MetaImpl
   {
     try {
       // Build connection context.
-      final Map<String, Object> secret = new HashMap<>();
-      final Map<String, Object> contextMap = new HashMap<>();
+      final ImmutableMap.Builder<String, Object> context = ImmutableMap.builder();
       if (info != null) {
         for (Map.Entry<String, String> entry : info.entrySet()) {
-          if (SENSITIVE_CONTEXT_FIELDS.contains(entry.getKey())) {
-            secret.put(entry.getKey(), entry.getValue());
-          } else {
-            contextMap.put(entry.getKey(), entry.getValue());
-          }
+          context.put(entry);
         }
       }
       // we don't want to stringify arrays for JDBC ever because avatica needs to handle this
-      final QueryContext context = new QueryContext(contextMap);
-      context.addSystemParam(PlannerContext.CTX_SQL_STRINGIFY_ARRAYS, false);
-      openDruidConnection(ch.id, secret, context);
+      context.put(PlannerContext.CTX_SQL_STRINGIFY_ARRAYS, false);
+      openDruidConnection(ch.id, context.build());
     }
     catch (NoSuchConnectionException e) {
       throw e;
@@ -709,7 +697,7 @@ public class DruidMeta extends MetaImpl
   @Nullable
   private AuthenticationResult authenticateConnection(final DruidConnection connection)
   {
-    Map<String, Object> context = connection.userSecret();
+    Map<String, Object> context = connection.context();
     for (Authenticator authenticator : authenticators) {
       LOG.debug("Attempting authentication with authenticator[%s]", authenticator.getClass());
       AuthenticationResult authenticationResult = authenticator.authenticateJDBCContext(context);
@@ -726,11 +714,7 @@ public class DruidMeta extends MetaImpl
     return null;
   }
 
-  private DruidConnection openDruidConnection(
-      final String connectionId,
-      final Map<String, Object> userSecret,
-      final QueryContext context
-  )
+  private DruidConnection openDruidConnection(final String connectionId, final Map<String, Object> context)
   {
     if (connectionCount.incrementAndGet() > config.getMaxConnections()) {
       // O(connections) but we don't expect this to happen often (it's a last-ditch effort to clear out
@@ -760,7 +744,7 @@ public class DruidMeta extends MetaImpl
 
     final DruidConnection putResult = connections.putIfAbsent(
         connectionId,
-        new DruidConnection(connectionId, config.getMaxStatementsPerConnection(), userSecret, context)
+        new DruidConnection(connectionId, config.getMaxStatementsPerConnection(), context)
     );
 
     if (putResult != null) {

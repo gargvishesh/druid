@@ -312,7 +312,7 @@ public class TalariaQueryMaker implements QueryMaker
                     .put("id", taskId)
                     .put("spec", querySpec)
                     .put("sqlQuery", plannerContext.getSql())
-                    .put("sqlQueryContext", plannerContext.getQueryContext().getMergedParams())
+                    .put("sqlQueryContext", plannerContext.getQueryContext())
                     .put("sqlTypeNames", sqlTypeNames)
                     .build();
 

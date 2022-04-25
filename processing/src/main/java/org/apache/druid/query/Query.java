@@ -61,6 +61,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(name = Query.SELECT, value = SelectQuery.class),
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class)
+
 })
 public interface Query<T>
 {
@@ -94,23 +95,7 @@ public interface Query<T>
 
   DateTimeZone getTimezone();
 
-  /**
-   * Use {@link #getQueryContext()} instead.
-   */
-  @Deprecated
   Map<String, Object> getContext();
-
-  /**
-   * Returns QueryContext for this query.
-   *
-   * Note for query context serialization and deserialization.
-   * Currently, once a query is serialized, its queryContext can be different from the original queryContext
-   * after the query is deserialized back. If the queryContext has any {@link QueryContext#defaultParams} or
-   * {@link QueryContext#systemParams} in it, those will be found in {@link QueryContext#userParams}
-   * after it is deserialized. This is because {@link BaseQuery#getContext()} uses
-   * {@link QueryContext#getMergedParams()} for serialization, and queries accept a map for deserialization.
-   */
-  QueryContext getQueryContext();
 
   <ContextType> ContextType getContextValue(String key);
 
@@ -174,7 +159,7 @@ public interface Query<T>
   @Nullable
   default String getSqlQueryId()
   {
-    return getContextValue(BaseQuery.SQL_QUERY_ID);
+    return null;
   }
 
   /**

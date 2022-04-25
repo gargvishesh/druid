@@ -35,7 +35,6 @@ import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.query.QueryTimeoutException;
@@ -44,7 +43,6 @@ import org.apache.druid.server.QueryStats;
 import org.apache.druid.server.RequestLogLine;
 import org.apache.druid.server.log.RequestLogger;
 import org.apache.druid.server.security.Access;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ForbiddenException;
@@ -61,6 +59,7 @@ import org.apache.druid.sql.http.SqlQuery;
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +74,7 @@ import java.util.stream.Collectors;
  * It ensures that a SQL query goes through the following stages, in the proper order:
  *
  * <ol>
- * <li>Initialization ({@link #initialize(String, QueryContext)})</li>
+ * <li>Initialization ({@link #initialize(String, Map)})</li>
  * <li>Validation and Authorization ({@link #validateAndAuthorize(HttpServletRequest)} or {@link #validateAndAuthorize(AuthenticationResult)})</li>
  * <li>Planning ({@link #plan()})</li>
  * <li>Execution ({@link #execute()})</li>
@@ -92,7 +91,6 @@ public class SqlLifecycle
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final QueryScheduler queryScheduler;
-  private final AuthConfig authConfig;
   private final long startMs;
   private final long startNs;
 
@@ -106,7 +104,7 @@ public class SqlLifecycle
 
   // init during intialize
   private String sql;
-  private QueryContext queryContext;
+  private Map<String, Object> queryContext;
   private List<TypedValue> parameters;
   // init during plan
   private PlannerContext plannerContext;
@@ -119,7 +117,6 @@ public class SqlLifecycle
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       QueryScheduler queryScheduler,
-      AuthConfig authConfig,
       long startMs,
       long startNs
   )
@@ -128,7 +125,6 @@ public class SqlLifecycle
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.queryScheduler = queryScheduler;
-    this.authConfig = authConfig;
     this.startMs = startMs;
     this.startNs = startNs;
     this.parameters = Collections.emptyList();
@@ -139,7 +135,7 @@ public class SqlLifecycle
    *
    * If successful (it will be), it will transition the lifecycle to {@link State#INITIALIZED}.
    */
-  public String initialize(String sql, QueryContext queryContext)
+  public String initialize(String sql, Map<String, Object> queryContext)
   {
     transition(State.NEW, State.INITIALIZED);
     this.sql = sql;
@@ -147,21 +143,24 @@ public class SqlLifecycle
     return sqlQueryId();
   }
 
-  private QueryContext contextWithSqlId(QueryContext queryContext)
+  private Map<String, Object> contextWithSqlId(Map<String, Object> queryContext)
   {
+    Map<String, Object> newContext = new HashMap<>();
+    if (queryContext != null) {
+      newContext.putAll(queryContext);
+    }
     // "bySegment" results are never valid to use with SQL because the result format is incompatible
     // so, overwrite any user specified context to avoid exceptions down the line
-
-    if (queryContext.removeUserParam(QueryContexts.BY_SEGMENT_KEY) != null) {
+    if (newContext.remove(QueryContexts.BY_SEGMENT_KEY) != null) {
       log.warn("'bySegment' results are not supported for SQL queries, ignoring query context parameter");
     }
-    queryContext.addDefaultParam(PlannerContext.CTX_SQL_QUERY_ID, UUID.randomUUID().toString());
-    return queryContext;
+    newContext.computeIfAbsent(PlannerContext.CTX_SQL_QUERY_ID, k -> UUID.randomUUID().toString());
+    return newContext;
   }
 
   private String sqlQueryId()
   {
-    return queryContext.getAsString(PlannerContext.CTX_SQL_QUERY_ID);
+    return (String) this.queryContext.get(PlannerContext.CTX_SQL_QUERY_ID);
   }
 
   /**
@@ -231,7 +230,7 @@ public class SqlLifecycle
       this.plannerContext.setAuthenticationResult(authenticationResult);
       // set parameters on planner context, if parameters have already been set
       this.plannerContext.setParameters(parameters);
-      this.validationResult = planner.validate(authConfig.authorizeQueryContextParams());
+      this.validationResult = planner.validate();
       return validationResult;
     }
     // we can't collapse catch clauses since SqlPlanningException has type-sensitive constructors.
@@ -347,7 +346,7 @@ public class SqlLifecycle
   {
     Sequence<Object[]> result;
 
-    initialize(sql, new QueryContext(queryContext));
+    initialize(sql, queryContext);
     try {
       setParameters(SqlQuery.getParameterList(parameters));
       validateAndAuthorize(authenticationResult);
@@ -418,7 +417,7 @@ public class SqlLifecycle
       final long bytesWritten
   )
   {
-    if (queryContext == null) {
+    if (sql == null) {
       // Never initialized, don't log or emit anything.
       return;
     }
@@ -465,12 +464,11 @@ public class SqlLifecycle
       statsMap.put("sqlQuery/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
       statsMap.put("sqlQuery/bytes", bytesWritten);
       statsMap.put("success", success);
+      statsMap.put("context", queryContext);
       if (plannerContext != null) {
         statsMap.put("identity", plannerContext.getAuthenticationResult().getIdentity());
-        queryContext.addSystemParam("nativeQueryIds", plannerContext.getNativeQueryIds().toString());
+        queryContext.put("nativeQueryIds", plannerContext.getNativeQueryIds().toString());
       }
-      final Map<String, Object> context = queryContext.getMergedParams();
-      statsMap.put("context", context);
       if (e != null) {
         statsMap.put("exception", e.toString());
 
@@ -483,7 +481,7 @@ public class SqlLifecycle
       requestLogger.logSqlQuery(
           RequestLogLine.forSql(
               sql,
-              context,
+              queryContext,
               DateTimes.utc(startMs),
               remoteAddress,
               new QueryStats(statsMap)
@@ -504,7 +502,7 @@ public class SqlLifecycle
   }
 
   @VisibleForTesting
-  QueryContext getQueryContext()
+  Map<String, Object> getQueryContext()
   {
     return queryContext;
   }

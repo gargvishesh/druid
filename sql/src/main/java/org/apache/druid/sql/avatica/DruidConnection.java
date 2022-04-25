@@ -22,13 +22,16 @@ package org.apache.druid.sql.avatica;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.sql.SqlLifecycleFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
@@ -41,11 +44,13 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DruidConnection
 {
   private static final Logger LOG = new Logger(DruidConnection.class);
+  private static final Set<String> SENSITIVE_CONTEXT_FIELDS = Sets.newHashSet(
+      "user", "password"
+  );
 
   private final String connectionId;
   private final int maxStatements;
-  private final ImmutableMap<String, Object> userSecret;
-  private final QueryContext context;
+  private final ImmutableMap<String, Object> context;
   private final AtomicInteger statementCounter = new AtomicInteger();
   private final AtomicReference<Future<?>> timeoutFuture = new AtomicReference<>();
 
@@ -61,14 +66,12 @@ public class DruidConnection
   public DruidConnection(
       final String connectionId,
       final int maxStatements,
-      final Map<String, Object> userSecret,
-      final QueryContext context
+      final Map<String, Object> context
   )
   {
     this.connectionId = Preconditions.checkNotNull(connectionId);
     this.maxStatements = maxStatements;
-    this.userSecret = ImmutableMap.copyOf(userSecret);
-    this.context = context;
+    this.context = ImmutableMap.copyOf(context);
     this.statements = new ConcurrentHashMap<>();
   }
 
@@ -92,11 +95,18 @@ public class DruidConnection
         throw DruidMeta.logFailure(new ISE("Too many open statements, limit is[%,d]", maxStatements));
       }
 
+      // remove sensitive fields from the context, only the connection's context needs to have authentication
+      // credentials
+      Map<String, Object> sanitizedContext = Maps.filterEntries(
+          context,
+          e -> !SENSITIVE_CONTEXT_FIELDS.contains(e.getKey())
+      );
+
       @SuppressWarnings("GuardedBy")
       final DruidStatement statement = new DruidStatement(
           connectionId,
           statementId,
-          context,
+          ImmutableSortedMap.copyOf(sanitizedContext),
           sqlLifecycleFactory.factorize(),
           () -> {
             // onClose function for the statement
@@ -163,8 +173,8 @@ public class DruidConnection
     return this;
   }
 
-  public Map<String, Object> userSecret()
+  public Map<String, Object> context()
   {
-    return userSecret;
+    return context;
   }
 }

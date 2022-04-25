@@ -50,7 +50,6 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.ForwardingQueryProcessingPool;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -440,7 +439,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   private boolean planQueryOnly(String sql, Map<String, Object> queryContext) throws RelConversionException
   {
     SqlLifecycle lifecycle = sqlLifeCycleFactory.factorize();
-    lifecycle.initialize(sql, new QueryContext(queryContext));
+    lifecycle.initialize(sql, queryContext);
     lifecycle.setParameters(SqlQuery.getParameterList(ImmutableList.of()));
     lifecycle.validateAndAuthorize(CalciteTests.REGULAR_USER_AUTH_RESULT);
     lifecycle.plan();

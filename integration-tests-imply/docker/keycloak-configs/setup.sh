@@ -32,10 +32,6 @@ set -e
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceonlyuser --new-password helloworld
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourceonlyuser --cclientid some-druid-cluster --rolename datasourceOnlyRole
 
-/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourceandcontextparamsuser -s enabled=true
-/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceandcontextparamsuser --new-password helloworld
-/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourceandcontextparamsuser --cclientid some-druid-cluster --rolename datasourceAndContextParamsRole
-
 /opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewithsysuser -s enabled=true
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewithsysuser --new-password helloworld
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcewithsysuser --cclientid some-druid-cluster --rolename datasourceWithSysRole

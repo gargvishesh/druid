@@ -41,7 +41,6 @@ public class QueryLifecycleFactory
   private final RequestLogger requestLogger;
   private final AuthorizerMapper authorizerMapper;
   private final DefaultQueryConfig defaultQueryConfig;
-  private final AuthConfig authConfig;
 
   @Inject
   public QueryLifecycleFactory(
@@ -62,7 +61,6 @@ public class QueryLifecycleFactory
     this.requestLogger = requestLogger;
     this.authorizerMapper = authorizerMapper;
     this.defaultQueryConfig = queryConfigSupplier.get();
-    this.authConfig = authConfig;
   }
 
   public QueryLifecycle factorize()
@@ -75,7 +73,6 @@ public class QueryLifecycleFactory
         requestLogger,
         authorizerMapper,
         defaultQueryConfig,
-        authConfig,
         System.currentTimeMillis(),
         System.nanoTime()
     );

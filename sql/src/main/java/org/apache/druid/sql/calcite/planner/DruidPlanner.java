@@ -77,6 +77,7 @@ import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryContexts;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.server.security.Action;
 import org.apache.druid.server.security.Resource;
@@ -92,6 +93,7 @@ import org.apache.druid.sql.calcite.run.QueryMakerFactory;
 import org.apache.druid.utils.Throwables;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -129,7 +131,7 @@ public class DruidPlanner implements Closeable
    *
    * @return set of {@link Resource} corresponding to any Druid datasources or views which are taking part in the query.
    */
-  public ValidationResult validate(boolean authorizeContextParams) throws SqlParseException, ValidationException
+  public ValidationResult validate() throws SqlParseException, ValidationException
   {
     resetPlanner();
     final ParsedNodes parsed = ParsedNodes.create(planner.parse(plannerContext.getSql()));
@@ -152,11 +154,6 @@ public class DruidPlanner implements Closeable
       final String targetDataSource = validateAndGetDataSourceForInsert(parsed.getInsertNode());
       resourceActions.add(new ResourceAction(new Resource(targetDataSource, ResourceType.DATASOURCE), Action.WRITE));
     }
-    if (authorizeContextParams) {
-      plannerContext.getQueryContext().getUserParams().keySet().forEach(contextParam -> resourceActions.add(
-          new ResourceAction(new Resource(contextParam, ResourceType.QUERY_CONTEXT), Action.WRITE)
-      ));
-    }
 
     plannerContext.setResourceActions(resourceActions);
     return new ValidationResult(resourceActions);
@@ -166,7 +163,7 @@ public class DruidPlanner implements Closeable
    * Prepare an SQL query for execution, including some initial parsing and validation and any dynamic parameter type
    * resolution, to support prepared statements via JDBC.
    *
-   * In some future this could perhaps re-use some of the work done by {@link #validate(boolean)}
+   * In some future this could perhaps re-use some of the work done by {@link #validate()}
    * instead of repeating it, but that day is not today.
    */
   public PrepareResult prepare() throws SqlParseException, ValidationException, RelConversionException
@@ -197,7 +194,7 @@ public class DruidPlanner implements Closeable
    * Ideally, the query can be planned into a native Druid query, using {@link #planWithDruidConvention}, but will
    * fall-back to {@link #planWithBindableConvention} if this is not possible.
    *
-   * In some future this could perhaps re-use some of the work done by {@link #validate(boolean)}
+   * In some future this could perhaps re-use some of the work done by {@link #validate()}
    * instead of repeating it, but that day is not today.
    */
   public PlannerResult plan() throws SqlParseException, ValidationException, RelConversionException
@@ -208,7 +205,7 @@ public class DruidPlanner implements Closeable
 
     try {
       if (parsed.getIngestionGranularity() != null) {
-        plannerContext.getQueryContext().addSystemParam(
+        plannerContext.getQueryContext().put(
             DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY,
             plannerContext.getJsonMapper().writeValueAsString(parsed.getIngestionGranularity())
         );
@@ -246,7 +243,7 @@ public class DruidPlanner implements Closeable
         }
       }
       Logger logger = log;
-      if (!plannerContext.getQueryContext().isDebug()) {
+      if (!QueryContexts.isDebug(plannerContext.getQueryContext())) {
         logger = log.noStackTrace();
       }
       String errorMessage = buildSQLPlanningErrorMessage(cannotPlanException);

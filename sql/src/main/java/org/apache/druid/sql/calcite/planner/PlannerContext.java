@@ -34,7 +34,6 @@ import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.BaseQuery;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.ResourceAction;
@@ -46,7 +45,9 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -79,7 +80,7 @@ public class PlannerContext
   private final PlannerConfig plannerConfig;
   private final DateTime localNow;
   private final DruidSchemaCatalog rootSchema;
-  private final QueryContext queryContext;
+  private final Map<String, Object> queryContext;
   private final String sqlQueryId;
   private final boolean stringifyArrays;
   private final CopyOnWriteArrayList<String> nativeQueryIds = new CopyOnWriteArrayList<>();
@@ -106,7 +107,7 @@ public class PlannerContext
       final DateTime localNow,
       final boolean stringifyArrays,
       final DruidSchemaCatalog rootSchema,
-      final QueryContext queryContext
+      final Map<String, Object> queryContext
   )
   {
     this.sql = sql;
@@ -115,7 +116,7 @@ public class PlannerContext
     this.jsonMapper = jsonMapper;
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
     this.rootSchema = rootSchema;
-    this.queryContext = queryContext;
+    this.queryContext = queryContext != null ? new HashMap<>(queryContext) : new HashMap<>();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
     this.stringifyArrays = stringifyArrays;
 
@@ -134,32 +135,38 @@ public class PlannerContext
       final ObjectMapper jsonMapper,
       final PlannerConfig plannerConfig,
       final DruidSchemaCatalog rootSchema,
-      final QueryContext queryContext
+      final Map<String, Object> queryContext
   )
   {
     final DateTime utcNow;
     final DateTimeZone timeZone;
     final boolean stringifyArrays;
 
-    final Object stringifyParam = queryContext.get(CTX_SQL_STRINGIFY_ARRAYS);
-    final Object tsParam = queryContext.get(CTX_SQL_CURRENT_TIMESTAMP);
-    final Object tzParam = queryContext.get(CTX_SQL_TIME_ZONE);
+    if (queryContext != null) {
+      final Object stringifyParam = queryContext.get(CTX_SQL_STRINGIFY_ARRAYS);
+      final Object tsParam = queryContext.get(CTX_SQL_CURRENT_TIMESTAMP);
+      final Object tzParam = queryContext.get(CTX_SQL_TIME_ZONE);
 
-    if (tsParam != null) {
-      utcNow = new DateTime(tsParam, DateTimeZone.UTC);
+      if (tsParam != null) {
+        utcNow = new DateTime(tsParam, DateTimeZone.UTC);
+      } else {
+        utcNow = new DateTime(DateTimeZone.UTC);
+      }
+
+      if (tzParam != null) {
+        timeZone = DateTimes.inferTzFromString(String.valueOf(tzParam));
+      } else {
+        timeZone = plannerConfig.getSqlTimeZone();
+      }
+
+      if (stringifyParam != null) {
+        stringifyArrays = Numbers.parseBoolean(stringifyParam);
+      } else {
+        stringifyArrays = true;
+      }
     } else {
       utcNow = new DateTime(DateTimeZone.UTC);
-    }
-
-    if (tzParam != null) {
-      timeZone = DateTimes.inferTzFromString(String.valueOf(tzParam));
-    } else {
       timeZone = plannerConfig.getSqlTimeZone();
-    }
-
-    if (stringifyParam != null) {
-      stringifyArrays = Numbers.parseBoolean(stringifyParam);
-    } else {
       stringifyArrays = true;
     }
 
@@ -212,7 +219,7 @@ public class PlannerContext
     return rootSchema.getResourceType(schema, resourceName);
   }
 
-  public QueryContext getQueryContext()
+  public Map<String, Object> getQueryContext()
   {
     return queryContext;
   }

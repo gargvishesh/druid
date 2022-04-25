@@ -22,7 +22,6 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
@@ -99,7 +98,6 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
   @Override
   public SqlLifecycleFactory getSqlLifecycleFactory(
       PlannerConfig plannerConfig,
-      AuthConfig authConfig,
       DruidOperatorTable operatorTable,
       ExprMacroTable macroTable,
       AuthorizerMapper authorizerMapper,

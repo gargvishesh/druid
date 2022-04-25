@@ -20,7 +20,6 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.expression.TestExprMacroTable;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceType;
@@ -88,7 +87,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   @Override
   public SqlLifecycleFactory getSqlLifecycleFactory(
       PlannerConfig plannerConfig,
-      AuthConfig authConfig,
       DruidOperatorTable operatorTable,
       ExprMacroTable macroTable,
       AuthorizerMapper authorizerMapper,

@@ -26,7 +26,6 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.response.StringFullResponseHolder;
 import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.QueryCapacityExceededException;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryException;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.query.QueryTimeoutException;
@@ -118,10 +117,7 @@ public class TalariaDriver extends AbstractAsyncQueryDriver
     // A Talaria query looks like a regular query, but returns the Task ID
     // as its only output.
     final SqlLifecycle lifecycle = context.sqlLifecycleFactory.factorize();
-    final String sqlQueryId = lifecycle.initialize(
-        rewrittenQuery.getQuery(),
-        new QueryContext(rewrittenQuery.getContext())
-    );
+    final String sqlQueryId = lifecycle.initialize(rewrittenQuery.getQuery(), rewrittenQuery.getContext());
     try {
       lifecycle.setParameters(rewrittenQuery.getParameterList());
       lifecycle.validateAndAuthorize(req);

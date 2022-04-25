@@ -32,7 +32,6 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.query.Query;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -42,7 +41,6 @@ import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.server.security.Action;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.server.security.Resource;
@@ -910,7 +908,6 @@ public class CalciteInsertDmlTest extends BaseCalciteQueryTest
 
       final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(
           plannerConfig,
-          new AuthConfig(),
           createOperatorTable(),
           createMacroTable(),
           CalciteTests.TEST_AUTHORIZER_MAPPER,
@@ -918,7 +915,7 @@ public class CalciteInsertDmlTest extends BaseCalciteQueryTest
       );
 
       final SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-      sqlLifecycle.initialize(sql, new QueryContext(queryContext));
+      sqlLifecycle.initialize(sql, queryContext);
 
       final Throwable e = Assert.assertThrows(
           Throwable.class,

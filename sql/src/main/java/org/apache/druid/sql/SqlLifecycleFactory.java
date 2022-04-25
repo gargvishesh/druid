@@ -24,7 +24,6 @@ import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.server.QueryScheduler;
 import org.apache.druid.server.log.RequestLogger;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 
 @LazySingleton
@@ -34,22 +33,19 @@ public class SqlLifecycleFactory
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final QueryScheduler queryScheduler;
-  private final AuthConfig authConfig;
 
   @Inject
   public SqlLifecycleFactory(
       PlannerFactory plannerFactory,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      QueryScheduler queryScheduler,
-      AuthConfig authConfig
+      QueryScheduler queryScheduler
   )
   {
     this.plannerFactory = plannerFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.queryScheduler = queryScheduler;
-    this.authConfig = authConfig;
   }
 
   public SqlLifecycle factorize()
@@ -59,7 +55,6 @@ public class SqlLifecycleFactory
         emitter,
         requestLogger,
         queryScheduler,
-        authConfig,
         System.currentTimeMillis(),
         System.nanoTime()
     );

@@ -83,7 +83,6 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   private static final String KEYCLOAK_AUTHORIZER = "ImplyKeycloakAuthorizer";
 
   private static final String EXPECTED_AVATICA_AUTH_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: ForbiddenException: Authentication failed.";
-  private static final String EXPECTED_AVATICA_AUTHZ_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: RuntimeException: org.apache.druid.server.security.ForbiddenException: Allowed:false, Message: -> ForbiddenException: Allowed:false, Message:";
 
   @Inject
   IntegrationTestingConfig config;
@@ -106,7 +105,6 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Test
   public void test_systemSchemaAccess_admin_staleToken() throws Exception
   {
-    final HttpClient adminClient = getHttpClient(User.ADMIN);
     // check that admin access works on all nodes
     checkNodeAccess(adminClient);
     int notBefore = Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000);
@@ -137,16 +135,15 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     }
   }
 
-  @Test(expectedExceptions = {RuntimeException.class})
+  @Test(expectedExceptions = { RuntimeException.class })
   public void test_nonExistent_fails()
   {
-    setupHttpClientForUser("doesNotExist", "bogus");
+    buildHttpClientForUser("doesNotExist", "bogus");
   }
 
   @Test
   public void test_role_lifecycle() throws Exception
   {
-    final HttpClient adminClient = getHttpClient(User.ADMIN);
     // create a role that can only read 'auth_test'
     String roleName = "role_test_role_lifecycle";
     List<ResourceAction> resourceActions = Collections.singletonList(
@@ -224,37 +221,26 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   }
 
   @Override
-  protected Properties getAvaticaConnectionPropertiesForUser(User user)
+  protected Properties getAvaticaConnectionProperties()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty(
-        "password",
-        ((KeycloakedHttpClient) getHttpClient(User.ADMIN)).getAccessTokenString()
-    );
+    connectionProperties.setProperty("password", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
     return connectionProperties;
   }
 
   @Override
-  protected Properties getAvaticaConnectionPropertiesForInvalidAdmin()
+  protected Properties getAvaticaConnectionPropertiesFailure()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty(
-        "Bearer",
-        ((KeycloakedHttpClient) getHttpClient(User.ADMIN)).getAccessTokenString()
-    );
+    connectionProperties.setProperty("Bearer", ((KeycloakedHttpClient) adminClient).getAccessTokenString());
     return connectionProperties;
   }
 
   @Override
   protected void setupDatasourceOnlyUser() throws Exception
   {
-    createRolesWithPermissions(ImmutableMap.of("datasourceOnlyRole", DATASOURCE_ONLY_PERMISSIONS));
-  }
 
-  @Override
-  protected void setupDatasourceAndContextParamsUser() throws Exception
-  {
-    createRolesWithPermissions(ImmutableMap.of("datasourceAndContextParamsRole", DATASOURCE_QUERY_CONTEXT_PERMISSIONS));
+    createRolesWithPermissions(ImmutableMap.of("datasourceOnlyRole", DATASOURCE_ONLY_PERMISSIONS));
   }
 
   @Override
@@ -278,6 +264,11 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
   @Override
   protected void setupTestSpecificHttpClients()
   {
+    adminClient = buildHttpClientForUser("admin", "priest");
+    datasourceOnlyUserClient = buildHttpClientForUser("datasourceonlyuser", "helloworld");
+    datasourceAndSysUserClient = buildHttpClientForUser("datasourcewithsysuser", "helloworld");
+    datasourceWithStateUserClient = buildHttpClientForUser("datasourcewithstateuser", "helloworld");
+    stateOnlyUserClient = buildHttpClientForUser("stateonlyuser", "helloworld");
   }
 
   @Override
@@ -298,15 +289,8 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     return EXPECTED_AVATICA_AUTH_ERROR;
   }
 
-  @Override
-  protected String getExpectedAvaticaAuthzError()
-  {
-    return EXPECTED_AVATICA_AUTHZ_ERROR;
-  }
-
   private void createRolesWithPermissions(Map<String, List<ResourceAction>> roleTopermissions) throws Exception
   {
-    final HttpClient adminClient = getHttpClient(User.ADMIN);
     roleTopermissions.keySet().forEach(role -> HttpUtil.makeRequest(
         adminClient,
         HttpMethod.POST,
@@ -335,8 +319,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     }
   }
 
-  @Override
-  protected HttpClient setupHttpClientForUser(
+  private KeycloakedHttpClient buildHttpClientForUser(
       String username,
       String password
   )
@@ -362,7 +345,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
          network where Druid Cluster is running. */
       reqHeaders.put("Host", "imply-keycloak:8080");
       reqParams.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD);
-      reqParams.put(OAuth2Constants.USERNAME, StringUtils.toLowerCase(username));
+      reqParams.put(OAuth2Constants.USERNAME, username);
       reqParams.put(OAuth2Constants.PASSWORD, password);
       ClientCredentialsProviderUtils.setClientCredentials(userDeployment, reqHeaders, reqParams);
       TokenService tokenService = new TokenService(userDeployment, reqHeaders, reqParams);

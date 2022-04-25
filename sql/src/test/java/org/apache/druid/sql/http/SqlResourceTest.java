@@ -254,13 +254,11 @@ public class SqlResourceTest extends CalciteTestBase
       }
     };
     final ServiceEmitter emitter = new NoopServiceEmitter();
-    final AuthConfig authConfig = new AuthConfig();
     sqlLifecycleFactory = new SqlLifecycleFactory(
         plannerFactory,
         emitter,
         testRequestLogger,
-        scheduler,
-        authConfig
+        scheduler
     )
     {
       @Override
@@ -271,7 +269,6 @@ public class SqlResourceTest extends CalciteTestBase
             emitter,
             testRequestLogger,
             scheduler,
-            authConfig,
             System.currentTimeMillis(),
             System.nanoTime(),
             validateAndAuthorizeLatchSupplier,
@@ -1767,7 +1764,6 @@ public class SqlResourceTest extends CalciteTestBase
         ServiceEmitter emitter,
         RequestLogger requestLogger,
         QueryScheduler queryScheduler,
-        AuthConfig authConfig,
         long startMs,
         long startNs,
         SettableSupplier<NonnullPair<CountDownLatch, Boolean>> validateAndAuthorizeLatchSupplier,
@@ -1776,7 +1772,7 @@ public class SqlResourceTest extends CalciteTestBase
         SettableSupplier<Function<Sequence<Object[]>, Sequence<Object[]>>> sequenceMapFnSupplier
     )
     {
-      super(plannerFactory, emitter, requestLogger, queryScheduler, authConfig, startMs, startNs);
+      super(plannerFactory, emitter, requestLogger, queryScheduler, startMs, startNs);
       this.validateAndAuthorizeLatchSupplier = validateAndAuthorizeLatchSupplier;
       this.planLatchSupplier = planLatchSupplier;
       this.executeLatchSupplier = executeLatchSupplier;

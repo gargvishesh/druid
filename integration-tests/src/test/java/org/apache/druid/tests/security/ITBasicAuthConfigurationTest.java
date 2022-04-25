@@ -48,7 +48,6 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   private static final String BASIC_AUTHORIZER = "basic";
 
   private static final String EXPECTED_AVATICA_AUTH_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: QueryInterruptedException: User metadata store authentication failed. -> BasicSecurityAuthenticationException: User metadata store authentication failed.";
-  private static final String EXPECTED_AVATICA_AUTHZ_ERROR = "Error while executing SQL \"SELECT * FROM INFORMATION_SCHEMA.COLUMNS\": Remote driver error: RuntimeException: org.apache.druid.server.security.ForbiddenException: Allowed:false, Message: -> ForbiddenException: Allowed:false, Message:";
 
   private HttpClient druid99;
 
@@ -74,7 +73,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   protected void setupDatasourceOnlyUser() throws Exception
   {
     createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
+        adminClient,
         "datasourceOnlyUser",
         "helloworld",
         "datasourceOnlyRole",
@@ -83,22 +82,10 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   }
 
   @Override
-  protected void setupDatasourceAndContextParamsUser() throws Exception
-  {
-    createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
-        "datasourceAndContextParamsUser",
-        "helloworld",
-        "datasourceAndContextParamsRole",
-        DATASOURCE_QUERY_CONTEXT_PERMISSIONS
-    );
-  }
-
-  @Override
   protected void setupDatasourceAndSysTableUser() throws Exception
   {
     createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
+        adminClient,
         "datasourceAndSysUser",
         "helloworld",
         "datasourceAndSysRole",
@@ -110,7 +97,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   protected void setupDatasourceAndSysAndStateUser() throws Exception
   {
     createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
+        adminClient,
         "datasourceWithStateUser",
         "helloworld",
         "datasourceWithStateRole",
@@ -122,7 +109,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   protected void setupSysTableAndStateOnlyUser() throws Exception
   {
     createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
+        adminClient,
         "stateOnlyUser",
         "helloworld",
         "stateOnlyRole",
@@ -135,7 +122,7 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   {
     // create a new user+role that can read /status
     createUserAndRoleWithPermissions(
-        getHttpClient(User.ADMIN),
+        adminClient,
         "druid",
         "helloworld",
         "druidrole",
@@ -145,14 +132,14 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
     // create 100 users
     for (int i = 0; i < 100; i++) {
       HttpUtil.makeRequest(
-          getHttpClient(User.ADMIN),
+          adminClient,
           HttpMethod.POST,
           config.getCoordinatorUrl() + "/druid-ext/basic-security/authentication/db/basic/users/druid" + i,
           null
       );
 
       HttpUtil.makeRequest(
-          getHttpClient(User.ADMIN),
+          adminClient,
           HttpMethod.POST,
           config.getCoordinatorUrl() + "/druid-ext/basic-security/authorization/db/basic/users/druid" + i,
           null
@@ -163,14 +150,14 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
 
     // setup the last of 100 users and check that it works
     HttpUtil.makeRequest(
-        getHttpClient(User.ADMIN),
+        adminClient,
         HttpMethod.POST,
         config.getCoordinatorUrl() + "/druid-ext/basic-security/authentication/db/basic/users/druid99/credentials",
         jsonMapper.writeValueAsBytes(new BasicAuthenticatorCredentialUpdate("helloworld", 5000))
     );
 
     HttpUtil.makeRequest(
-        getHttpClient(User.ADMIN),
+        adminClient,
         HttpMethod.POST,
         config.getCoordinatorUrl() + "/druid-ext/basic-security/authorization/db/basic/users/druid99/roles/druidrole",
         null
@@ -201,26 +188,20 @@ public class ITBasicAuthConfigurationTest extends AbstractAuthConfigurationTest
   }
 
   @Override
-  protected String getExpectedAvaticaAuthzError()
-  {
-    return EXPECTED_AVATICA_AUTHZ_ERROR;
-  }
-
-  @Override
-  protected Properties getAvaticaConnectionPropertiesForInvalidAdmin()
+  protected Properties getAvaticaConnectionProperties()
   {
     Properties connectionProperties = new Properties();
     connectionProperties.setProperty("user", "admin");
-    connectionProperties.setProperty("password", "invalid_password");
+    connectionProperties.setProperty("password", "priest");
     return connectionProperties;
   }
 
   @Override
-  protected Properties getAvaticaConnectionPropertiesForUser(User user)
+  protected Properties getAvaticaConnectionPropertiesFailure()
   {
     Properties connectionProperties = new Properties();
-    connectionProperties.setProperty("user", user.getName());
-    connectionProperties.setProperty("password", user.getPassword());
+    connectionProperties.setProperty("user", "admin");
+    connectionProperties.setProperty("password", "wrongpassword");
     return connectionProperties;
   }
 

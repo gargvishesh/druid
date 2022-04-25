@@ -19,7 +19,6 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
-import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.SqlPlanningException;
@@ -78,7 +77,6 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   @Override
   public SqlLifecycleFactory getSqlLifecycleFactory(
       PlannerConfig plannerConfig,
-      AuthConfig authConfig,
       DruidOperatorTable operatorTable,
       ExprMacroTable macroTable,
       AuthorizerMapper authorizerMapper,

@@ -48,7 +48,7 @@ public class AuthConfig
 
   public AuthConfig()
   {
-    this(null, null, null, false, false);
+    this(null, null, null, false);
   }
 
   @JsonCreator
@@ -56,31 +56,26 @@ public class AuthConfig
       @JsonProperty("authenticatorChain") List<String> authenticatorChain,
       @JsonProperty("authorizers") List<String> authorizers,
       @JsonProperty("unsecuredPaths") List<String> unsecuredPaths,
-      @JsonProperty("allowUnauthenticatedHttpOptions") boolean allowUnauthenticatedHttpOptions,
-      @JsonProperty("authorizeQueryContextParams") boolean authorizeQueryContextParams
+      @JsonProperty("allowUnauthenticatedHttpOptions") boolean allowUnauthenticatedHttpOptions
   )
   {
     this.authenticatorChain = authenticatorChain;
     this.authorizers = authorizers;
     this.unsecuredPaths = unsecuredPaths == null ? Collections.emptyList() : unsecuredPaths;
     this.allowUnauthenticatedHttpOptions = allowUnauthenticatedHttpOptions;
-    this.authorizeQueryContextParams = authorizeQueryContextParams;
   }
 
   @JsonProperty
   private final List<String> authenticatorChain;
 
   @JsonProperty
-  private final List<String> authorizers;
+  private List<String> authorizers;
 
   @JsonProperty
   private final List<String> unsecuredPaths;
 
   @JsonProperty
   private final boolean allowUnauthenticatedHttpOptions;
-
-  @JsonProperty
-  private final boolean authorizeQueryContextParams;
 
   public List<String> getAuthenticatorChain()
   {
@@ -102,11 +97,6 @@ public class AuthConfig
     return allowUnauthenticatedHttpOptions;
   }
 
-  public boolean authorizeQueryContextParams()
-  {
-    return authorizeQueryContextParams;
-  }
-
   @Override
   public boolean equals(Object o)
   {
@@ -117,22 +107,20 @@ public class AuthConfig
       return false;
     }
     AuthConfig that = (AuthConfig) o;
-    return allowUnauthenticatedHttpOptions == that.allowUnauthenticatedHttpOptions
-           && authorizeQueryContextParams == that.authorizeQueryContextParams
-           && Objects.equals(authenticatorChain, that.authenticatorChain)
-           && Objects.equals(authorizers, that.authorizers)
-           && Objects.equals(unsecuredPaths, that.unsecuredPaths);
+    return isAllowUnauthenticatedHttpOptions() == that.isAllowUnauthenticatedHttpOptions() &&
+           Objects.equals(getAuthenticatorChain(), that.getAuthenticatorChain()) &&
+           Objects.equals(getAuthorizers(), that.getAuthorizers()) &&
+           Objects.equals(getUnsecuredPaths(), that.getUnsecuredPaths());
   }
 
   @Override
   public int hashCode()
   {
     return Objects.hash(
-        authenticatorChain,
-        authorizers,
-        unsecuredPaths,
-        allowUnauthenticatedHttpOptions,
-        authorizeQueryContextParams
+        getAuthenticatorChain(),
+        getAuthorizers(),
+        getUnsecuredPaths(),
+        isAllowUnauthenticatedHttpOptions()
     );
   }
 
@@ -144,65 +132,6 @@ public class AuthConfig
            ", authorizers=" + authorizers +
            ", unsecuredPaths=" + unsecuredPaths +
            ", allowUnauthenticatedHttpOptions=" + allowUnauthenticatedHttpOptions +
-           ", enableQueryContextAuthorization=" + authorizeQueryContextParams +
            '}';
-  }
-
-  public static Builder newBuilder()
-  {
-    return new Builder();
-  }
-
-  /**
-   * AuthConfig object is created via Jackson in production. This builder is for easier code maintenance in unit tests.
-   */
-  public static class Builder
-  {
-    private List<String> authenticatorChain;
-    private List<String> authorizers;
-    private List<String> unsecuredPaths;
-    private boolean allowUnauthenticatedHttpOptions;
-    private boolean authorizeQueryContextParams;
-
-    public Builder setAuthenticatorChain(List<String> authenticatorChain)
-    {
-      this.authenticatorChain = authenticatorChain;
-      return this;
-    }
-
-    public Builder setAuthorizers(List<String> authorizers)
-    {
-      this.authorizers = authorizers;
-      return this;
-    }
-
-    public Builder setUnsecuredPaths(List<String> unsecuredPaths)
-    {
-      this.unsecuredPaths = unsecuredPaths;
-      return this;
-    }
-
-    public Builder setAllowUnauthenticatedHttpOptions(boolean allowUnauthenticatedHttpOptions)
-    {
-      this.allowUnauthenticatedHttpOptions = allowUnauthenticatedHttpOptions;
-      return this;
-    }
-
-    public Builder setAuthorizeQueryContextParams(boolean authorizeQueryContextParams)
-    {
-      this.authorizeQueryContextParams = authorizeQueryContextParams;
-      return this;
-    }
-
-    public AuthConfig build()
-    {
-      return new AuthConfig(
-          authenticatorChain,
-          authorizers,
-          unsecuredPaths,
-          allowUnauthenticatedHttpOptions,
-          authorizeQueryContextParams
-      );
-    }
   }
 }
