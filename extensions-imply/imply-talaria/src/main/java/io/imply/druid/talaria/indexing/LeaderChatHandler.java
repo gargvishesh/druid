@@ -12,7 +12,6 @@ package io.imply.druid.talaria.indexing;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
@@ -30,6 +29,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import java.util.List;
 import java.util.Map;
 
 public class LeaderChatHandler implements ChatHandler
@@ -98,13 +98,13 @@ public class LeaderChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostWorkerWarning(
-      final TalariaWarningReport warningReport,
+      final List<TalariaErrorReport> errorReport,
       @PathParam("taskId") final String taskId,
       @Context final HttpServletRequest req
   )
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
-    leader.workerWarning(warningReport);
+    leader.workerWarning(errorReport);
     return Response.status(Response.Status.ACCEPTED).build();
   }
 

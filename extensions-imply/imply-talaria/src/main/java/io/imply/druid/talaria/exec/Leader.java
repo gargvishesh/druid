@@ -15,7 +15,6 @@ import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapsh
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskReport;
 
@@ -98,7 +97,7 @@ public interface Leader
   /**
    * System warning reported by a subtask
    */
-  void workerWarning(TalariaWarningReport warningReport);
+  void workerWarning(List<TalariaErrorReport> errorReports);
 
   /**
    * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.

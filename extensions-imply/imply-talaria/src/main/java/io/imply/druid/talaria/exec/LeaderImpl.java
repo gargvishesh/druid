@@ -42,6 +42,7 @@ import io.imply.druid.talaria.indexing.TalariaTaskList;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.TaskReportTalariaDestination;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
+import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotAllocateSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotBeEmptyFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
@@ -50,7 +51,6 @@ import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReport;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
@@ -182,7 +182,7 @@ public class LeaderImpl implements Leader
   private final AtomicReference<TalariaErrorReport> workerErrorRef = new AtomicReference<>();
 
   // For system warning reporting
-  private final ConcurrentLinkedQueue<TalariaWarningReport> workerWarnings = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<TalariaErrorReport> workerWarnings = new ConcurrentLinkedQueue<>();
 
   // For live reports.
   private final AtomicReference<QueryDefinition> queryDefRef = new AtomicReference<>();
@@ -208,6 +208,8 @@ public class LeaderImpl implements Leader
   private volatile DruidNode selfDruidNode;
   private volatile TalariaWorkerTaskLauncher workerTaskLauncher;
   private volatile WorkerClient netClient;
+
+  private long maxParseExceptions = -1;
 
   public LeaderImpl(
       final TalariaControllerTask task,
@@ -422,6 +424,8 @@ public class LeaderImpl implements Leader
         context,
         task.getTuningConfig().getMaxNumConcurrentSubTasks()
     );
+
+    this.maxParseExceptions = task.getSqlQueryContext().getOrDefault("maxParseExceptions", -1).toString();
 
     final QueryDefinition queryDef = makeQueryDefinition(
         id(),
@@ -676,9 +680,9 @@ public class LeaderImpl implements Leader
   }
 
   @Override
-  public void workerWarning(TalariaWarningReport warningReport)
+  public void workerWarning(List<TalariaErrorReport> errorReports)
   {
-    workerWarnings.add(warningReport);
+    workerWarnings.addAll(errorReports);
   }
 
   @Override
@@ -1591,12 +1595,12 @@ public class LeaderImpl implements Leader
   private static TalariaStatusReport makeStatusReport(
       final TaskState taskState,
       @Nullable final TalariaErrorReport errorReport,
-      final Queue<TalariaWarningReport> warningReports,
+      final Queue<TalariaErrorReport> errorReports,
       @Nullable final DateTime queryStartTime,
       final long queryDuration
   )
   {
-    return new TalariaStatusReport(taskState, errorReport, warningReports, queryStartTime, queryDuration);
+    return new TalariaStatusReport(taskState, errorReport, errorReports, queryStartTime, queryDuration);
   }
 
   private static Map<Integer, Interval> copyOfStageRuntimesEndingAtCurrentTime(

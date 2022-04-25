@@ -427,7 +427,7 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
   public void postWorkerWarning(
       final String supervisorTaskId,
       final String taskId,
-      final TalariaErrorReport talariaErrorReport
+      final List<TalariaErrorReport> talariaErrorReports
   )
   {
     try {
@@ -436,7 +436,7 @@ public class TalariaIndexerTaskClient extends IndexTaskClient implements Talaria
           HttpMethod.POST,
           StringUtils.format("workerWarning/%s", StringUtils.urlEncode(taskId)),
           null,
-          serialize(talariaErrorReport),
+          serialize(talariaErrorReports),
           true
       );
 

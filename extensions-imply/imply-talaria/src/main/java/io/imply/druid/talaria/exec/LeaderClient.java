@@ -49,7 +49,7 @@ public interface LeaderClient extends AutoCloseable
   void postWorkerWarning(
       String leaderId,
       String workerId,
-      TalariaErrorReport talariaErrorReport
+      List<TalariaErrorReport> talariaErrorReports
   );
   Optional<List<String>> getTaskList(String leaderId);
 
