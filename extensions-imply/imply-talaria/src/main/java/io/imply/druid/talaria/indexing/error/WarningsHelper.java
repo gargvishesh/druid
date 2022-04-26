@@ -28,7 +28,7 @@ public class WarningsHelper
     public FaultsExceededChecker(final Map<Class<? extends TalariaFault>, Long> maxFaultsAllowedCount)
     {
       maxFaultsAllowedCount.forEach((ignored, count) ->
-                                        Preconditions.checkArgument(count > 0 || count == -1, "invalid count")
+                                        Preconditions.checkArgument(count >= 0 || count == -1, "invalid count")
       );
       this.maxFaultsAllowedCount = maxFaultsAllowedCount;
     }
