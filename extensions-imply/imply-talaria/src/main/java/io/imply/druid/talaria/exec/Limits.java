@@ -28,4 +28,9 @@ public class Limits
    * Maximum number of input files per worker
    */
   public static final int MAX_INPUT_FILES_PER_WORKER = 10_000;
+
+  /**
+   * Maximum number of parse exceptions with their stack traces a worker can send to the leader
+   */
+  public static final long MAX_VERBOSE_PARSE_EXCEPTIONS = 100;
 }

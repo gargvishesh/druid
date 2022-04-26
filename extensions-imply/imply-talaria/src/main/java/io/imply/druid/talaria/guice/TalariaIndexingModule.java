@@ -35,6 +35,7 @@ import io.imply.druid.talaria.indexing.error.TooManyBucketsFault;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyInputFilesFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
+import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
@@ -118,6 +119,7 @@ public class TalariaIndexingModule implements DruidModule
             TooManyColumnsFault.class,
             TooManyInputFilesFault.class,
             TooManyPartitionsFault.class,
+            TooManyWarningsFault.class,
             TooManyWorkersFault.class,
             UnknownFault.class,
             WorkerFailedFault.class,
