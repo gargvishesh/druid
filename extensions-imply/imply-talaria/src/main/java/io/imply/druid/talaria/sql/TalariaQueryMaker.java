@@ -61,11 +61,11 @@ import java.util.stream.Collectors;
 public class TalariaQueryMaker implements QueryMaker
 {
   public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
+  public static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";
 
   private static final String CTX_DESTINATION = "talariaDestination";
   private static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
   private static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
-  private static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";
   private static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
@@ -317,7 +317,7 @@ public class TalariaQueryMaker implements QueryMaker
                     .put("id", taskId)
                     .put("spec", querySpec)
                     .put("sqlQuery", plannerContext.getSql())
-                    .put("sqlQueryContext", plannerContext.getQueryContext())
+                    .put("sqlQueryContext", plannerContext.getQueryContext().getMergedParams())
                     .put("sqlTypeNames", sqlTypeNames)
                     .build();
 
