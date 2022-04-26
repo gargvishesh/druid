@@ -23,7 +23,7 @@ public class TalariaMode
   public static final String LENIENT_MODE = "lenient";
   public static final String STRICT_MODE = "strict";
 
-  private static final Map<String, Map<String, Object>> modeToDefaultQueryContextMap = new HashMap<>();
+  private static Map<String, Map<String, Object>> modeToDefaultQueryContextMap = new HashMap<>();
 
   static {
     Map<String, Object> lenientModeDefaultQueryContextMap =
