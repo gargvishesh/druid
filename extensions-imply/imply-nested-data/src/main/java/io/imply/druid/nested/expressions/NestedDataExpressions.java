@@ -10,6 +10,7 @@
 package io.imply.druid.nested.expressions;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.nested.column.NestedDataComplexTypeSerde;
 import io.imply.druid.nested.column.PathFinder;
@@ -174,7 +175,7 @@ public class NestedDataExpressions
           StructuredDataProcessor.ProcessResults info = processor.processFields(maybeUnwrapStructuredData(input));
           return ExprEval.ofType(
               ExpressionType.STRING_ARRAY,
-              info.getLiteralFields()
+              ImmutableList.copyOf(info.getLiteralFields())
           );
         }
 

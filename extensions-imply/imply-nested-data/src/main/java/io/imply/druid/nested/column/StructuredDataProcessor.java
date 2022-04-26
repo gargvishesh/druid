@@ -9,18 +9,20 @@
 
 package io.imply.druid.nested.column;
 
+import com.google.common.collect.ImmutableSet;
+
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 
 public abstract class StructuredDataProcessor
 {
   public static final String ROOT_LITERAL = ".";
-  private static final List<String> ROOT_LITERAL_FIELDS = Collections.singletonList(ROOT_LITERAL);
+  private static final Set<String> ROOT_LITERAL_FIELDS = ImmutableSet.of(ROOT_LITERAL);
 
   public abstract int processLiteralField(String fieldName, Object fieldValue);
 
@@ -151,16 +153,16 @@ public abstract class StructuredDataProcessor
    */
   public static class ProcessResults
   {
-    private List<String> literalFields;
+    private Set<String> literalFields;
     private int estimatedSize;
 
     public ProcessResults()
     {
-      literalFields = new ArrayList<>();
+      literalFields = new HashSet<>();
       estimatedSize = 0;
     }
 
-    public List<String> getLiteralFields()
+    public Set<String> getLiteralFields()
     {
       return literalFields;
     }
@@ -183,7 +185,7 @@ public abstract class StructuredDataProcessor
       return this;
     }
 
-    public ProcessResults withFields(List<String> fields)
+    public ProcessResults withFields(Set<String> fields)
     {
       this.literalFields = fields;
       return this;
