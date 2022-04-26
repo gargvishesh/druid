@@ -18,6 +18,8 @@ import java.util.Map;
 
 public class TalariaMode
 {
+  public static final String CTX_TALARIA_MODE = "mode";
+
   public static final String LENIENT_MODE = "lenient";
   public static final String STRICT_MODE = "strict";
 
@@ -38,13 +40,11 @@ public class TalariaMode
     modeToDefaultQueryContextMap.put(STRICT_MODE, strictModeDefaultQueryContextMap);
   }
 
-  public static Map<String, Object> backfillQueryContext(String mode, Map<String, Object> originalQueryContext)
+  public static void backfillQueryContext(final String mode, final Map<String, Object> originalQueryContext)
   {
     if (!modeToDefaultQueryContextMap.containsKey(mode)) {
       throw new ISE("%s is not a valid talaria mode", mode);
     }
-    final Map<String, Object> newContext = new HashMap<>(modeToDefaultQueryContextMap.get(mode));
-    newContext.putAll(originalQueryContext);
-    return newContext;
+    modeToDefaultQueryContextMap.get(mode).forEach(originalQueryContext::putIfAbsent);
   }
 }
