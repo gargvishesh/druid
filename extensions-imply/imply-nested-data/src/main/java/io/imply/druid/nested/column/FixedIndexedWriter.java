@@ -24,12 +24,14 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Comparator;
+import java.util.Iterator;
 
 /**
  * Writer for a {@link FixedIndexed}
  */
 public class FixedIndexedWriter<T> implements Serializer
 {
+  private static final int PAGE_SIZE = 4096;
   private final SegmentWriteOutMedium segmentWriteOutMedium;
   private final TypeStrategy<T> typeStrategy;
   private final Comparator<T> comparator;
@@ -133,5 +135,55 @@ public class FixedIndexedWriter<T> implements Serializer
     valuesOut.readFully(startOffset, readBuffer);
     readBuffer.clear();
     return typeStrategy.read(readBuffer);
+  }
+
+  public Iterator<T> getIterator()
+  {
+    final ByteBuffer iteratorBuffer = ByteBuffer.allocate(width * PAGE_SIZE).order(readBuffer.order());
+    final int totalCount = hasNulls ? 1 + numWritten : numWritten;
+
+    final int startPos = hasNulls ? 1 : 0;
+    return new Iterator<T>()
+    {
+      int pos = 0;
+      @Override
+      public boolean hasNext()
+      {
+        return pos < totalCount;
+      }
+
+      @Override
+      public T next()
+      {
+        if (pos == 0 && hasNulls) {
+          pos++;
+          return null;
+        }
+        if (pos == startPos || iteratorBuffer.position() >= iteratorBuffer.limit()) {
+          readPage();
+        }
+        T value = typeStrategy.read(iteratorBuffer);
+        pos++;
+        return value;
+      }
+
+      private void readPage()
+      {
+        iteratorBuffer.clear();
+        try {
+          if (totalCount - pos < PAGE_SIZE) {
+            int size = (totalCount - pos) * width;
+            iteratorBuffer.limit(size);
+            valuesOut.readFully((long) pos * width, iteratorBuffer);
+          } else {
+            valuesOut.readFully((long) pos * width, iteratorBuffer);
+          }
+          iteratorBuffer.flip();
+        }
+        catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
   }
 }

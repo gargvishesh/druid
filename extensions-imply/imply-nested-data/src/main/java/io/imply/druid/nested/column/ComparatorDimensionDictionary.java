@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * {@link Comparator} based {@link org.apache.druid.segment.DimensionDictionary}
@@ -25,6 +24,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * there are a lot of unused methods in here for now since the only thing this is used for is to build up
  * the unsorted dictionary and then it is converted to a {@link ComparatorSortedDimensionDictionary}, but
  * leaving the unused methods in place for now to be basically compatible with the other implementation.
+ *
+ * This version is not thread-safe since we currently don't use the dictionary for realtime queries, if this changes
+ * we need to use {@link ConcurrentComparatorDimensionDictionary} instead.
  */
 public class ComparatorDimensionDictionary<T>
 {
@@ -40,56 +42,35 @@ public class ComparatorDimensionDictionary<T>
   private final Object2IntMap<T> valueToId = new Object2IntOpenHashMap<>();
 
   private final List<T> idToValue = new ArrayList<>();
-  private final ReentrantReadWriteLock lock;
-
   private final Comparator<T> comparator;
 
   public ComparatorDimensionDictionary(Comparator<T> comparator)
   {
-    this.lock = new ReentrantReadWriteLock();
     this.comparator = comparator;
     valueToId.defaultReturnValue(ABSENT_VALUE_ID);
   }
 
   public int getId(@Nullable T value)
   {
-    lock.readLock().lock();
-    try {
-      if (value == null) {
-        return idForNull;
-      }
-      return valueToId.getInt(value);
+    if (value == null) {
+      return idForNull;
     }
-    finally {
-      lock.readLock().unlock();
-    }
+    return valueToId.getInt(value);
   }
 
   @Nullable
   public T getValue(int id)
   {
-    lock.readLock().lock();
-    try {
-      if (id == idForNull) {
-        return null;
-      }
-      return idToValue.get(id);
+    if (id == idForNull) {
+      return null;
     }
-    finally {
-      lock.readLock().unlock();
-    }
+    return idToValue.get(id);
   }
 
   public int size()
   {
-    lock.readLock().lock();
-    try {
-      // using idToValue rather than valueToId because the valueToId doesn't account null value, if it is present.
-      return idToValue.size();
-    }
-    finally {
-      lock.readLock().unlock();
-    }
+    // using idToValue rather than valueToId because the valueToId doesn't account null value, if it is present.
+    return idToValue.size();
   }
 
   /**
@@ -104,55 +85,37 @@ public class ComparatorDimensionDictionary<T>
 
   public int add(@Nullable T originalValue)
   {
-    lock.writeLock().lock();
-    try {
-      if (originalValue == null) {
-        if (idForNull == ABSENT_VALUE_ID) {
-          idForNull = idToValue.size();
-          idToValue.add(null);
-        }
-        return idForNull;
+    if (originalValue == null) {
+      if (idForNull == ABSENT_VALUE_ID) {
+        idForNull = idToValue.size();
+        idToValue.add(null);
       }
-      int prev = valueToId.getInt(originalValue);
-      if (prev >= 0) {
-        return prev;
-      }
-      final int index = idToValue.size();
-      valueToId.put(originalValue, index);
-      idToValue.add(originalValue);
-
-      // Add size of new dim value and 2 references (valueToId and idToValue)
-      sizeInBytes.addAndGet(estimateSizeOfValue(originalValue) + (2L * Long.BYTES));
-
-      minValue = minValue == null || comparator.compare(minValue, originalValue) > 0 ? originalValue : minValue;
-      maxValue = maxValue == null || comparator.compare(maxValue, originalValue) < 0 ? originalValue : maxValue;
-      return index;
+      return idForNull;
     }
-    finally {
-      lock.writeLock().unlock();
+    int prev = valueToId.getInt(originalValue);
+    if (prev >= 0) {
+      return prev;
     }
+    final int index = idToValue.size();
+    valueToId.put(originalValue, index);
+    idToValue.add(originalValue);
+
+    // Add size of new dim value and 2 references (valueToId and idToValue)
+    sizeInBytes.addAndGet(estimateSizeOfValue(originalValue) + (2L * Long.BYTES));
+
+    minValue = minValue == null || comparator.compare(minValue, originalValue) > 0 ? originalValue : minValue;
+    maxValue = maxValue == null || comparator.compare(maxValue, originalValue) < 0 ? originalValue : maxValue;
+    return index;
   }
 
   public T getMinValue()
   {
-    lock.readLock().lock();
-    try {
-      return minValue;
-    }
-    finally {
-      lock.readLock().unlock();
-    }
+    return minValue;
   }
 
   public T getMaxValue()
   {
-    lock.readLock().lock();
-    try {
-      return maxValue;
-    }
-    finally {
-      lock.readLock().unlock();
-    }
+    return maxValue;
   }
 
   public int getIdForNull()
@@ -162,13 +125,7 @@ public class ComparatorDimensionDictionary<T>
 
   public ComparatorSortedDimensionDictionary<T> sort()
   {
-    lock.readLock().lock();
-    try {
-      return new ComparatorSortedDimensionDictionary<T>(idToValue, comparator, idToValue.size());
-    }
-    finally {
-      lock.readLock().unlock();
-    }
+    return new ComparatorSortedDimensionDictionary<T>(idToValue, comparator, idToValue.size());
   }
 
   /**
