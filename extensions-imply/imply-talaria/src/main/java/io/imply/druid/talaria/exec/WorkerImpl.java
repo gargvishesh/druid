@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
-import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -81,12 +80,11 @@ import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.server.DruidNode;
 
 import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
@@ -364,63 +362,55 @@ public class WorkerImpl implements Worker
   }
 
   @Override
-  public Response readChannel(
+  public InputStream readChannel(
       final String queryId,
       final int stageNumber,
       final int partitionNumber,
       final long offset
-  )
+  ) throws IOException
   {
     final StageId stageId = new StageId(queryId, stageNumber);
     final StagePartition stagePartition = new StagePartition(stageId, partitionNumber);
     final ConcurrentHashMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.get(stageId);
 
     if (partitionOutputsForStage == null) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      return null;
     }
     final ReadableFrameChannel channel = partitionOutputsForStage.get(partitionNumber);
 
     if (channel == null) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      return null;
     }
 
     if (channel instanceof ReadableNilFrameChannel) {
       // TODO(gianm): support "offset" for nil channels
-      return Response.ok(
-          (StreamingOutput) outputStream -> {
-            // Build an empty frame file.
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            FrameFileWriter.open(Channels.newChannel(baos)).close();
+      // Build an empty frame file.
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      FrameFileWriter.open(Channels.newChannel(baos)).close();
 
-            final ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
+      final ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
 
-            //noinspection ResultOfMethodCallIgnored: OK to ignore since "skip" always works for ByteArrayInputStream.
-            in.skip(offset);
+      //noinspection ResultOfMethodCallIgnored: OK to ignore since "skip" always works for ByteArrayInputStream.
+      in.skip(offset);
 
-            //noinspection UnstableApiUsage
-            ByteStreams.copy(in, outputStream);
-          }
-      ).build();
+      //noinspection UnstableApiUsage
+      return in;
     } else if (channel instanceof ReadableFileFrameChannel) {
-      return Response.ok(
-          (StreamingOutput) outputStream -> {
-            try (final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
-                 final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r")) {
-              randomAccessFile.seek(offset);
+      final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
+      final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r");
+      randomAccessFile.seek(offset);
 
-              //noinspection UnstableApiUsage
-              ByteStreams.copy(Channels.newInputStream(randomAccessFile.getChannel()), outputStream);
-            }
-          }
-      ).build();
+      //noinspection UnstableApiUsage
+      return Channels.newInputStream(randomAccessFile.getChannel());
     } else {
-      log.warn(
+      String errorMsg = StringUtils.format(
           "Returned server error to client because channel for [%s] is not nil or file-based (class = %s)",
           stagePartition,
           channel.getClass().getName()
       );
+      log.error(StringUtils.encodeForFormat(errorMsg));
 
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      throw new IOException(errorMsg);
     }
   }
 
@@ -615,10 +605,10 @@ public class WorkerImpl implements Worker
       List<TalariaCountersSnapshot.WorkerCounters> workerCounters =
           talariaCounters.snapshot().getWorkerCounters();
 
-      if (workerCounters != null) {
+      if (workerCounters != null && workerCounters.size() != 0) {
         if (workerCounters.size() > 1) {
           throw new ISE(
-              "Multiple worker numbers [%s] for different work orders were assinged, which is not expected.",
+              "Multiple worker numbers [%s] for different work orders were assigned, which is not expected.",
               workerCounters.stream()
                             .map(TalariaCountersSnapshot.WorkerCounters::getWorkerNumber)
                             .collect(Collectors.toList())

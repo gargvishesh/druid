@@ -989,7 +989,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{"[\".\"]", 5L},
-            new Object[]{"[\".\\\"array\\\"[0]\",\".\\\"array\\\"[1]\",\".\\\"n\\\".\\\"x\\\"\"]", 2L}
+            new Object[]{"[\".\\\"n\\\".\\\"x\\\"\",\".\\\"array\\\"[0]\",\".\\\"array\\\"[1]\"]", 2L}
         )
     );
   }

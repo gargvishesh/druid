@@ -26,4 +26,10 @@ public class ExternalTalariaDestination implements TalariaDestination
   {
     return INSTANCE;
   }
+
+  @Override
+  public String toString()
+  {
+    return "ExternalTalariaDestination{}";
+  }
 }

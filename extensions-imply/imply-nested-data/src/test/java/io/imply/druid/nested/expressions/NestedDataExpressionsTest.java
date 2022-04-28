@@ -107,12 +107,12 @@ public class NestedDataExpressionsTest extends InitializedNullHandlingTest
     Expr expr = Parser.parse("list_paths(nest)", MACRO_TABLE);
     ExprEval eval = expr.eval(inputBindings);
     Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
-    Assert.assertArrayEquals(new Object[]{".\"x\"", ".\"y\"", ".\"z\""}, (Object[]) eval.value());
+    Assert.assertArrayEquals(new Object[]{".\"y\"", ".\"z\"", ".\"x\""}, (Object[]) eval.value());
 
     expr = Parser.parse("list_paths(nester)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(ExpressionType.STRING_ARRAY, eval.type());
-    Assert.assertArrayEquals(new Object[]{".\"x\"[0]", ".\"x\"[1]", ".\"x\"[2]", ".\"y\".\"a\"", ".\"y\".\"b\""}, (Object[]) eval.value());
+    Assert.assertArrayEquals(new Object[]{".\"x\"[0]", ".\"x\"[1]", ".\"x\"[2]", ".\"y\".\"b\"", ".\"y\".\"a\""}, (Object[]) eval.value());
 
   }
 
