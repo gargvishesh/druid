@@ -740,6 +740,49 @@ pipeline {
                 }
             }
         }
+        stage('set build version') {
+            agent {
+                docker {
+                    image 'docker/buildabear:20200923'
+                    args '-u root:root'
+                    label "${DOCKER_AGENT_LABEL}"
+                    registryUrl "${RT_REGISTRY_URL}"
+                    registryCredentialsId "${RT_REGISTRY_CREDS}"
+                }
+            }
+            steps {
+                script {
+                    setupMavenSettings()
+                    env.BUILD_VERSION = sh(
+                        script: '''#!/bin/bash -eux
+                            echo -e '#!/bin/bash\\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                            chmod u+x /usr/bin/mvn
+
+
+                            COMMIT_SHA=$(git rev-parse HEAD)
+                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                            else
+                                COMMIT_SHA=$(git rev-parse HEAD^)
+                                if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                    UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                else
+                                    echo "head branch commit SHA is not found"
+                                    exit 1
+                                fi
+                            fi
+
+                            cd $WORKSPACE
+
+                            INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                            DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                            mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+                            echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}"''',
+                       returnStdout: true).tokenize().last().trim()
+                    echo "${BUILD_VERSION}"
+                }
+            }
+        }
 
         stage("Build and publish pre test") {
             when {
@@ -747,7 +790,6 @@ pipeline {
                       expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
                       expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
                       expression { params.PUBLISH_ON_ANY_BRANCH }
-                      expression { true }
                   }
                   beforeAgent true
             }
@@ -1032,7 +1074,7 @@ pipeline {
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
                                                       "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};testing=inProgress;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
+                                                      "props": "release.version=${release_version};BVT=InProgress;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
                                                     }
                                                 ]
                                             }""",
@@ -1068,7 +1110,7 @@ pipeline {
                         beforeAgent true
                     }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
-                    steps { mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
+                    steps { error("fail test here"); mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -2147,7 +2189,6 @@ pipeline {
                     expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
                     expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
                     expression { params.PUBLISH_ON_ANY_BRANCH }
-                    expression { true }
                 }
                 beforeAgent true
             }
@@ -2176,15 +2217,6 @@ pipeline {
                                     echo "druid"
                                 fi
                             """, returnStdout: true).trim()
-                            ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
-                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
-                                    echo "druid.saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
-                                    echo "druid.experimental"
-                                else
-                                    echo "druid"
-                                fi
-                            """, returnStdout: true).trim()
                         }
                         agent {
                             docker {
@@ -2196,68 +2228,6 @@ pipeline {
                             }
                         }
                         stages {
-                            stage('prepare to tag') {
-                                steps {
-                                    script {
-                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
-                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
-                                            sh script:'''#!/bin/bash -eux
-                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                                                chmod u+x /usr/bin/mvn
-
-                                                cat <<EOF > "${GIT_ASKPASS}"
-                                                #!/bin/sh
-                                                case "\\$1" in
-                                                    Username*) echo "${GIT_CREDS_USR}" ;;
-                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
-                                                esac
-                                                EOF
-
-                                                cat <<EOF > "${GITHUB_NETRC}"
-                                                machine api.github.com
-                                                login ${GIT_CREDS_USR}
-                                                password ${GIT_CREDS_PSW}
-                                                EOF
-
-                                                chmod u+x "${GIT_ASKPASS}"
-                                                chmod 400 "${GITHUB_NETRC}"
-                                            '''.replaceAll(/\n\s+/, "\n"),
-                                            label: 'prepare for build'
-                                        }
-                                    }
-                                }
-                            }
-                            stage('populate build properties') {
-                                steps {
-                                    setupMavenSettings()
-                                    sh script:'''#!/bin/bash -eux
-                                        COMMIT_SHA=$(git rev-parse HEAD)
-                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
-                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
-                                        else
-                                            COMMIT_SHA=$(git rev-parse HEAD^)
-                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
-                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
-                                            else
-                                                echo "head branch commit SHA is not found"
-                                                exit 1
-                                            fi
-                                        fi
-
-                                        cd $WORKSPACE
-
-                                        # remove snapshot suffix from pom files
-                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
-                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
-                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
-
-                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
-
-                                    '''.replaceAll(/\n\s+/, "\n"),
-                                    label: 'build druid and verify'
-                                } // end of steps
-                            } // end of stage('Populate build properties')
-
                             stage('Set jenkins-verified property') {
                                 steps {
                                     script {
@@ -2276,21 +2246,19 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
-                                        env.artifact_build_version = sh(
-                                            script: 'cat build.version',
-                                            returnStdout: true
-                                        ).trim()
+                                        echo "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz"
+                                        echo "${BUILD_VERSION}"
                                         rtSetProps (
                                             serverId: "${RT_SERVER_ID}",
                                             spec: """{
                                                 "files": [
                                                     {
-                                                      "pattern": "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
-                                                      "props": "testing=inProgress"
+                                                      "pattern": "tgz-local/${ARTIFACT_NAME}/druid-*-${BUILD_VERSION}.tar.gz",
+                                                      "props": "BVT=InProgress"
                                                     }
                                                 ]
                                             }""",
-                                            props: 'testing=Pass',
+                                            props: 'BVT=Pass',
                                             failNoOp: true
                                         )
                                     }
