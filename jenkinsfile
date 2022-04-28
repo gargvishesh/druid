@@ -2246,14 +2246,13 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
-                                        echo "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz"
-                                        echo "${BUILD_VERSION}"
+                                        echo "setting BVT=Pass for tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz"
                                         rtSetProps (
                                             serverId: "${RT_SERVER_ID}",
                                             spec: """{
                                                 "files": [
                                                     {
-                                                      "pattern": "tgz-local/${ARTIFACT_NAME}/druid-*-${BUILD_VERSION}.tar.gz",
+                                                      "pattern": "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz",
                                                       "props": "BVT=InProgress"
                                                     }
                                                 ]
