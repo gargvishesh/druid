@@ -1110,7 +1110,7 @@ pipeline {
                         beforeAgent true
                     }
                     agent {docker {image "${IMAGE_JDK8}-${DOCKER_TAG}";args "${DOCKER_AGENT_ARGS}";registryUrl "${RT_REGISTRY_URL}";registryCredentialsId "${RT_REGISTRY_CREDS}";label "${DOCKER_AGENT_LABEL}-multi-exec"}}
-                    steps { error("fail test here"); mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
+                    steps { mavenCacheRestore(); sh "${MVN} animal-sniffer:check --fail-at-end" }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
