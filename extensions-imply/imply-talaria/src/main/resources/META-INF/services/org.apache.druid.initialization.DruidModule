@@ -9,3 +9,4 @@
 
 io.imply.druid.talaria.guice.TalariaSqlModule
 io.imply.druid.talaria.guice.TalariaIndexingModule
+io.imply.druid.talaria.guice.SqlTaskModule
