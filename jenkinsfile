@@ -740,6 +740,360 @@ pipeline {
                 }
             }
         }
+        stage('set build version') {
+            agent {
+                docker {
+                    image 'docker/buildabear:20200923'
+                    args '-u root:root'
+                    label "${DOCKER_AGENT_LABEL}"
+                    registryUrl "${RT_REGISTRY_URL}"
+                    registryCredentialsId "${RT_REGISTRY_CREDS}"
+                }
+            }
+            steps {
+                script {
+                    setupMavenSettings()
+                    env.BUILD_VERSION = sh(
+                        script: '''#!/bin/bash -eux
+                            echo -e '#!/bin/bash\\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                            chmod u+x /usr/bin/mvn
+
+
+                            COMMIT_SHA=$(git rev-parse HEAD)
+                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                            else
+                                COMMIT_SHA=$(git rev-parse HEAD^)
+                                if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                    UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                else
+                                    echo "head branch commit SHA is not found"
+                                    exit 1
+                                fi
+                            fi
+
+                            cd $WORKSPACE
+
+                            INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                            DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                            mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+                            echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}"''',
+                       returnStdout: true).tokenize().last().trim()
+                    echo "${BUILD_VERSION}"
+                }
+            }
+        }
+
+        stage("Build and publish pre test") {
+            when {
+                  anyOf {
+                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
+                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
+                      expression { params.PUBLISH_ON_ANY_BRANCH }
+                  }
+                  beforeAgent true
+            }
+            matrix {
+                axes {
+                    axis {
+                        name 'BUILD_PROFILE'
+                        values 'dist', 'imply-saas', 'imply-experimental'
+                    }
+                }
+                stages {
+                    stage('profile build and upload') {
+                        environment {
+                            GIT_ASKPASS = "/tmp/askpass.sh"
+                            GITHUB_NETRC = "/tmp/github-netrc"
+                            STAGING_BASE_DIR= "/tmp/druid-build/stage"
+                            TMP_DIR = "/tmp/druid-build/tmp"
+                            BUILD_DIR = "/tmp/druid-build"
+                            ARTIFACT_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid-saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid-experimental"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
+                            ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
+                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
+                                    echo "druid.saas"
+                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
+                                    echo "druid.experimental"
+                                else
+                                    echo "druid"
+                                fi
+                            """, returnStdout: true).trim()
+                        }
+                        agent {
+                            docker {
+                                image 'docker/buildabear:20200923'
+                                args '-u root:root'
+                                label "${DOCKER_AGENT_LABEL}"
+                                registryUrl "${RT_REGISTRY_URL}"
+                                registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            }
+                        }
+                        stages {
+                            stage('prepare to build') {
+                                steps {
+                                    script {
+                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
+                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
+                                            sh script:'''#!/bin/bash -eux
+                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
+                                                chmod u+x /usr/bin/mvn
+
+                                                cat <<EOF > "${GIT_ASKPASS}"
+                                                #!/bin/sh
+                                                case "\\$1" in
+                                                    Username*) echo "${GIT_CREDS_USR}" ;;
+                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
+                                                esac
+                                                EOF
+
+                                                cat <<EOF > "${GITHUB_NETRC}"
+                                                machine api.github.com
+                                                login ${GIT_CREDS_USR}
+                                                password ${GIT_CREDS_PSW}
+                                                EOF
+
+                                                chmod u+x "${GIT_ASKPASS}"
+                                                chmod 400 "${GITHUB_NETRC}"
+                                            '''.replaceAll(/\n\s+/, "\n"),
+                                            label: 'prepare for build'
+                                        }
+                                    }
+                                }
+                            }
+                            stage('build') {
+                                steps {
+                                    setupMavenSettings()
+                                    sh script:'''#!/bin/bash -eux
+                                        COMMIT_SHA=$(git rev-parse HEAD)
+                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                        else
+                                            COMMIT_SHA=$(git rev-parse HEAD^)
+                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                            else
+                                                echo "head branch commit SHA is not found"
+                                                exit 1
+                                            fi
+                                        fi
+
+                                        # Matching the version from pom.xml
+                                        DERBYTOOLS_VERSION="10.14.2.0"
+
+                                        # Imply includes additional hadoop libraries (e.g., hadoop-aws)
+                                        HADOOP_VERSION="2.8.5"
+
+                                        MARIADB_CONNECTOR_VERSION="2.7.3"
+
+                                        cd $WORKSPACE
+
+                                        # remove snapshot suffix from pom files
+                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+
+                                        current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
+                                        echo "Compiling Druid with current Java version set. Java version=$current_java_version"
+
+                                        mvn clean install \
+                                            -Dhadoop.compile.version="$HADOOP_VERSION" \
+                                            -Danimal.sniffer.skip=true \
+                                            -Dcheckstyle.skip=true \
+                                            -Denforcer.skip=true \
+                                            -Dforbiddenapis.skip=true \
+                                            -Djacoco.skip=true \
+                                            -Dmaven.javadoc.skip=true \
+                                            -Dpmd.skip=true \
+                                            -Dspotbugs.skip=true \
+                                            -DskipTests \
+                                            -T1C \
+                                            -Dtar \
+                                            -P${BUILD_PROFILE}
+
+                                        echo "Built Druid, version: $DRUID_VERSION"
+
+                                        # Stage Druid
+                                        export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
+                                        mkdir -p "$STAGING_DIR/dist"
+                                        mkdir -p "$TMP_DIR"
+                                        tar -C "$TMP_DIR" -xzf "$WORKSPACE"/distribution/target/apache-druid-*-bin.tar.gz
+                                        mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
+
+                                        # Fetch the MariaDB Client from mariadb.com
+                                        MARIADB_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
+                                        #mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
+                                        curl -o "$MARIADB_CONNECTOR_LOCATION" --retry 10 "https://downloads.mariadb.com/Connectors/java/connector-java-${MARIADB_CONNECTOR_VERSION}/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
+
+                                        if [ "$(sha1sum "$MARIADB_CONNECTOR_LOCATION" | awk '{print $1}')" != "4a2edc05bd882ad19371d2615c2635dccf8d74f0" ]
+                                        then
+                                          echo "$MARIADB_CONNECTOR_LOCATION: checksum mismatch" >&2
+                                          exit 1
+                                        fi
+
+                                        # Add hadoop-aws
+                                        (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
+
+                                        # Add derbytools to lib
+                                        DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
+                                        curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
+
+                                        if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "338d5a54b4089c80414fe0ecb3899d521da69b26" ]
+                                        then
+                                          echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
+                                          exit 1
+                                        fi
+
+                                        # Remove unsupported open-source extensions
+                                        for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
+                                            rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
+                                        done
+
+                                        # Put druid on a diet
+                                        perl - <<'EOT'
+                                        use strict;
+                                        use File::Basename;
+
+                                        my $dir = "$ENV{STAGING_DIR}/dist/druid";
+                                        chdir $dir or die "chdir $dir: $!";
+
+                                        my %jars;
+                                        for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
+                                          chomp $jar;
+                                          my $jarname = basename($jar);
+                                          if (exists $jars{$jarname}) {
+                                            my $depth = $jar =~ tr !/!/! - 1;
+                                            my $dots = "";
+                                            for my $x (1..$depth) {
+                                              $dots .= "../";
+                                            }
+                                            system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
+                                          } else {
+                                            $jars{$jarname} = $jar;
+                                          }
+                                        }
+                                        EOT
+
+                                        function verify_checksum() {
+                                            local file="$1"
+                                            local checksum="$2"
+                                            if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
+                                                1>&2 cat << EOF
+                                                    $file has changed in the druid repo! Look at the changes and incorporate them in the
+                                                    script if needed. Then update the expected sha1 in this script. Also update the imply
+                                                    startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
+                                                EOF
+                                                exit 1
+                                            fi
+                                        }
+
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
+                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"
+
+                                        tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
+
+                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
+
+                                    '''.replaceAll(/\n\s+/, "\n"),
+                                    label: 'build druid and verify'
+                                } // end of steps
+                            } // end of stage('build')
+                            stage('prepare upload') {
+                                steps {
+                                    setupMavenSettings()
+                                    sh script:'''#!/bin/bash -eux
+                                        COMMIT_SHA=$(git rev-parse HEAD)
+                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                        else
+                                            COMMIT_SHA=$(git rev-parse HEAD^)
+                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
+                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
+                                            else
+                                                echo "head branch commit SHA is not found"
+                                                exit 1
+                                            fi
+                                        fi
+
+                                        cd $WORKSPACE
+
+                                        # remove snapshot suffix from pom files
+                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
+                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
+
+                                        # Stage Druid
+                                        export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
+
+
+                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
+
+                                    '''.replaceAll(/\n\s+/, "\n"),
+                                    label: 'build druid and verify'
+                                } // end of steps
+                            } // end of stage('build')
+
+                            stage('upload') {
+                                steps {
+                                    script {
+                                        def release_version = "None"
+                                        def headBranch = env.CHANGE_BRANCH ?: env.BRANCH_NAME
+                                        if(headBranch ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX)) {
+                                            release_version = (headBranch =~ env.RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
+                                        } else if(headBranch ==~ env.ACTIVE_DEV_BRANCH_REGEX) {
+                                            release_version = sh(
+                                                script: '''#!/bin/bash -e
+                                                    curl -s --netrc-file ${GITHUB_NETRC} \
+                                                    -H "Accept: application/vnd.github.v3.raw" \
+                                                    https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
+                                                    tee /dev/stderr
+                                                ''',
+                                                returnStdout: true
+                                            ).trim()
+                                        }
+                                        def artifact_build_version = sh(
+                                            script: 'cat build.version',
+                                            returnStdout: true
+                                        ).trim()
+                                        def repo_url = sh(
+                                            script: 'git config --get remote.origin.url',
+                                            returnStdout: true
+                                        ).trim()
+                                        rtUpload (
+                                            serverId: "${RT_SERVER_ID}",
+                                            spec: """{
+                                                "files": [
+                                                    {
+                                                      "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
+                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
+                                                      "props": "release.version=${release_version};BVT=InProgress;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
+                                                    }
+                                                ]
+                                            }""",
+                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
+                                            buildNumber: "${BUILD_NUMBER}"
+                                        )
+                                    }
+                                }
+                            } // end of stage('upload')
+                        } // end of stages
+                        post {
+                            cleanup {
+                                resetWs()
+                            }
+                        }
+                    } // end of stage('profile build and upload')
+                } // end of stages
+            } // end of matrix
+        } // end of stage("Build and publish")
 
         stage('Tests - phase 1') {
             when {
@@ -1108,7 +1462,7 @@ pipeline {
                                 echo 'Starting nvm install...'
                                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
                                 [ -s "/root/.nvm/nvm.sh" ] && . "/root/.nvm/nvm.sh"  # This loads nvm
-                                nvm install 14.19.0                                
+                                nvm install 14.19.0
                                 web-console/script/druid start
                                 cd web-console && npm run test-e2e
                             '''
@@ -1829,7 +2183,7 @@ pipeline {
             } // end of parallel
         } // end of stage('Checks')
 
-        stage("Build and publish") {
+        stage("Tag verified builds") {
             when {
                 anyOf {
                     expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
@@ -1847,7 +2201,7 @@ pipeline {
                     }
                 }
                 stages {
-                    stage('profile build and upload') {
+                    stage('profile tag BVT Pass') {
                         environment {
                             GIT_ASKPASS = "/tmp/askpass.sh"
                             GITHUB_NETRC = "/tmp/github-netrc"
@@ -1863,15 +2217,6 @@ pipeline {
                                     echo "druid"
                                 fi
                             """, returnStdout: true).trim()
-                            ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
-                                if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
-                                    echo "druid.saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
-                                    echo "druid.experimental"
-                                else
-                                    echo "druid"
-                                fi
-                            """, returnStdout: true).trim()
                         }
                         agent {
                             docker {
@@ -1883,177 +2228,7 @@ pipeline {
                             }
                         }
                         stages {
-                            stage('prepare to build') {
-                                steps {
-                                    script {
-                                        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
-                                        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
-                                            sh script:'''#!/bin/bash -eux
-                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                                                chmod u+x /usr/bin/mvn
-
-                                                cat <<EOF > "${GIT_ASKPASS}"
-                                                #!/bin/sh
-                                                case "\\$1" in
-                                                    Username*) echo "${GIT_CREDS_USR}" ;;
-                                                    Password*) echo "${GIT_CREDS_PSW}" ;;
-                                                esac
-                                                EOF
-
-                                                cat <<EOF > "${GITHUB_NETRC}"
-                                                machine api.github.com
-                                                login ${GIT_CREDS_USR}
-                                                password ${GIT_CREDS_PSW}
-                                                EOF
-
-                                                chmod u+x "${GIT_ASKPASS}"
-                                                chmod 400 "${GITHUB_NETRC}"
-                                            '''.replaceAll(/\n\s+/, "\n"),
-                                            label: 'prepare for build'
-                                        }
-                                    }
-                                }
-                            }
-                            stage('build') {
-                                steps {
-                                    setupMavenSettings()
-                                    sh script:'''#!/bin/bash -eux
-                                        COMMIT_SHA=$(git rev-parse HEAD)
-                                        if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
-                                            UPSTREAM_COMMIT_SHA=$COMMIT_SHA
-                                        else
-                                            COMMIT_SHA=$(git rev-parse HEAD^)
-                                            if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
-                                                UPSTREAM_COMMIT_SHA=$COMMIT_SHA
-                                            else
-                                                echo "head branch commit SHA is not found"
-                                                exit 1
-                                            fi
-                                        fi
-
-                                        # Matching the version from pom.xml
-                                        DERBYTOOLS_VERSION="10.14.2.0"
-
-                                        # Imply includes additional hadoop libraries (e.g., hadoop-aws)
-                                        HADOOP_VERSION="2.8.5"
-
-                                        MARIADB_CONNECTOR_VERSION="2.7.3"
-
-                                        cd $WORKSPACE
-
-                                        # remove snapshot suffix from pom files
-                                        INIT_DRUID_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
-                                        DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
-                                        mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
-
-                                        current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
-                                        echo "Compiling Druid with current Java version set. Java version=$current_java_version"
-
-                                        mvn clean install \
-                                            -Dhadoop.compile.version="$HADOOP_VERSION" \
-                                            -Danimal.sniffer.skip=true \
-                                            -Dcheckstyle.skip=true \
-                                            -Denforcer.skip=true \
-                                            -Dforbiddenapis.skip=true \
-                                            -Djacoco.skip=true \
-                                            -Dmaven.javadoc.skip=true \
-                                            -Dpmd.skip=true \
-                                            -Dspotbugs.skip=true \
-                                            -DskipTests \
-                                            -T1C \
-                                            -Dtar \
-                                            -P${BUILD_PROFILE}
-
-                                        echo "Built Druid, version: $DRUID_VERSION"
-
-                                        # Stage Druid
-                                        export STAGING_DIR=${STAGING_BASE_DIR}/${BUILD_PROFILE}
-                                        mkdir -p "$STAGING_DIR/dist"
-                                        mkdir -p "$TMP_DIR"
-                                        tar -C "$TMP_DIR" -xzf "$WORKSPACE"/distribution/target/apache-druid-*-bin.tar.gz
-                                        mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
-
-                                        # Fetch the MariaDB Client from mariadb.com
-                                        MARIADB_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
-                                        #mkdir -p "$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage"
-                                        curl -o "$MARIADB_CONNECTOR_LOCATION" --retry 10 "https://downloads.mariadb.com/Connectors/java/connector-java-${MARIADB_CONNECTOR_VERSION}/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
-
-                                        if [ "$(sha1sum "$MARIADB_CONNECTOR_LOCATION" | awk '{print $1}')" != "4a2edc05bd882ad19371d2615c2635dccf8d74f0" ]
-                                        then
-                                          echo "$MARIADB_CONNECTOR_LOCATION: checksum mismatch" >&2
-                                          exit 1
-                                        fi
-
-                                        # Add hadoop-aws
-                                        (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
-
-                                        # Add derbytools to lib
-                                        DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
-                                        curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
-
-                                        if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "338d5a54b4089c80414fe0ecb3899d521da69b26" ]
-                                        then
-                                          echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
-                                          exit 1
-                                        fi
-
-                                        # Remove unsupported open-source extensions
-                                        for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
-                                            rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
-                                        done
-
-                                        # Put druid on a diet
-                                        perl - <<'EOT'
-                                        use strict;
-                                        use File::Basename;
-
-                                        my $dir = "$ENV{STAGING_DIR}/dist/druid";
-                                        chdir $dir or die "chdir $dir: $!";
-
-                                        my %jars;
-                                        for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
-                                          chomp $jar;
-                                          my $jarname = basename($jar);
-                                          if (exists $jars{$jarname}) {
-                                            my $depth = $jar =~ tr !/!/! - 1;
-                                            my $dots = "";
-                                            for my $x (1..$depth) {
-                                              $dots .= "../";
-                                            }
-                                            system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
-                                          } else {
-                                            $jars{$jarname} = $jar;
-                                          }
-                                        }
-                                        EOT
-
-                                        function verify_checksum() {
-                                            local file="$1"
-                                            local checksum="$2"
-                                            if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
-                                                1>&2 cat << EOF
-                                                    $file has changed in the druid repo! Look at the changes and incorporate them in the
-                                                    script if needed. Then update the expected sha1 in this script. Also update the imply
-                                                    startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
-                                                EOF
-                                                exit 1
-                                            fi
-                                        }
-
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"
-
-                                        tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
-
-                                        echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
-
-                                    '''.replaceAll(/\n\s+/, "\n"),
-                                    label: 'build druid and verify'
-                                } // end of steps
-                            } // end of stage('build')
-
-                            stage('upload') {
+                            stage('Set jenkins-verified property') {
                                 steps {
                                     script {
                                         def release_version = "None"
@@ -2071,31 +2246,23 @@ pipeline {
                                                 returnStdout: true
                                             ).trim()
                                         }
-                                        def artifact_build_version = sh(
-                                            script: 'cat build.version',
-                                            returnStdout: true
-                                        ).trim()
-                                        def repo_url = sh(
-                                            script: 'git config --get remote.origin.url',
-                                            returnStdout: true
-                                        ).trim()
-                                        rtUpload (
+                                        echo "setting BVT=Pass for tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz"
+                                        rtSetProps (
                                             serverId: "${RT_SERVER_ID}",
                                             spec: """{
                                                 "files": [
                                                     {
-                                                      "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
-                                                      "target": "tgz-local/${ARTIFACT_NAME}/",
-                                                      "props": "release.version=${release_version};BVT=Pass;build.url=${BUILD_URL};vcs.url=${repo_url};vcs.branch=${headBranch};build.version=${artifact_build_version}"
+                                                      "pattern": "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz",
+                                                      "props": "BVT=InProgress"
                                                     }
                                                 ]
                                             }""",
-                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
-                                            buildNumber: "${BUILD_NUMBER}"
+                                            props: 'BVT=Pass',
+                                            failNoOp: true
                                         )
                                     }
                                 }
-                            } // end of stage('upload')
+                            } // end of stage('Set BVT=pass property')
                         } // end of stages
                         post {
                             cleanup {
@@ -2105,7 +2272,7 @@ pipeline {
                     } // end of stage('profile build and upload')
                 } // end of stages
             } // end of matrix
-        } // end of stage("Build and publish")
+        } // end of stage("Tag verified builds")
     } // end of stages
     post {
         failure {
