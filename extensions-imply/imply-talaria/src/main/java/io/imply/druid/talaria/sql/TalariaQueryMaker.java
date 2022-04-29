@@ -139,7 +139,7 @@ public class TalariaQueryMaker implements QueryMaker
 
     Object talariaMode = plannerContext.getQueryContext().get(TalariaMode.CTX_TALARIA_MODE);
     if (talariaMode != null) {
-      TalariaMode.backfillQueryContext(talariaMode.toString(), plannerContext.getQueryContext());
+      TalariaMode.populateDefaultQueryContext(talariaMode.toString(), plannerContext.getQueryContext());
     }
 
     final String ctxDestination =

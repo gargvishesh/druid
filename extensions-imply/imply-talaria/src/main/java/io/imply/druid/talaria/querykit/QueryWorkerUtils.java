@@ -245,7 +245,7 @@ public class QueryWorkerUtils
                                 break;
                               }
                               catch (ParseException e) {
-                                warningCounters.incrementErrorCount(CannotParseExternalDataFault.CODE);
+                                warningCounters.incrementWarningCount(CannotParseExternalDataFault.CODE);
                                 if (talariaWarningReportPublisher != null) {
                                   talariaWarningReportPublisher.publishException(stageNumber, e);
                                 }

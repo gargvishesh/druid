@@ -52,7 +52,7 @@ import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
-import io.imply.druid.talaria.indexing.error.WarningsHelper;
+import io.imply.druid.talaria.indexing.error.WarningHelper;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
@@ -211,7 +211,7 @@ public class LeaderImpl implements Leader
   private volatile WorkerClient netClient;
 
   private long maxParseExceptions = -1;
-  private volatile WarningsHelper.FaultsExceededChecker faultsExceededChecker = null;
+  private volatile WarningHelper.FaultsExceededChecker faultsExceededChecker = null;
 
   public LeaderImpl(
       final TalariaControllerTask task,
@@ -429,12 +429,12 @@ public class LeaderImpl implements Leader
 
     if (task.getSqlQueryContext() != null) {
       this.maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
-                                                        .get(WarningsHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
+                                                        .get(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
                                         .map(DimensionHandlerUtils::convertObjectToLong)
-                                        .orElse(WarningsHelper.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
+                                        .orElse(WarningHelper.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
     }
 
-    this.faultsExceededChecker = new WarningsHelper.FaultsExceededChecker(
+    this.faultsExceededChecker = new WarningHelper.FaultsExceededChecker(
         ImmutableMap.of(CannotParseExternalDataFault.class, maxParseExceptions)
     );
 

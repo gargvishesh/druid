@@ -90,13 +90,14 @@ public class TalariaCountersSnapshot
 
   public static class WarningCounters
   {
-    private final WarningCountersSnapshot warningCountersSnapshot;
+    private final io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot warningCountersSnapshot;
     private final int stageNumber;
 
     @JsonCreator
     public WarningCounters(
         @JsonProperty("stageNumber") int stageNumber,
-        @JsonProperty("warningCounters") WarningCountersSnapshot warningCountersSnapshot
+        @JsonProperty("warningCounters")
+            io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot warningCountersSnapshot
     )
     {
       this.stageNumber = stageNumber;
@@ -104,7 +105,7 @@ public class TalariaCountersSnapshot
     }
 
     @JsonProperty("warningCounters")
-    public WarningCountersSnapshot getWarningCountersSnapshot()
+    public io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot getWarningCountersSnapshot()
     {
       return warningCountersSnapshot;
     }

@@ -9,32 +9,50 @@
 
 package io.imply.druid.talaria.indexing;
 
-import java.util.HashMap;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.api.client.util.Preconditions;
+import com.google.common.collect.ImmutableMap;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class WarningCounters
 {
-  private final ConcurrentHashMap<String, Long> count = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Long> warningCodeCounter = new ConcurrentHashMap<>();
 
-  public void incrementErrorCount(String errorCode)
+  public void incrementWarningCount(String errorCode)
   {
-    count.compute(errorCode, (ignored, oldCount) -> oldCount == null ? 1 : oldCount + 1);
+    warningCodeCounter.compute(errorCode, (ignored, oldCount) -> oldCount == null ? 1 : oldCount + 1);
   }
 
-  public long totalErrorCount(String errorCode)
+  public long totalWarningCount()
   {
-    return count.getOrDefault(errorCode, 0L);
-  }
-
-  public synchronized long totalErrorCount()
-  {
-    return count.values().stream().reduce(0L, Long::sum);
+    return warningCodeCounter.values().stream().reduce(0L, Long::sum);
   }
 
   public WarningCountersSnapshot snapshot()
   {
-    Map<String, Long> countCopy = new HashMap<>(count);
+    Map<String, Long> countCopy = ImmutableMap.copyOf(warningCodeCounter);
     return new WarningCountersSnapshot(countCopy);
+  }
+
+  public static class WarningCountersSnapshot
+  {
+    private final Map<String, Long> warningCount;
+
+    @JsonCreator
+    public WarningCountersSnapshot(
+        @JsonProperty("warningCount") Map<String, Long> warningCount
+    )
+    {
+      this.warningCount = Preconditions.checkNotNull(warningCount, "warningCount");
+    }
+
+    @JsonProperty("warningCount")
+    public Map<String, Long> getWarningCount()
+    {
+      return warningCount;
+    }
   }
 }

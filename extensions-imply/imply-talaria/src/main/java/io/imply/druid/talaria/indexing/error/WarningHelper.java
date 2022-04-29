@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class WarningsHelper
+public class WarningHelper
 {
   public static final String CTX_MAX_PARSE_EXCEPTIONS_ALLOWED = "maxParseExceptions";
   public static final Long DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED = -1L;

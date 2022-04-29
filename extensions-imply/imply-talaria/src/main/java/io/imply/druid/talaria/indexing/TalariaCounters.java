@@ -178,20 +178,20 @@ public class TalariaCounters
             + workerCounters.getTotalRows(TalariaCounterType.INPUT_DRUID, stageNumber);
         final long processorRows = workerCounters.getTotalRows(TalariaCounterType.PROCESSOR, stageNumber);
         final long sortRows = workerCounters.getTotalRows(TalariaCounterType.SORT, stageNumber);
-        final long workerWarnings = workerCounters.getOrCreateWarningCounters(stageNumber).totalErrorCount();
+        final long workerWarnings = workerCounters.getOrCreateWarningCounters(stageNumber).totalWarningCount();
 
         sb.append(inputRows);
 
         if (processorRows > 0) {
-          sb.append("~").append(processorRows);
+          sb.append(" Processed Rows-").append(processorRows);
 
           if (sortRows > 0) {
-            sb.append(">").append(sortRows);
+            sb.append(" Sorted Rows-").append(sortRows);
           }
         }
 
         if (workerWarnings > 0) {
-          sb.append("!").append(workerWarnings);
+          sb.append(" Worker Warnings-").append(workerWarnings);
         }
       }
     }
