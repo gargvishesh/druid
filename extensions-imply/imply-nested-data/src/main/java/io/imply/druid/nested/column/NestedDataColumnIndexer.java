@@ -238,18 +238,21 @@ public class NestedDataColumnIndexer implements DimensionIndexer<StructuredData,
         // why not
         ExprEval<?> eval = ExprEval.bestEffortOf(value);
         final ColumnType columnType = ExpressionType.toColumnType(eval.type());
-        typeSet.add(columnType);
+
         switch (columnType.getType()) {
           case LONG:
             globalDimensionDictionary.addLongValue(eval.asLong());
+            typeSet.add(ColumnType.LONG);
             return StructuredDataProcessor.getLongObjectEstimateSize();
           case DOUBLE:
             globalDimensionDictionary.addDoubleValue(eval.asDouble());
+            typeSet.add(ColumnType.DOUBLE);
             return StructuredDataProcessor.getDoubleObjectEstimateSize();
           case STRING:
           default:
             final String asString = eval.asString();
             globalDimensionDictionary.addStringValue(asString);
+            typeSet.add(ColumnType.STRING);
             return StructuredDataProcessor.estimateStringSize(asString);
         }
       }
