@@ -12,6 +12,7 @@ package io.imply.druid.talaria.indexing.externalsink;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
@@ -27,6 +28,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
+import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -54,6 +56,8 @@ public class TalariaExternalSinkFrameProcessor implements FrameProcessor<URI>
   private final TalariaExternalSinkStream externalSinkStream;
   private final JsonGenerator jsonGenerator;
 
+  private final SerializerProvider serializers;
+
   TalariaExternalSinkFrameProcessor(
       final ReadableFrameChannel inChannel,
       final FrameReader frameReader,
@@ -68,6 +72,7 @@ public class TalariaExternalSinkFrameProcessor implements FrameProcessor<URI>
     this.externalSinkStream = externalSinkStream;
     this.jsonGenerator = jsonMapper.writer().getFactory().createGenerator(externalSinkStream.getOutputStream());
     this.jsonGenerator.setRootValueSeparator(new SerializedString("\n"));
+    this.serializers = jsonMapper.getSerializerProviderInstance();
 
     log.debug("Opened external sink file [%s].", externalSinkStream.getUri());
   }
@@ -156,7 +161,7 @@ public class TalariaExternalSinkFrameProcessor implements FrameProcessor<URI>
 
     for (int i = 0; i < selectors.size(); i++) {
       jsonGenerator.writeFieldName(columnMappings.getMappings().get(i).getOutputColumn());
-      jsonGenerator.writeObject(selectors.get(i).getObject());
+      JacksonUtils.writeObjectUsingSerializerProvider(jsonGenerator, serializers, selectors.get(i).getObject());
     }
 
     jsonGenerator.writeEndObject();
