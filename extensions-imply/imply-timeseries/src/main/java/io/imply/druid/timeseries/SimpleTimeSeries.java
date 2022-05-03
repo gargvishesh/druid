@@ -10,11 +10,11 @@
 package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Iterators;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.collect.Utils;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -100,10 +100,10 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     }
 
     mergeSeries.forEach(SimpleTimeSeries::build);
-    Iterator<Pair<Long, Double>> mergedTimeSeries = Iterators.mergeSorted(mergeSeries.stream()
-                                                                                     .map(SimpleTimeSeries::getIterator)
-                                                                                     .collect(Collectors.toList()),
-                                                                          Comparator.comparingLong(lhs -> lhs.lhs));
+    Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
+        mergeSeries.stream().map(SimpleTimeSeries::getIterator).collect(Collectors.toList()),
+        Comparator.comparingLong(lhs -> lhs.lhs)
+    );
 
     ImplyLongArrayList timestamps = new ImplyLongArrayList(size());
     ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(size());
