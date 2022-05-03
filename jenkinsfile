@@ -12,7 +12,6 @@ def setupMavenSettings() {
 
 def markBvtAsFail(artifactName, version) {
     script {
-        echo "marking as failure now"
         withCredentials(
                 [usernamePassword(
                         credentialsId: 'repo.cnc.imply.io',
@@ -21,15 +20,14 @@ def markBvtAsFail(artifactName, version) {
                 )]
         ) {
             def UPDATE_PROPS_URL = "https://repo.cnc.imply.io/artifactory/api/metadata/tgz-local/${artifactName}/${artifactName}-${version}.tar.gz"
-            sh(
-                    script: """curl -u "${ARTIFACTORY_USER}":"${ARTIFACTORY_PASSWORD}" --location --request PATCH "${UPDATE_PROPS_URL}" \
-        --header 'Content-Type: application/json' \
-        --data-raw '{
-            "props":{
-                "BVT": "Fail"
-            }
-        }'
-        """
+            sh(script: """
+                curl -u "${ARTIFACTORY_USER}":"${ARTIFACTORY_PASSWORD}" --location --request PATCH "${UPDATE_PROPS_URL}" \
+                --header 'Content-Type: application/json' \
+                --data-raw '{
+                    "props":{
+                        "BVT": "Fail"
+                    }
+                }'"""
             )
         }
     }
@@ -710,61 +708,61 @@ pipeline {
             }
         }
 
-//        stage('Maven install') {
-//            when {
-//                expression { !params.SKIP_ALL_JENKINS_TESTS }
-//                beforeAgent true
-//            }
-//            environment {
-//                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
-//            }
-//            parallel {
-//                stage('(openjdk8) maven install') {
-//                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
-//                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
-//                    steps {
-//                        mavenInstall()
-//                        mavenDockerBackup()
-//                    }
-//                    post {
-//                        cleanup {
-//                            resetWs()
-//                            dockerCleanup()
-//                        }
-//                    }
-//                }
-//                stage('(openjdk11) maven install') {
-//                    agent {docker {image "${IMAGE_JDK11}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
-//                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK11}" }
-//                    steps {
-//                        mavenInstall()
-//                        mavenDockerBackup()
-//
-//                    }
-//                    post {
-//                        cleanup {
-//                            resetWs()
-//                            dockerCleanup()
-//                        }
-//                    }
-//                }
-//                stage('Verify code changes in PR') {
-//                    when {
-//                        beforeAgent true
-//                        changeRequest()
-//                    }
-//                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}-multi-exec"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
-//                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
-//                    steps { getCodeChanges() }
-//                    post {
-//                        cleanup {
-//                            resetWs()
-//                            dockerCleanup()
-//                        }
-//                    }
-//                }
-//            }
-//        }
+        stage('Maven install') {
+            when {
+                expression { !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+            }
+            parallel {
+                stage('(openjdk8) maven install') {
+                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+                stage('(openjdk11) maven install') {
+                    agent {docker {image "${IMAGE_JDK11}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK11}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+                stage('Verify code changes in PR') {
+                    when {
+                        beforeAgent true
+                        changeRequest()
+                    }
+                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}-multi-exec"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
+                    steps { getCodeChanges() }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+            }
+        }
         stage('set build version') {
             agent {
                 docker {
@@ -865,7 +863,6 @@ pipeline {
                             stage('prepare to build') {
                                 steps {
                                     script {
-                                        error('fail here')
                                         def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
                                         withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
                                             sh script:'''#!/bin/bash -eux
@@ -1107,6 +1104,8 @@ pipeline {
                                                 buildName: "${ARTIFACTORY_BUILD_NAME}",
                                                 buildNumber: "${BUILD_NUMBER}"
                                         )
+                                        // this is used to know whether or not to mark as failure. And avoid errors for something that fails before the artifact is uploaded.
+                                        env.BUILD_UPLOAD_SUCCESS = true
                                     }
                                 }
                             } // end of stage('upload')
@@ -2301,27 +2300,25 @@ pipeline {
         } // end of stage("Tag verified builds")
     } // end of stages
     post {
-        always {
-            agent {
-                docker {
-                    image 'docker/buildabear:20200923'
-                    args '-u root:root'
-                    label "${DOCKER_AGENT_LABEL}"
-                    registryUrl "${RT_REGISTRY_URL}"
-                    registryCredentialsId "${RT_REGISTRY_CREDS}"
-                }
-            }
-        }
         failure {
-            // notify about failed build
             script {
-                echo "will set this as a failure now ${BUILD_VERSION}"
-                markBvtAsFail('druid', "${BUILD_VERSION}")
-                markBvtAsFail('druid-saas', "${BUILD_VERSION}")
-                markBvtAsFail('druid-experimental', "{$BUILD_VERSION}")
                 if(isEligibleToNotify()) {
                     library 'imply-shared-library'
                     failedDruidBVTNotification(currentBuild)
+                }
+            }
+            node('jenkinsOnDemand'){
+                // notify about failed build
+                script {
+                    echo "checking to see if should set BVT as Fail for ${BUILD_VERSION}"
+                    if (env.BUILD_UPLOAD_SUCCESS == null || !env.BUILD_UPLOAD_SUCCESS) {
+                        echo "Not setting BVT as Fail"
+                        return
+                    }
+                    echo "Setting BVT as Fail"
+                    markBvtAsFail('druid', "${BUILD_VERSION}")
+                    markBvtAsFail('druid-saas', "${BUILD_VERSION}")
+                    markBvtAsFail('druid-experimental', "{$BUILD_VERSION}")
                 }
             }
         }
