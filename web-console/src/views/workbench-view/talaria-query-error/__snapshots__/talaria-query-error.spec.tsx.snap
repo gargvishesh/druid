@@ -10,12 +10,11 @@ exports[`TalariaQueryError matches snapshot 1`] = `
     TooManyBuckets: 
     Too many partition buckets (max = 10,000); try breaking your query up into smaller queries or using a wider segmentGranularity
      
-    <span
-      className="stack-trace"
+    <a
       onClick={[Function]}
     >
       (Stack trace)
-    </span>
+    </a>
   </p>
   <p>
     Failed task ID: 
@@ -30,12 +29,11 @@ exports[`TalariaQueryError matches snapshot 1`] = `
      
     Debug:
      
-    <span
-      className="download-infopack"
+    <a
       onClick={[Function]}
     >
       download query profile
-    </span>
+    </a>
   </p>
 </div>
 `;

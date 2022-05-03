@@ -28,10 +28,10 @@ import React, { useState } from 'react';
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { Api, AppToaster } from '../../../singletons';
-import { QueryExecution, TalariaQuery } from '../../../talaria-models';
+import { Execution, TalariaQuery } from '../../../talaria-models';
 import { deepGet, downloadQueryProfile, formatDuration, queryDruidSql } from '../../../utils';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
-import { cancelAsyncQuery, getAsyncExecution } from '../execution-utils';
+import { cancelTaskExecution, getTaskExecution } from '../execution-utils';
 import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
 import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
 import { useWorkStateStore } from '../work-state-store';
@@ -123,9 +123,9 @@ LIMIT 100`,
                 <MenuItem
                   text="Attach in new tab"
                   onClick={async () => {
-                    let execution: QueryExecution;
+                    let execution: Execution;
                     try {
-                      execution = await getAsyncExecution(w.taskId);
+                      execution = await getTaskExecution(w.taskId);
                     } catch {
                       AppToaster.show({
                         message: 'Could not get payload',
@@ -148,7 +148,7 @@ LIMIT 100`,
                         execution.queryContext,
                       )
                         .explodeQuery()
-                        .changeLastQueryId(w.taskId),
+                        .changeLastExecution({ engine: 'sql-task', id: w.taskId }),
                       'Attached',
                     );
                   }}
@@ -176,7 +176,7 @@ LIMIT 100`,
                     setLoadValue({
                       title: 'SQL query',
                       work: async () => {
-                        const execution = await getAsyncExecution(w.taskId);
+                        const execution = await getTaskExecution(w.taskId);
                         if (!execution.sqlQuery) throw new Error('Could not get query');
                         return execution.sqlQuery;
                       },
@@ -190,9 +190,9 @@ LIMIT 100`,
                       title: 'Native query',
                       work: async () => {
                         const payloadResp = await Api.instance.get(
-                          `/druid/v2/sql/async/${Api.encodePath(w.taskId)}`,
+                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
                         );
-                        const nativeQuery = deepGet(payloadResp, 'data.talaria.task.spec.query');
+                        const nativeQuery = deepGet(payloadResp, 'data.payload.spec.query');
                         return nativeQuery
                           ? JSONBig.stringify(nativeQuery, undefined, 2)
                           : 'Could not extract native query';
@@ -218,7 +218,7 @@ LIMIT 100`,
                       setLoadValue({
                         title: 'Query error',
                         work: async () => {
-                          const execution = await getAsyncExecution(w.taskId);
+                          const execution = await getTaskExecution(w.taskId);
                           const { error } = execution;
                           if (!error) return String(w.errorMessage);
                           return `${error.error.errorCode}: ${
@@ -304,7 +304,7 @@ LIMIT 100`,
           onCancel={async () => {
             if (!confirmCancelId) return;
             try {
-              await cancelAsyncQuery(confirmCancelId);
+              await cancelTaskExecution(confirmCancelId);
               AppToaster.show({
                 message: 'Query canceled',
                 intent: Intent.SUCCESS,

@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-import { QueryExecution } from '../../talaria-models';
+import { Execution } from '../../talaria-models';
 import { DruidError, QueryState } from '../../utils';
 
 export class TalariaQueryStateCache {
-  private static readonly cache: Record<
-    string,
-    QueryState<QueryExecution, DruidError, QueryExecution>
-  > = {};
+  private static readonly cache: Record<string, QueryState<Execution, DruidError, Execution>> = {};
 
-  static storeState(
-    id: string,
-    report: QueryState<QueryExecution, DruidError, QueryExecution>,
-  ): void {
+  static storeState(id: string, report: QueryState<Execution, DruidError, Execution>): void {
     TalariaQueryStateCache.cache[id] = report;
   }
 
-  static getState(id: string): QueryState<QueryExecution, DruidError, QueryExecution> | undefined {
+  static getState(id: string): QueryState<Execution, DruidError, Execution> | undefined {
     return TalariaQueryStateCache.cache[id];
   }
 

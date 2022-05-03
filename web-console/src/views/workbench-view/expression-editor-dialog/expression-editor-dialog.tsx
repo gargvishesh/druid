@@ -62,7 +62,6 @@ export const ExpressionEditorDialog = React.memo(function ExpressionEditorDialog
             placeholder="expression"
             queryString={formula}
             onQueryStringChange={setFormula}
-            runeMode={false}
             columnMetadata={undefined}
           />
         </FormGroup>

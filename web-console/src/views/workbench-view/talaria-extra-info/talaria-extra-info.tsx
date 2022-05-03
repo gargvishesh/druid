@@ -16,47 +16,59 @@
  * limitations under the License.
  */
 
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, ButtonGroup } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
 import React from 'react';
 
-import { QueryExecution } from '../../../talaria-models';
+import { Execution } from '../../../talaria-models';
 import { pluralIfNeeded } from '../../../utils';
 
 import './talaria-extra-info.scss';
 
 export interface TalariaExtraInfoProps {
-  queryExecution: QueryExecution;
-  onStats(): void;
+  execution: Execution | undefined;
+  onExecutionDetail(): void;
+  onReset?: () => void;
 }
 
 export const TalariaExtraInfo = React.memo(function TalariaExtraInfo(props: TalariaExtraInfoProps) {
-  const { queryExecution, onStats } = props;
-  const queryResult = queryExecution.result;
-  if (!queryResult) return null;
+  const { execution, onExecutionDetail, onReset } = props;
+  const queryResult = execution?.result;
 
-  const wrapQueryLimit = queryResult.getSqlOuterLimit();
-  const hasMoreResults = queryResult.getNumResults() === wrapQueryLimit;
+  const buttons: JSX.Element[] = [];
 
-  const resultCount = hasMoreResults
-    ? `${queryResult.getNumResults() - 1}+ results`
-    : pluralIfNeeded(queryResult.getNumResults(), 'result');
+  if (queryResult) {
+    const wrapQueryLimit = queryResult.getSqlOuterLimit();
+    const hasMoreResults = queryResult.getNumResults() === wrapQueryLimit;
 
-  let tooltipContent: JSX.Element | undefined;
-  const taskId = queryResult.resultContext?.taskId;
-  if (taskId) {
-    tooltipContent = (
-      <>
-        Task ID: <strong>{taskId}</strong>
-      </>
-    ); // (click to copy)
+    const resultCount = hasMoreResults
+      ? `${queryResult.getNumResults() - 1}+ results`
+      : pluralIfNeeded(queryResult.getNumResults(), 'result');
+
+    buttons.push(
+      <Button
+        key="results"
+        minimal
+        text={
+          resultCount + (execution.duration ? ` in ${(execution.duration / 1000).toFixed(2)}s` : '')
+        }
+        onClick={() => {
+          if (!execution) return;
+          if (execution.engine === 'sql-task') {
+            onExecutionDetail();
+          }
+        }}
+      />,
+    );
+  }
+
+  if (onReset) {
+    buttons.push(<Button key="reset" icon={IconNames.CROSS} minimal onClick={onReset} />);
   }
 
   return (
-    <div className="talaria-extra-info" onClick={onStats}>
-      <Tooltip2 content={tooltipContent} hoverOpenDelay={500} placement="top-start">
-        {resultCount +
-          (queryExecution.duration ? ` in ${(queryExecution.duration / 1000).toFixed(2)}s` : '')}
-      </Tooltip2>
-    </div>
+    <ButtonGroup className="talaria-extra-info" minimal>
+      {buttons}
+    </ButtonGroup>
   );
 });

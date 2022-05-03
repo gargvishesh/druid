@@ -19,13 +19,13 @@
 import { SqlTableRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { QueryExecution } from '../../../talaria-models';
+import { Execution } from '../../../talaria-models';
 import { formatDuration, pluralIfNeeded } from '../../../utils';
 
 import './insert-success.scss';
 
 export interface InsertSuccessProps {
-  insertQueryExecution: QueryExecution;
+  insertQueryExecution: Execution;
   onStats(): void;
   onQueryChange(queryString: string): void;
 }

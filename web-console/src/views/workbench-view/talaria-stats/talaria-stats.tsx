@@ -19,22 +19,24 @@
 import { Icon, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import classNames from 'classnames';
 import React, { ReactNode } from 'react';
 import ReactTable from 'react-table';
 
 import { BracedText } from '../../../components';
+import { DEFAULT_TABLE_CLASS_NAME } from '../../../react-table';
 import {
   ClusterBy,
   compareDetailEntries,
   COUNTER_TYPE_TITLE,
   CounterType,
   DataSource,
+  ExecutionError,
   formatClusterBy,
   INPUT_COUNTERS,
   StageDefinition,
   Stages,
   summarizeInputSource,
-  TalariaTaskError,
 } from '../../../talaria-models';
 import {
   formatBytes,
@@ -103,7 +105,7 @@ const formatDurationDynamic = (n: NumberLike) =>
 
 export interface TalariaStatsProps {
   stages: Stages;
-  error?: TalariaTaskError;
+  error?: ExecutionError;
 }
 
 export const TalariaStats = React.memo(function TalariaStats(props: TalariaStatsProps) {
@@ -294,7 +296,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
 
   return (
     <ReactTable
-      className="talaria-stats -striped -highlight"
+      className={classNames('talaria-stats', DEFAULT_TABLE_CLASS_NAME)}
       data={stages.stages}
       loading={false}
       noDataText="No stages"
@@ -305,6 +307,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           Header: twoLines('Stage', <i>stage_number = Processor(inputs)</i>),
           id: 'stage',
           accessor: 'stageNumber',
+          className: 'padded',
           width: 400,
           Cell(props) {
             const stage = props.original as StageDefinition;
@@ -353,6 +356,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           Header: twoLines('Data processed', <i>rows &nbsp; (size or files)</i>),
           id: 'data_processed',
           accessor: () => null,
+          className: 'padded',
           width: 310,
           Cell({ original }) {
             return (
@@ -368,6 +372,7 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           Header: twoLines('Data processing rate', <i>rows/s &nbsp; (data rate)</i>),
           id: 'data_processing_rate',
           accessor: s => stages.getRowRateFromStage(s),
+          className: 'padded',
           width: 200,
           Cell({ original }) {
             const rowRate = stages.getRowRateFromStage(original);
@@ -391,12 +396,14 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
           Header: 'Phase',
           id: 'phase',
           accessor: row => (row.phase ? capitalizeFirst(row.phase.replace(/_/g, ' ')) : ''),
+          className: 'padded',
           width: 130,
         },
         {
           Header: 'Timing',
           id: 'timing',
           accessor: row => row.startTime,
+          className: 'padded',
           width: 170,
           Cell({ value, original }) {
             if (!value) return null;
@@ -416,11 +423,13 @@ export const TalariaStats = React.memo(function TalariaStats(props: TalariaStats
         {
           Header: twoLines('Num', 'workers'),
           accessor: 'workerCount',
+          className: 'padded',
           width: 75,
         },
         {
           Header: twoLines('Output', 'partitions'),
           accessor: 'partitionCount',
+          className: 'padded',
           width: 75,
         },
         {

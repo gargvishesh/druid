@@ -41,14 +41,14 @@ import {
 import { useQueryManager } from '../../../../hooks';
 import { UrlBaser } from '../../../../singletons';
 import {
+  Execution,
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
-  QueryExecution,
 } from '../../../../talaria-models';
 import {
   executionBackgroundResultStatusCheck,
   extractQueryResults,
-  submitAsyncQuery,
+  submitTaskQuery,
 } from '../../execution-utils';
 
 import { InputSourceInfo } from './input-source-info';
@@ -96,7 +96,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
   const [connectResultState, connectQueryManager] = useQueryManager<
     InputSource,
     QueryResult,
-    QueryExecution
+    Execution
   >({
     processQuery: async (inputSource: InputSource, cancelToken) => {
       const externExpression = externalConfigToTableExpression({
@@ -111,10 +111,10 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
       });
 
       return extractQueryResults(
-        await submitAsyncQuery({
-          query: `SELECT raw FROM ${externExpression} LIMIT 100`,
+        await submitTaskQuery({
+          query: `SELECT raw FROM ${externExpression}`,
           context: {
-            talaria: true,
+            sqlOuterLimit: 100,
           },
           cancelToken,
         }),
