@@ -31,13 +31,9 @@ import {
 } from '../../components';
 import { AsyncActionDialog } from '../../dialogs';
 import { useQueryManager } from '../../hooks';
+import { STANDARD_TABLE_PAGE_SIZE, STANDARD_TABLE_PAGE_SIZE_OPTIONS } from '../../react-table';
 import { Api, AppToaster } from '../../singletons';
-import {
-  deepGet,
-  LocalStorageKeys,
-  STANDARD_TABLE_PAGE_SIZE,
-  STANDARD_TABLE_PAGE_SIZE_OPTIONS,
-} from '../../utils';
+import { deepGet, LocalStorageKeys } from '../../utils';
 
 import { MultiSelectDialog } from './multi-select-dialog/multi-select-dialog';
 import { RoleEditorDialog } from './role-editor-dialog/role-editor-dialog';
@@ -168,12 +164,15 @@ export const UsersAndRoles = function UsersAndRoles(props: UsersAndRolesProps) {
             {
               Header: 'User',
               accessor: 'username',
+              width: 160,
+              className: 'padded',
             },
             {
               Header: 'Assigned roles',
               accessor: 'roles',
-              width: 140,
+              width: 240,
               filterable: false,
+              className: 'padded',
               Cell({ value }) {
                 if (!value) return null;
                 return (
@@ -188,13 +187,14 @@ export const UsersAndRoles = function UsersAndRoles(props: UsersAndRolesProps) {
             {
               Header: 'Status',
               id: 'credentials',
+              className: 'padded',
               accessor: d => {
                 const issues: string[] = [];
                 if (!d.credentials) issues.push('No credentials');
                 if (!d.roles) issues.push('Not in authorization system');
                 return issues.join(', ') || 'OK';
               },
-              width: 140,
+              width: 200,
             },
             {
               Header: ACTION_COLUMN_LABEL,
@@ -253,11 +253,13 @@ export const UsersAndRoles = function UsersAndRoles(props: UsersAndRolesProps) {
               Header: 'Role',
               accessor: 'name',
               width: 140,
+              className: 'padded',
             },
             {
               Header: 'Assigned users',
               accessor: 'users',
               width: 140,
+              className: 'padded',
               filterable: false,
               Cell({ value }) {
                 if (!value) return null;
@@ -274,6 +276,8 @@ export const UsersAndRoles = function UsersAndRoles(props: UsersAndRolesProps) {
               Header: 'Permissions',
               accessor: 'permissions',
               filterable: false,
+              width: 300,
+              className: 'padded',
               Cell({ value }) {
                 return (
                   <>
