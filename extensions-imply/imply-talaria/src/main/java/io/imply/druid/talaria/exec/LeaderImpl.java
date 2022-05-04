@@ -52,6 +52,7 @@ import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
+import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
 import io.imply.druid.talaria.indexing.error.WarningHelper;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
@@ -698,6 +699,16 @@ public class LeaderImpl implements Leader
                                                                          .collect(Collectors.toList()));
     if (faultsExceeded) {
       // TODO: Add a new fault and set the error
+      workerError(
+          TalariaErrorReport.fromFault(
+              id(),
+              selfDruidNode.getHost(),
+              null,
+              new TooManyWarningsFault(
+                  (int) maxParseExceptions,
+                  CannotParseExternalDataFault.class
+              )
+          ));
     }
     workerWarnings.addAll(errorReports);
   }
