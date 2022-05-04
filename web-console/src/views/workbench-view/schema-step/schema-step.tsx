@@ -66,6 +66,7 @@ import {
 import {
   caseInsensitiveContains,
   change,
+  dataTypeToIcon,
   DruidError,
   filterMap,
   getContextFromSqlQuery,
@@ -78,7 +79,6 @@ import {
   without,
 } from '../../../utils';
 import { LearnMore } from '../../load-data-view/learn-more/learn-more';
-import { dataTypeToIcon } from '../../query-view/query-utils';
 import { ColumnActions } from '../column-actions/column-actions';
 import { ColumnEditor } from '../column-editor/column-editor';
 import { DestinationDialog } from '../destination-dialog/destination-dialog';

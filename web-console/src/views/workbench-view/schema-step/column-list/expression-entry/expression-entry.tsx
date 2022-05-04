@@ -22,7 +22,7 @@ import classNames from 'classnames';
 import { Column, QueryResult, SqlRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { dataTypeToIcon } from '../../../../query-view/query-utils';
+import { dataTypeToIcon } from '../../../../../utils';
 
 import './expression-entry.scss';
 

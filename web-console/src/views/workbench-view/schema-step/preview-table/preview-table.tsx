@@ -31,17 +31,17 @@ import {
 import React, { useState } from 'react';
 import ReactTable from 'react-table';
 
-import { BracedText, TableCell } from '../../../../components';
-import { Deferred } from '../../../../components/deferred/deferred';
+import { BracedText, Deferred, TableCell } from '../../../../components';
 import { ShowValueDialog } from '../../../../dialogs/show-value-dialog/show-value-dialog';
 import {
+  dataTypeToColumnWidth,
+  dataTypeToIcon,
   filterMap,
   getNumericColumnBraces,
   prettyPrintSql,
   QueryAction,
   stringifyValue,
 } from '../../../../utils';
-import { dataTypeToIcon } from '../../../query-view/query-utils';
 
 import './preview-table.scss';
 
@@ -131,12 +131,12 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
           <>
             {isComparable(value) && (
               <>
-                {filterOnMenuItem(IconNames.FILTER_KEEP, ex.greaterThanOrEqual(val))}
-                {filterOnMenuItem(IconNames.FILTER_KEEP, ex.lessThanOrEqual(val))}
+                {filterOnMenuItem(IconNames.FILTER, ex.greaterThanOrEqual(val))}
+                {filterOnMenuItem(IconNames.FILTER, ex.lessThanOrEqual(val))}
               </>
             )}
-            {filterOnMenuItem(IconNames.FILTER_KEEP, ex.equal(val))}
-            {filterOnMenuItem(IconNames.FILTER_REMOVE, ex.unequal(val))}
+            {filterOnMenuItem(IconNames.FILTER, ex.equal(val))}
+            {filterOnMenuItem(IconNames.FILTER, ex.unequal(val))}
           </>
         )}
         {showFullValueMenuItem}
@@ -148,6 +148,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
   return (
     <div className="preview-table">
       <ReactTable
+        className="-striped -highlight"
         data={queryResult.rows as any[][]}
         noDataText={queryResult.rows.length ? '' : 'Preview returned no data'}
         defaultPageSize={25}
@@ -190,15 +191,16 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
             },
             headerClassName: columnClassName,
             className: columnClassName,
+            width: dataTypeToColumnWidth(effectiveType),
             accessor: String(i),
             Cell(row) {
               const value = row.value;
-
               return (
                 <div>
                   <Popover2 content={<Deferred content={() => getCellMenu(i, value)} />}>
                     {numericColumnBraces[i] ? (
                       <BracedText
+                        className="table-padding"
                         text={isDate(value) ? value.toISOString() : String(value)}
                         braces={numericColumnBraces[i]}
                         padFractionalPart
@@ -210,7 +212,6 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
                 </div>
               );
             },
-            minWidth: column.isTimeColumn() ? 180 : 120,
           };
         })}
       />

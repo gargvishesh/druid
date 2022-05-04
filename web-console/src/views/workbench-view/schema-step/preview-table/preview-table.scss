@@ -34,8 +34,6 @@
       box-shadow: 0 1px 0 0 rgba(black, 0.2); // This is a hack! this line is sometimes too weak in tables.
 
       .rt-th {
-        height: 46px;
-
         &.selected::after {
           position: absolute;
           top: 0;
@@ -71,11 +69,15 @@
         }
 
         .header-wrapper {
+          padding: $table-cell-v-padding $table-cell-h-padding;
           cursor: pointer;
-          height: 35px;
+          height: 55px;
         }
 
         .output-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+
           > * {
             display: inline-block;
             vertical-align: top;
@@ -96,6 +98,8 @@
           font-family: monospace;
           font-size: 11px;
           margin-top: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
     }
