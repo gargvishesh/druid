@@ -5,7 +5,30 @@ def setupMavenSettings() {
                 mkdir -p ~/.m2
                 cp -f $MVN_SETTINGS_PATH ~/.m2/settings.xml
             ''',
-            label: 'setup maven settings'
+               label: 'setup maven settings'
+        }
+    }
+}
+
+def markBvtAsFail(artifactName, version) {
+    script {
+        withCredentials(
+                [usernamePassword(
+                        credentialsId: 'repo.cnc.imply.io',
+                        usernameVariable: 'ARTIFACTORY_USER',
+                        passwordVariable: 'ARTIFACTORY_PASSWORD'
+                )]
+        ) {
+            def UPDATE_PROPS_URL = "https://repo.cnc.imply.io/artifactory/api/metadata/tgz-local/${artifactName}/${artifactName}-${version}.tar.gz"
+            sh(script: """
+                curl -u "${ARTIFACTORY_USER}":"${ARTIFACTORY_PASSWORD}" --location --request PATCH "${UPDATE_PROPS_URL}" \
+                --header 'Content-Type: application/json' \
+                --data-raw '{
+                    "props":{
+                        "BVT": "Fail"
+                    }
+                }'"""
+            )
         }
     }
 }
@@ -16,7 +39,7 @@ def mavenInstall() {
         ${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
         ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
     ''',
-    label: 'mvn install'
+       label: 'mvn install'
 }
 
 def dockerCleanup() {
@@ -26,9 +49,9 @@ def dockerCleanup() {
 
 def mavenDockerBackup() {
     rtDockerPull(
-        serverId: "${RT_SERVER_ID}",
-        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
-        sourceRepo: 'docker-local'
+            serverId: "${RT_SERVER_ID}",
+            image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
+            sourceRepo: 'docker-local'
     )
     sh script: '''#!/bin/bash -e
         TEMP_DIR=$(mktemp -d)
@@ -45,11 +68,11 @@ def mavenDockerBackup() {
         echo "COPY mvnresult.tar.gz /tmp/mvnresult.tar.gz" >> Dockerfile
         docker build -t ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${DOCKER_TAG} .
     ''',
-    label: 'build temporary docker image for the build'
+       label: 'build temporary docker image for the build'
     rtDockerPush(
-        serverId: "${RT_SERVER_ID}",
-        image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${DOCKER_TAG}",
-        targetRepo: 'docker-local'
+            serverId: "${RT_SERVER_ID}",
+            image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${DOCKER_TAG}",
+            targetRepo: 'docker-local'
     )
 }
 
@@ -60,7 +83,7 @@ def mavenCacheRestore() {
         mkdir -p ~/.m2
         tar -xzf /tmp/m2repository.tar.gz --no-same-owner --no-overwrite-dir -C ~/.m2/
     ''',
-    label: 'restore build cache'
+       label: 'restore build cache'
 }
 
 def prepareIfconfig() {
@@ -69,14 +92,14 @@ def prepareIfconfig() {
         chmod +x /usr/bin/ifconfig
         hash -r
     ''',
-    label: "prepare ifconfig"
+       label: "prepare ifconfig"
 }
 
 def getInstanceId() {
     sh script: '''#!/bin/bash -x
         curl -s http://169.254.169.254/latest/meta-data/instance-id
     ''',
-    label: 'print instance id'
+       label: 'print instance id'
 }
 
 def buildArtifacts(stageName) {
@@ -172,7 +195,7 @@ def implyQueryIntegrationTests(jvmRuntimeOpt) {
                     -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/prepopulated-data \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
-                label: "imply query integration tests with ${jvmRuntimeOpt}"
+                   label: "imply query integration tests with ${jvmRuntimeOpt}"
             } finally {
                 dockerCleanup()
             }
@@ -195,7 +218,7 @@ def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
-                label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
+                   label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
             } finally {
                 dockerCleanup()
             }
@@ -218,7 +241,7 @@ def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
-                label: "imply cold tier integration tests with ${jvmRuntimeOpt}"
+                   label: "imply cold tier integration tests with ${jvmRuntimeOpt}"
             } finally {
                 dockerCleanup()
             }
@@ -241,7 +264,7 @@ def implyAsyncDownloadIntegrationTests(jvmRuntimeOpt) {
                     ${jvmRuntimeOpt} \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
-                label: "imply async query result download integration tests with ${jvmRuntimeOpt}"
+                   label: "imply async query result download integration tests with ${jvmRuntimeOpt}"
             } finally {
                 dockerCleanup()
             }
@@ -269,7 +292,7 @@ def implyS3Tests(jvmRuntimeOpt) {
                         -Ddruid.test.config.cloudPath=${cloudpath}/ \
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true
                     """,
-                    label: "imply-s3 with ${jvmRuntimeOpt}"
+                       label: "imply-s3 with ${jvmRuntimeOpt}"
                 }
                 finally {
                     dockerCleanup()
@@ -288,12 +311,12 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
             def cloudpath = UUID.randomUUID().toString()
             writeFile   file: "jenkins/s3-config",
                         text: "druid_storage_type=s3\n" +
-                        "druid_storage_bucket=druid-qa\n" +
-                        "druid_storage_baseKey=${cloudpath}\n" +
-                        "druid_s3_accessKey=${AWS_ACCESS_KEY_ID}\n" +
-                        "druid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\n" +
-                        "AWS_REGION=us-east-1\n" +
-                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-s3-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
+                              "druid_storage_bucket=druid-qa\n" +
+                              "druid_storage_baseKey=${cloudpath}\n" +
+                              "druid_s3_accessKey=${AWS_ACCESS_KEY_ID}\n" +
+                              "druid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\n" +
+                              "AWS_REGION=us-east-1\n" +
+                              "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-s3-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
             retry(2) {
                 try {
                     sh script: """
@@ -301,7 +324,7 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
                         ./integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
                         --exclude "*" --include "wikipedia_index_data*.json"
                     """,
-                    label: "uploading data to bucket"
+                       label: "uploading data to bucket"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Dgroups=s3-deep-storage \
@@ -313,7 +336,7 @@ def s3DeepStorageTests(jvmRuntimeOpt) {
                         -Dstart.hadoop.docker=true \
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true
                     """,
-                    label: "s3-deep-storage with ${jvmRuntimeOpt}"
+                       label: "s3-deep-storage with ${jvmRuntimeOpt}"
                 }
                 finally {
                     dockerCleanup()
@@ -345,7 +368,7 @@ def kinesisDeepStorageTests(jvmRuntimeOpt) {
                             -Dstart.hadoop.docker=true \
                             -ff \${MAVEN_SKIP} -Djacoco.skip=true
                         """,
-                        label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
+                           label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
                     } finally {
                         dockerCleanup()
                     }
@@ -364,10 +387,10 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
             def containerName = UUID.randomUUID().toString()
             writeFile   file: "jenkins/azure-config",
                         text: "druid_storage_type=azure\n" +
-                        "druid_azure_account=${AZURE_ACCOUNT}\n" +
-                        "druid_azure_key=${AZURE_KEY}\n" +
-                        "druid_azure_container=${containerName}\n" +
-                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-azure-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
+                              "druid_azure_account=${AZURE_ACCOUNT}\n" +
+                              "druid_azure_key=${AZURE_KEY}\n" +
+                              "druid_azure_container=${containerName}\n" +
+                              "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-azure-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
             retry(2) {
                 try {
                     sh script: """
@@ -375,14 +398,14 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
                         --public-access blob \
                         --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
                     """,
-                    label: "creating storage container"
+                       label: "creating storage container"
                     sh script: """
                         az storage blob upload-batch \
                         --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
                         -d ${containerName} \
                         --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
                     """,
-                    label: "uploading data to storage container"
+                       label: "uploading data to storage container"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Dgroups=azure-deep-storage \
@@ -394,7 +417,7 @@ def azureDeepStorageTests(jvmRuntimeOpt) {
                         -Dstart.hadoop.docker=true \
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true
                     """,
-                    label: "azure-deep-storage with ${jvmRuntimeOpt}"
+                       label: "azure-deep-storage with ${jvmRuntimeOpt}"
                 }
                 finally {
                     dockerCleanup()
@@ -429,7 +452,7 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
                             cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
                             gs://${bucket}/${cloudpath}
                     """,
-                    label: "copying gcs creds"
+                       label: "copying gcs creds"
                     sh script: """
                         \${MVN} verify -P integration-tests -pl integration-tests \
                         -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
@@ -442,7 +465,7 @@ def gcsDeepStorageTests(jvmRuntimeOpt) {
                         -Dstart.hadoop.docker=true \
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true
                     """,
-                    label: "gcs-deep-storage with ${jvmRuntimeOpt}"
+                       label: "gcs-deep-storage with ${jvmRuntimeOpt}"
                 } finally {
                     dockerCleanup()
                     sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
@@ -476,7 +499,7 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
                     -Dit.test=ITHdfsToHdfsParallelIndexTest \
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true
                 """,
-                label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
+                   label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
             } finally {
                 dockerCleanup()
             }
@@ -496,7 +519,7 @@ def coreIntegrationTests() {
                     ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
                     ${MAVEN_SKIP}
                 ''',
-                label: 'core integration tests'
+                   label: 'core integration tests'
             } finally {
                 dockerCleanup()
             }
@@ -517,7 +540,7 @@ def coreIntegrationTestsWithPrepopulatedData() {
                     -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/prepopulated-data \
                     ${MAVEN_SKIP}
                 ''',
-                label: 'core integration tests'
+                   label: 'core integration tests'
             } finally {
                 dockerCleanup()
             }
@@ -538,7 +561,7 @@ def coreIntegrationTestsWithShuffleDeepStorage() {
                     -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/shuffle-deep-store \
                     ${MAVEN_SKIP}
                 ''',
-                label: 'core integration tests'
+                   label: 'core integration tests'
             } finally {
                 dockerCleanup()
             }
@@ -563,9 +586,9 @@ def runUnitTest() {
                 ${MVN} -pl ${MAVEN_PROJECTS} jacoco:report
                 exit $BUILD_STATUS
             ''',
-            label: "processing module test"
+               label: "processing module test"
         } finally {
-           dockerCleanup()
+            dockerCleanup()
         }
     }
 }
@@ -616,7 +639,7 @@ def cancelPreviousBuilds() {
             exec.interrupt(
                     Result.ABORTED,
                     new CauseOfInterruption.UserInterruption("Aborted by #${currentBuild.number}")
-                )
+            )
             println("Aborted previously running build #${build.number}")
         }
     }
@@ -754,7 +777,7 @@ pipeline {
                 script {
                     setupMavenSettings()
                     env.BUILD_VERSION = sh(
-                        script: '''#!/bin/bash -eux
+                            script: '''#!/bin/bash -eux
                             echo -e '#!/bin/bash\\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
                             chmod u+x /usr/bin/mvn
 
@@ -778,7 +801,7 @@ pipeline {
                             DRUID_VERSION=${INIT_DRUID_VERSION%%-SNAPSHOT}
                             mvn versions:set -DnewVersion=$DRUID_VERSION  -DgenerateBackupPoms=false
                             echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}"''',
-                       returnStdout: true).tokenize().last().trim()
+                            returnStdout: true).tokenize().last().trim()
                     echo "${BUILD_VERSION}"
                 }
             }
@@ -786,12 +809,12 @@ pipeline {
 
         stage("Build and publish pre test") {
             when {
-                  anyOf {
-                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
-                      expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
-                      expression { params.PUBLISH_ON_ANY_BRANCH }
-                  }
-                  beforeAgent true
+                anyOf {
+                    expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ env.ACTIVE_DEV_BRANCH_REGEX }
+                    expression { (env.CHANGE_BRANCH ?: env.BRANCH_NAME) ==~ (env.RELEASE_BRANCH_PREFIX_REGEX + env.RELEASE_BRANCH_SUFFIX_REGEX) }
+                    expression { params.PUBLISH_ON_ANY_BRANCH }
+                }
+                beforeAgent true
             }
             matrix {
                 axes {
@@ -863,7 +886,7 @@ pipeline {
                                                 chmod u+x "${GIT_ASKPASS}"
                                                 chmod 400 "${GITHUB_NETRC}"
                                             '''.replaceAll(/\n\s+/, "\n"),
-                                            label: 'prepare for build'
+                                               label: 'prepare for build'
                                         }
                                     }
                                 }
@@ -1003,7 +1026,7 @@ pipeline {
                                         echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
 
                                     '''.replaceAll(/\n\s+/, "\n"),
-                                    label: 'build druid and verify'
+                                       label: 'build druid and verify'
                                 } // end of steps
                             } // end of stage('build')
                             stage('prepare upload') {
@@ -1037,7 +1060,7 @@ pipeline {
                                         echo "${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}" > $WORKSPACE/build.version
 
                                     '''.replaceAll(/\n\s+/, "\n"),
-                                    label: 'build druid and verify'
+                                       label: 'build druid and verify'
                                 } // end of steps
                             } // end of stage('build')
 
@@ -1050,26 +1073,26 @@ pipeline {
                                             release_version = (headBranch =~ env.RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
                                         } else if(headBranch ==~ env.ACTIVE_DEV_BRANCH_REGEX) {
                                             release_version = sh(
-                                                script: '''#!/bin/bash -e
+                                                    script: '''#!/bin/bash -e
                                                     curl -s --netrc-file ${GITHUB_NETRC} \
                                                     -H "Accept: application/vnd.github.v3.raw" \
                                                     https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
                                                     tee /dev/stderr
                                                 ''',
-                                                returnStdout: true
+                                                    returnStdout: true
                                             ).trim()
                                         }
                                         def artifact_build_version = sh(
-                                            script: 'cat build.version',
-                                            returnStdout: true
+                                                script: 'cat build.version',
+                                                returnStdout: true
                                         ).trim()
                                         def repo_url = sh(
-                                            script: 'git config --get remote.origin.url',
-                                            returnStdout: true
+                                                script: 'git config --get remote.origin.url',
+                                                returnStdout: true
                                         ).trim()
                                         rtUpload (
-                                            serverId: "${RT_SERVER_ID}",
-                                            spec: """{
+                                                serverId: "${RT_SERVER_ID}",
+                                                spec: """{
                                                 "files": [
                                                     {
                                                       "pattern": "${ARTIFACT_NAME}-${artifact_build_version}.tar.gz",
@@ -1078,9 +1101,11 @@ pipeline {
                                                     }
                                                 ]
                                             }""",
-                                            buildName: "${ARTIFACTORY_BUILD_NAME}",
-                                            buildNumber: "${BUILD_NUMBER}"
+                                                buildName: "${ARTIFACTORY_BUILD_NAME}",
+                                                buildNumber: "${BUILD_NUMBER}"
                                         )
+                                        // this is used to know whether or not to mark as failure. And avoid errors for something that fails before the artifact is uploaded.
+                                        env.BUILD_UPLOAD_SUCCESS = true
                                     }
                                 }
                             } // end of stage('upload')
@@ -1336,7 +1361,7 @@ pipeline {
                             mkdir -p inspection-results
                             chmod -R 777 inspection-results
                         ''',
-                        label: 'prepare output directory'
+                           label: 'prepare output directory'
 
                         sh script:'''
                             docker run --rm \
@@ -1349,7 +1374,7 @@ pipeline {
                             --levels ERROR \
                             --scope JavaInspectionsScope
                         ''',
-                        label: 'intellij inspections'
+                           label: 'intellij inspections'
                     }
                     post {
                         always { buildArtifacts(env.STAGE_NAME) }
@@ -1688,7 +1713,7 @@ pipeline {
 
                             [[ "${ALL_ATTEMPTS_FAILED}" = "0" ]] || false
                         ''',
-                        label: 'dependency check'
+                           label: 'dependency check'
                     }
                     post { cleanup { resetWs() } }
                 }
@@ -1847,7 +1872,7 @@ pipeline {
                 }
 
                 stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
-                when {
+                    when {
                         expression { "disabling in monthly/master and added it to monthly-flaky-tests"  == "OK" }
                     }
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
@@ -2237,19 +2262,19 @@ pipeline {
                                             release_version = (headBranch =~ env.RELEASE_BRANCH_SUFFIX_REGEX).getAt(0)
                                         } else if(headBranch ==~ env.ACTIVE_DEV_BRANCH_REGEX) {
                                             release_version = sh(
-                                                script: '''#!/bin/bash -e
+                                                    script: '''#!/bin/bash -e
                                                     curl -s --netrc-file ${GITHUB_NETRC} \
                                                     -H "Accept: application/vnd.github.v3.raw" \
                                                     https://api.github.com/repos/implydata/imply-release/contents/monthly-release.version |  \
                                                     tee /dev/stderr
                                                 ''',
-                                                returnStdout: true
+                                                    returnStdout: true
                                             ).trim()
                                         }
                                         echo "setting BVT=Pass for tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz"
                                         rtSetProps (
-                                            serverId: "${RT_SERVER_ID}",
-                                            spec: """{
+                                                serverId: "${RT_SERVER_ID}",
+                                                spec: """{
                                                 "files": [
                                                     {
                                                       "pattern": "tgz-local/${ARTIFACT_NAME}/${ARTIFACT_NAME}-${BUILD_VERSION}.tar.gz",
@@ -2257,8 +2282,8 @@ pipeline {
                                                     }
                                                 ]
                                             }""",
-                                            props: 'BVT=Pass',
-                                            failNoOp: true
+                                                props: 'BVT=Pass',
+                                                failNoOp: true
                                         )
                                     }
                                 }
@@ -2276,11 +2301,24 @@ pipeline {
     } // end of stages
     post {
         failure {
-            // notify about failed build
             script {
                 if(isEligibleToNotify()) {
                     library 'imply-shared-library'
                     failedDruidBVTNotification(currentBuild)
+                }
+            }
+            node('jenkinsOnDemand'){
+                // notify about failed build
+                script {
+                    echo "checking to see if should set BVT as Fail for ${BUILD_VERSION}"
+                    if (env.BUILD_UPLOAD_SUCCESS == null || !env.BUILD_UPLOAD_SUCCESS) {
+                        echo "Not setting BVT as Fail"
+                        return
+                    }
+                    echo "Setting BVT as Fail"
+                    markBvtAsFail('druid', "${BUILD_VERSION}")
+                    markBvtAsFail('druid-saas', "${BUILD_VERSION}")
+                    markBvtAsFail('druid-experimental', "{$BUILD_VERSION}")
                 }
             }
         }
