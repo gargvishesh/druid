@@ -192,10 +192,7 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
       }
       final NestedLiteralTypeInfo.TypeSet types = fieldInfo.getTypes(fields.indexOf(field));
       final ByteBuffer dataBuffer = fileMapper.mapFile(
-          NestedDataColumnSerializer.getFieldFileName(
-              field,
-              metadata.getFileNameBase()
-          )
+          NestedDataColumnSerializer.getFieldFileName(metadata.getFileNameBase(), field)
       );
       if (dataBuffer == null) {
         throw new ISE("Can't find field [%s] in [%s] file.", field, metadata.getFileNameBase());
