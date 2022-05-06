@@ -49,40 +49,27 @@ public class NestedDataColumnSupplier implements Supplier<ComplexColumn>
   )
   {
     byte version = bb.get();
-    if (version == 0) {
-
+    if (version == 0x01) {
       try {
         metadata = jsonMapper.readValue(
             IndexMerger.SERIALIZER_UTILS.readString(bb),
             NestedDataColumnMetadata.class
         );
-        fields = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY);
-        dictionary = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY);
-        raw = GenericIndexed.read(bb, NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy());
-        if (metadata.hasNulls()) {
-          nullValues = metadata.getBitmapSerdeFactory().getObjectStrategy().fromByteBufferWithSize(bb);
-        } else {
-          nullValues = metadata.getBitmapSerdeFactory().getBitmapFactory().makeEmptyImmutableBitmap();
-        }
-        longDictionary = null;
-        doubleDictionary = null;
-        fieldInfo = null;
-      }
-      catch (IOException ex) {
-        throw new RE(ex, "Failed to deserialize V0 column.");
-      }
-    } else if (version == 0x01) {
-      try {
-        metadata = jsonMapper.readValue(
-            IndexMerger.SERIALIZER_UTILS.readString(bb),
-            NestedDataColumnMetadata.class
-        );
-        fields = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY);
+        fields = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY, columnBuilder.getFileMapper());
         fieldInfo = NestedLiteralTypeInfo.read(bb, fields.size());
-        dictionary = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY);
+        dictionary = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY, columnBuilder.getFileMapper());
         longDictionary = FixedIndexed.read(bb, ColumnType.LONG.getStrategy(), metadata.getByteOrder(), Long.BYTES);
-        doubleDictionary = FixedIndexed.read(bb, ColumnType.DOUBLE.getStrategy(), metadata.getByteOrder(), Double.BYTES);
-        raw = GenericIndexed.read(bb, NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy());
+        doubleDictionary = FixedIndexed.read(
+            bb,
+            ColumnType.DOUBLE.getStrategy(),
+            metadata.getByteOrder(),
+            Double.BYTES
+        );
+        raw = GenericIndexed.read(
+            bb,
+            NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy(),
+            columnBuilder.getFileMapper()
+        );
         if (metadata.hasNulls()) {
           nullValues = metadata.getBitmapSerdeFactory().getObjectStrategy().fromByteBufferWithSize(bb);
         } else {
@@ -90,7 +77,53 @@ public class NestedDataColumnSupplier implements Supplier<ComplexColumn>
         }
       }
       catch (IOException ex) {
-        throw new RE(ex, "Failed to deserialize V0 column.");
+        throw new RE(ex, "Failed to deserialize V1 column.");
+      }
+    } else if (version == 0x02) {
+      try {
+        final SmooshedFileMapper mapper = columnBuilder.getFileMapper();
+        metadata = jsonMapper.readValue(
+            IndexMerger.SERIALIZER_UTILS.readString(bb),
+            NestedDataColumnMetadata.class
+        );
+        fields = GenericIndexed.read(bb, GenericIndexed.STRING_STRATEGY, mapper);
+        fieldInfo = NestedLiteralTypeInfo.read(bb, fields.size());
+
+        final ByteBuffer stringDictionaryBuffer = loadInternalFile(
+            mapper,
+            NestedDataColumnSerializer.STRING_DICTIONARY_FILE_NAME
+        );
+        dictionary = GenericIndexed.read(stringDictionaryBuffer, GenericIndexed.STRING_STRATEGY, mapper);
+        final ByteBuffer longDictionaryBuffer = loadInternalFile(
+            mapper,
+            NestedDataColumnSerializer.LONG_DICTIONARY_FILE_NAME
+        );
+        longDictionary = FixedIndexed.read(longDictionaryBuffer, ColumnType.LONG.getStrategy(), metadata.getByteOrder(), Long.BYTES);
+        final ByteBuffer doubleDictionaryBuffer = loadInternalFile(
+            mapper,
+            NestedDataColumnSerializer.DOUBLE_DICTIONARY_FILE_NAME
+        );
+        doubleDictionary = FixedIndexed.read(
+            doubleDictionaryBuffer,
+            ColumnType.DOUBLE.getStrategy(),
+            metadata.getByteOrder(),
+            Double.BYTES
+        );
+        final ByteBuffer rawBuffer = loadInternalFile(mapper, NestedDataColumnSerializer.RAW_FILE_NAME);
+        raw = GenericIndexed.read(
+            rawBuffer,
+            NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy(),
+            columnBuilder.getFileMapper()
+        );
+        if (metadata.hasNulls()) {
+          final ByteBuffer nullIndexBuffer = loadInternalFile(mapper, NestedDataColumnSerializer.NULL_BITMAP_FILE_NAME);
+          nullValues = metadata.getBitmapSerdeFactory().getObjectStrategy().fromByteBufferWithSize(nullIndexBuffer);
+        } else {
+          nullValues = metadata.getBitmapSerdeFactory().getBitmapFactory().makeEmptyImmutableBitmap();
+        }
+      }
+      catch (IOException ex) {
+        throw new RE(ex, "Failed to deserialize V1 column.");
       }
     } else {
       throw new RE("Unknown version" + version);
@@ -99,6 +132,15 @@ public class NestedDataColumnSupplier implements Supplier<ComplexColumn>
     fileMapper = Preconditions.checkNotNull(columnBuilder.getFileMapper(), "Null fileMapper");
 
     this.columnConfig = columnConfig;
+  }
+
+  private ByteBuffer loadInternalFile(SmooshedFileMapper fileMapper, String internalFileName) throws IOException
+  {
+    return fileMapper.mapFile(
+        NestedDataColumnSerializer.getInternalFileName(
+            metadata.getFileNameBase(), internalFileName
+        )
+    );
   }
 
   @Override

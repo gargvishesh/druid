@@ -55,8 +55,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -65,6 +63,12 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
 {
   private static final Logger log = new Logger(NestedDataColumnSerializer.class);
   public static final IntTypeStrategy INT_TYPE_STRATEGY = new IntTypeStrategy();
+
+  public static final String STRING_DICTIONARY_FILE_NAME = "__stringDictionary";
+  public static final String LONG_DICTIONARY_FILE_NAME = "__longDictionary";
+  public static final String DOUBLE_DICTIONARY_FILE_NAME = "__doubleDictionary";
+  public static final String RAW_FILE_NAME = "__raw";
+  public static final String NULL_BITMAP_FILE_NAME = "__nullIndex";
 
   private final String name;
   private final SegmentWriteOutMedium segmentWriteOutMedium;
@@ -265,7 +269,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       this.nullBitmapWriter.write(nullRowsBitmap);
     }
 
-    long size = 1; // flag if version >= compressed
+    long size = 1;
     size += metadataBytes.length;
     if (fieldsWriter != null) {
       size += fieldsWriter.getSerializedSize();
@@ -273,21 +277,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     if (fieldsInfoWriter != null) {
       size += fieldsInfoWriter.getSerializedSize();
     }
-    if (dictionaryWriter != null) {
-      size += dictionaryWriter.getSerializedSize();
-    }
-    if (longDictionaryWriter != null) {
-      size += longDictionaryWriter.getSerializedSize();
-    }
-    if (doubleDictionaryWriter != null) {
-      size += doubleDictionaryWriter.getSerializedSize();
-    }
-    if (rawWriter != null) {
-      size += rawWriter.getSerializedSize();
-    }
-    if (nullBitmapWriter != null && !nullRowsBitmap.isEmpty()) {
-      size += nullBitmapWriter.getSerializedSize();
-    }
+    // the value dictionaries, raw column, and null index are all stored in separate files
     return size;
   }
 
@@ -299,19 +289,21 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   {
     Preconditions.checkState(closedForWrite, "Not closed yet!");
 
-    // version 1
-    channel.write(ByteBuffer.wrap(new byte[]{0x01}));
+    // version 2
+    channel.write(ByteBuffer.wrap(new byte[]{0x02}));
     channel.write(ByteBuffer.wrap(metadataBytes));
     fieldsWriter.writeTo(channel, smoosher);
     fieldsInfoWriter.writeTo(channel, smoosher);
-    dictionaryWriter.writeTo(channel, smoosher);
-    longDictionaryWriter.writeTo(channel, smoosher);
-    doubleDictionaryWriter.writeTo(channel, smoosher);
 
-    rawWriter.writeTo(channel, smoosher);
+    // version 2 stores large components in separate files to prevent exceeding smoosh file limit (int max)
+    writeInternal(smoosher, dictionaryWriter, STRING_DICTIONARY_FILE_NAME);
+    writeInternal(smoosher, longDictionaryWriter, LONG_DICTIONARY_FILE_NAME);
+    writeInternal(smoosher, doubleDictionaryWriter, DOUBLE_DICTIONARY_FILE_NAME);
+    writeInternal(smoosher, rawWriter, RAW_FILE_NAME);
     if (!nullRowsBitmap.isEmpty()) {
-      nullBitmapWriter.writeTo(channel, smoosher);
+      writeInternal(smoosher, nullBitmapWriter, NULL_BITMAP_FILE_NAME);
     }
+
 
     // close the SmooshedWriter since we are done here, so we don't write to a temporary file per sub-column
     // In the future, it would be best if the writeTo() itself didn't take a channel but was expected to actually
@@ -322,9 +314,19 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       channel.close();
     }
     for (Map.Entry<String, NestedLiteralTypeInfo.MutableTypeSet> field : fields.entrySet()) {
-      fieldWriters.get(field.getKey()).writeTo(field.getKey(), smoosher);
+      // remove writer so that it can be collected when we are done with it
+      GlobalDictionaryEncodedFieldColumnWriter<?> writer = fieldWriters.remove(field.getKey());
+      writer.writeTo(field.getKey(), smoosher);
     }
     log.info("Column [%s] serialized successfully with [%d] nested columns.", name, fields.size());
+  }
+
+  private void writeInternal(FileSmoosher smoosher, Serializer serializer, String fileName) throws IOException
+  {
+    final String internalName = getInternalFileName(name, fileName);
+    try (SmooshedWriter smooshChannel = smoosher.addWithSmooshedWriter(internalName, serializer.getSerializedSize())) {
+      serializer.writeTo(smooshChannel, smoosher);
+    }
   }
 
   private <T> GenericIndexedWriter<T> createGenericIndexedWriter(
@@ -337,15 +339,19 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     return writer;
   }
 
-  public static String getFieldFileName(String field, String fileNameBase)
+  public static String getFieldFileName(String fileNameBase, String field)
   {
     return StringUtils.format("%s_%s", fileNameBase, field);
+  }
+
+  public static String getInternalFileName(String fileNameBase, String field)
+  {
+    return StringUtils.format("%s.%s", fileNameBase, field);
   }
 
   abstract class GlobalDictionaryEncodedFieldColumnWriter<T>
   {
     protected final LocalDimensionDictionary localDictionary = new LocalDimensionDictionary();
-    protected final List<MutableBitmap> bitmaps = new ArrayList<>();
 
     protected FixedIndexedIntWriter intermediateValueWriter;
     // maybe someday we allow no bitmap indexes or multi-value columns
@@ -415,16 +421,6 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       final T value = processValue(val);
       final int globalId = lookupGlobalId(value);
       final int localId = localDictionary.add(globalId);
-
-      final MutableBitmap bitmap;
-      if (localId >= bitmaps.size()) {
-        bitmap = indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap();
-        bitmaps.add(bitmap);
-      } else {
-        bitmap = bitmaps.get(localId);
-      }
-      bitmap.add(rowCount);
-
       intermediateValueWriter.write(localId);
     }
 
@@ -440,29 +436,40 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
       );
       bitmapIndexWriter.setObjectsNotSorted();
       final Int2IntOpenHashMap globalToUnsorted = localDictionary.getGlobalIdToLocalId();
-      final int[] unsortedToGlobal = localDictionary.getLocalIdToGlobalId().toIntArray();
+      final int[] unsortedToGlobal = new int[localDictionary.size()];
+      for (int key : globalToUnsorted.keySet()) {
+        unsortedToGlobal[globalToUnsorted.get(key)] = key;
+      }
       final int[] sortedGlobal = new int[unsortedToGlobal.length];
       System.arraycopy(unsortedToGlobal, 0, sortedGlobal, 0, unsortedToGlobal.length);
       IntArrays.unstableSort(sortedGlobal);
 
       final int[] unsortedToSorted = new int[unsortedToGlobal.length];
+      final MutableBitmap[] bitmaps = new MutableBitmap[sortedGlobal.length];
       for (int index = 0; index < sortedGlobal.length; index++) {
-        int globalId = sortedGlobal[index];
+        final int globalId = sortedGlobal[index];
         sortedDictionaryWriter.write(globalId);
         final int unsortedId = globalToUnsorted.get(globalId);
         unsortedToSorted[unsortedId] = index;
-        bitmapIndexWriter.write(
-            indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeImmutableBitmap(bitmaps.get(unsortedId))
-        );
+        bitmaps[index] = indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap();
       }
 
       openColumnSerializer(field, tmpWriteoutMedium, sortedGlobal[sortedGlobal.length - 1]);
       final IntIterator rows = intermediateValueWriter.getIterator();
+      int rowCount = 0;
       while (rows.hasNext()) {
         final int unsortedLocalId = rows.nextInt();
         final int globalId = unsortedToGlobal[unsortedLocalId];
         final int sortedLocalId = unsortedToSorted[unsortedLocalId];
+
         serializeRow(globalId, sortedLocalId);
+        bitmaps[sortedLocalId].add(rowCount++);
+      }
+
+      for (MutableBitmap bitmap : bitmaps) {
+        bitmapIndexWriter.write(
+            indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeImmutableBitmap(bitmap)
+        );
       }
 
       final Serializer fieldSerializer = new Serializer()
@@ -486,7 +493,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
           bitmapIndexWriter.writeTo(channel, smoosher);
         }
       };
-      final String fieldName = getFieldFileName(field, name);
+      final String fieldName = getFieldFileName(name, field);
       final long size = fieldSerializer.getSerializedSize();
       log.debug("Column [%s] serializing [%s] field of size [%d].", name, field, size);
       try (SmooshedWriter smooshChannel = smoosher.addWithSmooshedWriter(fieldName, size)) {
