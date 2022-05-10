@@ -48,6 +48,7 @@ import org.apache.druid.indexing.common.task.IndexTask;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -246,8 +247,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
-            binder.bind(DruidLeaderClient.class).annotatedWith(IndexingService.class).
-                  toInstance(new DruidLeaderClient(null, null, null, null));
+            binder.bind(DruidLeaderClient.class).annotatedWith(IndexingService.class)
+                  .toInstance(new DruidLeaderClient(null, null, null, null));
 
           }
         },
@@ -582,6 +583,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       return (Builder) this;
     }
 
+
     public void verifyPlanningErrors()
     {
 
@@ -755,6 +757,21 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         throw new ISE(e, "Query %s failed", sql);
       }
     }
+
+    public void verifyExecutionError()
+    {
+      Preconditions.checkArgument(expectedExecutionErrorMatcher != null, "Execution error matcher cannot be null");
+      try {
+        verifyResults();
+        Assert.fail(StringUtils.format("Query %s did not throw an exception", sql));
+      }
+      catch (Exception e) {
+        Assert.assertTrue(
+            StringUtils.format("Query %s generated error of type %s which wasn't expected", sql, e.getClass()),
+            expectedExecutionErrorMatcher.matches(e)
+        );
+      }
+    }
   }
 
   public class SelectQueryTester extends TalariaTestRunner.TalariaQueryTester<SelectQueryTester>
@@ -780,7 +797,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         } else {
           Optional<Pair<RowSignature, List<Object[]>>> rowSignatureListPair = getSignatureWithRows(payload.getResults());
           if (!rowSignatureListPair.isPresent()) {
-            throw new ISE("Query successfull but no results found");
+            throw new ISE("Query successful but no results found");
           }
           log.info("found row signature %s", rowSignatureListPair.get().lhs);
           log.info(rowSignatureListPair.get().rhs.stream()

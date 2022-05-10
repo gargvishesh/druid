@@ -51,6 +51,7 @@ import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
+import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
 import io.imply.druid.talaria.indexing.error.WarningHelper;
@@ -440,7 +441,7 @@ public class LeaderImpl implements Leader
     }
 
     this.faultsExceededChecker = new WarningHelper.FaultsExceededChecker(
-        ImmutableMap.of(CannotParseExternalDataFault.class, maxParseExceptions)
+        ImmutableMap.of(CannotParseExternalDataFault.CODE, maxParseExceptions)
     );
 
     final QueryDefinition queryDef = makeQueryDefinition(
@@ -698,11 +699,11 @@ public class LeaderImpl implements Leader
   @Override
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
-    boolean faultsExceeded = faultsExceededChecker.addFaults(errorReports.stream()
-                                                                         .map(TalariaErrorReport::getFault)
-                                                                         .collect(Collectors.toList()));
+    boolean faultsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded(errorReports.stream()
+                                                                                           .map(TalariaErrorReport::getFault)
+                                                                                           .map(TalariaFault::getErrorCode)
+                                                                                           .collect(Collectors.toList()));
     if (faultsExceeded) {
-      // TODO: Add a new fault and set the error
       workerError(
           TalariaErrorReport.fromFault(
               id(),
@@ -710,9 +711,15 @@ public class LeaderImpl implements Leader
               null,
               new TooManyWarningsFault(
                   (int) maxParseExceptions,
-                  CannotParseExternalDataFault.class
+                  CannotParseExternalDataFault.CODE
               )
           ));
+      kernelManipulationQueue.add(
+          queryKernel -> {
+            workerTaskLauncher.shutdownRemainingTasks();
+            queryKernel.getActiveStages().forEach(queryKernel::failStage);
+          }
+      );
     }
     workerWarnings.addAll(errorReports);
   }

@@ -312,7 +312,7 @@ public class TalariaWorkerTaskLauncher
     }
   }
 
-  private void shutdownRemainingTasks()
+  public void shutdownRemainingTasks()
   {
     for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
       if (!taskEntry.getValue().isComplete()) {

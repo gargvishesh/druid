@@ -19,17 +19,17 @@ public class TooManyWarningsFault extends BaseTalariaFault
   static final String CODE = "TooManyWarnings";
 
   private final int maxWarnings;
-  private final Class<? extends TalariaFault> warningType;
+  private final String errorCode;
 
   @JsonCreator
   public TooManyWarningsFault(
       @JsonProperty("maxWarnings") final int maxWarnings,
-      @JsonProperty("warningType") final Class<? extends TalariaFault> warningType
+      @JsonProperty("errorCode") final String errorCode
   )
   {
-    super(CODE, "Too many warnings of type %s generated (max = %d)", warningType, maxWarnings);
+    super(CODE, "Too many warnings of type %s generated (max = %d)", errorCode, maxWarnings);
     this.maxWarnings = maxWarnings;
-    this.warningType = warningType;
+    this.errorCode = errorCode;
   }
 
   @JsonProperty
@@ -39,8 +39,8 @@ public class TooManyWarningsFault extends BaseTalariaFault
   }
 
   @JsonProperty
-  public Class<? extends TalariaFault> getWarningType()
+  public String getErrorCode()
   {
-    return warningType;
+    return errorCode;
   }
 }

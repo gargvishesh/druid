@@ -54,6 +54,7 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportBatcherPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
@@ -217,7 +218,7 @@ public class WorkerImpl implements Worker
 
 
 
-    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportPublisher(
+    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportBatcherPublisher(
         task.getControllerTaskId(),
         id(),
         leaderClient,

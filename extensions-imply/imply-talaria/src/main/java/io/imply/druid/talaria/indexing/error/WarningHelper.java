@@ -22,10 +22,10 @@ public class WarningHelper
 
   public static class FaultsExceededChecker
   {
-    final Map<Class<? extends TalariaFault>, Long> maxFaultsAllowedCount;
-    final Map<Class<? extends TalariaFault>, Long> currentFaultsEncounteredCount = new HashMap<>();
+    final Map<String, Long> maxFaultsAllowedCount;
+    final Map<String, Long> currentFaultsEncounteredCount = new HashMap<>();
 
-    public FaultsExceededChecker(final Map<Class<? extends TalariaFault>, Long> maxFaultsAllowedCount)
+    public FaultsExceededChecker(final Map<String, Long> maxFaultsAllowedCount)
     {
       maxFaultsAllowedCount.forEach((ignored, count) ->
                                         Preconditions.checkArgument(count >= 0 || count == -1, "invalid count")
@@ -33,19 +33,18 @@ public class WarningHelper
       this.maxFaultsAllowedCount = maxFaultsAllowedCount;
     }
 
-    public boolean addFaults(final List<? extends TalariaFault> talariaFaults)
+    public boolean addFaultsAndCheckIfExceeded(final List<String> talariaFaults)
     {
-      boolean ret = true;
-      for (final TalariaFault talariaFault : talariaFaults) {
-        Class<? extends TalariaFault> faultClass = talariaFault.getClass();
-        Long limit = maxFaultsAllowedCount.getOrDefault(faultClass, -1L);
+      boolean ret = false;
+      for (final String talariaFault : talariaFaults) {
+        Long limit = maxFaultsAllowedCount.getOrDefault(talariaFault, -1L);
+        currentFaultsEncounteredCount.compute(
+            talariaFault,
+            (ignored, currentCount) -> currentCount == null ? 1L : currentCount + 1L
+        );
         if (limit != -1) {
-          currentFaultsEncounteredCount.compute(
-              faultClass,
-              (ignored, currentCount) -> currentCount == null ? 1L : currentCount + 1L
-          );
-          if (currentFaultsEncounteredCount.get(faultClass) + 1L > limit) {
-            ret = false;
+          if (currentFaultsEncounteredCount.get(talariaFault) > limit) {
+            ret = true;
           }
         }
       }
