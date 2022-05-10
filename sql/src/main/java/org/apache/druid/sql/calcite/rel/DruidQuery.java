@@ -820,7 +820,7 @@ public class DruidQuery
       }
     }
 
-    final TimeBoundaryQuery timeBoundaryQuery = toTimeBoundaryQuery();
+    final TimeBoundaryQuery timeBoundaryQuery = toTimeBoundaryQuery(queryFeatureInspector);
     if (timeBoundaryQuery != null) {
       return timeBoundaryQuery;
     }
@@ -854,9 +854,10 @@ public class DruidQuery
    * @return a TimeBoundaryQuery if possible. null if it is not possible to construct one.
    */
   @Nullable
-  private TimeBoundaryQuery toTimeBoundaryQuery()
+  private TimeBoundaryQuery toTimeBoundaryQuery(QueryFeatureInspector queryFeatureInspector)
   {
-    if (grouping == null
+    if (!queryFeatureInspector.feature(QueryFeature.CAN_RUN_TIME_BOUNDARY)
+        || grouping == null
         || grouping.getSubtotals().hasEffect(grouping.getDimensionSpecs())
         || grouping.getHavingFilter() != null
         || selectProjection != null) {
