@@ -39,6 +39,9 @@ import Completion = Ace.Completion;
 
 const langTools = ace.require('ace/ext/language_tools');
 
+const V_PADDING = 10;
+const SCROLLBAR = 20;
+
 const COMPLETER = {
   insertMatch: (editor: any, data: Completion) => {
     editor.completer.insertMatch({ value: data.name });
@@ -257,7 +260,8 @@ export class TalariaQueryInput extends React.PureComponent<
 
     let height: number;
     if (autoHeight) {
-      height = Math.max(queryString.split('\n').length, minRows ?? 2) * 18 + 20;
+      height =
+        Math.max(queryString.split('\n').length, minRows ?? 2) * 18 + 2 * V_PADDING + SCROLLBAR;
     } else {
       height = editorHeight;
     }
@@ -292,8 +296,8 @@ export class TalariaQueryInput extends React.PureComponent<
         style={{}}
         placeholder={placeholder || 'SELECT * FROM ...'}
         onLoad={(editor: Ace.Editor) => {
-          editor.renderer.setPadding(10);
-          editor.renderer.setScrollMargin(10, 10, 0, 0);
+          editor.renderer.setPadding(V_PADDING);
+          editor.renderer.setScrollMargin(V_PADDING, V_PADDING, 0, 0);
 
           if (editorStateId) {
             AceEditorStateCache.applyState(editorStateId, editor);

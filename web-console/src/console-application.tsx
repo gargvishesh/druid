@@ -60,7 +60,7 @@ export class ConsoleApplication extends React.PureComponent<
 > {
   private readonly capabilitiesQueryManager: QueryManager<null, Capabilities>;
 
-  static shownNotifications() {
+  static shownServiceNotification() {
     AppToaster.show({
       icon: IconNames.ERROR,
       intent: Intent.DANGER,
@@ -92,7 +92,7 @@ export class ConsoleApplication extends React.PureComponent<
     this.capabilitiesQueryManager = new QueryManager({
       processQuery: async () => {
         const capabilities = await Capabilities.detectCapabilities();
-        if (!capabilities) ConsoleApplication.shownNotifications();
+        if (!capabilities) ConsoleApplication.shownServiceNotification();
         return capabilities || Capabilities.FULL;
       },
       onStateChange: ({ data, loading }) => {
@@ -111,6 +111,10 @@ export class ConsoleApplication extends React.PureComponent<
   componentWillUnmount(): void {
     this.capabilitiesQueryManager.terminate();
   }
+
+  private readonly handleUnrestrict = (capabilities: Capabilities) => {
+    this.setState({ capabilities });
+  };
 
   private resetInitialsWithDelay() {
     setTimeout(() => {
@@ -176,7 +180,11 @@ export class ConsoleApplication extends React.PureComponent<
 
     return (
       <>
-        <HeaderBar active={active} capabilities={capabilities} />
+        <HeaderBar
+          active={active}
+          capabilities={capabilities}
+          onUnrestrict={this.handleUnrestrict}
+        />
         <div className={classNames('view-container', classType)}>{el}</div>
       </>
     );

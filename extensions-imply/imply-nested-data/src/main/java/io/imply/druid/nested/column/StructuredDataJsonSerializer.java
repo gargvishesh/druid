@@ -12,6 +12,7 @@ package io.imply.druid.nested.column;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.druid.java.util.common.jackson.JacksonUtils;
 
 import java.io.IOException;
 
@@ -24,6 +25,6 @@ public class StructuredDataJsonSerializer extends JsonSerializer<StructuredData>
       SerializerProvider serializerProvider
   ) throws IOException
   {
-    jsonGenerator.writeObject(structuredData.getValue());
+    JacksonUtils.writeObjectUsingSerializerProvider(jsonGenerator, serializerProvider, structuredData.getValue());
   }
 }

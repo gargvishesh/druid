@@ -72,6 +72,9 @@
         }
 
         .output-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+
           > * {
             display: inline-block;
             vertical-align: top;
@@ -87,6 +90,8 @@
           font-family: monospace;
           font-size: 11px;
           margin-top: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
     }
@@ -97,6 +102,7 @@
   }
 
   .clickable-cell {
+    padding: $table-cell-v-padding $table-cell-h-padding;
     cursor: pointer;
     width: 100%;
   }

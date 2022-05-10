@@ -10,11 +10,11 @@
 package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Iterators;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.collect.Utils;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
@@ -145,10 +145,10 @@ public class DeltaTimeSeries extends TimeSeries<DeltaTimeSeries>
     mergeSeries.forEach(DeltaTimeSeries::build);
     ImplyLongArrayList mergedTimestamps = new ImplyLongArrayList();
     ImplyDoubleArrayList mergedDataPoints = new ImplyDoubleArrayList();
-    Iterator<BucketData> mergedTimeSeries = Iterators.mergeSorted(mergeSeries.stream()
-                                                                             .map(DeltaTimeSeries::getIterator)
-                                                                             .collect(Collectors.toList()),
-                                                                  Comparator.comparingLong(BucketData::getMinTs));
+    Iterator<BucketData> mergedTimeSeries = Utils.mergeSorted(
+        mergeSeries.stream().map(DeltaTimeSeries::getIterator).collect(Collectors.toList()),
+        Comparator.comparingLong(BucketData::getMinTs)
+    );
 
     int currIndex = -1;
     long prevBucketStart = -1;

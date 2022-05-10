@@ -43,8 +43,11 @@ import {
   possibleDruidFormatForValues,
   TIME_COLUMN,
 } from '../../../druid-models';
+import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../../react-table';
 import {
   copyAndAlert,
+  dataTypeToColumnWidth,
+  dataTypeToIcon,
   filterMap,
   formatNumber,
   getNumericColumnBraces,
@@ -54,7 +57,6 @@ import {
   QueryAction,
   stringifyValue,
 } from '../../../utils';
-import { dataTypeToIcon } from '../../query-view/query-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { convertToGroupByExpression, timeFormatToSql } from '../sql-utils';
 import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item';
@@ -589,12 +591,12 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
             <>
               {isComparable(value) && (
                 <>
-                  {filterOnMenuItem(IconNames.FILTER_KEEP, ex.greaterThanOrEqual(val), having)}
-                  {filterOnMenuItem(IconNames.FILTER_KEEP, ex.lessThanOrEqual(val), having)}
+                  {filterOnMenuItem(IconNames.FILTER, ex.greaterThanOrEqual(val), having)}
+                  {filterOnMenuItem(IconNames.FILTER, ex.lessThanOrEqual(val), having)}
                 </>
               )}
-              {filterOnMenuItem(IconNames.FILTER_KEEP, ex.equal(val), having)}
-              {filterOnMenuItem(IconNames.FILTER_REMOVE, ex.unequal(val), having)}
+              {filterOnMenuItem(IconNames.FILTER, ex.equal(val), having)}
+              {filterOnMenuItem(IconNames.FILTER, ex.unequal(val), having)}
             </>
           )}
           {showFullValueMenuItem}
@@ -675,14 +677,20 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
         </div>
       ) : (
         <ReactTable
+          className="-striped -highlight"
           data={queryResult.rows as any[][]}
+          ofText={hasMoreResults ? '' : 'of'}
           noDataText={queryResult.rows.length ? '' : 'Query returned no data'}
           page={pagination.page}
           pageSize={pagination.pageSize}
           onPageChange={page => setPagination({ ...pagination, page })}
           onPageSizeChange={(pageSize, page) => setPagination({ page, pageSize })}
           sortable={false}
-          ofText={hasMoreResults ? '' : 'of'}
+          defaultPageSize={SMALL_TABLE_PAGE_SIZE}
+          pageSizeOptions={SMALL_TABLE_PAGE_SIZE_OPTIONS}
+          showPagination={
+            queryResult.rows.length > Math.min(SMALL_TABLE_PAGE_SIZE, pagination.pageSize)
+          }
           columns={filterMap(queryResult.header, (column, i) => {
             const h = column.name;
 
@@ -692,11 +700,8 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
             return {
               Header() {
                 return (
-                  <Popover2
-                    className="clickable-cell"
-                    content={<Deferred content={() => getHeaderMenu(column, i)} />}
-                  >
-                    <div>
+                  <Popover2 content={<Deferred content={() => getHeaderMenu(column, i)} />}>
+                    <div className="clickable-cell">
                       <div className="output-name">
                         <Icon className="type-icon" icon={icon} iconSize={12} />
                         {h}
@@ -718,6 +723,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                     <Popover2 content={<Deferred content={() => getCellMenu(column, i, value)} />}>
                       {numericColumnBraces[i] ? (
                         <BracedText
+                          className="table-padding"
                           text={formatNumber(value)}
                           braces={numericColumnBraces[i]}
                           padFractionalPart
@@ -729,7 +735,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                   </div>
                 );
               },
-              minWidth: column.isTimeColumn() ? 180 : 100,
+              width: dataTypeToColumnWidth(effectiveType),
               className:
                 parsedQuery && parsedQuery.isAggregateOutputColumn(h)
                   ? 'aggregate-column'

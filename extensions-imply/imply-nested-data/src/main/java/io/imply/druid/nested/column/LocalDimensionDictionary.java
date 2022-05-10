@@ -10,14 +10,10 @@
 package io.imply.druid.nested.column;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
 
 public class LocalDimensionDictionary
 {
   private final Int2IntOpenHashMap globalIdToLocalId = new Int2IntOpenHashMap();
-
-  private final IntList localIdToGlobalId = new IntArrayList();
 
   public LocalDimensionDictionary()
   {
@@ -28,27 +24,23 @@ public class LocalDimensionDictionary
   {
     return globalIdToLocalId;
   }
-
-  public IntList getLocalIdToGlobalId()
-  {
-    return localIdToGlobalId;
-  }
-
+  
+  private int nextLocalId = 0;
+  
   public int add(int originalValue)
   {
     int prev = globalIdToLocalId.get(originalValue);
     if (prev >= 0) {
       return prev;
     }
-    final int index = localIdToGlobalId.size();
+    final int index = nextLocalId++;
     globalIdToLocalId.put(originalValue, index);
-    localIdToGlobalId.add(originalValue);
 
     return index;
   }
 
   public int size()
   {
-    return localIdToGlobalId.size();
+    return nextLocalId;
   }
 }

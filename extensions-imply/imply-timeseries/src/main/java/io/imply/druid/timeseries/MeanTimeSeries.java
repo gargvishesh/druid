@@ -10,11 +10,11 @@
 package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Iterators;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.collect.Utils;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
@@ -140,10 +140,10 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     ImplyLongArrayList mergedBucketStarts = new ImplyLongArrayList();
     ImplyDoubleArrayList mergedSumPoints = new ImplyDoubleArrayList();
     ImplyLongArrayList mergedCountPoints = new ImplyLongArrayList();
-    Iterator<BucketData> mergedTimeSeries = Iterators.mergeSorted(mergeSeries.stream()
-                                                                             .map(MeanTimeSeries::getIterator)
-                                                                             .collect(Collectors.toList()),
-                                                                  Comparator.comparingLong(BucketData::getStart));
+    Iterator<BucketData> mergedTimeSeries = Utils.mergeSorted(
+        mergeSeries.stream().map(MeanTimeSeries::getIterator).collect(Collectors.toList()),
+        Comparator.comparingLong(BucketData::getStart)
+    );
     int currIndex = -1;
     while (mergedTimeSeries.hasNext()) {
       BucketData meanSeriesEntry = mergedTimeSeries.next();
