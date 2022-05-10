@@ -116,6 +116,7 @@ public class TalariaQueryMaker implements QueryMaker
     switch (feature) {
       case CAN_RUN_TIMESERIES:
       case CAN_RUN_TOPN:
+      case CAN_RUN_TIME_BOUNDARY:
         return false;
       case CAN_READ_EXTERNAL_DATA:
       case SCAN_CAN_ORDER_BY_NON_TIME:

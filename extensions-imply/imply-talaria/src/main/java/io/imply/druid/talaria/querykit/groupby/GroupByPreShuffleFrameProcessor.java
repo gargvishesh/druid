@@ -108,7 +108,8 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
           strategySelector.strategize(query)
                           .process(
                               query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.toDescriptor())),
-                              mapSegment(segment.getOrLoadSegment()).asStorageAdapter()
+                              mapSegment(segment.getOrLoadSegment()).asStorageAdapter(),
+                              null
                           );
 
       resultYielder = Yielders.each(rowSequence);
@@ -140,7 +141,8 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
             strategySelector.strategize(query)
                             .process(
                                 query.withQuerySegmentSpec(new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY)),
-                                mapSegment(frameSegment).asStorageAdapter()
+                                mapSegment(frameSegment).asStorageAdapter(),
+                                null
                             );
 
         resultYielder = Yielders.each(rowSequence);
