@@ -33,9 +33,9 @@ import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.vector.MultiValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
@@ -170,17 +170,13 @@ public class VirtualColumns implements Cacheable
     return withDotSupport.get(baseColumnName);
   }
 
-  /**
-   * Get the {@link ColumnIndexSupplier} of the specified virtual column, with the assistance of a
-   * {@link ColumnSelector} to allow reading things from segments. If the column does not have indexes this method
-   * may return null, or may also return a non-null supplier whose methods may return null values - having a supplier
-   * is no guarantee that the column has indexes.
-   */
   @Nullable
-  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnSelector columnSelector)
+  public BitmapIndex getBitmapIndex(String columnName, ColumnSelector columnSelector)
   {
     final VirtualColumn virtualColumn = getVirtualColumnForSelector(columnName);
-    return virtualColumn.getIndexSupplier(columnName, columnSelector);
+    return virtualColumn.capabilities(columnSelector, columnName).hasBitmapIndexes()
+           ? virtualColumn.getBitmapIndex(columnName, columnSelector)
+           : null;
   }
 
   /**
@@ -501,5 +497,4 @@ public class VirtualColumns implements Cacheable
   {
     return virtualColumns.toString();
   }
-
 }

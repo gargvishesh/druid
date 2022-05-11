@@ -21,14 +21,13 @@ package org.apache.druid.query.search;
 
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.dimension.DimensionSpec;
-import org.apache.druid.query.filter.ColumnIndexSelector;
-import org.apache.druid.segment.ColumnSelectorColumnIndexSelector;
+import org.apache.druid.query.filter.BitmapIndexSelector;
+import org.apache.druid.segment.ColumnSelectorBitmapIndexSelector;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.VirtualColumns;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 
 import java.util.List;
 
@@ -54,7 +53,7 @@ public class AutoStrategy extends SearchStrategy
     final QueryableIndex index = segment.asQueryableIndex();
 
     if (index != null) {
-      final ColumnIndexSelector selector = new ColumnSelectorColumnIndexSelector(
+      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(
           index.getBitmapFactoryForDimensions(),
           VirtualColumns.EMPTY,
           index
@@ -117,13 +116,9 @@ public class AutoStrategy extends SearchStrategy
     for (DimensionSpec dimension : dimensionSpecs) {
       final ColumnHolder columnHolder = index.getColumnHolder(dimension.getDimension());
       if (columnHolder != null) {
-        final ColumnIndexSupplier indexSupplier = columnHolder.getIndexSupplier();
-        if (indexSupplier != null) {
-          final DictionaryEncodedStringValueIndex bitmapIndex =
-              indexSupplier.as(DictionaryEncodedStringValueIndex.class);
-          if (bitmapIndex != null) {
-            totalCard += bitmapIndex.getCardinality();
-          }
+        final BitmapIndex bitmapIndex = columnHolder.getBitmapIndex();
+        if (bitmapIndex != null) {
+          totalCard += bitmapIndex.getCardinality();
         }
       }
     }
