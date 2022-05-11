@@ -19,24 +19,25 @@
 
 package org.apache.druid.benchmark;
 
+import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.collections.bitmap.MutableBitmap;
 import org.apache.druid.collections.bitmap.RoaringBitmapFactory;
 import org.apache.druid.common.config.NullHandling;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.BoundDimFilter;
-import org.apache.druid.query.filter.ColumnIndexSelector;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.LikeDimFilter;
 import org.apache.druid.query.filter.RegexDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.ordering.StringComparators;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.data.RoaringBitmapSerdeFactory;
-import org.apache.druid.segment.filter.Filters;
-import org.apache.druid.segment.serde.DictionaryEncodedStringIndexSupplier;
+import org.apache.druid.segment.serde.StringBitmapIndexColumnPartSupplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -111,7 +112,7 @@ public class LikeFilterBenchmark
   int step;
 
   // selector will contain a cardinality number of bitmaps; each one contains a single int: 0
-  ColumnIndexSelector selector;
+  BitmapIndexSelector selector;
 
   @Setup
   public void setup()
@@ -123,25 +124,38 @@ public class LikeFilterBenchmark
     final GenericIndexed<String> dictionary = GenericIndexed.fromIterable(
         FluentIterable.from(ints)
                       .transform(
-                          i -> i.toString()
+                          new Function<Integer, String>()
+                          {
+                            @Override
+                            public String apply(Integer i)
+                            {
+                              return i.toString();
+                            }
+                          }
                       ),
         GenericIndexed.STRING_STRATEGY
     );
-    final GenericIndexed<ImmutableBitmap> bitmaps = GenericIndexed.fromIterable(
-        FluentIterable.from(ints)
-                      .transform(
-                          i -> {
-                            final MutableBitmap mutableBitmap = bitmapFactory.makeEmptyMutableBitmap();
-                            mutableBitmap.add((i - START_INT) / step);
-                            return bitmapFactory.makeImmutableBitmap(mutableBitmap);
-                          }
-                      ),
-        serdeFactory.getObjectStrategy()
-    );
-    selector = new MockColumnIndexSelector(
+    final BitmapIndex bitmapIndex = new StringBitmapIndexColumnPartSupplier(
         bitmapFactory,
-        new DictionaryEncodedStringIndexSupplier(bitmapFactory, dictionary, bitmaps, null)
-    );
+        GenericIndexed.fromIterable(
+            FluentIterable.from(ints)
+                          .transform(
+                              new Function<Integer, ImmutableBitmap>()
+                              {
+                                @Override
+                                public ImmutableBitmap apply(Integer i)
+                                {
+                                  final MutableBitmap mutableBitmap = bitmapFactory.makeEmptyMutableBitmap();
+                                  mutableBitmap.add((i - START_INT) / step);
+                                  return bitmapFactory.makeImmutableBitmap(mutableBitmap);
+                                }
+                              }
+                          ),
+            serdeFactory.getObjectStrategy()
+        ),
+        dictionary
+    ).get();
+    selector = new MockBitmapIndexSelector(dictionary, bitmapFactory, bitmapIndex);
   }
 
   @Benchmark
@@ -149,7 +163,7 @@ public class LikeFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchLikeEquals(Blackhole blackhole)
   {
-    final ImmutableBitmap bitmapIndex = Filters.computeDefaultBitmapResults(LIKE_EQUALS, selector);
+    final ImmutableBitmap bitmapIndex = LIKE_EQUALS.getBitmapIndex(selector);
     blackhole.consume(bitmapIndex);
   }
 
@@ -158,7 +172,7 @@ public class LikeFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchSelectorEquals(Blackhole blackhole)
   {
-    final ImmutableBitmap bitmapIndex = Filters.computeDefaultBitmapResults(SELECTOR_EQUALS, selector);
+    final ImmutableBitmap bitmapIndex = SELECTOR_EQUALS.getBitmapIndex(selector);
     blackhole.consume(bitmapIndex);
   }
 
@@ -167,7 +181,7 @@ public class LikeFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchLikePrefix(Blackhole blackhole)
   {
-    final ImmutableBitmap bitmapIndex = Filters.computeDefaultBitmapResults(LIKE_PREFIX, selector);
+    final ImmutableBitmap bitmapIndex = LIKE_PREFIX.getBitmapIndex(selector);
     blackhole.consume(bitmapIndex);
   }
 
@@ -176,7 +190,7 @@ public class LikeFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchBoundPrefix(Blackhole blackhole)
   {
-    final ImmutableBitmap bitmapIndex = Filters.computeDefaultBitmapResults(BOUND_PREFIX, selector);
+    final ImmutableBitmap bitmapIndex = BOUND_PREFIX.getBitmapIndex(selector);
     blackhole.consume(bitmapIndex);
   }
 
@@ -185,7 +199,7 @@ public class LikeFilterBenchmark
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   public void matchRegexPrefix(Blackhole blackhole)
   {
-    final ImmutableBitmap bitmapIndex = Filters.computeDefaultBitmapResults(REGEX_PREFIX, selector);
+    final ImmutableBitmap bitmapIndex = REGEX_PREFIX.getBitmapIndex(selector);
     blackhole.consume(bitmapIndex);
   }
 

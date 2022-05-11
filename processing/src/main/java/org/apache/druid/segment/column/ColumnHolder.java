@@ -41,9 +41,10 @@ public interface ColumnHolder
 
   int getLength();
   BaseColumn getColumn();
-
   @Nullable
-  ColumnIndexSupplier getIndexSupplier();
+  BitmapIndex getBitmapIndex();
+  @Nullable
+  SpatialIndex getSpatialIndex();
 
   /**
    * Returns a new instance of a {@link SettableColumnValueSelector}, corresponding to the type of this column.

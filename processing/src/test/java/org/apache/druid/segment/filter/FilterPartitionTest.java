@@ -29,7 +29,7 @@ import org.apache.druid.js.JavaScriptConfig;
 import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.extraction.JavaScriptExtractionFn;
 import org.apache.druid.query.filter.AndDimFilter;
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.DimFilter;
 import org.apache.druid.query.filter.DruidDoublePredicate;
 import org.apache.druid.query.filter.DruidFloatPredicate;
@@ -39,11 +39,10 @@ import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.FilterTuning;
 import org.apache.druid.query.filter.OrDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
-import org.apache.druid.segment.ColumnSelectorColumnIndexSelector;
+import org.apache.druid.segment.ColumnSelectorBitmapIndexSelector;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.StorageAdapter;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.filter.cnf.CNFFilterExplosionException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -51,7 +50,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
@@ -79,11 +77,10 @@ public class FilterPartitionTest extends BaseFilterTest
       super(dimension, value, filterTuning);
     }
 
-    @Nullable
     @Override
-    public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+    public boolean supportsBitmapIndex(BitmapIndexSelector selector)
     {
-      return null;
+      return false;
     }
   }
 
@@ -98,11 +95,10 @@ public class FilterPartitionTest extends BaseFilterTest
       super(dimension, predicateFactory, extractionFn);
     }
 
-    @Nullable
     @Override
-    public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+    public boolean supportsBitmapIndex(BitmapIndexSelector selector)
     {
-      return null;
+      return false;
     }
   }
 
@@ -727,7 +723,7 @@ public class FilterPartitionTest extends BaseFilterTest
       return;
     }
     QueryableIndexStorageAdapter storageAdapter = (QueryableIndexStorageAdapter) adapter;
-    final ColumnSelectorColumnIndexSelector bitmapIndexSelector = storageAdapter.makeBitmapIndexSelector(BaseFilterTest.VIRTUAL_COLUMNS);
+    final ColumnSelectorBitmapIndexSelector bitmapIndexSelector = storageAdapter.makeBitmapIndexSelector(BaseFilterTest.VIRTUAL_COLUMNS);
 
     // has bitmap index, will use it by default
     Filter normalFilter = new SelectorFilter("dim1", "HELLO");
