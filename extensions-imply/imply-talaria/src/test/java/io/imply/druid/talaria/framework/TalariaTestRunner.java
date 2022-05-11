@@ -141,7 +141,7 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
  * Leader -> Coordinator (Coordinator is mocked)
  * <p>
  * In the Ut's we go from:
- * {@link io.imply.druid.talaria.sql.TalariaQueryMaker} -> {@link TalariaTestIndexingServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
+ * {@link TalariaQueryMaker} -> {@link TalariaTestIndexingServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
  * <p>
  * <p>
  * Leader -> Worker communication happens in {@link TalariaTestLeaderContext}
@@ -166,7 +166,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       ROLLUP_CONTEXT = ImmutableMap.<String, Object>builder()
                                    .putAll(DEFAULT_TALARIA_CONTEXT)
                                    .put(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, false)
-          .put(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING,false)
+                                   .put(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING, false)
                                    .build();
 
   public final boolean useDefault = NullHandling.replaceWithDefault();
@@ -247,8 +247,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
-            binder.bind(DruidLeaderClient.class).annotatedWith(IndexingService.class).
-                  toInstance(new DruidLeaderClient(null, null, null, null));
+            binder.bind(DruidLeaderClient.class)
+                  .annotatedWith(IndexingService.class)
+                  .toInstance(new DruidLeaderClient(null, null, null, null));
 
           }
         },

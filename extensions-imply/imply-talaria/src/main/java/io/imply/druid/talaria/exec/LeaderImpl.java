@@ -1353,6 +1353,7 @@ public class LeaderImpl implements Leader
   {
     final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
     // TODO: Disabling the rollup mode to be allways false till {@link AggregatorFactory} has a withName method.
+    // IMPLY-20677,IMPLY-20678
     final boolean isRollupQ = false || isRollupQuery(querySpec.getQuery());
 
     final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
@@ -1396,7 +1397,7 @@ public class LeaderImpl implements Leader
 
   /**
    * Checks if the time columns present in the groupByQuery context are same. One is set by
-   * {@link org.apache.druid.sql.calcite.rel.DruidQuery#toGroupByQuery(QueryFeatureInspector)} and the other is set by
+   * {@link DruidQuery#toGroupByQuery(QueryFeatureInspector)} and the other is set by
    * {@link TalariaQueryMaker#runQuery(DruidQuery)}
    *
    * @param groupByQuery
