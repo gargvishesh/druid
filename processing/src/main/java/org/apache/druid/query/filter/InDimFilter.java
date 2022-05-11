@@ -41,10 +41,12 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Comparators;
+import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.filter.vector.VectorValueMatcher;
@@ -56,9 +58,7 @@ import org.apache.druid.segment.ColumnProcessors;
 import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.DimensionHandlerUtils;
-import org.apache.druid.segment.column.BitmapColumnIndex;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
-import org.apache.druid.segment.column.StringValueSetIndex;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 
@@ -280,32 +280,37 @@ public class InDimFilter extends AbstractOptimizableDimFilter implements Filter
   }
 
   @Override
-  @Nullable
-  public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+  public <T> T getBitmapResult(BitmapIndexSelector selector, BitmapResultFactory<T> bitmapResultFactory)
   {
-    if (!Filters.checkFilterTuningUseIndex(dimension, selector, filterTuning)) {
-      return null;
-    }
     if (extractionFn == null) {
-      final ColumnIndexSupplier indexSupplier = selector.getIndexSupplier(dimension);
-
-      if (indexSupplier == null) {
-        // column doesn't exist, match against null
-        return Filters.makeNullIndex(
-            predicateFactory.makeStringPredicate().apply(null),
-            selector
-        );
-      }
-      final StringValueSetIndex valueSetIndex = indexSupplier.as(StringValueSetIndex.class);
-      if (valueSetIndex != null) {
-        return valueSetIndex.forValues(values);
-      }
+      final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+      return bitmapResultFactory.unionDimensionValueBitmaps(getBitmapIterable(values, bitmapIndex));
+    } else {
+      return Filters.matchPredicate(
+          dimension,
+          selector,
+          bitmapResultFactory,
+          predicateFactory.makeStringPredicate()
+      );
     }
-    return Filters.makePredicateIndex(
-        dimension,
-        selector,
-        predicateFactory
-    );
+  }
+
+  @Override
+  public double estimateSelectivity(BitmapIndexSelector indexSelector)
+  {
+    if (extractionFn == null) {
+      final BitmapIndex bitmapIndex = indexSelector.getBitmapIndex(dimension);
+      return Filters.estimateSelectivity(
+          bitmapIndex.getBitmapsForValues(values).iterator(),
+          indexSelector.getNumRows()
+      );
+    } else {
+      return Filters.estimateSelectivity(
+          dimension,
+          indexSelector,
+          predicateFactory.makeStringPredicate()
+      );
+    }
   }
 
   @Override
@@ -358,7 +363,19 @@ public class InDimFilter extends AbstractOptimizableDimFilter implements Filter
   }
 
   @Override
-  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+  public boolean supportsBitmapIndex(BitmapIndexSelector selector)
+  {
+    return selector.getBitmapIndex(dimension) != null;
+  }
+
+  @Override
+  public boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+  {
+    return Filters.shouldUseBitmapIndex(this, selector, filterTuning);
+  }
+
+  @Override
+  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
   {
     return Filters.supportsSelectivityEstimation(this, dimension, columnSelector, indexSelector);
   }
@@ -477,6 +494,11 @@ public class InDimFilter extends AbstractOptimizableDimFilter implements Filter
   private static <T> boolean isNaturalOrder(@Nullable final Comparator<T> comparator)
   {
     return comparator == null || Comparators.naturalNullsFirst().equals(comparator);
+  }
+
+  private static Iterable<ImmutableBitmap> getBitmapIterable(final Set<String> values, final BitmapIndex bitmapIndex)
+  {
+    return bitmapIndex.getBitmapsForValues(values);
   }
 
   @SuppressWarnings("ReturnValueIgnored")

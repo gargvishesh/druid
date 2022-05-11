@@ -33,12 +33,10 @@ import org.apache.druid.query.DefaultBitmapResultFactory;
 import org.apache.druid.query.QueryMetrics;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapColumnIndex;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.column.NumericColumn;
 import org.apache.druid.segment.data.Indexed;
 import org.apache.druid.segment.filter.AndFilter;
@@ -148,9 +146,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     ColumnHolder columnHolder = index.getColumnHolder(dimension);
     if (columnHolder != null && columnHolder.getCapabilities().hasBitmapIndexes()) {
-      ColumnIndexSupplier indexSupplier = columnHolder.getIndexSupplier();
-      DictionaryEncodedStringValueIndex index = indexSupplier.as(DictionaryEncodedStringValueIndex.class);
-      return index.getCardinality() > 0 ? index.getValue(0) : null;
+      BitmapIndex bitmap = columnHolder.getBitmapIndex();
+      return bitmap.getCardinality() > 0 ? bitmap.getValue(0) : null;
     }
     return null;
   }
@@ -161,9 +158,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     ColumnHolder columnHolder = index.getColumnHolder(dimension);
     if (columnHolder != null && columnHolder.getCapabilities().hasBitmapIndexes()) {
-      ColumnIndexSupplier indexSupplier = columnHolder.getIndexSupplier();
-      DictionaryEncodedStringValueIndex index = indexSupplier.as(DictionaryEncodedStringValueIndex.class);
-      return index.getCardinality() > 0 ? index.getValue(index.getCardinality() - 1) : null;
+      BitmapIndex bitmap = columnHolder.getBitmapIndex();
+      return bitmap.getCardinality() > 0 ? bitmap.getValue(bitmap.getCardinality() - 1) : null;
     }
     return null;
   }
@@ -191,8 +187,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     if (filter != null) {
       final boolean filterCanVectorize =
-          filter.getBitmapColumnIndex(makeBitmapIndexSelector(virtualColumns)) != null
-          || filter.canVectorizeMatcher(this);
+          filter.shouldUseBitmapIndex(makeBitmapIndexSelector(virtualColumns)) || filter.canVectorizeMatcher(this);
 
       if (!filterCanVectorize) {
         return false;
@@ -228,7 +223,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return null;
     }
 
-    final ColumnSelectorColumnIndexSelector bitmapIndexSelector = makeBitmapIndexSelector(virtualColumns);
+    final ColumnSelectorBitmapIndexSelector bitmapIndexSelector = makeBitmapIndexSelector(virtualColumns);
 
     final FilterAnalysis filterAnalysis = analyzeFilter(filter, bitmapIndexSelector, queryMetrics);
 
@@ -265,7 +260,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    final ColumnSelectorColumnIndexSelector bitmapIndexSelector = makeBitmapIndexSelector(virtualColumns);
+    final ColumnSelectorBitmapIndexSelector bitmapIndexSelector = makeBitmapIndexSelector(virtualColumns);
 
     final FilterAnalysis filterAnalysis = analyzeFilter(filter, bitmapIndexSelector, queryMetrics);
 
@@ -316,9 +311,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @VisibleForTesting
-  public ColumnSelectorColumnIndexSelector makeBitmapIndexSelector(final VirtualColumns virtualColumns)
+  public ColumnSelectorBitmapIndexSelector makeBitmapIndexSelector(final VirtualColumns virtualColumns)
   {
-    return new ColumnSelectorColumnIndexSelector(
+    return new ColumnSelectorBitmapIndexSelector(
         index.getBitmapFactoryForDimensions(),
         virtualColumns,
         index
@@ -328,7 +323,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   @VisibleForTesting
   public FilterAnalysis analyzeFilter(
       @Nullable final Filter filter,
-      ColumnSelectorColumnIndexSelector indexSelector,
+      ColumnSelectorBitmapIndexSelector indexSelector,
       @Nullable QueryMetrics queryMetrics
   )
   {
@@ -343,7 +338,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
      * were not pruned AND those that matched the filter during row scanning)
      *
      * An AND filter can have its subfilters partitioned across the two steps. The subfilters that can be
-     * processed entirely with bitmap indexes (subfilter returns non-null value for getBitmapColumnIndex)
+     * processed entirely with bitmap indexes (subfilter returns true for supportsBitmapIndex())
      * will be moved to the pre-filtering stage.
      *
      * Any subfilters that cannot be processed entirely with bitmap indexes will be moved to the post-filtering stage.
@@ -360,27 +355,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         // If we get an AndFilter, we can split the subfilters across both filtering stages
         for (Filter subfilter : ((AndFilter) filter).getFilters()) {
 
-          final BitmapColumnIndex columnIndex = subfilter.getBitmapColumnIndex(indexSelector);
+          if (subfilter.supportsBitmapIndex(indexSelector) && subfilter.shouldUseBitmapIndex(indexSelector)) {
 
-          if (columnIndex == null) {
-            postFilters.add(subfilter);
-          } else {
             preFilters.add(subfilter);
-            if (!columnIndex.getIndexCapabilities().isExact()) {
-              postFilters.add(subfilter);
-            }
+          } else {
+            postFilters.add(subfilter);
           }
         }
       } else {
         // If we get an OrFilter or a single filter, handle the filter in one stage
-        final BitmapColumnIndex columnIndex = filter.getBitmapColumnIndex(indexSelector);
-        if (columnIndex == null) {
-          postFilters.add(filter);
-        } else {
+        if (filter.supportsBitmapIndex(indexSelector) && filter.shouldUseBitmapIndex(indexSelector)) {
           preFilters.add(filter);
-          if (!columnIndex.getIndexCapabilities().isExact()) {
-            postFilters.add(filter);
-          }
+        } else {
+          postFilters.add(filter);
         }
       }
     }
@@ -393,7 +380,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         BitmapResultFactory<?> bitmapResultFactory =
             queryMetrics.makeBitmapResultFactory(indexSelector.getBitmapFactory());
         long bitmapConstructionStartNs = System.nanoTime();
-        // Use AndFilter.getBitmapIndex to intersect the preFilters to get its short-circuiting behavior.
+        // Use AndFilter.getBitmapResult to intersect the preFilters to get its short-circuiting behavior.
         preFilterBitmap = AndFilter.getBitmapIndex(indexSelector, bitmapResultFactory, preFilters);
         preFilteredRows = preFilterBitmap.size();
         queryMetrics.reportBitmapConstructionTime(System.nanoTime() - bitmapConstructionStartNs);

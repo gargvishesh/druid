@@ -66,7 +66,7 @@ public class QueryableIndexCursorSequenceBuilder
   @Nullable
   private final Filter postFilter;
   @Nullable
-  private final ColumnSelectorColumnIndexSelector bitmapIndexSelector;
+  private final ColumnSelectorBitmapIndexSelector bitmapIndexSelector;
 
   public QueryableIndexCursorSequenceBuilder(
       QueryableIndex index,
@@ -77,7 +77,7 @@ public class QueryableIndexCursorSequenceBuilder
       long maxDataTimestamp,
       boolean descending,
       @Nullable Filter postFilter,
-      @Nullable ColumnSelectorColumnIndexSelector bitmapIndexSelector
+      @Nullable ColumnSelectorBitmapIndexSelector bitmapIndexSelector
   )
   {
     this.index = index;

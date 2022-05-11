@@ -36,12 +36,13 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.js.JavaScriptConfig;
+import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.JavaScriptAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.DimFilters;
 import org.apache.druid.query.filter.DruidDoublePredicate;
 import org.apache.druid.query.filter.DruidFloatPredicate;
@@ -62,8 +63,6 @@ import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.VirtualColumns;
-import org.apache.druid.segment.column.AllTrueBitmapColumnIndex;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.filter.SelectorFilter;
@@ -76,7 +75,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -659,15 +657,14 @@ public class IncrementalIndexStorageAdapterTest extends InitializedNullHandlingT
       this.timestamp = timestamp;
     }
 
-    @Nullable
     @Override
-    public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+    public <T> T getBitmapResult(BitmapIndexSelector selector, BitmapResultFactory<T> bitmapResultFactory)
     {
-      return new AllTrueBitmapColumnIndex(selector);
+      return bitmapResultFactory.wrapAllTrue(Filters.allTrue(selector));
     }
 
     @Override
-    public double estimateSelectivity(ColumnIndexSelector indexSelector)
+    public double estimateSelectivity(BitmapIndexSelector indexSelector)
     {
       return 1;
     }
@@ -683,7 +680,19 @@ public class IncrementalIndexStorageAdapterTest extends InitializedNullHandlingT
     }
 
     @Override
-    public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+    public boolean supportsBitmapIndex(BitmapIndexSelector selector)
+    {
+      return true;
+    }
+
+    @Override
+    public boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+    {
+      return true;
+    }
+
+    @Override
+    public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
     {
       return true;
     }

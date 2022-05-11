@@ -28,12 +28,10 @@ import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Comparators;
-import org.apache.druid.query.DefaultBitmapResultFactory;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
-import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.data.IncrementalIndexTest;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.incremental.IncrementalIndex;
@@ -182,12 +180,7 @@ public class IndexMergerNullHandlingTest
             );
 
             // Verify that the bitmap index for null is correct.
-            final DictionaryEncodedStringValueIndex valueIndex = columnHolder.getIndexSupplier().as(
-                DictionaryEncodedStringValueIndex.class
-            );
-            final StringValueSetIndex valueSetIndex = columnHolder.getIndexSupplier().as(
-                StringValueSetIndex.class
-            );
+            final BitmapIndex bitmapIndex = columnHolder.getBitmapIndex();
 
             // Read through the column to find all the rows that should match null.
             final List<Integer> expectedNullRows = new ArrayList<>();
@@ -198,18 +191,12 @@ public class IndexMergerNullHandlingTest
               }
             }
 
-            Assert.assertEquals(subsetList.toString(), expectedNullRows.size() > 0, valueIndex.hasNulls());
+            Assert.assertEquals(subsetList.toString(), expectedNullRows.size() > 0, bitmapIndex.hasNulls());
 
             if (expectedNullRows.size() > 0) {
-              Assert.assertEquals(subsetList.toString(), 0, valueIndex.getIndex(null));
+              Assert.assertEquals(subsetList.toString(), 0, bitmapIndex.getIndex(null));
 
-              final ImmutableBitmap nullBitmap = valueSetIndex.forValue(null)
-                                                              .computeBitmapResult(
-                                                                  new DefaultBitmapResultFactory(
-                                                                      indexSpec.getBitmapSerdeFactory()
-                                                                               .getBitmapFactory()
-                                                                  )
-                                                              );
+              final ImmutableBitmap nullBitmap = bitmapIndex.getBitmapForValue(null);
               final List<Integer> actualNullRows = new ArrayList<>();
               final IntIterator iterator = nullBitmap.iterator();
               while (iterator.hasNext()) {
@@ -218,7 +205,7 @@ public class IndexMergerNullHandlingTest
 
               Assert.assertEquals(subsetList.toString(), expectedNullRows, actualNullRows);
             } else {
-              Assert.assertEquals(-1, valueIndex.getIndex(null));
+              Assert.assertEquals(-1, bitmapIndex.getIndex(null));
             }
           }
         }

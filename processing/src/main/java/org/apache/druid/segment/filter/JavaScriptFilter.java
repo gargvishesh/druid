@@ -19,17 +19,18 @@
 
 package org.apache.druid.segment.filter;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.BitmapResultFactory;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.FilterTuning;
 import org.apache.druid.query.filter.JavaScriptDimFilter;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.column.BitmapColumnIndex;
+import org.mozilla.javascript.Context;
 
-import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.Set;
 
@@ -50,14 +51,40 @@ public class JavaScriptFilter implements Filter
     this.filterTuning = filterTuning;
   }
 
-  @Nullable
   @Override
-  public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+  public <T> T getBitmapResult(BitmapIndexSelector selector, BitmapResultFactory<T> bitmapResultFactory)
   {
-    if (!Filters.checkFilterTuningUseIndex(dimension, selector, filterTuning)) {
-      return null;
+    final Context cx = Context.enter();
+    try {
+      return Filters.matchPredicate(dimension, selector, bitmapResultFactory, makeStringPredicate(cx));
     }
-    return Filters.makePredicateIndex(dimension, selector, predicateFactory);
+    finally {
+      Context.exit();
+    }
+  }
+
+  @Override
+  public double estimateSelectivity(BitmapIndexSelector indexSelector)
+  {
+    final Context cx = Context.enter();
+    try {
+      return Filters.estimateSelectivity(dimension, indexSelector, makeStringPredicate(cx));
+    }
+    finally {
+      Context.exit();
+    }
+  }
+
+  private Predicate<String> makeStringPredicate(final Context context)
+  {
+    return new Predicate<String>()
+    {
+      @Override
+      public boolean apply(String input)
+      {
+        return predicateFactory.applyInContext(context, input);
+      }
+    };
   }
 
   @Override
@@ -68,7 +95,19 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
-  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+  public boolean supportsBitmapIndex(BitmapIndexSelector selector)
+  {
+    return selector.getBitmapIndex(dimension) != null;
+  }
+
+  @Override
+  public boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+  {
+    return Filters.shouldUseBitmapIndex(this, selector, filterTuning);
+  }
+
+  @Override
+  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
   {
     return Filters.supportsSelectivityEstimation(this, dimension, columnSelector, indexSelector);
   }
