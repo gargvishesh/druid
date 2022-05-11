@@ -166,6 +166,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       ROLLUP_CONTEXT = ImmutableMap.<String, Object>builder()
                                    .putAll(DEFAULT_TALARIA_CONTEXT)
                                    .put(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, false)
+          .put(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING,false)
                                    .build();
 
   public final boolean useDefault = NullHandling.replaceWithDefault();
@@ -615,7 +616,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
     private Class<? extends ShardSpec> expectedShardSpec = NumberedShardSpec.class;
 
-    private boolean expectedRollup = false;
+    private boolean expectedRollUp = false;
 
     private Granularity expectedQueryGranularity = Granularities.NONE;
 
@@ -639,9 +640,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       return this;
     }
 
-    public InsertQueryTester setExpectedRollup(boolean expectedRollup)
+    public InsertQueryTester setExpectedRollUp(boolean expectedRollUp)
     {
-      this.expectedRollup = expectedRollup;
+      this.expectedRollUp = expectedRollUp;
       return this;
     }
 
@@ -703,7 +704,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertEquals(expectedRowSignature, storageAdapter.getRowSignature());
 
           // assert rollup
-          Assert.assertEquals(expectedRollup, queryableIndex.getMetadata().isRollup());
+          Assert.assertEquals(expectedRollUp, queryableIndex.getMetadata().isRollup());
 
           // asset query granulariy
           Assert.assertEquals(expectedQueryGranularity, queryableIndex.getMetadata().getQueryGranularity());
