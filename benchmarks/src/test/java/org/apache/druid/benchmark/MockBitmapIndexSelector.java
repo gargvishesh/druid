@@ -20,24 +20,42 @@
 package org.apache.druid.benchmark;
 
 import org.apache.druid.collections.bitmap.BitmapFactory;
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.collections.spatial.ImmutableRTree;
+import org.apache.druid.query.filter.BitmapIndexSelector;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
+import org.apache.druid.segment.data.CloseableIndexed;
+import org.apache.druid.segment.data.GenericIndexed;
 
 import javax.annotation.Nullable;
 
-public class MockColumnIndexSelector implements ColumnIndexSelector
+public class MockBitmapIndexSelector implements BitmapIndexSelector
 {
+  private final GenericIndexed<String> dictionary;
   private final BitmapFactory bitmapFactory;
-  private final ColumnIndexSupplier indexSupplier;
+  private final BitmapIndex bitmapIndex;
 
-  public MockColumnIndexSelector(
+  public MockBitmapIndexSelector(
+      GenericIndexed<String> dictionary,
       BitmapFactory bitmapFactory,
-      ColumnIndexSupplier indexSupplier
-  )
+      BitmapIndex bitmapIndex)
   {
+    this.dictionary = dictionary;
     this.bitmapFactory = bitmapFactory;
-    this.indexSupplier = indexSupplier;
+    this.bitmapIndex = bitmapIndex;
+  }
+
+  @Override
+  public CloseableIndexed<String> getDimensionValues(String dimension)
+  {
+    return dictionary;
+  }
+
+  @Override
+  public ColumnCapabilities.Capable hasMultipleValues(final String dimension)
+  {
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -53,9 +71,21 @@ public class MockColumnIndexSelector implements ColumnIndexSelector
   }
 
   @Override
-  public ColumnIndexSupplier getIndexSupplier(String column)
+  public ImmutableBitmap getBitmapIndex(String dimension, String value)
   {
-    return indexSupplier;
+    return bitmapIndex.getBitmapForValue(value);
+  }
+
+  @Override
+  public BitmapIndex getBitmapIndex(String dimension)
+  {
+    return bitmapIndex;
+  }
+
+  @Override
+  public ImmutableRTree getSpatialIndex(String dimension)
+  {
+    throw new UnsupportedOperationException();
   }
 
   @Nullable
@@ -64,5 +94,4 @@ public class MockColumnIndexSelector implements ColumnIndexSelector
   {
     return null;
   }
-
 }

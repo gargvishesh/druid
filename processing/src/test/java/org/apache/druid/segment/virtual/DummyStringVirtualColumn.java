@@ -33,10 +33,10 @@ import org.apache.druid.segment.IdLookup;
 import org.apache.druid.segment.NilColumnValueSelector;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.BaseColumn;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.StringDictionaryEncodedColumn;
 import org.apache.druid.segment.data.IndexedInts;
@@ -165,32 +165,19 @@ public class DummyStringVirtualColumn implements VirtualColumn
     }
   }
 
-  @Nullable
   @Override
-  public ColumnIndexSupplier getIndexSupplier(
-      String columnName,
-      ColumnSelector columnSelector
-  )
+  public @Nullable BitmapIndex getBitmapIndex(String columnName, ColumnSelector columnSelector)
   {
-    return new ColumnIndexSupplier()
-    {
-
-      @Nullable
-      @Override
-      public <T> T as(Class<T> clazz)
-      {
-        if (enableBitmaps) {
-          ColumnHolder holder = columnSelector.getColumnHolder(baseColumnName);
-          if (holder == null) {
-            return null;
-          }
-
-          return holder.getIndexSupplier().as(clazz);
-        } else {
-          return null;
-        }
+    if (enableBitmaps) {
+      ColumnHolder holder = columnSelector.getColumnHolder(baseColumnName);
+      if (holder == null) {
+        return null;
       }
-    };
+
+      return holder.getBitmapIndex();
+    } else {
+      throw new UnsupportedOperationException("not supported");
+    }
   }
 
   @Override

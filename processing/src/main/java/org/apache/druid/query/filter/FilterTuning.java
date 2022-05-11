@@ -20,7 +20,6 @@
 package org.apache.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.annotations.SubclassesMustOverrideEqualsAndHashCode;
 
@@ -50,11 +49,14 @@ import java.util.Objects;
 @SubclassesMustOverrideEqualsAndHashCode
 public class FilterTuning
 {
+  public static FilterTuning createDefault(Filter filter, BitmapIndexSelector selector)
+  {
+    return new FilterTuning(filter.supportsBitmapIndex(selector), null, null);
+  }
+
   private final boolean useBitmapIndex;
-  @Nullable
-  private final Integer minCardinalityToUseBitmapIndex;
-  @Nullable
-  private final Integer maxCardinalityToUseBitmapIndex;
+  private final int minCardinalityToUseBitmapIndex;
+  private final int maxCardinalityToUseBitmapIndex;
 
   @JsonCreator
   public FilterTuning(
@@ -64,8 +66,10 @@ public class FilterTuning
   )
   {
     this.useBitmapIndex = useBitmapIndex != null ? useBitmapIndex : true;
-    this.minCardinalityToUseBitmapIndex = minCardinalityToUseBitmapIndex;
-    this.maxCardinalityToUseBitmapIndex = maxCardinalityToUseBitmapIndex;
+    this.minCardinalityToUseBitmapIndex =
+        minCardinalityToUseBitmapIndex != null ? minCardinalityToUseBitmapIndex : 0;
+    this.maxCardinalityToUseBitmapIndex =
+        maxCardinalityToUseBitmapIndex != null ? maxCardinalityToUseBitmapIndex : Integer.MAX_VALUE;
   }
 
   @JsonProperty
@@ -74,24 +78,16 @@ public class FilterTuning
     return useBitmapIndex;
   }
 
-  @Nullable
   @JsonProperty
-  public Integer getMinCardinalityToUseBitmapIndex()
+  public int getMinCardinalityToUseBitmapIndex()
   {
     return minCardinalityToUseBitmapIndex;
   }
 
-  @Nullable
   @JsonProperty
-  public Integer getMaxCardinalityToUseBitmapIndex()
+  public int getMaxCardinalityToUseBitmapIndex()
   {
     return maxCardinalityToUseBitmapIndex;
-  }
-
-  @JsonIgnore
-  public boolean hasValueCardinalityThreshold()
-  {
-    return minCardinalityToUseBitmapIndex != null || maxCardinalityToUseBitmapIndex != null;
   }
 
   @Override

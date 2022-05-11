@@ -19,7 +19,8 @@
 
 package org.apache.druid.segment.filter;
 
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.BitmapResultFactory;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.filter.vector.BooleanVectorValueMatcher;
@@ -27,11 +28,8 @@ import org.apache.druid.query.filter.vector.VectorValueMatcher;
 import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.column.AllTrueBitmapColumnIndex;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -52,11 +50,10 @@ public class TrueFilter implements Filter
   {
   }
 
-  @Nullable
   @Override
-  public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+  public <T> T getBitmapResult(BitmapIndexSelector selector, BitmapResultFactory<T> bitmapResultFactory)
   {
-    return new AllTrueBitmapColumnIndex(selector);
+    return bitmapResultFactory.wrapAllTrue(Filters.allTrue(selector));
   }
 
   @Override
@@ -72,7 +69,19 @@ public class TrueFilter implements Filter
   }
 
   @Override
-  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+  public boolean supportsBitmapIndex(BitmapIndexSelector selector)
+  {
+    return true;
+  }
+
+  @Override
+  public boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+  {
+    return true;
+  }
+
+  @Override
+  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
   {
     return true;
   }
@@ -102,7 +111,7 @@ public class TrueFilter implements Filter
   }
 
   @Override
-  public double estimateSelectivity(ColumnIndexSelector indexSelector)
+  public double estimateSelectivity(BitmapIndexSelector indexSelector)
   {
     return 1;
   }

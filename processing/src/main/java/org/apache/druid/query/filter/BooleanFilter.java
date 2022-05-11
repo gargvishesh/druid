@@ -45,7 +45,7 @@ public interface BooleanFilter extends Filter
    *
    * An implementation should either:
    * - return a ValueMatcher that checks row values, using the provided ValueMatcherFactory
-   * - or, if possible, get a bitmap index for this filter using the ColumnIndexSelector, and
+   * - or, if possible, get a bitmap index for this filter using the BitmapIndexSelector, and
    * return a ValueMatcher that checks the current row offset, created using the bitmap index.
    *
    * @param selector                Object used to retrieve bitmap indexes
@@ -55,7 +55,7 @@ public interface BooleanFilter extends Filter
    * @return ValueMatcher that applies this filter
    */
   ValueMatcher makeMatcher(
-      ColumnIndexSelector selector,
+      BitmapIndexSelector selector,
       ColumnSelectorFactory columnSelectorFactory,
       RowOffsetMatcherFactory rowOffsetMatcherFactory
   );
@@ -71,7 +71,29 @@ public interface BooleanFilter extends Filter
   }
 
   @Override
-  default boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+  default boolean supportsBitmapIndex(BitmapIndexSelector selector)
+  {
+    for (Filter filter : getFilters()) {
+      if (!filter.supportsBitmapIndex(selector)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
+  default boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+  {
+    for (Filter f : getFilters()) {
+      if (!f.shouldUseBitmapIndex(selector)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
+  default boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
   {
     for (Filter filter : getFilters()) {
       if (!filter.supportsSelectivityEstimation(columnSelector, indexSelector)) {

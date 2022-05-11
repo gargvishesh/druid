@@ -344,33 +344,25 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             .setHasNulls(firstDictionaryEntry == null)
             .setDictionaryEncodedColumnSupplier(dictionaryEncodedColumnSupplier);
 
-        GenericIndexed<ImmutableBitmap> rBitmaps = null;
-        ImmutableRTree rSpatialIndex = null;
         if (!Feature.NO_BITMAP_INDEX.isSet(rFlags)) {
-          rBitmaps = GenericIndexed.read(
+          GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(
               buffer,
               bitmapSerdeFactory.getObjectStrategy(),
               builder.getFileMapper()
           );
+          builder.setBitmapIndex(
+              new StringBitmapIndexColumnPartSupplier(
+                  bitmapSerdeFactory.getBitmapFactory(),
+                  rBitmaps,
+                  rDictionary
+              )
+          );
         }
 
         if (buffer.hasRemaining()) {
-          rSpatialIndex = new ImmutableRTreeObjectStrategy(
-              bitmapSerdeFactory.getBitmapFactory()
-          ).fromByteBufferWithSize(buffer);
-        }
-
-        if (rBitmaps != null || rSpatialIndex != null) {
-          builder.setIndexSupplier(
-              new DictionaryEncodedStringIndexSupplier(
-                  bitmapSerdeFactory.getBitmapFactory(),
-                  rDictionary,
-                  rBitmaps,
-                  rSpatialIndex
-              ),
-              rBitmaps != null,
-              rSpatialIndex != null
-          );
+          ImmutableRTree rSpatialIndex =
+              new ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory()).fromByteBufferWithSize(buffer);
+          builder.setSpatialIndex(new SpatialIndexColumnPartSupplier(rSpatialIndex));
         }
       }
 

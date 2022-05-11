@@ -20,10 +20,10 @@
 package org.apache.druid.segment.filter;
 
 import com.google.common.collect.ImmutableSet;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.BitmapResultFactory;
+import org.apache.druid.query.filter.BitmapIndexSelector;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.FilterTuning;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -33,9 +33,6 @@ import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnProcessors;
 import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.column.BitmapColumnIndex;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
-import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 
 import javax.annotation.Nullable;
@@ -77,22 +74,9 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  @Nullable
-  public BitmapColumnIndex getBitmapColumnIndex(ColumnIndexSelector selector)
+  public <T> T getBitmapResult(BitmapIndexSelector selector, BitmapResultFactory<T> bitmapResultFactory)
   {
-    if (!Filters.checkFilterTuningUseIndex(dimension, selector, filterTuning)) {
-      return null;
-    }
-    final ColumnIndexSupplier indexSupplier = selector.getIndexSupplier(dimension);
-    if (indexSupplier == null) {
-      return Filters.makeNullIndex(NullHandling.isNullOrEquivalent(value), selector);
-    }
-    final StringValueSetIndex valueSetIndex = indexSupplier.as(StringValueSetIndex.class);
-    if (valueSetIndex == null) {
-      // column exists, but has no index
-      return null;
-    }
-    return valueSetIndex.forValue(value);
+    return bitmapResultFactory.wrapDimensionValue(selector.getBitmapIndex(dimension, value));
   }
 
   @Override
@@ -112,9 +96,27 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, ColumnIndexSelector indexSelector)
+  public boolean supportsBitmapIndex(BitmapIndexSelector selector)
+  {
+    return selector.getBitmapIndex(dimension) != null;
+  }
+
+  @Override
+  public boolean shouldUseBitmapIndex(BitmapIndexSelector selector)
+  {
+    return Filters.shouldUseBitmapIndex(this, selector, filterTuning);
+  }
+
+  @Override
+  public boolean supportsSelectivityEstimation(ColumnSelector columnSelector, BitmapIndexSelector indexSelector)
   {
     return Filters.supportsSelectivityEstimation(this, dimension, columnSelector, indexSelector);
+  }
+
+  @Override
+  public double estimateSelectivity(BitmapIndexSelector indexSelector)
+  {
+    return (double) indexSelector.getBitmapIndex(dimension, value).size() / indexSelector.getNumRows();
   }
 
   @Override

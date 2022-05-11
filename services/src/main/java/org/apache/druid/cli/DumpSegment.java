@@ -74,10 +74,9 @@ import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
 import org.apache.druid.segment.VirtualColumns;
+import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.ColumnIndexSupplier;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.ConciseBitmapSerdeFactory;
 import org.apache.druid.segment.data.RoaringBitmapSerdeFactory;
@@ -183,7 +182,7 @@ public class DumpSegment extends GuiceRunnable
           runMetadata(injector, index);
           break;
         case BITMAPS:
-          runBitmaps(injector, outputFileName, index, getColumnsToInclude(index), decompressBitmaps);
+          runBitmaps(injector, index);
           break;
         default:
           throw new ISE("dumpType[%s] has no handler", dumpType);
@@ -314,14 +313,7 @@ public class DumpSegment extends GuiceRunnable
     );
   }
 
-  @VisibleForTesting
-  public static void runBitmaps(
-      final Injector injector,
-      final String outputFileName,
-      final QueryableIndex index,
-      List<String> columnNames,
-      boolean decompressBitmaps
-  ) throws IOException
+  private void runBitmaps(final Injector injector, final QueryableIndex index) throws IOException
   {
     final ObjectMapper objectMapper = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
     final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
@@ -338,33 +330,35 @@ public class DumpSegment extends GuiceRunnable
       );
     }
 
+    final List<String> columnNames = getColumnsToInclude(index);
+
     withOutputStream(
-        out -> {
-          try (final JsonGenerator jg = objectMapper.getFactory().createGenerator(out)) {
-            jg.writeStartObject();
-            {
-              jg.writeObjectField("bitmapSerdeFactory", bitmapSerdeFactory);
-              jg.writeFieldName("bitmaps");
+        new Function<OutputStream, Object>()
+        {
+          @Override
+          public Object apply(final OutputStream out)
+          {
+            try (final JsonGenerator jg = objectMapper.getFactory().createGenerator(out)) {
               jg.writeStartObject();
               {
-                for (final String columnName : columnNames) {
-                  final ColumnHolder columnHolder = index.getColumnHolder(columnName);
-                  final ColumnIndexSupplier indexSupplier = columnHolder.getIndexSupplier();
-                  if (indexSupplier == null) {
-                    jg.writeNullField(columnName);
-                  } else {
-                    DictionaryEncodedStringValueIndex valueIndex =
-                        indexSupplier.as(DictionaryEncodedStringValueIndex.class);
-                    if (valueIndex == null) {
+                jg.writeObjectField("bitmapSerdeFactory", bitmapSerdeFactory);
+                jg.writeFieldName("bitmaps");
+                jg.writeStartObject();
+                {
+                  for (final String columnName : columnNames) {
+                    final ColumnHolder columnHolder = index.getColumnHolder(columnName);
+                    final BitmapIndex bitmapIndex = columnHolder.getBitmapIndex();
+
+                    if (bitmapIndex == null) {
                       jg.writeNullField(columnName);
                     } else {
                       jg.writeFieldName(columnName);
                       jg.writeStartObject();
-                      for (int i = 0; i < valueIndex.getCardinality(); i++) {
-                        String val = valueIndex.getValue(i);
+                      for (int i = 0; i < bitmapIndex.getCardinality(); i++) {
+                        String val = bitmapIndex.getValue(i);
                         // respect nulls if they are present in the dictionary
                         jg.writeFieldName(val == null ? "null" : val);
-                        final ImmutableBitmap bitmap = valueIndex.getBitmap(i);
+                        final ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
                         if (decompressBitmaps) {
                           jg.writeStartArray();
                           final IntIterator iterator = bitmap.iterator();
@@ -384,18 +378,17 @@ public class DumpSegment extends GuiceRunnable
                     }
                   }
                 }
+                jg.writeEndObject();
               }
               jg.writeEndObject();
             }
-            jg.writeEndObject();
-          }
-          catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+            catch (IOException e) {
+              throw new RuntimeException(e);
+            }
 
-          return null;
-        },
-        outputFileName
+            return null;
+          }
+        }
     );
   }
 
@@ -419,13 +412,8 @@ public class DumpSegment extends GuiceRunnable
     return ImmutableList.copyOf(columnNames);
   }
 
-  private <T> T withOutputStream(Function<OutputStream, T> f) throws IOException
-  {
-    return withOutputStream(f, outputFileName);
-  }
-
   @SuppressForbidden(reason = "System#out")
-  private static <T> T withOutputStream(Function<OutputStream, T> f, String outputFileName) throws IOException
+  private <T> T withOutputStream(Function<OutputStream, T> f) throws IOException
   {
     if (outputFileName == null) {
       return f.apply(System.out);
@@ -501,4 +489,5 @@ public class DumpSegment extends GuiceRunnable
   {
     sequence.accumulate(null, (accumulated, in) -> null);
   }
+
 }
