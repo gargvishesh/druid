@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-export * from './druid-engine';
-export * from './execution';
-export * from './talaria-general';
-export * from './talaria-query';
-export * from './talaria-query-part';
-export * from './talaria-query-pattern';
-export * from './talaria-stage';
+export type DruidEngine = 'native' | 'sql' | 'sql-async' | 'sql-task';
+
+export const DRUID_ENGINES: DruidEngine[] = ['native', 'sql', 'sql-async', 'sql-task'];

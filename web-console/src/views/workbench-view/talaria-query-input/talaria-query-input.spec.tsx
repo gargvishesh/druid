@@ -28,7 +28,6 @@ describe('TalariaQueryInput', () => {
         queryString="hello world"
         autoHeight={false}
         onQueryStringChange={() => {}}
-        runeMode={false}
       />
     );
 

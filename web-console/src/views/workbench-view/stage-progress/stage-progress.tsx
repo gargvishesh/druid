@@ -19,27 +19,27 @@
 import { Intent, Label, ProgressBar } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-import { QueryExecution } from '../../../talaria-models';
+import { Execution } from '../../../talaria-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
 import './stage-progress.scss';
 
 export interface StageProgressProps {
-  queryExecution: QueryExecution | undefined;
+  execution: Execution | undefined;
   onCancel?(): void;
   onToggleLiveReports?(): void;
   showLiveReports?: boolean;
 }
 
 export const StageProgress = React.memo(function StageProgress(props: StageProgressProps) {
-  const { queryExecution, onCancel, onToggleLiveReports, showLiveReports } = props;
+  const { execution, onCancel, onToggleLiveReports, showLiveReports } = props;
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  const stages = queryExecution?.stages;
+  const stages = execution?.stages;
 
   function cancelMaybeConfirm() {
     if (!onCancel) return;
-    if (queryExecution?.isProcessingData()) {
+    if (execution?.isProcessingData()) {
       setShowCancelConfirm(true);
     } else {
       onCancel();
@@ -51,7 +51,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
     <div className="stage-progress">
       <Label>
         {stages
-          ? queryExecution.isWaitingForQuery()
+          ? execution.isWaitingForQuery()
             ? 'Running query...'
             : 'Query complete, waiting for segments to be loaded...'
           : 'Loading...'}
@@ -59,7 +59,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
           <>
             {' '}
             <span className="cancel" onClick={cancelMaybeConfirm}>
-              {stages && !queryExecution.isWaitingForQuery() ? '(stop waiting)' : '(cancel)'}
+              {stages && !execution.isWaitingForQuery() ? '(stop waiting)' : '(cancel)'}
             </span>
           </>
         )}
@@ -68,7 +68,7 @@ export const StageProgress = React.memo(function StageProgress(props: StageProgr
         className="overall"
         key={stages ? 'actual' : 'pending'}
         intent={stages ? Intent.PRIMARY : undefined}
-        value={stages && queryExecution.isWaitingForQuery() ? stages.overallProgress() : undefined}
+        value={stages && execution.isWaitingForQuery() ? stages.overallProgress() : undefined}
       />
       {stages && idx >= 0 && (
         <>

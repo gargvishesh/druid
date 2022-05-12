@@ -98,11 +98,13 @@ describe('talaria-utils', () => {
               targetRowsPerSegment: 150000,
             },
             forceGuaranteedRollup: true,
+            maxNumConcurrentSubTasks: 4,
           },
         },
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
+      --:context talariaNumTasks: 4
       --:context talariaFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
       --:context talariaReplaceTimeChunks: all

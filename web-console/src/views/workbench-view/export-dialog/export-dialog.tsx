@@ -31,30 +31,13 @@ import React, { useState } from 'react';
 
 import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { QueryExecution, TalariaQuery } from '../../../talaria-models';
+import { Execution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
-import {
-  downloadQueryResults,
-  executionBackgroundStatusCheck,
-  submitAsyncQuery,
-} from '../execution-utils';
+import { executionBackgroundStatusCheck, submitTaskQuery } from '../execution-utils';
 
 import './export-dialog.scss';
 
 type ResultFormat = 'arrayLines';
-
-function resultFormatToExtension(resultFormat: ResultFormat): string {
-  switch (resultFormat) {
-    case 'arrayLines':
-      return 'json';
-  }
-}
-
-function addExtensionIfNeeded(filename: string, extension: string): string {
-  const extensionWithDot = '.' + extension;
-  if (filename.endsWith(extensionWithDot)) return filename;
-  return filename + extensionWithDot;
-}
 
 interface AsyncDownloadParams {
   local?: boolean;
@@ -104,46 +87,36 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
 
   const [downloadState, downloadQueryManager] = useQueryManager<
     AsyncDownloadParams,
-    QueryExecution,
-    QueryExecution
+    Execution,
+    Execution
   >({
     processQuery: async (_asyncDownloadParams, cancelToken) => {
       const downloadQuery = talariaQuery
         .changeUnlimited(true)
         .makePreview()
-        .changeEngine('talaria');
+        .changeEngine('sql-task');
 
-      const { query, context, isSql, prefixLines } = downloadQuery.getEffectiveQueryAndContext();
-      if (!isSql) throw new Error('must be SQL for export');
+      const { query, sqlPrefixLines } = downloadQuery.getApiQuery();
 
-      return await submitAsyncQuery({
+      return await submitTaskQuery({
         query,
         context: {
-          ...context,
           talariaDestination: asyncDownloadParams.local ? undefined : 'external',
         },
         skipResults: true,
-        prefixLines,
+        prefixLines: sqlPrefixLines,
         cancelToken,
       });
     },
     backgroundStatusCheck: async (
-      execution: QueryExecution,
+      execution: Execution,
       asyncDownloadParams,
       cancelToken: CancelToken,
     ) => {
       const res = await executionBackgroundStatusCheck(execution, asyncDownloadParams, cancelToken);
       if (res instanceof IntermediateQueryState) return res;
 
-      if (asyncDownloadParams.local) {
-        downloadQueryResults(
-          res.id,
-          addExtensionIfNeeded(
-            asyncDownloadParams.filename!,
-            resultFormatToExtension(asyncDownloadParams.resultFormat!),
-          ),
-        );
-      }
+      // Download here if it is ever possible
 
       return res;
     },

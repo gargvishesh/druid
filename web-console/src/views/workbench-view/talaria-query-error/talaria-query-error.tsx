@@ -22,7 +22,7 @@ import React, { useState } from 'react';
 
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import { AppToaster } from '../../../singletons';
-import { TalariaTaskError } from '../../../talaria-models';
+import { Execution } from '../../../talaria-models';
 import { downloadQueryProfile } from '../../../utils';
 
 import './talaria-query-error.scss';
@@ -30,7 +30,7 @@ import './talaria-query-error.scss';
 const ClickToCopy = React.memo(function ClickToCopy(props: { text: string }) {
   const { text } = props;
   return (
-    <span
+    <a
       className="click-to-copy"
       title={`Click to copy:\n${text}`}
       onClick={() => {
@@ -42,21 +42,22 @@ const ClickToCopy = React.memo(function ClickToCopy(props: { text: string }) {
       }}
     >
       {text}
-    </span>
+    </a>
   );
 });
 
 export interface TalariaQueryErrorProps {
-  taskError: TalariaTaskError;
+  execution: Execution;
 }
 
 export const TalariaQueryError = React.memo(function TalariaQueryError(
   props: TalariaQueryErrorProps,
 ) {
-  const { taskError } = props;
+  const { execution } = props;
   const [stackToShow, setStackToShow] = useState<string | undefined>();
+  if (!execution.error) return null;
 
-  const { error, exceptionStackTrace, taskId, host } = taskError;
+  const { error, exceptionStackTrace, taskId, host } = execution.error;
 
   return (
     <div className="talaria-query-error">
@@ -66,50 +67,46 @@ export const TalariaQueryError = React.memo(function TalariaQueryError(
         {exceptionStackTrace && (
           <>
             {' '}
-            <span
-              className="stack-trace"
+            <a
               onClick={() => {
                 setStackToShow(exceptionStackTrace);
               }}
             >
               (Stack trace)
-            </span>
+            </a>
           </>
         )}
       </p>
-      {(taskId || host) && (
-        <p>
-          {taskId && (
-            <>
-              Failed task ID: <ClickToCopy text={taskId} />
-              &nbsp;
-            </>
-          )}
-          {host && (
-            <>
-              On host: <ClickToCopy text={host} />
-              &nbsp;
-            </>
-          )}
-          {taskId && (
-            <>
-              Debug:{' '}
-              <span
-                className="download-infopack"
-                onClick={() => {
-                  if (!taskId) return;
-                  void downloadQueryProfile(taskId);
-                }}
-              >
-                download query profile
-              </span>
-            </>
-          )}
-        </p>
-      )}
+      <p>
+        {taskId && (
+          <>
+            Failed task ID: <ClickToCopy text={taskId} />
+            &nbsp;
+          </>
+        )}
+        {host && (
+          <>
+            On host: <ClickToCopy text={host} />
+            &nbsp;
+          </>
+        )}
+        Debug:{' '}
+        <a
+          onClick={() => {
+            void downloadQueryProfile(execution.id);
+          }}
+        >
+          download query profile
+        </a>
+      </p>
 
       {stackToShow && (
-        <ShowValueDialog size="large" onClose={() => setStackToShow(undefined)} str={stackToShow} />
+        <ShowValueDialog
+          size="large"
+          title="Full stack trace"
+          onClose={() => setStackToShow(undefined)}
+          str={stackToShow}
+        />
       )}
     </div>
   );

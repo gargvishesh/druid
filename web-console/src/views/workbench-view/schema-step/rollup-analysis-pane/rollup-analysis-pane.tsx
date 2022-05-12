@@ -23,9 +23,9 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-t
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { QueryExecution } from '../../../../talaria-models';
+import { Execution } from '../../../../talaria-models';
 import { filterMap, formatPercentClapped, IntermediateQueryState } from '../../../../utils';
-import { executionBackgroundStatusCheck, submitAsyncQuery } from '../../execution-utils';
+import { executionBackgroundStatusCheck, submitTaskQuery } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';
 
@@ -148,7 +148,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
   const [analyzeQueryState, analyzeQueryManager] = useQueryManager<
     AnalyzeQuery,
     AnalyzeResult,
-    QueryExecution
+    Execution
   >({
     processQuery: async (analyzeQuery: AnalyzeQuery, cancelToken) => {
       const { expressions, deep } = analyzeQuery;
@@ -174,13 +174,9 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
         .changeOrderByClause(undefined)
         .toString();
 
-      // console.log('analyze:', queryString);
-
-      const res = await submitAsyncQuery({
+      const res = await submitTaskQuery({
         query: queryString,
-        context: {
-          talaria: true,
-        },
+        context: {},
         cancelToken,
       });
 
@@ -193,7 +189,7 @@ export const RollupAnalysisPane = React.memo(function RollupAnalysisPane(
       }
     },
     backgroundStatusCheck: async (
-      execution: QueryExecution,
+      execution: Execution,
       analyzeQuery: AnalyzeQuery,
       cancelToken: CancelToken,
     ) => {
