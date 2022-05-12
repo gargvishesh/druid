@@ -69,7 +69,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                             .build();
 
     Map<String, Object> context = new HashMap<>(ROLLUP_CONTEXT);
-    context.put("maxParseExceptions", 0);
+    context.put("maxParseExceptions", -1);
     testInsertQuery().setSql(" insert into foo1 SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + "  count(*) as cnt\n"
