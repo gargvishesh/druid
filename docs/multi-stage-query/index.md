@@ -1499,6 +1499,26 @@ LIMIT 1000
 
 ## Release notes
 
+**2022.04** <a href="#2022.04" name="2022.04">#</a>
+
+- Stage outputs are now removed from local disk when no longer needed. This reduces the total
+  amount of local disk space required by jobs with more than two stages. (15030)
+- It is now possible to control segment sort order independently of CLUSTERED BY, using the
+  new [`talariaSegmentSortOrder`](#context) context parameter. (18320)
+- There is now a guardrail on the maximum number of input files. Exceeded this limit leads to
+  a [TooManyInputFiles](#errors) error. (15020)
+- Queries now report the error code [WorkerRpcFailed](#errors) when controller-to-worker or
+  worker-to-worker communication fails. Previously, this would be reported as an
+  UnknownError. (18971)
+- Fixed an issue where queries with large numbers of partitions could run out of memory. (19162)
+- Fixed an issue where worker errors were sometimes hidden by controller errors that cascaded
+  from those worker failures. Now, the original worker error is preferred. (18971)
+- Fixed an issue where worker errors were incompletely logged in worker task logs. (18964)
+- Fixed an issue where workers could sometimes fail soon after startup with a
+  `NoSuchElementException`. (19048)
+- Fixed an issue where worker tasks sometimes continued running after controller
+  failures. (18052)
+
 **2022.03** <a href="#2022.03" name="2022.03">#</a>
 
 - The web console now includes counters for external input rows and files, Druid table input rows
