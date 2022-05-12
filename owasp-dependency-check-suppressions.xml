@@ -273,6 +273,7 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/com\.google\.oauth-client/google\-oauth\-client@.*$</packageUrl>
     <cve>CVE-2020-7692</cve>
+    <cve>CVE-2021-22573</cve>
   </suppress>
   <suppress>
     <!--
@@ -554,6 +555,22 @@
    file name: jackson-dataformat-cbor-2.10.5.jar
    ]]></notes>
     <cve>CVE-2021-28491</cve>
+  </suppress>
+
+  <suppress>
+    <!-- gson -->
+    <notes><![CDATA[
+   file name: gson-2.8.6.jar
+   ]]></notes>
+    <cve>CVE-2022-25647</cve>
+  </suppress>
+
+  <suppress>
+    <!-- jackson-databind 2.10.5.1 -->
+    <notes><![CDATA[
+   file name: jackson-databind-2.10.5.1.jar
+   ]]></notes>
+    <cve>CVE-2020-36518</cve>
   </suppress>
 
 </suppressions>
