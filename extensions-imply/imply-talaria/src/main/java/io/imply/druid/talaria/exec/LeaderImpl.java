@@ -78,6 +78,7 @@ import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFa
 import io.imply.druid.talaria.querykit.groupby.GroupByQueryKit;
 import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryKit;
+import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import io.imply.druid.talaria.util.FutureUtils;
 import io.imply.druid.talaria.util.IntervalUtils;
@@ -119,6 +120,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.groupby.GroupByQuery;
+import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
@@ -130,9 +132,12 @@ import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.granularity.ArbitraryGranularitySpec;
+import org.apache.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 import org.apache.druid.segment.transform.TransformSpec;
 import org.apache.druid.server.DruidNode;
+import org.apache.druid.sql.calcite.rel.DruidQuery;
+import org.apache.druid.sql.calcite.run.QueryFeatureInspector;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.partition.DimensionRangeShardSpec;
@@ -912,7 +917,7 @@ public class LeaderImpl implements Leader
 
   /**
    * Returns a complete list of task ids, ordered by worker number. The Nth task has worker number N.
-   *
+   * <p>
    * If the currently-running set of tasks is incomplete, returns an absent Optional.
    */
   @Override
@@ -1036,7 +1041,7 @@ public class LeaderImpl implements Leader
   /**
    * Publish the list of segments. Additionally, if {@link DataSourceTalariaDestination#isReplaceTimeChunks()},
    * also drop all other segments within the replacement intervals.
-   *
+   * <p>
    * If any existing segments cannot be dropped because their intervals are not wholly contained within the
    * replacement parameter, throws a {@link TalariaException} with {@link InsertCannotReplaceExistingSegmentFault}.
    */
@@ -1301,24 +1306,12 @@ public class LeaderImpl implements Leader
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
     if (TalariaControllerTask.isIngestion(querySpec)) {
-      final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
-      final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
-          makeDimensionsAndAggregatorsForIngestion(
-              querySignature,
-              queryClusterBy,
-              destination.getSegmentSortOrder(),
-              columnMappings
-          );
-
-      final DataSchema dataSchema = new DataSchema(
-          destination.getDataSource(),
-          new TimestampSpec(ColumnHolder.TIME_COLUMN_NAME, "millis", null),
-          new DimensionsSpec(dimensionsAndAggregators.lhs),
-          dimensionsAndAggregators.rhs.toArray(new AggregatorFactory[0]),
-          new ArbitraryGranularitySpec(Granularities.NONE, false, Intervals.ONLY_ETERNITY),
-          new TransformSpec(null, Collections.emptyList())
+      DataSchema dataSchema = generateDataSchema(
+          querySpec,
+          querySignature,
+          queryClusterBy,
+          columnMappings
       );
-
       return QueryDefinition
           .builder(queryDef)
           .add(
@@ -1349,6 +1342,87 @@ public class LeaderImpl implements Leader
     } else {
       throw new ISE("Unsupported destination [%s]", querySpec.getDestination());
     }
+  }
+
+  private static DataSchema generateDataSchema(
+      TalariaQuerySpec querySpec,
+      RowSignature querySignature,
+      ClusterBy queryClusterBy,
+      ColumnMappings columnMappings
+  )
+  {
+    final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
+    // TODO: Disabling the rollup mode to be allways false till {@link AggregatorFactory} has a withName method.
+    // IMPLY-20677,IMPLY-20678
+    final boolean isRollupQ = false || isRollupQuery(querySpec.getQuery());
+
+    final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
+        makeDimensionsAndAggregatorsForIngestion(
+            querySignature,
+            queryClusterBy,
+            destination.getSegmentSortOrder(),
+            columnMappings,
+            isRollupQ,
+            querySpec.getQuery()
+        );
+
+    return new DataSchema(
+        destination.getDataSource(),
+        new TimestampSpec(ColumnHolder.TIME_COLUMN_NAME, "millis", null),
+        new DimensionsSpec(dimensionsAndAggregators.lhs),
+        dimensionsAndAggregators.rhs.toArray(new AggregatorFactory[0]),
+        makeGranularitySpecForIngestion(isRollupQ, querySpec.getQuery()),
+        new TransformSpec(null, Collections.emptyList())
+    );
+  }
+
+  private static GranularitySpec makeGranularitySpecForIngestion(boolean isRollupQ, Query<?> query)
+  {
+    if (!isRollupQ) {
+      return new ArbitraryGranularitySpec(Granularities.NONE, false, Intervals.ONLY_ETERNITY);
+    } else {
+      final String queryGranularity = query.getContextValue(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD_GRANULARITY, "");
+
+      if (checkIfTimeColumnsAreEqual((GroupByQuery) query) && !queryGranularity.isEmpty()) {
+        return new ArbitraryGranularitySpec(
+            Granularity.fromString(queryGranularity),
+            true,
+            Intervals.ONLY_ETERNITY
+        );
+      }
+      return new ArbitraryGranularitySpec(Granularities.NONE, true, Intervals.ONLY_ETERNITY);
+    }
+  }
+
+
+  /**
+   * Checks if the time columns present in the groupByQuery context are same. One is set by
+   * {@link DruidQuery#toGroupByQuery(QueryFeatureInspector)} and the other is set by
+   * {@link TalariaQueryMaker#runQuery(DruidQuery)}
+   *
+   * @param groupByQuery
+   * @return true if both groupByQuery context values are present and equal else returns false.
+   */
+  private static boolean checkIfTimeColumnsAreEqual(GroupByQuery groupByQuery)
+  {
+    final String talariaTimeColumn = groupByQuery.getContextValue(QueryKitUtils.CTX_TIME_COLUMN_NAME, "");
+    if (talariaTimeColumn.isEmpty()) {
+      return false;
+    }
+    return talariaTimeColumn.equals(groupByQuery.getContextValue(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD));
+  }
+
+  /**
+   * Checks if segments generated by the insert query can be rolled up futher.
+   *
+   * @param query
+   * @return
+   */
+  private static boolean isRollupQuery(Query<?> query)
+  {
+    return query.getContextBoolean(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, true) == false
+           && query.getContextBoolean(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING, true) == false
+           && query instanceof GroupByQuery;
   }
 
   private static boolean isInlineResults(final TalariaQuerySpec querySpec)
@@ -1442,7 +1516,9 @@ public class LeaderImpl implements Leader
       final RowSignature querySignature,
       final ClusterBy queryClusterBy,
       final List<String> segmentSortOrder,
-      final ColumnMappings columnMappings
+      final ColumnMappings columnMappings,
+      final boolean isRollupQuery,
+      final Query<?> query
   )
   {
     final List<DimensionSchema> dimensions = new ArrayList<>();
@@ -1468,6 +1544,24 @@ public class LeaderImpl implements Leader
     // Then all other columns.
     outputColumnsInOrder.addAll(columnMappings.getOutputColumnNames());
 
+    Map<String, AggregatorFactory> outputColumnAggregatorFactories = new HashMap<>();
+
+    if (isRollupQuery) {
+      for (AggregatorFactory aggregatorFactory : ((GroupByQuery) query).getAggregatorSpecs()) {
+        // get combining factory as data is already premerged in msqe
+        aggregatorFactory = aggregatorFactory.getCombiningFactory();
+        String outputColumn = Iterables.getOnlyElement(columnMappings.getOutputColumnsForQueryColumn(aggregatorFactory.getName()));
+        if (outputColumnAggregatorFactories.containsKey(outputColumn)) {
+          throw new ISE("There can only be one aggregator factory for column [%s].", outputColumn);
+        } else {
+          outputColumnAggregatorFactories.put(outputColumn, aggregatorFactory);
+        }
+      }
+    }
+
+    // Each column can be of either time, dimension, aggregator. For this method. we can ignore the time column.
+    // For non complex columns, If the aggregator factory of the column is not available, we treat the col as a dimension.
+    // For complex columns, certains hacks are in place.
     for (final String outputColumn : outputColumnsInOrder) {
       final String queryColumn = columnMappings.getQueryColumnForOutputColumn(outputColumn);
       final ColumnType type =
@@ -1475,23 +1569,66 @@ public class LeaderImpl implements Leader
                         .orElseThrow(() -> new ISE("No type for column [%s]", outputColumn));
 
       if (!outputColumn.equals(ColumnHolder.TIME_COLUMN_NAME)) {
-        if (type.is(ValueType.COMPLEX)) {
+
+        if (!type.is(ValueType.COMPLEX)) {
+          // non complex columns
+          populateDimensionsAndAggregators(
+              dimensions,
+              aggregators,
+              outputColumnAggregatorFactories,
+              outputColumn,
+              type
+          );
+        } else {
+          // complex columns only
           if (DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.containsKey(type.getComplexTypeName())) {
             // todo(clint): this upstream method should be reworked to be less explody maybe, so we don't have to look
             //               at providers directly
             dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
-          } else {
+          } else if (!isRollupQuery) {
             // TODO(gianm): hack to workaround the fact that aggregators are required for transferring complex types
             //              that do not have a dimension handler
             aggregators.add(new PassthroughAggregatorFactory(outputColumn, type.getComplexTypeName()));
+          } else {
+            populateDimensionsAndAggregators(
+                dimensions,
+                aggregators,
+                outputColumnAggregatorFactories,
+                outputColumn,
+                type
+            );
           }
-        } else {
-          dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
         }
       }
     }
 
     return Pair.of(dimensions, aggregators);
+  }
+
+
+  /**
+   * If the output column is present in the outputColumnAggregatorFactories that means we already have the aggregator information for this column.
+   * else treat this column as a dimension.
+   *
+   * @param dimensions                      list is poulated if the output col is deemed to be a dimension
+   * @param aggregators                     list is populated with the aggregator if the output col is deemed to be a aggregation column.
+   * @param outputColumnAggregatorFactories output col -> AggregatorFactory map
+   * @param outputColumn                    column name
+   * @param type                            columnType
+   */
+  private static void populateDimensionsAndAggregators(
+      List<DimensionSchema> dimensions,
+      List<AggregatorFactory> aggregators,
+      Map<String, AggregatorFactory> outputColumnAggregatorFactories,
+      String outputColumn,
+      ColumnType type
+  )
+  {
+    if (outputColumnAggregatorFactories.containsKey(outputColumn)) {
+      aggregators.add(outputColumnAggregatorFactories.get(outputColumn));
+    } else {
+      dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
+    }
   }
 
   private static DateTime getBucketDateTime(
@@ -1639,6 +1776,7 @@ public class LeaderImpl implements Leader
   private interface TaskContactFn
   {
     void contactTask(WorkerClient client, String taskId, int workerNumber);
+
   }
 
   @Override
