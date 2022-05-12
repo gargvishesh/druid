@@ -394,18 +394,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         });
         return;
       }
-
-      if (
-        !status.modules.some((module: any) =>
-          String(module.name).startsWith('io.imply.druid.sql.async'),
-        )
-      ) {
-        AppToaster.show({
-          message: `'imply-sql-async' module needs to be loaded to enable the multi-stage query engine capable query view.`,
-          intent: Intent.DANGER,
-        });
-        return;
-      }
     }
 
     setShowTalaria(!nextShowTalaria);

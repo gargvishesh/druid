@@ -46,14 +46,13 @@ export const QueryError = React.memo(function QueryError(props: QueryErrorProps)
       suggestionElement = (
         <p>
           Suggestion:{' '}
-          <span
-            className="suggestion"
+          <a
             onClick={() => {
               onQueryStringChange(newQuery, true);
             }}
           >
             {suggestion.label}
-          </span>
+          </a>
         </p>
       );
     }
@@ -70,14 +69,13 @@ export const QueryError = React.memo(function QueryError(props: QueryErrorProps)
               text={error.errorMessageWithoutExpectation}
               find={position.match}
               replace={
-                <span
-                  className="cursor-link"
+                <a
                   onClick={() => {
                     moveCursorTo(position);
                   }}
                 >
                   {position.match}
-                </span>
+                </a>
               }
             />
           ) : (
@@ -86,19 +84,14 @@ export const QueryError = React.memo(function QueryError(props: QueryErrorProps)
           {error.expectation && !showMode && (
             <>
               {' '}
-              <span className="more-or-less" onClick={() => setShowMore(true)}>
-                More...
-              </span>
+              <a onClick={() => setShowMore(true)}>More...</a>
             </>
           )}
         </p>
       )}
       {error.expectation && showMode && (
         <p>
-          {error.expectation}{' '}
-          <span className="more-or-less" onClick={() => setShowMore(false)}>
-            Less...
-          </span>
+          {error.expectation} <a onClick={() => setShowMore(false)}>Less...</a>
         </p>
       )}
       {error.errorClass && <p>{error.errorClass}</p>}

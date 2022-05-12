@@ -146,7 +146,6 @@ export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEd
             if (!expressionString) dirty();
             setExpressionString(f);
           }}
-          runeMode={false}
           columnMetadata={undefined}
         />
       </FormGroup>

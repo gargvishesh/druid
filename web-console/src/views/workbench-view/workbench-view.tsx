@@ -83,7 +83,7 @@ export interface TalariaViewState {
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
   initExternalConfig: boolean;
-  talariaStatsTaskId?: string;
+  queryStatsId?: string;
 
   defaultSchema?: string;
   defaultTable?: string;
@@ -179,9 +179,9 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     this.metadataQueryManager.terminate();
   }
 
-  private readonly handleStats = (taskId: string) => {
+  private readonly handleStats = (id: string) => {
     this.setState({
-      talariaStatsTaskId: taskId,
+      queryStatsId: id,
     });
   };
 
@@ -202,18 +202,14 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     return this.getCurrentTabEntry().query;
   }
 
-  private readonly handleStatsFromId = (taskId: string) => {
-    this.setState({ talariaStatsTaskId: taskId });
-  };
-
   private renderStatsDialog() {
-    const { talariaStatsTaskId } = this.state;
-    if (!talariaStatsTaskId) return;
+    const { queryStatsId } = this.state;
+    if (!queryStatsId) return;
 
     return (
       <TalariaStatsDialog
-        taskId={talariaStatsTaskId}
-        onClose={() => this.setState({ talariaStatsTaskId: undefined })}
+        id={queryStatsId}
+        onClose={() => this.setState({ queryStatsId: undefined })}
       />
     );
   }
@@ -572,7 +568,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
         {this.renderCenterPanel()}
         {showWorkHistory && (
           <WorkPanel
-            onStats={this.handleStatsFromId}
+            onStats={this.handleStats}
             onRunQuery={query => this.handleQueryStringChange(query, true)}
             onNewTab={this.handleNewTab}
           />

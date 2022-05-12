@@ -61,7 +61,6 @@ export interface TalariaQueryInputProps {
   minRows?: number;
   showGutter?: boolean;
   placeholder?: string;
-  runeMode: boolean;
   columnMetadata?: readonly ColumnMetadata[];
   currentSchema?: string;
   currentTable?: string;
@@ -254,9 +253,10 @@ export class TalariaQueryInput extends React.PureComponent<
   }
 
   renderAce() {
-    const { queryString, runeMode, autoHeight, minRows, showGutter, placeholder, editorStateId } =
-      this.props;
+    const { queryString, autoHeight, minRows, showGutter, placeholder, editorStateId } = this.props;
     const { editorHeight } = this.state;
+
+    const jsonMode = queryString.trim().startsWith('{');
 
     let height: number;
     if (autoHeight) {
@@ -268,7 +268,7 @@ export class TalariaQueryInput extends React.PureComponent<
 
     return (
       <AceEditor
-        mode={runeMode ? 'hjson' : 'dsql'}
+        mode={jsonMode ? 'hjson' : 'dsql'}
         theme="solarized_dark"
         className={classNames(
           'placeholder-padding',
@@ -287,8 +287,8 @@ export class TalariaQueryInput extends React.PureComponent<
           $blockScrolling: Infinity,
         }}
         setOptions={{
-          enableBasicAutocompletion: !runeMode,
-          enableLiveAutocompletion: !runeMode,
+          enableBasicAutocompletion: !jsonMode,
+          enableLiveAutocompletion: !jsonMode,
           showLineNumbers: true,
           tabSize: 2,
           newLineMode: 'unix' as any, // This type is specified incorrectly in AceEditor

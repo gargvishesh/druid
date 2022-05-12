@@ -24,19 +24,19 @@ import { TalariaStatsLoader } from '../talaria-stats-loader/talaria-stats-loader
 import './talaria-stats-dialog.scss';
 
 export interface TalariaStatsDialogProps {
-  taskId: string;
+  id: string;
   onClose: () => void;
 }
 
 export const TalariaStatsDialog = React.memo(function TalariaStatsDialog(
   props: TalariaStatsDialogProps,
 ) {
-  const { taskId, onClose } = props;
+  const { id, onClose } = props;
 
   return (
-    <Dialog className="talaria-stats-dialog" isOpen onClose={onClose} title="Talaria stats">
+    <Dialog className="talaria-stats-dialog" isOpen onClose={onClose} title="Task execution stats">
       <div className={Classes.DIALOG_BODY}>
-        <TalariaStatsLoader id={taskId} />
+        <TalariaStatsLoader id={id} />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>

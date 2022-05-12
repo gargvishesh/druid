@@ -53,6 +53,7 @@ import { AppToaster } from '../../../singletons';
 import {
   changeQueryPatternExpression,
   DestinationMode,
+  Execution,
   fitIngestQueryPattern,
   getDestinationMode,
   getQueryPatternExpression,
@@ -60,8 +61,8 @@ import {
   IngestQueryPattern,
   ingestQueryPatternToQuery,
   ingestQueryPatternToSampleQuery,
-  QueryExecution,
   TalariaQuery,
+  TalariaQueryPart,
 } from '../../../talaria-models';
 import {
   caseInsensitiveContains,
@@ -86,7 +87,7 @@ import {
   executionBackgroundResultStatusCheck,
   executionBackgroundStatusCheck,
   extractQueryResults,
-  submitAsyncQuery,
+  submitTaskQuery,
 } from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
@@ -392,7 +393,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       : undefined,
   );
 
-  const [sampleState] = useQueryManager<string, string, QueryExecution>({
+  const [sampleState] = useQueryManager<string, string, Execution>({
     query: sampleDatasourceName,
     processQuery: async (sampleDatasourceName: string, cancelToken) => {
       // Check if datasource already exists
@@ -406,11 +407,9 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       if (!ingestQueryPattern) throw new Error('must have ingest pattern');
 
       // Do ingest
-      const res = await submitAsyncQuery({
+      const res = await submitTaskQuery({
         query: ingestQueryPatternToSampleQuery(ingestQueryPattern, sampleDatasourceName).toString(),
-        context: {
-          talaria: true,
-        },
+        context: {},
         cancelToken,
       });
 
@@ -419,7 +418,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       return sampleDatasourceName;
     },
     backgroundStatusCheck: async (
-      execution: QueryExecution,
+      execution: Execution,
       sampleDatasourceName: string,
       cancelToken: CancelToken,
     ) => {
@@ -440,17 +439,16 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
       : undefined,
   );
 
-  const [previewResultState] = useQueryManager<string, QueryResult, QueryExecution>({
+  const [previewResultState] = useQueryManager<string, QueryResult, Execution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      const talaria = /EXTERN\s*\(/.test(previewQueryString);
-      if (talaria) {
+      const taskEngine = TalariaQueryPart.isTaskEngineNeeded(previewQueryString);
+      if (taskEngine) {
         return extractQueryResults(
-          await submitAsyncQuery({
+          await submitTaskQuery({
             query: previewQueryString,
             context: {
               ...getContextFromSqlQuery(previewQueryString),
-              talaria,
               sqlOuterLimit: 25,
             },
             cancelToken,
@@ -826,7 +824,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               autoHeight={false}
               queryString={queryString}
               onQueryStringChange={onQueryStringChange}
-              runeMode={false}
               columnMetadata={undefined}
               leaveBackground
             />

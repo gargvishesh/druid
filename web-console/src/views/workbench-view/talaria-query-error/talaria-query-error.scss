@@ -25,30 +25,8 @@
     background: $dark-gray3;
   }
 
-  .cursor-link,
-  .more-or-less,
-  .suggestion,
-  .stack-trace,
-  .download-infopack {
-    color: $blue4;
-    cursor: pointer;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
   .error-message-text {
     max-height: 75px;
     overflow: auto;
-  }
-}
-
-.click-to-copy {
-  color: $blue4;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
   }
 }

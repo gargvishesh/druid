@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-import { QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
+import { Column, QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
 
 import { deepGet, deleteKeys, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
+import { DRUID_ENGINES, DruidEngine } from './druid-engine';
 import { Stages } from './talaria-stage';
 
 const IGNORE_CONTEXT_KEYS = [
@@ -40,7 +41,7 @@ function parseSqlQuery(queryString: string): SqlQuery | undefined {
   return;
 }
 
-export interface TalariaTaskError {
+export interface ExecutionError {
   error: {
     errorCode: string;
     errorMessage?: string;
@@ -60,23 +61,51 @@ type ExecutionDestination =
   | { type: 'external' }
   | { type: 'download' };
 
-export type QueryExecutionStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
+export type ExecutionStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
 
-export interface QueryExecutionValue {
+export interface LastExecution {
+  engine: DruidEngine;
+  id: string;
+}
+
+export function validateLastExecution(possibleLastExecution: any): LastExecution | undefined {
+  if (
+    !possibleLastExecution ||
+    !DRUID_ENGINES.includes(possibleLastExecution.engine) ||
+    typeof possibleLastExecution.id !== 'string'
+  ) {
+    return;
+  }
+
+  return {
+    engine: possibleLastExecution.engine,
+    id: possibleLastExecution.id,
+  };
+}
+
+export interface ExecutionValue {
+  engine: DruidEngine;
   id: string;
   sqlQuery?: string;
   queryContext?: QueryContext;
-  status?: QueryExecutionStatus;
+  status?: ExecutionStatus;
   startTime?: Date;
   duration?: number;
   stages?: Stages;
   destination?: ExecutionDestination;
   result?: QueryResult;
-  error?: TalariaTaskError;
+  error?: ExecutionError;
+  _payload?: { payload: any; task: string };
 }
 
-export class QueryExecution {
-  static validStatus(
+export class Execution {
+  static validAsyncStatus(
+    status: string | undefined,
+  ): status is 'INITIALIZED' | 'RUNNING' | 'COMPLETE' | 'FAILED' | 'UNDETERMINED' {
+    return oneOf(status, 'INITIALIZED', 'RUNNING', 'COMPLETE', 'FAILED', 'UNDETERMINED');
+  }
+
+  static validTaskStatus(
     status: string | undefined,
   ): status is 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS' {
     return oneOf(status, 'WAITING', 'PENDING', 'RUNNING', 'FAILED', 'SUCCESS');
@@ -84,7 +113,7 @@ export class QueryExecution {
 
   static normalizeAsyncStatus(
     state: 'INITIALIZED' | 'RUNNING' | 'COMPLETE' | 'FAILED' | 'UNDETERMINED',
-  ): QueryExecutionStatus {
+  ): ExecutionStatus {
     switch (state) {
       case 'COMPLETE':
         return 'SUCCESS';
@@ -101,7 +130,7 @@ export class QueryExecution {
   // Treat WAITING as PENDING since they are all the same as far as the UI is concerned
   static normalizeTaskStatus(
     status: 'WAITING' | 'PENDING' | 'RUNNING' | 'FAILED' | 'SUCCESS',
-  ): QueryExecutionStatus {
+  ): ExecutionStatus {
     switch (status) {
       case 'SUCCESS':
       case 'FAILED':
@@ -116,9 +145,10 @@ export class QueryExecution {
     asyncResult: any,
     sqlQuery?: string,
     queryContext?: QueryContext,
-  ): QueryExecution {
-    const status = QueryExecution.normalizeAsyncStatus(asyncResult.state);
-    return new QueryExecution({
+  ): Execution {
+    const status = Execution.normalizeAsyncStatus(asyncResult.state);
+    return new Execution({
+      engine: 'sql-async',
       id: asyncResult.asyncResultId,
       status: asyncResult.error ? 'FAILED' : status,
       sqlQuery,
@@ -134,82 +164,171 @@ export class QueryExecution {
             },
           }
         : undefined,
-      destination:
-        asyncResult.engine === 'Broker'
-          ? {
-              type: 'taskReport',
-            }
-          : undefined,
     });
   }
 
-  static fromAsyncDetail(detailPayload: {
-    talaria: { payload: any; task: any; taskId: string };
-    error?: any;
-  }): QueryExecution {
-    // Must have status set for a valid report
-    const id = deepGet(detailPayload, 'talaria.taskId');
-    const status = deepGet(detailPayload, 'talaria.payload.status.status');
+  static fromTaskSubmit(
+    taskSubmitResult: { state: any; taskId: string; error: any },
+    sqlQuery?: string,
+    queryContext?: QueryContext,
+  ): Execution {
+    const status = Execution.normalizeTaskStatus(taskSubmitResult.state);
+    return new Execution({
+      engine: 'sql-task',
+      id: taskSubmitResult.taskId,
+      status: taskSubmitResult.error ? 'FAILED' : status,
+      sqlQuery,
+      queryContext,
+      error: taskSubmitResult.error
+        ? {
+            error: {
+              errorCode: 'AsyncError',
+              errorMessage: JSON.stringify(taskSubmitResult.error),
+            },
+          }
+        : status === 'FAILED'
+        ? {
+            error: {
+              errorCode: 'UnknownError',
+              errorMessage:
+                'Execution failed, there is no detail information, and there is no error in the status response',
+            },
+          }
+        : undefined,
+      destination: undefined,
+    });
+  }
 
-    if (typeof id !== 'string' || !QueryExecution.validStatus(status)) {
+  static fromTaskStatus(
+    taskStatus: { status: any; task: string },
+    sqlQuery?: string,
+    queryContext?: QueryContext,
+  ): Execution {
+    const status = Execution.normalizeTaskStatus(taskStatus.status.status);
+    return new Execution({
+      engine: 'sql-task',
+      id: taskStatus.task,
+      status: taskStatus.status.error ? 'FAILED' : status,
+      sqlQuery,
+      queryContext,
+      error: taskStatus.status.error
+        ? {
+            error: {
+              errorCode: 'AsyncError',
+              errorMessage: JSON.stringify(taskStatus.status.error),
+            },
+          }
+        : status === 'FAILED'
+        ? {
+            error: {
+              errorCode: 'UnknownError',
+              errorMessage:
+                'Execution failed, there is no detail information, and there is no error in the status response',
+            },
+          }
+        : undefined,
+      destination: undefined,
+    });
+  }
+
+  static fromTaskPayloadAndReport(
+    taskPayload: { payload: any; task: string },
+    taskReport: {
+      talaria: { payload: any; taskId: string };
+      error?: any;
+    },
+  ): Execution {
+    // Must have status set for a valid report
+    const id = deepGet(taskReport, 'talaria.taskId');
+    const status = deepGet(taskReport, 'talaria.payload.status.status');
+
+    if (typeof id !== 'string' || !Execution.validTaskStatus(status)) {
       throw new Error('Invalid payload');
     }
 
-    let error: TalariaTaskError | undefined;
+    let error: ExecutionError | undefined;
     if (status === 'FAILED') {
       error =
-        deepGet(detailPayload, 'talaria.payload.status.errorReport') ||
-        (typeof detailPayload.error === 'string'
-          ? { error: { errorCode: 'UnknownError', errorMessage: detailPayload.error } }
+        deepGet(taskReport, 'talaria.payload.status.errorReport') ||
+        (typeof taskReport.error === 'string'
+          ? { error: { errorCode: 'UnknownError', errorMessage: taskReport.error } }
           : undefined);
     }
 
-    const stages = deepGet(detailPayload, 'talaria.payload.stages');
-    const startTime = new Date(deepGet(detailPayload, 'talaria.payload.status.startTime'));
-    const durationMs = deepGet(detailPayload, 'talaria.payload.status.durationMs');
-    let res = new QueryExecution({
+    const stages = deepGet(taskReport, 'talaria.payload.stages');
+    const startTime = new Date(deepGet(taskReport, 'talaria.payload.status.startTime'));
+    const durationMs = deepGet(taskReport, 'talaria.payload.status.durationMs');
+
+    let result: QueryResult | undefined;
+    const resultsPayload: {
+      signature: { name: string; type: string }[];
+      sqlTypeNames: string[];
+      results: any[];
+    } = deepGet(taskReport, 'talaria.payload.results');
+    if (resultsPayload) {
+      const { signature, sqlTypeNames, results } = resultsPayload;
+      result = new QueryResult({
+        header: signature.map(
+          (sig, i: number) =>
+            new Column({ name: sig.name, nativeType: sig.type, sqlType: sqlTypeNames?.[i] }),
+        ),
+        rows: results,
+      }).inflateDatesFromSqlTypes();
+    }
+
+    let res = new Execution({
+      engine: 'sql-task',
       id,
-      status: QueryExecution.normalizeTaskStatus(status),
+      status: Execution.normalizeTaskStatus(status),
       startTime: isNaN(startTime.getTime()) ? undefined : startTime,
       duration: typeof durationMs === 'number' ? durationMs : undefined,
       stages: Array.isArray(stages)
-        ? new Stages(stages, deepGet(detailPayload, 'talaria.payload.counters'))
+        ? new Stages(stages, deepGet(taskReport, 'talaria.payload.counters'))
         : undefined,
       error,
-      destination: deepGet(detailPayload, 'talaria.task.spec.destination'),
+      destination: deepGet(taskPayload, 'payload.spec.destination'),
+      result,
+
+      _payload: taskPayload,
     });
 
-    if (deepGet(detailPayload, 'talaria.task.sqlQuery')) {
+    if (deepGet(taskPayload, 'payload.sqlQuery')) {
       res = res.changeSqlQuery(
-        deepGet(detailPayload, 'talaria.task.sqlQuery'),
-        deleteKeys(deepGet(detailPayload, 'talaria.task.sqlQueryContext'), IGNORE_CONTEXT_KEYS),
+        deepGet(taskPayload, 'payload.sqlQuery'),
+        deleteKeys(deepGet(taskPayload, 'payload.sqlQueryContext'), IGNORE_CONTEXT_KEYS),
       );
     }
 
     return res;
   }
 
-  static fromResult(result: QueryResult): QueryExecution {
-    return new QueryExecution({
+  static fromResult(engine: DruidEngine, result: QueryResult): Execution {
+    return new Execution({
+      engine,
       id: result.sqlQueryId || result.queryId || 'direct_result',
       status: 'SUCCESS',
       result,
     });
   }
 
+  public readonly engine: DruidEngine;
   public readonly id: string;
   public readonly sqlQuery?: string;
   public readonly queryContext?: QueryContext;
-  public readonly status?: QueryExecutionStatus;
+  public readonly status?: ExecutionStatus;
   public readonly startTime?: Date;
   public readonly duration?: number;
   public readonly stages?: Stages;
   public readonly destination?: ExecutionDestination;
   public readonly result?: QueryResult;
-  public readonly error?: TalariaTaskError;
+  public readonly error?: ExecutionError;
 
-  constructor(value: QueryExecutionValue) {
+  public readonly _payload?: { payload: any; task: string };
+
+  constructor(value: ExecutionValue) {
+    this.engine = value.engine;
     this.id = value.id;
+    if (!this.id) throw new Error('must have an id');
     this.sqlQuery = value.sqlQuery;
     this.queryContext = value.queryContext;
     this.status = value.status;
@@ -219,10 +338,13 @@ export class QueryExecution {
     this.destination = value.destination;
     this.result = value.result;
     this.error = value.error;
+
+    this._payload = value._payload;
   }
 
-  valueOf(): QueryExecutionValue {
+  valueOf(): ExecutionValue {
     return {
+      engine: this.engine,
       id: this.id,
       sqlQuery: this.sqlQuery,
       queryContext: this.queryContext,
@@ -233,10 +355,12 @@ export class QueryExecution {
       destination: this.destination,
       result: this.result,
       error: this.error,
+
+      _payload: this._payload,
     };
   }
 
-  public changeSqlQuery(sqlQuery: string, queryContext?: QueryContext): QueryExecution {
+  public changeSqlQuery(sqlQuery: string, queryContext?: QueryContext): Execution {
     const value = this.valueOf();
 
     value.sqlQuery = sqlQuery;
@@ -246,24 +370,24 @@ export class QueryExecution {
       value.result = value.result.attachQuery({ context: queryContext }, parsedQuery);
     }
 
-    return new QueryExecution(value);
+    return new Execution(value);
   }
 
-  public changeDestination(destination: ExecutionDestination): QueryExecution {
-    return new QueryExecution({
+  public changeDestination(destination: ExecutionDestination): Execution {
+    return new Execution({
       ...this.valueOf(),
       destination,
     });
   }
 
-  public changeResult(result: QueryResult): QueryExecution {
-    return new QueryExecution({
+  public changeResult(result: QueryResult): Execution {
+    return new Execution({
       ...this.valueOf(),
       result: result.attachQuery({}, this.sqlQuery ? parseSqlQuery(this.sqlQuery) : undefined),
     });
   }
 
-  public updateWith(newSummary: QueryExecution): QueryExecution {
+  public updateWith(newSummary: Execution): Execution {
     let nextSummary = newSummary;
     if (this.sqlQuery && !nextSummary.sqlQuery) {
       nextSummary = nextSummary.changeSqlQuery(this.sqlQuery, this.queryContext);
@@ -275,10 +399,10 @@ export class QueryExecution {
     return nextSummary;
   }
 
-  public attachErrorFromStatus(status: any): QueryExecution {
+  public attachErrorFromStatus(status: any): Execution {
     const errorMsg = deepGet(status, 'status.errorMsg');
 
-    return new QueryExecution({
+    return new Execution({
       ...this.valueOf(),
       error: {
         error: {
@@ -289,11 +413,11 @@ export class QueryExecution {
     });
   }
 
-  public markDestinationDatasourceExists(): QueryExecution {
+  public markDestinationDatasourceExists(): Execution {
     const { destination } = this;
     if (destination?.type !== 'dataSource') return this;
 
-    return new QueryExecution({
+    return new Execution({
       ...this.valueOf(),
       destination: {
         ...destination,

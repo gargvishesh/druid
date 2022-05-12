@@ -22,6 +22,7 @@ import * as JSONBig from 'json-bigint-native';
 
 import { ColumnMetadata, compact, filterMap } from '../utils';
 
+import { LastExecution, validateLastExecution } from './execution';
 import { generate8HexId } from './talaria-general';
 import { fitExternalConfigPattern } from './talaria-query-pattern';
 
@@ -50,7 +51,7 @@ export interface TalariaQueryPartValue {
   queryName?: string;
   queryString: string;
   collapsed?: boolean;
-  lastQueryId?: string;
+  lastExecution?: LastExecution;
 }
 
 export class TalariaQueryPart {
@@ -74,7 +75,7 @@ export class TalariaQueryPart {
     });
   }
 
-  static isTalariaEngineNeeded(queryString: string): boolean {
+  static isTaskEngineNeeded(queryString: string): boolean {
     return /EXTERN\s*\(/im.test(queryString) || /INSERT\s+INTO/im.test(queryString);
   }
 
@@ -82,7 +83,7 @@ export class TalariaQueryPart {
   public readonly queryName?: string;
   public readonly queryString: string;
   public readonly collapsed: boolean;
-  public readonly lastQueryId?: string;
+  public readonly lastExecution?: LastExecution;
 
   public readonly parsedQuery?: SqlQuery;
 
@@ -91,7 +92,7 @@ export class TalariaQueryPart {
     this.queryName = value.queryName;
     this.queryString = value.queryString;
     this.collapsed = Boolean(value.collapsed);
-    this.lastQueryId = value.lastQueryId;
+    this.lastExecution = validateLastExecution(value.lastExecution);
 
     try {
       this.parsedQuery = SqlQuery.parse(this.queryString);
@@ -104,7 +105,7 @@ export class TalariaQueryPart {
       queryName: this.queryName,
       queryString: this.queryString,
       collapsed: this.collapsed,
-      lastQueryId: this.lastQueryId,
+      lastExecution: this.lastExecution,
     };
   }
 
@@ -124,8 +125,8 @@ export class TalariaQueryPart {
     return new TalariaQueryPart({ ...this.valueOf(), collapsed });
   }
 
-  public changeLastQueryId(lastQueryId: string | undefined): TalariaQueryPart {
-    return new TalariaQueryPart({ ...this.valueOf(), lastQueryId });
+  public changeLastExecution(lastExecution: LastExecution | undefined): TalariaQueryPart {
+    return new TalariaQueryPart({ ...this.valueOf(), lastExecution });
   }
 
   public clear(): TalariaQueryPart {
@@ -143,12 +144,30 @@ export class TalariaQueryPart {
     return this.queryString.trim().startsWith('{');
   }
 
-  public validRune(): boolean {
+  public validJson(): boolean {
     try {
       Hjson.parse(this.queryString);
       return true;
     } catch {
       return false;
+    }
+  }
+
+  public isSqlInJson(): boolean {
+    try {
+      const query = Hjson.parse(this.queryString);
+      return typeof query.query === 'string';
+    } catch {
+      return false;
+    }
+  }
+
+  public getSqlString(): string {
+    if (this.isJsonLike()) {
+      const query = Hjson.parse(this.queryString);
+      return typeof query.query === 'string' ? query.query : '';
+    } else {
+      return this.queryString;
     }
   }
 
@@ -210,8 +229,8 @@ export class TalariaQueryPart {
     return [];
   }
 
-  public isTalariaEngineNeeded(): boolean {
-    return TalariaQueryPart.isTalariaEngineNeeded(this.queryString);
+  public isTaskEngineNeeded(): boolean {
+    return TalariaQueryPart.isTaskEngineNeeded(this.queryString);
   }
 
   public explodeQueryPart(): TalariaQueryPart[] {
@@ -243,7 +262,7 @@ export class TalariaQueryPart {
   }
 
   public duplicate(): TalariaQueryPart {
-    return this.changeId(generate8HexId()).changeLastQueryId(undefined);
+    return this.changeId(generate8HexId()).changeLastExecution(undefined);
   }
 
   public addPreviewLimit(): TalariaQueryPart {

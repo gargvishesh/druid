@@ -23,14 +23,14 @@ import React, { useState } from 'react';
 
 import { useLocalStorageState, useQueryManager } from '../../hooks';
 import {
+  Execution,
   ExternalConfig,
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
-  QueryExecution,
 } from '../../talaria-models';
 import { getContextFromSqlQuery, LocalStorageKeys } from '../../utils';
 
-import { executionBackgroundStatusCheck, submitAsyncQuery } from './execution-utils';
+import { executionBackgroundStatusCheck, submitTaskQuery } from './execution-utils';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
@@ -57,21 +57,14 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
 
   const { inputSource, inputFormat } = externalConfigStep;
 
-  const [insertResultState, insertQueryManager] = useQueryManager<
-    string,
-    QueryExecution,
-    QueryExecution
-  >({
+  const [insertResultState, insertQueryManager] = useQueryManager<string, Execution, Execution>({
     processQuery: async (queryString: string, cancelToken) => {
       const insertDatasource = SqlQuery.parse(queryString).getInsertIntoTable()?.getTable();
       if (!insertDatasource) throw new Error(`Must have insert datasource`);
 
-      return await submitAsyncQuery({
+      return await submitTaskQuery({
         query: queryString,
-        context: {
-          ...getContextFromSqlQuery(queryString),
-          talaria: true,
-        },
+        context: getContextFromSqlQuery(queryString),
         cancelToken,
       });
     },
@@ -129,7 +122,7 @@ export const TalariaLoadDataView = React.memo(function TalariaLoadDataView(
       {insertResultState.isLoading() && (
         <div className="loading-step">
           <StageProgress
-            queryExecution={insertResultState.intermediate}
+            execution={insertResultState.intermediate}
             onCancel={() => insertQueryManager.cancelCurrent()}
             onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
             showLiveReports={showLiveReports}
