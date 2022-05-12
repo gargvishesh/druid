@@ -30,7 +30,7 @@
     <parent>
         <artifactId>druid</artifactId>
         <groupId>org.apache.druid</groupId>
-        <version>2022.02.0-iap-SNAPSHOT</version>
+        <version>2022.05.0-iap-SNAPSHOT</version>
     </parent>
 
     <dependencies>
@@ -369,7 +369,7 @@
                                     <executable>java</executable>
                                     <arguments>
                                         <argument>-classpath</argument>
-                                        <classpath />
+                                        <classpath/>
                                         <argument>-Ddruid.extensions.loadList=[]</argument>
                                         <argument>-Ddruid.extensions.directory=${project.build.directory}/extensions
                                         </argument>
@@ -426,8 +426,6 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-s3-extensions</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions:druid-aws-rds-extensions</argument>
-                                        <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-ec2-extensions</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-google-extensions</argument>
@@ -438,11 +436,29 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-basic-security</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions:druid-pac4j</argument>
+                                        <argument>io.imply:imply-utility-belt</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions:druid-ranger-security</argument>
+                                        <argument>io.imply:indexed-table-loader</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions:druid-kubernetes-extensions</argument>
+                                        <argument>org.apache.druid.extensions:imply-druid-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-view-manager</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-talaria</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:clarity-emitter-kafka</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-keycloak</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-virtual-segments</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-timeseries</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-sql-async</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-nested-data</argument>
                                         <argument>${druid.distribution.pulldeps.opts}</argument>
                                     </arguments>
                                 </configuration>

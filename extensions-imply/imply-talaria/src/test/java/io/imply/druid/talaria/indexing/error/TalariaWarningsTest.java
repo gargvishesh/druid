@@ -47,7 +47,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "  )\n"
                              + ") group by 1  PARTITIONED by day ")
                      .setQueryContext(context)
-                     .setExpectedRollup(true)
+                     .setExpectedRollUp(true)
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
@@ -81,7 +81,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "  )\n"
                              + ") group by 1  PARTITIONED by day ")
                      .setQueryContext(context)
-                     .setExpectedRollup(true)
+                     .setExpectedRollUp(true)
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))

@@ -67,7 +67,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
     availableDimensions = ImmutableList.copyOf(input.getAvailableDimensions());
     this.metadata = input.getMetadata();
   }
-
+    
   public QueryableIndex getQueryableIndex()
   {
     return input;

@@ -160,6 +160,7 @@
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.hibernate/hibernate\-validator@.*$</packageUrl>
     <cve>CVE-2017-7536</cve>
+    <cve>CVE-2020-25638</cve>
   </suppress>
   <suppress>
     <!-- TODO: Fix by updating curator-x-discovery to > 4.2.0 and updating hadoop -->
@@ -499,6 +500,30 @@
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.asynchttpclient/async-http-client-netty-utils@2.5.3$</packageUrl>
     <cve>CVE-2021-43138</cve>
+  </suppress>
+
+  <suppress>
+    <!-- async http client -->
+    <notes><![CDATA[
+   file name: async-http-client-2.5.3.jar
+   ]]></notes>
+    <cve>CVE-2021-43138</cve>
+  </suppress>
+
+  <suppress>
+    <!-- accessors smart -->
+    <notes><![CDATA[
+   file name: accessors-smart-1.2.jar
+   ]]></notes>
+    <cve>CVE-2021-27568</cve>
+  </suppress>
+
+  <suppress>
+    <!-- jackson dataformat cbor -->
+    <notes><![CDATA[
+   file name: jackson-dataformat-cbor-2.10.5.jar
+   ]]></notes>
+    <cve>CVE-2021-28491</cve>
   </suppress>
 
 </suppressions>
