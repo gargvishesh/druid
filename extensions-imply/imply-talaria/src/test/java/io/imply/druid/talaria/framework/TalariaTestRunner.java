@@ -24,6 +24,8 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import io.imply.druid.talaria.frame.FrameTestUtil;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
+import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
@@ -142,7 +144,7 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
  * Leader -> Coordinator (Coordinator is mocked)
  * <p>
  * In the Ut's we go from:
- * {@link io.imply.druid.talaria.sql.TalariaQueryMaker} -> {@link TalariaTestIndexingServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
+ * {@link TalariaQueryMaker} -> {@link TalariaTestIndexingServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
  * <p>
  * <p>
  * Leader -> Worker communication happens in {@link TalariaTestLeaderContext}
@@ -489,6 +491,27 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     return payload;
   }
 
+  private TalariaErrorReport getErrorReportOrThrow(String controllerTaskId)
+  {
+    TalariaTaskReportPayload payload =
+        (TalariaTaskReportPayload) indexingServiceClient.getReportForTask(controllerTaskId)
+                                                        .get("talaria")
+                                                        .getPayload();
+    if(!payload.getStatus().getStatus().isFailure()) {
+      throw new ISE(
+          "Query task [%s] was supposed to fail",
+          controllerTaskId
+      );
+    }
+
+    if (!payload.getStatus().getStatus().isComplete()) {
+      throw new ISE("Query task [%s] should have finished", controllerTaskId);
+    }
+
+    return payload.getStatus().getErrorReport();
+
+  }
+
   private void assertTalariaSpec(TalariaQuerySpec expectedTalariaQuerySpec, TalariaQuerySpec querySpecForTask)
   {
 
@@ -534,6 +557,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected List<Object[]> expectedResultRows = null;
     protected Matcher<Throwable> expectedValidationErrorMatcher = null;
     protected Matcher<Throwable> expectedExecutionErrorMatcher = null;
+    protected TalariaFault expectedTalariaFault = null;
 
     private boolean hasRun = false;
 
@@ -580,6 +604,12 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     public Builder setExpectedExecutionErrorMatcher(Matcher<Throwable> expectedExecutionErrorMatcher)
     {
       this.expectedExecutionErrorMatcher = expectedExecutionErrorMatcher;
+      return (Builder) this;
+    }
+
+    public Builder setExpectedTalariaFault(TalariaFault talariaFault)
+    {
+      this.expectedTalariaFault = talariaFault;
       return (Builder) this;
     }
 
@@ -670,6 +700,14 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       readyToRun();
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
+        if (expectedTalariaFault != null) {
+          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          Assert.assertEquals(
+              expectedTalariaFault.getCodeWithMessage(),
+              talariaErrorReport.getFault().getCodeWithMessage()
+          );
+          return;
+        }
         getPayloadOrThrow(controllerId);
         TalariaQuerySpec foundSpec = indexingServiceClient.getQuerySpecForTask(controllerId);
         log.info(
@@ -782,6 +820,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     }
 
     // Made the visibility public to aid adding ut's easily with minimum parameters to set.
+    @Nullable
     public Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> runQueryWithResult()
     {
       readyToRun();
@@ -790,6 +829,16 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
+
+        if (expectedTalariaFault != null) {
+          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          Assert.assertEquals(
+              expectedTalariaFault.getCodeWithMessage(),
+              talariaErrorReport.getFault().getCodeWithMessage()
+          );
+          return null;
+        }
+
         TalariaTaskReportPayload payload = getPayloadOrThrow(controllerId);
 
         if (payload.getStatus().getErrorReport() != null) {
