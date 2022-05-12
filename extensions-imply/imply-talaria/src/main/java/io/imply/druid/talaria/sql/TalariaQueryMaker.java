@@ -62,11 +62,12 @@ public class TalariaQueryMaker implements QueryMaker
 {
   public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
   public static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";
+  public static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
 
   private static final String CTX_DESTINATION = "talariaDestination";
   private static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
   private static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
-  private static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
+
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
   private static final String DESTINATION_REPORT = "taskReport";
