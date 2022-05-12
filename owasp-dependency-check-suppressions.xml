@@ -524,7 +524,7 @@
     <notes><![CDATA[
    file name: jackson-dataformat-cbor-2.10.5.jar
    ]]></notes>
-    <cve>CVE-2021-28491</cve>
+    <cve>CVE-2020-28491</cve>
   </suppress>
 
   <suppress>
