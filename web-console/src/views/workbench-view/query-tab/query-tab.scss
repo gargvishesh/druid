@@ -88,6 +88,12 @@ $vertical-gap: 6px;
       display: flex;
       gap: 10px;
       align-items: center;
+
+      .talaria-extra-info {
+        position: absolute;
+        top: 0;
+        right: 0;
+      }
     }
   }
 

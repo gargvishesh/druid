@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-export * from './query-execution';
+export * from './druid-engine';
+export * from './execution';
 export * from './talaria-general';
 export * from './talaria-query';
 export * from './talaria-query-part';

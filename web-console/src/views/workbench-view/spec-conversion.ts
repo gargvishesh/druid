@@ -117,8 +117,14 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     deepGet(spec, 'spec.dataSchema.granularitySpec.queryGranularity'),
   );
 
+  lines.push(`-- This SQL query was auto generated from an ingestion spec`);
+
+  const maxNumConcurrentSubTasks = deepGet(spec, 'spec.tuningConfig.maxNumConcurrentSubTasks');
+  if (maxNumConcurrentSubTasks > 1) {
+    lines.push(`--:context talariaNumTasks: ${maxNumConcurrentSubTasks}`);
+  }
+
   lines.push(
-    `-- This SQL query was auto generated from an ingestion spec`,
     `--:context talariaFinalizeAggregations: false`,
     `--:context groupByEnableMultiValueUnnesting: false`,
   );

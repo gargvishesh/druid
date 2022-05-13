@@ -22,32 +22,39 @@ import { Api } from '../../singletons';
 import { downloadFile } from '../general';
 
 interface QueryProfile {
+  id: string;
   profileVersion: number;
-  queryStatus?: any;
-  queryDetail?: any;
+  status?: any;
+  reports?: any;
+  payload?: any;
   serverStatus?: any;
 }
 
-export async function downloadQueryProfile(queryId: string) {
+export async function downloadQueryProfile(id: string) {
   const profile: QueryProfile = {
+    id,
     profileVersion: 1,
   };
 
   try {
-    profile.queryStatus = (
-      await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(queryId)}/status`)
+    profile.status = (
+      await Api.instance.get(`/druid/indexer/v1/task/${Api.encodePath(id)}/status`)
     ).data;
   } catch {}
 
   try {
-    profile.queryDetail = (
-      await Api.instance.get(`/druid/v2/sql/async/${Api.encodePath(queryId)}`)
+    profile.reports = (
+      await Api.instance.get(`/druid/indexer/v1/task/${Api.encodePath(id)}/reports`)
     ).data;
+  } catch {}
+
+  try {
+    profile.payload = (await Api.instance.get(`/druid/indexer/v1/task/${Api.encodePath(id)}`)).data;
   } catch {}
 
   try {
     profile.serverStatus = (await Api.instance.get(`/status`)).data;
   } catch {}
 
-  downloadFile(JSONBig.stringify(profile, undefined, 2), 'json', `query_profile_${queryId}.json`);
+  downloadFile(JSONBig.stringify(profile, undefined, 2), 'json', `query_profile_${id}.json`);
 }

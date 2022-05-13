@@ -22,7 +22,7 @@ import React from 'react';
 
 import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { getAsyncResult } from '../execution-utils';
+import { getTaskExecution } from '../execution-utils';
 import { QueryOutput2 } from '../query-output2/query-output2';
 
 import './talaria-results-dialog.scss';
@@ -41,7 +41,9 @@ export const TalariaResultsDialog = React.memo(function TalariaResultsDialog(
 
   const [queryResultState] = useQueryManager<string, QueryResult>({
     processQuery: async (id: string) => {
-      return await getAsyncResult(id);
+      const execution = await getTaskExecution(id);
+      if (!execution.result) throw new Error('no results in report');
+      return execution.result;
     },
     initQuery: id,
   });

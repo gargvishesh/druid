@@ -33,7 +33,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
-import { DruidEngine, TalariaQuery } from '../../../talaria-models';
+import { DRUID_ENGINES, DruidEngine, TalariaQuery } from '../../../talaria-models';
 import { deepDelete, deepSet, pluralIfNeeded, QueryWithContext } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
@@ -84,17 +84,15 @@ export interface RunMoreButtonProps {
   loading: boolean;
   small?: boolean;
   onRun(preview: boolean): void;
-  onExport: (() => void) | undefined;
 }
 
 export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreButtonProps) {
-  const { query, onQueryChange, onRun, loading, small, onExport } = props;
+  const { query, onQueryChange, onRun, loading, small } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customParallelismDialogOpen, setCustomParallelismDialogOpen] = useState(false);
   const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const emptyQuery = query.isEmptyQuery();
-  const runeMode = query.isJsonLike();
   const insertMode = query.isInsertQuery();
   const queryContext = query.queryContext;
   const numContextKeys = Object.keys(queryContext).length;
@@ -115,11 +113,16 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
   }, [onRun]);
 
   const handleExplain = useCallback(() => {
-    const queryAndContext = query.getEffectiveQueryAndContext();
-    if (typeof queryAndContext.query !== 'string') return;
+    const { engine, query: apiQuery } = query.getApiQuery();
+    if (typeof apiQuery.query !== 'string') return;
+    const queryContext = apiQuery.context || {};
+    if (engine === 'sql-task') {
+      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `talaria` engine selector
+      queryContext.talaria = true;
+    }
     setExplainDialogQuery({
-      queryString: queryAndContext.query,
-      queryContext: queryAndContext.context,
+      queryString: apiQuery.query,
+      queryContext,
       wrapQueryLimit: undefined,
     });
   }, [query]);
@@ -175,7 +178,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
     <div className="run-more-button">
       <ButtonGroup>
         <Button
-          className={runeMode ? 'rune-button' : undefined}
+          className={effectiveEngine === 'native' ? 'rune-button' : undefined}
           disabled={loading}
           icon={IconNames.CARET_RIGHT}
           onClick={() => onRun(false)}
@@ -188,8 +191,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           position={Position.BOTTOM_LEFT}
           content={
             <Menu>
-              <MenuItem icon={IconNames.DOWNLOAD} text="Export" onClick={onExport} />
-              {!runeMode && (
+              {effectiveEngine !== 'native' && (
                 <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={handleExplain} />
               )}
               {onQueryChange && (
@@ -200,9 +202,9 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                     label={queryEngine || `${effectiveEngine} (auto)`}
                   >
                     <Menu>
-                      {(
-                        [undefined, 'broker', 'async', 'talaria'] as (DruidEngine | undefined)[]
-                      ).map(renderQueryEngineMenuItem)}
+                      {[undefined as DruidEngine | undefined]
+                        .concat(DRUID_ENGINES)
+                        .map(renderQueryEngineMenuItem)}
                     </Menu>
                   </MenuItem>
                   <MenuDivider />
@@ -212,11 +214,11 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
                     onClick={() => setEditContextDialogOpen(true)}
                     label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
                   />
-                  {effectiveEngine === 'talaria' ? (
+                  {effectiveEngine === 'sql-task' ? (
                     <>
                       <MenuItem
                         icon={IconNames.TWO_COLUMNS}
-                        text="Talaria parallelism"
+                        text="Task parallelism"
                         label={String(parallelism)}
                       >
                         <Menu>
@@ -314,7 +316,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           }
         >
           <Button
-            className={runeMode ? 'rune-button' : undefined}
+            className={effectiveEngine === 'native' ? 'rune-button' : undefined}
             icon={IconNames.MORE}
             intent={
               !emptyQuery && !small
