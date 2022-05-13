@@ -54,8 +54,8 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReportBatcherPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -216,16 +216,14 @@ public class WorkerImpl implements Worker
     // Close stage output processors and running futures (if present)
     closer.register(() -> workerExec.cancel(cancellationId));
 
-
-
-    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportBatcherPublisher(
+    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportSimplePublisher(
         task.getControllerTaskId(),
         id(),
         leaderClient,
         id(),
-        TalariaTasks.getHostFromSelfNode(selfDruidNode),
-        1000 * 2
+        TalariaTasks.getHostFromSelfNode(selfDruidNode)
     );
+
     closer.register(talariaWarningReportPublisher::close);
 
     // TODO(gianm): consider using a different thread pool for connecting

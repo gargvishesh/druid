@@ -10,15 +10,27 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
-import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
+import io.imply.druid.talaria.indexing.ColumnMappings;
+import io.imply.druid.talaria.indexing.TalariaQuerySpec;
+import io.imply.druid.talaria.sql.TalariaMode;
+import org.apache.druid.data.input.impl.JsonInputFormat;
+import org.apache.druid.data.input.impl.LocalInputSource;
+import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
+import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
+import org.apache.druid.sql.calcite.external.ExternalDataSource;
+import org.apache.druid.sql.calcite.filtration.Filtration;
+import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.junit.Test;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 public class TalariaWarningsTest extends TalariaTestRunner
 {
@@ -31,12 +43,9 @@ public class TalariaWarningsTest extends TalariaTestRunner
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("cnt", ColumnType.LONG)
-                                            .add("a0", ColumnType.LONG)
                                             .build();
 
-    Map<String, Object> context = new HashMap<>(ROLLUP_CONTEXT);
-    context.put("maxParseExceptions", 0);
-    testInsertQuery().setSql(" insert into foo1 SELECT\n"
+    testSelectQuery().setSql("SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
@@ -45,16 +54,57 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
-                             + ") group by 1  PARTITIONED by day ")
-                     .setQueryContext(context)
-                     .setExpectedRollUp(true)
-                     .setExpectedDataSource("foo1")
+                             + ") group by 1")
+                     .setQueryContext(ImmutableMap.of(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0, "talaria", true))
                      .setExpectedRowSignature(rowSignature)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
-                     .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L, 0L}))
+                     .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec
+                             .builder()
+                             .setQuery(GroupByQuery.builder()
+                                                   .setDataSource(new ExternalDataSource(
+                                                       new LocalInputSource(
+                                                           null,
+                                                           null,
+                                                           ImmutableList.of(
+                                                               toRead.getAbsoluteFile()
+                                                           )
+                                                       ),
+                                                       new JsonInputFormat(null, null, null),
+                                                       RowSignature.builder()
+                                                                   .add("timestamp", ColumnType.STRING)
+                                                                   .add("page", ColumnType.STRING)
+                                                                   .add("user", ColumnType.STRING)
+                                                                   .build()
+                                                   ))
+                                                   .setInterval(querySegmentSpec(
+                                                       Filtration
+                                                           .eternity()))
+                                                   .setGranularity(Granularities.ALL)
+                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                       "v0",
+                                                       "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
+                                                       ColumnType.LONG,
+                                                       CalciteTests.createExprMacroTable()
+                                                   ))
+                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                                                 "v0",
+                                                                                 "d0",
+                                                                                 ColumnType.LONG
+                                                                             )
+                                                   ))
+                                                   .setAggregatorSpecs(aggregators(
+                                                       new CountAggregatorFactory(
+                                                           "a0")))
+                                                   .setContext(
+                                                       ImmutableMap.of())
+                                                   .build())
+                             .setColumnMappings(ColumnMappings.identity(
+                                 rowSignature))
+                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
-
   }
 
   @Test
@@ -65,12 +115,9 @@ public class TalariaWarningsTest extends TalariaTestRunner
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("cnt", ColumnType.LONG)
-                                            .add("a0", ColumnType.LONG)
                                             .build();
 
-    Map<String, Object> context = new HashMap<>(ROLLUP_CONTEXT);
-    context.put("maxParseExceptions", -1);
-    testInsertQuery().setSql(" insert into foo1 SELECT\n"
+    testSelectQuery().setSql("SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
@@ -79,16 +126,59 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
-                             + ") group by 1  PARTITIONED by day ")
-                     .setQueryContext(context)
-                     .setExpectedRollUp(true)
-                     .setExpectedDataSource("foo1")
+                             + ") group by 1")
+                     .setQueryContext(ImmutableMap.of(
+                         WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1,
+                         TalariaMode.CTX_TALARIA_MODE, "strict",
+                         "talaria", true
+                     ))
                      .setExpectedRowSignature(rowSignature)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
-                     .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L, 0L}))
-                     .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
+                     .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 202862L}))
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec
+                             .builder()
+                             .setQuery(GroupByQuery.builder()
+                                                   .setDataSource(new ExternalDataSource(
+                                                       new LocalInputSource(
+                                                           null,
+                                                           null,
+                                                           ImmutableList.of(
+                                                               toRead.getAbsoluteFile()
+                                                           )
+                                                       ),
+                                                       new JsonInputFormat(null, null, null),
+                                                       RowSignature.builder()
+                                                                   .add("timestamp", ColumnType.STRING)
+                                                                   .add("page", ColumnType.STRING)
+                                                                   .add("user", ColumnType.STRING)
+                                                                   .build()
+                                                   ))
+                                                   .setInterval(querySegmentSpec(
+                                                       Filtration
+                                                           .eternity()))
+                                                   .setGranularity(Granularities.ALL)
+                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                       "v0",
+                                                       "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
+                                                       ColumnType.LONG,
+                                                       CalciteTests.createExprMacroTable()
+                                                   ))
+                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                                                 "v0",
+                                                                                 "d0",
+                                                                                 ColumnType.LONG
+                                                                             )
+                                                   ))
+                                                   .setAggregatorSpecs(aggregators(
+                                                       new CountAggregatorFactory(
+                                                           "a0")))
+                                                   .setContext(
+                                                       ImmutableMap.of())
+                                                   .build())
+                             .setColumnMappings(ColumnMappings.identity(
+                                 rowSignature))
+                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .build())
                      .verifyResults();
-
   }
-
 }

@@ -498,7 +498,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         (TalariaTaskReportPayload) indexingServiceClient.getReportForTask(controllerTaskId)
                                                         .get("talaria")
                                                         .getPayload();
-    if(!payload.getStatus().getStatus().isFailure()) {
+    if (!payload.getStatus().getStatus().isFailure()) {
       throw new ISE(
           "Query task [%s] was supposed to fail",
           controllerTaskId
@@ -877,6 +877,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       Preconditions.checkArgument(expectedRowSignature != null, "Row signature cannot be null");
       Preconditions.checkArgument(expectedTalariaQuerySpec != null, "Talaria Query spec not ");
       Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> specAndResults = runQueryWithResult();
+
+      if (specAndResults == null) { // A fault was expected and the assertion has been done in the runQueryWithResult
+        return;
+      }
 
       Assert.assertEquals(expectedRowSignature, specAndResults.rhs.lhs);
       assertResultsEquals(sql, expectedResultRows, specAndResults.rhs.rhs);
