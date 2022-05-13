@@ -861,9 +861,10 @@ Because queries run as Overlord tasks, use the [task APIs](/operations/api-refer
 
 When using MSQE, the endpoints you frequently use may include:
 
+- `GET /druid/indexer/v1/task/{taskId}` to get the query payload
 - `GET /druid/indexer/v1/task/{taskId}/status` to get the query status
-- `GET /druid/indexer/v1/task/{taskId}/status/reports` to get the query report
-- `POST /druid/indexer/v1/task/{taskId}/status/shutdown` to cancel a query
+- `GET /druid/indexer/v1/task/{taskId}/reports` to get the query report
+- `POST /druid/indexer/v1/task/{taskId}/shutdown` to cancel a query
 
 #### MSQE reports
 
@@ -1009,7 +1010,6 @@ In the current release, the security model for the multi-stage query engine is:
   `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
   the user has write permission to _some_ datasource and is therefore permitted to use external
   input sources. No data will be inserted into this stub datasource.
-- Multi-stage queries issued through the [Query API](#api) are associated with the user that issued the query. Other users are not able to use the query API to retrieve status, results, or details of queries they did not issue, and are not able to use the query API to cancel queries they did not issue, even if those other users have permissions on the associated datasource. However: multi-stage queries [run as indexing service tasks](#how-msqe-works), and the indexing service security model _does_ permit other users to retrieve information about, or cancel, tasks that they did not issue, as long as those other users have permissions on the associated datasource.
 
 Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they are not the user who submitted the query. The following list describes the permissions required based on what action you are trying to perform:
 
