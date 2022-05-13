@@ -51,12 +51,10 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You enable the multi-stage query engine on each cluster .
 2. Go to **Setup** and expand the **Advanced config** options.
-3. Add the following custom extensions:
+3. Add the following custom extension:
 
-   | Name  | S3 path or url |
-   |---|---|
-   | `imply-sql-async`  | Leave this blank. This extension is bundled with the Imply distribution.  |
-   | `imply-talaria`  | Leave this blank. This extension is bundled with the Imply distribution.  |
+   - **Name**: `imply-talaria`
+   - **S3 path or url**: Leave this blank. This extension is bundled with the Imply distribution.
 
 4. Change the following feature flags by clicking the pencil icon:
 
@@ -68,15 +66,10 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 5. Add the following **Service properties**:
 
-   **Common** service properties include your multi-stage query engine entitled license and the configuration for the `imply-sql-async` extension:
+   **Common** service properties include your multi-stage query engine entitled license:
 
    ```bash
    imply.license=<license string>
-   
-   # Configure imply-sql-async extension.
-   # Note: this setup only works for multi-stage query; for regular async query you must use storage type "s3".
-   druid.query.async.storage.type=local
-   druid.query.async.storage.local.directory=/mnt/tmp/async-query
    ```
 
    **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart to match your usage.
@@ -109,7 +102,7 @@ To use the multi-stage query engine with the Druid console, you need to enable a
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
 2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
 
-   If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine (#enable-multi-stage-query-engine).
+   If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine](#enable-multi-stage-query-engine).
 
 3. Go to the **Query** tab. 
 4. Click the ellipsis (...) next to **Run**.
@@ -240,60 +233,54 @@ When you use the multi-stage query engine, the following happens:
     back to the controller task, which writes them into its task report.
     If the query is an INSERT query, the worker tasks generate and
     publish new Druid segments to the provided datasource.
+<!--
+1.  The task APIs such as results and details work by fetching task status and task reports under the hood.
+-->
 
-6.  For multi-stage queries, async query APIs such as [status](#get-query-status),
-    [results](#get-query-results), and [details](#get-query-details) work by
-    fetching task status and task reports under the hood.
+## API
 
-## Query API
+> Multi-stage query APIs are in a work-in-progress state for the alpha and are subject to change.
+
+> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version <VERSION> and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
+
+Queries run as tasks. The action you want to take determines the endpoint you use:
+
+- `druid/v2/sql/task` endpoint: Submit a query for ingestion.
+- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or cancelling it. 
+
 
 ### Submit a query
 
-> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future
-> releases. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
+> Multi-stage query APIs are in a work-in-progress state for the alpha and are subject to change. For stability reasons, we recommend using the [web console](#web-console) if you do not
+> need a programmatic interface. This is especially true for SELECT queries. Viewing results for SELECT queries requires manual steps. described in [MSQE reports](#msqe-reports)
 
 #### Request
 
-Submit queries using the [`POST /druid/v2/sql/async/`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query) API provided by
-the `imply-sql-async` extension, with `talaria: true` set as a
-[context parameter](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
+Submit queries using the `POST /druid/v2/sql/task/` API.
 
 Currently, the multi-stage query engine ignores the provided values of `resultFormat`, `header`,
 `typesHeader`, and `sqlTypesHeader`. It always behaves as if `resultFormat` is "array", `header` is
 true, `typesHeader` is true, and `sqlTypesHeader` is true.
 
-See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#submit-a-query).
-
 **HTTP**
 
 ```
-POST /druid/v2/sql/async/
+POST /druid/v2/sql/task/
 ```
 
 ```json
 {
   "query" : "SELECT 1 + 1",
-  "context" : {
-    "talaria" : true
   }
-}
 ```
 
 **curl**
 
 ```
 curl -XPOST -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/async/ \
+  https://IMPLY-ENDPOINT/druid/v2/sql/task/ \
   -u 'user:password' \
-  --data-binary '{"query":"SELECT 1 + 1","context":{"talaria":true}}'
-```
-
-The API call returns information similar to the following:
-
-```JSON
-{"asyncResultId":"talaria-sql-4ef77f18-8200-4954-83a0-5b01220b22b3","state":"RUNNING","resultFormat":"array","engine":"Talaria-Indexer"}%
+  --data-binary '{"query":"SELECT 1 + 1"}'
 ```
 
 **Query syntax**
@@ -319,7 +306,6 @@ The multi-stage query engine accepts additional Druid SQL
 
 |Parameter|Description|Default value|
 |----|-----------|----|
-| talaria| True to execute using the multi-stage query engine; false to execute using Druid's native query engine| false|
 | talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
@@ -330,10 +316,8 @@ The multi-stage query engine accepts additional Druid SQL
 
 ```json
 {
-  "asyncResultId": "talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb",
-  "state": "RUNNING",
-  "resultFormat": "array",
-  "engine": "Talaria-Indexer"
+  "taskId": "talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb",
+  "state": "RUNNING"
 }
 ```
 
@@ -341,245 +325,30 @@ The multi-stage query engine accepts additional Druid SQL
 
 |Field|Description|
 |-----|-----------|
-|asyncResultId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
+|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
 |state|Initial state for the query, which is "RUNNING".|
-|resultFormat|Always "array", regardless of what was specified in your original query, because the multi-stage engine currently only supports the "array" result format.|
-|engine|String "Talaria-Indexer" if this query was run with the multi-stage engine.|
 
-### Get query status
+### Interact with a query
 
-> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future
-> releases. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
+Because queries run as Overlord tasks, use the [task APIs](/operations/api-reference#overlord) to interact with a query.
 
-Poll the [`GET /druid/v2/sql/async/{asyncResultId}/status`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-status) API
-provided by the `imply-sql-async` extension.
+When using MSQE, the endpoints you frequently use may include:
 
-See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-status).
+- `/druid/indexer/v1/task/{taskId}/status` to get the query status
+- `/druid/indexer/v1/task/{taskId}/status/reports` to get the query report
+- `/druid/indexer/v1/task/{taskId}/status/shutdown` to cancel a query
 
-#### Request
+#### MSQE reports
 
-```
-GET /druid/v2/sql/async/{asyncResultId}/status
-```
+Keep the following in mind when using the task API to view reports:
 
-**curl**
-
-```
-curl -u 'user:password' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID/status
-```
-
-#### Response
-
-```json
-{
-  "asyncResultId": "talaria-sql-bc9aa8b8-05fc-4223-ad07-3edfb427c709",
-  "state": "COMPLETE",
-  "resultFormat": "array",
-  "engine": "Talaria-Indexer"
-}
-```
-
-### Get query results
-
-> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future
-> releases. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
-
-If the query succeeds, and is a `SELECT` query, obtain the results using the
-[`GET /druid/v2/sql/async/{asyncResultId}/results`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-results) API
-provided by the `imply-sql-async` extension.
-
-See below for an example request and response. For more details, refer to the
-[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#get-query-results).
-
-#### Request
-
-```
-GET /druid/v2/sql/async/{asyncResultId}/results
-```
-
-**curl**
-
-```
-curl -u 'user:password' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID/results
-```
-
-#### Response
-
-```json
-[["EXPR$0"],["LONG"],["INTEGER"],[2]]
-```
-
-Currently, the multi-stage query engine ignores the provided values of `resultFormat`, `header`,
-`typesHeader`, and `sqlTypesHeader`. It always behaves as if `resultFormat` is "array", `header` is
-true, `typesHeader` is true, and `sqlTypesHeader` is true.
-
-### Cancel a query
-
-> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future
-> releases. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
-
-Cancel a query using the
-[`DELETE /druid/v2/sql/async/{asyncResultId}`](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#cancel-a-query) API
-provided by the `imply-sql-async` extension.
-
-When a multi-stage query is canceled, the query results and metadata are not removed. This differs
-from Broker-based async queries, where query results and metadata are removed when a query is
-canceled.
-
-See below for an example request. For more details, refer to the
-[`imply-sql-async` documentation](https://docs.imply.io/latest/druid/querying/sql-async-download-api/#cancel-a-query).
-
-### Get query details
-
-> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future
-> releases. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface.
-
-Detailed information about query execution is available for queries run with the multi-stage engine,
-including:
-
-- Status (running, successful exit, failure).
-- Stages of query execution, along with their current progress.
-- Any errors encountered.
-
-Query details are physically stored in the task report for the controller
-task.
-
-The details API may return `500 Server Error` or `404 Not Found` when
-tasks are in the process of starting up or shutting down. If you encounter
-this error for a task that you expect should have details available, either
-try again later or check the [Status API](#get-query-status) to see if the
-task has failed before it was able to write its report.
-
-It is possible for the query status in the details API to differ from the
-query status in the [Status API](#get-query-status). This can happen because
-the details are sourced from the task report, which is written by the
-controller task itself, but the final status is sourced from Druid's task
-execution framework. For example, it is possible for the details to say
-`SUCCESS`, but the actual task to say `FAILED`, if there is a failure in
-cleanup after the report has been written.
-
-#### Request
-
-**HTTP**
-
-```
-GET /druid/v2/sql/async/{asyncResultId}
-```
-
-**curl**
-
-```
-curl -u 'user:password' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID
-```
-
-#### Response
-
-**Report for successful query**
-
-```json
-{
-  "talaria": {
-    "taskId": "talaria-sql-1d723aea-e774-48ba-a2cc-b9cfdd77e3ce",
-    "payload": {
-      "status": {
-        "status": "SUCCESS",
-        "startTime": "2022-03-10T01:41:58.105Z",
-        "durationMs": 1608
-      },
-      "stages": [
-        {
-          "stageNumber": 0,
-          "inputStages": [],
-          "processorType": "GroupByPreShuffleFrameProcessorFactory",
-          "phase": "RESULTS_COMPLETE",
-          "workerCount": 2,
-          "partitionCount": 2,
-          "inputFileCount": 1,
-          "startTime": "2022-03-10T01:41:58.446Z",
-          "duration": 1085,
-          "clusterBy": {
-            "columns": [
-              {
-                "columnName": "d0"
-              }
-            ]
-          },
-          "query": { ... }
-        },
-        {
-          "stageNumber": 1,
-          "inputStages": [0],
-          "processorType": "GroupByPostShuffleFrameProcessorFactory",
-          "phase": "RESULTS_COMPLETE",
-          "workerCount": 2,
-          "partitionCount": 2,
-          "startTime": "2022-03-10T01:41:59.513Z",
-          "duration": 74
-        },
-        {
-          "stageNumber": 2,
-          "inputStages": [1],
-          "processorType": "OrderByFrameProcessorFactory",
-          "phase": "RESULTS_COMPLETE",
-          "workerCount": 2,
-          "partitionCount": 1,
-          "startTime": "2022-03-10T01:41:59.573Z",
-          "duration": 140,
-          "clusterBy": {
-            "columns": [
-              {
-                "columnName": "a0",
-                "descending": true
-              }
-            ]
-          }
-        }
-      ]
-    },
-    "task": { ... }
-  }
-}
-```
-
-**Report for failed query**
-
-```json
-{
-  "talaria": {
-    "taskId": "talaria-sql-wikipedia-df963a1e-caa4-4a6f-9494-1f72395eda9f",
-    "payload": {
-      "status": {
-        "status": "FAILED",
-        "startTime": "2022-03-10T01:51:07.698Z",
-        "durationMs": 2391,
-        "errorReport": {
-          "taskId": "talaria1_wikipedia_gbjlnmph_2022-03-10T01:51:07.698Z",
-          "host": "localhost:8091",
-          "stageNumber": 0,
-          "error": {
-            "errorCode": "TooManyBuckets",
-            "maxBuckets": 5000,
-            "errorMessage": "Too many partition buckets (max = 5,000); try breaking your query up into smaller queries or using a wider segmentGranularity"
-          },
-          "exceptionStackTrace": "io.imply.druid.talaria.frame.cluster.statistics.TooManyBucketsException: Too many buckets; maximum is [5000]\n\tat io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl.getOrCreateBucketHolder(ClusterByStatisticsCollectorImpl.java:339)\n\tat io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl.add(ClusterByStatisticsCollectorImpl.java:111)\n\tat io.imply.druid.talaria.indexing.TalariaClusterByStatisticsCollectionProcessor.runIncrementally(TalariaClusterByStatisticsCollectionProcessor.java:110)\n\tat io.imply.druid.talaria.frame.processor.FrameProcessors$1FrameProcessorWithBaggage.runIncrementally(FrameProcessors.java:136)\n\tat io.imply.druid.talaria.frame.processor.FrameProcessorExecutor$1ExecutorRunnable.runProcessorNow(FrameProcessorExecutor.java:197)\n\tat io.imply.druid.talaria.frame.processor.FrameProcessorExecutor$1ExecutorRunnable.run(FrameProcessorExecutor.java:112)\n\tat io.imply.druid.talaria.exec.WorkerImpl$2$2.run(WorkerImpl.java:589)\n\tat java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\n\tat java.base/java.util.concurrent.FutureTask.run$$$capture(FutureTask.java:264)\n\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java)\n\tat org.apache.druid.query.PrioritizedListenableFutureTask.run(PrioritizedExecutorService.java:251)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n\tat java.base/java.lang.Thread.run(Thread.java:829)\n"
-        }
-      },
-      "stages": [ ... ]
-    },
-    "task": { ... }
-  }
-}
-```
+- For SELECT queries, the results are included in the report. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
+- Query details are physically stored in the task report for controller tasks.
+- If you encounter 500 Server Error or 404 Not Found errors, the task may be in the process of starting up or shutting down.
 
 **Response fields**
+
+<details><summary>Show the response fields for reports</summary>
 
 |Field|Description|
 |-----|-----------|
@@ -608,9 +377,11 @@ curl -u 'user:password' \
 |talaria.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
 |talaria.task|Controller task payload.|
 
+</details>
+
 **Error codes** <a href="#errors" name="errors">#</a>
 
-Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
+<details><summary>Show the possible values for <codeph>talariaStatus.payload.errorReport.error.errorCode</codeph></summary>
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
@@ -635,18 +406,7 @@ Possible values for `talariaStatus.payload.errorReport.error.errorCode` are:
 |  WorkerRpcFailed  |  A remote procedure call to a worker task failed unrecoverably.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
 |  UnknownError   |  All other errors.  |    |
 
-#### Request
-
-```
-DELETE /druid/v2/sql/async/{asyncResultId}
-```
-
-**curl**
-
-```
-curl -XDELETE -u 'user:password' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/async/ASYNC-RESULT-ID
-```
+</details>
 
 ## EXTERN
 
@@ -947,9 +707,7 @@ Queries are subject to the following limits.
 
 In the current release, the security model for the multi-stage query engine is:
 
-- All authenticated users are permitted to use the multi-stage query API if the [extension is
-  loaded](#setup). However, without additional permissions, users are not able to issue queries that
-  read or write Druid datasources or external data.
+- All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
 - Queries that SELECT from a Druid datasource require the READ DATASOURCE permission on that
   datasource.
 - Queries that INSERT into a Druid datasource require the WRITE DATASOURCE permission on that
@@ -958,13 +716,15 @@ In the current release, the security model for the multi-stage query engine is:
   `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
   the user has write permission to _some_ datasource and is therefore permitted to use external
   input sources. No data will be inserted into this stub datasource.
-- Multi-stage queries issued through the [Query API](#query-api) are associated with the user that
-issued the query. Other users are not able to use the query API to retrieve status, results, or
-details of queries they did not issue, and are not able to use the query API to cancel queries they
-did not issue, even if those other users have permissions on the associated datasource. However:
-multi-stage queries [run as indexing service tasks](#key-concepts), and the indexing service
-security model _does_ permit other users to retrieve information about, or cancel, tasks that they
-did not issue, as long as those other users have permissions on the associated datasource.
+
+
+Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they are not the user who submitted the query. The following list describes the permissions required based on what action you are trying to perform:
+
+- Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions.
+- Retrieve status: The user must have READ DATASOURCE permission.
+- View reports: The user must have READ DATASOURCE permission unless they have access to the the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
+
+
 
 ## Web console
 
@@ -1377,10 +1137,11 @@ LIMIT 1000
 - Canceling the controller task sometimes leads to the error code
   "UnknownError" instead of "Canceled". (14722)
 
-- The [Query details API](#get-query-details) may return
+<!--
+- The Query details API may return
   `500 Server Error` or `404 Not Found` when the controller task is in
   process of starting up or shutting down. (15001)
-
+-->
 - Only one local filesystem per server is used for stage output data during multi-stage query
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
   available disk space earlier than expected. (16181)
@@ -1411,16 +1172,17 @@ LIMIT 1000
 
 - SELECT query results do not include realtime data until it has been published. (18092)
 
+<!--
 - SELECT query results are funneled through the controller task
-  so they can be written to the [query report](#get-query-details).
+  so they can be written to the query report.
   This is a bottleneck for queries with large resultsets. In the future,
   we will provide a mechanism for writing query results to multiple
   files in parallel. (14728)
 
 - SELECT query results are materialized in memory on the Broker when
-  using the [query results](#get-query-results) API. Large result sets
+  using the query results API. Large result sets
   can cause the Broker to run out of memory. (15963)
-
+-->
 - TIMESTAMP types are formatted as numbers rather than ISO8601 timestamp
   strings, which differs from Druid's standard result format. (14995)
 
