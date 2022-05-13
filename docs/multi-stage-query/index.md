@@ -98,9 +98,9 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
    druid.sql.executor.type=imply
    ```
 
-### Enable an enhanced Query view
+### Enable the enhanced Query view
 
-To use the multi-stage query engine with the Druid console, enable an enhanced version of the Query view. To enable this view, perform the following steps:
+To use the multi-stage query engine with the Druid console, enable the enhanced version of the Query view. To enable this view, perform the following steps:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
 2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
@@ -109,7 +109,7 @@ To use the multi-stage query engine with the Druid console, enable an enhanced v
 
 3. Go to the **Query** tab. 
 4. Click the ellipsis (...) next to **Run**.
-5. For **Query engine**, select **talaria**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
+5. For **Query engine**, select **sql-task**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
 
 You're ready to start running queries using the multi-stage query engine.
 
@@ -775,7 +775,7 @@ features:
 
 - [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources.
 
-- [EXTERN](#extern) to query external data from S3, GCS, HDFS, and so on.
+- [EXTERN](#extern) to query external data from http, S3, GCS, HDFS, and so on.
 
 ## Context parameters
 
@@ -803,7 +803,7 @@ The multi-stage query engine accepts Druid SQL
 
 Queries run as tasks. The action you want to take determines the endpoint you use:
 
-- `druid/v2/sql/task` endpoint: Submit a query for ingestion.
+- `/druid/v2/sql/task` endpoint: Submit a query for ingestion.
 - `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or cancelling it. 
 
 ### Submit a query
@@ -821,15 +821,12 @@ true, `typesHeader` is true, and `sqlTypesHeader` is true.
 **HTTP**
 
 ```
-POST /druid/v2/sql/task/
+POST /druid/v2/sql/task
 ```
 
 ```json
 {
   "query" : "SELECT 1 + 1",
-  "context" : {
-    "talaria" : true
-  }
 }
 ```
 
@@ -837,9 +834,9 @@ POST /druid/v2/sql/task/
 
 ```
 curl -XPOST -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/task/ \
+  https://IMPLY-ENDPOINT/druid/v2/sql/task \
   -u 'user:password' \
-  --data-binary '{"query":"SELECT 1 + 1","context":{"talaria":true}}'
+  --data-binary '{"query":"SELECT 1 + 1"}'
 ```
 
 #### Response
@@ -857,8 +854,6 @@ curl -XPOST -H'Content-Type: application/json' \
 |-----|-----------|
 |taskId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
 |state|Initial state for the query, which is "RUNNING".|
-|resultFormat|Always "array", regardless of what was specified in your original query, because the multi-stage engine currently only supports the "array" result format.|
-|engine|String "Talaria-Indexer" if this query was run with the multi-stage engine.|
 
 ### Interact with a query
 
@@ -866,9 +861,9 @@ Because queries run as Overlord tasks, use the [task APIs](/operations/api-refer
 
 When using MSQE, the endpoints you frequently use may include:
 
-- `/druid/indexer/v1/task/{taskId}/status` to get the query status
-- `/druid/indexer/v1/task/{taskId}/status/reports` to get the query report
-- `/druid/indexer/v1/task/{taskId}/status/shutdown` to cancel a query
+- `GET /druid/indexer/v1/task/{taskId}/status` to get the query status
+- `GET /druid/indexer/v1/task/{taskId}/status/reports` to get the query report
+- `POST /druid/indexer/v1/task/{taskId}/status/shutdown` to cancel a query
 
 #### MSQE reports
 
@@ -907,7 +902,6 @@ Keep the following in mind when using the task API to view reports:
 |talaria.payload.stages[].inputFileCount|Number of external input files or Druid segments read by this stage. Does not include inputs from other stages in the same query.|
 |talaria.payload.stages[].startTime|Start time of this stage. Only present if the stage has started.|
 |talaria.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
-|talaria.task|Controller task payload.|
 
 </details>
 
