@@ -46,7 +46,7 @@ To use the multi-stage query engine, make sure you meet the following requiremen
 Turning the multi-stage query engine on is a two-part process:
 
 1. [Enable the engine in Imply Manager](#enable-the-multi-stage-query-engine-in-imply-manager).
-2. [Enable an enhanced version Query view in the Druid console](#enable-an-enhanced-query-view).
+2. [Enable an enhanced version Query view in the Druid console](#enable-the-enhanced-query-view).
 
 ### Enable the multi-stage query engine in Imply Manager
 
