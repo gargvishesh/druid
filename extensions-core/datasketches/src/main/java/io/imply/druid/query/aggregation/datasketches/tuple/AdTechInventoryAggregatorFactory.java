@@ -183,6 +183,19 @@ public class AdTechInventoryAggregatorFactory extends ArrayOfDoublesSketchAggreg
   }
 
   @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new AdTechInventoryAggregatorFactory(
+        newName,
+        getUserColumn(),
+        getAdTechInventoryColumn(),
+        getImpressionColumn(),
+        getFrequencyCap(),
+        getSampleSize()
+    );
+  }
+
+  @Override
   public List<String> requiredFields()
   {
     if (userColumn != null && impressionColumn != null) {

@@ -209,4 +209,19 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   {
     return maxEntries * (Long.BYTES + Double.BYTES) + ByteBufferTimeSeries.DATA_OFFSET;
   }
+
+  @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new MeanTimeSeriesAggregatorFactory(
+        newName,
+        getDataColumn(),
+        getTimeColumn(),
+        getTimeseriesColumn(),
+        getPostProcessing(),
+        getTimeBucketMillis(),
+        getwindow(),
+        getMaxEntries()
+    );
+  }
 }
