@@ -195,4 +195,19 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   {
     return maxEntries * (Long.BYTES + Double.BYTES) + ByteBufferTimeSeries.DATA_OFFSET;
   }
+
+  @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new SimpleTimeSeriesAggregatorFactory(
+        newName,
+        getDataColumn(),
+        getTimeColumn(),
+        getTimeseriesColumn(),
+        getPostProcessing(),
+        getTimeBucketMillis(),
+        getwindow(),
+        getMaxEntries()
+    );
+  }
 }
