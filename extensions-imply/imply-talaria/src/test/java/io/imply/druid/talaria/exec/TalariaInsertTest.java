@@ -27,6 +27,7 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import javax.annotation.Nonnull;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,9 +52,10 @@ public class TalariaInsertTest extends TalariaTestRunner
   }
 
   @Test
-  public void testInsertOnExternalDataSource()
+  public void testInsertOnExternalDataSource() throws IOException
   {
-    File toRead = new File("src/test/resources/wikipedia-sampled.json");
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
+    final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
@@ -65,7 +67,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
                              + "  EXTERN(\n"
-                             + "    '{ \"files\": [\"" + toRead.getAbsolutePath() + "\"],\"type\":\"local\"}',\n"
+                             + "    '{ \"files\": [" + toReadFileNameAsJson + "],\"type\":\"local\"}',\n"
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
@@ -188,9 +190,10 @@ public class TalariaInsertTest extends TalariaTestRunner
 
   @Test
   @Ignore()
-  public void testRollUpOnExternalDataSource()
+  public void testRollUpOnExternalDataSource() throws IOException
   {
-    File toRead = new File("src/test/resources/wikipedia-sampled.json");
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
+    final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
@@ -202,7 +205,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
                              + "  EXTERN(\n"
-                             + "    '{ \"files\": [\"" + toRead.getAbsolutePath() + "\"],\"type\":\"local\"}',\n"
+                             + "    '{ \"files\": [" + toReadFileNameAsJson + "],\"type\":\"local\"}',\n"
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
@@ -218,9 +221,10 @@ public class TalariaInsertTest extends TalariaTestRunner
 
   @Test()
   @Ignore()
-  public void testRollUpOnExternalDataSourceWithCompositeKey()
+  public void testRollUpOnExternalDataSourceWithCompositeKey() throws IOException
   {
-    File toRead = new File("src/test/resources/wikipedia-sampled.json");
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
+    final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
@@ -233,7 +237,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                              + " namespace , count(*) as cnt\n"
                              + "FROM TABLE(\n"
                              + "  EXTERN(\n"
-                             + "    '{ \"files\": [\"" + toRead.getAbsolutePath() + "\"],\"type\":\"local\"}',\n"
+                             + "    '{ \"files\": [" + toReadFileNameAsJson + "],\"type\":\"local\"}',\n"
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"namespace\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
