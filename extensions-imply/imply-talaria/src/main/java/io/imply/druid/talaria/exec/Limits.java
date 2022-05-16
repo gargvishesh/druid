@@ -32,5 +32,10 @@ public class Limits
   /**
    * Maximum number of parse exceptions with their stack traces a worker can send to the leader
    */
-  public static final long MAX_VERBOSE_PARSE_EXCEPTIONS = 100;
+  public static final long MAX_VERBOSE_PARSE_EXCEPTIONS = 5;
+
+  /**
+   * Maximum number of warnings with their stack traces a worker can send to the leader
+   */
+  public static final long MAX_VERBOSE_WARNINGS = 50;
 }

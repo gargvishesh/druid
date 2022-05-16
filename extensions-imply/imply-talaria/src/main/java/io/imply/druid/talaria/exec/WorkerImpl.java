@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -53,7 +54,9 @@ import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
 import io.imply.druid.talaria.kernel.QueryDefinition;
@@ -216,15 +219,19 @@ public class WorkerImpl implements Worker
     // Close stage output processors and running futures (if present)
     closer.register(() -> workerExec.cancel(cancellationId));
 
-    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportSimplePublisher(
-        task.getControllerTaskId(),
-        id(),
-        leaderClient,
-        id(),
-        TalariaTasks.getHostFromSelfNode(selfDruidNode)
+    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportLimiterPublisher(
+        new TalariaWarningReportSimplePublisher(
+            task.getControllerTaskId(),
+            id(),
+            leaderClient,
+            id(),
+            TalariaTasks.getHostFromSelfNode(selfDruidNode)
+        ),
+        Limits.MAX_VERBOSE_WARNINGS,
+        ImmutableMap.of(CannotParseExternalDataFault.CODE, Limits.MAX_VERBOSE_PARSE_EXCEPTIONS)
     );
 
-    closer.register(talariaWarningReportPublisher::close);
+    closer.register(talariaWarningReportPublisher);
 
     // TODO(gianm): consider using a different thread pool for connecting
     final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(workerExec.getExecutorService());

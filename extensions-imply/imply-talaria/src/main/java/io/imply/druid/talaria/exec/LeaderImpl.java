@@ -217,7 +217,6 @@ public class LeaderImpl implements Leader
   private volatile TalariaWorkerTaskLauncher workerTaskLauncher;
   private volatile WorkerClient netClient;
 
-  private long maxParseExceptions = -1;
   private volatile WarningHelper.FaultsExceededChecker faultsExceededChecker = null;
 
   public LeaderImpl(
@@ -434,8 +433,10 @@ public class LeaderImpl implements Leader
         task.getTuningConfig().getMaxNumConcurrentSubTasks()
     );
 
+    long maxParseExceptions = -1;
+
     if (task.getSqlQueryContext() != null) {
-      this.maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
+      maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
                                                         .get(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
                                         .map(DimensionHandlerUtils::convertObjectToLong)
                                         .orElse(WarningHelper.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
@@ -700,21 +701,22 @@ public class LeaderImpl implements Leader
   @Override
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
-    boolean faultsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded(errorReports.stream()
-                                                                                           .map(TalariaErrorReport::getFault)
-                                                                                           .map(TalariaFault::getErrorCode)
-                                                                                           .collect(Collectors.toList()));
-    if (faultsExceeded) {
+    Optional<Pair<String, Long>> faultsExceeded =
+        faultsExceededChecker.addFaultsAndCheckIfExceeded(errorReports.stream()
+                                                                      .map(TalariaErrorReport::getFault)
+                                                                      .map(TalariaFault::getErrorCode)
+                                                                      .collect(Collectors.toList()));
+    if (faultsExceeded.isPresent()) {
+      String errorCode = faultsExceeded.get().lhs;
+      Long limit = faultsExceeded.get().rhs;
       workerError(
           TalariaErrorReport.fromFault(
               id(),
               selfDruidNode.getHost(),
               null,
-              new TooManyWarningsFault(
-                  (int) maxParseExceptions,
-                  CannotParseExternalDataFault.CODE
-              )
+              new TooManyWarningsFault(limit.intValue(), errorCode)
           ));
+      workerWarnings.addAll(errorReports);
       kernelManipulationQueue.add(
           queryKernel -> {
             workerTaskLauncher.shutdownRemainingTasks();
@@ -722,7 +724,6 @@ public class LeaderImpl implements Leader
           }
       );
     }
-    workerWarnings.addAll(errorReports);
   }
 
   @Override

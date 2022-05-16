@@ -33,7 +33,7 @@ public enum TalariaMode
 
   private static final Logger log = new Logger(TalariaMode.class);
 
-  public static final String CTX_TALARIA_MODE = "mode";
+  public static final String CTX_TALARIA_MODE = "talariaMode";
 
   TalariaMode(final String value, final Map<String, Object> defaultQueryContext)
   {

@@ -10,10 +10,12 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.google.common.base.Preconditions;
+import org.apache.druid.java.util.common.Pair;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class WarningHelper
 {
@@ -33,9 +35,9 @@ public class WarningHelper
       this.maxFaultsAllowedCount = maxFaultsAllowedCount;
     }
 
-    public boolean addFaultsAndCheckIfExceeded(final List<String> talariaFaults)
+    public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final List<String> talariaFaults)
     {
-      boolean ret = false;
+      Optional<Pair<String, Long>> ret = Optional.empty();
       for (final String talariaFault : talariaFaults) {
         Long limit = maxFaultsAllowedCount.getOrDefault(talariaFault, -1L);
         currentFaultsEncounteredCount.compute(
@@ -44,7 +46,7 @@ public class WarningHelper
         );
         if (limit != -1) {
           if (currentFaultsEncounteredCount.get(talariaFault) > limit) {
-            ret = true;
+            ret = Optional.of(Pair.of(talariaFault, limit));
           }
         }
       }

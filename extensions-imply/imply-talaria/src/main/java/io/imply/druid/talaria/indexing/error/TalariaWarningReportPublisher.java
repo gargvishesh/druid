@@ -10,8 +10,12 @@
 package io.imply.druid.talaria.indexing.error;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 public interface TalariaWarningReportPublisher extends Closeable
 {
   void publishException(int stageNumber, Throwable e);
+
+  @Override
+  void close() throws IOException;
 }

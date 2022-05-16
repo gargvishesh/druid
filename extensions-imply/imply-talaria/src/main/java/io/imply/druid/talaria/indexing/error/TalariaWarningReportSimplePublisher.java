@@ -15,6 +15,9 @@ import io.imply.druid.talaria.exec.LeaderClient;
 import javax.annotation.Nullable;
 import java.io.IOException;
 
+/**
+ * TODO: Check if this is thread safe
+ */
 public class TalariaWarningReportSimplePublisher implements TalariaWarningReportPublisher
 {
 
