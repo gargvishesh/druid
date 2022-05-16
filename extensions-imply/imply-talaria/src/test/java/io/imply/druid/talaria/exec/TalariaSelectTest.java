@@ -33,10 +33,10 @@ import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import java.io.File;
+import java.io.IOException;
 
 public class TalariaSelectTest extends TalariaTestRunner
 {
-
   @Test
   public void testSelectOnFoo()
   {
@@ -136,9 +136,10 @@ public class TalariaSelectTest extends TalariaTestRunner
   }
 
   @Test
-  public void testExternSelect1()
+  public void testExternSelect1() throws IOException
   {
-    File toRead = new File("src/test/resources/wikipedia-sampled.json");
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
+    final String toReadAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
@@ -150,7 +151,7 @@ public class TalariaSelectTest extends TalariaTestRunner
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
                              + "  EXTERN(\n"
-                             + "    '{ \"files\": [\"" + toRead.getAbsolutePath() + "\"],\"type\":\"local\"}',\n"
+                             + "    '{ \"files\": [" + toReadAsJson + "],\"type\":\"local\"}',\n"
                              + "    '{\"type\": \"json\"}',\n"
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"

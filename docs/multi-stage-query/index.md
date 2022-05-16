@@ -3,8 +3,6 @@ id: index
 title: Multi-stage query engine
 ---
 
-## Overview
-
 > The multi-stage query engine is an alpha feature available in Imply 2022.01 and later. All
 > functionality documented on this page is subject to change or removal at any time. Alpha features
 > are provided "as is" and are not subject to Imply SLAs.
@@ -34,18 +32,23 @@ The engine is code-named "Talaria". During the alpha, you'll see this term in ce
 in the name of the extension. The name comes from Mercury’s winged sandals, representing the
 exchange of data between servers.
 
+
 ## Prerequisites
 
 To use the multi-stage query engine, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
 - A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
+- Administrator access to Imply Manager so that you can enable the required extension. For security information related to data sources, see [Security](#security)
 
 ## Setup
 
-Turning the multi-stage query engine on is a two-part process that involves [enabling the feature in Imply Manager](#enable-multi-stage-query-engine) and then [enabling the enhanced Query view in the Druid console](#enable-the-enhanced-query-view).
+Turning the multi-stage query engine on is a two-part process:
 
-### Enable multi-stage query engine
+1. [Enable the engine in Imply Manager](#enable-the-multi-stage-query-engine-in-imply-manager).
+2. [Enable an enhanced version Query view in the Druid console](#enable-the-enhanced-query-view).
+
+### Enable the multi-stage query engine in Imply Manager
 
 In Imply Manager, perform the following steps to enable the multi-stage query engine:
 
@@ -97,16 +100,16 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 ### Enable the enhanced Query view
 
-To use the multi-stage query engine with the Druid console, you need to enable an enhanced version of the Query view. To enable this view, perform the following steps:
+To use the multi-stage query engine with the Druid console, enable the enhanced version of the Query view. To enable this view, perform the following steps:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
 2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
 
-   If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine](#enable-multi-stage-query-engine).
+   If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine](#enable-the-multi-stage-query-engine-in-imply-manager).
 
 3. Go to the **Query** tab. 
 4. Click the ellipsis (...) next to **Run**.
-5. For **Query engine**, select **talaria**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
+5. For **Query engine**, select **sql-task**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
 
 You're ready to start running queries using the multi-stage query engine.
 
@@ -186,610 +189,13 @@ ORDER BY COUNT(*) DESC
 
 For more examples, see the [Example queries](#example-queries) section.
 
-## Key concepts
-
-The multi-stage query engine extends Druid's query stack to handle
-asynchronous queries that can exchange data between stages.
-
-At this time, queries execute using indexing service tasks, even for
-regular SELECT (non-INSERT) queries. At least two task slots per query
-are occupied while a query is running. This behavior is subject to
-change in future releases.
-
-Key concepts for multi-stage query execution:
-
-- **Controller**: an indexing service task of type `talaria0` that manages
-  the execution of a query. There is one controller task per query.
-
-- **Worker**: indexing service tasks of type `talaria1` that execute a
-  query. There may be more than one worker task per query. Internally,
-  the tasks process items in parallel using their processing pools.
-  (i.e., up to `druid.processing.numThreads` of execution parallelism
-  within a worker task).
-
-- **Stage**: a stage of query execution that is parallelized across
-  worker tasks. Workers exchange data with each other between stages.
-
-- **Partition**: a slice of data output by worker tasks. In INSERT
-  queries, the partitions of the final stage become Druid segments.
-
-- **Shuffle**: workers exchange data between themselves on a per-partition basis in a process called
-  "shuffling". During a shuffle, each output partition is sorted by a clustering key.
-
-When you use the multi-stage query engine, the following happens:
-
-1.  The **Broker** plans your SQL query into a native query, as usual.
-
-2.  The Broker wraps the native query into a task of type `talaria0`
-    and submits it to the indexing service. The Broker returns the task
-    ID to you and exits.
-
-3.  The **controller task** launches a wave of **worker tasks** based on
-    the `talariaNumTasks` query context parameter.
-
-4.  The worker tasks execute the query.
-
-5.  If the query is a SELECT query, the worker tasks send the results
-    back to the controller task, which writes them into its task report.
-    If the query is an INSERT query, the worker tasks generate and
-    publish new Druid segments to the provided datasource.
-<!--
-1.  The task APIs such as results and details work by fetching task status and task reports under the hood.
--->
-
-## API
-
-> Multi-stage query APIs are in a work-in-progress state for the alpha and are subject to change.
-
-> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version <VERSION> and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
-
-Queries run as tasks. The action you want to take determines the endpoint you use:
-
-- `druid/v2/sql/task` endpoint: Submit a query for ingestion.
-- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or cancelling it. 
-
-
-### Submit a query
-
-> Multi-stage query APIs are in a work-in-progress state for the alpha and are subject to change. For stability reasons, we recommend using the [web console](#web-console) if you do not
-> need a programmatic interface. This is especially true for SELECT queries. Viewing results for SELECT queries requires manual steps. described in [MSQE reports](#msqe-reports)
-
-#### Request
-
-Submit queries using the `POST /druid/v2/sql/task/` API.
-
-Currently, the multi-stage query engine ignores the provided values of `resultFormat`, `header`,
-`typesHeader`, and `sqlTypesHeader`. It always behaves as if `resultFormat` is "array", `header` is
-true, `typesHeader` is true, and `sqlTypesHeader` is true.
-
-**HTTP**
-
-```
-POST /druid/v2/sql/task/
-```
-
-```json
-{
-  "query" : "SELECT 1 + 1",
-  }
-```
-
-**curl**
-
-```
-curl -XPOST -H'Content-Type: application/json' \
-  https://IMPLY-ENDPOINT/druid/v2/sql/task/ \
-  -u 'user:password' \
-  --data-binary '{"query":"SELECT 1 + 1"}'
-```
-
-**Query syntax**
-
-The `query` can be any [Druid SQL](https://docs.imply.io/latest/druid/querying/sql.html) query,
-subject to the limitations mentioned in the [Known issues](#known-issues) section. In addition to
-standard Druid SQL syntax, queries that run with the multi-stage query engine can use two additional
-features:
-
-- [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources.
-
-- [EXTERN](#extern) to query external data from S3, GCS, HDFS, and so on.
-
-**Context parameters** <a href="#context" name="context">#</a>
-
-The multi-stage query engine accepts additional Druid SQL
-[context parameters](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
-
-> Context comments like `--:context talariaFinalizeAggregations: false`
-> are available only in the web console. When using the API, context comments
-> will be ignored, and context parameters must be provided in the `context`
-> section of the JSON object.
-
-|Parameter|Description|Default value|
-|----|-----------|----|
-| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
-| talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
-| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
-| talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
-| talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
-
-#### Response
-
-```json
-{
-  "taskId": "talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb",
-  "state": "RUNNING"
-}
-```
-
-**Response fields**
-
-|Field|Description|
-|-----|-----------|
-|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
-|state|Initial state for the query, which is "RUNNING".|
-
-### Interact with a query
-
-Because queries run as Overlord tasks, use the [task APIs](/operations/api-reference#overlord) to interact with a query.
-
-When using MSQE, the endpoints you frequently use may include:
-
-- `/druid/indexer/v1/task/{taskId}/status` to get the query status
-- `/druid/indexer/v1/task/{taskId}/status/reports` to get the query report
-- `/druid/indexer/v1/task/{taskId}/status/shutdown` to cancel a query
-
-#### MSQE reports
-
-Keep the following in mind when using the task API to view reports:
-
-- For SELECT queries, the results are included in the report. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
-- Query details are physically stored in the task report for controller tasks.
-- If you encounter 500 Server Error or 404 Not Found errors, the task may be in the process of starting up or shutting down.
-
-**Response fields**
-
-<details><summary>Show the response fields for reports</summary>
-
-|Field|Description|
-|-----|-----------|
-|talaria.taskId|Controller task ID.|
-|talaria.payload.status|Query status container.|
-|talaria.payload.status.status|RUNNING, SUCCESS, or FAILED.|
-|talaria.payload.status.startTime|Start time of the query in ISO format. Only present if the query has started running.|
-|talaria.payload.status.durationMs|Milliseconds elapsed after the query has started running. -1 denotes that the query hasn't started running yet.|
-|talaria.payload.status.errorReport|Error object. Only present if there was an error.|
-|talaria.payload.status.errorReport.taskId|The task that reported the error, if known. May be a controller task or a worker task.|
-|talaria.payload.status.errorReport.host|The hostname and port of the task that reported the error, if known.|
-|talaria.payload.status.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
-|talaria.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#errors). Always present if there is an error.|
-|talaria.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#errors). Always present if there is an error.|
-|talaria.payload.status.errorReport.error.errorMessage|User-friendly error message. Not always present, even if there is an error.|
-|talaria.payload.status.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
-|talaria.payload.stages|Array of query stages.|
-|talaria.payload.stages[].stageNumber|Each stage has a number that differentiates it from other stages.|
-|talaria.payload.stages[].inputStages|Array of input stage numbers.|
-|talaria.payload.stages[].stageType|String that describes the logic of this stage. This is not necessarily unique across stages.|
-|talaria.payload.stages[].phase|Either NEW, READING_INPUT, POST_READING, RESULTS_COMPLETE, or FAILED. Only present if the stage has started.|
-|talaria.payload.stages[].workerCount|Number of parallel tasks that this stage is running on. Only present if the stage has started.|
-|talaria.payload.stages[].partitionCount|Number of output partitions generated by this stage. Only present if the stage has started and has computed its number of output partitions.|
-|talaria.payload.stages[].inputFileCount|Number of external input files or Druid segments read by this stage. Does not include inputs from other stages in the same query.|
-|talaria.payload.stages[].startTime|Start time of this stage. Only present if the stage has started.|
-|talaria.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
-|talaria.task|Controller task payload.|
-
-</details>
-
-**Error codes** <a href="#errors" name="errors">#</a>
-
-<details><summary>Show the possible values for <codeph>talariaStatus.payload.errorReport.error.errorCode</codeph></summary>
-
-|Code|Meaning|Additional fields|
-|----|-----------|----|
-|  BroadcastTablesTooLarge  | Size of the broadcast tables used in right hand side of the joins exceeded the memory reserved for them in a worker task  | &bull;&nbsp;maxBroadcastTablesSize: Memory reserved for the broadcast tables, measured in bytes |
-|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
-|  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
-|  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
-|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
-|  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
-|  InsertCannotOrderByDescending  |  An INSERT query contained an `CLUSTERED BY` expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
-|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
-|  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
-| QueryNotSupported   |   QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that the multi-stage engine does not yet support, like GROUPING SETS. |    |
-|  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
-|  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
-| TooManyInputFiles | Too many input files/segments per worker.<br /> <br />See the [Limits](#limits) table for the specific limit. |&bull;&nbsp;numInputFiles: the total number of input files/segments for the stage<br /><br />&bull;&nbsp;maxInputFiles: the maximum number of input files/segments per worker per stage<br /><br />&bull;&nbsp;minNumWorker: the minimum number of workers required for a sucessfull run |
-|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
-|  TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
-|  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
-|  NotEnoughMemory  |  Not enough memory to launch a stage.  |  &bull;&nbsp;serverMemory: the amount of memory available to a single process<br /><br />&bull;&nbsp;serverWorkers: the number of workers running in a single process<br /><br />&bull;&nbsp;serverThreads: the number of threads in a single process  |
-|  WorkerFailed  |  A worker task failed unexpectedly.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
-|  WorkerRpcFailed  |  A remote procedure call to a worker task failed unrecoverably.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
-|  UnknownError   |  All other errors.  |    |
-
-</details>
-
-## EXTERN
-
-> EXTERN syntax is in a work-in-progress state for the alpha. It is expected to
-> change in future releases.
-
-Queries run with the multi-stage engine can access external data through the `EXTERN` table
-function. It can appear in the form `TABLE(EXTERN(...))` anywhere a table is expected.
-
-For example:
-
-```sql
-SELECT
-  *
-FROM TABLE(
-  EXTERN(
-    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-    '{"type": "json"}',
-    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
-  )
-)
-LIMIT 100
-```
-
-The `EXTERN` function takes three parameters:
-
-1.  Any [Druid input
-source](https://docs.imply.io/latest/druid/ingestion/native-batch.html#input-sources),
-    as a JSON-encoded string.
-
-2.  Any [Druid input
-    format](https://docs.imply.io/latest/druid/ingestion/data-formats.html#input-format),
-    as a JSON-encoded string.
-
-3.  A row signature, as a JSON-encoded array of column descriptors. Each
-    column descriptor must have a `name` and a `type`. The type can be
-    `string`, `long`, `double`, or `float`. This row signature will be
-    used to map the external data into the SQL layer.
-
-External data can be used with either SELECT or INSERT queries. The
-following query illustrates joining external data with other external
-data.
-
-## INSERT
-
-### INSERT INTO ... SELECT
-
-> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
-> change in future releases.
-
-With the multi-stage query engine, Druid can use the results of a query to create a new datasource
-or to append or replace data in an existing datasource. In Druid, these operations are all performed
-using `INSERT INTO ... SELECT` syntax.
-
-For example:
-
-```sql
-INSERT INTO w000
-SELECT
-  TIME_PARSE("timestamp") AS __time,
-  *
-FROM TABLE(
-  EXTERN(
-    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-    '{"type": "json"}',
-    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
-  )
-)
-PARTITIONED BY DAY
-```
-
-To run an INSERT query:
-
-1. Activate the multi-stage engine by setting `talaria: true` as a [context parameter](#context).
-2. Add `INSERT INTO <dataSource>` at the start of your query.
-3. Add a [`PARTITIONED BY`](#partitioned-by) clause to your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning, or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
-4. Optionally, add a [`CLUSTERED BY`](#clustered-by) clause.
-5. Optionally, to replace data in an existing datasource, set the [`talariaReplaceTimeChunks`](#context) context parameter.
-
-There is no syntactic difference between creating a new datasource and
-inserting into an existing datasource. The `INSERT INTO <dataSource>` command
-works even if the datasource does not yet exist.
-
-All SELECT functionality is available for INSERT queries. However, keep in mind that the multi-stage
-query engine does not yet implement all native Druid query features. See
-[Known issues](#known-issues) for a list of functionality that is not yet implemented.
-
-For examples, refer to the [Example queries](#example-queries) section.
-
-### Primary timestamp
-
-Druid tables always include a primary timestamp named `__time`.
-
-Typically, Druid tables also use time-based partitioning, such as
-`PARTITIONED BY DAY`. In this case your INSERT query must include a column
-named `__time`. This will become the primary timestamp and will be used for
-partitioning.
-
-When you use `PARTITIONED BY ALL` or `PARTITIONED BY ALL TIME`, time-based
-partitioning is disabled. In this case your INSERT query does not need
-to include a `__time` column. However, a `__time` column will still be created
-in your Druid table with all timestamps set to 1970-01-01 00:00:00.
-
-### PARTITIONED BY
-
-Time-based partitioning is determined by the PARTITIONED BY clause. This clause is required for
-INSERT queries. Possible arguments include:
-
-- Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
-- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like
-  'PT1H'. The first argument must be `__time`.
-- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR
-  function](https://druid.apache.org/docs/latest/querying/sql.html#time-functions). The first
-  argument must be `__time`.
-- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single
-  time chunk.
-
-PARTITIONED BY has several benefits:
-
-1. Better query performance due to time-based segment pruning, which removes segments from
-   consideration when they do not contain any data for a query's time filter.
-2. More efficient data management, as data can be rewritten for each time partition individually
-   rather than the whole table.
-
-If PARTITIONED BY is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or
-OFFSET at the outer level of your INSERT INTO … SELECT query.
-
-### CLUSTERED BY
-
-Secondary partitioning within a time chunk is determined by the CLUSTERED BY
-clause. CLUSTERED BY can partition by any number of columns or expressions.
-
-CLUSTERED BY has several benefits:
-
-1. Lower storage footprint due to combining similar data into the same segments, which improves
-   compressibility.
-2. Better query performance due to dimension-based segment pruning, which removes segments from
-   consideration when they cannot possibly contain data matching a query's filter.
-
-For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be singly-valued
-string columns and the [`talariaReplaceTimeChunks`](#context) parameter must be provided as part of
-the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
-columns, or if `talariaReplaceTimeChunks` is not provided, then Druid will still cluster data during
-ingestion but it will not be able to perform dimension-based segment pruning at query time.
-
-You can tell if dimension-based segment pruning is possible by using the `sys.segments` table to
-inspect the `shard_spec` for the segments that are generated by an INSERT query. If they are of type
-`range` or `single`, then dimension-based segment pruning is possible. Otherwise, it is not. The
-shard spec type is also available in the web console's "Segments" view under the "Partitioning"
-column.
-
-In addition, only certain filters support dimension-based segment pruning. This includes:
-
-- Equality to string literals, like `x = 'foo'` or `x IN ('foo', 'bar')`.
-- Comparison to string literals, like `x < 'foo'` or other comparisons involving `<`, `>`, `<=`, or `>=`.
-
-This differs from multi-dimension range based partitioning in classic batch ingestion, where both
-string and numeric columns support Broker-level pruning. With multi-stage-query-based ingestion,
-only string columns support Broker-level pruning.
-
-It is OK to mix time partitioning with secondary partitioning. For example, you can
-combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
-time partitioning by hour and secondary partitioning by channel within each hour.
-
-### Rollup
-
-Rollup is determined by the query's GROUP BY clause. The expressions in the GROUP BY clause become
-dimensions, and aggregation functions become metrics.
-
-#### Ingest-time aggregations
-
-When performing rollup using aggregations, it is important to use aggregators
-that return _nonfinalized_ state. This allows you to perform further rollups
-at query time. To achieve this, set `talariaFinalizeAggregations: false` in your
-INSERT query context and refer to the following table for any additional
-modifications needed.
-
-Check out the [INSERT with rollup example query](#example-insert-rollup) to see this feature in
-action.
-
-|Query-time aggregation|Notes|
-|----------------------|-----|
-|SUM|Use unchanged at ingest time.|
-|MIN|Use unchanged at ingest time.|
-|MAX|Use unchanged at ingest time.|
-|AVG|Use `SUM` and `COUNT` at ingest time. Switch to quotient of `SUM` at query time.|
-|COUNT|Use unchanged at ingest time, but switch to `SUM` at query time.|
-|COUNT(DISTINCT expr)|If approximate, use `APPROX_COUNT_DISTINCT` at ingest time.<br /><br />If exact, you cannot use an ingest-time aggregation. Instead, `expr` must be stored as-is. Add it to the `SELECT` and `GROUP BY` lists.|
-|EARLIEST(expr)<br /><br />(numeric form)|Not supported.|
-|EARLIEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
-|LATEST(expr)<br /><br />(numeric form)|Not supported.|
-|LATEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
-|APPROX_COUNT_DISTINCT|Use unchanged at ingest time.|
-|APPROX_COUNT_DISTINCT_BUILTIN|Use unchanged at ingest time.|
-|APPROX_COUNT_DISTINCT_DS_HLL|Use unchanged at ingest time.|
-|APPROX_COUNT_DISTINCT_DS_THETA|Use unchanged at ingest time.|
-|APPROX_QUANTILE|Not supported. Deprecated; we recommend using `APPROX_QUANTILE_DS` instead.|
-|APPROX_QUANTILE_DS|Use `DS_QUANTILES_SKETCH` at ingest time. Continue using `APPROX_QUANTILE_DS` at query time.|
-|APPROX_QUANTILE_FIXED_BUCKETS|Not supported.|
-
-#### Multi-value dimensions
-
-By default, multi-value dimensions are not ingested as expected when rollup is enabled, because the
-GROUP BY operator unnests them instead of leaving them as arrays. This is [standard
-behavior](https://druid.apache.org/docs/latest/querying/sql.html#multi-value-strings) for GROUP BY
-in Druid queries, but is generally not desirable behavior for ingestion.
-
-To address this:
-
-- When using GROUP BY with data from EXTERN, wrap any `string`-typed fields from EXTERN that may be
-  multi-valued in `MV_TO_ARRAY`.
-- Set `groupByEnableMultiValueUnnesting: false` in your query context to ensure that all multi-value
-  strings are properly converted to arrays using `MV_TO_ARRAY`. If any are encountered that are not
-  wrapped in `MV_TO_ARRAY`, the query will report an error that includes the message "Encountered
-  multi-value dimension x that cannot be processed with executingNestedQuery set to false." (Note:
-  this message is incorrect; it should mention "groupByEnableMultiValueUnnesting", not
-  "executingNestedQuery". This will be fixed in a future release.)
-
-Check out the [INSERT with rollup example query](#example-insert-rollup) to see these features in
-action.
-
-## Performance
-
-The main driver of performance is parallelism. The most relevant considerations are:
-
-- The [`talariaNumTasks`](#context) query parameter determines the maximum number of worker tasks
-  your query will use. Generally, queries will perform better with more workers. The highest
-  possible value of `talariaNumTasks` is one less than the number of free task slots in your
-  cluster.
-- The EXTERN operator cannot split large files across different worker tasks. If you have fewer
-  input files than worker tasks, you can increase query parallelism by splitting up your input
-  files such that you have at least one input file per worker task.
-- The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
-  of worker tasks that can run on each server at once. Worker tasks run single-threaded, so this
-  also determines the maximum number of processors on the server that can contribute towards
-  multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
-  Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
-  processors on the server. Advanced users may consider enhancing parallelism by increasing this
-  value to one less than the number of processors on the server. In most cases, this increase must
-  be accompanied by an adjustment of the memory allotment of the Historical process,
-  Middle-Manager-launched tasks, or both, to avoid memory overcommitment and server instability. If
-  you are not comfortable tuning these memory usage parameters to avoid overcommitment, it is best
-  to stick with the default `druid.worker.capacity`.
-
-A secondary driver of performance is available memory. In two important cases — producer-side sort
-as part of shuffle, and segment generation — more memory can reduce the number of passes required
-through the data and therefore improve performance. For details, see the [Memory
-usage](#memory-usage) section.
-
-## Memory usage
-
-Worker tasks launched by the multi-stage query engine use both JVM heap memory as well as off-heap
-("direct") memory.
-
-On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up into two
-equally-sized bundles: one processor bundle and one worker bundle. Each one comprises 37.5% of the
-available JVM heap.
-
-The processor memory bundle is used for query processing and segment generation. Each processor
-bundle also has space reserved for buffering frames from input channels: 1 MB per worker from its
-input stages.
-
-The worker memory bundle is used for sorting stage output data prior to shuffle. Workers can sort
-more data than fits in memory; in this case, they will switch to using disk.
-
-Increasing maximum heap size can speed up processing in two ways:
-
-- Segment generation will become more efficient, as fewer spills to disk will be required.
-- Sorting stage output data may become more efficient, since available memory affects the
-  number of sorting passes that are required.
-
-Worker tasks also use off-heap ("direct") memory. The amount of direct
-memory available (`-XX:MaxDirectMemorySize`) should be set to at least
-`(druid.processing.numThreads + 1) * druid.processing.buffer.sizeBytes`. Increasing the
-amount of direct memory available beyond the minimum does not speed up processing.
-
-It may be necessary to override one or more memory-related parameter if you run into one of the
-current [known issues around memory usage](#known-issues-memory).
-
-## Limits
-
-Queries are subject to the following limits.
-
-|Limit|Value|Error if exceeded|
-|----|-----------|----|
-| Size of an individual row written into a frame<br/><br/>Note: row size as written to a frame may differ from the original row size | 1 MB | RowTooLarge |
-| Number of segment-granular time chunks encountered during ingestion | 5,000 | TooManyBuckets |
-| Number of input files/segments per worker | 10,000| TooManyInputFiles |
-| Number of output partitions for any one stage<br /> <br /> Number of segments generated during ingestion |25,000  |TooManyPartitions |
-| Number of output columns for any one stage|  2,000| TooManyColumns|
-| Number of workers for any one stage | 1,000 (hard limit)<br /><br />Memory-dependent (soft limit; may be lower) | TooManyWorkers |
-| Maximum memory occupied by broadcasted tables | 30% of each [processor memory bundle](#memory-usage) |BroadcastTablesTooLarge |
-
-## Security
-
-> The security model for the multi-stage query engine is subject to change in future releases.
-> Future releases may require different permissions than the current release.
-
-In the current release, the security model for the multi-stage query engine is:
-
-- All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
-- Queries that SELECT from a Druid datasource require the READ DATASOURCE permission on that
-  datasource.
-- Queries that INSERT into a Druid datasource require the WRITE DATASOURCE permission on that
-  datasource.
-- Queries that use the EXTERN operator require the WRITE DATASOURCE permission on the
-  `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
-  the user has write permission to _some_ datasource and is therefore permitted to use external
-  input sources. No data will be inserted into this stub datasource.
-
-
-Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they are not the user who submitted the query. The following list describes the permissions required based on what action you are trying to perform:
-
-- Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions.
-- Retrieve status: The user must have READ DATASOURCE permission.
-- View reports: The user must have READ DATASOURCE permission unless they have access to the the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
-
-
-
-## Web console
-
-There is a view added to the console specifically to support multi-stage query workflows. Please see
-the annotated screenshot below.
-
-![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
-
-1. The multi-stage, tab-enabled, Query view is where all the new functionality is contained.
-All other views are unchanged from their OSS versions. You can still access the original Query view by navigating to `#query` in the URL.
-The tabs (3) serve as an indication that you are in the milti-stage query capable query view.
-You can activate and deactivate this Query view by holding down `alt` (or `option`) and clicking the Druid logo in the top left corner of the console.
-
-2. The resources view shows the available schemas, datasources, and columns just like in the original Query view.
-
-3. Query tabs allow you to save, run, and manage several queries at once.
-New tabs can be added via the `+` button.
-Existing tabs can be manipulated via the `...` button on each tab.
-
-4. The tab bar contains some helpful tools including a "Connect external data" button that creates an `EXTERN` helper query by sampling the data.
-
-5. The tab bar wrench button contains miscellaneous tools that are yet to find a perfect home.
-You can show/hide the Work history panel (6) and materialize and reabsorb the 
-helper SQL queries (8).
-
-6. The "Work history" panel lets you see previous queries executed by all users in the cluster.
-It is equivalent to the task view in the Ingestion tab with the filter of `
-type=’talaria0’`.
-Work history panel can be shown/hidden from the toolbar wrench button (5).
-
-7. You can click on each query entry to attach to that query to track its progress.
-Additionally you can also show results, query stats, and the query that was issued.
-
-8. The query helpers let you define notebook-style queries that can be reference from the main query as if they were defined as `WITH` clauses. You can refer to this extern 
-by name anywhere in the SQL query where you could use a table.
-They are essentially UI driven views that only exist within the given query tab.
-
-9. Context comments can be inserted anywhere in the query to set context parameters via the query text.
-This is not part of Druid’s API (although something similar might be 
-one day). These comments are parsed out of the query text and added to the context object in the API payload.
-
-10. The `Run` button’s more menu (`...`) lets you export the data as well as define the context for the query including the parallelism for the query.
-
-11. The `Preview` button runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries.
-The added LIMITs make the query run faster but could cause incomplete results.
-The preview feature is only intended to show you the general shape of the data before inserting it.
-
-12. The query timer indicates how long the query has been running for overall.
-
-13. The `(cancel)` link cancels the currently running query.
-
-14. The main progress bar shows the overall progress of the query.
-The progress is computed from the various counters in the live reports (16).
-
-15. The `Current stage` progress bar shows the progress for the currently running query stage.
-If several stages are executing concurrently it conservatively shows the information for the earliest executing stage.
-
-16. The live query reports show detailed information of all the stages (past, present, and future). The live reports are shown while the query is running (can be hidden). 
-After the query finished they are available by clicking on the query time indicator or from the Work history panel (6)
-
-17. Each stage of the live query reports can be expanded by clicking on the triangle to show per worker and per partition statistics.
-
 ## Example queries
 
+You can copy the example queries into the **Query** UI.
+
 ### INSERT with no rollup <a href="#example-insert" name="example-insert">#</a>
+
+<details><summary>Show the query</summary>
 
 ```sql
 --:context talariaFinalizeAggregations: false
@@ -810,7 +216,11 @@ PARTITIONED BY HOUR
 CLUSTERED BY channel
 ```
 
+</details>
+
 ### INSERT with rollup <a href="#example-insert-rollup" name="example-insert-rollup">#</a>
+
+<details><summary>Show the query</summary>
 
 ```sql
 --:context talariaFinalizeAggregations: false
@@ -850,9 +260,13 @@ PARTITIONED BY HOUR
 CLUSTERED BY browser, session
 ```
 
+</details>
+
 ### INSERT for reindexing an existing datasource <a href="#example-reindexing" name="example-reindexing">#</a>
 
 This query rolls up data from w000 and inserts the result into w002.
+
+<details><summary>Show the query</summary>
 
 ```sql
 --:context talariaFinalizeAggregations: false
@@ -876,10 +290,14 @@ PARTITIONED BY HOUR
 CLUSTERED BY page
 ```
 
+</details>
+
 ### INSERT for reindexing an existing datasource into itself <a href="#example-self-reindexing" name="example-self-reindexing">#</a>
 
 This query rolls up data for a specific day from w000, and does an insert-with-replacement into the
 same table. Note that the `talariaReplaceTimeChunks` context parameter matches the WHERE filter.
+
+<details><summary>Show the query</summary>
 
 ```sql
 --:context talariaReplaceTimeChunks: 2031-01-02/2031-01-03
@@ -907,7 +325,12 @@ PARTITIONED BY HOUR
 CLUSTERED BY page
 ```
 
+</details>
+
 ### INSERT with JOIN <a href="#example-insert-join" name="example-insert-join">#</a>
+
+
+<details><summary>Show the query</summary>
 
 ```sql
 --:context talariaFinalizeAggregations: false
@@ -943,7 +366,13 @@ LEFT JOIN countries ON wikidata.countryIsoCode = countries.ISO2
 PARTITIONED BY HOUR
 ```
 
+</details>
+
 ### SELECT with EXTERN and JOIN <a href="#example-select-extern-join" name="example-select-extern-join">#</a>
+
+
+<details><summary>Show the query</summary>
+
 
 ```sql
 --:context talariaFinalizeAggregations: false
@@ -1115,6 +544,611 @@ LEFT JOIN L_CANCELLATION AS CancellationCodeLookup ON CancellationCode = Cancell
 LIMIT 1000
 ```
 
+</details>
+
+## EXTERN
+
+> EXTERN syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
+
+Queries run with the multi-stage engine can access external data through the `EXTERN` table
+function. It can appear in the form `TABLE(EXTERN(...))` anywhere a table is expected.
+
+For example:
+
+```sql
+SELECT
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+LIMIT 100
+```
+
+The `EXTERN` function takes three parameters:
+
+1.  Any [Druid input
+source](https://docs.imply.io/latest/druid/ingestion/native-batch.html#input-sources),
+    as a JSON-encoded string.
+
+2.  Any [Druid input
+    format](https://docs.imply.io/latest/druid/ingestion/data-formats.html#input-format),
+    as a JSON-encoded string.
+
+3.  A row signature, as a JSON-encoded array of column descriptors. Each
+    column descriptor must have a `name` and a `type`. The type can be
+    `string`, `long`, `double`, or `float`. This row signature will be
+    used to map the external data into the SQL layer.
+
+External data can be used with either SELECT or INSERT queries. The
+following query illustrates joining external data with other external
+data.
+
+## INSERT
+
+### INSERT INTO ... SELECT
+
+> INSERT syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
+
+With the multi-stage query engine, Druid can use the results of a query to create a new datasource
+or to append or replace data in an existing datasource. In Druid, these operations are all performed
+using `INSERT INTO ... SELECT` syntax.
+
+For example:
+
+```sql
+INSERT INTO w000
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
+```
+
+To run an INSERT query:
+
+1. Activate the multi-stage engine by setting `talaria: true` as a [context parameter](#context-parameters).
+2. Add `INSERT INTO <dataSource>` at the start of your query.
+3. Add a [`PARTITIONED BY`](#partitioned-by) clause to your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning, or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
+4. Optionally, add a [`CLUSTERED BY`](#clustered-by) clause.
+5. Optionally, to replace data in an existing datasource, set the [`talariaReplaceTimeChunks`](#context-parameters) context parameter.
+
+There is no syntactic difference between creating a new datasource and
+inserting into an existing datasource. The `INSERT INTO <dataSource>` command
+works even if the datasource does not yet exist.
+
+All SELECT functionality is available for INSERT queries. However, keep in mind that the multi-stage
+query engine does not yet implement all native Druid query features. See
+[Known issues](#known-issues) for a list of functionality that is not yet implemented.
+
+For examples, refer to the [Example queries](#example-queries) section.
+
+### Primary timestamp
+
+Druid tables always include a primary timestamp named `__time`.
+
+Typically, Druid tables also use time-based partitioning, such as
+`PARTITIONED BY DAY`. In this case your INSERT query must include a column
+named `__time`. This will become the primary timestamp and will be used for
+partitioning.
+
+When you use `PARTITIONED BY ALL` or `PARTITIONED BY ALL TIME`, time-based
+partitioning is disabled. In this case your INSERT query does not need
+to include a `__time` column. However, a `__time` column will still be created
+in your Druid table with all timestamps set to 1970-01-01 00:00:00.
+
+### PARTITIONED BY
+
+Time-based partitioning is determined by the PARTITIONED BY clause. This clause is required for
+INSERT queries. Possible arguments include:
+
+- Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
+- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like
+  'PT1H'. The first argument must be `__time`.
+- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR
+  function](https://druid.apache.org/docs/latest/querying/sql.html#time-functions). The first
+  argument must be `__time`.
+- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single
+  time chunk.
+
+PARTITIONED BY has several benefits:
+
+1. Better query performance due to time-based segment pruning, which removes segments from
+   consideration when they do not contain any data for a query's time filter.
+2. More efficient data management, as data can be rewritten for each time partition individually
+   rather than the whole table.
+
+If PARTITIONED BY is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or
+OFFSET at the outer level of your INSERT INTO … SELECT query.
+
+### CLUSTERED BY
+
+Secondary partitioning within a time chunk is determined by the CLUSTERED BY
+clause. CLUSTERED BY can partition by any number of columns or expressions.
+
+CLUSTERED BY has several benefits:
+
+1. Lower storage footprint due to combining similar data into the same segments, which improves
+   compressibility.
+2. Better query performance due to dimension-based segment pruning, which removes segments from
+   consideration when they cannot possibly contain data matching a query's filter.
+
+For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be singly-valued
+string columns and the [`talariaReplaceTimeChunks`](#context-parameters) parameter must be provided as part of
+the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
+columns, or if `talariaReplaceTimeChunks` is not provided, then Druid will still cluster data during
+ingestion but it will not be able to perform dimension-based segment pruning at query time.
+
+You can tell if dimension-based segment pruning is possible by using the `sys.segments` table to
+inspect the `shard_spec` for the segments that are generated by an INSERT query. If they are of type
+`range` or `single`, then dimension-based segment pruning is possible. Otherwise, it is not. The
+shard spec type is also available in the web console's "Segments" view under the "Partitioning"
+column.
+
+In addition, only certain filters support dimension-based segment pruning. This includes:
+
+- Equality to string literals, like `x = 'foo'` or `x IN ('foo', 'bar')`.
+- Comparison to string literals, like `x < 'foo'` or other comparisons involving `<`, `>`, `<=`, or `>=`.
+
+This differs from multi-dimension range based partitioning in classic batch ingestion, where both
+string and numeric columns support Broker-level pruning. With multi-stage-query-based ingestion,
+only string columns support Broker-level pruning.
+
+It is OK to mix time partitioning with secondary partitioning. For example, you can
+combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
+time partitioning by hour and secondary partitioning by channel within each hour.
+
+### Rollup
+
+Rollup is determined by the query's GROUP BY clause. The expressions in the GROUP BY clause become
+dimensions, and aggregation functions become metrics.
+
+#### Ingest-time aggregations
+
+When performing rollup using aggregations, it is important to use aggregators
+that return _nonfinalized_ state. This allows you to perform further rollups
+at query time. To achieve this, set `talariaFinalizeAggregations: false` in your
+INSERT query context and refer to the following table for any additional
+modifications needed.
+
+Check out the [INSERT with rollup example query](#example-insert-rollup) to see this feature in
+action.
+
+|Query-time aggregation|Notes|
+|----------------------|-----|
+|SUM|Use unchanged at ingest time.|
+|MIN|Use unchanged at ingest time.|
+|MAX|Use unchanged at ingest time.|
+|AVG|Use `SUM` and `COUNT` at ingest time. Switch to quotient of `SUM` at query time.|
+|COUNT|Use unchanged at ingest time, but switch to `SUM` at query time.|
+|COUNT(DISTINCT expr)|If approximate, use `APPROX_COUNT_DISTINCT` at ingest time.<br /><br />If exact, you cannot use an ingest-time aggregation. Instead, `expr` must be stored as-is. Add it to the `SELECT` and `GROUP BY` lists.|
+|EARLIEST(expr)<br /><br />(numeric form)|Not supported.|
+|EARLIEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|LATEST(expr)<br /><br />(numeric form)|Not supported.|
+|LATEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_BUILTIN|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_HLL|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_THETA|Use unchanged at ingest time.|
+|APPROX_QUANTILE|Not supported. Deprecated; we recommend using `APPROX_QUANTILE_DS` instead.|
+|APPROX_QUANTILE_DS|Use `DS_QUANTILES_SKETCH` at ingest time. Continue using `APPROX_QUANTILE_DS` at query time.|
+|APPROX_QUANTILE_FIXED_BUCKETS|Not supported.|
+
+#### Multi-value dimensions
+
+By default, multi-value dimensions are not ingested as expected when rollup is enabled, because the
+GROUP BY operator unnests them instead of leaving them as arrays. This is [standard
+behavior](https://druid.apache.org/docs/latest/querying/sql.html#multi-value-strings) for GROUP BY
+in Druid queries, but is generally not desirable behavior for ingestion.
+
+To address this:
+
+- When using GROUP BY with data from EXTERN, wrap any `string`-typed fields from EXTERN that may be
+  multi-valued in `MV_TO_ARRAY`.
+- Set `groupByEnableMultiValueUnnesting: false` in your query context to ensure that all multi-value
+  strings are properly converted to arrays using `MV_TO_ARRAY`. If any are encountered that are not
+  wrapped in `MV_TO_ARRAY`, the query will report an error that includes the message "Encountered
+  multi-value dimension x that cannot be processed with executingNestedQuery set to false." (Note:
+  this message is incorrect; it should mention "groupByEnableMultiValueUnnesting", not
+  "executingNestedQuery". This will be fixed in a future release.)
+
+Check out the [INSERT with rollup example query](#example-insert-rollup) to see these features in
+action.
+
+## Query syntax
+
+Your query can be any [Druid SQL](https://docs.imply.io/latest/druid/querying/sql.html) query,
+subject to the limitations mentioned in the [Known issues](#known-issues) section. In addition to
+standard Druid SQL syntax, queries that run with the multi-stage query engine can use two additional
+features:
+
+- [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources.
+
+- [EXTERN](#extern) to query external data from http, S3, GCS, HDFS, and so on.
+
+## Context parameters
+
+The multi-stage query engine accepts Druid SQL
+[context parameters](https://docs.imply.io/latest/druid/querying/sql.html#connection-context).
+
+> Context comments like `--:context talariaFinalizeAggregations: false`
+> are available only in the web console. When using the API, context comments
+> will be ignored, and context parameters must be provided in the `context`
+> section of the JSON object.
+
+|Parameter|Description|Default value|
+|----|-----------|----|
+| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
+| talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
+| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
+| talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
+
+## API
+
+> Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future releases. For stability reasons, we recommend using the [web console](#web-console) if you do not need a programmatic interface.
+
+> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version <VERSION> and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
+
+Queries run as tasks. The action you want to take determines the endpoint you use:
+
+- `/druid/v2/sql/task` endpoint: Submit a query for ingestion.
+- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or cancelling it. 
+
+### Submit a query
+
+> Multi-stage query APIs are in a work-in-progress state for the alpha and are subject to change. For stability reasons, we recommend using the [web console](#web-console) if you do not need a programmatic interface. This is especially true for SELECT queries. Viewing results for SELECT queries requires manual steps. described in [MSQE reports](#msqe-reports)
+
+#### Request
+
+Submit queries using the `POST /druid/v2/sql/task/` API.
+
+Currently, the multi-stage query engine ignores the provided values of `resultFormat`, `header`,
+`typesHeader`, and `sqlTypesHeader`. It always behaves as if `resultFormat` is "array", `header` is
+true, `typesHeader` is true, and `sqlTypesHeader` is true.
+
+**HTTP**
+
+```
+POST /druid/v2/sql/task
+```
+
+```json
+{
+  "query" : "SELECT 1 + 1",
+}
+```
+
+**curl**
+
+```
+curl -XPOST -H'Content-Type: application/json' \
+  https://IMPLY-ENDPOINT/druid/v2/sql/task \
+  -u 'user:password' \
+  --data-binary '{"query":"SELECT 1 + 1"}'
+```
+
+#### Response
+
+```json
+{
+  "taskId": "talaria-sql-58b05e02-8f09-4a7e-bccd-ea2cc107d0eb",
+  "state": "RUNNING",
+}
+```
+
+**Response fields**
+
+|Field|Description|
+|-----|-----------|
+|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
+|state|Initial state for the query, which is "RUNNING".|
+
+### Interact with a query
+
+Because queries run as Overlord tasks, use the [task APIs](/operations/api-reference#overlord) to interact with a query.
+
+When using MSQE, the endpoints you frequently use may include:
+
+- `GET /druid/indexer/v1/task/{taskId}` to get the query payload
+- `GET /druid/indexer/v1/task/{taskId}/status` to get the query status
+- `GET /druid/indexer/v1/task/{taskId}/reports` to get the query report
+- `POST /druid/indexer/v1/task/{taskId}/shutdown` to cancel a query
+
+#### MSQE reports
+
+Keep the following in mind when using the task API to view reports:
+
+- For SELECT queries, the results are included in the report. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
+- Query details are physically stored in the task report for controller tasks.
+- If you encounter 500 Server Error or 404 Not Found errors, the task may be in the process of starting up or shutting down.
+
+**Response fields**
+
+<details><summary>Show the response fields for reports</summary>
+
+|Field|Description|
+|-----|-----------|
+|talaria.taskId|Controller task ID.|
+|talaria.payload.status|Query status container.|
+|talaria.payload.status.status|RUNNING, SUCCESS, or FAILED.|
+|talaria.payload.status.startTime|Start time of the query in ISO format. Only present if the query has started running.|
+|talaria.payload.status.durationMs|Milliseconds elapsed after the query has started running. -1 denotes that the query hasn't started running yet.|
+|talaria.payload.status.errorReport|Error object. Only present if there was an error.|
+|talaria.payload.status.errorReport.taskId|The task that reported the error, if known. May be a controller task or a worker task.|
+|talaria.payload.status.errorReport.host|The hostname and port of the task that reported the error, if known.|
+|talaria.payload.status.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
+|talaria.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#errors). Always present if there is an error.|
+|talaria.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#errors). Always present if there is an error.|
+|talaria.payload.status.errorReport.error.errorMessage|User-friendly error message. Not always present, even if there is an error.|
+|talaria.payload.status.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
+|talaria.payload.stages|Array of query stages.|
+|talaria.payload.stages[].stageNumber|Each stage has a number that differentiates it from other stages.|
+|talaria.payload.stages[].inputStages|Array of input stage numbers.|
+|talaria.payload.stages[].stageType|String that describes the logic of this stage. This is not necessarily unique across stages.|
+|talaria.payload.stages[].phase|Either NEW, READING_INPUT, POST_READING, RESULTS_COMPLETE, or FAILED. Only present if the stage has started.|
+|talaria.payload.stages[].workerCount|Number of parallel tasks that this stage is running on. Only present if the stage has started.|
+|talaria.payload.stages[].partitionCount|Number of output partitions generated by this stage. Only present if the stage has started and has computed its number of output partitions.|
+|talaria.payload.stages[].inputFileCount|Number of external input files or Druid segments read by this stage. Does not include inputs from other stages in the same query.|
+|talaria.payload.stages[].startTime|Start time of this stage. Only present if the stage has started.|
+|talaria.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
+
+</details>
+
+**Error codes** <a href="#errors" name="errors">#</a>
+
+<details><summary>Show the possible values for <codeph>talariaStatus.payload.errorReport.error.errorCode</codeph></summary>
+
+|Code|Meaning|Additional fields|
+|----|-----------|----|
+|  BroadcastTablesTooLarge  | Size of the broadcast tables used in right hand side of the joins exceeded the memory reserved for them in a worker task  | &bull;&nbsp;maxBroadcastTablesSize: Memory reserved for the broadcast tables, measured in bytes |
+|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
+|  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
+|  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
+|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
+|  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
+|  InsertCannotOrderByDescending  |  An INSERT query contained an `CLUSTERED BY` expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
+|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
+|  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
+| QueryNotSupported   |   QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that the multi-stage engine does not yet support, like GROUPING SETS. |    |
+|  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
+|  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
+| TooManyInputFiles | Too many input files/segments per worker.<br /> <br />See the [Limits](#limits) table for the specific limit. |&bull;&nbsp;numInputFiles: the total number of input files/segments for the stage<br /><br />&bull;&nbsp;maxInputFiles: the maximum number of input files/segments per worker per stage<br /><br />&bull;&nbsp;minNumWorker: the minimum number of workers required for a sucessfull run |
+|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
+|  TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
+|  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
+|  NotEnoughMemory  |  Not enough memory to launch a stage.  |  &bull;&nbsp;serverMemory: the amount of memory available to a single process<br /><br />&bull;&nbsp;serverWorkers: the number of workers running in a single process<br /><br />&bull;&nbsp;serverThreads: the number of threads in a single process  |
+|  WorkerFailed  |  A worker task failed unexpectedly.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
+|  WorkerRpcFailed  |  A remote procedure call to a worker task failed unrecoverably.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
+|  UnknownError   |  All other errors.  |    |
+
+</details>
+
+## Performance
+
+### Parallelism
+
+The main driver of performance is parallelism. The most relevant considerations are:
+
+- The [`talariaNumTasks`](#context-parameters) query parameter determines the maximum number of worker tasks
+  your query will use. Generally, queries will perform better with more workers. The highest
+  possible value of `talariaNumTasks` is one less than the number of free task slots in your
+  cluster.
+- The EXTERN operator cannot split large files across different worker tasks. If you have fewer
+  input files than worker tasks, you can increase query parallelism by splitting up your input
+  files such that you have at least one input file per worker task.
+- The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
+  of worker tasks that can run on each server at once. Worker tasks run single-threaded, so this
+  also determines the maximum number of processors on the server that can contribute towards
+  multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
+  Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
+  processors on the server. Advanced users may consider enhancing parallelism by increasing this
+  value to one less than the number of processors on the server. In most cases, this increase must
+  be accompanied by an adjustment of the memory allotment of the Historical process,
+  Middle-Manager-launched tasks, or both, to avoid memory overcommitment and server instability. If
+  you are not comfortable tuning these memory usage parameters to avoid overcommitment, it is best
+  to stick with the default `druid.worker.capacity`.
+
+A secondary driver of performance is available memory. In two important cases — producer-side sort
+as part of shuffle, and segment generation — more memory can reduce the number of passes required
+through the data and therefore improve performance. For details, see the [Memory
+usage](#memory-usage) section.
+
+### Memory usage
+
+Worker tasks launched by the multi-stage query engine use both JVM heap memory as well as off-heap
+("direct") memory.
+
+On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up into two
+equally-sized bundles: one processor bundle and one worker bundle. Each one comprises 37.5% of the
+available JVM heap.
+
+The processor memory bundle is used for query processing and segment generation. Each processor
+bundle also has space reserved for buffering frames from input channels: 1 MB per worker from its
+input stages.
+
+The worker memory bundle is used for sorting stage output data prior to shuffle. Workers can sort
+more data than fits in memory; in this case, they will switch to using disk.
+
+Increasing maximum heap size can speed up processing in two ways:
+
+- Segment generation will become more efficient, as fewer spills to disk will be required.
+- Sorting stage output data may become more efficient, since available memory affects the
+  number of sorting passes that are required.
+
+Worker tasks also use off-heap ("direct") memory. The amount of direct
+memory available (`-XX:MaxDirectMemorySize`) should be set to at least
+`(druid.processing.numThreads + 1) * druid.processing.buffer.sizeBytes`. Increasing the
+amount of direct memory available beyond the minimum does not speed up processing.
+
+It may be necessary to override one or more memory-related parameter if you run into one of the
+current [known issues around memory usage](#known-issues-memory).
+
+## Security
+
+> The security model for the multi-stage query engine is subject to change in future releases.
+> Future releases may require different permissions than the current release.
+In the current release, the security model for the multi-stage query engine is:
+
+- All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
+- Queries that SELECT from a Druid datasource require the READ DATASOURCE permission on that
+  datasource.
+- Queries that INSERT into a Druid datasource require the WRITE DATASOURCE permission on that
+  datasource.
+- Queries that use the EXTERN operator require the WRITE DATASOURCE permission on the
+  `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
+  the user has write permission to _some_ datasource and is therefore permitted to use external
+  input sources. No data will be inserted into this stub datasource.
+
+Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they are not the user who submitted the query. The following list describes the permissions required based on what action you are trying to perform:
+
+- Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions.
+- Retrieve status: The user must have READ DATASOURCE permission.
+- View reports: The user must have READ DATASOURCE permission unless they have access to the the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
+
+## Limits
+
+Queries are subject to the following limits:
+
+|Limit|Value|Error if exceeded|
+|----|-----------|----|
+| Size of an individual row written into a frame<br/><br/>Note: row size as written to a frame may differ from the original row size | 1 MB | RowTooLarge |
+| Number of segment-granular time chunks encountered during ingestion | 5,000 | TooManyBuckets |
+| Number of input files/segments per worker | 10,000| TooManyInputFiles |
+| Number of output partitions for any one stage<br /> <br /> Number of segments generated during ingestion |25,000  |TooManyPartitions |
+| Number of output columns for any one stage|  2,000| TooManyColumns|
+| Number of workers for any one stage | 1,000 (hard limit)<br /><br />Memory-dependent (soft limit; may be lower) | TooManyWorkers |
+| Maximum memory occupied by broadcasted tables | 30% of each [processor memory bundle](#memory-usage) |BroadcastTablesTooLarge |
+
+
+
+## Web console
+
+There is a view added to the console specifically to support multi-stage query workflows. Please see
+the annotated screenshot below.
+
+![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
+
+1. The multi-stage, tab-enabled, Query view is where all the new functionality is contained.
+All other views are unchanged from their OSS versions. You can still access the original Query view by navigating to `#query` in the URL.
+The tabs (3) serve as an indication that you are in the milti-stage query capable query view.
+You can activate and deactivate this Query view by holding down `alt` (or `option`) and clicking the Druid logo in the top left corner of the console.
+
+2. The resources view shows the available schemas, datasources, and columns just like in the original Query view.
+
+3. Query tabs allow you to save, run, and manage several queries at once.
+New tabs can be added via the `+` button.
+Existing tabs can be manipulated via the `...` button on each tab.
+
+4. The tab bar contains some helpful tools including a "Connect external data" button that creates an `EXTERN` helper query by sampling the data.
+
+5. The tab bar wrench button contains miscellaneous tools that are yet to find a perfect home.
+You can show/hide the Work history panel (6) and materialize and reabsorb the 
+helper SQL queries (8).
+
+6. The "Work history" panel lets you see previous queries executed by all users in the cluster.
+It is equivalent to the task view in the Ingestion tab with the filter of `
+type=’talaria0’`.
+Work history panel can be shown/hidden from the toolbar wrench button (5).
+
+7. You can click on each query entry to attach to that query to track its progress.
+Additionally you can also show results, query stats, and the query that was issued.
+
+8. The query helpers let you define notebook-style queries that can be reference from the main query as if they were defined as `WITH` clauses. You can refer to this extern 
+by name anywhere in the SQL query where you could use a table.
+They are essentially UI driven views that only exist within the given query tab.
+
+9. Context comments can be inserted anywhere in the query to set context parameters via the query text.
+This is not part of Druid’s API (although something similar might be 
+one day). These comments are parsed out of the query text and added to the context object in the API payload.
+
+10. The `Run` button’s more menu (`...`) lets you export the data as well as define the context for the query including the parallelism for the query.
+
+11. The `Preview` button runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries.
+The added LIMITs make the query run faster but could cause incomplete results.
+The preview feature is only intended to show you the general shape of the data before inserting it.
+
+12. The query timer indicates how long the query has been running for overall.
+
+13. The `(cancel)` link cancels the currently running query.
+
+14. The main progress bar shows the overall progress of the query.
+The progress is computed from the various counters in the live reports (16).
+
+15. The `Current stage` progress bar shows the progress for the currently running query stage.
+If several stages are executing concurrently it conservatively shows the information for the earliest executing stage.
+
+16. The live query reports show detailed information of all the stages (past, present, and future). The live reports are shown while the query is running (can be hidden). 
+After the query finished they are available by clicking on the query time indicator or from the Work history panel (6)
+
+17. Each stage of the live query reports can be expanded by clicking on the triangle to show per worker and per partition statistics.
+
+## How MSQE works
+
+This section describes what happens when you submit a query to the multi-stage query engine. 
+
+The multi-stage query engine extends Druid's query stack to handle
+asynchronous queries that can exchange data between stages.
+
+At this time, all queries, including SELECT queries and other queries not performing INSERTs, execute using indexing service tasks. Each query occupies at least two task slots
+while running. This behavior is subject to
+change in future releases.
+
+Key concepts for multi-stage query execution:
+
+- **Controller**: an indexing service task of type `talaria0` that manages
+  the execution of a query. There is one controller task per query.
+
+- **Worker**: indexing service tasks of type `talaria1` that execute a
+  query. There may be more than one worker task per query. Internally,
+  the tasks process items in parallel using their processing pools.
+  (i.e., up to `druid.processing.numThreads` of execution parallelism
+  within a worker task).
+
+- **Stage**: a stage of query execution that is parallelized across
+  worker tasks. Workers exchange data with each other between stages.
+
+- **Partition**: a slice of data output by worker tasks. In INSERT
+  queries, the partitions of the final stage become Druid segments.
+
+- **Shuffle**: workers exchange data between themselves on a per-partition basis in a process called
+  "shuffling". During a shuffle, each output partition is sorted by a clustering key.
+
+When you use the multi-stage query engine, the following happens:
+
+1.  The **Broker** plans your SQL query into a native query, as usual.
+
+2.  The Broker wraps the native query into a task of type `talaria0`
+    and submits it to the indexing service. The Broker returns the task
+    ID to you and exits.
+
+3.  The **controller task** launches a wave of **worker tasks** based on
+    the `talariaNumTasks` query context parameter.
+
+4.  The worker tasks execute the query.
+
+5.  If the query is a SELECT query, the worker tasks send the results
+    back to the controller task, which writes them into its task report.
+    If the query is an INSERT query, the worker tasks generate and
+    publish new Druid segments to the provided datasource.
+
+<!--
+1.  For multi-stage queries, query APIs such as status,
+    results, and details work by
+    fetching task status and task reports under the hood.
+-->
+
 ## Known issues
 
 **Issues with general query execution.** <a href="#known-issues-general" name="known-issues-general">#</a>
@@ -1137,11 +1171,12 @@ LIMIT 1000
 - Canceling the controller task sometimes leads to the error code
   "UnknownError" instead of "Canceled". (14722)
 
-<!--
+<!-- 
 - The Query details API may return
   `500 Server Error` or `404 Not Found` when the controller task is in
   process of starting up or shutting down. (15001)
--->
+--> 
+
 - Only one local filesystem per server is used for stage output data during multi-stage query
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
   available disk space earlier than expected. (16181)
@@ -1155,7 +1190,7 @@ LIMIT 1000
 - INSERT queries can consume excessive memory when using complex types due to inaccurate footprint
   estimation. This can appear as an OutOfMemoryError during the SegmentGenerator stage when using
   sketches. If you run into this issue, try manually lowering the value of the
-  [`talariaRowsInMemory`](#context) parameter. (17946)
+  [`talariaRowsInMemory`](#context-parameters) parameter. (17946)
 
 - INSERT queries can consume excessive memory on Indexers due to a too-high default value of
   `druid.processing.numThreads`. This can appear as an OutOfMemoryError during the SegmentGenerator
@@ -1171,14 +1206,14 @@ LIMIT 1000
 **Issues with SELECT queries.** <a href="#known-issues-select" name="known-issues-select">#</a>
 
 - SELECT query results do not include realtime data until it has been published. (18092)
-
-<!--
+<!-- 
 - SELECT query results are funneled through the controller task
   so they can be written to the query report.
   This is a bottleneck for queries with large resultsets. In the future,
   we will provide a mechanism for writing query results to multiple
   files in parallel. (14728)
-
+-->
+<!--
 - SELECT query results are materialized in memory on the Broker when
   using the query results API. Large result sets
   can cause the Broker to run out of memory. (15963)
@@ -1266,7 +1301,7 @@ LIMIT 1000
 - Stage outputs are now removed from local disk when no longer needed. This reduces the total
   amount of local disk space required by jobs with more than two stages. (15030)
 - It is now possible to control segment sort order independently of CLUSTERED BY, using the
-  new [`talariaSegmentSortOrder`](#context) context parameter. (18320)
+  new [`talariaSegmentSortOrder`](#context-parameters) context parameter. (18320)
 - There is now a guardrail on the maximum number of input files. Exceeded this limit leads to
   a [TooManyInputFiles](#errors) error. (15020)
 - Queries now report the error code [WorkerRpcFailed](#errors) when controller-to-worker or

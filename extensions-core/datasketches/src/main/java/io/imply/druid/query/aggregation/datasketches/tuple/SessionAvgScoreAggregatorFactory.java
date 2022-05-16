@@ -145,10 +145,23 @@ public class SessionAvgScoreAggregatorFactory extends ArrayOfDoublesSketchAggreg
   }
 
   @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new SessionAvgScoreAggregatorFactory(
+        newName,
+        getSessionColumn(),
+        getScoreColumn(),
+        getNominalEntries(),
+        isZeroFiltering()
+    );
+  }
+
+  @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    throw new UOE(StringUtils.format("GroupByStrategyV1 is not supported for %s aggregator",
-                                     ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE
+    throw new UOE(StringUtils.format(
+        "GroupByStrategyV1 is not supported for %s aggregator",
+        ImplyArrayOfDoublesSketchModule.SESSION_AVG_SCORE
     ));
   }
 

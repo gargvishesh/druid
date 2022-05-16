@@ -212,6 +212,12 @@ public class CurrencySumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new CurrencySumAggregatorFactory(newName, getFieldName(), getConversions());
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

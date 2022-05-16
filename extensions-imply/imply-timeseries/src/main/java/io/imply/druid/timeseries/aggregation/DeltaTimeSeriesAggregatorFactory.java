@@ -207,4 +207,19 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
   {
     return maxEntries * (2 * Long.BYTES + 2 * Double.BYTES) + ByteBufferTimeSeries.DATA_OFFSET;
   }
+
+  @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new DeltaTimeSeriesAggregatorFactory(
+        newName,
+        getDataColumn(),
+        getTimeColumn(),
+        getTimeseriesColumn(),
+        getPostProcessing(),
+        getTimeBucketMillis(),
+        getwindow(),
+        getMaxEntries()
+    );
+  }
 }

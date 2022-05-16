@@ -135,6 +135,12 @@ public class PassthroughAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new PassthroughAggregatorFactory(newName, complexTypeName);
+  }
+
+  @Override
   public int getMaxIntermediateSize()
   {
     throw new UnsupportedOperationException();
