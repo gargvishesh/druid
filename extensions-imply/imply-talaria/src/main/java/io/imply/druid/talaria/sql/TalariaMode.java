@@ -10,7 +10,7 @@
 package io.imply.druid.talaria.sql;
 
 import com.google.common.collect.ImmutableMap;
-import io.imply.druid.talaria.indexing.error.WarningHelper;
+import io.imply.druid.talaria.indexing.error.TalariaWarnings;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryContext;
@@ -24,9 +24,8 @@ import java.util.stream.Collectors;
 public enum TalariaMode
 {
 
-  LENIENT_MODE("lenient", ImmutableMap.of(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1)),
-
-  STRICT_MODE("strict", ImmutableMap.of(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0));
+  NON_STRICT_MODE("nonStrict", ImmutableMap.of(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1)),
+  STRICT_MODE("strict", ImmutableMap.of(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0));
 
   private final String value;
   private final Map<String, Object> defaultQueryContext;

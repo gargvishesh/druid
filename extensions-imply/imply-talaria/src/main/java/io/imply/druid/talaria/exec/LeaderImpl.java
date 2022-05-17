@@ -43,6 +43,7 @@ import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.TaskReportTalariaDestination;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
+import io.imply.druid.talaria.indexing.error.FaultsExceededChecker;
 import io.imply.druid.talaria.indexing.error.InsertCannotAllocateSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotBeEmptyFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
@@ -52,9 +53,9 @@ import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TalariaFault;
+import io.imply.druid.talaria.indexing.error.TalariaWarnings;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
-import io.imply.druid.talaria.indexing.error.WarningHelper;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
@@ -217,7 +218,7 @@ public class LeaderImpl implements Leader
   private volatile TalariaWorkerTaskLauncher workerTaskLauncher;
   private volatile WorkerClient netClient;
 
-  private volatile WarningHelper.FaultsExceededChecker faultsExceededChecker = null;
+  private volatile FaultsExceededChecker faultsExceededChecker = null;
 
   public LeaderImpl(
       final TalariaControllerTask task,
@@ -437,12 +438,12 @@ public class LeaderImpl implements Leader
 
     if (task.getSqlQueryContext() != null) {
       maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
-                                                        .get(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
+                                                        .get(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
                                         .map(DimensionHandlerUtils::convertObjectToLong)
-                                        .orElse(WarningHelper.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
+                                        .orElse(TalariaWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
     }
 
-    this.faultsExceededChecker = new WarningHelper.FaultsExceededChecker(
+    this.faultsExceededChecker = new FaultsExceededChecker(
         ImmutableMap.of(CannotParseExternalDataFault.CODE, maxParseExceptions)
     );
 
@@ -716,13 +717,14 @@ public class LeaderImpl implements Leader
               null,
               new TooManyWarningsFault(limit.intValue(), errorCode)
           ));
-      workerWarnings.addAll(errorReports);
       kernelManipulationQueue.add(
           queryKernel -> {
             workerTaskLauncher.shutdownRemainingTasks();
             queryKernel.getActiveStages().forEach(queryKernel::failStage);
           }
       );
+    } else {
+      workerWarnings.addAll(errorReports);
     }
   }
 
@@ -1653,13 +1655,6 @@ public class LeaderImpl implements Leader
           }
         }
       }
-    }
-
-    if (isRollupQuery) {
-      aggregators.addAll(((GroupByQuery) query).getAggregatorSpecs()
-                                               .stream()
-                                               .map(aggregatorFactory -> aggregatorFactory.getCombiningFactory())
-                                               .collect(Collectors.toList()));
     }
 
     return Pair.of(dimensions, aggregators);

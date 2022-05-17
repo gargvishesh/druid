@@ -74,7 +74,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
       FrameContext frameContext,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
+      TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final QueryWorkerInputSpec inputSpec = baseInputSpecs.get(workerNumber);

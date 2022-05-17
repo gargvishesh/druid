@@ -55,7 +55,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
                              + "  )\n"
                              + ") group by 1")
-                     .setQueryContext(ImmutableMap.of(WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0, "talaria", true))
+                     .setQueryContext(ImmutableMap.of(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0, "talaria", true))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
                      .setExpectedTalariaQuerySpec(
@@ -128,7 +128,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + "  )\n"
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
-                         WarningHelper.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1,
+                         TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1,
                          TalariaMode.CTX_TALARIA_MODE, "strict",
                          "talaria", true
                      ))

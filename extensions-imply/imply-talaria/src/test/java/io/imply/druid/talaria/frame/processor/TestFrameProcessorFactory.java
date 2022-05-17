@@ -39,7 +39,7 @@ public class TestFrameProcessorFactory implements FrameProcessorFactory
       FrameContext providerThingy,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
+      TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     return null;

@@ -70,7 +70,7 @@ public class TalariaExternalSinkFrameProcessorFactory
       final FrameContext providerThingy,
       final int maxOutstandingProcessors,
       final TalariaCounters talariaCounters,
-      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
+      TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     final TalariaExternalSink externalSink = providerThingy.externalSink();

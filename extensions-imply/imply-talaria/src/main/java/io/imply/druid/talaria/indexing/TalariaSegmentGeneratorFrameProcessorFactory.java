@@ -105,7 +105,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
       final FrameContext frameContext,
       final int maxOutstandingProcessors,
       final TalariaCounters talariaCounters,
-      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     final RowIngestionMeters meters = frameContext.rowIngestionMeters();

@@ -80,7 +80,7 @@ public class QueryWorkerUtils
       final DataSegmentProvider dataSegmentProvider,
       final File temporaryDirectory,
       final TalariaCounters talariaCounters,
-      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     if (inputSpec.type() == QueryWorkerInputType.SUBQUERY) {
@@ -177,7 +177,7 @@ public class QueryWorkerUtils
       final File temporaryDirectory,
       final TalariaCounters.ChannelCounters inputExternalCounter,
       final WarningCounters warningCounters,
-      @Nullable final TalariaWarningReportPublisher talariaWarningReportPublisher,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher,
       final int stageNumber
   )
   {
@@ -246,9 +246,7 @@ public class QueryWorkerUtils
                               }
                               catch (ParseException e) {
                                 warningCounters.incrementWarningCount(CannotParseExternalDataFault.CODE);
-                                if (talariaWarningReportPublisher != null) {
-                                  talariaWarningReportPublisher.publishException(stageNumber, e);
-                                }
+                                talariaWarningReportPublisher.publishException(stageNumber, e);
                               }
                             }
                             return next != null;

@@ -95,7 +95,9 @@ public interface Leader
   void workerError(TalariaErrorReport errorReport);
 
   /**
-   * System warning reported by a subtask
+   * System warning reported by a subtask. Indicates that the worker has encountered a non-lethal error. Worker should
+   * continue its execution in such a case. If the worker wants to report an error and stop its execution,
+   * please use {@link Leader#workerError}
    */
   void workerWarning(List<TalariaErrorReport> errorReports);
 

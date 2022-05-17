@@ -9,6 +9,9 @@
 
 package io.imply.druid.talaria.indexing.error;
 
+import com.google.common.collect.ImmutableMap;
+import io.imply.druid.talaria.exec.Limits;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,12 +19,25 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TalariaWarningReportLimiterPublisher implements TalariaWarningReportPublisher
 {
 
-  TalariaWarningReportPublisher delegate;
-  final Object lock = new Object();
-  long totalLimit;
-  volatile long totalCount = 0L;
-  Map<String, Long> errorCodeToLimit;
+  final TalariaWarningReportPublisher delegate;
+  final long totalLimit;
+  final Map<String, Long> errorCodeToLimit;
   final ConcurrentHashMap<String, Long> errorCodeToCurrentCount = new ConcurrentHashMap<>();
+
+  volatile long totalCount = 0L;
+
+  final Object lock = new Object();
+
+  public TalariaWarningReportLimiterPublisher(TalariaWarningReportPublisher delegate)
+  {
+    this(
+        delegate,
+        Limits.MAX_VERBOSE_WARNINGS,
+        ImmutableMap.of(
+            TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, Limits.MAX_VERBOSE_PARSE_EXCEPTIONS
+        )
+    );
+  }
 
   public TalariaWarningReportLimiterPublisher(
       TalariaWarningReportPublisher delegate,

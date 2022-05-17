@@ -7,8 +7,10 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.framework;
+package io.imply.druid.talaria.indexing.error;
 
-public class TalariaTestWarningsPublisher
+public class TalariaWarnings
 {
+  public static final String CTX_MAX_PARSE_EXCEPTIONS_ALLOWED = "maxParseExceptions";
+  public static final Long DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED = -1L;
 }

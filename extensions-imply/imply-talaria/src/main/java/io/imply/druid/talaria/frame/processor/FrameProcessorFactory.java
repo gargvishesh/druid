@@ -60,7 +60,7 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
       FrameContext providerThingy,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      @Nullable TalariaWarningReportPublisher talariaWarningReportPublisher
+      TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException;
 
   TypeReference<R> getAccumulatedResultTypeReference();
