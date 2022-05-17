@@ -1409,7 +1409,7 @@ public class LeaderImpl implements Leader
     final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
     // TODO: Disabling the rollup mode to be allways false till {@link AggregatorFactory} has a withName method.
     // IMPLY-20677,IMPLY-20678
-    final boolean isRollupQ = false || isRollupQuery(querySpec.getQuery());
+    final boolean isRollupQ = false;
 
     final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
         makeDimensionsAndAggregatorsForIngestion(
