@@ -16,6 +16,12 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Limits the number of exceptions that get published to the underlying delegate publisher. This helps
+ * in preventing the spam of exceptions from the worker task to the published source. As such, any implementation
+ * of {@link TalariaWarningReportPublisher} that is wrapped in this class cannot be sure that the warning handed off
+ * is trully published
+ */
 public class TalariaWarningReportLimiterPublisher implements TalariaWarningReportPublisher
 {
 
@@ -34,7 +40,7 @@ public class TalariaWarningReportLimiterPublisher implements TalariaWarningRepor
         delegate,
         Limits.MAX_VERBOSE_WARNINGS,
         ImmutableMap.of(
-            TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, Limits.MAX_VERBOSE_PARSE_EXCEPTIONS
+            CannotParseExternalDataFault.CODE, Limits.MAX_VERBOSE_PARSE_EXCEPTIONS
         )
     );
   }

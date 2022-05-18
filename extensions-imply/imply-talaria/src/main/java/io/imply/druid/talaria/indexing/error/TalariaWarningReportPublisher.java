@@ -12,6 +12,10 @@ package io.imply.druid.talaria.indexing.error;
 import java.io.Closeable;
 import java.io.IOException;
 
+/**
+ * Provides an interface for a worker to publish their warnings to an external source.
+ * For example, this could mean the leader task for the corresponding job.
+ */
 public interface TalariaWarningReportPublisher extends Closeable
 {
   void publishException(int stageNumber, Throwable e);
