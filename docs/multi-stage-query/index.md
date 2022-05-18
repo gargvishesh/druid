@@ -725,6 +725,14 @@ modifications needed.
 Check out the [INSERT with rollup example query](#example-insert-rollup) to see this feature in
 action.
 
+Druid needs information for aggregating measures of different segments while working with pivot and compaction
+tasks. For eg: to aggregate `count("col") as dummy_measure`, druid needs to `sum` the value of the `dummy_measure`
+across the segments. This information is stored inside the metadata of the segment. In talaria, we only populate the
+aggregator information of a column in the segment metadata when
+
+- Insert query has an outer group by clause.
+- `talariaFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false` is set in query context.
+
 |Query-time aggregation|Notes|
 |----------------------|-----|
 |SUM|Use unchanged at ingest time.|
@@ -759,9 +767,7 @@ To address this:
 - Set `groupByEnableMultiValueUnnesting: false` in your query context to ensure that all multi-value
   strings are properly converted to arrays using `MV_TO_ARRAY`. If any are encountered that are not
   wrapped in `MV_TO_ARRAY`, the query will report an error that includes the message "Encountered
-  multi-value dimension x that cannot be processed with executingNestedQuery set to false." (Note:
-  this message is incorrect; it should mention "groupByEnableMultiValueUnnesting", not
-  "executingNestedQuery". This will be fixed in a future release.)
+  multi-value dimension x that cannot be processed with groupByEnableMultiValueUnnesting set to false."
 
 Check out the [INSERT with rollup example query](#example-insert-rollup) to see these features in
 action.
@@ -998,7 +1004,8 @@ current [known issues around memory usage](#known-issues-memory).
 ## Security
 
 > The security model for the multi-stage query engine is subject to change in future releases.
-> Future releases may require different permissions than the current release.
+> Future releases may require different permissions than the current release. 
+
 In the current release, the security model for the multi-stage query engine is:
 
 - All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
@@ -1015,7 +1022,7 @@ Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's
 
 - Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions.
 - Retrieve status: The user must have READ DATASOURCE permission.
-- View reports: The user must have READ DATASOURCE permission unless they have access to the the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
+- View reports: The user must have READ DATASOURCE permission unless they have access to the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
 
 ## Limits
 
@@ -1250,15 +1257,16 @@ When you use the multi-stage query engine, the following happens:
 **Issues with INSERT queries.** <a href="#known-issues-insert" name="known-issues-insert">#</a>
 
 - The [schemaless dimensions](https://docs.imply.io/latest/druid/ingestion/ingestion-spec.html#inclusions-and-exclusions)
-  feature is not available. All columns and their types must be
-  specified explicitly. (15004)
+feature is not available. All columns and their types must be specified explicitly. (15004)
 
 - [Segment metadata queries](https://docs.imply.io/latest/druid/querying/segmentmetadataquery.html)
-  on datasources ingested with the multi-stage query engine will return values for `rollup`,
-  `queryGranularity`, `timestampSpec`, and `aggregators` that are not usable for introspection. In
+  on datasources ingested with the multi-stage query engine will return values for`timestampSpec` that are not usable
+  for introspection.
+  (15007)
+- Figuring out `rollup`,`query-granualrity`,`aggregatorFactories` is on best effort basis. In
   particular, Pivot will not be able to automatically create data cubes that properly reflect the
-  rollup configurations of these datasources. Proper data cubes can still be created manually.
-  (15006, 15007, 15008)
+  rollup configurations if the insert query does not meet the conditions defined in [Rollup](#rollup). Proper data cubes
+  can still be created manually. (20879)
 
 - When using INSERT with GROUP BY, the multi-stage engine generates segments that Druid's compaction
   functionality is not able to further roll up. This applies to autocompaction as well as manually

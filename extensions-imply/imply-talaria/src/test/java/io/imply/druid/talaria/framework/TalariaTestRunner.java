@@ -756,7 +756,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Object[] tranformedRow = new Object[row.length];
           for (int i = 0; i < row.length; i++) {
             if (row[i] instanceof HyperLogLogCollector) {
-              tranformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinality();
+              tranformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinalityRound();
             } else {
               tranformedRow[i] = row[i];
             }
