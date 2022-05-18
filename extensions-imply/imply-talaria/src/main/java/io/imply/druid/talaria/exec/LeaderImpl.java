@@ -1352,9 +1352,7 @@ public class LeaderImpl implements Leader
   )
   {
     final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
-    // TODO: Disabling the rollup mode to be allways false till {@link AggregatorFactory} has a withName method.
-    // IMPLY-20677,IMPLY-20678
-    final boolean isRollupQ = false;
+    final boolean isRollupQ = isRollupQuery(querySpec.getQuery());
 
     final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
         makeDimensionsAndAggregatorsForIngestion(
@@ -1548,13 +1546,14 @@ public class LeaderImpl implements Leader
 
     if (isRollupQuery) {
       for (AggregatorFactory aggregatorFactory : ((GroupByQuery) query).getAggregatorSpecs()) {
-        // get combining factory as data is already premerged in msqe
-        aggregatorFactory = aggregatorFactory.getCombiningFactory();
         String outputColumn = Iterables.getOnlyElement(columnMappings.getOutputColumnsForQueryColumn(aggregatorFactory.getName()));
         if (outputColumnAggregatorFactories.containsKey(outputColumn)) {
           throw new ISE("There can only be one aggregator factory for column [%s].", outputColumn);
         } else {
-          outputColumnAggregatorFactories.put(outputColumn, aggregatorFactory);
+          outputColumnAggregatorFactories.put(
+              outputColumn,
+              aggregatorFactory.withName(outputColumn).getCombiningFactory()
+          );
         }
       }
     }
