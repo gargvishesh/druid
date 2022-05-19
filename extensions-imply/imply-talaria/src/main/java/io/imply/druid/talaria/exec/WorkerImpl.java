@@ -170,11 +170,7 @@ public class WorkerImpl implements Worker
 
         closer.register(() -> {
           if (leaderAlive && leaderClient != null && selfDruidNode != null) {
-            leaderClient.postWorkerError(
-                task.getControllerTaskId(),
-                id(),
-                errorReport
-            );
+            leaderClient.postWorkerError(id(), errorReport);
           }
         });
 
@@ -191,10 +187,10 @@ public class WorkerImpl implements Worker
    */
   public Optional<TalariaErrorReport> runTask(final Closer closer) throws Exception
   {
-    context.registerWorker(this, closer);
     this.selfDruidNode = context.selfNode();
-    this.leaderClient = context.makeLeaderClient(id());
+    this.leaderClient = context.makeLeaderClient(task.getControllerTaskId());
     closer.register(leaderClient::close);
+    context.registerWorker(this, closer); // Uses leaderClient, so must be called after leaderClient is initialized
     this.workerClient = new ExceptionWrappingWorkerClient(context.makeWorkerClient(id()));
     closer.register(workerClient::close);
     this.processorBouncer = context.processorBouncer();
@@ -270,10 +266,8 @@ public class WorkerImpl implements Worker
         }
 
         if (kernel.getPhase() == WorkerStagePhase.READING_INPUT && kernel.hasResultKeyStatisticsSnapshot()) {
-          // TODO(gianm): Do this in a different thread?
           if (leaderAlive) {
             leaderClient.postKeyStatistics(
-                task.getControllerTaskId(),
                 stageDefinition.getId(),
                 kernel.getWorkOrder().getWorkerNumber(),
                 kernel.getResultKeyStatisticsSnapshot()
@@ -297,10 +291,8 @@ public class WorkerImpl implements Worker
 
         if (kernel.getPhase() == WorkerStagePhase.RESULTS_READY
             && postedResultsComplete.add(Pair.of(stageDefinition.getId(), kernel.getWorkOrder().getWorkerNumber()))) {
-          // TODO(gianm): Do this in a different thread?
           if (leaderAlive) {
             leaderClient.postResultsComplete(
-                task.getControllerTaskId(),
                 stageDefinition.getId(),
                 kernel.getWorkOrder().getWorkerNumber(),
                 kernel.getResultObject()
@@ -335,6 +327,7 @@ public class WorkerImpl implements Worker
               countersString = nextCountersString;
             }
           }
+
           postCountersToController();
         } while ((nextCommand = kernelManipulationQueue.poll(5, TimeUnit.SECONDS)) == null);
 
@@ -503,9 +496,7 @@ public class WorkerImpl implements Worker
     {
       // TODO(gianm): Handle failures, retries of other tasks (changing task list)
       final Supplier<List<String>> taskList = Suppliers.memoize(
-          () -> leaderClient.getTaskList(task.getControllerTaskId()).orElseThrow(
-              () -> new ISE("Really expected tasks to be available by now")
-          )
+          () -> leaderClient.getTaskList().orElseThrow(() -> new ISE("Really expected tasks to be available by now"))
       )::get;
 
       @Override
@@ -615,7 +606,7 @@ public class WorkerImpl implements Worker
           );
         } else {
           if (leaderAlive) {
-            leaderClient.postCounters(task.getControllerTaskId(), id(), workerCounters.get(0));
+            leaderClient.postCounters(id(), workerCounters.get(0));
           }
         }
       }

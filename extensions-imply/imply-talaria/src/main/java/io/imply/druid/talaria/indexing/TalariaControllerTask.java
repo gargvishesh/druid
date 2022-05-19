@@ -16,9 +16,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
+import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
+import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskLock;
 import org.apache.druid.indexing.common.TaskLockType;
@@ -151,7 +155,10 @@ public class TalariaControllerTask extends AbstractTask
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    LeaderContext context = new IndexerLeaderContext(toolbox, injector);
+    final DruidServiceClientFactory clientFactory =
+        injector.getInstance(Key.get(DruidServiceClientFactory.class, Global.class));
+    final OverlordServiceClient overlordClient = injector.getInstance(OverlordServiceClient.class);
+    final LeaderContext context = new IndexerLeaderContext(toolbox, injector, clientFactory, overlordClient);
     leader = new LeaderImpl(this, context);
     return leader.run();
   }

@@ -31,8 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Counters are all tracked on a per-worker basis by the {@link #workerCountersMap} object.
  *
  * Immutable {@link TalariaCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
- * worker-to-controller counters propagation (see {@link TalariaIndexerTaskClient#postCounters}) and reporting
- * to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
+ * worker-to-controller counters propagation (see {@link io.imply.druid.talaria.exec.LeaderClient#postCounters})
+ * and reporting to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
  */
 public class TalariaCounters
 {

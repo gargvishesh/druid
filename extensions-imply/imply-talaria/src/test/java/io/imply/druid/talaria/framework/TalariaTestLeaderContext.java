@@ -10,7 +10,6 @@
 package io.imply.druid.talaria.framework;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -19,7 +18,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
-import io.imply.druid.talaria.exec.TaskNotFoundException;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerImpl;
@@ -135,14 +133,7 @@ public class TalariaTestLeaderContext implements LeaderContext
     }
 
     @Override
-    public Optional<TaskStatus> status(String workerId)
-    {
-      return Optional.of(statusMap.get(workerId));
-    }
-
-    @Override
     public Map<String, org.apache.druid.client.indexing.TaskStatus> statuses(Set<String> taskIds)
-        throws TaskNotFoundException
     {
       Map<String, org.apache.druid.client.indexing.TaskStatus> result = new HashMap<>();
       for (String taskId : taskIds) {
@@ -167,10 +158,12 @@ public class TalariaTestLeaderContext implements LeaderContext
     }
 
     @Override
-    public String cancel(String workerId)
+    public void cancel(String workerId)
     {
-      inMemoryWorkers.remove(workerId).stopGracefully();
-      return workerId;
+      final Worker worker = inMemoryWorkers.remove(workerId);
+      if (worker != null) {
+        worker.stopGracefully();
+      }
     }
 
     @Override
@@ -225,7 +218,7 @@ public class TalariaTestLeaderContext implements LeaderContext
   @Override
   public WorkerClient taskClientFor(Leader leader)
   {
-    return new TalariaTestWorkerClient(inMemoryWorkers, mapper);
+    return new TalariaTestWorkerClient(inMemoryWorkers);
 
   }
 
