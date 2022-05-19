@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
@@ -101,6 +102,25 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
 
     setupHttpClientsAndUsers();
     setExpectedSystemSchemaObjects();
+    ITRetryUtil.retryUntilTrue(
+        () -> getAllRoles().containsAll(
+            ImmutableSet.of(
+                "admin",
+                "datasourceOnlyRole",
+                "datasourceAndContextParamsRole",
+                "datasourceWithSysRole",
+                "datasourceWithStateRole",
+                "stateOnlyRole"
+            )
+        ),
+        "waiting all roles to be loaded"
+    );
+    // It is sad that we need a sleep here.
+    // Because of the lack of an API to get the load status in the keycloak extension,
+    // the check against `getAllRoles` above is not enough because `getAllRoles` calls the coordinator
+    // while the config might have not been propagated to other servers yet.
+    // To fix this, we should add a new API that returns the config load status.
+    Thread.sleep(5000);
   }
 
   @Test
@@ -229,7 +249,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     Properties connectionProperties = new Properties();
     connectionProperties.setProperty(
         "password",
-        ((KeycloakedHttpClient) getHttpClient(User.ADMIN)).getAccessTokenString()
+        ((KeycloakedHttpClient) getHttpClient(user)).getAccessTokenString()
     );
     return connectionProperties;
   }
@@ -304,10 +324,16 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
     return EXPECTED_AVATICA_AUTHZ_ERROR;
   }
 
-  private void createRolesWithPermissions(Map<String, List<ResourceAction>> roleTopermissions) throws Exception
+  /**
+   * Create roles with permissions in Druid.
+   *
+   * The roles should be also created in Keycloak to use them for Druid authorization.
+   * See integration-tests-imply/docker/keycloak-configs/setup.sh for how to create a role in Keycloak.
+   */
+  private void createRolesWithPermissions(Map<String, List<ResourceAction>> roleToPermissions) throws Exception
   {
     final HttpClient adminClient = getHttpClient(User.ADMIN);
-    roleTopermissions.keySet().forEach(role -> HttpUtil.makeRequest(
+    roleToPermissions.keySet().forEach(role -> HttpUtil.makeRequest(
         adminClient,
         HttpMethod.POST,
         StringUtils.format(
@@ -318,7 +344,7 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
         null
     ));
 
-    for (Map.Entry<String, List<ResourceAction>> entry : roleTopermissions.entrySet()) {
+    for (Map.Entry<String, List<ResourceAction>> entry : roleToPermissions.entrySet()) {
       String role = entry.getKey();
       List<ResourceAction> permissions = entry.getValue();
       byte[] permissionsBytes = jsonMapper.writeValueAsBytes(permissions);
@@ -333,6 +359,27 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
           permissionsBytes
       );
     }
+  }
+
+  private Set<String> getAllRoles() throws JsonProcessingException
+  {
+    final HttpClient adminClient = getHttpClient(User.ADMIN);
+    StatusResponseHolder statusResponseHolder = HttpUtil.makeRequestWithExpectedStatus(
+        adminClient,
+        HttpMethod.GET,
+        StringUtils.format(
+            "%s/druid-ext/keycloak-security/authorization/roles",
+            config.getCoordinatorUrl()
+        ),
+        null,
+        HttpResponseStatus.OK
+    );
+    return jsonMapper.readValue(
+        statusResponseHolder.getContent(),
+        new TypeReference<Set<String>>()
+        {
+        }
+    );
   }
 
   @Override
@@ -357,9 +404,9 @@ public class ITKeycloakAuthConfigurationTest extends AbstractAuthConfigurationTe
       KeycloakDeployment userDeployment = KeycloakDeploymentBuilder.build(userConfig);
       Map<String, String> reqHeaders = new HashMap<>();
       Map<String, String> reqParams = new HashMap<>();
-      /* Set Host header so that ISS references imply-keycloak, which is needed for verification on Druid side,
-         imply-keycloak is not routable from integration test code, and localhost:8080 wont work within docker
-         network where Druid Cluster is running. */
+      // Set Host header so that ISS references imply-keycloak, which is needed for verification on Druid side,
+      // imply-keycloak is not routable from integration test code, and localhost:8080 wont work within docker
+      // network where Druid Cluster is running.
       reqHeaders.put("Host", "imply-keycloak:8080");
       reqParams.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.PASSWORD);
       reqParams.put(OAuth2Constants.USERNAME, StringUtils.toLowerCase(username));
