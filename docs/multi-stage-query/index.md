@@ -805,7 +805,7 @@ The multi-stage query engine accepts Druid SQL
 
 > Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future releases. For stability reasons, we recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
-> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version <VERSION> and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
+> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
 
 Queries run as tasks. The action you want to take determines the endpoint you use:
 
@@ -1303,6 +1303,13 @@ feature is not available. All columns and their types must be specified explicit
   [UnknownError](#errors) with a message including "No space left on device". (15022)
 
 ## Release notes
+
+**2022.05** <a href="#2022.05" name="2022.05">#</a>
+
+- You no longer need to load the `imply-sql-async` extension to use the multi-stage query engine. You only need to load the `imply-talaria` extension.
+- The API endpoints have changed. Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](#api).
+- You no longer need to set a context parameter for `talaria` when making API calls. API calls to the `task` endpoint use the multi-stage query engine automatically.
+- Fixed an issue that caused an `IndexOutOfBoundsException` error to occur, which led to some ingestion jobs failing.
 
 **2022.04** <a href="#2022.04" name="2022.04">#</a>
 
