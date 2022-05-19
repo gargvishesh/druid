@@ -23,10 +23,20 @@ set -e
 # set some-druid-cluster-internal secret
 /opt/jboss/keycloak/bin/kcadm.sh update clients/f3f0e4e4-1844-401b-934c-30f66c07d45f -s "secret=secret" -r druid
 
+/opt/jboss/keycloak/bin/kcadm.sh create clients/cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc/roles -r druid -s name=datasourceOnlyRole
+/opt/jboss/keycloak/bin/kcadm.sh create clients/cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc/roles -r druid -s name=datasourceAndContextParamsRole
+/opt/jboss/keycloak/bin/kcadm.sh create clients/cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc/roles -r druid -s name=datasourceWithSysRole
+/opt/jboss/keycloak/bin/kcadm.sh create clients/cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc/roles -r druid -s name=datasourceWithStateRole
+/opt/jboss/keycloak/bin/kcadm.sh create clients/cbd9eb75-1a7c-4d95-8fbc-36adb32a1fdc/roles -r druid -s name=stateOnlyRole
+
 # add users and some-druid-cluster roles to users
 /opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=admin -s enabled=true
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username admin --new-password priest
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername admin --cclientid some-druid-cluster --rolename admin
+
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=druid_system -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username druid_system --new-password warlock
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername druid_system --cclientid some-druid-cluster --rolename admin
 
 /opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourceonlyuser -s enabled=true
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceonlyuser --new-password helloworld
@@ -36,9 +46,9 @@ set -e
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceandcontextparamsuser --new-password helloworld
 /opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourceandcontextparamsuser --cclientid some-druid-cluster --rolename datasourceAndContextParamsRole
 
-/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewithsysuser -s enabled=true
-/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewithsysuser --new-password helloworld
-/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourcewithsysuser --cclientid some-druid-cluster --rolename datasourceWithSysRole
+/opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourceandsysuser -s enabled=true
+/opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourceandsysuser --new-password helloworld
+/opt/jboss/keycloak/bin/kcadm.sh add-roles -r druid --uusername datasourceandsysuser --cclientid some-druid-cluster --rolename datasourceWithSysRole
 
 /opt/jboss/keycloak/bin/kcadm.sh create users -r druid -s username=datasourcewithstateuser -s enabled=true
 /opt/jboss/keycloak/bin/kcadm.sh set-password -r druid --username datasourcewithstateuser --new-password helloworld
