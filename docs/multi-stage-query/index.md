@@ -7,35 +7,30 @@ title: Multi-stage query engine
 > functionality documented on this page is subject to change or removal at any time. Alpha features
 > are provided "as is" and are not subject to Imply SLAs.
 
-This extension provides a new, multi-stage distributed query engine for Apache Druid. It supports
-larger, heavier-weight queries, querying external data, and ingestion via SQL **INSERT**. Read our
-blog post for details about why we are creating this engine:
-https://imply.io/blog/a-new-shape-for-apache-druid/
+The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
 
-The multi-stage query engine hooks into the existing data processing routines from Druid's core
-query engine, so it has all the same query capabilities. But on top of that, it adds a system that
-splits queries into stages and automatically exchanges data between stages. Each stage is
-parallelized to run across many data servers at once. There isn't any need for tuning beyond
-selecting a concurrency level. This means that the multi-stage engine excels at executing queries
-that would be bottlenecked at the Broker when using Druid's core query engine.
+MSQE splits queries into stages and automatically exchanges data between stages. Each stage is parallelized to run across multiple data servers at once, simplifying performance.
 
-With multi-stage queries, Druid can:
+With MSQE, you can use Druid to:
 
-- Read external data at query time using the [`EXTERN`](#extern) function.
-- Execute batch ingestion jobs as SQL queries using the [`INSERT`](#insert) keyword.
+- Read external data at query time using [EXTERN](#extern).
+- Execute batch ingestion jobs as SQL queries using [INSERT](#insert). You no longer need to generate a JSON-based ingestion spec.
 - Transform and rewrite existing tables using SQL queries.
-- Execute heavy-weight queries that return large numbers of rows and may run for a long time.
-- Execute queries that need to exchange large amounts of data between servers, like exact count
+- Execute heavy-weight queries that might run for a long time and return large numbers of rows.
+- Execute queries that exchange large amounts of data between servers, like exact count
   distinct of high-cardinality fields.
+- Perform multi-dimension range partitioning reliably, leading to segment sizes being distributed more evenly and better performance.
 
-The engine is code-named "Talaria". During the alpha, you'll see this term in certain API calls and
+You can read more about the motivation for building MSQE in this [Imply blog post](https://imply.io/blog/a-new-shape-for-apache-druid/).
+
+The engine is code-named "Talaria". During the alpha, you'll see this term in certain API calls, properties, and
 in the name of the extension. The name comes from Mercury’s winged sandals, representing the
 exchange of data between servers.
 
 
 ## Prerequisites
 
-To use the multi-stage query engine, make sure you meet the following requirements:
+To use MSQE, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
 - A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
@@ -100,7 +95,7 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 ### Enable the enhanced Query view
 
-To use the multi-stage query engine with the Druid console, enable the enhanced version of the Query view. To enable this view, perform the following steps:
+To use MSQE with the Druid console, enable the enhanced version of the Query view:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
 2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
