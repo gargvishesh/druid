@@ -7,11 +7,18 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.exec;
+package io.imply.druid.talaria.rpc;
 
-// TODO(paul): Extend IOException so it is clear where tasks
-// should handle failures.
-@SuppressWarnings("serial")
-public class TaskNotFoundException extends RuntimeException // IOException
+import nl.jqno.equalsverifier.EqualsVerifier;
+import org.junit.Test;
+
+public class ServiceLocationTest
 {
+  @Test
+  public void test_equals()
+  {
+    EqualsVerifier.forClass(ServiceLocation.class)
+                  .usingGetClass()
+                  .verify();
+  }
 }

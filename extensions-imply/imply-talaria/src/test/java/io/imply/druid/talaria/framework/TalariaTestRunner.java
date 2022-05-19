@@ -21,26 +21,28 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
+import com.google.inject.util.Providers;
 import io.imply.druid.talaria.frame.FrameTestUtil;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import io.imply.druid.talaria.querykit.LazyResourceHolder;
+import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import org.apache.calcite.tools.RelConversionException;
-import org.apache.druid.client.indexing.IndexingService;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
-import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.GuiceInjectors;
 import org.apache.druid.guice.IndexingServiceTuningConfigModule;
+import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
@@ -145,7 +147,7 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
  * Leader -> Coordinator (Coordinator is mocked)
  * <p>
  * In the Ut's we go from:
- * {@link TalariaQueryMaker} -> {@link TalariaTestIndexingServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
+ * {@link TalariaQueryMaker} -> {@link TalariaTestOverlordServiceClient} -> {@link io.imply.druid.talaria.exec.Leader}
  * <p>
  * <p>
  * Leader -> Worker communication happens in {@link TalariaTestLeaderContext}
@@ -177,7 +179,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   private static final Logger log = new Logger(TalariaTestRunner.class);
   private PlannerFactory plannerFactory;
   private ObjectMapper objectMapper;
-  private TalariaTestIndexingServiceClient indexingServiceClient;
+  private TalariaTestOverlordServiceClient indexingServiceClient;
   private SqlLifecycleFactory sqlLifeCycleFactory;
   private IndexIO indexIO;
 
@@ -251,10 +253,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
-            binder.bind(DruidLeaderClient.class)
-                  .annotatedWith(IndexingService.class)
-                  .toInstance(new DruidLeaderClient(null, null, null, null));
-
+            binder.bind(Key.get(DruidServiceClientFactory.class, Global.class))
+                  .toProvider(Providers.of(null)); // Client is not used in tests
           }
         },
         new IndexingServiceTuningConfigModule(),
@@ -266,7 +266,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     objectMapper = setupObjectMapper(injector);
     objectMapper.registerModules(sqlModule.getJacksonModules());
 
-    indexingServiceClient = new TalariaTestIndexingServiceClient(
+    indexingServiceClient = new TalariaTestOverlordServiceClient(
         objectMapper,
         injector,
         new TalariaTestTaskActionClient(objectMapper)

@@ -9,7 +9,8 @@
 
 package io.imply.druid.talaria.framework;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
@@ -31,23 +32,22 @@ import java.util.concurrent.ExecutorService;
 
 public class TalariaTestWorkerClient implements WorkerClient
 {
-  private final ObjectMapper mapper;
   Map<String, Worker> inMemoryWorkers;
 
-  public TalariaTestWorkerClient(Map<String, Worker> inMemoryWorkers, ObjectMapper mapper)
+  public TalariaTestWorkerClient(Map<String, Worker> inMemoryWorkers)
   {
     this.inMemoryWorkers = inMemoryWorkers;
-    this.mapper = mapper;
   }
 
   @Override
-  public void postWorkOrder(String workerTaskId, WorkOrder workOrder)
+  public ListenableFuture<Void> postWorkOrder(String workerTaskId, WorkOrder workOrder)
   {
     inMemoryWorkers.get(workerTaskId).postWorkOrder(workOrder);
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public void postResultPartitionBoundaries(
+  public ListenableFuture<Void> postResultPartitionBoundaries(
       String workerTaskId,
       StageId stageId,
       ClusterByPartitions partitionBoundaries
@@ -59,6 +59,7 @@ public class TalariaTestWorkerClient implements WorkerClient
           stageId.getQueryId(),
           stageId.getStageNumber()
       );
+      return Futures.immediateFuture(null);
     }
     catch (Exception e) {
       throw new ISE(e, "unable to post result partition boundaries to workers");
@@ -66,22 +67,23 @@ public class TalariaTestWorkerClient implements WorkerClient
   }
 
   @Override
-  public void postCleanupStage(String workerTaskId, StageId stageId)
+  public ListenableFuture<Void> postCleanupStage(String workerTaskId, StageId stageId)
   {
     inMemoryWorkers.get(workerTaskId).postCleanupStage(stageId);
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public void postFinish(String taskId)
+  public ListenableFuture<Void> postFinish(String taskId)
   {
     inMemoryWorkers.get(taskId).postFinish();
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public TalariaCountersSnapshot getCounters(String taskId)
+  public ListenableFuture<TalariaCountersSnapshot> getCounters(String taskId)
   {
-    return inMemoryWorkers.get(taskId).getCounters();
-
+    return Futures.immediateFuture(inMemoryWorkers.get(taskId).getCounters());
   }
 
   @Override

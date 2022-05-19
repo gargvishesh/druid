@@ -10,6 +10,10 @@
 package io.imply.druid.talaria.exec;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
@@ -18,6 +22,8 @@ import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 
+import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -35,62 +41,37 @@ public class ExceptionWrappingWorkerClient implements WorkerClient
   }
 
   @Override
-  public void postWorkOrder(String workerTaskId, WorkOrder workOrder)
+  public ListenableFuture<Void> postWorkOrder(String workerTaskId, WorkOrder workOrder)
   {
-    try {
-      client.postWorkOrder(workerTaskId, workOrder);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(workerTaskId));
-    }
+    return wrap(workerTaskId, client, c -> c.postWorkOrder(workerTaskId, workOrder));
   }
 
   @Override
-  public void postResultPartitionBoundaries(
+  public ListenableFuture<Void> postResultPartitionBoundaries(
       final String workerTaskId,
       final StageId stageId,
       final ClusterByPartitions partitionBoundaries
   )
   {
-    try {
-      client.postResultPartitionBoundaries(workerTaskId, stageId, partitionBoundaries);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(workerTaskId));
-    }
+    return wrap(workerTaskId, client, c -> c.postResultPartitionBoundaries(workerTaskId, stageId, partitionBoundaries));
   }
 
   @Override
-  public void postCleanupStage(String workerTaskId, StageId stageId)
+  public ListenableFuture<Void> postCleanupStage(String workerTaskId, StageId stageId)
   {
-    try {
-      client.postCleanupStage(workerTaskId, stageId);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(workerTaskId));
-    }
+    return wrap(workerTaskId, client, c -> c.postCleanupStage(workerTaskId, stageId));
   }
 
   @Override
-  public void postFinish(String taskId)
+  public ListenableFuture<Void> postFinish(String workerTaskId)
   {
-    try {
-      client.postFinish(taskId);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(taskId));
-    }
+    return wrap(workerTaskId, client, c -> c.postFinish(workerTaskId));
   }
 
   @Override
-  public TalariaCountersSnapshot getCounters(String taskId)
+  public ListenableFuture<TalariaCountersSnapshot> getCounters(String workerTaskId)
   {
-    try {
-      return client.getCounters(taskId);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(taskId));
-    }
+    return wrap(workerTaskId, client, c -> c.getCounters(workerTaskId));
   }
 
   @Override
@@ -101,6 +82,8 @@ public class ExceptionWrappingWorkerClient implements WorkerClient
       ExecutorService connectExec
   )
   {
+    // Unlike other methods, getChannelData does not return a future, so don't use "wrap".
+
     try {
       return client.getChannelData(workerTaskId, stageId, partitionNumber, connectExec);
     }
@@ -110,8 +93,50 @@ public class ExceptionWrappingWorkerClient implements WorkerClient
   }
 
   @Override
-  public void close()
+  public void close() throws IOException
   {
     client.close();
+  }
+
+  private static <T> ListenableFuture<T> wrap(
+      final String workerTaskId,
+      final WorkerClient client,
+      final ClientFn<T> clientFn
+  )
+  {
+    final SettableFuture<T> retVal = SettableFuture.create();
+    final ListenableFuture<T> clientFuture;
+
+    try {
+      clientFuture = clientFn.apply(client);
+    }
+    catch (Exception e) {
+      throw new TalariaException(e, new WorkerRpcFailedFault(workerTaskId));
+    }
+
+    Futures.addCallback(
+        clientFuture,
+        new FutureCallback<T>()
+        {
+          @Override
+          public void onSuccess(@Nullable T result)
+          {
+            retVal.set(result);
+          }
+
+          @Override
+          public void onFailure(Throwable t)
+          {
+            retVal.setException(new TalariaException(t, new WorkerRpcFailedFault(workerTaskId)));
+          }
+        }
+    );
+
+    return retVal;
+  }
+
+  private interface ClientFn<T>
+  {
+    ListenableFuture<T> apply(WorkerClient client);
   }
 }

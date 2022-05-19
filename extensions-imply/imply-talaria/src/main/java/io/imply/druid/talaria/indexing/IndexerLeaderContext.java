@@ -14,18 +14,16 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
-import io.imply.druid.talaria.exec.LeaderImpl;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
+import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.druid.client.coordinator.CoordinatorClient;
-import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
-import org.apache.druid.indexing.common.task.ClientBasedTaskInfoProvider;
 import org.apache.druid.java.util.common.io.Closer;
-import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.server.DruidNode;
 
@@ -38,14 +36,22 @@ public class IndexerLeaderContext implements LeaderContext
 {
   private final TaskToolbox toolbox;
   private final Injector injector;
+  private final DruidServiceClientFactory clientFactory;
+  private final OverlordServiceClient overlordClient;
   private final WorkerManagerClient workerManager;
 
-  public IndexerLeaderContext(final TaskToolbox toolbox, Injector injector)
+  public IndexerLeaderContext(
+      final TaskToolbox toolbox,
+      final Injector injector,
+      final DruidServiceClientFactory clientFactory,
+      final OverlordServiceClient overlordClient
+  )
   {
     this.toolbox = toolbox;
     this.injector = injector;
-    this.workerManager = new IndexerWorkerManagerClient(
-        toolbox.getIndexingServiceClient());
+    this.clientFactory = clientFactory;
+    this.overlordClient = overlordClient;
+    this.workerManager = new IndexerWorkerManagerClient(overlordClient);
   }
 
   @Override
@@ -81,18 +87,14 @@ public class IndexerLeaderContext implements LeaderContext
   @Override
   public WorkerClient taskClientFor(Leader leader)
   {
-    return new TalariaIndexerTaskClient(
-        injector.getInstance(Key.get(HttpClient.class, EscalatedGlobal.class)),
-        jsonMapper(),
-        new ClientBasedTaskInfoProvider(toolbox.getIndexingServiceClient()),
-        leader.id()
-    );
+    // Ignore leader parameter.
+    return new IndexerWorkerClient(clientFactory, overlordClient, jsonMapper());
   }
 
   @Override
   public void registerLeader(Leader leader, final Closer closer)
   {
-    ChatHandler chatHandler = new LeaderChatHandler(toolbox, (LeaderImpl) leader);
+    ChatHandler chatHandler = new LeaderChatHandler(toolbox, leader);
     toolbox.getChatHandlerProvider().register(leader.id(), chatHandler, false);
     closer.register(() -> toolbox.getChatHandlerProvider().unregister(leader.id()));
   }

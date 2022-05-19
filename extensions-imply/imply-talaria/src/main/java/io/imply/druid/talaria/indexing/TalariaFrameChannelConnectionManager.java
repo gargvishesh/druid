@@ -16,7 +16,6 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.logger.Logger;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -93,6 +92,6 @@ public class TalariaFrameChannelConnectionManager
 
   public interface ConnectFunction
   {
-    void connect(int connectionNumber, long offset) throws IOException;
+    void connect(int connectionNumber, long offset);
   }
 }

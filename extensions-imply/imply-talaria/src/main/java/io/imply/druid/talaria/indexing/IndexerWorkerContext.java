@@ -11,32 +11,33 @@ package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import io.imply.druid.talaria.exec.LeaderClient;
-import io.imply.druid.talaria.exec.LeaderStatusClient;
 import io.imply.druid.talaria.exec.TalariaDataSegmentProvider;
-import io.imply.druid.talaria.exec.TalariaTaskClient;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerContext;
-import io.imply.druid.talaria.exec.WorkerImpl;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.kernel.QueryDefinition;
-import org.apache.druid.guice.annotations.EscalatedGlobal;
+import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
+import io.imply.druid.talaria.rpc.ServiceLocations;
+import io.imply.druid.talaria.rpc.ServiceLocator;
+import io.imply.druid.talaria.rpc.StandardRetryPolicy;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
+import io.imply.druid.talaria.rpc.indexing.SpecificTaskRetryPolicy;
+import io.imply.druid.talaria.rpc.indexing.SpecificTaskServiceLocator;
+import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.guice.annotations.Self;
-import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.TaskToolbox;
-import org.apache.druid.indexing.common.task.ClientBasedTaskInfoProvider;
 import org.apache.druid.indexing.worker.config.WorkerConfig;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.realtime.appenderator.UnifiedIndexerAppenderatorsManager;
@@ -48,29 +49,36 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class IndexerWorkerContext implements WorkerContext
 {
-  private final TaskToolbox toolbox;
-  private final Injector injector;
-  private final String taskId;
-  private final IndexIO indexIO;
-  private final TalariaDataSegmentProvider dataSegmentProvider;
-  private TalariaTaskClient taskClient;
-
+  private static final Logger log = new Logger(IndexerWorkerContext.class);
   private static final long FREQUENCY_CHECK_MILLIS = 1000;
   private static final long FREQUENCY_CHECK_JITTER = 30;
 
-  private static final Logger log = new Logger(IndexerWorkerContext.class);
+  private final TaskToolbox toolbox;
+  private final Injector injector;
+  private final IndexIO indexIO;
+  private final TalariaDataSegmentProvider dataSegmentProvider;
+  private final DruidServiceClientFactory clientFactory;
 
-  public IndexerWorkerContext(TaskToolbox toolbox, Injector injector, String taskId)
+  @GuardedBy("this")
+  private OverlordServiceClient overlordClient;
+
+  @GuardedBy("this")
+  private LeaderClient leaderClient;
+
+  @GuardedBy("this")
+  private ServiceLocator leaderLocator;
+
+  public IndexerWorkerContext(TaskToolbox toolbox, Injector injector)
   {
     this.toolbox = toolbox;
     this.injector = injector;
-    this.taskId = taskId;
 
     final SegmentCacheManager segmentCacheManager =
         injector.getInstance(SegmentCacheManagerFactory.class)
                 .manufacturate(new File(toolbox.getIndexingTmpDir(), "segment-fetch"));
     this.indexIO = injector.getInstance(IndexIO.class);
     this.dataSegmentProvider = new TalariaDataSegmentProvider(segmentCacheManager, this.indexIO);
+    this.clientFactory = injector.getInstance(Key.get(DruidServiceClientFactory.class, Global.class));
   }
 
   // Note: NOT part of the interface! Not available in the Talaria server.
@@ -94,24 +102,26 @@ public class IndexerWorkerContext implements WorkerContext
   @Override
   public void registerWorker(Worker worker, Closer closer)
   {
-    WorkerChatHandler chatHandler = new WorkerChatHandler(toolbox, (WorkerImpl) worker);
+    WorkerChatHandler chatHandler = new WorkerChatHandler(toolbox, worker);
     toolbox.getChatHandlerProvider().register(worker.id(), chatHandler, false);
     closer.register(() -> toolbox.getChatHandlerProvider().unregister(worker.id()));
+    closer.register(() -> {
+      synchronized (this) {
+        if (leaderLocator != null) {
+          leaderLocator.close();
+        }
+      }
+    });
 
     // Register the periodic leader checker
     final ExecutorService periodicLeaderCheckerExec = Execs.singleThreaded("leader-status-checker-%s");
     closer.register(periodicLeaderCheckerExec::shutdownNow);
-
-    LeaderStatusClient leaderStatusClient = new IndexerLeaderStatusClient(
-        toolbox.getIndexingServiceClient(),
-        worker.task().getControllerTaskId()
-    );
-    closer.register(leaderStatusClient::close);
-    periodicLeaderCheckerExec.submit(() -> leaderCheckerRunnable(leaderStatusClient, worker));
+    final ServiceLocator leaderLocator = makeLeaderLocator(worker.task().getControllerTaskId());
+    periodicLeaderCheckerExec.submit(() -> leaderCheckerRunnable(leaderLocator, worker));
   }
 
   @VisibleForTesting
-  void leaderCheckerRunnable(final LeaderStatusClient leaderStatusClient, final Worker worker)
+  void leaderCheckerRunnable(final ServiceLocator leaderLocator, final Worker worker)
   {
     while (true) {
       // Add some randomness to the frequency of the loop to avoid requests from simultaneously spun up tasks bunching
@@ -120,29 +130,17 @@ public class IndexerWorkerContext implements WorkerContext
           -FREQUENCY_CHECK_JITTER,
           2 * FREQUENCY_CHECK_JITTER
       );
-      boolean leaderFailed = false;
-      Optional<TaskStatus> taskStatusOptional;
+      final ServiceLocations leaderLocations;
       try {
-        taskStatusOptional = leaderStatusClient.status();
+        leaderLocations = leaderLocator.locate().get();
       }
       catch (Exception e) {
-        log.warn("Error occurred while fetching the status of the leader client. Retrying...");
+        log.noStackTrace().warn(e, "Error occurred while fetching leader location. Retrying.");
         continue;
       }
 
-      if (!taskStatusOptional.isPresent()) {
-        log.debug("Period fetch of the status of leader task didn't return anything");
-        leaderFailed = true;
-      } else {
-        TaskStatus taskStatus = taskStatusOptional.get();
-        log.debug("Periodic fetch of the status of leader task returned [%s]", taskStatus.getStatusCode());
-        if (taskStatus.isFailure()) {
-          leaderFailed = true;
-        }
-      }
-
-      if (leaderFailed) {
-        log.warn("Invalid leader status. Calling leaderFailed() on the worker");
+      if (leaderLocations.isClosed() || leaderLocations.getLocations().isEmpty()) {
+        log.warn("Periodic fetch of leader location returned [%s]. Worker will exit.", leaderLocations);
         worker.leaderFailed();
         break;
       }
@@ -164,34 +162,25 @@ public class IndexerWorkerContext implements WorkerContext
   }
 
   @Override
-  public LeaderClient makeLeaderClient(String id)
+  public synchronized LeaderClient makeLeaderClient(String leaderId)
   {
-    // "id" is ignored because the leader id is discovered as part of individual method calls.
-    return makeTaskClient();
-  }
+    if (leaderClient == null) {
+      final ServiceLocator locator = makeLeaderLocator(leaderId);
 
-  @Override
-  public WorkerClient makeWorkerClient(String id)
-  {
-    // "id" is ignored because the worker id is provided as part of individual method calls.
-    return makeTaskClient();
-  }
-
-  /**
-   * In the indexer, the leader and worker clients are the same thing.
-   */
-  @Override
-  public synchronized TalariaTaskClient makeTaskClient()
-  {
-    if (taskClient == null) {
-      taskClient = new TalariaIndexerTaskClient(
-          injector.getInstance(Key.get(HttpClient.class, EscalatedGlobal.class)),
+      leaderClient = new IndexerLeaderClient(
+          clientFactory.makeClient(leaderId, locator, new SpecificTaskRetryPolicy(leaderId)),
           jsonMapper(),
-          new ClientBasedTaskInfoProvider(toolbox.getIndexingServiceClient()),
-          taskId
+          locator
       );
     }
-    return taskClient;
+    return leaderClient;
+  }
+
+  @Override
+  public WorkerClient makeWorkerClient(String workerId)
+  {
+    // Ignore workerId parameter. The workerId is passed into each method of WorkerClient individually.
+    return new IndexerWorkerClient(clientFactory, makeOverlordClient(), jsonMapper());
   }
 
   @Override
@@ -241,5 +230,23 @@ public class IndexerWorkerContext implements WorkerContext
   public Bouncer processorBouncer()
   {
     return injector.getInstance(Bouncer.class);
+  }
+
+  private synchronized OverlordServiceClient makeOverlordClient()
+  {
+    if (overlordClient == null) {
+      overlordClient = injector.getInstance(OverlordServiceClient.class)
+                               .withRetryPolicy(StandardRetryPolicy.unlimited());
+    }
+    return overlordClient;
+  }
+
+  private synchronized ServiceLocator makeLeaderLocator(final String leaderId)
+  {
+    if (leaderLocator == null) {
+      leaderLocator = new SpecificTaskServiceLocator(leaderId, makeOverlordClient());
+    }
+
+    return leaderLocator;
   }
 }

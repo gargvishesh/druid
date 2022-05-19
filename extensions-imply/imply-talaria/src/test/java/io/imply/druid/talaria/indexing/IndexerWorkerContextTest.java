@@ -9,16 +9,19 @@
 
 package io.imply.druid.talaria.indexing;
 
-import com.google.common.base.Optional;
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Injector;
-import io.imply.druid.talaria.exec.LeaderStatusClient;
 import io.imply.druid.talaria.exec.Worker;
-import org.apache.druid.indexer.TaskStatus;
+import io.imply.druid.talaria.rpc.ServiceLocation;
+import io.imply.druid.talaria.rpc.ServiceLocations;
+import io.imply.druid.talaria.rpc.ServiceLocator;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+
+import java.util.Collections;
 
 public class IndexerWorkerContextTest
 {
@@ -35,38 +38,38 @@ public class IndexerWorkerContextTest
 
     indexerWorkerContext = new IndexerWorkerContext(
         Mockito.mock(TaskToolbox.class),
-        injectorMock,
-        TASK_ID
+        injectorMock
     );
   }
 
   @Test
   public void testLeaderCheckerRunnableExitsWhenEmptyStatus()
   {
-    final LeaderStatusClient leaderStatusClientMock = Mockito.mock(LeaderStatusClient.class);
-    Mockito.when(leaderStatusClientMock.status()).thenReturn(Optional.absent());
+    final ServiceLocator leaderLocatorMock = Mockito.mock(ServiceLocator.class);
+    Mockito.when(leaderLocatorMock.locate())
+           .thenReturn(Futures.immediateFuture(ServiceLocations.forLocations(Collections.emptySet())));
 
     final Worker workerMock = Mockito.mock(Worker.class);
 
-    indexerWorkerContext.leaderCheckerRunnable(leaderStatusClientMock, workerMock);
-    Mockito.verify(leaderStatusClientMock, Mockito.times(1)).status();
+    indexerWorkerContext.leaderCheckerRunnable(leaderLocatorMock, workerMock);
+    Mockito.verify(leaderLocatorMock, Mockito.times(1)).locate();
     Mockito.verify(workerMock, Mockito.times(1)).leaderFailed();
   }
 
   @Test
-  public void testLeaderCheckerRunnableExitsOnlyWhenFailedStatus()
+  public void testLeaderCheckerRunnableExitsOnlyWhenClosedStatus()
   {
-    final LeaderStatusClient leaderStatusClientMock = Mockito.mock(LeaderStatusClient.class);
-    Mockito.when(leaderStatusClientMock.status())
-           .thenReturn(Optional.of(TaskStatus.running(TASK_ID)))
-           // Done to check the behavior of the runnable, the situation of failing after success might not occur actually
-           .thenReturn(Optional.of(TaskStatus.success(TASK_ID)))
-           .thenReturn(Optional.of(TaskStatus.failure(TASK_ID, "dummy-error")));
+    final ServiceLocator leaderLocatorMock = Mockito.mock(ServiceLocator.class);
+    Mockito.when(leaderLocatorMock.locate())
+           .thenReturn(Futures.immediateFuture(ServiceLocations.forLocation(new ServiceLocation("h", 1, -1, "/"))))
+           // Done to check the behavior of the runnable, the situation of exiting after success might not occur actually
+           .thenReturn(Futures.immediateFuture(ServiceLocations.forLocation(new ServiceLocation("h", 1, -1, "/"))))
+           .thenReturn(Futures.immediateFuture(ServiceLocations.closed()));
 
     final Worker workerMock = Mockito.mock(Worker.class);
 
-    indexerWorkerContext.leaderCheckerRunnable(leaderStatusClientMock, workerMock);
-    Mockito.verify(leaderStatusClientMock, Mockito.times(3)).status();
+    indexerWorkerContext.leaderCheckerRunnable(leaderLocatorMock, workerMock);
+    Mockito.verify(leaderLocatorMock, Mockito.times(3)).locate();
     Mockito.verify(workerMock, Mockito.times(1)).leaderFailed();
   }
 }

@@ -34,8 +34,6 @@ public interface WorkerContext
 
   LeaderClient makeLeaderClient(String leaderId);
   WorkerClient makeWorkerClient(String workerId);
-  // TODO(paul): temporary, remove once clients are distributed
-  TalariaTaskClient makeTaskClient();
   File tempDir();
   FrameContext frameContext(QueryDefinition queryDef, int stageNumber);
   int threadCount();

@@ -128,7 +128,7 @@ public class TalariaSegmentGeneratorFrameProcessor implements FrameProcessor<Dat
         // useUniquePath = false because this class is meant to be used by batch jobs.
         final ListenableFuture<SegmentsAndCommitMetadata> pushFuture =
             appenderator.push(Collections.singletonList(segmentIdWithShardSpec), null, false);
-        final SegmentsAndCommitMetadata metadata = FutureUtils.getUnchecked(pushFuture);
+        final SegmentsAndCommitMetadata metadata = FutureUtils.getUnchecked(pushFuture, true);
 
         try {
           appenderator.clear();
