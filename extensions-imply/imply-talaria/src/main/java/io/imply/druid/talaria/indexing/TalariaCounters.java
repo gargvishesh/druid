@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.indexing;
 
-import com.sun.corba.se.spi.orbutil.threadpool.Work;
 import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.kernel.StagePartition;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
@@ -20,7 +19,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,24 +67,6 @@ public class TalariaCounters
   )
   {
     return workerCounters(workerNumber).getOrCreateWarningCounters(stageNumber);
-  }
-
-  public Map<String, Long> getErrorCodeToTotalErrorsMap()
-  {
-    Map<String, Long> ret = new HashMap<>();
-    for (Map.Entry<Integer, WorkerCounters> entry : workerCountersMap.entrySet()) {
-      Map<String, Long> errorCodeToTotalErrorsPerWorker = entry.getValue().getErrorCodeToTotalErrorsMap();
-      for (Map.Entry<String, Long> warningEntry : errorCodeToTotalErrorsPerWorker.entrySet()) {
-        ret.compute(
-            warningEntry.getKey(),
-            (ignored, prevVal) -> prevVal == null
-                                  ? warningEntry.getValue()
-                                  : warningEntry.getValue() + prevVal
-        );
-      }
-    }
-    return ret;
-
   }
 
   public TalariaCountersSnapshot snapshot()
@@ -263,23 +243,6 @@ public class TalariaCounters
     public WarningCounters getOrCreateWarningCounters(int stageNumber)
     {
       return warningCountersMap.computeIfAbsent(stageNumber, ignored -> new WarningCounters());
-    }
-
-    public Map<String, Long> getErrorCodeToTotalErrorsMap()
-    {
-      Map<String, Long> ret = new HashMap<>();
-      for (Map.Entry<Integer, WarningCounters> warningCountersEntry : warningCountersMap.entrySet()) {
-        WarningCounters.WarningCountersSnapshot warningCountersSnapshot = warningCountersEntry.getValue().snapshot();
-        for (Map.Entry<String, Long> warningEntry : warningCountersSnapshot.getWarningCount().entrySet()) {
-          ret.compute(
-              warningEntry.getKey(),
-              (ignored, prevVal) -> prevVal == null
-                                    ? warningEntry.getValue()
-                                    : warningEntry.getValue() + prevVal
-          );
-        }
-      }
-      return ret;
     }
   }
 

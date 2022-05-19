@@ -84,7 +84,7 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
       FrameContext providerThingy,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      TalariaWarningReportPublisher talariaWarningReportPublisher
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     if (workerNumber > 0) {

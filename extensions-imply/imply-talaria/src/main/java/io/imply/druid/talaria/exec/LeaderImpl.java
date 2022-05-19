@@ -52,7 +52,6 @@ import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
-import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.error.TalariaWarnings;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
@@ -153,7 +152,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -708,30 +706,10 @@ public class LeaderImpl implements Leader
   @Override
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
-//    Optional<Pair<String, Long>> faultsExceeded =
-//        faultsExceededChecker.addFaultsAndCheckIfExceeded(errorReports.stream()
-//                                                                      .map(TalariaErrorReport::getFault)
-//                                                                      .map(TalariaFault::getErrorCode)
-//                                                                      .collect(Collectors.toList()));
-//    if (faultsExceeded.isPresent()) {
-//      String errorCode = faultsExceeded.get().lhs;
-//      Long limit = faultsExceeded.get().rhs;
-//      workerError(
-//          TalariaErrorReport.fromFault(
-//              id(),
-//              selfDruidNode.getHost(),
-//              null,
-//              new TooManyWarningsFault(limit.intValue(), errorCode)
-//          ));
-//      kernelManipulationQueue.add(
-//          queryKernel -> {
-//            workerTaskLauncher.shutdownRemainingTasks();
-//            queryKernel.getActiveStages().forEach(queryKernel::failStage);
-//          }
-//      );
-//    } else {
-//    }
-    workerWarnings.addAll(errorReports);
+    // This check is just to safeguard that leader doesn't
+    if (errorReports.size() <= Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS) {
+      workerWarnings.addAll(errorReports);
+    }
   }
 
   @Override
@@ -755,9 +733,9 @@ public class LeaderImpl implements Leader
   public void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot)
   {
     taskCountersForLiveReports.put(workerTaskId, workerSnapshot);
-    Optional<Pair<String, Long>> warningsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded3(
+    Optional<Pair<String, Long>> warningsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded(
         taskCountersForLiveReports);
-    if(warningsExceeded.isPresent()) {
+    if (warningsExceeded.isPresent()) {
       String errorCode = warningsExceeded.get().lhs;
       Long limit = warningsExceeded.get().rhs;
       workerError(

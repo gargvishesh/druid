@@ -66,7 +66,7 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
       FrameContext providerThingy,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      TalariaWarningReportPublisher talariaWarningReportPublisher
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final GroupByStrategySelector strategySelector = providerThingy.groupByStrategySelector();

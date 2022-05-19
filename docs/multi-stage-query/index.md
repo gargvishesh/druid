@@ -795,7 +795,7 @@ The multi-stage query engine accepts Druid SQL
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
 | talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
 | maxParseExceptions| (SELECT or INSERT)<br /><br />Maximum number of parse exceptions that will be ignored while executing the query before it gets halted with `TooManyWarningsFault`. Can be set to -1 to ignore all the parse exceptions<br /><br />| -1 |
-| talariaMode| (SELECT or INSERT)<br /><br />Execute a query with a predefined set of parameters which are pretuned. It can be set to `strict` or `non-strict` <br /><br />| no default value |
+| talariaMode| (SELECT or INSERT)<br /><br />Execute a query with a predefined set of parameters which are pretuned. It can be set to `strict` or `non-strict`. Please check the [Talaria Modes](#modes) section for more information.<br /><br />| no default value |
 
 ## API
 
@@ -1038,8 +1038,8 @@ Queries are subject to the following limits:
 ## Modes
 Talaria query can be specified in a pre-defined mode by passing in the context parameter `talariaMode` and specifying the desired mode.
 It automatically populates the query context with predetermined parameters which allows the user to not worry about fine tweaking them per query.
-A user if wishes to do so can override some or all of these pre-defined parameters by specifying them explicitly. The rest of the parameters
-would be populated corresponding to the mode while the specified parameters would override them.
+A user can override pre-defined talaria mode parameters by specifying each of them explicitly in the query context. The remaining parameters
+would be populated corresponding to the mode.
 
 Currently supported modes:
 

@@ -37,5 +37,5 @@ public class Limits
   /**
    * Maximum number of warnings with their stack traces a worker can send to the leader
    */
-  public static final long MAX_VERBOSE_WARNINGS = 50;
+  public static final long MAX_VERBOSE_WARNINGS = 10;
 }

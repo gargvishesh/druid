@@ -57,7 +57,7 @@ public class OrderByFrameProcessorFactory extends BaseFrameProcessorFactory
       FrameContext providerThingy,
       int maxOutstandingProcessors,
       TalariaCounters talariaCounters,
-      TalariaWarningReportPublisher talariaWarningReportPublisher
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final List<OutputChannel> outputChannels = new ArrayList<>();

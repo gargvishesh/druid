@@ -10,16 +10,14 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
-import io.imply.druid.talaria.indexing.WarningCounters;
 import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Keeps a track of the warnings that have been so far and returns if any type has exceeded their designated limit
@@ -28,47 +26,25 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FaultsExceededChecker
 {
   final Map<String, Long> maxFaultsAllowedCount;
-  final ConcurrentHashMap<String, Long> currentFaultsEncounteredCount = new ConcurrentHashMap<>();
 
   public FaultsExceededChecker(final Map<String, Long> maxFaultsAllowedCount)
   {
-    maxFaultsAllowedCount.forEach((ignored, count) ->
-                                      Preconditions.checkArgument(count >= 0 || count == -1, "invalid count")
+    maxFaultsAllowedCount.forEach(
+        (warning, count) ->
+            Preconditions.checkArgument(
+                count >= 0 || count == -1,
+                StringUtils.format("Invalid limit for warning of type %s", warning)
+            )
     );
     this.maxFaultsAllowedCount = maxFaultsAllowedCount;
   }
 
-  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final List<String> talariaFaults)
-  {
-    Optional<Pair<String, Long>> ret = Optional.empty();
-    for (final String talariaFault : talariaFaults) {
-      Long limit = maxFaultsAllowedCount.getOrDefault(talariaFault, -1L);
-      currentFaultsEncounteredCount.compute(
-          talariaFault,
-          (ignored, currentCount) -> currentCount == null ? 1L : currentCount + 1L
-      );
-      if (limit != -1) {
-        if (currentFaultsEncounteredCount.get(talariaFault) > limit) {
-          ret = Optional.of(Pair.of(talariaFault, limit));
-        }
-      }
-    }
-    return ret;
-  }
-
-  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded2(final TalariaCounters talariaCounters)
-  {
-    Optional<Pair<String, Long>> ret = Optional.empty();
-    Map<String, Long> workerWarnings = talariaCounters.getErrorCodeToTotalErrorsMap();
-    workerWarnings.entrySet().stream().anyMatch(entry -> {
-      long limit = maxFaultsAllowedCount.getOrDefault(entry.getKey(), -1L);
-      boolean passed = limit == -1 || entry.getValue() <= limit;
-      return !passed;
-    });
-    return ret;
-  }
-
-  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded3(final Map<String, TalariaCountersSnapshot.WorkerCounters> taskCounters)
+  /**
+   * @param taskCounters WorkerCounters have the count of the warnings generated per worker
+   * @return An optional which is empty if the faults count in the present in the task counters donot exceed their
+   * prescribed limit, else it contains the errorCode and the maximum allowed faults for that errorCode
+   */
+  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final Map<String, TalariaCountersSnapshot.WorkerCounters> taskCounters)
   {
     Map<String, Long> allWarnings = new HashMap<>();
     for (Map.Entry<String, TalariaCountersSnapshot.WorkerCounters> workerCountersEntry : taskCounters.entrySet()) {

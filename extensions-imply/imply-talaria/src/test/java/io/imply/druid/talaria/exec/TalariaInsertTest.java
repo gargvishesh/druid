@@ -135,11 +135,6 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedQueryGranularity(Granularities.DAY)
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
                      .setExpectedRowSignature(rowSignature)
-                     .setExpectedResultRows(expectedFooRowsWithAggregatedComplexColumn())
-                     .setExpectedRollUp(true)
-                     .setExpectedQueryGranularity(Granularities.DAY)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
-                     .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
 
