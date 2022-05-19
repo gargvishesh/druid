@@ -670,6 +670,12 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     }
 
     @Override
+    public boolean readRetainsBufferReference()
+    {
+      return false;
+    }
+
+    @Override
     public int write(ByteBuffer buffer, Integer value, int maxSizeBytes)
     {
       TypeStrategies.checkMaxSize(buffer.remaining(), maxSizeBytes, ColumnType.LONG);

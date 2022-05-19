@@ -35,6 +35,7 @@ import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerFactory;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
+import org.apache.druid.query.groupby.TestGroupByBuffers;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.query.timeseries.TimeseriesQueryEngine;
 import org.apache.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -57,7 +58,9 @@ import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,6 +81,7 @@ import java.util.Map;
 @SuppressWarnings({"unchecked"})
 public class CurrencySumQueryTest extends InitializedNullHandlingTest
 {
+  private static TestGroupByBuffers BUFFER_POOLS = null;
   private static final String VISITOR_ID = "visitor_id";
   private static final String REVENUE = "revenue";
   private final IndexBuilder indexBuilder;
@@ -185,6 +189,21 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
   public void tearDown() throws Exception
   {
     closeable.close();
+  }
+
+  @BeforeClass
+  public static void setUpClass()
+  {
+    if (BUFFER_POOLS == null) {
+      BUFFER_POOLS = TestGroupByBuffers.createDefault();
+    }
+  }
+
+  @AfterClass
+  public static void tearDownClass()
+  {
+    BUFFER_POOLS.close();
+    BUFFER_POOLS = null;
   }
 
   @Test
@@ -360,9 +379,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
   public void testGroupBy() throws IOException
   {
     final GroupByQueryConfig config = new GroupByQueryConfig();
-    final Pair<GroupByQueryRunnerFactory, Closer> factoryPair = GroupByQueryRunnerTest.makeQueryRunnerFactory(config);
-    final GroupByQueryRunnerFactory factory = factoryPair.lhs;
-    final Closer closer = factoryPair.rhs;
+    final GroupByQueryRunnerFactory factory = GroupByQueryRunnerTest.makeQueryRunnerFactory(config, BUFFER_POOLS);
 
     GroupByQuery query = GroupByQuery.builder()
                                      .setDataSource(QueryRunnerTestHelper.DATA_SOURCE)
@@ -395,7 +412,5 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
 
     List<ResultRow> expectedResults = Collections.singletonList(ResultRow.of(5L, 47720.0));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
-
-    closer.close();
   }
 }
