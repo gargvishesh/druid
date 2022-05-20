@@ -26,9 +26,9 @@ import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
 import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.vector.NilVectorSelector;
@@ -321,7 +321,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
 
   @Nullable
   @Override
-  public BitmapIndex getBitmapIndex(
+  public ColumnIndexSupplier getIndexSupplier(
       String columnName,
       ColumnSelector selector
   )
@@ -331,7 +331,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     if (column == null) {
       return null;
     }
-    return column.makeBitmapIndex(path);
+    return column.getColumnIndexSupplier(path);
   }
 
   @Override

@@ -10,12 +10,12 @@
 package io.imply.druid.talaria.frame.read;
 
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnHolder;
-import org.apache.druid.segment.column.SpatialIndex;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ValueTypes;
 import org.apache.druid.segment.selector.settable.SettableColumnValueSelector;
+import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 
 import javax.annotation.Nullable;
 
@@ -55,16 +55,9 @@ public class ColumnPlus implements ColumnHolder
 
   @Nullable
   @Override
-  public BitmapIndex getBitmapIndex()
+  public ColumnIndexSupplier getIndexSupplier()
   {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public SpatialIndex getSpatialIndex()
-  {
-    return null;
+    return NoIndexesColumnIndexSupplier.getInstance();
   }
 
   @Override

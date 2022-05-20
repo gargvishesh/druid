@@ -9,23 +9,21 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Supplier;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
-import org.apache.druid.segment.column.BitmapIndex;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.data.GenericIndexed;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
-public class IpAddressBitmapIndexColumnPartSupplier implements Supplier<BitmapIndex>
+public class DictionaryEncodedIpAddressBlobColumnIndexSupplier implements ColumnIndexSupplier
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final GenericIndexed<ByteBuffer> dictionary;
 
-
-  public IpAddressBitmapIndexColumnPartSupplier(
+  public DictionaryEncodedIpAddressBlobColumnIndexSupplier(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
       GenericIndexed<ByteBuffer> dictionary
@@ -36,26 +34,13 @@ public class IpAddressBitmapIndexColumnPartSupplier implements Supplier<BitmapIn
     this.dictionary = dictionary;
   }
 
+  @Nullable
   @Override
-  public BitmapIndex get()
+  public <T> T as(Class<T> clazz)
   {
-    return new IpAddressBitmapIndex(bitmapFactory, bitmaps, dictionary)
-    {
-      @Nullable
-      @Override
-      public String getValue(int index)
-      {
-        ByteBuffer value = dictionary.get(index);
-        if (value == null) {
-          return null;
-        }
-        IpAddressBlob blob = IpAddressBlob.ofByteBuffer(value);
-        if (blob == null) {
-          return null;
-        }
-        return blob.asCompressedString();
-      }
-    };
+    if (clazz.equals(DictionaryEncodedIpAddressBlobValueIndex.class)) {
+      return (T) new DictionaryEncodedIpAddressBlobValueIndex(bitmapFactory, bitmaps, dictionary);
+    }
+    return null;
   }
 }
-

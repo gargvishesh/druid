@@ -22,10 +22,10 @@ import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.ColumnarDoubles;
@@ -259,8 +259,8 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
       columnBuilder.setHasMultipleValues(false)
              .setHasNulls(true)
              .setDictionaryEncodedColumnSupplier(columnSupplier);
-      columnBuilder.setBitmapIndex(
-          new NestedFieldLiteralBitmapIndexSupplier(
+      columnBuilder.setIndexSupplier(
+          new NestedFieldLiteralColumnIndexSupplier(
               types,
               metadata.getBitmapSerdeFactory().getBitmapFactory(),
               rBitmaps,
@@ -268,7 +268,9 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
               stringDictionary,
               longDictionary,
               doubleDictionary
-          )
+          ),
+          true,
+          false
       );
       return columnBuilder.build();
     }
@@ -279,11 +281,11 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
 
   @Nullable
   @Override
-  public BitmapIndex makeBitmapIndex(String field)
+  public ColumnIndexSupplier getColumnIndexSupplier(String field)
   {
     if (fields.indexOf(field) < 0) {
       return null;
     }
-    return getColumnHolder(field).getBitmapIndex();
+    return getColumnHolder(field).getIndexSupplier();
   }
 }
