@@ -707,14 +707,20 @@ public class LeaderImpl implements Leader
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
     // This check is just to safeguard that leader doesn't run out of memory. The actual limiting should be done
-    // on the worker's side as well.
-    synchronized (workerWarnings) {
-      long numReportsToAdd = Math.min(
-          errorReports.size(),
-          Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS - workerWarnings.size()
-      );
-      for (int i = 0; i < numReportsToAdd; ++i) {
-        workerWarnings.add(errorReports.get(i));
+    // on the worker's side as well. Also, it uses double lock checking
+    long numReportsToAddCheck = Math.min(
+        errorReports.size(),
+        Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS - workerWarnings.size()
+    );
+    if (numReportsToAddCheck > 0) {
+      synchronized (workerWarnings) {
+        long numReportsToAdd = Math.min(
+            errorReports.size(),
+            Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS - workerWarnings.size()
+        );
+        for (int i = 0; i < numReportsToAdd; ++i) {
+          workerWarnings.add(errorReports.get(i));
+        }
       }
     }
   }
