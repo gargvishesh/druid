@@ -38,6 +38,7 @@ public class TooManyWarningsFault extends BaseTalariaFault
     return maxWarnings;
   }
 
+  @Override
   @JsonProperty
   public String getErrorCode()
   {
