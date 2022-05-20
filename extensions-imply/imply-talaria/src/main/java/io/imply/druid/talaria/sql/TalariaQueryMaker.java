@@ -17,10 +17,11 @@ import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.indexing.TalariaInsertContextKeys;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
+import io.imply.druid.talaria.util.FutureUtils;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
@@ -82,7 +83,7 @@ public class TalariaQueryMaker implements QueryMaker
   private static final int DEFAULT_ROWS_IN_MEMORY = 100000;
 
   private final String targetDataSource;
-  private final IndexingServiceClient indexingServiceClient;
+  private final OverlordServiceClient overlordClient;
   private final PlannerContext plannerContext;
   private final ObjectMapper jsonMapper;
   private final List<Pair<Integer, String>> fieldMapping;
@@ -90,7 +91,7 @@ public class TalariaQueryMaker implements QueryMaker
 
   TalariaQueryMaker(
       @Nullable final String targetDataSource,
-      final IndexingServiceClient indexingServiceClient,
+      final OverlordServiceClient overlordClient,
       final PlannerContext plannerContext,
       final ObjectMapper jsonMapper,
       final List<Pair<Integer, String>> fieldMapping,
@@ -98,7 +99,7 @@ public class TalariaQueryMaker implements QueryMaker
   )
   {
     this.targetDataSource = targetDataSource;
-    this.indexingServiceClient = Preconditions.checkNotNull(indexingServiceClient, "indexingServiceClient");
+    this.overlordClient = Preconditions.checkNotNull(overlordClient, "indexingServiceClient");
     this.plannerContext = Preconditions.checkNotNull(plannerContext, "plannerContext");
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
     this.fieldMapping = Preconditions.checkNotNull(fieldMapping, "fieldMapping");
@@ -323,8 +324,7 @@ public class TalariaQueryMaker implements QueryMaker
                     .put("sqlTypeNames", sqlTypeNames)
                     .build();
 
-    indexingServiceClient.runTask(taskId, taskSpec);
-
+    FutureUtils.getUnchecked(overlordClient.runTask(taskId, taskSpec), true);
     return Sequences.simple(Collections.singletonList(new Object[]{taskId}));
   }
 

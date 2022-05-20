@@ -11,7 +11,6 @@ package io.imply.druid.talaria.indexing;
 
 import com.google.common.io.ByteStreams;
 import io.imply.druid.talaria.exec.Worker;
-import io.imply.druid.talaria.exec.WorkerImpl;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -42,7 +41,7 @@ public class WorkerChatHandler implements ChatHandler
   private final TalariaWorkerTask task;
   private final TaskToolbox toolbox;
 
-  public WorkerChatHandler(TaskToolbox toolbox, WorkerImpl worker)
+  public WorkerChatHandler(TaskToolbox toolbox, Worker worker)
   {
     this.worker = worker;
     this.task = worker.task();

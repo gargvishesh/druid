@@ -21,8 +21,6 @@ import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.NoopQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaExternalOperatorConversion;
-import org.apache.druid.client.indexing.HttpIndexingServiceClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
@@ -84,8 +82,6 @@ public class TalariaSqlModule implements DruidModule
             .addBinding(ImplyQueryMakerFactory.TYPE)
             .to(Key.get(QueryMakerFactory.class, Talaria.class))
             .in(LazySingleton.class);
-
-    binder.bind(IndexingServiceClient.class).to(HttpIndexingServiceClient.class).in(LazySingleton.class);
   }
 
   @Provides
@@ -109,5 +105,4 @@ public class TalariaSqlModule implements DruidModule
   {
     return implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME);
   }
-
 }

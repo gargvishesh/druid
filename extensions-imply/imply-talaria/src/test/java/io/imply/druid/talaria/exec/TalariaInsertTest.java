@@ -10,6 +10,8 @@
 package io.imply.druid.talaria.exec;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -21,7 +23,6 @@ import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.timeline.partition.DimensionRangeShardSpec;
 import org.hamcrest.CoreMatchers;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 
@@ -33,6 +34,7 @@ import java.util.List;
 
 public class TalariaInsertTest extends TalariaTestRunner
 {
+  private final HashFunction fn = Hashing.murmur3_128();
 
   @Test
   public void testInsertOnFoo1()
@@ -97,20 +99,19 @@ public class TalariaInsertTest extends TalariaTestRunner
   }
 
   @Test
-  @Ignore()
-  public void testRollUpOnFoo1()
+  public void testRolltestRollUpOnFoo1UpOnFoo1()
   {
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
-                                            .add("a0", ColumnType.LONG).build();
+                                            .add("cnt", ColumnType.LONG).build();
 
     testInsertQuery().setSql(
                          "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
                      .setExpectedRollUp(true)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
+                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -118,13 +119,12 @@ public class TalariaInsertTest extends TalariaTestRunner
   }
 
   @Test
-  @Ignore()
   public void testRollUpOnFoo1WithTimeFunction()
   {
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
-                                            .add("a0", ColumnType.LONG).build();
+                                            .add("cnt", ColumnType.LONG).build();
 
 
     testInsertQuery().setSql(
@@ -133,7 +133,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setQueryContext(ROLLUP_CONTEXT)
                      .setExpectedRollUp(true)
                      .setExpectedQueryGranularity(Granularities.DAY)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
+                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -141,13 +141,12 @@ public class TalariaInsertTest extends TalariaTestRunner
   }
 
   @Test
-  @Ignore()
   public void testRollUpOnFoo1WithTimeFunctionComplexCol()
   {
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
-                                            .add("a0", new ColumnType(ValueType.COMPLEX, "hyperUnique", null))
+                                            .add("cnt", new ColumnType(ValueType.COMPLEX, "hyperUnique", null))
                                             .build();
 
 
@@ -157,7 +156,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setQueryContext(ROLLUP_CONTEXT)
                      .setExpectedRollUp(true)
                      .setExpectedQueryGranularity(Granularities.DAY)
-                     .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("a0", "a0", false, true))
+                     .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("cnt", "cnt", false, true))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(expectedFooRowsWithAggregatedComplexColumn())
                      .verifyResults();
@@ -166,13 +165,12 @@ public class TalariaInsertTest extends TalariaTestRunner
 
 
   @Test
-  @Ignore()
   public void testRollUpOnFoo1ComplexCol()
   {
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("dim1", ColumnType.STRING)
-                                            .add("a0", new ColumnType(ValueType.COMPLEX, "hyperUnique", null))
+                                            .add("cnt", new ColumnType(ValueType.COMPLEX, "hyperUnique", null))
                                             .build();
 
 
@@ -181,7 +179,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
                      .setExpectedRollUp(true)
-                     .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("a0", "a0", false, true))
+                     .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("cnt", "cnt", false, true))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(expectedFooRowsWithAggregatedComplexColumn())
                      .verifyResults();
@@ -189,7 +187,6 @@ public class TalariaInsertTest extends TalariaTestRunner
   }
 
   @Test
-  @Ignore()
   public void testRollUpOnExternalDataSource() throws IOException
   {
     final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
@@ -197,7 +194,7 @@ public class TalariaInsertTest extends TalariaTestRunner
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
-                                            .add("a0", ColumnType.LONG)
+                                            .add("cnt", ColumnType.LONG)
                                             .build();
 
     testInsertQuery().setSql(" insert into foo1 SELECT\n"
@@ -214,13 +211,12 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedRollUp(true)
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
+                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
                      .verifyResults();
   }
 
   @Test()
-  @Ignore()
   public void testRollUpOnExternalDataSourceWithCompositeKey() throws IOException
   {
     final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
@@ -229,7 +225,7 @@ public class TalariaInsertTest extends TalariaTestRunner
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("namespace", ColumnType.STRING)
-                                            .add("a0", ColumnType.LONG)
+                                            .add("cnt", ColumnType.LONG)
                                             .build();
 
     testInsertQuery().setSql(" insert into foo1 SELECT\n"
@@ -246,7 +242,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedRollUp(true)
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
-                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("a0", "a0"))
+                     .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedResultRows(ImmutableList.of(
                          new Object[]{1466985600000L, "Benutzer Diskussion", 2L},
                          new Object[]{1466985600000L, "File", 1L},
@@ -317,15 +313,16 @@ public class TalariaInsertTest extends TalariaTestRunner
   {
     List<Object[]> expectedRows = new ArrayList<>();
     HyperLogLogCollector hyperLogLogCollector = HyperLogLogCollector.makeLatestCollector();
+    hyperLogLogCollector.add(fn.hashInt(1).asBytes());
     if (!useDefault) {
-      expectedRows.add(new Object[]{946684800000L, "", hyperLogLogCollector.estimateCardinality()});
+      expectedRows.add(new Object[]{946684800000L, "", hyperLogLogCollector.estimateCardinalityRound()});
     }
     expectedRows.addAll(ImmutableList.of(
-        new Object[]{946771200000L, "10.1", hyperLogLogCollector.estimateCardinality()},
-        new Object[]{946857600000L, "2", hyperLogLogCollector.estimateCardinality()},
-        new Object[]{978307200000L, "1", hyperLogLogCollector.estimateCardinality()},
-        new Object[]{978393600000L, "def", hyperLogLogCollector.estimateCardinality()},
-        new Object[]{978480000000L, "abc", hyperLogLogCollector.estimateCardinality()}
+        new Object[]{946771200000L, "10.1", hyperLogLogCollector.estimateCardinalityRound()},
+        new Object[]{946857600000L, "2", hyperLogLogCollector.estimateCardinalityRound()},
+        new Object[]{978307200000L, "1", hyperLogLogCollector.estimateCardinalityRound()},
+        new Object[]{978393600000L, "def", hyperLogLogCollector.estimateCardinalityRound()},
+        new Object[]{978480000000L, "abc", hyperLogLogCollector.estimateCardinalityRound()}
     ));
     return expectedRows;
   }

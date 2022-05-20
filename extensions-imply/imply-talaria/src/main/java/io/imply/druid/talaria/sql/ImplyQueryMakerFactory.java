@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.Project;
@@ -22,7 +23,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
-import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -49,18 +49,18 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
   private static final String CTX_TALARIA = "talaria";
 
   private final QueryLifecycleFactory queryLifecycleFactory;
-  private final IndexingServiceClient indexingServiceClient;
+  private final OverlordServiceClient overlordClient;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public ImplyQueryMakerFactory(
       final QueryLifecycleFactory queryLifecycleFactory,
-      final IndexingServiceClient indexingServiceClient,
+      final OverlordServiceClient overlordClient,
       final ObjectMapper jsonMapper
   )
   {
     this.queryLifecycleFactory = queryLifecycleFactory;
-    this.indexingServiceClient = indexingServiceClient;
+    this.overlordClient = overlordClient;
     this.jsonMapper = jsonMapper;
   }
 
@@ -75,7 +75,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
 
       return new TalariaQueryMaker(
           null,
-          indexingServiceClient,
+          overlordClient,
           plannerContext,
           jsonMapper,
           relRoot.fields,
@@ -104,7 +104,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
 
       return new TalariaQueryMaker(
           targetDataSource,
-          indexingServiceClient,
+          overlordClient,
           plannerContext,
           jsonMapper,
           relRoot.fields,

@@ -15,7 +15,6 @@ import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.kernel.StageId;
 
 import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -25,33 +24,30 @@ import java.util.Optional;
 public interface LeaderClient extends AutoCloseable
 {
   void postKeyStatistics(
-      String leaderId,
       StageId stageId,
       int workerNumber,
       ClusterByStatisticsSnapshot keyStatistics
   );
   void postCounters(
-      String leaderId,
       String workerId,
       TalariaCountersSnapshot.WorkerCounters snapshot
   );
   void postResultsComplete(
-      String leaderId,
       StageId stageId,
       int workerNumber,
       @Nullable Object resultObject
   );
   void postWorkerError(
-      String leaderId,
       String workerId,
       TalariaErrorReport errorWrapper
   );
+
   void postWorkerWarning(
       String leaderId,
       String workerId,
       List<TalariaErrorReport> talariaErrorReports
   );
-  Optional<List<String>> getTaskList(String leaderId);
+  Optional<List<String>> getTaskList();
 
   @Override
   void close();

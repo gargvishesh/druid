@@ -9,13 +9,12 @@
 
 package io.imply.druid.talaria.indexing;
 
-import com.google.common.base.Optional;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
-import org.apache.druid.client.indexing.IndexingServiceClient;
+import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
+import io.imply.druid.talaria.util.FutureUtils;
 import org.apache.druid.client.indexing.TaskStatus;
+import org.apache.druid.client.indexing.TaskStatusResponse;
 import org.apache.druid.indexer.TaskLocation;
-import org.apache.druid.indexing.common.TaskInfoProvider;
-import org.apache.druid.indexing.common.task.ClientBasedTaskInfoProvider;
 
 import java.util.Map;
 import java.util.Set;
@@ -26,49 +25,47 @@ import java.util.Set;
  */
 public class IndexerWorkerManagerClient implements WorkerManagerClient
 {
-  private final IndexingServiceClient indexingServiceClient;
-  private final TaskInfoProvider taskInfoProvider;
+  private final OverlordServiceClient overlordClient;
 
-  public IndexerWorkerManagerClient(
-      IndexingServiceClient indexingServiceClient)
+  public IndexerWorkerManagerClient(final OverlordServiceClient overlordClient)
   {
-    this.indexingServiceClient = indexingServiceClient;
-    this.taskInfoProvider = new ClientBasedTaskInfoProvider(indexingServiceClient);
+    this.overlordClient = overlordClient;
   }
 
   @Override
   public String run(String taskId, TalariaWorkerTask task)
   {
-    return indexingServiceClient.runTask(taskId, task);
+    FutureUtils.getUnchecked(overlordClient.runTask(taskId, task), true);
+    return taskId;
   }
 
   @Override
-  public String cancel(String taskId)
+  public void cancel(String taskId)
   {
-    return indexingServiceClient.cancelTask(taskId);
+    FutureUtils.getUnchecked(overlordClient.cancelTask(taskId), true);
   }
 
   @Override
-  public Map<String, TaskStatus> statuses(Set<String> taskIds) throws InterruptedException
+  public Map<String, TaskStatus> statuses(Set<String> taskIds)
   {
-    return indexingServiceClient.getTaskStatuses(taskIds);
+    return FutureUtils.getUnchecked(overlordClient.taskStatuses(taskIds), true);
   }
 
   @Override
   public TaskLocation location(String id)
   {
-    return taskInfoProvider.getTaskLocation(id);
-  }
+    final TaskStatusResponse response = FutureUtils.getUnchecked(overlordClient.taskStatus(id), true);
 
-  @Override
-  public Optional<org.apache.druid.indexer.TaskStatus> status(String id)
-  {
-    return taskInfoProvider.getTaskStatus(id);
+    if (response.getStatus() != null) {
+      return response.getStatus().getLocation();
+    } else {
+      return TaskLocation.unknown();
+    }
   }
 
   @Override
   public void close()
   {
-    // Not a real client: don't actually close.
+    // Nothing to do. The OverlordServiceClient is closed by the JVM lifecycle.
   }
 }

@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderClient;
-import io.imply.druid.talaria.exec.TalariaTaskClient;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerContext;
@@ -32,8 +31,6 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.IndexMergerV9;
 import org.apache.druid.segment.incremental.NoopRowIngestionMeters;
-import org.apache.druid.segment.incremental.RowIngestionMeters;
-import org.apache.druid.segment.incremental.RowIngestionMetersFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 import org.apache.druid.segment.realtime.firehose.NoopChatHandlerProvider;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
@@ -86,19 +83,13 @@ public class TalariaTestWorkerContext implements WorkerContext
   @Override
   public LeaderClient makeLeaderClient(String leaderId)
   {
-    return new TalariaTestLeaderClient(leader, mapper);
+    return new TalariaTestLeaderClient(leader);
   }
 
   @Override
   public WorkerClient makeWorkerClient(String workerId)
   {
-    return new TalariaTestWorkerClient(inMemoryWorkers, mapper);
-  }
-
-  @Override
-  public TalariaTaskClient makeTaskClient()
-  {
-    return null;
+    return new TalariaTestWorkerClient(inMemoryWorkers);
   }
 
   @Override
@@ -119,68 +110,63 @@ public class TalariaTestWorkerContext implements WorkerContext
         indexIO,
         OffHeapMemorySegmentWriteOutMediumFactory.instance()
     );
+    final TaskReportFileWriter reportFileWriter = new TaskReportFileWriter()
+    {
+      @Override
+      public void write(String taskId, Map<String, TaskReport> reports)
+      {
+
+      }
+
+      @Override
+      public void setObjectMapper(ObjectMapper objectMapper)
+      {
+
+      }
+    };
 
     return new IndexerFrameContext(
-        new IndexerWorkerContext(new TaskToolbox(
-            null,
-            null,
-            null,
-            null,
-            injector.getInstance(DataSegmentPusher.class),
-            null,
-            null,
-            null,
-            injector.getInstance(DataSegmentAnnouncer.class),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            mapper,
-            tempDir(),
-            indexIO,
-            null,
-            null,
-            null,
-            indexMerger,
-            null,
-            null,
-            null,
-            null,
-            new TaskReportFileWriter()
-            {
-              @Override
-              public void write(String taskId, Map<String, TaskReport> reports)
-              {
-
-              }
-
-              @Override
-              public void setObjectMapper(ObjectMapper objectMapper)
-              {
-
-              }
-            },
-            null,
-            AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-            new NoopChatHandlerProvider(),
-            new RowIngestionMetersFactory()
-            {
-              @Override
-              public RowIngestionMeters createRowIngestionMeters()
-              {
-                return new NoopRowIngestionMeters();
-              }
-            },
-            null,
-            null,
-            null,
-            null,
-            null
-        ), injector,
-                                 queryDef.getQueryId()
+        new IndexerWorkerContext(
+            new TaskToolbox(
+                null,
+                null,
+                null,
+                null,
+                injector.getInstance(DataSegmentPusher.class),
+                null,
+                null,
+                null,
+                injector.getInstance(DataSegmentAnnouncer.class),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                mapper,
+                tempDir(),
+                indexIO,
+                null,
+                null,
+                null,
+                indexMerger,
+                null,
+                null,
+                null,
+                null,
+                reportFileWriter,
+                null,
+                AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+                new NoopChatHandlerProvider(),
+                NoopRowIngestionMeters::new,
+                null,
+                null,
+                null,
+                null,
+                null
+            ),
+            injector
         ),
         indexIO,
         injector.getInstance(DataSegmentProvider.class),

@@ -17,7 +17,9 @@ import org.apache.druid.java.util.common.ISE;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 /**
  * Future-related utility functions that would make sense in {@link org.apache.druid.common.guava.GuavaUtils} if this
@@ -28,13 +30,20 @@ public class FutureUtils
   /**
    * Waits for a given future and returns its value, like {@code future.get()}. The only difference is this method
    * will throw unchecked exceptions, instead of checked exceptions, if the future fails.
+   *
+   * If "cancelIfInterrupted" is true, then this method will cancel the future if the current (waiting) thread
+   * is interrupted.
    */
-  public static <T> T getUnchecked(final ListenableFuture<T> future)
+  public static <T> T getUnchecked(final ListenableFuture<T> future, final boolean cancelIfInterrupted)
   {
     try {
       return future.get();
     }
     catch (InterruptedException e) {
+      if (cancelIfInterrupted) {
+        future.cancel(true);
+      }
+
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     }
@@ -51,12 +60,56 @@ public class FutureUtils
   public static <T> T getUncheckedImmediately(final ListenableFuture<T> future)
   {
     if (future.isDone()) {
-      return getUnchecked(future);
+      return getUnchecked(future, false);
     } else if (future.isCancelled()) {
       throw new ISE("Cancelled");
     } else {
       throw new ISE("Not yet done");
     }
+  }
+
+  /**
+   * Similar to {@link Futures#allAsList}, but provides a "cancelOnErrorOrInterrupt" option that cancels all input
+   * futures if the returned future is canceled or fails.
+   */
+  public static <T> ListenableFuture<List<T>> allAsList(
+      final List<ListenableFuture<T>> futures,
+      final boolean cancelOnErrorOrInterrupt
+  )
+  {
+    final ListenableFuture<List<T>> retVal = Futures.allAsList(futures);
+
+    if (cancelOnErrorOrInterrupt) {
+      Futures.addCallback(
+          retVal,
+          new FutureCallback<List<T>>()
+          {
+            @Override
+            public void onSuccess(@Nullable List<T> result)
+            {
+              // Do nothing.
+            }
+
+            @Override
+            public void onFailure(Throwable t)
+            {
+              for (final ListenableFuture<T> inputFuture : futures) {
+                inputFuture.cancel(true);
+              }
+            }
+          }
+      );
+    }
+
+    return retVal;
+  }
+
+  /**
+   * Like {@link Futures#transform}, but works better with lambdas due to not having so many overloads.
+   */
+  public static <T, R> ListenableFuture<R> transform(final ListenableFuture<T> future, final Function<T, R> fn)
+  {
+    return Futures.transform(future, fn::apply);
   }
 
   /**

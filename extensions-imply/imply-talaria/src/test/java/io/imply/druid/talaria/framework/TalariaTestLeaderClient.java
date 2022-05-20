@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.framework;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderClient;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
@@ -24,18 +23,15 @@ import java.util.Optional;
 
 public class TalariaTestLeaderClient implements LeaderClient
 {
-  private final ObjectMapper mapper;
   private Leader leader;
 
-  public TalariaTestLeaderClient(Leader leader, ObjectMapper mapper)
+  public TalariaTestLeaderClient(Leader leader)
   {
     this.leader = leader;
-    this.mapper = mapper;
   }
 
   @Override
   public void postKeyStatistics(
-      String leaderId,
       StageId stageId,
       int workerNumber,
       ClusterByStatisticsSnapshot keyStatistics
@@ -50,7 +46,7 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postCounters(String leaderId, String workerId, TalariaCountersSnapshot.WorkerCounters snapshot)
+  public void postCounters(String workerId, TalariaCountersSnapshot.WorkerCounters snapshot)
   {
     if (snapshot != null) {
       leader.updateCounters(workerId, snapshot);
@@ -58,13 +54,13 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postResultsComplete(String leaderId, StageId stageId, int workerNumber, @Nullable Object resultObject)
+  public void postResultsComplete(StageId stageId, int workerNumber, @Nullable Object resultObject)
   {
     leader.resultsComplete(stageId.getQueryId(), stageId.getStageNumber(), workerNumber, resultObject);
   }
 
   @Override
-  public void postWorkerError(String leaderId, String workerId, TalariaErrorReport errorWrapper)
+  public void postWorkerError(String workerId, TalariaErrorReport errorWrapper)
   {
     leader.workerError(errorWrapper);
   }
@@ -76,7 +72,7 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public Optional<List<String>> getTaskList(String leaderId)
+  public Optional<List<String>> getTaskList()
   {
     return leader.getTaskIds();
   }

@@ -7,35 +7,30 @@ title: Multi-stage query engine
 > functionality documented on this page is subject to change or removal at any time. Alpha features
 > are provided "as is" and are not subject to Imply SLAs.
 
-This extension provides a new, multi-stage distributed query engine for Apache Druid. It supports
-larger, heavier-weight queries, querying external data, and ingestion via SQL **INSERT**. Read our
-blog post for details about why we are creating this engine:
-https://imply.io/blog/a-new-shape-for-apache-druid/
+The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
 
-The multi-stage query engine hooks into the existing data processing routines from Druid's core
-query engine, so it has all the same query capabilities. But on top of that, it adds a system that
-splits queries into stages and automatically exchanges data between stages. Each stage is
-parallelized to run across many data servers at once. There isn't any need for tuning beyond
-selecting a concurrency level. This means that the multi-stage engine excels at executing queries
-that would be bottlenecked at the Broker when using Druid's core query engine.
+MSQE splits queries into stages and automatically exchanges data between stages. Each stage is parallelized to run across multiple data servers at once, simplifying performance.
 
-With multi-stage queries, Druid can:
+With MSQE, you can use Druid to:
 
-- Read external data at query time using the [`EXTERN`](#extern) function.
-- Execute batch ingestion jobs as SQL queries using the [`INSERT`](#insert) keyword.
+- Read external data at query time using [EXTERN](#extern).
+- Execute batch ingestion jobs as SQL queries using [INSERT](#insert). You no longer need to generate a JSON-based ingestion spec.
 - Transform and rewrite existing tables using SQL queries.
-- Execute heavy-weight queries that return large numbers of rows and may run for a long time.
-- Execute queries that need to exchange large amounts of data between servers, like exact count
+- Execute heavy-weight queries that might run for a long time and return large numbers of rows.
+- Execute queries that exchange large amounts of data between servers, like exact count
   distinct of high-cardinality fields.
+- Perform multi-dimension range partitioning reliably, leading to segment sizes being distributed more evenly and better performance.
 
-The engine is code-named "Talaria". During the alpha, you'll see this term in certain API calls and
+You can read more about the motivation for building MSQE in this [Imply blog post](https://imply.io/blog/a-new-shape-for-apache-druid/).
+
+The engine is code-named "Talaria". During the alpha, you'll see this term in certain API calls, properties, and
 in the name of the extension. The name comes from Mercury’s winged sandals, representing the
 exchange of data between servers.
 
 
 ## Prerequisites
 
-To use the multi-stage query engine, make sure you meet the following requirements:
+To use MSQE, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
 - A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
@@ -100,7 +95,7 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 ### Enable the enhanced Query view
 
-To use the multi-stage query engine with the Druid console, enable the enhanced version of the Query view. To enable this view, perform the following steps:
+To use MSQE with the Druid console, enable the enhanced version of the Query view:
 
 1. Open the Druid console. You can select **Manage data** in Imply Manager or **Open Druid console** in Pivot.
 2. Option (or alt) click on the Druid logo to enable the enhanced Query view.
@@ -725,6 +720,14 @@ modifications needed.
 Check out the [INSERT with rollup example query](#example-insert-rollup) to see this feature in
 action.
 
+Druid needs information for aggregating measures of different segments while working with pivot and compaction
+tasks. For eg: to aggregate `count("col") as dummy_measure`, druid needs to `sum` the value of the `dummy_measure`
+across the segments. This information is stored inside the metadata of the segment. In talaria, we only populate the
+aggregator information of a column in the segment metadata when
+
+- Insert query has an outer group by clause.
+- `talariaFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false` is set in query context.
+
 |Query-time aggregation|Notes|
 |----------------------|-----|
 |SUM|Use unchanged at ingest time.|
@@ -759,9 +762,7 @@ To address this:
 - Set `groupByEnableMultiValueUnnesting: false` in your query context to ensure that all multi-value
   strings are properly converted to arrays using `MV_TO_ARRAY`. If any are encountered that are not
   wrapped in `MV_TO_ARRAY`, the query will report an error that includes the message "Encountered
-  multi-value dimension x that cannot be processed with executingNestedQuery set to false." (Note:
-  this message is incorrect; it should mention "groupByEnableMultiValueUnnesting", not
-  "executingNestedQuery". This will be fixed in a future release.)
+  multi-value dimension x that cannot be processed with groupByEnableMultiValueUnnesting set to false."
 
 Check out the [INSERT with rollup example query](#example-insert-rollup) to see these features in
 action.
@@ -801,7 +802,7 @@ The multi-stage query engine accepts Druid SQL
 
 > Multi-stage query APIs are in a work-in-progress state for the alpha. They may change in future releases. For stability reasons, we recommend using the [web console](#web-console) if you do not need a programmatic interface.
 
-> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version <VERSION> and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
+> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
 
 Queries run as tasks. The action you want to take determines the endpoint you use:
 
@@ -1001,7 +1002,8 @@ current [known issues around memory usage](#known-issues-memory).
 ## Security
 
 > The security model for the multi-stage query engine is subject to change in future releases.
-> Future releases may require different permissions than the current release.
+> Future releases may require different permissions than the current release. 
+
 In the current release, the security model for the multi-stage query engine is:
 
 - All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
@@ -1018,7 +1020,7 @@ Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's
 
 - Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions.
 - Retrieve status: The user must have READ DATASOURCE permission.
-- View reports: The user must have READ DATASOURCE permission unless they have access to the the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
+- View reports: The user must have READ DATASOURCE permission unless they have access to the Overlord API. Users with access to the Overlord API can view reports. Note that reports for SELECT queries include the status and results, so they may contain information you aren't interested in. Consider using the details or results API instead.
 
 ## Limits
 
@@ -1266,15 +1268,16 @@ When you use the multi-stage query engine, the following happens:
 **Issues with INSERT queries.** <a href="#known-issues-insert" name="known-issues-insert">#</a>
 
 - The [schemaless dimensions](https://docs.imply.io/latest/druid/ingestion/ingestion-spec.html#inclusions-and-exclusions)
-  feature is not available. All columns and their types must be
-  specified explicitly. (15004)
+feature is not available. All columns and their types must be specified explicitly. (15004)
 
 - [Segment metadata queries](https://docs.imply.io/latest/druid/querying/segmentmetadataquery.html)
-  on datasources ingested with the multi-stage query engine will return values for `rollup`,
-  `queryGranularity`, `timestampSpec`, and `aggregators` that are not usable for introspection. In
+  on datasources ingested with the multi-stage query engine will return values for`timestampSpec` that are not usable
+  for introspection.
+  (15007)
+- Figuring out `rollup`,`query-granualrity`,`aggregatorFactories` is on best effort basis. In
   particular, Pivot will not be able to automatically create data cubes that properly reflect the
-  rollup configurations of these datasources. Proper data cubes can still be created manually.
-  (15006, 15007, 15008)
+  rollup configurations if the insert query does not meet the conditions defined in [Rollup](#rollup). Proper data cubes
+  can still be created manually. (20879)
 
 - When using INSERT with GROUP BY, the multi-stage engine generates segments that Druid's compaction
   functionality is not able to further roll up. This applies to autocompaction as well as manually
@@ -1311,6 +1314,13 @@ When you use the multi-stage query engine, the following happens:
   [UnknownError](#errors) with a message including "No space left on device". (15022)
 
 ## Release notes
+
+**2022.05** <a href="#2022.05" name="2022.05">#</a>
+
+- You no longer need to load the `imply-sql-async` extension to use the multi-stage query engine. You only need to load the `imply-talaria` extension.
+- The API endpoints have changed. Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](#api).
+- You no longer need to set a context parameter for `talaria` when making API calls. API calls to the `task` endpoint use the multi-stage query engine automatically.
+- Fixed an issue that caused an `IndexOutOfBoundsException` error to occur, which led to some ingestion jobs failing.
 
 **2022.04** <a href="#2022.04" name="2022.04">#</a>
 

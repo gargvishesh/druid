@@ -94,7 +94,7 @@ public class TalariaWorkerTaskLauncher
     }
 
     // Block until started, then return an "everything is done" future.
-    FutureUtils.getUnchecked(startFuture);
+    FutureUtils.getUnchecked(startFuture, true);
     return stopFuture;
   }
 
@@ -114,7 +114,7 @@ public class TalariaWorkerTaskLauncher
     }
 
     // Block until stopped.
-    FutureUtils.getUnchecked(stopFuture);
+    FutureUtils.getUnchecked(stopFuture, true);
   }
 
   public Optional<TalariaTaskList> getTaskList()

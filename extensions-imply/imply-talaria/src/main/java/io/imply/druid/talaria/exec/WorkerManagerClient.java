@@ -9,11 +9,11 @@
 
 package io.imply.druid.talaria.exec;
 
-import com.google.common.base.Optional;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
-import org.apache.druid.indexer.TaskStatus;
 
+import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,7 +21,7 @@ import java.util.Set;
  * Generic Talaria interface to the "worker manager" mechanism which
  * starts, cancels and monitors worker tasks.
  */
-public interface WorkerManagerClient
+public interface WorkerManagerClient extends Closeable
 {
   String run(String leaderId, TalariaWorkerTask task);
 
@@ -34,18 +34,11 @@ public interface WorkerManagerClient
   // TODO(paul): Change so that workers come with their location attached.
   TaskLocation location(String workerId);
 
-  /**
-   * @param workerId the task ID
-   *
-   * @return an {@code Optional.of()} with the current status of the task or
-   * {@code Optional.absent()} if the task could not be found
-   */
   // TODO(paul): Remove: workers should be ephemeral.
-  Optional<TaskStatus> status(String workerId) throws TaskNotFoundException;
-  // TODO(paul): Remove: workers should be ephemeral.
-  Map<String, org.apache.druid.client.indexing.TaskStatus>
-      statuses(Set<String> taskIds
-      ) throws InterruptedException, TaskNotFoundException;
-  String cancel(String workerId) throws TaskNotFoundException;
+  Map<String, TaskStatus> statuses(Set<String> taskIds);
+
+  void cancel(String workerId);
+
+  @Override
   void close();
 }

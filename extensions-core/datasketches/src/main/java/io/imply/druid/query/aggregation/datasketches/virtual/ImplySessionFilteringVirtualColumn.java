@@ -16,11 +16,11 @@ import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
-import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
+import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.segment.ColumnInspector;
@@ -29,11 +29,17 @@ import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.column.BitmapIndex;
+import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnIndexCapabilities;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
+import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
+import org.apache.druid.segment.column.StringValueSetIndex;
+import org.apache.druid.segment.serde.DictionaryEncodedStringIndexSupplier;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -46,7 +52,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ImplySessionFilteringVirtualColumn implements VirtualColumn
@@ -137,13 +142,11 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
     return false;
   }
 
+  @Nullable
   @Override
-  public @Nullable BitmapIndex getBitmapIndex(
-      String columnName,
-      ColumnSelector selector
-  )
+  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnSelector columnSelector)
   {
-    final ColumnHolder holder = selector.getColumnHolder(field);
+    final ColumnHolder holder = columnSelector.getColumnHolder(field);
     if (holder == null) {
       throw new RE(
           "%s column doesn't exist for creating %s virtual column",
@@ -151,15 +154,31 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
           ImplyArrayOfDoublesSketchModule.SESSION_FILTERING_VIRTUAL_COLUMN
       );
     }
-    final BitmapIndex underlyingIndex = holder.getBitmapIndex();
-    if (underlyingIndex == null) {
+    final ColumnIndexSupplier underlyingIndexes = holder.getIndexSupplier();
+    if (underlyingIndexes == null) {
       throw new UOE(
           "Bitmap index doesn't exist for %s column. "
-          + "Session filtering can only be used for a column with bitmap index",
+          + "Session filtering can only be used for a column with bitmap indexes",
           field
       );
     }
-    return new ImplyListFilteredBitmapIndex(underlyingIndex);
+    if (!(underlyingIndexes instanceof DictionaryEncodedStringIndexSupplier)) {
+      throw new UOE("Column %s is not a dictionary encoded string column", field);
+    }
+
+    final DictionaryEncodedStringValueIndex delegate = underlyingIndexes.as(DictionaryEncodedStringValueIndex.class);
+    return new ColumnIndexSupplier()
+    {
+      @Nullable
+      @Override
+      public <T> T as(Class<T> clazz)
+      {
+        if (clazz.equals(StringValueSetIndex.class)) {
+          return (T) new SessionFilteringStringValueSetIndex(delegate);
+        }
+        throw new UOE("Session filtering doesn't support index %s", clazz);
+      }
+    };
   }
 
   @Override
@@ -191,42 +210,53 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private class ImplyListFilteredBitmapIndex implements BitmapIndex
+  private class SessionFilteringStringValueSetIndex implements StringValueSetIndex
   {
-    final BitmapIndex delegate;
+    private final DictionaryEncodedStringValueIndex delegate;
 
-    private ImplyListFilteredBitmapIndex(BitmapIndex delegate)
+    private SessionFilteringStringValueSetIndex(DictionaryEncodedStringValueIndex delegate)
     {
       this.delegate = delegate;
     }
 
     @Override
-    public String getValue(int index)
+    public BitmapColumnIndex forValue(@Nullable String value)
     {
-      return delegate.getValue(index);
+      return new BitmapColumnIndex()
+      {
+        @Override
+        public ColumnIndexCapabilities getIndexCapabilities()
+        {
+          return new SimpleColumnIndexCapabilities(true, true);
+        }
+
+        @Override
+        public double estimateSelectivity(int totalRows)
+        {
+          return (double) getBitmap(getIndex(value)).size() / totalRows;
+        }
+
+        @Override
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        {
+          return bitmapResultFactory.wrapDimensionValue(getBitmap(getIndex(value)));
+        }
+      };
     }
 
     @Override
-    public boolean hasNulls()
+    public BitmapColumnIndex forValues(Set<String> values)
     {
-      return delegate.hasNulls();
+      throw new UnsupportedOperationException("Session filtering doesn't support set filtering");
     }
 
-    @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return delegate.getBitmapFactory();
-    }
-
-    @Override
-    public ImmutableBitmap getBitmap(int idx)
+    private ImmutableBitmap getBitmap(int idx)
     {
       Set<Long> theVals = filterValues.get();
       if (theVals == null) {
         return delegate.getBitmapFactory().makeEmptyImmutableBitmap();
       }
       if (idx == 1) {
-        BitmapFactory bitmapFactory = delegate.getBitmapFactory();
         List<ImmutableBitmap> bitmaps = new ArrayList<>(100);
         for (int i = 0; i < delegate.getCardinality(); i++) {
           String dimVal = delegate.getValue(i);
@@ -238,49 +268,18 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
           ) {
             bitmaps.add(delegate.getBitmap(i));
             if (bitmaps.size() >= 100) {
-              ImmutableBitmap partialUnion = bitmapFactory.union(bitmaps);
+              ImmutableBitmap partialUnion = delegate.getBitmapFactory().union(bitmaps);
               bitmaps.clear();
               bitmaps.add(partialUnion);
             }
           }
         }
-        return bitmapFactory.union(bitmaps);
+        return delegate.getBitmapFactory().union(bitmaps);
       }
       throw new UOE("Unexpected index %d for bitmap lookup", idx);
     }
 
-    @Override
-    public ImmutableBitmap getBitmapForValue(@Nullable String value)
-    {
-      return getBitmap(getIndex(value));
-    }
-
-    @Override
-    public Iterable<ImmutableBitmap> getBitmapsInRange(
-        @Nullable String startValue,
-        boolean startStrict,
-        @Nullable String endValue,
-        boolean endStrict,
-        Predicate<String> matcher
-    )
-    {
-      throw new UnsupportedOperationException("Session filtering doesn't support range filtering");
-    }
-
-    @Override
-    public Iterable<ImmutableBitmap> getBitmapsForValues(Set<String> values)
-    {
-      throw new UnsupportedOperationException("Session filtering doesn't support set filtering");
-    }
-
-    @Override
-    public int getCardinality()
-    {
-      return 1;
-    }
-
-    @Override
-    public int getIndex(@Nullable String value)
+    private int getIndex(@Nullable String value)
     {
       if (value == null) {
         throw new UnsupportedOperationException("Session filtering doesn't support filtering with null");
