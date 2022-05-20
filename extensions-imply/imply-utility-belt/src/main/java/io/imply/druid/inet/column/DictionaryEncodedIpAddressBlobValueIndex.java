@@ -9,13 +9,14 @@
 
 package io.imply.druid.inet.column;
 
+import com.google.common.base.Predicate;
 import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.segment.IntListUtils;
-import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.data.GenericIndexed;
 
 import javax.annotation.Nullable;
@@ -23,15 +24,14 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.function.Predicate;
 
-public abstract class IpAddressBitmapIndex implements BitmapIndex
+public class DictionaryEncodedIpAddressBlobValueIndex
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final GenericIndexed<ByteBuffer> dictionary;
 
-  public IpAddressBitmapIndex(
+  public DictionaryEncodedIpAddressBlobValueIndex(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
       GenericIndexed<ByteBuffer> dictionary
@@ -42,35 +42,23 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
     this.dictionary = dictionary;
   }
 
-  @Override
-  public int getCardinality()
-  {
-    return dictionary.size();
-  }
 
-  @Override
-  public boolean hasNulls()
-  {
-    return dictionary.indexOf(null) >= 0;
-  }
-
-  @Override
   public BitmapFactory getBitmapFactory()
   {
     return bitmapFactory;
   }
 
-  @Override
-  public int getIndex(@Nullable String value)
+
+  public int getIndex(@Nullable ByteBuffer blob)
   {
     // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
-    if (value == null) {
+    if (blob == null) {
       return dictionary.indexOf(null);
     }
-    return dictionary.indexOf(ByteBuffer.wrap(IpAddressBlob.ofString(value).getBytes()));
+    return dictionary.indexOf(blob);
   }
 
-  @Override
+
   public ImmutableBitmap getBitmap(int idx)
   {
     if (idx < 0) {
@@ -82,18 +70,18 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
   }
 
 
-  @Override
-  public ImmutableBitmap getBitmapForValue(@Nullable String value)
+
+  public ImmutableBitmap getBitmapForValue(@Nullable ByteBuffer blob)
   {
-    final int idx = dictionary.indexOf(ByteBuffer.wrap(IpAddressBlob.ofString(value).getBytes()));
+    final int idx = dictionary.indexOf(blob);
     return getBitmap(idx);
   }
 
-  @Override
+
   public Iterable<ImmutableBitmap> getBitmapsInRange(
-      @Nullable String startValue,
+      @Nullable ByteBuffer startValue,
       boolean startStrict,
-      @Nullable String endValue,
+      @Nullable ByteBuffer endValue,
       boolean endStrict
   )
   {
@@ -117,11 +105,11 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
     };
   }
 
-  @Override
+
   public Iterable<ImmutableBitmap> getBitmapsInRange(
-      @Nullable String startValue,
+      @Nullable ByteBuffer startValue,
       boolean startStrict,
-      @Nullable String endValue,
+      @Nullable ByteBuffer endValue,
       boolean endStrict,
       Predicate<String> indexMatcher
   )
@@ -141,7 +129,7 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
         while (currIndex < end) {
           IpAddressBlob blob = IpAddressBlob.ofByteBuffer(dictionary.get(currIndex));
           String blobString = blob == null ? null : blob.asCompressedString();
-          if (indexMatcher.test(blobString)) {
+          if (indexMatcher.apply(blobString)) {
             break;
           }
           currIndex++;
@@ -175,12 +163,12 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
     };
   }
 
-  @Override
-  public Iterable<ImmutableBitmap> getBitmapsForValues(Set<String> values)
+
+  public Iterable<ImmutableBitmap> getBitmapsForValues(Set<ByteBuffer> values)
   {
     return () -> new Iterator<ImmutableBitmap>()
     {
-      final Iterator<String> iterator = values.iterator();
+      final Iterator<ByteBuffer> iterator = values.iterator();
       int next = -1;
 
       @Override
@@ -209,21 +197,20 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
       private void findNext()
       {
         while (next < 0 && iterator.hasNext()) {
-          String nextValue = iterator.next();
-          next = dictionary.indexOf(ByteBuffer.wrap(IpAddressBlob.ofString(nextValue).getBytes()));
+          ByteBuffer nextValue = iterator.next();
+          next = dictionary.indexOf(nextValue);
         }
       }
     };
   }
 
-  private IntIntPair getRange(@Nullable String startValue, boolean startStrict, @Nullable String endValue, boolean endStrict)
+  private IntIntPair getRange(@Nullable ByteBuffer startValue, boolean startStrict, @Nullable ByteBuffer endValue, boolean endStrict)
   {
     int startIndex, endIndex;
     if (startValue == null) {
       startIndex = 0;
     } else {
-      IpAddressBlob blob = IpAddressBlob.ofString(startValue);
-      final int found = dictionary.indexOf(blob == null ? null : ByteBuffer.wrap(blob.getBytes()));
+      final int found = dictionary.indexOf(startValue);
       if (found >= 0) {
         startIndex = startStrict ? found + 1 : found;
       } else {
@@ -234,8 +221,7 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
     if (endValue == null) {
       endIndex = dictionary.size();
     } else {
-      IpAddressBlob blob = IpAddressBlob.ofString(endValue);
-      final int found = dictionary.indexOf(blob == null ? null : ByteBuffer.wrap(blob.getBytes()));
+      final int found = dictionary.indexOf(endValue);
       if (found >= 0) {
         endIndex = endStrict ? found : found + 1;
       } else {
@@ -245,5 +231,62 @@ public abstract class IpAddressBitmapIndex implements BitmapIndex
 
     endIndex = Math.max(startIndex, endIndex);
     return new IntIntImmutablePair(startIndex, endIndex);
+  }
+
+  public Iterable<ImmutableBitmap> getBitmapsForPredicateFactory(DruidPredicateFactory predicateFactory)
+  {
+    return () -> new Iterator<ImmutableBitmap>()
+    {
+      // this should probably actually use the object predicate, but most filters don't currently use the object predicate...
+      final Predicate<String> stringPredicate = predicateFactory.makeStringPredicate();
+      final Iterator<ByteBuffer> iterator = dictionary.iterator();
+      @Nullable
+      ByteBuffer next = null;
+      boolean nextSet = false;
+
+      @Override
+      public boolean hasNext()
+      {
+        if (!nextSet) {
+          findNext();
+        }
+        return nextSet;
+      }
+
+      @Override
+      public ImmutableBitmap next()
+      {
+        if (!nextSet) {
+          findNext();
+          if (!nextSet) {
+            throw new NoSuchElementException();
+          }
+        }
+        nextSet = false;
+        final int idx = dictionary.indexOf(next);
+        if (idx < 0) {
+          return bitmapFactory.makeEmptyImmutableBitmap();
+        }
+
+        final ImmutableBitmap bitmap = bitmaps.get(idx);
+        return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
+      }
+
+      private void findNext()
+      {
+        while (!nextSet && iterator.hasNext()) {
+          ByteBuffer nextValue = iterator.next();
+          if (nextValue == null) {
+            nextSet = stringPredicate.apply(null);
+          } else {
+            final IpAddressBlob blob = IpAddressBlob.ofByteBuffer(nextValue);
+            nextSet = stringPredicate.apply(blob.asCompressedString());
+          }
+          if (nextSet) {
+            next = nextValue;
+          }
+        }
+      }
+    };
   }
 }

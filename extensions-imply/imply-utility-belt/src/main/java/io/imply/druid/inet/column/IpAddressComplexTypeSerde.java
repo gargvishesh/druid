@@ -119,12 +119,14 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
           metadata.getBitmapSerdeFactory().getObjectStrategy(),
           builder.getFileMapper()
       );
-      builder.setBitmapIndex(
-          new IpAddressBitmapIndexColumnPartSupplier(
+      builder.setIndexSupplier(
+          new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
               metadata.getBitmapSerdeFactory().getBitmapFactory(),
               bitmaps,
               dictionaryBytes
-          )
+          ),
+          true,
+          false
       );
       IpAddressDictionaryEncodedColumnSupplier supplier = new IpAddressDictionaryEncodedColumnSupplier(
           column,

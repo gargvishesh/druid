@@ -15,8 +15,8 @@ import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapIndex;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ComplexColumn;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
@@ -64,7 +64,7 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
   public abstract ColumnHolder readNestedFieldColumn(String field);
 
   @Nullable
-  public abstract BitmapIndex makeBitmapIndex(String field);
+  public abstract ColumnIndexSupplier getColumnIndexSupplier(String field);
   @Override
   public Class<?> getClazz()
   {
