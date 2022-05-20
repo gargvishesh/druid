@@ -109,9 +109,7 @@ public class IndexerLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postWorkerWarning(
-      String leaderId, String workerId, List<TalariaErrorReport> talariaErrorReports
-  )
+  public void postWorkerWarning(String leaderId, String workerId, List<TalariaErrorReport> talariaErrorReports)
   {
     final String path = StringUtils.format(
         "/workerWarning/%s",
