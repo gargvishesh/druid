@@ -13,8 +13,8 @@ import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * Provides an interface for a worker to publish their warnings to an external source.
- * For example, this could mean the leader task for the corresponding job.
+ * Provides an interface for a worker to publish warnings to an external source.
+ * For example, the worker uses this interface to send warnings to the leader.
  */
 public interface TalariaWarningReportPublisher extends Closeable
 {

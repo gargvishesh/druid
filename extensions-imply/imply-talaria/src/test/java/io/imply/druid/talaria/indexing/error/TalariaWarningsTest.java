@@ -47,7 +47,6 @@ public class TalariaWarningsTest extends TalariaTestRunner
   {
     File toRead = getResourceAsTemporaryFile("/unparseable.gz");
 
-
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)
                                             .add("cnt", ColumnType.LONG)
@@ -264,7 +263,9 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .setExpectedTalariaFault(UnknownFault.forMessage(
-                         "java.lang.IllegalArgumentException: Invalid limit for warning of type CannotParseExternalData"))
+                         "java.lang.IllegalArgumentException: "
+                         + "Invalid limit of -2 supplied for warnings of type CannotParseExternalData. "
+                         + "Limit can be greater than or equal to -1."))
                      .verifyResults();
   }
 
@@ -497,7 +498,6 @@ public class TalariaWarningsTest extends TalariaTestRunner
   public void testFailureInStrictMode() throws IOException
   {
     File toRead = getResourceAsTemporaryFile("/unparseable.gz");
-
 
     RowSignature rowSignature = RowSignature.builder()
                                             .add("__time", ColumnType.LONG)

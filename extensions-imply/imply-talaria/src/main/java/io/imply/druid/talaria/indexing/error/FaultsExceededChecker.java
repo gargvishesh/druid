@@ -33,7 +33,8 @@ public class FaultsExceededChecker
         (warning, count) ->
             Preconditions.checkArgument(
                 count >= 0 || count == -1,
-                StringUtils.format("Invalid limit for warning of type %s", warning)
+                StringUtils.format("Invalid limit of %d supplied for warnings of type %s. "
+                                   + "Limit can be greater than or equal to -1.", count, warning)
             )
     );
     this.maxFaultsAllowedCount = maxFaultsAllowedCount;

@@ -706,9 +706,16 @@ public class LeaderImpl implements Leader
   @Override
   public void workerWarning(List<TalariaErrorReport> errorReports)
   {
-    // This check is just to safeguard that leader doesn't
-    if (errorReports.size() <= Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS) {
-      workerWarnings.addAll(errorReports);
+    // This check is just to safeguard that leader doesn't run out of memory. The actual limiting should be done
+    // on the worker's side as well.
+    synchronized (workerWarnings) {
+      long numReportsToAdd = Math.min(
+          errorReports.size(),
+          Limits.MAX_WORKERS * Limits.MAX_VERBOSE_WARNINGS - workerWarnings.size()
+      );
+      for (int i = 0; i < numReportsToAdd; ++i) {
+        workerWarnings.add(errorReports.get(i));
+      }
     }
   }
 
@@ -738,13 +745,12 @@ public class LeaderImpl implements Leader
     if (warningsExceeded.isPresent()) {
       String errorCode = warningsExceeded.get().lhs;
       Long limit = warningsExceeded.get().rhs;
-      workerError(
-          TalariaErrorReport.fromFault(
-              id(),
-              selfDruidNode.getHost(),
-              null,
-              new TooManyWarningsFault(limit.intValue(), errorCode)
-          ));
+      workerError(TalariaErrorReport.fromFault(
+          id(),
+          selfDruidNode.getHost(),
+          null,
+          new TooManyWarningsFault(limit.intValue(), errorCode)
+      ));
       kernelManipulationQueue.add(
           queryKernel -> {
             workerTaskLauncher.shutdownRemainingTasks();
