@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 
 /**
  * {@link VirtualColumn} form of {@link ListFilteredDimensionSpec}, powered by
@@ -398,7 +399,7 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public BitmapColumnIndex forValues(Set<String> values)
+    public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
       return new BaseVirtualIndex()
       {
@@ -504,6 +505,17 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     )
     {
       super(delegate, idMapping);
+    }
+
+    @Override
+    public BitmapColumnIndex forRange(
+        @Nullable String startValue,
+        boolean startStrict,
+        @Nullable String endValue,
+        boolean endStrict
+    )
+    {
+      return forRange(startValue, startStrict, endValue, endStrict, Predicates.alwaysTrue());
     }
 
     @Override
