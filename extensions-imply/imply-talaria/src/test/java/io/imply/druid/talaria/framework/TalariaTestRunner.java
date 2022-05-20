@@ -71,6 +71,7 @@ import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
+import org.apache.druid.query.groupby.TestGroupByBuffers;
 import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.IndexIO;
@@ -111,6 +112,7 @@ import org.apache.druid.timeline.partition.ShardSpec;
 import org.hamcrest.Matcher;
 import org.hamcrest.MatcherAssert;
 import org.joda.time.Interval;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -158,6 +160,7 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
  */
 public class TalariaTestRunner extends BaseCalciteQueryTest
 {
+  
   public static final Map<String, Object> DEFAULT_TALARIA_CONTEXT = ImmutableMap.<String, Object>builder()
                                                                                 .put("talaria", true)
                                                                                 .build();
@@ -188,10 +191,20 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  private TestGroupByBuffers groupByBuffers;
+
+  @After
+  public void tearDown2()
+  {
+    groupByBuffers.close();
+  }
+
   @Before
   public void setUp2()
   {
     Injector secondInjector = GuiceInjectors.makeStartupInjector();
+
+    groupByBuffers = TestGroupByBuffers.createDefault();
 
     ObjectMapper secondMapper = setupObjectMapper(secondInjector);
     indexIO = new IndexIO(secondMapper, () -> 0);
@@ -238,7 +251,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             binder.bind(SpecificSegmentsQuerySegmentWalker.class).toInstance(walker);
 
             binder.bind(GroupByStrategySelector.class)
-                  .toInstance(GroupByQueryRunnerTest.makeQueryRunnerFactory(groupByQueryConfig).lhs.getStrategySelector());
+                  .toInstance(GroupByQueryRunnerTest.makeQueryRunnerFactory(groupByQueryConfig, groupByBuffers).getStrategySelector());
 
             LocalDataSegmentPusherConfig config = new LocalDataSegmentPusherConfig();
             try {
