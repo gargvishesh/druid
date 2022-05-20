@@ -18,7 +18,6 @@ import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.granularity.Granularities;
-import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.QueryPlus;
@@ -376,7 +375,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
   }
 
   @Test
-  public void testGroupBy() throws IOException
+  public void testGroupBy()
   {
     final GroupByQueryConfig config = new GroupByQueryConfig();
     final GroupByQueryRunnerFactory factory = GroupByQueryRunnerTest.makeQueryRunnerFactory(config, BUFFER_POOLS);
