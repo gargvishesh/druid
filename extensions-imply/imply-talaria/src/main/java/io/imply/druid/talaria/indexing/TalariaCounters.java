@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Class that tracks query counters.
- *
+ * <p>
  * Counters are all tracked on a per-worker basis by the {@link #workerCountersMap} object.
- *
+ * <p>
  * Immutable {@link TalariaCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
  * worker-to-controller counters propagation (see {@link io.imply.druid.talaria.exec.LeaderClient#postCounters})
  * and reporting to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
@@ -59,6 +59,14 @@ public class TalariaCounters
         .countersMap
         .computeIfAbsent(counterType, ignored -> new ConcurrentHashMap<>())
         .computeIfAbsent(new StagePartitionNumber(stageNumber, partitionNumber), ignored -> new ChannelCounters());
+  }
+
+  public WarningCounters getOrCreateWarningCounters(
+      final int workerNumber,
+      final int stageNumber
+  )
+  {
+    return workerCounters(workerNumber).getOrCreateWarningCounters(stageNumber);
   }
 
   public TalariaCountersSnapshot snapshot()
@@ -112,11 +120,21 @@ public class TalariaCounters
         );
       }
 
+      List<TalariaCountersSnapshot.WarningCounters> warningCountersList = new ArrayList<>();
+      for (Map.Entry<Integer, WarningCounters> warningCountersEntry : workerEntry.getValue().warningCountersMap.entrySet()) {
+        warningCountersList.add(
+            new TalariaCountersSnapshot.WarningCounters(
+                warningCountersEntry.getKey(), warningCountersEntry.getValue().snapshot()
+            )
+        );
+      }
+
       workerCountersSnapshot.add(
           new TalariaCountersSnapshot.WorkerCounters(
               workerEntry.getKey(),
               workerSnapshotMap,
-              sortProgressTrackerSnapshotList
+              sortProgressTrackerSnapshotList,
+              warningCountersList
           )
       );
     }
@@ -160,15 +178,20 @@ public class TalariaCounters
             + workerCounters.getTotalRows(TalariaCounterType.INPUT_DRUID, stageNumber);
         final long processorRows = workerCounters.getTotalRows(TalariaCounterType.PROCESSOR, stageNumber);
         final long sortRows = workerCounters.getTotalRows(TalariaCounterType.SORT, stageNumber);
+        final long workerWarnings = workerCounters.getOrCreateWarningCounters(stageNumber).totalWarningCount();
 
         sb.append(inputRows);
 
         if (processorRows > 0) {
-          sb.append("~").append(processorRows);
+          sb.append(" Processed Rows-").append(processorRows);
 
           if (sortRows > 0) {
-            sb.append(">").append(sortRows);
+            sb.append(" Sorted Rows-").append(sortRows);
           }
+        }
+
+        if (workerWarnings > 0) {
+          sb.append(" Worker Warnings-").append(workerWarnings);
         }
       }
     }
@@ -184,6 +207,9 @@ public class TalariaCounters
 
     // stage number -> sort progress
     private final ConcurrentHashMap<Integer, SuperSorterProgressTracker> sortProgressTrackerMap = new ConcurrentHashMap<>();
+
+    // stage number -> warnings
+    private final ConcurrentHashMap<Integer, WarningCounters> warningCountersMap = new ConcurrentHashMap<>();
 
     private WorkerCounters()
     {
@@ -212,6 +238,11 @@ public class TalariaCounters
     public SuperSorterProgressTracker getOrCreateSortProgressTracker(int stageNumber)
     {
       return sortProgressTrackerMap.computeIfAbsent(stageNumber, ignored -> new SuperSorterProgressTracker());
+    }
+
+    public WarningCounters getOrCreateWarningCounters(int stageNumber)
+    {
+      return warningCountersMap.computeIfAbsent(stageNumber, ignored -> new WarningCounters());
     }
   }
 

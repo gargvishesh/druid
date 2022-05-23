@@ -151,7 +151,7 @@ public class TalariaErrorReport
    * {@link TalariaException}. This method walks through the causal chain, and also "knows" about various exception
    * types thrown by other Druid code.
    */
-  private static TalariaFault getFaultFromException(@Nullable final Throwable e)
+  public static TalariaFault getFaultFromException(@Nullable final Throwable e)
   {
     // Unwrap exception wrappers to find an underlying fault. The assumption here is that the topmost recognizable
     // exception should be used to generate the fault code for the entire report.

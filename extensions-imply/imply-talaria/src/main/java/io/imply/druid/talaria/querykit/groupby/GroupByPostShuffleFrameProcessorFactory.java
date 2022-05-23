@@ -21,6 +21,7 @@ import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
@@ -64,7 +65,8 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
       ClusterBy clusterBy,
       FrameContext providerThingy,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters
+      TalariaCounters talariaCounters,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final GroupByStrategySelector strategySelector = providerThingy.groupByStrategySelector();

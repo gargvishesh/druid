@@ -109,6 +109,21 @@ public class IndexerLeaderClient implements LeaderClient
   }
 
   @Override
+  public void postWorkerWarning(String workerId, List<TalariaErrorReport> talariaErrorReports)
+  {
+    final String path = StringUtils.format(
+        "/workerWarning/%s",
+        StringUtils.urlEncode(workerId)
+    );
+
+    serviceClient.request(
+        new RequestBuilder(HttpMethod.POST, path)
+            .content(MediaType.APPLICATION_JSON, jsonMapper, talariaErrorReports),
+        IgnoreHttpResponseHandler.INSTANCE
+    ).valueOrThrow();
+  }
+
+  @Override
   public Optional<List<String>> getTaskList()
   {
     final TalariaTaskList retVal = serviceClient.request(
