@@ -95,6 +95,14 @@ public interface Leader
   void workerError(TalariaErrorReport errorReport);
 
   /**
+   * System warning reported by a subtask. Indicates that the worker has encountered a non-lethal error. Worker should
+   * continue its execution in such a case. If the worker wants to report an error and stop its execution,
+   * please use {@link Leader#workerError}
+   */
+  void workerWarning(List<TalariaErrorReport> errorReports);
+
+  /**
+   * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.
    * Indicates a hard failure of the worker: fatal exception, the worker's
    * host dropped out of ZK, etc. The worker should be presumed dead. Restart
    * a new one if possible. If, due to a split network, the worker does

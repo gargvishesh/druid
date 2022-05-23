@@ -41,6 +41,11 @@ public interface LeaderClient extends AutoCloseable
       String workerId,
       TalariaErrorReport errorWrapper
   );
+
+  void postWorkerWarning(
+      String workerId,
+      List<TalariaErrorReport> talariaErrorReports
+  );
   Optional<List<String>> getTaskList();
 
   @Override

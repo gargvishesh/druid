@@ -54,6 +54,9 @@ import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -210,6 +213,17 @@ public class WorkerImpl implements Worker
     // Close stage output processors and running futures (if present)
     closer.register(() -> workerExec.cancel(cancellationId));
 
+    final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportLimiterPublisher(
+        new TalariaWarningReportSimplePublisher(
+            id(),
+            leaderClient,
+            id(),
+            TalariaTasks.getHostFromSelfNode(selfDruidNode)
+        )
+    );
+
+    closer.register(talariaWarningReportPublisher);
+
     // TODO(gianm): consider using a different thread pool for connecting
     final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(workerExec.getExecutorService());
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
@@ -252,7 +266,8 @@ public class WorkerImpl implements Worker
                   workerExec,
                   cancellationId,
                   context.threadCount(),
-                  stageFrameContexts.get(stageDefinition.getId())
+                  stageFrameContexts.get(stageDefinition.getId()),
+                  talariaWarningReportPublisher
               );
 
           if (partitionBoundariesFuture != null) {
@@ -645,7 +660,8 @@ public class WorkerImpl implements Worker
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
-      final FrameContext frameContext
+      final FrameContext frameContext,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final WorkOrder workOrder = kernel.getWorkOrder();
@@ -715,7 +731,8 @@ public class WorkerImpl implements Worker
             cancellationId,
             parallelism,
             processorBouncer,
-            counters
+            counters,
+            talariaWarningReportPublisher
         );
 
     final ListenableFuture<ClusterByPartitions> stagePartitionBoundariesFuture;
@@ -856,7 +873,8 @@ public class WorkerImpl implements Worker
       final String cancellationId,
       final int parallelism,
       final Bouncer processorBouncer,
-      final TalariaCounters counters
+      final TalariaCounters counters,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   ) throws IOException
   {
     final ProcessorsAndChannels<WorkerClass, T> processors =
@@ -869,7 +887,8 @@ public class WorkerImpl implements Worker
             clusterBy,
             frameContext,
             parallelism,
-            counters
+            counters,
+            talariaWarningReportPublisher
         );
 
     final Sequence<WorkerClass> processorSequence = processors.processors();

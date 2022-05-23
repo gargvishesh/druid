@@ -18,6 +18,7 @@ import org.apache.druid.indexer.TaskState;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
+import java.util.Queue;
 
 public class TalariaStatusReport
 {
@@ -25,6 +26,8 @@ public class TalariaStatusReport
 
   @Nullable
   private final TalariaErrorReport errorReport;
+
+  private final Queue<TalariaErrorReport> warningReports;
 
   @Nullable
   private final DateTime startTime;
@@ -36,14 +39,17 @@ public class TalariaStatusReport
   public TalariaStatusReport(
       @JsonProperty("status") TaskState status,
       @JsonProperty("error") @Nullable TalariaErrorReport errorReport,
+      @JsonProperty("warnings") Queue<TalariaErrorReport> warningReports,
       @JsonProperty("startTime") @Nullable DateTime startTime,
       @JsonProperty("durationMs") long durationMs
   )
   {
     this.status = Preconditions.checkNotNull(status, "status");
     this.errorReport = errorReport;
+    this.warningReports = warningReports;
     this.startTime = Preconditions.checkNotNull(startTime, "startTime");
     this.durationMs = durationMs;
+
   }
 
   @JsonProperty
@@ -58,6 +64,12 @@ public class TalariaStatusReport
   public TalariaErrorReport getErrorReport()
   {
     return errorReport;
+  }
+
+  @JsonProperty
+  public Queue<TalariaErrorReport> getWarningReports()
+  {
+    return warningReports;
   }
 
   @Nullable

@@ -16,6 +16,9 @@ import io.imply.druid.talaria.indexing.CountableInputSourceReader;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
+import io.imply.druid.talaria.indexing.WarningCounters;
+import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
+import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import org.apache.druid.data.input.ColumnsFilter;
@@ -34,6 +37,7 @@ import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.guava.BaseSequence;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
+import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.segment.RowAdapters;
 import org.apache.druid.segment.RowBasedSegment;
 import org.apache.druid.segment.Segment;
@@ -45,6 +49,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 public class QueryWorkerUtils
@@ -74,7 +79,8 @@ public class QueryWorkerUtils
       final InputChannels inputChannels,
       final DataSegmentProvider dataSegmentProvider,
       final File temporaryDirectory,
-      final TalariaCounters talariaCounters
+      final TalariaCounters talariaCounters,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher
   )
   {
     if (inputSpec.type() == QueryWorkerInputType.SUBQUERY) {
@@ -121,7 +127,10 @@ public class QueryWorkerUtils
                   workerNumber,
                   stageDefinition.getStageNumber(),
                   -1
-              )
+              ),
+              talariaCounters.getOrCreateWarningCounters(workerNumber, stageDefinition.getStageNumber()),
+              talariaWarningReportPublisher,
+              stageDefinition.getStageNumber()
           ),
           QueryWorkerInput::forSegment
       );
@@ -166,7 +175,10 @@ public class QueryWorkerUtils
       final InputFormat inputFormat,
       final RowSignature signature,
       final File temporaryDirectory,
-      final TalariaCounters.ChannelCounters inputExternalCounter
+      final TalariaCounters.ChannelCounters inputExternalCounter,
+      final WarningCounters warningCounters,
+      final TalariaWarningReportPublisher talariaWarningReportPublisher,
+      final int stageNumber
   )
   {
     final InputRowSchema schema = new InputRowSchema(
@@ -211,8 +223,46 @@ public class QueryWorkerUtils
                     public CloseableIterator<InputRow> make()
                     {
                       try {
-                        // TODO(gianm): parse-exception handling logic like that in FilteringCloseableInputRowIterator
-                        return reader.read();
+                        CloseableIterator<InputRow> baseIterator = reader.read();
+                        return new CloseableIterator<InputRow>()
+                        {
+                          private InputRow next = null;
+
+                          @Override
+                          public void close() throws IOException
+                          {
+                            baseIterator.close();
+                          }
+
+                          @Override
+                          public boolean hasNext()
+                          {
+                            while (true) {
+                              try {
+                                while (next == null && baseIterator.hasNext()) {
+                                  next = baseIterator.next();
+                                }
+                                break;
+                              }
+                              catch (ParseException e) {
+                                warningCounters.incrementWarningCount(CannotParseExternalDataFault.CODE);
+                                talariaWarningReportPublisher.publishException(stageNumber, e);
+                              }
+                            }
+                            return next != null;
+                          }
+
+                          @Override
+                          public InputRow next()
+                          {
+                            if (!hasNext()) {
+                              throw new NoSuchElementException();
+                            }
+                            final InputRow row = next;
+                            next = null;
+                            return row;
+                          }
+                        };
                       }
                       catch (IOException e) {
                         throw new RuntimeException(e);
@@ -243,7 +293,8 @@ public class QueryWorkerUtils
           );
 
           return new SegmentWithInterval(
-              new LazyResourceHolder<>(() -> Pair.of(segment, () -> {})),
+              new LazyResourceHolder<>(() -> Pair.of(segment, () -> {
+              })),
               segmentId,
               Intervals.ETERNITY
           );
