@@ -27,6 +27,8 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.util.Providers;
 import io.imply.druid.talaria.frame.FrameTestUtil;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
+import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
@@ -52,6 +54,7 @@ import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningC
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -523,6 +526,27 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     return payload;
   }
 
+  private TalariaErrorReport getErrorReportOrThrow(String controllerTaskId)
+  {
+    TalariaTaskReportPayload payload =
+        (TalariaTaskReportPayload) indexingServiceClient.getReportForTask(controllerTaskId)
+                                                        .get("talaria")
+                                                        .getPayload();
+    if (!payload.getStatus().getStatus().isFailure()) {
+      throw new ISE(
+          "Query task [%s] was supposed to fail",
+          controllerTaskId
+      );
+    }
+
+    if (!payload.getStatus().getStatus().isComplete()) {
+      throw new ISE("Query task [%s] should have finished", controllerTaskId);
+    }
+
+    return payload.getStatus().getErrorReport();
+
+  }
+
   private void assertTalariaSpec(TalariaQuerySpec expectedTalariaQuerySpec, TalariaQuerySpec querySpecForTask)
   {
 
@@ -568,6 +592,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected List<Object[]> expectedResultRows = null;
     protected Matcher<Throwable> expectedValidationErrorMatcher = null;
     protected Matcher<Throwable> expectedExecutionErrorMatcher = null;
+    protected TalariaFault expectedTalariaFault = null;
 
     private boolean hasRun = false;
 
@@ -616,6 +641,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       this.expectedExecutionErrorMatcher = expectedExecutionErrorMatcher;
       return (Builder) this;
     }
+
+    public Builder setExpectedTalariaFault(TalariaFault talariaFault)
+    {
+      this.expectedTalariaFault = talariaFault;
+      return (Builder) this;
+    }
+
 
     public void verifyPlanningErrors()
     {
@@ -703,6 +735,14 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       readyToRun();
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
+        if (expectedTalariaFault != null) {
+          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          Assert.assertEquals(
+              expectedTalariaFault.getCodeWithMessage(),
+              talariaErrorReport.getFault().getCodeWithMessage()
+          );
+          return;
+        }
         getPayloadOrThrow(controllerId);
         TalariaQuerySpec foundSpec = indexingServiceClient.getQuerySpecForTask(controllerId);
         log.info(
@@ -790,6 +830,21 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         throw new ISE(e, "Query %s failed", sql);
       }
     }
+
+    public void verifyExecutionError()
+    {
+      Preconditions.checkArgument(expectedExecutionErrorMatcher != null, "Execution error matcher cannot be null");
+      try {
+        verifyResults();
+        Assert.fail(StringUtils.format("Query %s did not throw an exception", sql));
+      }
+      catch (Exception e) {
+        Assert.assertTrue(
+            StringUtils.format("Query %s generated error of type %s which wasn't expected", sql, e.getClass()),
+            expectedExecutionErrorMatcher.matches(e)
+        );
+      }
+    }
   }
 
   public class SelectQueryTester extends TalariaTestRunner.TalariaQueryTester<SelectQueryTester>
@@ -800,6 +855,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     }
 
     // Made the visibility public to aid adding ut's easily with minimum parameters to set.
+    @Nullable
     public Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> runQueryWithResult()
     {
       readyToRun();
@@ -808,6 +864,16 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
+
+        if (expectedTalariaFault != null) {
+          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          Assert.assertEquals(
+              expectedTalariaFault.getCodeWithMessage(),
+              talariaErrorReport.getFault().getCodeWithMessage()
+          );
+          return null;
+        }
+
         TalariaTaskReportPayload payload = getPayloadOrThrow(controllerId);
 
         if (payload.getStatus().getErrorReport() != null) {
@@ -815,7 +881,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         } else {
           Optional<Pair<RowSignature, List<Object[]>>> rowSignatureListPair = getSignatureWithRows(payload.getResults());
           if (!rowSignatureListPair.isPresent()) {
-            throw new ISE("Query successfull but no results found");
+            throw new ISE("Query successful but no results found");
           }
           log.info("found row signature %s", rowSignatureListPair.get().lhs);
           log.info(rowSignatureListPair.get().rhs.stream()
@@ -845,6 +911,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       Preconditions.checkArgument(expectedRowSignature != null, "Row signature cannot be null");
       Preconditions.checkArgument(expectedTalariaQuerySpec != null, "Talaria Query spec not ");
       Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>> specAndResults = runQueryWithResult();
+
+      if (specAndResults == null) { // A fault was expected and the assertion has been done in the runQueryWithResult
+        return;
+      }
 
       Assert.assertEquals(expectedRowSignature, specAndResults.rhs.lhs);
       assertResultsEquals(sql, expectedResultRows, specAndResults.rhs.rhs);
