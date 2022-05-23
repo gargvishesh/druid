@@ -66,7 +66,7 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postWorkerWarning(String leaderId, String workerId, List<TalariaErrorReport> talariaErrorReports)
+  public void postWorkerWarning(String workerId, List<TalariaErrorReport> talariaErrorReports)
   {
     leader.workerWarning(talariaErrorReports);
   }

@@ -21,7 +21,6 @@ import java.io.IOException;
 public class TalariaWarningReportSimplePublisher implements TalariaWarningReportPublisher
 {
 
-  final String leaderId;
   final String workerId;
   final LeaderClient leaderClient;
   final String taskId;
@@ -29,14 +28,12 @@ public class TalariaWarningReportSimplePublisher implements TalariaWarningReport
   final String host;
 
   public TalariaWarningReportSimplePublisher(
-      final String leaderId,
       final String workerId,
       final LeaderClient leaderClient,
       final String taskId,
       @Nullable final String host
   )
   {
-    this.leaderId = leaderId;
     this.workerId = workerId;
     this.leaderClient = leaderClient;
     this.taskId = taskId;
@@ -48,7 +45,7 @@ public class TalariaWarningReportSimplePublisher implements TalariaWarningReport
   public void publishException(int stageNumber, Throwable e)
   {
     TalariaErrorReport warningReport = TalariaErrorReport.fromException(taskId, host, stageNumber, e);
-    leaderClient.postWorkerWarning(leaderId, workerId, ImmutableList.of(warningReport));
+    leaderClient.postWorkerWarning(workerId, ImmutableList.of(warningReport));
   }
 
   @Override

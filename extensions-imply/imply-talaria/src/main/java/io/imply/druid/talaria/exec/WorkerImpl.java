@@ -215,7 +215,6 @@ public class WorkerImpl implements Worker
 
     final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportLimiterPublisher(
         new TalariaWarningReportSimplePublisher(
-            task.getControllerTaskId(),
             id(),
             leaderClient,
             id(),

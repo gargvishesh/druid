@@ -43,7 +43,6 @@ public interface LeaderClient extends AutoCloseable
   );
 
   void postWorkerWarning(
-      String leaderId,
       String workerId,
       List<TalariaErrorReport> talariaErrorReports
   );
