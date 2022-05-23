@@ -30,7 +30,7 @@ public class TalariaWarningReportLimiterPublisher implements TalariaWarningRepor
   final Map<String, Long> errorCodeToLimit;
   final ConcurrentHashMap<String, Long> errorCodeToCurrentCount = new ConcurrentHashMap<>();
 
-  volatile long totalCount = 0L;
+  long totalCount = 0L;
 
   final Object lock = new Object();
 
@@ -63,10 +63,10 @@ public class TalariaWarningReportLimiterPublisher implements TalariaWarningRepor
     synchronized (lock) {
       totalCount = totalCount + 1;
       errorCodeToCurrentCount.compute(errorCode, (ignored, count) -> count == null ? 1L : count + 1);
-    }
 
-    if (totalLimit != -1 && totalCount > totalLimit) {
-      return;
+      if (totalLimit != -1 && totalCount > totalLimit) {
+        return;
+      }
     }
 
     long limitForFault = errorCodeToLimit.getOrDefault(errorCode, -1L);

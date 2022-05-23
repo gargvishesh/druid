@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.talaria.exec.LeaderClient;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 
 /**
  * Publishes the warning report to the leader client as is without any buffering/batching
@@ -49,7 +48,7 @@ public class TalariaWarningReportSimplePublisher implements TalariaWarningReport
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
 
   }
