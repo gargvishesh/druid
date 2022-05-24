@@ -17,28 +17,19 @@
  * under the License.
  */
 
-package org.apache.druid.segment.indexing;
+package org.apache.druid.segment.column;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.data.input.InputFormat;
-import org.apache.druid.data.input.InputSource;
+import org.apache.druid.collections.bitmap.ImmutableBitmap;
 
-/**
- * IOConfig for all batch tasks except compactionTask.
- */
-public interface BatchIOConfig extends IOConfig
+import java.nio.ByteBuffer;
+import java.util.SortedSet;
+
+public interface Utf8ValueSetIndex
 {
-  boolean DEFAULT_DROP_EXISTING = false;
-  boolean DEFAULT_APPEND_EXISTING = false;
-
-  InputSource getInputSource();
-
-  InputFormat getInputFormat();
-
-  @JsonProperty
-  boolean isAppendToExisting();
-
-  @JsonProperty
-  boolean isDropExisting();
+  /**
+   * Get an {@link Iterable} of {@link ImmutableBitmap} corresponding to the specified set of values (if they are
+   * contained in the underlying column). The set must be sorted using
+   * {@link org.apache.druid.java.util.common.ByteBufferUtils#unsignedComparator()}.
+   */
+  BitmapColumnIndex forSortedValuesUtf8(SortedSet<ByteBuffer> valuesUtf8);
 }
-
