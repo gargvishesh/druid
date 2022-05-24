@@ -283,11 +283,9 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
                          CoreMatchers.instanceOf(SqlPlanningException.class),
                          ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith(
-                             "INSERT statements must specify PARTITIONED BY clause explicitly"))
+                             "CLUSTERED BY found before PARTITIONED BY. In druid, the CLUSTERED BY clause has to be specified after the PARTITIONED BY clause"))
                      ))
                      .verifyPlanningErrors();
-
-
   }
 
 

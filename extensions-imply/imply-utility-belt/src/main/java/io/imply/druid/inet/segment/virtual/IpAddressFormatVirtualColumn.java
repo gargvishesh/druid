@@ -63,6 +63,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 
 public class IpAddressFormatVirtualColumn implements VirtualColumn
 {
@@ -695,7 +696,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public BitmapColumnIndex forValues(Set<String> values)
+    public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
       final Set<ByteBuffer> blobs = Sets.newHashSetWithExpectedSize(values.size());
       for (String value : values) {

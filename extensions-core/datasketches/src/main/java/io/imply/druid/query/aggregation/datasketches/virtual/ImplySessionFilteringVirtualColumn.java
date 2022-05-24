@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -245,7 +246,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public BitmapColumnIndex forValues(Set<String> values)
+    public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
       throw new UnsupportedOperationException("Session filtering doesn't support set filtering");
     }
