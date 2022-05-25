@@ -945,7 +945,7 @@ The multi-stage query engine accepts Druid SQL
 |----|-----------|----|
 | talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
-| sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#error-codes) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
 | talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
 | maxParseExceptions| (SELECT or INSERT)<br /><br />Maximum number of parse exceptions that will be ignored while executing the query before it gets halted with `TooManyWarningsFault`. Can be set to -1 to ignore all the parse exceptions<br /><br />| -1 |
@@ -1032,7 +1032,7 @@ Keep the following in mind when using the task API to view reports:
 
 **Response fields**
 
-<details><summary>Show the response fields for reports</summary>
+<details><summary>Show the response fields</summary>
 
 |Field|Description|
 |-----|-----------|
@@ -1045,8 +1045,8 @@ Keep the following in mind when using the task API to view reports:
 |talaria.payload.status.errorReport.taskId|The task that reported the error, if known. May be a controller task or a worker task.|
 |talaria.payload.status.errorReport.host|The hostname and port of the task that reported the error, if known.|
 |talaria.payload.status.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
-|talaria.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#errors). Always present if there is an error.|
-|talaria.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#errors). Always present if there is an error.|
+|talaria.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#error-codes). Always present if there is an error.|
+|talaria.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#error-codes). Always present if there is an error.|
 |talaria.payload.status.errorReport.error.errorMessage|User-friendly error message. Not always present, even if there is an error.|
 |talaria.payload.status.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
 |talaria.payload.stages|Array of query stages.|
@@ -1062,9 +1062,9 @@ Keep the following in mind when using the task API to view reports:
 
 </details>
 
-**Error codes** <a href="#errors" name="errors">#</a>
+### Error codes
 
-<details><summary>Show the possible values for <codeph>talariaStatus.payload.errorReport.error.errorCode</codeph></summary>
+The following table lists the possible values for `talariaStatus.payload.errorReport.error.errorCode`:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
@@ -1464,7 +1464,7 @@ feature is not available. All columns and their types must be specified explicit
 
 - Maximum amount of local disk space to use for temporary data. No guardrail today means worker
   tasks may exhaust all available disk space. In this case, you will receive an
-  [UnknownError](#errors) with a message including "No space left on device". (15022)
+  [UnknownError](#error-codes) with a message including "No space left on device". (15022)
 
 ## Release notes
 
@@ -1482,8 +1482,8 @@ feature is not available. All columns and their types must be specified explicit
 - It is now possible to control segment sort order independently of CLUSTERED BY, using the
   new [`talariaSegmentSortOrder`](#context-parameters) context parameter. (18320)
 - There is now a guardrail on the maximum number of input files. Exceeded this limit leads to
-  a [TooManyInputFiles](#errors) error. (15020)
-- Queries now report the error code [WorkerRpcFailed](#errors) when controller-to-worker or
+  a [TooManyInputFiles](#error-codes) error. (15020)
+- Queries now report the error code [WorkerRpcFailed](#error-codes) when controller-to-worker or
   worker-to-worker communication fails. Previously, this would be reported as an
   UnknownError. (18971)
 - Fixed an issue where queries with large numbers of partitions could run out of memory. (19162)
@@ -1506,13 +1506,13 @@ feature is not available. All columns and their types must be specified explicit
 - External input files are now read in parallel when running in Indexers. (17933)
 - Improved accuracy of partition-determination. Segments generated by INSERT are now more regularly
   sized. (17867)
-- [CannotParseExternalData](#errors) error reports now include input file path and line number
+- [CannotParseExternalData](#error-codes) error reports now include input file path and line number
   information. (16016)
 - There is now an upper limit on the number of workers, partially determined by available memory.
-  Exceeding this limit leads to a [TooManyWorkers](#errors) error. (15021)
+  Exceeding this limit leads to a [TooManyWorkers](#error-codes) error. (15021)
 - There is now a guardrail on the maximum size of data involved in a broadcast join. Queries that
-  exceed the limit will report a [BroadcastTablesTooLarge](#errors) error code. (15024)
-- When a worker fails abruptly, the controller now reports a [WorkerTaskFailed](#errors) error
+  exceed the limit will report a [BroadcastTablesTooLarge](#error-codes) error code. (15024)
+- When a worker fails abruptly, the controller now reports a [WorkerTaskFailed](#error-codes) error
   code instead of UnknownError. (15024)
 - Controllers will no longer give up on workers before the Overlord does. Previously, the controller
   would fail with the message "Connection refused" if workers took longer than 30 seconds to start
