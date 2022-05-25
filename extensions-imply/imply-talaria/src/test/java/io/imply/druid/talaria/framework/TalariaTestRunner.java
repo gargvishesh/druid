@@ -44,7 +44,7 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.GuiceInjectors;
 import org.apache.druid.guice.IndexingServiceTuningConfigModule;
-import org.apache.druid.guice.annotations.Global;
+import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
@@ -269,7 +269,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
-            binder.bind(Key.get(DruidServiceClientFactory.class, Global.class))
+            binder.bind(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class))
                   .toProvider(Providers.of(null)); // Client is not used in tests
           }
         },

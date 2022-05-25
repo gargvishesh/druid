@@ -30,7 +30,7 @@ import io.imply.druid.talaria.rpc.StandardRetryPolicy;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import io.imply.druid.talaria.rpc.indexing.SpecificTaskRetryPolicy;
 import io.imply.druid.talaria.rpc.indexing.SpecificTaskServiceLocator;
-import org.apache.druid.guice.annotations.Global;
+import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -78,7 +78,7 @@ public class IndexerWorkerContext implements WorkerContext
                 .manufacturate(new File(toolbox.getIndexingTmpDir(), "segment-fetch"));
     this.indexIO = injector.getInstance(IndexIO.class);
     this.dataSegmentProvider = new TalariaDataSegmentProvider(segmentCacheManager, this.indexIO);
-    this.clientFactory = injector.getInstance(Key.get(DruidServiceClientFactory.class, Global.class));
+    this.clientFactory = injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
   }
 
   // Note: NOT part of the interface! Not available in the Talaria server.

@@ -22,7 +22,7 @@ import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import org.apache.druid.guice.annotations.Global;
+import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskLock;
 import org.apache.druid.indexing.common.TaskLockType;
@@ -156,7 +156,7 @@ public class TalariaControllerTask extends AbstractTask
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
     final DruidServiceClientFactory clientFactory =
-        injector.getInstance(Key.get(DruidServiceClientFactory.class, Global.class));
+        injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
     final OverlordServiceClient overlordClient = injector.getInstance(OverlordServiceClient.class);
     final LeaderContext context = new IndexerLeaderContext(toolbox, injector, clientFactory, overlordClient);
     leader = new LeaderImpl(this, context);

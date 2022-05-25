@@ -25,7 +25,7 @@ import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.ManageLifecycle;
-import org.apache.druid.guice.annotations.Global;
+import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.concurrent.ScheduledExecutors;
@@ -54,8 +54,8 @@ public class TalariaServiceClientModule implements DruidModule
 
   @Provides
   @LazySingleton
-  @Global
-  public DruidServiceClientFactory makeServiceClientFactory(@Global final HttpClient httpClient)
+  @EscalatedGlobal
+  public DruidServiceClientFactory makeServiceClientFactory(@EscalatedGlobal final HttpClient httpClient)
   {
     final ScheduledExecutorService connectExec =
         ScheduledExecutors.fixed(CONNECT_EXEC_THREADS, "DruidServiceClientFactory-%d");
@@ -73,7 +73,7 @@ public class TalariaServiceClientModule implements DruidModule
   @Provides
   public OverlordServiceClient makeOverlordServiceClient(
       @Json final ObjectMapper jsonMapper,
-      @Global final DruidServiceClientFactory clientFactory,
+      @EscalatedGlobal final DruidServiceClientFactory clientFactory,
       @IndexingService final ServiceLocator serviceLocator
   )
   {
