@@ -39,6 +39,7 @@ import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
+import org.apache.druid.sql.calcite.parser.DruidSqlReplace;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.DruidQuery;
 import org.apache.druid.sql.calcite.rel.Grouping;
@@ -62,7 +63,6 @@ import java.util.stream.Collectors;
 public class TalariaQueryMaker implements QueryMaker
 {
   public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
-  public static final String CTX_REPLACE_TIME_CHUNKS = "talariaReplaceTimeChunks";
   public static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
 
   private static final String CTX_DESTINATION = "talariaDestination";
@@ -180,7 +180,7 @@ public class TalariaQueryMaker implements QueryMaker
     final boolean finalizeAggregations = isFinalizeAggregations(plannerContext);
 
     final List<Interval> replaceTimeChunks =
-        Optional.ofNullable(plannerContext.getQueryContext().get(CTX_REPLACE_TIME_CHUNKS))
+        Optional.ofNullable(plannerContext.getQueryContext().get(DruidSqlReplace.SQL_REPLACE_TIME_CHUNKS))
                 .map(
                     s -> {
                       if (s instanceof String && "all".equals(StringUtils.toLowerCase((String) s))) {

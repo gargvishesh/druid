@@ -7,14 +7,14 @@ title: Multi-stage query engine
 > functionality documented on this page is subject to change or removal at any time. Alpha features
 > are provided "as is" and are not subject to Imply SLAs.
 
-The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
+The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT and REPLACE queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
 
 MSQE splits queries into stages and automatically exchanges data between stages. Each stage is parallelized to run across multiple data servers at once, simplifying performance.
 
 With MSQE, you can use Druid to:
 
 - Read external data at query time using [EXTERN](#extern).
-- Execute batch ingestion jobs as SQL queries using [INSERT](#insert). You no longer need to generate a JSON-based ingestion spec.
+- Execute batch ingestion jobs as SQL queries using [INSERT](#insert) and [REPLACE](#replace). You no longer need to generate a JSON-based ingestion spec.
 - Transform and rewrite existing tables using SQL queries.
 - Execute heavy-weight queries that might run for a long time and return large numbers of rows.
 - Execute queries that exchange large amounts of data between servers, like exact count
@@ -290,12 +290,12 @@ CLUSTERED BY page
 ### INSERT for reindexing an existing datasource into itself <a href="#example-self-reindexing" name="example-self-reindexing">#</a>
 
 This query rolls up data for a specific day from w000, and does an insert-with-replacement into the
-same table. Note that the `talariaReplaceTimeChunks` context parameter matches the WHERE filter.
+same table. Note that the `sqlReplaceTimeChunks` context parameter matches the WHERE filter.
 
 <details><summary>Show the query</summary>
 
 ```sql
---:context talariaReplaceTimeChunks: 2031-01-02/2031-01-03
+--:context sqlReplaceTimeChunks: 2031-01-02/2031-01-03
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
@@ -359,6 +359,91 @@ SELECT
 FROM wikidata
 LEFT JOIN countries ON wikidata.countryIsoCode = countries.ISO2
 PARTITIONED BY HOUR
+```
+
+</details>
+
+### REPLACE an entire datasource
+
+Replaces the entire datasource with the new query data. The old data gets dropped.
+
+<details><summary>Show the query</summary>
+
+```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
+REPLACE INTO w007
+OVERWRITE ALL
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+    EXTERN(
+      '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+      '{"type": "json"}',
+      '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
+    )
+  )
+PARTITIONED BY HOUR
+CLUSTERED BY channel
+```
+
+</details>
+
+### REPLACE for replacing a specific time segment
+
+Replaces certain segments in a datasource with the new query data. The old segments gets dropped.
+
+<details><summary>Show the query</summary>
+
+```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
+REPLACE INTO w007
+OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
+SELECT
+  FLOOR(__time TO MINUTE) AS __time,
+  channel,
+  countryIsoCode,
+  countryName,
+  regionIsoCode,
+  regionName,
+  page
+FROM w007
+WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00' AND countryName = "Canada"
+PARTITIONED BY HOUR
+CLUSTERED BY page
+```
+
+</details>
+
+### REPLACE for reindexing an existing datasource into itself
+
+<details><summary>Show the query</summary>
+
+```sql
+--:context talariaFinalizeAggregations: false
+--:context groupByEnableMultiValueUnnesting: false
+
+REPLACE INTO w000
+OVERWRITE ALL
+SELECT
+  FLOOR(__time TO MINUTE) AS __time,
+  channel,
+  countryIsoCode,
+  countryName,
+  regionIsoCode,
+  regionName,
+  page,
+  COUNT(*) AS cnt,
+  SUM(added) AS sum_added,
+  SUM(deleted) AS sum_deleted
+FROM w000
+GROUP BY 1, 2, 3, 4, 5, 6, 7
+PARTITIONED BY HOUR
+CLUSTERED BY page
 ```
 
 </details>
@@ -579,7 +664,7 @@ source](https://docs.imply.io/latest/druid/ingestion/native-batch.html#input-sou
     `string`, `long`, `double`, or `float`. This row signature will be
     used to map the external data into the SQL layer.
 
-External data can be used with either SELECT or INSERT queries. The
+External data can be used with either SELECT, INSERT and REPLACE queries. The
 following query illustrates joining external data with other external
 data.
 
@@ -617,7 +702,7 @@ To run an INSERT query:
 2. Add `INSERT INTO <dataSource>` at the start of your query.
 3. Add a [`PARTITIONED BY`](#partitioned-by) clause to your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning, or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
 4. Optionally, add a [`CLUSTERED BY`](#clustered-by) clause.
-5. Optionally, to replace data in an existing datasource, set the [`talariaReplaceTimeChunks`](#context-parameters) context parameter.
+5. Optionally, to replace data in an existing datasource, set the [`sqlReplaceTimeChunks`](#context-parameters) context parameter.
 
 There is no syntactic difference between creating a new datasource and
 inserting into an existing datasource. The `INSERT INTO <dataSource>` command
@@ -629,24 +714,90 @@ query engine does not yet implement all native Druid query features. See
 
 For examples, refer to the [Example queries](#example-queries) section.
 
+## REPLACE
+
+### REPLACE INTO ... OVERWRITE ALL SELECT
+
+> REPLACE syntax is in a work-in-progress state for the alpha. It is expected to
+> change in future releases.
+
+```sql
+REPLACE INTO w000
+OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
+```
+
+### REPLACE INTO ... OVERWRITE WHERE ... SELECT
+
+```sql
+REPLACE INTO w000
+OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25' AND __time < TIMESTAMP '2019-08-28'
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
+```
+
+To run a REPLACE query:
+
+1. Activate the multi-stage engine by setting `talaria: true` as a [context parameter](#context-parameters).
+2. Add `REPLACE INTO <dataSource>` at the start of your query.
+3. Add an `OVERWRITE` clause after the datasource, either `OVERWRITE ALL` or `OVERWRITE WHERE ...`.
+4. Add a [`PARTITIONED BY`](#partitioned-by) clause to your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning, or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
+5. Optionally, add a [`CLUSTERED BY`](#clustered-by) clause.
+
+`OVERWRITE ALL` replaces the entire existing datasource with the results of the query, while `OVERWRITE WHERE` drops the time
+segments which match the condition. Conditions are of the form `__time [< > = <= >=] TIMESTAMP` and can be used in conjunction
+with `AND`, `OR` and `NOT` between them. `BETWEEN TIMESTAMP AND TIMESTAMP` (inclusive of the timestamps specified) is also
+supported condition for `OVERWRITE WHERE`.
+
+`REPLACE` syntax is similar to `INSERT` with the [`sqlReplaceTimeChunks`](#context-parameters) parameter set appropriately.
+Similar to the use of that parameter, the intervals generated as a result of the `OVERWRITE WHERE` query must be aligned
+with the granularity given in `PARTITIONED BY` clause.
+
+Please note that only `__time` column is supported in the `OVERWRITE WHERE` query.
+
+All SELECT functionality is available for REPLACE queries. However, keep in mind that the multi-stage
+query engine does not yet implement all native Druid query features. See
+[Known issues](#known-issues) for a list of functionality that is not yet implemented.
+
+For examples, refer to the [Example queries](#example-queries) section.
+
 ### Primary timestamp
 
 Druid tables always include a primary timestamp named `__time`.
 
 Typically, Druid tables also use time-based partitioning, such as
-`PARTITIONED BY DAY`. In this case your INSERT query must include a column
+`PARTITIONED BY DAY`. In this case your ingestion query must include a column
 named `__time`. This will become the primary timestamp and will be used for
 partitioning.
 
 When you use `PARTITIONED BY ALL` or `PARTITIONED BY ALL TIME`, time-based
-partitioning is disabled. In this case your INSERT query does not need
+partitioning is disabled. In this case your ingestion query does not need
 to include a `__time` column. However, a `__time` column will still be created
 in your Druid table with all timestamps set to 1970-01-01 00:00:00.
 
 ### PARTITIONED BY
 
 Time-based partitioning is determined by the PARTITIONED BY clause. This clause is required for
-INSERT queries. Possible arguments include:
+INSERT and REPLACE queries. Possible arguments include:
 
 - Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
 - `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like
@@ -665,7 +816,7 @@ PARTITIONED BY has several benefits:
    rather than the whole table.
 
 If PARTITIONED BY is set to anything other than `ALL` or `ALL TIME`, you cannot use LIMIT or
-OFFSET at the outer level of your INSERT INTO … SELECT query.
+OFFSET at the outer level of your INSERT or REPLACE query.
 
 ### CLUSTERED BY
 
@@ -680,13 +831,13 @@ CLUSTERED BY has several benefits:
    consideration when they cannot possibly contain data matching a query's filter.
 
 For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be singly-valued
-string columns and the [`talariaReplaceTimeChunks`](#context-parameters) parameter must be provided as part of
+string columns and the [`sqlReplaceTimeChunks`](#context-parameters) parameter must be provided as part of
 the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
-columns, or if `talariaReplaceTimeChunks` is not provided, then Druid will still cluster data during
+columns, or if `sqlReplaceTimeChunks` is not provided, then Druid will still cluster data during
 ingestion but it will not be able to perform dimension-based segment pruning at query time.
 
 You can tell if dimension-based segment pruning is possible by using the `sys.segments` table to
-inspect the `shard_spec` for the segments that are generated by an INSERT query. If they are of type
+inspect the `shard_spec` for the segments that are generated by an ingestion query. If they are of type
 `range` or `single`, then dimension-based segment pruning is possible. Otherwise, it is not. The
 shard spec type is also available in the web console's "Segments" view under the "Partitioning"
 column.
@@ -714,7 +865,7 @@ dimensions, and aggregation functions become metrics.
 When performing rollup using aggregations, it is important to use aggregators
 that return _nonfinalized_ state. This allows you to perform further rollups
 at query time. To achieve this, set `talariaFinalizeAggregations: false` in your
-INSERT query context and refer to the following table for any additional
+ingestion query context and refer to the following table for any additional
 modifications needed.
 
 Check out the [INSERT with rollup example query](#example-insert-rollup) to see this feature in
@@ -725,7 +876,7 @@ tasks. For eg: to aggregate `count("col") as dummy_measure`, druid needs to `sum
 across the segments. This information is stored inside the metadata of the segment. In talaria, we only populate the
 aggregator information of a column in the segment metadata when
 
-- Insert query has an outer group by clause.
+- Insert or replace query has an outer group by clause.
 - `talariaFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false` is set in query context.
 
 |Query-time aggregation|Notes|
@@ -771,10 +922,12 @@ action.
 
 Your query can be any [Druid SQL](https://docs.imply.io/latest/druid/querying/sql.html) query,
 subject to the limitations mentioned in the [Known issues](#known-issues) section. In addition to
-standard Druid SQL syntax, queries that run with the multi-stage query engine can use two additional
+standard Druid SQL syntax, queries that run with the multi-stage query engine can use three additional
 features:
 
 - [INSERT INTO ... SELECT](#insert) to insert query results into Druid datasources.
+
+- [REPLACE INTO ... SELECT](#replace) to replace existing datasources, partially or fully, with query results.
 
 - [EXTERN](#extern) to query external data from http, S3, GCS, HDFS, and so on.
 
@@ -792,7 +945,7 @@ The multi-stage query engine accepts Druid SQL
 |----|-----------|----|
 | talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
-| talariaReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `talariaReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#errors) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
 | talariaSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](#clustered-by) clause. When `talariaSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `talariaSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
 | maxParseExceptions| (SELECT or INSERT)<br /><br />Maximum number of parse exceptions that will be ignored while executing the query before it gets halted with `TooManyWarningsFault`. Can be set to -1 to ignore all the parse exceptions<br /><br />| -1 |
@@ -920,15 +1073,15 @@ Keep the following in mind when using the task API to view reports:
 |  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
 |  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
-|  InsertCannotBeEmpty  |  An INSERT query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
+|  InsertCannotBeEmpty  |  An INSERT or REPLACE query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT or REPLACE queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
 |  InsertCannotOrderByDescending  |  An INSERT query contained an `CLUSTERED BY` expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
-|  InsertCannotReplaceExistingSegment  |  An INSERT query, with `talariaReplaceTimeChunks` set, cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `talariaReplaceTimeChunks` to match the query results.</li><li>Expand talariaReplaceTimeChunks to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
-|  InsertTimeOutOfBounds  |  An INSERT query generated a timestamp outside the bounds of the `talariaReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
+|  InsertCannotReplaceExistingSegment  |  A REPLACE query or an INSERT query with `sqlReplaceTimeChunks` set cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `sqlReplaceTimeChunks` to match the query results.</li><li>Expand `sqlReplaceTimeChunks` to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
+|  InsertTimeOutOfBounds  |  A REPLACE query or an INSERT query  with `sqlReplaceTimeChunks` generated a timestamp outside the bounds of the `sqlReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that the multi-stage engine does not yet support, like GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
 |  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
 | TooManyInputFiles | Too many input files/segments per worker.<br /> <br />See the [Limits](#limits) table for the specific limit. |&bull;&nbsp;numInputFiles: the total number of input files/segments for the stage<br /><br />&bull;&nbsp;maxInputFiles: the maximum number of input files/segments per worker per stage<br /><br />&bull;&nbsp;minNumWorker: the minimum number of workers required for a sucessfull run |
-|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
+|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT or REPLACE query generated too many segments. See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
 |  TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
 |  TooManyWarnings |  Too many warnings of a particular type generated. | &bull;&nbsp;errorCode: The errorCode corresponding to the exception that exceeded the required limit. <br /><br />&bull;&nbsp;maxWarnings: Maximum number of warnings that are allowed for the corresponding errorCode   |
 |  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
@@ -1009,7 +1162,7 @@ In the current release, the security model for the multi-stage query engine is:
 - All authenticated users are permitted to use the multi-stage query engine in the UI and API if the [extension is loaded](#setup). However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
 - Queries that SELECT from a Druid datasource require the READ DATASOURCE permission on that
   datasource.
-- Queries that INSERT into a Druid datasource require the WRITE DATASOURCE permission on that
+- Queries that INSERT or REPLACE into a Druid datasource require the WRITE DATASOURCE permission on that
   datasource.
 - Queries that use the EXTERN operator require the WRITE DATASOURCE permission on the
   `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
@@ -1137,7 +1290,7 @@ Key concepts for multi-stage query execution:
 - **Stage**: a stage of query execution that is parallelized across
   worker tasks. Workers exchange data with each other between stages.
 
-- **Partition**: a slice of data output by worker tasks. In INSERT
+- **Partition**: a slice of data output by worker tasks. In INSERT or REPLACE
   queries, the partitions of the final stage become Druid segments.
 
 - **Shuffle**: workers exchange data between themselves on a per-partition basis in a process called
@@ -1158,7 +1311,7 @@ When you use the multi-stage query engine, the following happens:
 
 5.  If the query is a SELECT query, the worker tasks send the results
     back to the controller task, which writes them into its task report.
-    If the query is an INSERT query, the worker tasks generate and
+    If the query is an INSERT or REPLACE query, the worker tasks generate and
     publish new Druid segments to the provided datasource.
 
 <!--
@@ -1404,7 +1557,7 @@ feature is not available. All columns and their types must be specified explicit
   review the generated SQL query before running it.
 - INSERT queries with LIMIT and `talariaSegmentGranularity` set to "all" now execute properly and write a single
   segment to the target datasource. Previously, these queries would fail. (15051)
-- INSERT queries using `talariaReplaceTimeChunks` now always produce "range" shard specs when appropriate. Previously,
+- INSERT queries using `sqlReplaceTimeChunks` now always produce "range" shard specs when appropriate. Previously,
   "numbered" shard specs would sometimes be produced instead of "range" shard specs as documented. (14768)
 
 **2021.12** <a href="#2021.12" name="2021.12">#</a>
