@@ -26,6 +26,7 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Providers;
 import io.imply.druid.talaria.frame.FrameTestUtil;
+import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaFault;
@@ -99,6 +100,8 @@ import org.apache.druid.server.security.AuthTestUtils;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.parser.DruidSqlParserUtils;
+import org.apache.druid.sql.calcite.parser.DruidSqlReplace;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
@@ -171,7 +174,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   public static final Map<String, Object>
       REPLACE_TIME_CHUCKS_CONTEXT = ImmutableMap.<String, Object>builder()
                                                 .putAll(DEFAULT_TALARIA_CONTEXT)
-                                                .put(TalariaQueryMaker.CTX_REPLACE_TIME_CHUNKS, "ALL")
+                                                .put(DruidSqlReplace.SQL_REPLACE_TIME_CHUNKS, DruidSqlParserUtils.ALL)
                                                 .build();
 
   public static final Map<String, Object>
@@ -448,9 +451,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     return new SelectQueryTester();
   }
 
-  public InsertQueryTester testInsertQuery()
+  public IngestQueryTester testIngestQuery()
   {
-    return new InsertQueryTester();
+    return new IngestQueryTester();
   }
 
   private ObjectMapper setupObjectMapper(Injector injector)
@@ -676,7 +679,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     }
   }
 
-  public class InsertQueryTester extends TalariaTestRunner.TalariaQueryTester<InsertQueryTester>
+  public class IngestQueryTester extends TalariaTestRunner.TalariaQueryTester<IngestQueryTester>
   {
     private String expectedDataSource;
 
@@ -688,37 +691,45 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
     private List<AggregatorFactory> expectedAggregatorFactories = new ArrayList<>();
 
-    private InsertQueryTester()
+    private List<Interval> expectedDestinationIntervals = null;
+
+    private IngestQueryTester()
     {
       // nothing to do
     }
 
 
-    public InsertQueryTester setExpectedDataSource(String expectedDataSource)
+    public IngestQueryTester setExpectedDataSource(String expectedDataSource)
     {
       this.expectedDataSource = expectedDataSource;
       return this;
     }
 
-    public InsertQueryTester setExpectedShardSpec(Class<? extends ShardSpec> expectedShardSpec)
+    public IngestQueryTester setExpectedShardSpec(Class<? extends ShardSpec> expectedShardSpec)
     {
       this.expectedShardSpec = expectedShardSpec;
       return this;
     }
 
-    public InsertQueryTester setExpectedRollUp(boolean expectedRollUp)
+    public IngestQueryTester setExpectedDestinationIntervals(List<Interval> expectedDestinationIntervals)
+    {
+      this.expectedDestinationIntervals = expectedDestinationIntervals;
+      return this;
+    }
+
+    public IngestQueryTester setExpectedRollUp(boolean expectedRollUp)
     {
       this.expectedRollUp = expectedRollUp;
       return this;
     }
 
-    public InsertQueryTester setExpectedQueryGranularity(Granularity expectedQueryGranularity)
+    public IngestQueryTester setExpectedQueryGranularity(Granularity expectedQueryGranularity)
     {
       this.expectedQueryGranularity = expectedQueryGranularity;
       return this;
     }
 
-    public InsertQueryTester addExpectedAggregatorFactory(AggregatorFactory aggregatorFactory)
+    public IngestQueryTester addExpectedAggregatorFactory(AggregatorFactory aggregatorFactory)
     {
       expectedAggregatorFactories.add(aggregatorFactory);
       return this;
@@ -822,6 +833,11 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         // assert spec
         if (expectedTalariaQuerySpec != null) {
           assertTalariaSpec(expectedTalariaQuerySpec, foundSpec);
+        }
+        if (expectedDestinationIntervals != null) {
+          Assert.assertNotNull(foundSpec);
+          DataSourceTalariaDestination destination = (DataSourceTalariaDestination) foundSpec.getDestination();
+          Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
         }
         // assert results
         assertResultsEquals(sql, expectedResultRows, tansformedOutputRows);

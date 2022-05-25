@@ -27,7 +27,7 @@ export function getDemoQueries(): TabEntry[] {
       tabName: 'Demo 1',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaReplaceTimeChunks: all
+--:context sqlReplaceTimeChunks: all
 INSERT INTO "kttm_simple"
 SELECT *
 FROM TABLE(
@@ -46,7 +46,7 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaReplaceTimeChunks: all
+--:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_rollup"
@@ -89,7 +89,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaReplaceTimeChunks: all
+--:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_etl"
@@ -144,7 +144,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaReplaceTimeChunks: all
+--:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 INSERT INTO "kttm_reingest"
@@ -191,7 +191,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4b',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaReplaceTimeChunks: all
+--:context sqlReplaceTimeChunks: all
 INSERT INTO kttm_simple
 SELECT *
 FROM kttm_simple

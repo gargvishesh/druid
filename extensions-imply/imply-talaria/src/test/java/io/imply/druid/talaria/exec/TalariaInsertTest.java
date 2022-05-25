@@ -44,7 +44,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("dim1", ColumnType.STRING)
                                             .add("cnt", ColumnType.LONG).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
@@ -64,7 +64,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("cnt", ColumnType.LONG)
                                             .build();
 
-    testInsertQuery().setSql(" insert into foo1 SELECT\n"
+    testIngestQuery().setSql(" insert into foo1 SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
@@ -89,7 +89,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("dim1", ColumnType.STRING)
                                             .add("cnt", ColumnType.LONG).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  floor(__time to day) as __time , dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
@@ -106,7 +106,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("dim1", ColumnType.STRING)
                                             .add("cnt", ColumnType.LONG).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
@@ -127,7 +127,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("cnt", ColumnType.LONG).build();
 
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  floor(__time to day) as __time , dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
@@ -150,7 +150,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .build();
 
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  floor(__time to day) as __time , dim1 , count(distinct m1) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
@@ -174,7 +174,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .build();
 
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  __time , dim1 , count(distinct m1) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(ROLLUP_CONTEXT)
@@ -197,7 +197,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("cnt", ColumnType.LONG)
                                             .build();
 
-    testInsertQuery().setSql(" insert into foo1 SELECT\n"
+    testIngestQuery().setSql(" insert into foo1 SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + "  count(*) as cnt\n"
                              + "FROM TABLE(\n"
@@ -228,7 +228,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("cnt", ColumnType.LONG)
                                             .build();
 
-    testInsertQuery().setSql(" insert into foo1 SELECT\n"
+    testIngestQuery().setSql(" insert into foo1 SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
                              + " namespace , count(*) as cnt\n"
                              + "FROM TABLE(\n"
@@ -264,7 +264,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("cnt", ColumnType.LONG)
                                             .build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  __time, dim1 , count(*) as cnt from foo  where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
                      .setExpectedDataSource("foo1")
                      .setQueryContext(REPLACE_TIME_CHUCKS_CONTEXT)
@@ -278,7 +278,7 @@ public class TalariaInsertTest extends TalariaTestRunner
   @Test
   public void testIncorrectInsertQuery()
   {
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "insert into foo1 select  __time, dim1 , count(*) as cnt from foo  where dim1 is not null group by 1, 2 clustered by dim1")
                      .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
                          CoreMatchers.instanceOf(SqlPlanningException.class),
