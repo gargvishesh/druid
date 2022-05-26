@@ -10,10 +10,12 @@
 package io.imply.druid.talaria.exec;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
 import org.apache.druid.hll.HyperLogLogCollector;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -31,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class TalariaInsertTest extends TalariaTestRunner
 {
@@ -96,6 +99,85 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
 
+  }
+
+  @Test
+  public void testInsertOnFoo1WithMultiValueDim()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim3", ColumnType.STRING).build();
+
+    testInsertQuery().setSql(
+                         "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedResultRows(expectedMultiValueFooRows())
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertOnFoo1WithMultiValueDimGroupBy()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim3", ColumnType.STRING).build();
+
+    testInsertQuery().setSql(
+                         "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL GROUP BY 1 PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedResultRows(expectedMultiValueFooRowsGroupBy())
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertOnFoo1WithMultiValueMeasureGroupBy()
+  {
+    testInsertQuery().setSql(
+                         "INSERT INTO foo1 SELECT count(dim3) FROM foo WHERE dim3 IS NOT NULL GROUP BY 1 PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(SqlPlanningException.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "Aggregate expression is illegal in GROUP BY clause"))
+                     ))
+                     .verifyPlanningErrors();
+  }
+
+
+  @Test
+  public void testInsertOnFoo1WithMultiValueToArrayGroupBy()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("dim3", ColumnType.STRING).build();
+
+    testInsertQuery().setSql(
+                         "INSERT INTO foo1 SELECT MV_TO_ARRAY(dim3) AS dim3 FROM foo GROUP BY 1 PARTITIONED BY ALL TIME")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedResultRows(expectedMultiValueFooRows())
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertOnFoo1WithMultiValueDimGroupByWithoutGroupByEnable()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put("groupByEnableMultiValueUnnesting", false)
+                                              .build();
+
+    testInsertQuery().setSql(
+                         "INSERT INTO foo1 SELECT dim3, count(*) AS cnt1 FROM foo GROUP BY dim3 PARTITIONED BY ALL TIME")
+                     .setQueryContext(context)
+                     .setExpectedExecutionErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(ISE.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "Encountered multi-value dimension [dim3] that cannot be processed with 'groupByEnableMultiValueUnnesting' set to false."))
+                     ))
+                     .verifyExecutionError();
   }
 
   @Test
@@ -321,6 +403,39 @@ public class TalariaInsertTest extends TalariaTestRunner
         new Object[]{978307200000L, "1", hyperLogLogCollector.estimateCardinalityRound()},
         new Object[]{978393600000L, "def", hyperLogLogCollector.estimateCardinalityRound()},
         new Object[]{978480000000L, "abc", hyperLogLogCollector.estimateCardinalityRound()}
+    ));
+    return expectedRows;
+  }
+
+  @Nonnull
+  private List<Object[]> expectedMultiValueFooRows()
+  {
+    List<Object[]> expectedRows = new ArrayList<>(ImmutableList.of(
+        new Object[]{0L, ImmutableList.of("a", "b")},
+        new Object[]{0L, ImmutableList.of("b", "c")}
+    ));
+    if (!useDefault) {
+      expectedRows.add(new Object[]{0L, ""});
+    }
+    expectedRows.addAll(ImmutableList.of(
+        new Object[]{0L, "d"},
+        new Object[]{0L, null}
+    ));
+    return expectedRows;
+  }
+
+  @Nonnull
+  private List<Object[]> expectedMultiValueFooRowsGroupBy()
+  {
+    List<Object[]> expectedRows = new ArrayList<>();
+    if (!useDefault) {
+      expectedRows.add(new Object[]{0L, ""});
+    }
+    expectedRows.addAll(ImmutableList.of(
+        new Object[]{0L, "a"},
+        new Object[]{0L, "b"},
+        new Object[]{0L, "c"},
+        new Object[]{0L, "d"}
     ));
     return expectedRows;
   }
