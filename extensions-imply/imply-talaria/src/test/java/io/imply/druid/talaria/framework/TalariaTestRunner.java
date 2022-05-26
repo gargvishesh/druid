@@ -815,17 +815,17 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         );
 
 
-        // tranforming rows for sketch assertions
-        List<Object[]> tansformedOutputRows = foundResultRows.stream().map(row -> {
-          Object[] tranformedRow = new Object[row.length];
+        // transforming rows for sketch assertions
+        List<Object[]> transformedOutputRows = foundResultRows.stream().map(row -> {
+          Object[] transformedRow = new Object[row.length];
           for (int i = 0; i < row.length; i++) {
             if (row[i] instanceof HyperLogLogCollector) {
-              tranformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinalityRound();
+              transformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinalityRound();
             } else {
-              tranformedRow[i] = row[i];
+              transformedRow[i] = row[i];
             }
           }
-          return tranformedRow;
+          return transformedRow;
         }).collect(Collectors.toList());
 
         // assert data source name
@@ -840,7 +840,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
         }
         // assert results
-        assertResultsEquals(sql, expectedResultRows, tansformedOutputRows);
+        assertResultsEquals(sql, expectedResultRows, transformedOutputRows);
       }
       catch (Exception e) {
         throw new ISE(e, "Query %s failed", sql);
@@ -849,9 +849,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
     public void verifyExecutionError()
     {
+      Preconditions.checkArgument(sql != null, "sql cannot be null");
+      Preconditions.checkArgument(queryContext != null, "queryContext cannot be null");
       Preconditions.checkArgument(expectedExecutionErrorMatcher != null, "Execution error matcher cannot be null");
+      readyToRun();
       try {
-        verifyResults();
+        String controllerId = runTalariaQuery(sql, queryContext);
+        getPayloadOrThrow(controllerId);
         Assert.fail(StringUtils.format("Query %s did not throw an exception", sql));
       }
       catch (Exception e) {

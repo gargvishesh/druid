@@ -17,9 +17,15 @@ import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
+import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.filter.NotDimFilter;
+import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -32,8 +38,13 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public class TalariaSelectTest extends TalariaTestRunner
 {
@@ -216,5 +227,254 @@ public class TalariaSelectTest extends TalariaTestRunner
             ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Encountered \"from <EOF>\""))
         ))
         .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testScanWithMultiValueSelectQuery()
+  {
+    RowSignature resultSignature = RowSignature.builder()
+                                               .add("dim3", ColumnType.STRING)
+                                               .build();
+
+    testSelectQuery()
+        .setSql("select dim3 from foo")
+        .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
+                                                     .setQuery(newScanQueryBuilder()
+                                                                   .dataSource(CalciteTests.DATASOURCE1)
+                                                                   .intervals(querySegmentSpec(Filtration.eternity()))
+                                                                   .columns("dim3")
+                                                                   .context(DEFAULT_TALARIA_CONTEXT)
+                                                                   .build())
+                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
+                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .build())
+        .setExpectedRowSignature(resultSignature)
+        .setExpectedResultRows(ImmutableList.of(
+            new Object[]{ImmutableList.of("a", "b")},
+            new Object[]{ImmutableList.of("b", "c")},
+            new Object[]{"d"},
+            new Object[]{!useDefault ? "" : null},
+            new Object[]{null},
+            new Object[]{null}
+        )).verifyResults();
+  }
+
+  @Test
+  public void testGroupByWithMultiValuePivotSelectQuery()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put("groupByEnableMultiValueUnnesting", true)
+                                              .build();
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("dim3", ColumnType.STRING)
+                                            .add("cnt1", ColumnType.LONG)
+                                            .build();
+
+    testSelectQuery()
+        .setSql("select dim3, count(*) as cnt1 from foo group by dim3")
+        .setQueryContext(context)
+        .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
+                                                     .setQuery(GroupByQuery.builder()
+                                                                           .setDataSource(CalciteTests.DATASOURCE1)
+                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                           .setGranularity(Granularities.ALL)
+                                                                           .setDimensions(
+                                                                               dimensions(
+                                                                                   new DefaultDimensionSpec(
+                                                                                       "dim3",
+                                                                                       "d0"
+                                                                                   )
+                                                                               )
+                                                                           )
+                                                                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
+                                                                               "a0")))
+                                                                           .setContext(context)
+                                                                           .build()
+                                                     )
+                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
+                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .build())
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedResultRows(
+            expectedMultiValueFooRowsGroup()
+        )
+        .verifyResults();
+  }
+
+
+  @Test
+  public void testGroupByWithMultiValuePivotSelectQueryWithoutGroupByEnable()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put("groupByEnableMultiValueUnnesting", false)
+                                              .build();
+
+    testSelectQuery()
+        .setSql("select dim3, count(*) as cnt1 from foo group by dim3")
+        .setQueryContext(context)
+        .setExpectedExecutionErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                "Encountered multi-value dimension [dim3] that cannot be processed with 'groupByEnableMultiValueUnnesting' set to false."))
+        ))
+        .verifyExecutionError();
+  }
+
+  @Test
+  public void testGroupByWithMultiValueMvToArrayPivotSelectQuery()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put("groupByEnableMultiValueUnnesting", true)
+                                              .build();
+
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("EXPR$0", ColumnType.STRING_ARRAY)
+                                            .add("cnt1", ColumnType.LONG)
+                                            .build();
+
+    testSelectQuery()
+        .setSql("select MV_TO_ARRAY(dim3), count(*) as cnt1 from foo group by dim3")
+        .setQueryContext(context)
+        .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
+                                                     .setQuery(GroupByQuery.builder()
+                                                                           .setDataSource(CalciteTests.DATASOURCE1)
+                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                           .setGranularity(Granularities.ALL)
+                                                                           .setDimensions(
+                                                                               dimensions(
+                                                                                   new DefaultDimensionSpec(
+                                                                                       "dim3",
+                                                                                       "d0"
+                                                                                   )
+                                                                               )
+                                                                           )
+                                                                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
+                                                                               "a0")))
+                                                                           .setPostAggregatorSpecs(
+                                                                               ImmutableList.of(new ExpressionPostAggregator(
+                                                                                   "p0",
+                                                                                   "mv_to_array(\"d0\")",
+                                                                                   null, ExprMacroTable.nil())
+                                                                               )
+                                                                           )
+                                                                           .setContext(context)
+                                                                           .build()
+                                                     )
+                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
+                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .build())
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedResultRows(
+            expectedMultiValueFooRowsGroupByList()
+        )
+        .verifyResults();
+  }
+
+  @Test
+  public void testGroupByWithMultiValueMvToArrayPivotSelectQueryWithoutGroupByEnable()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put("groupByEnableMultiValueUnnesting", false)
+                                              .build();
+
+    testSelectQuery()
+        .setSql("select MV_TO_ARRAY(dim3), count(*) as cnt1 from foo group by dim3")
+        .setQueryContext(context)
+        .setExpectedExecutionErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                "Encountered multi-value dimension [dim3] that cannot be processed with 'groupByEnableMultiValueUnnesting' set to false."))
+        ))
+        .verifyExecutionError();
+  }
+
+  @Test
+  public void testGroupByMultiValueMeasureQuery()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("cnt1", ColumnType.LONG)
+                                            .build();
+
+    testSelectQuery()
+        .setSql("select __time, count(dim3) as cnt1 from foo group by __time")
+        .setQueryContext(DEFAULT_TALARIA_CONTEXT)
+        .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
+                                                     .setQuery(GroupByQuery.builder()
+                                                                           .setDataSource(CalciteTests.DATASOURCE1)
+                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                           .setGranularity(Granularities.ALL)
+                                                                           .setDimensions(
+                                                                               dimensions(
+                                                                                   new DefaultDimensionSpec(
+                                                                                       "__time",
+                                                                                       "d0",
+                                                                                       ColumnType.LONG
+                                                                                   )
+                                                                               )
+                                                                           )
+                                                                           .setAggregatorSpecs(
+                                                                               aggregators(
+                                                                                   new FilteredAggregatorFactory(
+                                                                                       new CountAggregatorFactory("a0"),
+                                                                                       new NotDimFilter(new SelectorDimFilter("dim3", null, null)),
+                                                                                       "a0"
+                                                                                   )))
+                                                                           .setContext(DEFAULT_TALARIA_CONTEXT)
+                                                                           .build()
+                                                     )
+                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
+                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .build())
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedResultRows(
+            ImmutableList.of(
+                new Object[]{946684800000L, 1L},
+                new Object[]{946771200000L, 1L},
+                new Object[]{946857600000L, 1L},
+                new Object[]{978307200000L, !useDefault ? 1L : 0L},
+                new Object[]{978393600000L, 0L},
+                new Object[]{978480000000L, 0L}
+            )
+        )
+        .verifyResults();
+  }
+
+  @Nonnull
+  private List<Object[]> expectedMultiValueFooRowsGroup()
+  {
+    ArrayList<Object[]> expected = new ArrayList<>();
+    expected.add(new Object[]{null, !useDefault ? 2L : 3L});
+    if (!useDefault) {
+      expected.add(new Object[]{"", 1L});
+    }
+    expected.addAll(ImmutableList.of(
+        new Object[]{"a", 1L},
+        new Object[]{"b", 2L},
+        new Object[]{"c", 1L},
+        new Object[]{"d", 1L}
+    ));
+    return expected;
+  }
+
+  @Nonnull
+  private List<Object[]> expectedMultiValueFooRowsGroupByList()
+  {
+    ArrayList<Object[]> expected = new ArrayList<>();
+    expected.add(new Object[]{null, !useDefault ? 2L : 3L});
+    if (!useDefault) {
+      expected.add(new Object[]{Collections.singletonList(""), 1L});
+    }
+    expected.addAll(ImmutableList.of(
+        new Object[]{Collections.singletonList("a"), 1L},
+        new Object[]{Collections.singletonList("b"), 2L},
+        new Object[]{Collections.singletonList("c"), 1L},
+        new Object[]{Collections.singletonList("d"), 1L}
+    ));
+    return expected;
   }
 }

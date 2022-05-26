@@ -15,6 +15,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterByKeyDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectors;
+import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
@@ -70,9 +71,9 @@ public class TalariaTasks
    * in cases where we choose the controller error over the worker error, we'll log the worker error too, even though
    * it doesn't appear in the report.
    *
-   * Logic: we prefer the controller exception unless it's {@link WorkerRpcFailedFault}, in which case we prefer
-   * the worker error report. This ensures we get the best, most useful exception even when the controller cancels
-   * worker tasks after a failure. (As tasks are canceled one by one, worker -> worker and controller -> worker
+   * Logic: we prefer the controller exception unless it's {@link WorkerRpcFailedFault} or {@link CanceledFault}, in
+   * which case we prefer the worker error report. This ensures we get the best, most useful exception even when the
+   * controller cancels worker tasks after a failure. (As tasks are canceled one by one, worker -> worker and controller -> worker
    * RPCs to the canceled tasks will fail. We want to ignore these failed RPCs and get to the "true" error that
    * started it all.)
    */
@@ -100,7 +101,7 @@ public class TalariaTasks
       // Pick the "best" error if both are set. See the javadoc for the logic we use. In these situations, we
       // expect the caller to also log the other one. (There is no logging in _this_ method, because it's a helper
       // function, and it's best if helper functions run quietly.)
-      if (workerErrorReport != null && controllerErrorReport.getFault() instanceof WorkerRpcFailedFault) {
+      if (workerErrorReport != null && (controllerErrorReport.getFault() instanceof WorkerRpcFailedFault || controllerErrorReport.getFault() instanceof CanceledFault)) {
         return workerErrorReport;
       } else {
         return controllerErrorReport;

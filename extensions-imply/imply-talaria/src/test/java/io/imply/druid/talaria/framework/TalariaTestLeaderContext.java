@@ -42,6 +42,8 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 public class TalariaTestLeaderContext implements LeaderContext
@@ -49,7 +51,7 @@ public class TalariaTestLeaderContext implements LeaderContext
   private static final Logger log = new Logger(TalariaTestLeaderContext.class);
   private final TaskActionClient taskActionClient;
   private Map<String, Worker> inMemoryWorkers = new HashMap<>();
-  private Map<String, TaskStatus> statusMap = new HashMap<>();
+  private ConcurrentMap<String, TaskStatus> statusMap = new ConcurrentHashMap<>();
   private ListeningExecutorService executor = MoreExecutors.listeningDecorator(Execs.singleThreaded(
       "Talaria-test-leader-client"));
   private CoordinatorClient coordinatorClient;
