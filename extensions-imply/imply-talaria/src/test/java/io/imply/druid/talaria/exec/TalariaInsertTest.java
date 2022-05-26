@@ -108,7 +108,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("__time", ColumnType.LONG)
                                             .add("dim3", ColumnType.STRING).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL PARTITIONED BY ALL TIME")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
@@ -123,7 +123,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("__time", ColumnType.LONG)
                                             .add("dim3", ColumnType.STRING).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT dim3 FROM foo WHERE dim3 IS NOT NULL GROUP BY 1 PARTITIONED BY ALL TIME")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
@@ -134,7 +134,7 @@ public class TalariaInsertTest extends TalariaTestRunner
   @Test
   public void testInsertOnFoo1WithMultiValueMeasureGroupBy()
   {
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT count(dim3) FROM foo WHERE dim3 IS NOT NULL GROUP BY 1 PARTITIONED BY ALL TIME")
                      .setExpectedDataSource("foo1")
                      .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
@@ -153,7 +153,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                             .add("__time", ColumnType.LONG)
                                             .add("dim3", ColumnType.STRING).build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT MV_TO_ARRAY(dim3) AS dim3 FROM foo GROUP BY 1 PARTITIONED BY ALL TIME")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
@@ -169,7 +169,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                                               .put("groupByEnableMultiValueUnnesting", false)
                                               .build();
 
-    testInsertQuery().setSql(
+    testIngestQuery().setSql(
                          "INSERT INTO foo1 SELECT dim3, count(*) AS cnt1 FROM foo GROUP BY dim3 PARTITIONED BY ALL TIME")
                      .setQueryContext(context)
                      .setExpectedExecutionErrorMatcher(CoreMatchers.allOf(
