@@ -19,6 +19,7 @@
 
 package org.apache.druid.sql.calcite.planner;
 
+import io.imply.druid.sql.TalariaParserUtils;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -85,6 +86,13 @@ public class SqlResourceCollectorShuttle extends SqlShuttle
           final String schema = qualifiedNameParts.get(0);
           final String resourceName = qualifiedNameParts.get(1);
           final String resourceType = plannerContext.getSchemaResourceType(schema, resourceName);
+          // imply only changes start
+          if (TalariaParserUtils.isTalaria(plannerContext)) {
+            if ("sys".equals(schema) || "INFORMATION_SCHEMA".equals(schema)) {
+              throw new ISE("Cannot read SQL metadata tables with Talaria enabled");
+            }
+          }
+          // imply only changes end
           if (resourceType != null) {
             resourceActions.add(new ResourceAction(new Resource(resourceName, resourceType), Action.READ));
           }

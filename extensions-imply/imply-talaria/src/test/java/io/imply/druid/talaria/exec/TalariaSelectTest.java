@@ -230,6 +230,86 @@ public class TalariaSelectTest extends TalariaTestRunner
   }
 
   @Test
+  public void testSelectOnInformationSchemaSource()
+  {
+    testSelectQuery()
+        .setSql("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA")
+        .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Cannot read SQL metadata tables with Talaria enabled"))
+        ))
+        .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testSelectOnSysSource()
+  {
+    testSelectQuery()
+        .setSql("SELECT * FROM sys.segments")
+        .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Cannot read SQL metadata tables with Talaria enabled"))
+        ))
+        .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testSelectOnSysSourceWithJoin()
+  {
+    testSelectQuery()
+        .setSql("select s.segment_id, s.num_rows, f.dim1 from sys.segments as s, foo as f")
+        .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Cannot read SQL metadata tables with Talaria enabled"))
+        ))
+        .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testSelectOnSysSourceContainingWith()
+  {
+    testSelectQuery()
+        .setSql("with segment_source as (SELECT * FROM sys.segments) "
+                + "select segment_source.segment_id, segment_source.num_rows from segment_source")
+        .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(ISE.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith("Cannot read SQL metadata tables with Talaria enabled"))
+        ))
+        .verifyPlanningErrors();
+  }
+
+
+  @Test
+  public void testSelectOnUserDefinedSourceContainingWith()
+  {
+    RowSignature resultSignature = RowSignature.builder()
+                                               .add("m1", ColumnType.LONG)
+                                               .add("dim2", ColumnType.STRING)
+                                               .build();
+
+    testSelectQuery()
+        .setSql("with sys as (SELECT * FROM foo2) "
+                + "select m1, dim2 from sys")
+        .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
+                                                     .setQuery(newScanQueryBuilder()
+                                                                   .dataSource(CalciteTests.DATASOURCE2)
+                                                                   .intervals(querySegmentSpec(Filtration.eternity()))
+                                                                   .columns("dim2", "m1")
+                                                                   .context(DEFAULT_TALARIA_CONTEXT)
+                                                                   .build())
+                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
+                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .build())
+        .setExpectedRowSignature(resultSignature)
+        .setExpectedResultRows(ImmutableList.of(
+            new Object[]{1L, "en"},
+            new Object[]{1L, "ru"},
+            new Object[]{1L, "he"}
+        ))
+        .verifyResults();
+  }
+
+  @Test
   public void testScanWithMultiValueSelectQuery()
   {
     RowSignature resultSignature = RowSignature.builder()
