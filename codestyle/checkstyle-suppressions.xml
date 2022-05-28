@@ -75,4 +75,5 @@
   <suppress checks="Header" files="io.imply.druid.license.*" />
   <suppress checks="Header" files="io.imply.druid.query.aggregation.*" />
   <suppress checks="Header" files="io.imply.druid.meter.*" />
+  <suppress checks="Header" files="io.imply.druid.sql.*" />
 </suppressions>

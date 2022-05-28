@@ -12,6 +12,7 @@ package io.imply.druid.talaria.sql;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import io.imply.druid.sql.TalariaParserUtils;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.calcite.rel.RelNode;
@@ -23,7 +24,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
-import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -46,7 +46,6 @@ import java.util.Set;
 public class ImplyQueryMakerFactory implements QueryMakerFactory
 {
   public static final String TYPE = "imply";
-  private static final String CTX_TALARIA = "talaria";
 
   private final QueryLifecycleFactory queryLifecycleFactory;
   private final OverlordServiceClient overlordClient;
@@ -70,7 +69,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
       final PlannerContext plannerContext
   ) throws ValidationException
   {
-    if (isTalaria(plannerContext)) {
+    if (TalariaParserUtils.isTalaria(plannerContext)) {
       validateTalariaSelect(relRoot.fields, plannerContext);
 
       return new TalariaQueryMaker(
@@ -99,7 +98,7 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
       final PlannerContext plannerContext
   ) throws ValidationException
   {
-    if (isTalaria(plannerContext)) {
+    if (TalariaParserUtils.isTalaria(plannerContext)) {
       validateTalariaInsert(relRoot.rel, relRoot.fields, plannerContext);
 
       return new TalariaQueryMaker(
@@ -113,11 +112,6 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
     } else {
       throw new ValidationException("Cannot execute INSERT queries in standard query mode.");
     }
-  }
-
-  private static boolean isTalaria(final PlannerContext plannerContext)
-  {
-    return Numbers.parseBoolean(plannerContext.getQueryContext().getOrDefault(CTX_TALARIA, false));
   }
 
   private static void validateTalariaSelect(
