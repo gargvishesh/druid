@@ -41,15 +41,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -65,6 +65,7 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
                         .collect(Collectors.toList());
 
   private static final String INITIAL_ROLE_NAME = "role";
+  private static final String ROLE_2 = "role_2";
   private static final Map<String, List<ResourceAction>> INITIAL_ROLE_MAP = ImmutableMap.of(
       INITIAL_ROLE_NAME,
       Lists.transform(SUPER_PERMISSIONS, KeycloakAuthorizerPermission::getResourceAction)
@@ -82,9 +83,6 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
 
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-  @SuppressWarnings("unchecked")
-  ArgumentCaptor<Supplier<byte[]>> roleMapByteSupplierCaptor = ArgumentCaptor.forClass((Class) Supplier.class);
 
   @Before
   public void setup()
@@ -240,6 +238,83 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdaterTest
                INITIAL_ROLE_NAME,
                SUPER_PERMISSIONS
            )));
+  }
+
+  @Test
+  public void test_start_keycloakAuthorizerAndRolesInitialized_updatesRolesFromFile()
+      throws IOException
+  {
+    // Create the role mapping file which contains
+    // datasource WRITE permission for role_2
+    final Resource wikiDatasource = new Resource("wiki.+", ResourceType.DATASOURCE);
+    final File roleMappingFile = temporaryFolder.newFile("role_map.json");
+    final Map<String, List<ResourceAction>> roleActionsInFile = ImmutableMap.of(
+        ROLE_2,
+        Collections.singletonList(new ResourceAction(wikiDatasource, Action.WRITE))
+    );
+    jsonMapper.writeValue(roleMappingFile, roleActionsInFile);
+
+    // Permissions for role_2 before and after loading the file contents
+    final List<KeycloakAuthorizerPermission> datasourceRoleInitialPermissions = Collections.singletonList(
+        new KeycloakAuthorizerPermission(
+            new ResourceAction(wikiDatasource, Action.READ),
+            Pattern.compile(wikiDatasource.getName())
+        )
+    );
+    final List<KeycloakAuthorizerPermission> datasourceRoleFinalPermissions = Collections.singletonList(
+        new KeycloakAuthorizerPermission(
+            new ResourceAction(wikiDatasource, Action.WRITE),
+            Pattern.compile(wikiDatasource.getName())
+        )
+    );
+
+    Map<String, KeycloakAuthorizerRole> initialRoleMap = new HashMap<>();
+    initialRoleMap.put(INITIAL_ROLE_NAME, new KeycloakAuthorizerRole(INITIAL_ROLE_NAME, SUPER_PERMISSIONS));
+    initialRoleMap.put(ROLE_2, new KeycloakAuthorizerRole(ROLE_2, datasourceRoleInitialPermissions));
+    final byte[] initialRoleMapBytes = smileMapper.writeValueAsBytes(initialRoleMap);
+
+    Map<String, KeycloakAuthorizerRole> finalRoleMap = new HashMap<>();
+    finalRoleMap.put(INITIAL_ROLE_NAME, new KeycloakAuthorizerRole(INITIAL_ROLE_NAME, SUPER_PERMISSIONS));
+    finalRoleMap.put(ROLE_2, new KeycloakAuthorizerRole(ROLE_2, datasourceRoleFinalPermissions));
+    final byte[] finalRoleMapBytes = smileMapper.writeValueAsBytes(finalRoleMap);
+
+    // Setup mocks
+    Mockito.when(
+        connector.lookup(
+            "config",
+            MetadataStorageConnector.CONFIG_TABLE_KEY_COLUMN,
+            MetadataStorageConnector.CONFIG_TABLE_VALUE_COLUMN,
+            "keycloak_authorization_roles"
+        )
+    )
+           .thenReturn(initialRoleMapBytes)
+           .thenReturn(initialRoleMapBytes)
+           .thenReturn(initialRoleMapBytes)
+           .thenReturn(finalRoleMapBytes);
+
+    Mockito.when(connector.compareAndSwap(ArgumentMatchers.any())).thenReturn(true);
+    Mockito.when(authorizerMapper.getAuthorizerMap()).thenReturn(AUTHORIZER_MAP_WITH_KEYCLOAK);
+    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L);
+    Mockito.when(commonCacheConfig.isAutoPopulateAdmin()).thenReturn(true);
+    Mockito.when(commonCacheConfig.getInitialRoleMappingFile()).thenReturn(roleMappingFile.getAbsolutePath());
+
+    // Start the storage updater
+    storageUpdater.start();
+    storageUpdater.stop();
+
+    // Verify that role_2 now has Datasource WRITE permissions
+    Map<String, KeycloakAuthorizerRole> cachedRoleMap = storageUpdater.getCachedRoleMap();
+    Assert.assertNotNull(cachedRoleMap);
+    Assert.assertEquals(
+        datasourceRoleFinalPermissions,
+        cachedRoleMap.get(ROLE_2).getPermissions()
+    );
+
+    // Verify that permissions for "role" are unchanged
+    Assert.assertEquals(
+        SUPER_PERMISSIONS,
+        cachedRoleMap.get(INITIAL_ROLE_NAME).getPermissions()
+    );
   }
 
   @Test
