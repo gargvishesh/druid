@@ -12,8 +12,10 @@ package io.imply.druid.nested.column;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -137,7 +139,7 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
   @Override
   public int lookupId(String name)
   {
-    return getIdFromGlobalDictionary(name);
+    return dictionary.indexOf(getIdFromGlobalDictionary(name));
   }
 
   @Override
@@ -195,6 +197,72 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
       public int getRowValue()
       {
         return column.get(offset.getOffset());
+      }
+
+      @Override
+      public float getFloat()
+      {
+        final int localId = getRowValue();
+        final int globalId = dictionary.get(localId);
+        if (globalId == 0) {
+          // zero
+          assert NullHandling.replaceWithDefault();
+          return 0f;
+        } else if (globalId < adjustLongId) {
+          // try to convert string to float
+          Float f = Floats.tryParse(globalDictionary.get(globalId));
+          return f == null ? 0f : f;
+        } else if (globalId < adjustDoubleId) {
+          return globalLongDictionary.get(globalId - adjustLongId).floatValue();
+        } else {
+          return globalDoubleDictionary.get(globalId - adjustDoubleId).floatValue();
+        }
+      }
+
+      @Override
+      public double getDouble()
+      {
+        final int localId = getRowValue();
+        final int globalId = dictionary.get(localId);
+        if (globalId == 0) {
+          // zero
+          assert NullHandling.replaceWithDefault();
+          return 0.0;
+        } else if (globalId < adjustLongId) {
+          // try to convert string to double
+          Double d = Doubles.tryParse(globalDictionary.get(globalId));
+          return d == null ? 0.0 : d;
+        } else if (globalId < adjustDoubleId) {
+          return globalLongDictionary.get(globalId - adjustLongId).doubleValue();
+        } else {
+          return globalDoubleDictionary.get(globalId - adjustDoubleId);
+        }
+      }
+
+      @Override
+      public long getLong()
+      {
+        final int localId = getRowValue();
+        final int globalId = dictionary.get(localId);
+        if (globalId == 0) {
+          // zero
+          assert NullHandling.replaceWithDefault();
+          return 0L;
+        } else if (globalId < adjustLongId) {
+          // try to convert string to long
+          Long l = Longs.tryParse(globalDictionary.get(globalId));
+          return l == null ? 0L : l;
+        } else if (globalId < adjustDoubleId) {
+          return globalLongDictionary.get(globalId - adjustLongId);
+        } else {
+          return globalDoubleDictionary.get(globalId - adjustDoubleId).longValue();
+        }
+      }
+
+      @Override
+      public boolean isNull()
+      {
+        return dictionary.get(getRowValue()) == 0;
       }
 
       @Override
