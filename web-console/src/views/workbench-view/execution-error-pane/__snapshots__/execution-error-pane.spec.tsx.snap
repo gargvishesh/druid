@@ -1,0 +1,39 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ExecutionErrorPane matches snapshot 1`] = `
+<div
+  className="execution-error-pane"
+>
+  <p
+    className="error-message-text"
+  >
+    TooManyBuckets: 
+    Too many partition buckets (max = 10,000); try breaking your query up into smaller queries or using a wider segmentGranularity
+     
+    <a
+      onClick={[Function]}
+    >
+      (Stack trace)
+    </a>
+  </p>
+  <p>
+    Failed task ID: 
+    <Memo(ClickToCopy)
+      text="talaria1_kttm_naobfgjd_2021-12-03T23:16:15.269Z"
+    />
+     
+    On host: 
+    <Memo(ClickToCopy)
+      text="ip-10-3-228-20.ec2.internal:8100"
+    />
+     
+    Debug:
+     
+    <a
+      onClick={[Function]}
+    >
+      download query profile
+    </a>
+  </p>
+</div>
+`;

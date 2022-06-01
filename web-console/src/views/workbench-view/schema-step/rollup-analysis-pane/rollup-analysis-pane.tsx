@@ -23,8 +23,8 @@ import { QueryResult, SqlExpression, SqlFunction, SqlQuery } from 'druid-query-t
 import React, { useEffect } from 'react';
 
 import { useQueryManager } from '../../../../hooks';
-import { Execution } from '../../../../talaria-models';
 import { filterMap, formatPercentClapped, IntermediateQueryState } from '../../../../utils';
+import { Execution } from '../../../../workbench-models';
 import { executionBackgroundStatusCheck, submitTaskQuery } from '../../execution-utils';
 
 import './rollup-analysis-pane.scss';

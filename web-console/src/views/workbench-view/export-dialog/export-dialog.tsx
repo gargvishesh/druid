@@ -31,8 +31,8 @@ import React, { useState } from 'react';
 
 import { AutoForm, Field } from '../../../components';
 import { useQueryManager } from '../../../hooks';
-import { Execution, TalariaQuery } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
+import { Execution, WorkbenchQuery } from '../../../workbench-models';
 import { executionBackgroundStatusCheck, submitTaskQuery } from '../execution-utils';
 
 import './export-dialog.scss';
@@ -64,16 +64,16 @@ export const ASYNC_DOWNLOAD_FIELDS: Field<AsyncDownloadParams>[] = [
 ];
 
 interface ExportDialogProps {
-  talariaQuery: TalariaQuery;
+  query: WorkbenchQuery;
   onClose: () => void;
 }
 
 export const ExportDialog = React.memo(function ExportDialog(props: ExportDialogProps) {
-  const { talariaQuery, onClose } = props;
+  const { query, onClose } = props;
 
   const [asyncDownloadParams, setAsyncDownloadParams] = useState<AsyncDownloadParams>(() => {
     let filename = 'query';
-    const parsedQuery = talariaQuery.getParsedQuery();
+    const parsedQuery = query.getParsedQuery();
     if (parsedQuery instanceof SqlQuery) {
       filename = parsedQuery.getFirstTableName() || filename;
     }
@@ -91,15 +91,12 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
     Execution
   >({
     processQuery: async (_asyncDownloadParams, cancelToken) => {
-      const downloadQuery = talariaQuery
-        .changeUnlimited(true)
-        .makePreview()
-        .changeEngine('sql-task');
+      const downloadQuery = query.changeUnlimited(true).makePreview().changeEngine('sql-task');
 
-      const { query, sqlPrefixLines } = downloadQuery.getApiQuery();
+      const { query: apiQuery, sqlPrefixLines } = downloadQuery.getApiQuery();
 
       return await submitTaskQuery({
-        query,
+        query: apiQuery,
         context: {
           talariaDestination: asyncDownloadParams.local ? undefined : 'external',
         },

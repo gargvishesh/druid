@@ -20,7 +20,6 @@ import { AxiosResponse, CancelToken } from 'axios';
 import { QueryResult } from 'druid-query-toolkit';
 
 import { Api } from '../../../singletons';
-import { Execution } from '../../../talaria-models';
 import {
   deepGet,
   downloadHref,
@@ -29,6 +28,7 @@ import {
   QueryManager,
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
+import { Execution } from '../../../workbench-models';
 
 export interface SubmitAsyncQueryOptions {
   query: string | Record<string, any>;

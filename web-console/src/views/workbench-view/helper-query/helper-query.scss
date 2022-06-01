@@ -39,7 +39,7 @@
     }
   }
 
-  .talaria-query-input {
+  .flexible-query-input {
     border-top: 1px solid rgba($dark-gray1, 0.5);
     border-bottom: 1px solid rgba($dark-gray1, 0.5);
   }
@@ -52,7 +52,8 @@
     gap: 10px;
     align-items: center;
 
-    .talaria-extra-info {
+    .execution-timer,
+    .execution-summary-button {
       position: absolute;
       top: 0;
       right: 0;
@@ -97,7 +98,7 @@
         height: 160px;
       }
 
-      .talaria-stats {
+      .execution-stages-pane {
         position: absolute;
         top: 160px;
         left: 10px;

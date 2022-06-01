@@ -33,9 +33,16 @@
   }
 
   .title {
+    position: relative;
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     padding: 8px 10px;
-    pointer-events: none;
+    user-select: none;
+
+    .close-button {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+    }
   }
 
   .work-entries {

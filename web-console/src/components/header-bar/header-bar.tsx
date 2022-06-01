@@ -241,11 +241,11 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
   const loadDataPrimary = false;
 
-  // BEGIN: Imply-added code for Talaria execution
-  const [showTalaria, setShowTalaria] = useState<any>(
+  // BEGIN: Imply-added code for MSQE execution
+  const [showWorkbench, setShowWorkbench] = useState<any>(
     MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW),
   );
-  // END: Imply-added code for Talaria execution
+  // END: Imply-added code for MSQE execution
 
   const helpMenu = (
     <Menu>
@@ -356,13 +356,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  // BEGIN: Imply-added code for Talaria execution
+  // BEGIN: Imply-added code for MSQE execution
   const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
     if (!MULTI_STAGE_QUERY_ENABLED || !e.altKey) return;
     e.preventDefault();
-    const nextShowTalaria = e.shiftKey ? (showTalaria ? false : 'loader') : !showTalaria;
+    const nextShowWorkbench = e.shiftKey ? (showWorkbench ? false : 'loader') : !showWorkbench;
 
-    if (nextShowTalaria) {
+    if (nextShowWorkbench) {
       // Check extension
       let status: any;
       try {
@@ -396,10 +396,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       }
     }
 
-    setShowTalaria(!nextShowTalaria);
-    localStorageSetJson(LocalStorageKeys.WORKBENCH_SHOW, nextShowTalaria);
+    setShowWorkbench(!nextShowWorkbench);
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_SHOW, nextShowWorkbench);
     AppToaster.show({
-      message: nextShowTalaria ? (
+      message: nextShowWorkbench ? (
         <>
           <p>You have enabled the multi-stage query engine capable query view.</p>
           <p>
@@ -414,9 +414,9 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       intent: Intent.SUCCESS,
       timeout: 5000,
     });
-    location.hash = nextShowTalaria ? '#workbench' : '#query';
+    location.hash = nextShowWorkbench ? '#workbench' : '#query';
   });
-  // END: Imply-modified code for Talaria execution
+  // END: Imply-modified code for MSQE execution
 
   return (
     <Navbar className="header-bar">
@@ -471,7 +471,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         />
 
         <NavbarDivider />
-        {showTalaria ? (
+        {showWorkbench ? (
           <AnchorButton
             minimal
             active={active === 'workbench'}
@@ -490,8 +490,8 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
             disabled={!capabilities.hasQuerying()}
           />
         )}
-        {/* BEGIN: Imply-added code for Talaria execution */}
-        {showTalaria === 'loader' && (
+        {/* BEGIN: Imply-added code for MSQE execution */}
+        {showWorkbench === 'loader' && (
           <AnchorButton
             minimal
             active={active === 'sqloader'}
@@ -501,7 +501,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
             disabled={!capabilities.hasQuerying()}
           />
         )}
-        {/* END: Imply-modified code for Talaria execution */}
+        {/* END: Imply-modified code for MSQE execution */}
       </NavbarGroup>
       <NavbarGroup align={Alignment.RIGHT}>
         <RestrictedMode capabilities={capabilities} onUnrestrict={onUnrestrict} />

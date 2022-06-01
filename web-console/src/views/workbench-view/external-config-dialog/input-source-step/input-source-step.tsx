@@ -44,7 +44,7 @@ import {
   Execution,
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
-} from '../../../../talaria-models';
+} from '../../../../workbench-models';
 import {
   executionBackgroundResultStatusCheck,
   extractQueryResults,

@@ -27,8 +27,7 @@ import SplitterLayout from 'react-splitter-layout';
 import { Loader } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
-import { TalariaHistory } from '../../../singletons/talaria-history';
-import { Execution, LastExecution, TalariaQuery } from '../../../talaria-models';
+import { WorkbenchHistory } from '../../../singletons/workbench-history';
 import {
   ColumnMetadata,
   DruidError,
@@ -39,8 +38,13 @@ import {
   RowColumn,
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
+import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../workbench-models';
 import { QueryError } from '../../query-view/query-error/query-error';
-import { AnchoredQueryTimer } from '../anchored-query-timer/anchored-query-timer';
+import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
+import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
+import { ExecutionStateCache } from '../execution-state-cache';
+import { ExecutionSummaryButton } from '../execution-summary-button/execution-summary-button';
+import { ExecutionTimer } from '../execution-timer/execution-timer';
 import {
   executionBackgroundStatusCheck,
   reattachAsyncExecution,
@@ -49,17 +53,13 @@ import {
   submitTaskQuery,
 } from '../execution-utils';
 import { ExportDialog } from '../export-dialog/export-dialog';
+import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
 import { InsertSuccess } from '../insert-success/insert-success';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { QueryOutput2 } from '../query-output2/query-output2';
 import { RunMoreButton } from '../run-more-button/run-more-button';
 import { StageProgress } from '../stage-progress/stage-progress';
-import { TalariaExtraInfo } from '../talaria-extra-info/talaria-extra-info';
-import { TalariaQueryError } from '../talaria-query-error/talaria-query-error';
-import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import { TalariaQueryStateCache } from '../talaria-query-state-cache';
-import { TalariaStats } from '../talaria-stats/talaria-stats';
 import { useWorkStateStore } from '../work-state-store';
 
 import './query-tab.scss';
@@ -69,17 +69,19 @@ const queryRunner = new QueryRunner({
 });
 
 export interface QueryTabProps {
-  query: TalariaQuery;
+  query: WorkbenchQuery;
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
-  onQueryChange(newTalariaQuery: TalariaQuery): void;
+  onQueryChange(newQuery: WorkbenchQuery): void;
   onStats(id: string): void;
+  extraEngines: DruidEngine[];
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
-  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onStats } = props;
+  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onStats, extraEngines } =
+    props;
   const [showLiveReports, setShowLiveReports] = useState(true);
-  const [exportDialogQuery, setExportDialogQuery] = useState<TalariaQuery | undefined>();
+  const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
 
   const handleExport = usePermanentCallback(() => {
     setExportDialogQuery(query);
@@ -96,23 +98,23 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   });
 
   const handleSecondaryPaneSizeChange = useCallback((secondaryPaneSize: number) => {
-    localStorageSet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE, String(secondaryPaneSize));
+    localStorageSet(LocalStorageKeys.WORKBENCH_PANE_SIZE, String(secondaryPaneSize));
   }, []);
 
-  const queryInputRef = useRef<TalariaQueryInput | null>(null);
+  const queryInputRef = useRef<FlexibleQueryInput | null>(null);
 
   const id = query.getId();
   const [executionState, queryManager] = useQueryManager<
-    TalariaQuery | LastExecution,
+    WorkbenchQuery | LastExecution,
     Execution,
     Execution,
     DruidError
   >({
-    initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastExecution(),
-    initState: TalariaQueryStateCache.getState(id),
+    initQuery: ExecutionStateCache.getState(id) ? undefined : query.getLastExecution(),
+    initState: ExecutionStateCache.getState(id),
     processQuery: async (q, cancelToken) => {
-      if (q instanceof TalariaQuery) {
-        TalariaQueryStateCache.deleteState(id);
+      if (q instanceof WorkbenchQuery) {
+        ExecutionStateCache.deleteState(id);
         const { engine, query, sqlPrefixLines, cancelQueryId } = q.getApiQuery();
 
         switch (engine) {
@@ -189,7 +191,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
 
   useEffect(() => {
     if (!executionState.data) return;
-    TalariaQueryStateCache.storeState(id, executionState);
+    ExecutionStateCache.storeState(id, executionState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executionState.data, executionState.error]);
 
@@ -218,7 +220,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   function handleRun(preview = true) {
     if (!query.isValid()) return;
 
-    TalariaHistory.addQueryToHistory(query);
+    WorkbenchHistory.addQueryToHistory(query);
     queryManager.runQuery(preview ? query.makePreview() : query);
   }
 
@@ -231,9 +233,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
       <SplitterLayout
         vertical
         percentage
-        secondaryInitialSize={
-          Number(localStorageGet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE)!) || 40
-        }
+        secondaryInitialSize={Number(localStorageGet(LocalStorageKeys.WORKBENCH_PANE_SIZE)!) || 40}
         primaryMinSize={20}
         secondaryMinSize={20}
         onSecondaryPaneSizeChange={handleSecondaryPaneSizeChange}
@@ -253,10 +253,11 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                   onQueryChange(query.remove(i));
                 }}
                 onStats={onStats}
+                extraEngines={extraEngines}
               />
             ))}
             <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
-              <TalariaQueryInput
+              <FlexibleQueryInput
                 ref={queryInputRef}
                 autoHeight={Boolean(queryPrefixes.length)}
                 minRows={10}
@@ -305,18 +306,22 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onQueryChange={onQueryChange}
               onRun={handleRun}
               loading={executionState.loading}
+              extraEngines={extraEngines}
             />
             {executionState.isLoading() && (
-              <AnchoredQueryTimer startTime={executionState.intermediate?.startTime} />
+              <ExecutionTimer
+                execution={executionState.intermediate}
+                onCancel={() => queryManager.cancelCurrent()}
+              />
             )}
             {(execution || executionState.error) && (
-              <TalariaExtraInfo
+              <ExecutionSummaryButton
                 execution={execution}
                 onExecutionDetail={() => onStats(statsTaskId!)}
                 onReset={() => {
                   queryManager.reset();
                   onQueryChange(props.query.changeLastExecution(undefined));
-                  TalariaQueryStateCache.deleteState(id);
+                  ExecutionStateCache.deleteState(id);
                 }}
               />
             )}
@@ -346,16 +351,14 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               />
             ) : execution.isSuccessfulInsert() ? (
               <InsertSuccess
-                insertQueryExecution={execution}
+                execution={execution}
                 onStats={() => onStats(statsTaskId!)}
                 onQueryChange={handleQueryStringChange}
               />
             ) : execution.error ? (
               <div className="stats-container">
-                <TalariaQueryError execution={execution} />
-                {execution.stages && (
-                  <TalariaStats stages={execution.stages} error={execution.error} />
-                )}
+                <ExecutionErrorPane execution={execution} />
+                {execution.stages && <ExecutionStagesPane execution={execution} />}
               </div>
             ) : (
               <div>Unknown query execution state</div>
@@ -375,12 +378,11 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               <div className="stats-container">
                 <StageProgress
                   execution={executionState.intermediate}
-                  onCancel={() => queryManager.cancelCurrent()}
                   onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
                   showLiveReports={showLiveReports}
                 />
                 {executionState.intermediate.stages && showLiveReports && (
-                  <TalariaStats stages={executionState.intermediate.stages} />
+                  <ExecutionStagesPane execution={executionState.intermediate} />
                 )}
               </div>
             ) : (
@@ -395,7 +397,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
       </SplitterLayout>
       {exportDialogQuery && (
         <ExportDialog
-          talariaQuery={exportDialogQuery}
+          query={exportDialogQuery}
           onClose={() => {
             setExportDialogQuery(undefined);
           }}

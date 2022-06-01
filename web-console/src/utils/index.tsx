@@ -35,6 +35,6 @@ export * from './query-state';
 export * from './sanitizers';
 export * from './table-helpers';
 
-// BEGIN: Imply-added code for Talaria execution
+// BEGIN: Imply-added code for MSQE execution
 export * from './imply';
-// END: Imply-modified code for Talaria execution
+// END: Imply-modified code for MSQE execution

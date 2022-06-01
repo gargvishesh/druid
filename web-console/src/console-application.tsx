@@ -36,7 +36,7 @@ import {
   QueryView,
   SegmentsView,
   ServicesView,
-  TalariaLoadDataView,
+  SqloaderView,
   UserManagementView,
   WorkbenchView,
 } from './views';
@@ -224,8 +224,8 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
-  // BEGIN: Imply-added code for Talaria execution
-  private readonly wrappedQueryNextView = (p: RouteComponentProps<any>) => {
+  // BEGIN: Imply-added code for MSQE execution
+  private readonly wrappedWorkbenchView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
     if (!MULTI_STAGE_QUERY_ENABLED) return null;
 
@@ -239,17 +239,16 @@ export class ConsoleApplication extends React.PureComponent<
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
-        enableAsync
-        enableMultiStage
+        extraEngines={['sql-async', 'sql-task']}
       />,
       'thin',
     );
   };
 
-  private readonly wrappedTalariaLoadDataView = () => {
-    return this.wrapInViewContainer('sqloader', <TalariaLoadDataView goToQuery={this.goToQuery} />);
+  private readonly wrappedSqloaderView = () => {
+    return this.wrapInViewContainer('sqloader', <SqloaderView goToQuery={this.goToQuery} />);
   };
-  // END: Imply-modified code for Talaria execution
+  // END: Imply-modified code for MSQE execution
 
   private readonly wrappedUserManagementView = () => {
     return this.wrapInViewContainer('user-management', <UserManagementView />);
@@ -339,17 +338,17 @@ export class ConsoleApplication extends React.PureComponent<
 
               <Route path="/query" component={this.wrappedQueryView} />
 
-              {/* BEGIN: Imply-added code for Talaria execution */}
+              {/* BEGIN: Imply-added code for MSQE execution */}
               {MULTI_STAGE_QUERY_ENABLED && (
                 <Route
                   path={['/workbench/:tabId', '/workbench']}
-                  component={this.wrappedQueryNextView}
+                  component={this.wrappedWorkbenchView}
                 />
               )}
               {MULTI_STAGE_QUERY_ENABLED && (
-                <Route path="/sqloader" component={this.wrappedTalariaLoadDataView} />
+                <Route path="/sqloader" component={this.wrappedSqloaderView} />
               )}
-              {/* END: Imply-modified code for Talaria execution */}
+              {/* END: Imply-modified code for MSQE execution */}
 
               {/* BEGIN: Imply-added code for user management */}
               <Route path="/user-management" component={this.wrappedUserManagementView} />

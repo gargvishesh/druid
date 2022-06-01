@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-import { Button, ButtonGroup, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Button, ButtonGroup, Intent, Menu, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
-import { MenuCheckbox } from '../../components';
 import { SpecDialog } from '../../dialogs';
-import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
-import { generate8HexId, TabEntry, TalariaQuery } from '../../talaria-models';
 import {
   ColumnMetadata,
   deepSet,
@@ -41,6 +38,7 @@ import {
   QueryManager,
   QueryState,
 } from '../../utils';
+import { DruidEngine, generate8HexId, TabEntry, WorkbenchQuery } from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import {
   LIVE_QUERY_MODES,
@@ -48,35 +46,34 @@ import {
 } from '../query-view/live-query-mode-selector/live-query-mode-selector';
 
 import { getDemoQueries } from './demo-queries';
+import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
+import { ExecutionStateCache } from './execution-state-cache';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
-import { convertSpecToSql } from './spec-conversion';
+import { convertSpecToSql, getSpecDatasourceName } from './spec-conversion';
 import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
-import { TalariaHistoryDialog } from './talaria-history-dialog/talaria-history-dialog';
-import { TalariaQueryStateCache } from './talaria-query-state-cache';
-import { TalariaStatsDialog } from './talaria-stats-dialog/talaria-stats-dialog';
 import { WorkPanel } from './work-panel/work-panel';
+import { WorkbenchHistoryDialog } from './workbench-history-dialog/workbench-history-dialog';
 
 import './workbench-view.scss';
 
 function cleanupTabEntry(tabEntry: TabEntry): void {
   const discardedIds = tabEntry.query.getIds();
-  TalariaQueryStateCache.deleteStates(discardedIds);
+  ExecutionStateCache.deleteStates(discardedIds);
   AceEditorStateCache.deleteStates(discardedIds);
 }
 
-export interface MultiQueryViewProps {
+export interface WorkbenchViewProps {
   tabId: string | undefined;
   onTabChange(newTabId: string): void;
   initQuery: string | undefined;
   defaultQueryContext?: Record<string, any>;
   mandatoryQueryContext?: Record<string, any>;
-  enableAsync: boolean;
-  enableMultiStage: boolean;
+  extraEngines: DruidEngine[];
 }
 
-export interface TalariaViewState {
+export interface WorkbenchViewState {
   tabEntries: TabEntry[];
   liveQueryMode: LiveQueryMode;
 
@@ -96,10 +93,10 @@ export interface TalariaViewState {
   showWorkHistory: boolean;
 }
 
-export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, TalariaViewState> {
+export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, WorkbenchViewState> {
   private readonly metadataQueryManager: QueryManager<null, ColumnMetadata[]>;
 
-  constructor(props: MultiQueryViewProps, context: any) {
+  constructor(props: WorkbenchViewProps, context: any) {
     super(props, context);
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
@@ -109,12 +106,13 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
       : 'auto';
 
     const showWorkHistory = Boolean(
-      props.enableMultiStage && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
+      props.extraEngines.includes('sql-task') &&
+        localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
     );
 
     const tabEntries =
       Array.isArray(possibleTabEntries) && possibleTabEntries.length
-        ? possibleTabEntries.map(q => ({ ...q, query: new TalariaQuery(q.query) }))
+        ? possibleTabEntries.map(q => ({ ...q, query: new WorkbenchQuery(q.query) }))
         : [];
 
     const { initQuery } = props;
@@ -123,7 +121,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
       tabEntries.unshift({
         id: generate8HexId(),
         tabName: 'Opened query',
-        query: TalariaQuery.blank()
+        query: WorkbenchQuery.blank()
           .changeQueryString(initQuery)
           .changeQueryContext(props.defaultQueryContext || {}),
       });
@@ -133,7 +131,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
       tabEntries.push({
         id: generate8HexId(),
         tabName: 'Tab 1',
-        query: TalariaQuery.blank().changeQueryContext(props.defaultQueryContext || {}),
+        query: WorkbenchQuery.blank().changeQueryContext(props.defaultQueryContext || {}),
       });
     }
 
@@ -179,6 +177,11 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     this.metadataQueryManager.terminate();
   }
 
+  private readonly handleWorkPanelClose = () => {
+    this.setState({ showWorkHistory: false });
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, false);
+  };
+
   private readonly handleStats = (id: string) => {
     this.setState({
       queryStatsId: id,
@@ -207,7 +210,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     if (!queryStatsId) return;
 
     return (
-      <TalariaStatsDialog
+      <ExecutionDetailsDialog
         id={queryStatsId}
         onClose={() => this.setState({ queryStatsId: undefined })}
       />
@@ -219,8 +222,8 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     if (!historyDialogOpen) return;
 
     return (
-      <TalariaHistoryDialog
-        setQueryString={this.handleQueryChange}
+      <WorkbenchHistoryDialog
+        onSelectQuery={query => this.handleNewTab(query, 'Query from history')}
         onClose={() => this.setState({ historyDialogOpen: false })}
       />
     );
@@ -287,7 +290,10 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
             message: `Spec converted, please double check`,
             intent: Intent.SUCCESS,
           });
-          this.handleQueryStringChange(sql);
+          this.handleNewTab(
+            WorkbenchQuery.blank().changeQueryString(sql),
+            'Convert ' + getSpecDatasourceName(spec as any),
+          );
         }}
         onClose={() => this.setState({ specDialogOpen: false })}
         title="Ingestion spec to convert"
@@ -296,8 +302,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
   }
 
   private renderToolbarMoreMenu() {
-    const { enableMultiStage } = this.props;
-    const { showWorkHistory } = this.state;
+    const { extraEngines } = this.props;
     const query = this.getCurrentQuery();
 
     return (
@@ -317,40 +322,24 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
           text="Query history"
           onClick={() => this.setState({ historyDialogOpen: true })}
         />
-        {enableMultiStage && (
-          <>
-            <MenuItem
-              icon={IconNames.TEXT_HIGHLIGHT}
-              text="Convert ingestion spec to SQL"
-              onClick={() => this.setState({ specDialogOpen: true })}
-            />
-            <MenuCheckbox
-              checked={showWorkHistory}
-              text="Show work history"
-              onChange={() => {
-                this.setState({ showWorkHistory: !showWorkHistory });
-                localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, !showWorkHistory);
-              }}
-            />
-          </>
+        {extraEngines.includes('sql-task') && (
+          <MenuItem
+            icon={IconNames.TEXT_HIGHLIGHT}
+            text="Convert ingestion spec to SQL"
+            onClick={() => this.setState({ specDialogOpen: true })}
+          />
         )}
-        <MenuDivider />
-        <MenuItem
-          icon={IconNames.HELP}
-          text="DruidSQL documentation"
-          href={getLink('DOCS_SQL')}
-          target="_blank"
-        />
       </Menu>
     );
   }
 
   private renderToolbar() {
-    const { enableMultiStage } = this.props;
+    const { extraEngines } = this.props;
+    const { showWorkHistory } = this.state;
 
     return (
-      <div className="toolbar">
-        {enableMultiStage && (
+      <ButtonGroup className="toolbar">
+        {extraEngines.includes('sql-task') && (
           <Button
             icon={IconNames.TH_DERIVED}
             text="Connect external data"
@@ -369,12 +358,23 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
         <Popover2 content={this.renderToolbarMoreMenu()}>
           <Button icon={IconNames.WRENCH} minimal />
         </Popover2>
-      </div>
+        {!showWorkHistory && (
+          <Button
+            icon={IconNames.ONE_COLUMN}
+            minimal
+            title="Show work history"
+            onClick={() => {
+              this.setState({ showWorkHistory: true });
+              localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, true);
+            }}
+          />
+        )}
+      </ButtonGroup>
     );
   }
 
   private renderCenterPanel() {
-    const { onTabChange, mandatoryQueryContext } = this.props;
+    const { onTabChange, mandatoryQueryContext, extraEngines } = this.props;
     const { columnMetadataState, tabEntries } = this.state;
     const currentTabEntry = this.getCurrentTabEntry();
 
@@ -473,7 +473,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
             icon={IconNames.PLUS}
             minimal
             onClick={() => {
-              this.handleNewTab(TalariaQuery.blank());
+              this.handleNewTab(WorkbenchQuery.blank());
             }}
           />
         </div>
@@ -485,6 +485,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
           columnMetadata={columnMetadataState.getSomeData()}
           onQueryChange={this.handleQueryChange}
           onStats={this.handleStats}
+          extraEngines={extraEngines}
         />
       </div>
     );
@@ -495,7 +496,7 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     this.setState({ tabEntries: newQueries }, callback);
   };
 
-  private readonly handleQueryChange = (newQuery: TalariaQuery, _preferablyRun?: boolean) => {
+  private readonly handleQueryChange = (newQuery: WorkbenchQuery, _preferablyRun?: boolean) => {
     const { tabEntries } = this.state;
     const tabId = this.getTabId();
     const tabIndex = Math.max(
@@ -521,14 +522,14 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
     return this.getCurrentQuery().getParsedQuery();
   };
 
-  private readonly handleNewTab = (talariaQuery: TalariaQuery, tabName?: string) => {
+  private readonly handleNewTab = (query: WorkbenchQuery, tabName?: string) => {
     const { onTabChange } = this.props;
     const { tabEntries } = this.state;
     const id = generate8HexId();
     const newTabEntry: TabEntry = {
       id,
       tabName: tabName || `Tab ${tabEntries.length + 1}`,
-      query: talariaQuery,
+      query,
     };
     this.handleQueriesChange(tabEntries.concat(newTabEntry), () => {
       onTabChange(newTabEntry.id);
@@ -568,7 +569,8 @@ export class WorkbenchView extends React.PureComponent<MultiQueryViewProps, Tala
         {this.renderCenterPanel()}
         {showWorkHistory && (
           <WorkPanel
-            onStats={this.handleStats}
+            onClose={this.handleWorkPanelClose}
+            onExecutionDetails={this.handleStats}
             onRunQuery={query => this.handleQueryStringChange(query, true)}
             onNewTab={this.handleNewTab}
           />
