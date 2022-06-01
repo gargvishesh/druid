@@ -34,6 +34,7 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
+import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.LookupExprMacro;
@@ -88,7 +89,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "aaa")
-                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "300"))
+                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "300", "mixed", 1L))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", "hello")))
                   .put("long", 5L)
                   .build(),
@@ -101,7 +102,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "ccc")
-                  .put("nest", ImmutableMap.of("x", 200L, "y", 3.03, "z", "abcdef"))
+                  .put("nest", ImmutableMap.of("x", 200L, "y", 3.03, "z", "abcdef", "mixed", 1.1))
                   .put("long", 3L)
                   .build(),
       ImmutableMap.<String, Object>builder()
@@ -1344,6 +1345,172 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{400.0}
+        )
+    );
+  }
+
+
+
+  @Test
+  public void testSumPathFilteredAggDouble() throws Exception
+  {
+    // this one actually equals 2.1 because the filter is a long so double is cast and is 1 so both rows match
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.x')) FILTER(WHERE((JSON_GET_PATH(nest, '.y'))=2.02))"
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new NestedFieldVirtualColumn("nest", ".\"y\"", "v0", ColumnType.DOUBLE),
+                      new NestedFieldVirtualColumn("nest", ".\"x\"", "v1", ColumnType.DOUBLE)
+                  )
+
+                  .aggregators(
+                      aggregators(
+                          new FilteredAggregatorFactory(
+                              new DoubleSumAggregatorFactory("a0", "v1"),
+                              selector("v0", "2.02", null)
+                          )
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{200.0}
+        )
+    );
+  }
+
+  @Test
+  public void testSumPathFilteredAggString() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.x')) FILTER(WHERE((JSON_GET_PATH(nest, '.z'))='300'))"
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new NestedFieldVirtualColumn("nest", ".\"z\"", "v0", ColumnType.STRING),
+                      new NestedFieldVirtualColumn("nest", ".\"x\"", "v1", ColumnType.DOUBLE)
+                  )
+
+                  .aggregators(
+                      aggregators(
+                          new FilteredAggregatorFactory(
+                              new DoubleSumAggregatorFactory("a0", "v1"),
+                              selector("v0", "300", null)
+                          )
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{100.0}
+        )
+    );
+  }
+
+  @Test
+  public void testSumPathMixed() throws Exception
+  {
+    // throws a "Cannot make vector value selector for variant typed nested field [[LONG, DOUBLE]]"
+    skipVectorize();
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.mixed')) "
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"mixed\"", "v0", ColumnType.DOUBLE))
+                  .aggregators(aggregators(new DoubleSumAggregatorFactory("a0", "v0")))
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2.1}
+        )
+    );
+  }
+
+  @Test
+  public void testSumPathMixedFilteredAggLong() throws Exception
+  {
+    // throws a "Cannot make vector value selector for variant typed nested field [[LONG, DOUBLE]]"
+    skipVectorize();
+    // this one actually equals 2.1 because the filter is a long so double is cast and is 1 so both rows match
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.mixed')) FILTER(WHERE((JSON_GET_PATH(nest, '.mixed'))=1))"
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new NestedFieldVirtualColumn("nest", ".\"mixed\"", "v0", ColumnType.LONG),
+                      new NestedFieldVirtualColumn("nest", ".\"mixed\"", "v1", ColumnType.DOUBLE)
+                  )
+
+                  .aggregators(
+                      aggregators(
+                          new FilteredAggregatorFactory(
+                              new DoubleSumAggregatorFactory("a0", "v1"),
+                              selector("v0", "1", null)
+                          )
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2.1}
+        )
+    );
+  }
+
+  @Test
+  public void testSumPathMixedFilteredAggDouble() throws Exception
+  {
+    // throws a "Cannot make vector value selector for variant typed nested field [[LONG, DOUBLE]]"
+    skipVectorize();
+    // with double matcher, only the one row matches since the long value cast is not picked up
+    testQuery(
+        "SELECT "
+        + "SUM(JSON_GET_PATH(nest, '.mixed')) FILTER(WHERE((JSON_GET_PATH(nest, '.mixed'))=1.1))"
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"mixed\"", "v0", ColumnType.DOUBLE))
+                  .aggregators(
+                      aggregators(
+                          new FilteredAggregatorFactory(
+                              new DoubleSumAggregatorFactory("a0", "v0"),
+                              selector("v0", "1.1", null)
+                          )
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{1.1}
         )
     );
   }
