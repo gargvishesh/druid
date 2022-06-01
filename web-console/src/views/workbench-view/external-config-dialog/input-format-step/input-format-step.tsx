@@ -32,7 +32,6 @@ import {
 } from '../../../../druid-models';
 import { useQueryManager } from '../../../../hooks';
 import { getLink } from '../../../../links';
-import { ExternalConfigColumn } from '../../../../talaria-models';
 import { deepSet, EMPTY_ARRAY } from '../../../../utils';
 import {
   headerAndRowsFromSampleResponse,
@@ -40,6 +39,7 @@ import {
   SampleHeaderAndRows,
   SampleSpec,
 } from '../../../../utils/sampler';
+import { ExternalConfigColumn } from '../../../../workbench-models';
 import { LearnMore } from '../../../load-data-view/learn-more/learn-more';
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
 

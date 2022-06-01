@@ -224,11 +224,7 @@ public class TalariaWorkerTaskLauncher
       statuses.forEach((k, v) -> tasks.put(k, v.getStatusCode()));
 
       if (statuses.values().stream().anyMatch(status -> status.getStatusCode().isFailure())) {
-        throw new ISE(
-            "Tasks failed to start up. This generally happens when the available slots in the cluster are less"
-            + " than the talariaNumTasks[%d] definied in the query context.",
-            numTasks
-        );
+        throw new ISE("Tasks failed to start up");
       }
 
       boolean allTasksAreRunningWithLocationOrFinished = true;

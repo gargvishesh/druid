@@ -20,7 +20,7 @@ import { sane } from 'druid-query-toolkit';
 
 import { convertSpecToSql } from './spec-conversion';
 
-describe('talaria-utils', () => {
+describe('spec conversion', () => {
   it('converts spec (without rollup)', () => {
     expect(
       convertSpecToSql({
@@ -99,17 +99,18 @@ describe('talaria-utils', () => {
             },
             forceGuaranteedRollup: true,
             maxNumConcurrentSubTasks: 4,
+            maxParseExceptions: 3,
           },
         },
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaNumTasks: 4
+      --:context maxParseExceptions: 3
       --:context talariaFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
-      --:context talariaReplaceTimeChunks: all
-      INSERT INTO wikipedia
-      WITH ioConfigExtern AS (SELECT * FROM TABLE(
+      REPLACE INTO wikipedia OVERWRITE ALL
+      WITH source AS (SELECT * FROM TABLE(
         EXTERN(
           '{"type":"http","uris":["https://druid.apache.org/data/wikipedia.json.gz"]}',
           '{"type":"json"}',
@@ -141,7 +142,7 @@ describe('talaria-utils', () => {
         "metroCode",
         "countryIsoCode",
         "regionName"
-      FROM ioConfigExtern
+      FROM source
       PARTITIONED BY HOUR
       CLUSTERED BY "isRobot"
     `);
@@ -242,9 +243,8 @@ describe('talaria-utils', () => {
       -- This SQL query was auto generated from an ingestion spec
       --:context talariaFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
-      --:context talariaReplaceTimeChunks: all
-      INSERT INTO wikipedia_rollup
-      WITH ioConfigExtern AS (SELECT * FROM TABLE(
+      REPLACE INTO wikipedia_rollup OVERWRITE ALL
+      WITH source AS (SELECT * FROM TABLE(
         EXTERN(
           '{"type":"http","uris":["https://druid.apache.org/data/wikipedia.json.gz"]}',
           '{"type":"json"}',
@@ -276,7 +276,7 @@ describe('talaria-utils', () => {
         SUM("deltaBucket") AS "sum_deltaBucket",
         SUM("deleted") AS "sum_deleted",
         APPROX_COUNT_DISTINCT_DS_THETA("page") AS "page_theta"
-      FROM ioConfigExtern
+      FROM source
       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
       PARTITIONED BY HOUR
     `);

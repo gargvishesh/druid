@@ -31,7 +31,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import React, { useState } from 'react';
 
-import { DestinationInfo } from '../../../talaria-models';
+import { DestinationInfo } from '../../../workbench-models';
 
 import './destination-form.scss';
 
@@ -56,7 +56,7 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
         }}
       >
         <Radio label="Create new table" value="new" />
-        <Radio label="Append to table" value="append" />
+        <Radio label="Append to table" value="insert" />
         <Radio label="Replace table" value="replace" />
       </RadioGroup>
       {destinationInfo.mode === 'new' && (
@@ -77,7 +77,7 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
           />
         </FormGroup>
       )}
-      {destinationInfo.mode === 'append' && (
+      {destinationInfo.mode === 'insert' && (
         <>
           <FormGroup label="Choose a table">
             <InputGroup

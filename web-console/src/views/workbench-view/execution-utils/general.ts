@@ -19,8 +19,8 @@
 import { CancelToken } from 'axios';
 import { QueryResult } from 'druid-query-toolkit';
 
-import { Execution } from '../../../talaria-models';
 import { IntermediateQueryState } from '../../../utils';
+import { Execution } from '../../../workbench-models';
 
 import { updateExecutionWithAsyncIfNeeded } from './sql-async-execution';
 import {

@@ -16,24 +16,21 @@
  * limitations under the License.
  */
 
-import { Icon, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Button, Icon, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { IconName, IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import copy from 'copy-to-clipboard';
 import { SqlTableRef } from 'druid-query-toolkit';
-import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
 
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
-import { Api, AppToaster } from '../../../singletons';
-import { Execution, TalariaQuery } from '../../../talaria-models';
-import { deepGet, downloadQueryProfile, formatDuration, queryDruidSql } from '../../../utils';
+import { AppToaster } from '../../../singletons';
+import { downloadQueryProfile, formatDuration, queryDruidSql } from '../../../utils';
+import { Execution, WorkbenchQuery } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 import { cancelTaskExecution, getTaskExecution } from '../execution-utils';
-import { ShowAsyncValueDialog } from '../show-async-value-dialog/show-async-value-dialog';
-import { TalariaResultsDialog } from '../talaria-results-dialog/talaria-results-dialog';
 import { useWorkStateStore } from '../work-state-store';
 
 import './work-panel.scss';
@@ -68,20 +65,16 @@ interface WorkEntry {
 }
 
 export interface WorkPanelProps {
-  onStats(taskId: string): void;
+  onClose(): void;
+  onExecutionDetails(id: string): void;
   onRunQuery(query: string): void;
-  onNewTab(talariaQuery: TalariaQuery, tabName: string): void;
+  onNewTab(query: WorkbenchQuery, tabName: string): void;
 }
 
 export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
-  const { onStats, onRunQuery, onNewTab } = props;
+  const { onClose, onExecutionDetails, onRunQuery, onNewTab } = props;
 
-  const [loadValue, setLoadValue] = useState<
-    { title: string; work: () => Promise<string> } | undefined
-  >();
   const [confirmCancelId, setConfirmCancelId] = useState<string | undefined>();
-
-  const [resultsTaskId, setResultsTaskId] = useState<string | undefined>();
 
   const workStateVersion = useWorkStateStore(state => state.version);
 
@@ -113,7 +106,10 @@ LIMIT 100`,
   const workEntries = workQueryState.getSomeData();
   return (
     <div className="work-panel">
-      <div className="title">Work history</div>
+      <div className="title">
+        Work history
+        <Button className="close-button" icon={IconNames.CROSS} minimal onClick={onClose} />
+      </div>
       {workEntries ? (
         <div className="work-entries">
           {workEntries.length === 0 && <div className="empty-placeholder">No recent queries</div>}
@@ -143,7 +139,7 @@ LIMIT 100`,
                     }
 
                     onNewTab(
-                      TalariaQuery.fromEffectiveQueryAndContext(
+                      WorkbenchQuery.fromEffectiveQueryAndContext(
                         execution.sqlQuery,
                         execution.queryContext,
                       )
@@ -163,73 +159,21 @@ LIMIT 100`,
                     });
                   }}
                 />
-                <MenuDivider />
                 <MenuItem
-                  text="Show stats"
+                  text="Show details"
                   onClick={() => {
-                    onStats(w.taskId);
-                  }}
-                />
-                <MenuItem
-                  text="Show SQL query"
-                  onClick={() => {
-                    setLoadValue({
-                      title: 'SQL query',
-                      work: async () => {
-                        const execution = await getTaskExecution(w.taskId);
-                        if (!execution.sqlQuery) throw new Error('Could not get query');
-                        return execution.sqlQuery;
-                      },
-                    });
-                  }}
-                />
-                <MenuItem
-                  text="Show native query"
-                  onClick={() => {
-                    setLoadValue({
-                      title: 'Native query',
-                      work: async () => {
-                        const payloadResp = await Api.instance.get(
-                          `/druid/indexer/v1/task/${Api.encodePath(w.taskId)}`,
-                        );
-                        const nativeQuery = deepGet(payloadResp, 'data.payload.spec.query');
-                        return nativeQuery
-                          ? JSONBig.stringify(nativeQuery, undefined, 2)
-                          : 'Could not extract native query';
-                      },
-                    });
+                    onExecutionDetails(w.taskId);
                   }}
                 />
                 {w.taskStatus === 'SUCCESS' &&
-                  (w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER ? (
-                    <MenuItem text="Show results" onClick={() => setResultsTaskId(w.taskId)} />
-                  ) : (
+                  w.datasource !== WorkbenchQuery.INLINE_DATASOURCE_MARKER && (
                     <MenuItem
                       text={`SELECT * FROM ${SqlTableRef.create(w.datasource)}`}
                       onClick={() =>
                         onRunQuery(`SELECT * FROM ${SqlTableRef.create(w.datasource)}`)
                       }
                     />
-                  ))}
-                {w.taskStatus === 'FAILED' && (
-                  <MenuItem
-                    text="Show error"
-                    onClick={() => {
-                      setLoadValue({
-                        title: 'Query error',
-                        work: async () => {
-                          const execution = await getTaskExecution(w.taskId);
-                          const { error } = execution;
-                          if (!error) return String(w.errorMessage);
-                          return `${error.error.errorCode}: ${
-                            error.error.errorMessage ||
-                            (error.exceptionStackTrace || '').split('\n')[0]
-                          }`;
-                        },
-                      });
-                    }}
-                  />
-                )}
+                  )}
                 <MenuItem
                   text="Download query profile"
                   onClick={() => downloadQueryProfile(w.taskId)}
@@ -266,17 +210,17 @@ LIMIT 100`,
                     <Icon
                       className="output-icon"
                       icon={
-                        w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER
+                        w.datasource === WorkbenchQuery.INLINE_DATASOURCE_MARKER
                           ? IconNames.APPLICATION
                           : IconNames.CLOUD_UPLOAD
                       }
                     />
                     <div
                       className={classNames('output-datasource', {
-                        query: w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER,
+                        query: w.datasource === WorkbenchQuery.INLINE_DATASOURCE_MARKER,
                       })}
                     >
-                      {w.datasource === TalariaQuery.INLINE_DATASOURCE_MARKER
+                      {w.datasource === WorkbenchQuery.INLINE_DATASOURCE_MARKER
                         ? 'data in report'
                         : w.datasource}
                     </div>
@@ -289,16 +233,6 @@ LIMIT 100`,
       ) : workQueryState.isLoading() ? (
         <Loader />
       ) : undefined}
-      {loadValue && (
-        <ShowAsyncValueDialog
-          title={loadValue.title}
-          loadValue={loadValue.work}
-          onClose={() => setLoadValue(undefined)}
-        />
-      )}
-      {resultsTaskId && (
-        <TalariaResultsDialog id={resultsTaskId} onClose={() => setResultsTaskId(undefined)} />
-      )}
       {confirmCancelId && (
         <CancelQueryDialog
           onCancel={async () => {

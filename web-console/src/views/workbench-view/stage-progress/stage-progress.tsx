@@ -19,7 +19,7 @@
 import { Intent, Label, ProgressBar } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-import { Execution } from '../../../talaria-models';
+import { Execution } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
 import './stage-progress.scss';

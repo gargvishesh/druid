@@ -42,14 +42,14 @@ export const LocalStorageKeys = {
 
   // BEGIN: Imply-added code for the multi-stage query engine
   WORKBENCH_SHOW: 'talaria-show' as const,
-  WORKBENCH_QUERIES: 'talaria-queries' as const,
-  WORKBENCH_LAST_TAB: 'talaria-last-tab' as const,
-  WORKBENCH_TAB_PANE_SIZE: 'talaria-tab-pane-size' as const,
-  WORKBENCH_HISTORY: 'talaria-history2' as const,
-  WORKBENCH_LIVE_MODE: 'talaria-live-mode' as const,
-  WORKBENCH_WORK_PANEL: 'talaria-work-history' as const,
+  WORKBENCH_QUERIES: 'workbench-queries' as const,
+  WORKBENCH_LAST_TAB: 'workbench-last-tab' as const,
+  WORKBENCH_PANE_SIZE: 'workbench-pane-size' as const,
+  WORKBENCH_HISTORY: 'workbench-history' as const,
+  WORKBENCH_LIVE_MODE: 'workbench-live-mode' as const,
+  WORKBENCH_WORK_PANEL: 'workbench-work-panel' as const,
   SQLOADER_QUERY: 'sqloader-query' as const,
-  // END: Imply-modified code for Talaria execution
+  // END: Imply-modified code for MSQE execution
 
   USERS_REFRESH_RATE: 'users-refresh-rate' as const,
   ROLES_REFRESH_RATE: 'roles-refresh-rate' as const,

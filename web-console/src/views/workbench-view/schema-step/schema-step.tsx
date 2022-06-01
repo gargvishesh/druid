@@ -51,20 +51,6 @@ import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../
 import { getLink } from '../../../links';
 import { AppToaster } from '../../../singletons';
 import {
-  changeQueryPatternExpression,
-  DestinationMode,
-  Execution,
-  fitIngestQueryPattern,
-  getDestinationMode,
-  getQueryPatternExpression,
-  getQueryPatternExpressionType,
-  IngestQueryPattern,
-  ingestQueryPatternToQuery,
-  ingestQueryPatternToSampleQuery,
-  TalariaQuery,
-  TalariaQueryPart,
-} from '../../../talaria-models';
-import {
   caseInsensitiveContains,
   change,
   dataTypeToIcon,
@@ -79,6 +65,20 @@ import {
   wait,
   without,
 } from '../../../utils';
+import {
+  changeQueryPatternExpression,
+  DestinationMode,
+  Execution,
+  fitIngestQueryPattern,
+  getDestinationMode,
+  getQueryPatternExpression,
+  getQueryPatternExpressionType,
+  IngestQueryPattern,
+  ingestQueryPatternToQuery,
+  ingestQueryPatternToSampleQuery,
+  WorkbenchQuery,
+  WorkbenchQueryPart,
+} from '../../../workbench-models';
 import { LearnMore } from '../../load-data-view/learn-more/learn-more';
 import { ColumnActions } from '../column-actions/column-actions';
 import { ColumnEditor } from '../column-editor/column-editor';
@@ -91,8 +91,8 @@ import {
 } from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
 import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
+import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { timeFormatToSql } from '../sql-utils';
-import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
 import { TitleFrame } from '../title-frame/title-frame';
 
 import { ColumnList } from './column-list/column-list';
@@ -107,7 +107,7 @@ const queryRunner = new QueryRunner();
 const destinationModeTitle: Record<DestinationMode, string> = {
   new: 'Create new',
   replace: 'Replace',
-  append: 'Append',
+  insert: 'Append',
 };
 
 function digestQueryString(queryString: string): {
@@ -379,7 +379,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     processQuery: async (_: string, _cancelToken) => {
       // Check if datasource already exists
       const tables = await queryDruidSql({
-        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME NOT LIKE '${TalariaQuery.TMP_PREFIX}%' ORDER BY TABLE_NAME ASC`,
+        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME NOT LIKE '${WorkbenchQuery.TMP_PREFIX}%' ORDER BY TABLE_NAME ASC`,
         resultFormat: 'array',
       });
 
@@ -389,7 +389,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
 
   const sampleDatasourceName = useLastDefined(
     ingestQueryPattern && mode !== 'sql' // Only sample the data if we are not in the SQL tab live editing the SQL
-      ? `${TalariaQuery.TMP_PREFIX}${objectHash(ingestQueryPattern.mainExternalConfig)}`
+      ? `${WorkbenchQuery.TMP_PREFIX}${objectHash(ingestQueryPattern.mainExternalConfig)}`
       : undefined,
   );
 
@@ -442,7 +442,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const [previewResultState] = useQueryManager<string, QueryResult, Execution>({
     query: previewQueryString,
     processQuery: async (previewQueryString: string, cancelToken) => {
-      const taskEngine = TalariaQueryPart.isTaskEngineNeeded(previewQueryString);
+      const taskEngine = WorkbenchQueryPart.isTaskEngineNeeded(previewQueryString);
       if (taskEngine) {
         return extractQueryResults(
           await submitTaskQuery({
@@ -820,7 +820,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               )
             ))}
           {effectiveMode === 'sql' && (
-            <TalariaQueryInput
+            <FlexibleQueryInput
               autoHeight={false}
               queryString={queryString}
               onQueryStringChange={onQueryStringChange}

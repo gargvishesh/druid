@@ -24,7 +24,7 @@ import React, { useState } from 'react';
 
 import { AppToaster } from '../../../singletons';
 import { filterMap, QueryAction } from '../../../utils';
-import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
+import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 
 import './column-editor.scss';
 
@@ -137,7 +137,7 @@ export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEd
         />
       </FormGroup>
       <FormGroup label="SQL expression">
-        <TalariaQueryInput
+        <FlexibleQueryInput
           autoHeight={false}
           showGutter={false}
           placeholder="expression"

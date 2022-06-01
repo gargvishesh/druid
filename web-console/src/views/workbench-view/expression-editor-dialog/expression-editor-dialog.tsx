@@ -21,7 +21,7 @@ import { IconNames } from '@blueprintjs/icons';
 import { SqlExpression } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
-import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
+import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 
 import './expression-editor-dialog.scss';
 
@@ -56,7 +56,7 @@ export const ExpressionEditorDialog = React.memo(function ExpressionEditorDialog
     >
       <div className={Classes.DIALOG_BODY}>
         <FormGroup>
-          <TalariaQueryInput
+          <FlexibleQueryInput
             autoHeight={false}
             showGutter={false}
             placeholder="expression"

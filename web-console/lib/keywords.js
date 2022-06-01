@@ -56,12 +56,12 @@ exports.SQL_KEYWORDS = [
   'VALUES',
   'PARTITIONED BY',
   'CLUSTERED BY',
-  'ALL TIME',
+  'TIME',
 ];
 
-// BEGIN: Imply-added code for Talaria execution
-exports.SQL_KEYWORDS.push('INSERT', 'INTO');
-// END: Imply-modified code for Talaria execution
+// BEGIN: Imply-added code for MSQE execution
+exports.SQL_KEYWORDS.push('INSERT INTO', 'REPLACE INTO', 'OVERWRITE');
+// END: Imply-modified code for MSQE execution
 
 exports.SQL_EXPRESSION_PARTS = [
   'FILTER',

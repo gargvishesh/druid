@@ -19,7 +19,7 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import React, { useEffect, useState } from 'react';
 
-import { DestinationInfo, getDestinationInfo, IngestQueryPattern } from '../../../talaria-models';
+import { DestinationInfo, getDestinationInfo, IngestQueryPattern } from '../../../workbench-models';
 import { DestinationForm } from '../destination-form/destination-form';
 
 import './destination-dialog.scss';
@@ -41,7 +41,7 @@ export const DestinationDialog = React.memo(function DestinationDialog(
   useEffect(() => {
     if (!existingTables) return;
     setInfo(getDestinationInfo(ingestQueryPattern, existingTables));
-  }, [existingTables]);
+  }, [ingestQueryPattern, existingTables]);
 
   return (
     <Dialog
@@ -76,7 +76,7 @@ export const DestinationDialog = React.memo(function DestinationDialog(
 
               changeIngestQueryPattern({
                 ...ingestQueryPattern,
-                replaceTimeChunks: info.mode === 'append' ? undefined : 'all',
+                mode: info.mode === 'new' ? 'replace' : info.mode,
                 destinationTableName: info.table,
               });
               onClose();

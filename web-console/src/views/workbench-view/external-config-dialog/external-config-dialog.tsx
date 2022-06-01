@@ -19,7 +19,7 @@
 import { Classes, Dialog } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-import { ExternalConfig } from '../../../talaria-models';
+import { ExternalConfig } from '../../../workbench-models';
 
 import { InputFormatStep } from './input-format-step/input-format-step';
 import { InputSourceStep } from './input-source-step/input-source-step';

@@ -20,7 +20,6 @@ import { AxiosResponse, CancelToken } from 'axios';
 import { SqlLiteral } from 'druid-query-toolkit';
 
 import { Api } from '../../../singletons';
-import { Execution } from '../../../talaria-models';
 import {
   deepGet,
   DruidError,
@@ -29,6 +28,7 @@ import {
   QueryManager,
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
+import { Execution } from '../../../workbench-models';
 
 const WAIT_FOR_SEGMENTS_TIMEOUT = 180000; // 3 minutes to wait until segments appear
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { RefName, SqlLiteral, SqlRef, SqlTableRef } from 'druid-query-toolkit';
+import { RefName, SqlExpression, SqlLiteral, SqlRef, SqlTableRef } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 
 import {
@@ -29,7 +29,11 @@ import {
 } from '../../druid-models';
 import { deepGet, filterMap } from '../../utils';
 
-const EXTERN_NAME = SqlTableRef.create('ioConfigExtern');
+export function getSpecDatasourceName(spec: IngestionSpec): string {
+  return deepGet(spec, 'spec.dataSchema.dataSource') || 'unknown_datasource';
+}
+
+const SOURCE_REF = SqlTableRef.create('source');
 export function convertSpecToSql(spec: IngestionSpec): string {
   if (spec.type !== 'index_parallel') throw new Error('only index_parallel is supported');
 
@@ -124,40 +128,63 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     lines.push(`--:context talariaNumTasks: ${maxNumConcurrentSubTasks}`);
   }
 
+  const maxParseExceptions = deepGet(spec, 'spec.tuningConfig.maxParseExceptions');
+  if (typeof maxParseExceptions === 'number') {
+    lines.push(`--:context maxParseExceptions: ${maxParseExceptions}`);
+  }
+
   lines.push(
     `--:context talariaFinalizeAggregations: false`,
     `--:context groupByEnableMultiValueUnnesting: false`,
   );
 
-  if (!deepGet(spec, 'spec.ioConfig.appendToExisting')) {
-    lines.push(`--:context talariaReplaceTimeChunks: all`);
-  }
-  if (deepGet(spec, 'spec.ioConfig.dropExisting')) {
-    lines.push(
-      `-- spec.ioConfig.dropExisting was set but not converted, 'intervals' was set to ${JSONBig.stringify(
-        deepGet(spec, 'spec.dataSchema.granularitySpec.intervals'),
-      )}`,
-    );
-  }
-
   const dataSource = deepGet(spec, 'spec.dataSchema.dataSource');
   if (typeof dataSource !== 'string') throw new Error(`spec.dataSchema.dataSource is not a string`);
-  lines.push(`INSERT INTO ${SqlTableRef.create(dataSource)}`);
 
-  lines.push(`WITH ${EXTERN_NAME} AS (SELECT * FROM TABLE(`);
-  lines.push(`  EXTERN(`);
+  if (deepGet(spec, 'spec.ioConfig.appendToExisting')) {
+    lines.push(`INSERT INTO ${SqlTableRef.create(dataSource)}`);
+  } else {
+    const overwrite = deepGet(spec, 'spec.ioConfig.dropExisting')
+      ? 'WHERE ' +
+        SqlExpression.fromTimeRefAndInterval(
+          SqlRef.column('__time'),
+          deepGet(spec, 'spec.dataSchema.granularitySpec.intervals'),
+        )
+      : 'ALL';
+
+    lines.push(`REPLACE INTO ${SqlTableRef.create(dataSource)} OVERWRITE ${overwrite}`);
+  }
 
   const inputSource = deepGet(spec, 'spec.ioConfig.inputSource');
   if (!inputSource) throw new Error(`spec.ioConfig.inputSource is not defined`);
-  lines.push(`    ${SqlLiteral.create(JSONBig.stringify(inputSource))},`);
 
-  const inputFormat = deepGet(spec, 'spec.ioConfig.inputFormat');
-  if (!inputFormat) throw new Error(`spec.ioConfig.inputFormat is not defined`);
-  lines.push(`    ${SqlLiteral.create(JSONBig.stringify(inputFormat))},`);
+  if (inputSource.type === 'druid') {
+    lines.push(
+      `WITH ${SOURCE_REF} AS (`,
+      `  SELECT *`,
+      `  FROM ${SqlTableRef.create(inputSource.dataSource)}`,
+      `  WHERE ${SqlExpression.fromTimeRefAndInterval(
+        SqlRef.column('__time'),
+        inputSource.interval,
+      )}`,
+      ')',
+    );
+  } else {
+    lines.push(
+      `WITH ${SOURCE_REF} AS (SELECT * FROM TABLE(`,
+      `  EXTERN(`,
+      `    ${SqlLiteral.create(JSONBig.stringify(inputSource))},`,
+    );
 
-  lines.push(`    ${SqlLiteral.create(JSONBig.stringify(columns))}`);
-  lines.push(`  )`);
-  lines.push(`))`);
+    const inputFormat = deepGet(spec, 'spec.ioConfig.inputFormat');
+    if (!inputFormat) throw new Error(`spec.ioConfig.inputFormat is not defined`);
+    lines.push(
+      `    ${SqlLiteral.create(JSONBig.stringify(inputFormat))},`,
+      `    ${SqlLiteral.create(JSONBig.stringify(columns))}`,
+      `  )`,
+      `))`,
+    );
+  }
 
   lines.push(`SELECT`);
 
@@ -190,7 +217,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
     .replace(/,(\s+--)/, '$1');
 
   lines.push(selectExpressions.join('\n'));
-  lines.push(`FROM ${EXTERN_NAME}`);
+  lines.push(`FROM ${SOURCE_REF}`);
 
   const filter = deepGet(spec, 'spec.dataSchema.transformSpec.filter');
   if (filter) {

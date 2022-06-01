@@ -18,7 +18,6 @@
 
 import {
   Button,
-  ButtonGroup,
   Icon,
   Intent,
   Menu,
@@ -33,7 +32,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
-import { DRUID_ENGINES, DruidEngine, TalariaQuery } from '../../../talaria-models';
+import { getLink } from '../../../links';
 import { deepDelete, deepSet, pluralIfNeeded, QueryWithContext } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
@@ -44,6 +43,7 @@ import {
   setUseApproximateTopN,
   setUseCache,
 } from '../../../utils/query-context';
+import { DruidEngine, WorkbenchQuery } from '../../../workbench-models';
 import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
 import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
@@ -79,21 +79,22 @@ function setTalariaFinalizeAggregations(
 }
 
 export interface RunMoreButtonProps {
-  query: TalariaQuery;
-  onQueryChange(query: TalariaQuery): void;
+  query: WorkbenchQuery;
+  onQueryChange(query: WorkbenchQuery): void;
   loading: boolean;
   small?: boolean;
   onRun(preview: boolean): void;
+  extraEngines: DruidEngine[];
 }
 
 export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreButtonProps) {
-  const { query, onQueryChange, onRun, loading, small } = props;
+  const { query, onQueryChange, onRun, loading, small, extraEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customParallelismDialogOpen, setCustomParallelismDialogOpen] = useState(false);
   const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const emptyQuery = query.isEmptyQuery();
-  const insertMode = query.isInsertQuery();
+  const ingestMode = query.isIngestQuery();
   const queryContext = query.queryContext;
   const numContextKeys = Object.keys(queryContext).length;
 
@@ -173,164 +174,24 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
     );
   }
 
+  const availableEngines = ([undefined, 'native', 'sql'] as (DruidEngine | undefined)[]).concat(
+    extraEngines,
+  );
+
   const effectiveEngine = query.getEffectiveEngine();
   return (
     <div className="run-more-button">
-      <ButtonGroup>
-        <Button
-          className={effectiveEngine === 'native' ? 'rune-button' : undefined}
-          disabled={loading}
-          icon={IconNames.CARET_RIGHT}
-          onClick={() => onRun(false)}
-          text="Run"
-          intent={!emptyQuery && !small ? Intent.PRIMARY : undefined}
-          small={small}
-          minimal={small}
-        />
-        <Popover2
-          position={Position.BOTTOM_LEFT}
-          content={
-            <Menu>
-              {effectiveEngine !== 'native' && (
-                <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={handleExplain} />
-              )}
-              {onQueryChange && (
-                <>
-                  <MenuItem
-                    icon={IconNames.MANY_TO_MANY}
-                    text="Query engine"
-                    label={queryEngine || `${effectiveEngine} (auto)`}
-                  >
-                    <Menu>
-                      {[undefined as DruidEngine | undefined]
-                        .concat(DRUID_ENGINES)
-                        .map(renderQueryEngineMenuItem)}
-                    </Menu>
-                  </MenuItem>
-                  <MenuDivider />
-                  <MenuItem
-                    icon={IconNames.PROPERTIES}
-                    text="Edit context"
-                    onClick={() => setEditContextDialogOpen(true)}
-                    label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
-                  />
-                  {effectiveEngine === 'sql-task' ? (
-                    <>
-                      <MenuItem
-                        icon={IconNames.TWO_COLUMNS}
-                        text="Task parallelism"
-                        label={String(parallelism)}
-                      >
-                        <Menu>
-                          {PARALLELISM_OPTIONS.map(p => (
-                            <MenuItem
-                              key={String(p)}
-                              icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
-                              text={String(p)}
-                              onClick={() =>
-                                onQueryChange(
-                                  query.changeQueryContext(changeParallelism(queryContext, p)),
-                                )
-                              }
-                              shouldDismissPopover={false}
-                            />
-                          ))}
-                          <MenuItem
-                            icon={
-                              PARALLELISM_OPTIONS.includes(parallelism)
-                                ? IconNames.BLANK
-                                : IconNames.TICK
-                            }
-                            text="Custom"
-                            onClick={() => setCustomParallelismDialogOpen(true)}
-                          />
-                        </Menu>
-                      </MenuItem>
-                      <MenuCheckbox
-                        checked={talariaFinalizeAggregations}
-                        text="Finalize aggregations"
-                        onChange={() => {
-                          onQueryChange(
-                            query.changeQueryContext(
-                              setTalariaFinalizeAggregations(
-                                queryContext,
-                                !talariaFinalizeAggregations,
-                              ),
-                            ),
-                          );
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <MenuCheckbox
-                        checked={useCache}
-                        text="Use cache"
-                        onChange={() => {
-                          onQueryChange(
-                            query.changeQueryContext(setUseCache(queryContext, !useCache)),
-                          );
-                        }}
-                      />
-                      <MenuCheckbox
-                        checked={useApproximateTopN}
-                        text="Use approximate TopN"
-                        onChange={() => {
-                          onQueryChange(
-                            query.changeQueryContext(
-                              setUseApproximateTopN(queryContext, !useApproximateTopN),
-                            ),
-                          );
-                        }}
-                      />
-                    </>
-                  )}
-                  <MenuCheckbox
-                    checked={useApproximateCountDistinct}
-                    text="Use approximate COUNT(DISTINCT)"
-                    onChange={() => {
-                      onQueryChange(
-                        query.changeQueryContext(
-                          setUseApproximateCountDistinct(
-                            queryContext,
-                            !useApproximateCountDistinct,
-                          ),
-                        ),
-                      );
-                    }}
-                  />
-                  <MenuCheckbox
-                    checked={!query.unlimited}
-                    intent={query.unlimited ? Intent.WARNING : undefined}
-                    text="Limit inline results"
-                    labelElement={
-                      query.unlimited ? <Icon icon={IconNames.WARNING_SIGN} /> : undefined
-                    }
-                    onChange={() => {
-                      onQueryChange(query.toggleUnlimited());
-                    }}
-                  />
-                </>
-              )}
-            </Menu>
-          }
-        >
-          <Button
-            className={effectiveEngine === 'native' ? 'rune-button' : undefined}
-            icon={IconNames.MORE}
-            intent={
-              !emptyQuery && !small
-                ? query.unlimited
-                  ? Intent.WARNING
-                  : Intent.PRIMARY
-                : undefined
-            }
-            small={small}
-            minimal={small}
-          />
-        </Popover2>
-      </ButtonGroup>
-      {insertMode && (
+      <Button
+        className={effectiveEngine === 'native' ? 'rune-button' : undefined}
+        disabled={loading}
+        icon={IconNames.CARET_RIGHT}
+        onClick={() => onRun(false)}
+        text="Run"
+        intent={!emptyQuery && !small ? Intent.PRIMARY : undefined}
+        small={small}
+        minimal={small}
+      />
+      {ingestMode && (
         <Button
           disabled={loading}
           icon={IconNames.EYE_OPEN}
@@ -339,6 +200,137 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           small={small}
         />
       )}
+      {onQueryChange && (
+        <Popover2
+          position={Position.BOTTOM_LEFT}
+          content={
+            <Menu>
+              <MenuDivider title="Select engine" />
+              {availableEngines.map(renderQueryEngineMenuItem)}
+              <MenuDivider />
+              <MenuItem
+                icon={IconNames.PROPERTIES}
+                text="Edit context"
+                onClick={() => setEditContextDialogOpen(true)}
+                label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
+              />
+              {effectiveEngine === 'sql-task' ? (
+                <>
+                  <MenuItem
+                    icon={IconNames.TWO_COLUMNS}
+                    text="Task parallelism"
+                    label={String(parallelism)}
+                  >
+                    <Menu>
+                      {PARALLELISM_OPTIONS.map(p => (
+                        <MenuItem
+                          key={String(p)}
+                          icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
+                          text={String(p)}
+                          onClick={() =>
+                            onQueryChange(
+                              query.changeQueryContext(changeParallelism(queryContext, p)),
+                            )
+                          }
+                          shouldDismissPopover={false}
+                        />
+                      ))}
+                      <MenuItem
+                        icon={
+                          PARALLELISM_OPTIONS.includes(parallelism)
+                            ? IconNames.BLANK
+                            : IconNames.TICK
+                        }
+                        text="Custom"
+                        onClick={() => setCustomParallelismDialogOpen(true)}
+                      />
+                    </Menu>
+                  </MenuItem>
+                  <MenuCheckbox
+                    checked={talariaFinalizeAggregations}
+                    text="Finalize aggregations"
+                    onChange={() => {
+                      onQueryChange(
+                        query.changeQueryContext(
+                          setTalariaFinalizeAggregations(
+                            queryContext,
+                            !talariaFinalizeAggregations,
+                          ),
+                        ),
+                      );
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <MenuCheckbox
+                    checked={useCache}
+                    text="Use cache"
+                    onChange={() => {
+                      onQueryChange(query.changeQueryContext(setUseCache(queryContext, !useCache)));
+                    }}
+                  />
+                  <MenuCheckbox
+                    checked={useApproximateTopN}
+                    text="Use approximate TopN"
+                    onChange={() => {
+                      onQueryChange(
+                        query.changeQueryContext(
+                          setUseApproximateTopN(queryContext, !useApproximateTopN),
+                        ),
+                      );
+                    }}
+                  />
+                </>
+              )}
+              {effectiveEngine !== 'native' && (
+                <MenuCheckbox
+                  checked={useApproximateCountDistinct}
+                  text="Use approximate COUNT(DISTINCT)"
+                  onChange={() => {
+                    onQueryChange(
+                      query.changeQueryContext(
+                        setUseApproximateCountDistinct(queryContext, !useApproximateCountDistinct),
+                      ),
+                    );
+                  }}
+                />
+              )}
+              <MenuCheckbox
+                checked={!query.unlimited}
+                intent={query.unlimited ? Intent.WARNING : undefined}
+                text="Limit inline results"
+                labelElement={query.unlimited ? <Icon icon={IconNames.WARNING_SIGN} /> : undefined}
+                onChange={() => {
+                  onQueryChange(query.toggleUnlimited());
+                }}
+              />
+            </Menu>
+          }
+        >
+          <Button small={small} rightIcon={IconNames.CARET_DOWN}>
+            {`Engine: ${queryEngine || `auto (${effectiveEngine})`}`}
+          </Button>
+        </Popover2>
+      )}
+      <Popover2
+        position={Position.BOTTOM_LEFT}
+        content={
+          <Menu>
+            {effectiveEngine !== 'native' && (
+              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={handleExplain} />
+            )}
+            <MenuItem
+              icon={IconNames.HELP}
+              text="DruidSQL documentation"
+              href={getLink('DOCS_SQL')}
+              target="_blank"
+            />
+          </Menu>
+        }
+      >
+        <Button small={small} rightIcon={IconNames.MORE} />
+      </Popover2>
       {editContextDialogOpen && (
         <EditContextDialog
           queryContext={queryContext}

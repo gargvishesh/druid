@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import { TabEntry, TalariaQuery } from '../../talaria-models';
+import { TabEntry, WorkbenchQuery } from '../../workbench-models';
 
-const BASE_QUERY = TalariaQuery.blank().changeQueryContext({ talariaNumTasks: 2 });
+const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ talariaNumTasks: 2 });
 
 export function getDemoQueries(): TabEntry[] {
   return [
@@ -27,8 +27,7 @@ export function getDemoQueries(): TabEntry[] {
       tabName: 'Demo 1',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context sqlReplaceTimeChunks: all
-INSERT INTO "kttm_simple"
+REPLACE INTO "kttm_simple" OVERWRITE ALL
 SELECT *
 FROM TABLE(
   EXTERN(
@@ -46,10 +45,9 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
-INSERT INTO "kttm_rollup"
+REPLACE INTO "kttm_rollup" OVERWRITE ALL
 
 WITH kttm_data AS (
 SELECT * FROM TABLE(
@@ -89,10 +87,9 @@ CLUSTERED BY browser, session
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
-INSERT INTO "kttm_etl"
+REPLACE INTO "kttm_etl" OVERWRITE ALL
 WITH
 kttm_data AS (
 SELECT * FROM TABLE(
@@ -144,10 +141,9 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context sqlReplaceTimeChunks: all
 --:context talariaFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
-INSERT INTO "kttm_reingest"
+REPLACE INTO "kttm_reingest" OVERWRITE ALL
 WITH
 country_lookup AS (
 SELECT * FROM TABLE(
@@ -191,8 +187,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4b',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context sqlReplaceTimeChunks: all
-INSERT INTO kttm_simple
+REPLACE INTO kttm_simple OVERWRITE ALL
 SELECT *
 FROM kttm_simple
 WHERE NOT(country = 'New Zealand')

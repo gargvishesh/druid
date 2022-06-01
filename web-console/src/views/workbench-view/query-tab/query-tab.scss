@@ -60,7 +60,7 @@ $vertical-gap: 6px;
         &.single {
           height: 100%;
 
-          .talaria-query-input {
+          .flexible-query-input {
             height: 100%;
           }
         }
@@ -89,7 +89,8 @@ $vertical-gap: 6px;
       gap: 10px;
       align-items: center;
 
-      .talaria-extra-info {
+      .execution-timer,
+      .execution-summary-button {
         position: absolute;
         top: 0;
         right: 0;
@@ -134,7 +135,7 @@ $vertical-gap: 6px;
         height: 160px;
       }
 
-      .talaria-stats {
+      .execution-stages-pane {
         position: absolute;
         top: 160px;
         left: 10px;
