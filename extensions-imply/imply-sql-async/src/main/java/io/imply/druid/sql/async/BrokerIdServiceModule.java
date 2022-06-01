@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.multibindings.MultibindingsScanner;
 import com.google.inject.multibindings.ProvidesIntoSet;
 import com.google.inject.name.Named;
@@ -22,23 +21,13 @@ import io.imply.druid.sql.async.discovery.BrokerIdService;
 import org.apache.druid.discovery.DruidService;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.annotations.LoadScope;
-import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
 
 import java.util.List;
-import java.util.Set;
 
 @LoadScope(roles = {NodeRole.BROKER_JSON_NAME, NodeRole.ROUTER_JSON_NAME, NodeRole.COORDINATOR_JSON_NAME})
 public class BrokerIdServiceModule implements DruidModule
 {
-  private Set<NodeRole> nodeRoles;
-
-  @Inject
-  public void init(@Self Set<NodeRole> nodeRoles)
-  {
-    this.nodeRoles = nodeRoles;
-  }
-
   @Override
   public void configure(Binder binder)
   {

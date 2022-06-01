@@ -172,9 +172,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         jsonMapper,
         asyncQueryConfig,
-        clock,
-        null, // Talaria only
-        null  // Talaria only
+        clock
     );
     req = mockAuthenticatedRequest("userID");
   }

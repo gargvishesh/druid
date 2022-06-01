@@ -11,21 +11,13 @@ package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.google.inject.Injector;
-import com.google.inject.Key;
 import com.google.inject.name.Named;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
-import org.apache.druid.client.indexing.IndexingService;
-import org.apache.druid.client.indexing.IndexingServiceClient;
-import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.annotations.Json;
-import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlLifecycleFactory;
-import org.apache.druid.sql.calcite.run.QueryMakerFactory;
 import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
@@ -42,11 +34,18 @@ import javax.ws.rs.core.Response;
 
 import java.time.Clock;
 
+/**
+ * This implementation uses a "driver" to do the actual work. The first version
+ * only worked with a broker. A later version worked with Talaria. The present
+ * version is back to working only with the Broker, with Talaria using the
+ * /sql/task endpoint. The driver structure is left in place in case we
+ * end up with another variation later. See an earlier version for the
+ * {@code DeletagingDriver} class that shows how to pick a driver
+ * dynamically for other than the submit request.
+ */
 @Path("/druid/v2/sql/async/")
 public class SqlAsyncResource
 {
-  private static final Logger LOG = new Logger(SqlAsyncResource.class);
-
   private final AsyncQueryContext context;
   private final AsyncQueryDriver driver;
 
@@ -61,38 +60,9 @@ public class SqlAsyncResource
       final AuthorizerMapper authorizerMapper,
       @Json final ObjectMapper jsonMapper,
       final AsyncQueryConfig asyncQueryReadRefreshConfig,
-      final Clock clock,
-      final ServerConfig serverConfig,
-      final Injector injector
+      final Clock clock
   )
   {
-    // The IndexingServiceClient is not bound in the Broker by
-    // default in Druid. It will be bound only if the Talaria
-    // extension is also loaded. To avoid spurious bindings,
-    // we also check that Talaria is loaded.
-    IndexingServiceClient overlordClient = null;
-    DruidLeaderClient druidLeaderClient = null;
-    try {
-      if (injector == null) {
-        // Testing case.
-      } else {
-        // TODO: This is a fragile check.
-        QueryMakerFactory qmFactory = injector.getInstance(QueryMakerFactory.class);
-        if (qmFactory.getClass().getName().equals("io.imply.druid.talaria.sql.ImplyQueryMakerFactory")) {
-          overlordClient = injector.getInstance(IndexingServiceClient.class);
-          druidLeaderClient = injector.getInstance(
-              Key.get(DruidLeaderClient.class, IndexingService.class));
-        }
-      }
-    }
-    catch (Exception e) {
-      // Ignore: not Talaria.
-    }
-    if (overlordClient == null) {
-      LOG.debug("Broker-based async engine available.");
-    } else {
-      LOG.debug("Broker-based and Talaria async engines available.");
-    }
     // TODO(paul): Better to inject the context. Since the context has
     // all the dependencies, the constructor here becomes quite simple.
     this.context = new AsyncQueryContext(
@@ -105,15 +75,8 @@ public class SqlAsyncResource
         authorizerMapper,
         jsonMapper,
         asyncQueryReadRefreshConfig,
-        clock,
-        serverConfig,
-        overlordClient,
-        druidLeaderClient);
-    if (overlordClient == null) {
-      this.driver = new BrokerAsyncQueryDriver(context);
-    } else {
-      this.driver = new DelegatingDriver(context);
-    }
+        clock);
+    this.driver = new BrokerAsyncQueryDriver(context);
   }
 
   @POST
