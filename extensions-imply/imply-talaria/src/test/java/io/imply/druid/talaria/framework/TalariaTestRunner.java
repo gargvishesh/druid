@@ -28,6 +28,7 @@ import com.google.inject.util.Providers;
 import io.imply.druid.talaria.frame.FrameTestUtil;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
+import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFaultTest;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
@@ -482,6 +483,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
     mapper.registerSubtypes(new NamedType(LocalLoadSpec.class, "local"));
 
+    // This should be reusing guice instead of using static classes
+    InsertLockPreemptedFaultTest.LockPreemptedHelper.preempt(false);
+
     return mapper;
   }
 
@@ -741,7 +745,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       Preconditions.checkArgument(queryContext != null, "queryContext cannot be null");
       Preconditions.checkArgument(expectedDataSource != null, "dataSource cannot be null");
       Preconditions.checkArgument(expectedRowSignature != null, "expectedRowSignature cannot be null");
-      Preconditions.checkArgument(expectedResultRows != null, "expectedResultRows cannot be null");
+      Preconditions.checkArgument(
+          expectedResultRows != null || expectedTalariaFault != null,
+          "atleast one of expectedResultRows or expectedTalariaFault should be set to non null"
+      );
       Preconditions.checkArgument(expectedShardSpec != null, "shardSpecClass cannot be null");
       readyToRun();
       try {

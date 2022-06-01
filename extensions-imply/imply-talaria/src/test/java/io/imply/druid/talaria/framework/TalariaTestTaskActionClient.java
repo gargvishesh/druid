@@ -12,6 +12,7 @@ package io.imply.druid.talaria.framework;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFaultTest;
 import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TimeChunkLock;
 import org.apache.druid.indexing.common.actions.LockListAction;
@@ -41,6 +42,7 @@ public class TalariaTestTaskActionClient implements TaskActionClient
   {
     if (taskAction instanceof SegmentAllocateAction) {
       SegmentAllocateAction segmentAllocateAction = (SegmentAllocateAction) taskAction;
+      InsertLockPreemptedFaultTest.LockPreemptedHelper.throwIfPreempted();
 
       // TODO: remove the hardcoded partition logic.
       return (RetType) new SegmentIdWithShardSpec(

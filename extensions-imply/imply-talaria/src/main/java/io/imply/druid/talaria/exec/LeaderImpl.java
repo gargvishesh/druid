@@ -11,6 +11,7 @@ package io.imply.druid.talaria.exec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -48,6 +49,7 @@ import io.imply.druid.talaria.indexing.error.InsertCannotAllocateSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotBeEmptyFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotReplaceExistingSegmentFault;
+import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
@@ -874,22 +876,33 @@ public class LeaderImpl implements Leader
 
     for (ClusterByPartition partitionBoundary : partitionBoundaries) {
       final DateTime timestamp = getBucketDateTime(partitionBoundary, segmentGranularity);
-      final SegmentIdWithShardSpec allocation = context.taskActionClient().submit(
-          new SegmentAllocateAction(
-              task.getDataSource(),
-              timestamp,
-              // Same granularity for queryGranularity, segmentGranularity because we don't have insight here
-              // into what queryGranularity "actually" is. (It depends on what time floor function was used.)
-              segmentGranularity,
-              segmentGranularity,
-              id(),
-              previousSegmentId,
-              false,
-              NumberedPartialShardSpec.instance(),
-              LockGranularity.TIME_CHUNK,
-              TaskLockType.SHARED
-          )
-      );
+      final SegmentIdWithShardSpec allocation;
+      try {
+        allocation = context.taskActionClient().submit(
+            new SegmentAllocateAction(
+                task.getDataSource(),
+                timestamp,
+                // Same granularity for queryGranularity, segmentGranularity because we don't have insight here
+                // into what queryGranularity "actually" is. (It depends on what time floor function was used.)
+                segmentGranularity,
+                segmentGranularity,
+                id(),
+                previousSegmentId,
+                false,
+                NumberedPartialShardSpec.instance(),
+                LockGranularity.TIME_CHUNK,
+                TaskLockType.SHARED
+            )
+        );
+      }
+      catch (ISE e) {
+        if (isTaskLockPreemptedException(e)) {
+          throw new TalariaException(e, InsertLockPreemptedFault.instance());
+        } else {
+          throw e;
+        }
+      }
+
 
       if (allocation == null) {
         throw new TalariaException(
@@ -1161,12 +1174,30 @@ public class LeaderImpl implements Leader
                  .submit(new MarkSegmentsAsUnusedAction(task.getDataSource(), interval));
         }
       } else {
-        context.taskActionClient()
-               .submit(SegmentTransactionalInsertAction.overwriteAction(null, segmentsToDrop, segments));
+        try {
+          context.taskActionClient()
+                 .submit(SegmentTransactionalInsertAction.overwriteAction(null, segmentsToDrop, segments));
+        }
+        catch (Exception e) {
+          if (isTaskLockPreemptedException(e)) {
+            throw new TalariaException(e, InsertLockPreemptedFault.instance());
+          } else {
+            throw e;
+          }
+        }
       }
     } else if (!segments.isEmpty()) {
       // Append mode.
-      context.taskActionClient().submit(new SegmentInsertAction(segments));
+      try {
+        context.taskActionClient().submit(new SegmentInsertAction(segments));
+      }
+      catch (Exception e) {
+        if (isTaskLockPreemptedException(e)) {
+          throw new TalariaException(e, InsertLockPreemptedFault.instance());
+        } else {
+          throw e;
+        }
+      }
     }
   }
 
@@ -1854,6 +1885,22 @@ public class LeaderImpl implements Leader
                      .collect(Collectors.joining("; "))
       );
     }
+  }
+
+  /**
+   * Method that determines whether an exception was raised due to the task lock for the leader task being
+   * preempted by string comparison. Errors containing the following message return true
+   * 1. {@link org.apache.druid.indexing.common.actions.TaskLocks} Segments[%s] are not covered by locks[%s] for task[%s]
+   * 2. {@link SegmentAllocateAction} The lock for interval[%s] is preempted and no longer valid
+   */
+  private static boolean isTaskLockPreemptedException(Exception e)
+  {
+    final String exceptionMsg = e.getMessage();
+    final List<String> validExceptionExcerpts = ImmutableList.of(
+        "are not covered by locks",
+        "is preempted and no longer valid"
+    );
+    return validExceptionExcerpts.stream().anyMatch(exceptionMsg::contains);
   }
 
   private interface TaskContactFn
