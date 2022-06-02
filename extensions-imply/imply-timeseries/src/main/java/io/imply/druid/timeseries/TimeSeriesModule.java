@@ -92,13 +92,26 @@ public class TimeSeriesModule implements DruidModule
 
     // add aggregators
     SqlBindings.addAggregator(binder, SimpleTimeSeriesObjectSqlAggregator.class);
-    Multibinder.newSetBinder(binder, SqlAggregator.class).addBinding().toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.MEAN_TIMESERIES);
-    Multibinder.newSetBinder(binder, SqlAggregator.class).addBinding().toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.DELTA_TIMESERIES);
+    Multibinder.newSetBinder(binder, SqlAggregator.class)
+               .addBinding()
+               .toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.MEAN_TIMESERIES);
+    Multibinder.newSetBinder(binder, SqlAggregator.class)
+               .addBinding()
+               .toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.DELTA_TIMESERIES);
 
     // add post processing bindings
-    SqlBindings.addOperatorConversion(binder, InterpolationOperatorConversion.LinearInterpolationOperatorConversion.class);
-    SqlBindings.addOperatorConversion(binder, InterpolationOperatorConversion.PaddingInterpolationOperatorConversion.class);
-    SqlBindings.addOperatorConversion(binder, InterpolationOperatorConversion.BackfillInterpolationOperatorConversion.class);
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.LinearInterpolationOperatorConversion.class
+    );
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.PaddingInterpolationOperatorConversion.class
+    );
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.BackfillInterpolationOperatorConversion.class
+    );
     SqlBindings.addOperatorConversion(binder, TimeWeightedAverageOperatorConversion.class);
   }
 }

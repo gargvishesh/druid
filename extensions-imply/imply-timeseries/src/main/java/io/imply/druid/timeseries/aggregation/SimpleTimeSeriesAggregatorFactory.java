@@ -12,6 +12,7 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeries;
@@ -62,7 +63,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       @JsonProperty("timeColumn") @Nullable final String timeColumn,
       @JsonProperty("timeseriesColumn") @Nullable final String timeseriesColumn,
       @JsonProperty("postProcessing") @Nullable final List<TimeSeriesFn> postProcessing,
-      @JsonProperty("window") final Interval window,
+      @JsonProperty("window") Interval window,
       @JsonProperty("maxEntries") @Nullable final Integer maxEntries
   )
   {
@@ -72,7 +73,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       throw new IAE("Must exclusively have a valid, non-null (timeColumn, dataColumn) or timeseriesColumn");
     }
     if (window == null) {
-      throw new IAE("Must exclusively have a valid, non-null window");
+      window = SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW;
     }
     int finalMaxEntries = DEFAULT_MAX_ENTRIES;
     if (maxEntries != null) {
@@ -97,10 +98,13 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     if (getTimeseriesColumn() != null) {
-      throw new UnsupportedOperationException();
+      return new SimpleTimeSeriesMergeAggregator(
+          metricFactory.makeColumnValueSelector(getTimeseriesColumn()), window, maxEntries
+      );
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());

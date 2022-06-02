@@ -7,9 +7,8 @@
       "format": "yyyyMMddHH"
     },
     "dimensionsSpec": {
-      "dimensions": [
-        {"type": "double", "name": "dataPoints"}
-      ],
+      "dimensions": [],
+      "dimensionExclusions": ["timestamps", "datapoints"],
       "spatialDimensions": []
     },
     "columns": [
