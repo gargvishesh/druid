@@ -25,14 +25,16 @@ import { formatDurationHybrid } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
-import './execution-timer.scss';
+import './execution-timer-panel.scss';
 
-export interface ExecutionTimerProps {
+export interface ExecutionTimerPanelProps {
   execution: Execution | undefined;
   onCancel(): void;
 }
 
-export const ExecutionTimer = React.memo(function ExecutionTimer(props: ExecutionTimerProps) {
+export const ExecutionTimerPanel = React.memo(function ExecutionTimerPanel(
+  props: ExecutionTimerPanelProps,
+) {
   const { execution, onCancel } = props;
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -52,7 +54,7 @@ export const ExecutionTimer = React.memo(function ExecutionTimer(props: Executio
   const elapsed = execution?.startTime ? currentTime - execution.startTime.valueOf() : 0;
   if (elapsed <= 0) return null;
   return (
-    <ButtonGroup className="execution-timer">
+    <ButtonGroup className="execution-timer-panel">
       <Button
         className="timer"
         icon={IconNames.STOPWATCH}

@@ -29,8 +29,8 @@ import {
 } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 
-import { InputFormat } from '../druid-models/input-format';
-import { InputSource } from '../druid-models/input-source';
+import { InputFormat, InputSource } from '../druid-models';
+import { nonEmptyArray } from '../utils';
 
 export const TALARIA_MAX_COLUMNS = 2000;
 
@@ -52,7 +52,7 @@ export function summarizeInputSource(inputSource: InputSource): string {
 
     case 'local':
       // ToDo: make this official
-      if ((inputSource as any).files) {
+      if (nonEmptyArray((inputSource as any).files)) {
         return (inputSource as any).files[0];
       }
       return `${inputSource.baseDir || '?'}{${inputSource.filter || '?'}}`;

@@ -21,7 +21,7 @@ import React from 'react';
 
 import { Execution } from '../../../workbench-models';
 
-import { ExecutionTimer } from './execution-timer';
+import { ExecutionTimerPanel } from './execution-timer-panel';
 
 describe('AnchoredQueryTimer', () => {
   const start = 1619201218452;
@@ -39,7 +39,7 @@ describe('AnchoredQueryTimer', () => {
 
   it('matches snapshot', () => {
     const { container } = render(
-      <ExecutionTimer
+      <ExecutionTimerPanel
         execution={new Execution({ engine: 'sql-task', id: 'xxx', startTime: new Date(start) })}
         onCancel={() => {}}
       />,

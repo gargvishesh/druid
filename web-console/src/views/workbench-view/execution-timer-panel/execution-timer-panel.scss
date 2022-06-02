@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-.execution-summary-button {
-  white-space: nowrap;
-  cursor: pointer;
+.execution-timer-panel {
+  .timer {
+    pointer-events: none;
+  }
 }

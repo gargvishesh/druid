@@ -21,6 +21,7 @@ import React, { useState } from 'react';
 
 import { FancyTabPane } from '../../../components/fancy-tab-pane/fancy-tab-pane';
 import { Execution } from '../../../workbench-models';
+import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionWarningsPane } from '../execution-warnings-pane/execution-warnings-pane';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
@@ -28,15 +29,18 @@ import { QueryOutput2 } from '../query-output2/query-output2';
 
 import './execution-details-pane.scss';
 
+export type ExecutionDetailsTab = 'general' | 'sql' | 'native' | 'result' | 'error' | 'warnings';
+
 interface ExecutionDetailsPaneProps {
   execution: Execution;
+  initTab?: ExecutionDetailsTab;
 }
 
 export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
   props: ExecutionDetailsPaneProps,
 ) {
-  const { execution } = props;
-  const [activeTab, setActiveTab] = useState<string>('general');
+  const { execution, initTab } = props;
+  const [activeTab, setActiveTab] = useState<ExecutionDetailsTab>(initTab || 'general');
 
   function renderContent() {
     switch (activeTab) {
@@ -44,7 +48,16 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
         return (
           <div>
             <p>General info for {execution.id}</p>
-            {execution.stages && <ExecutionStagesPane execution={execution} />}
+            {execution.error && <ExecutionErrorPane execution={execution} />}
+            {execution.stages ? (
+              <ExecutionStagesPane
+                execution={execution}
+                onErrorClick={() => setActiveTab('error')}
+                onWarningClick={() => setActiveTab('warnings')}
+              />
+            ) : (
+              <p>No stage info was reported.</p>
+            )}
           </div>
         );
 
@@ -72,6 +85,9 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
           />
         );
 
+      case 'error':
+        return <ExecutionErrorPane execution={execution} />;
+
       case 'warnings':
         return <ExecutionWarningsPane execution={execution} />;
 
@@ -84,7 +100,7 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
     <FancyTabPane
       className="execution-details-pane"
       activeTab={activeTab}
-      onActivateTab={setActiveTab}
+      onActivateTab={setActiveTab as any}
       tabs={[
         {
           id: 'general',

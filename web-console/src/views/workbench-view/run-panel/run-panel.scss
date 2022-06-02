@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-@import '../../../variables';
+.run-panel {
+  display: flex;
+  gap: 5px;
 
-.execution-error-pane {
-  .#{$bp-ns}-dark & {
-    background: $dark-gray3;
-  }
-
-  .error-message-text {
-    max-height: 75px;
-    overflow: auto;
+  .rune-button {
+    background-color: #2ca89e !important;
   }
 }

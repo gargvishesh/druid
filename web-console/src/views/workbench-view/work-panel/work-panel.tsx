@@ -117,6 +117,12 @@ LIMIT 100`,
             const menu = (
               <Menu>
                 <MenuItem
+                  text="Show details"
+                  onClick={() => {
+                    onExecutionDetails(w.taskId);
+                  }}
+                />
+                <MenuItem
                   text="Attach in new tab"
                   onClick={async () => {
                     let execution: Execution;
@@ -159,12 +165,6 @@ LIMIT 100`,
                     });
                   }}
                 />
-                <MenuItem
-                  text="Show details"
-                  onClick={() => {
-                    onExecutionDetails(w.taskId);
-                  }}
-                />
                 {w.taskStatus === 'SUCCESS' &&
                   w.datasource !== WorkbenchQuery.INLINE_DATASOURCE_MARKER && (
                     <MenuItem
@@ -194,7 +194,7 @@ LIMIT 100`,
             const [icon, color] = statusToIconAndColor(w.taskStatus);
             return (
               <Popover2 className="work-entry" key={w.taskId} position="left" content={menu}>
-                <div title={w.errorMessage}>
+                <div title={w.errorMessage} onDoubleClick={() => onExecutionDetails(w.taskId)}>
                   <div className="line1">
                     <Icon
                       className={'status-icon ' + w.taskStatus.toLowerCase()}

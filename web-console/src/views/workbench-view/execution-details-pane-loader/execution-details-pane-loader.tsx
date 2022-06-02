@@ -21,17 +21,21 @@ import React from 'react';
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { Execution } from '../../../workbench-models';
-import { ExecutionDetailsPane } from '../execution-details-pane/execution-details-pane';
+import {
+  ExecutionDetailsPane,
+  ExecutionDetailsTab,
+} from '../execution-details-pane/execution-details-pane';
 import { getTaskExecution } from '../execution-utils';
 
 export interface ExecutionDetailsPaneLoaderProps {
   id: string;
+  initTab?: ExecutionDetailsTab;
 }
 
 export const ExecutionDetailsPaneLoader = React.memo(function ExecutionDetailsPaneLoader(
   props: ExecutionDetailsPaneLoaderProps,
 ) {
-  const { id } = props;
+  const { id, initTab } = props;
 
   const [executionState, queryManager] = useQueryManager<string, Execution>({
     processQuery: (id: string) => {
@@ -50,7 +54,7 @@ export const ExecutionDetailsPaneLoader = React.memo(function ExecutionDetailsPa
 
   const execution = executionState.getSomeData();
   if (execution) {
-    return <ExecutionDetailsPane execution={execution} />;
+    return <ExecutionDetailsPane execution={execution} initTab={initTab} />;
   } else if (executionState.isLoading()) {
     return <Loader className="execution-stages-pane" />;
   } else if (executionState.isError()) {

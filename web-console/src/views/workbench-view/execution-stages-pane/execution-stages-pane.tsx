@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Icon, Intent } from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -86,6 +86,12 @@ function formatDataSource(dataSource: DataSource | undefined): string {
   }
 }
 
+function formatBreakdown(breakdown: Record<string, number>): string {
+  return Object.keys(breakdown)
+    .map(k => `${k}: ${formatInteger(breakdown[k])}`)
+    .join('\n');
+}
+
 function joinElements(elements: ReactNode[], separator = ', '): ReactNode[] {
   return elements.map((element, i, a) => (
     <React.Fragment key={i}>
@@ -105,12 +111,14 @@ const formatDurationDynamic = (n: NumberLike) =>
 
 export interface ExecutionStagesPaneProps {
   execution: Execution;
+  onErrorClick?: () => void;
+  onWarningClick?: () => void;
 }
 
 export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
   props: ExecutionStagesPaneProps,
 ) {
-  const { execution } = props;
+  const { execution, onErrorClick, onWarningClick } = props;
   const stages = execution.stages || new Stages([]);
   const error = execution.error;
 
@@ -340,8 +348,20 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
                 {warnings > 0 && (
                   <>
                     {' '}
-                    <Icon icon={IconNames.WARNING_SIGN} intent={Intent.WARNING} />
-                    {warnings > 1 ? `×${warnings}` : ''}
+                    <Tooltip2
+                      content={
+                        <pre>{formatBreakdown(stages.getWarningBreakdownForStage(stage))}</pre>
+                      }
+                    >
+                      <Button
+                        minimal
+                        small
+                        icon={IconNames.WARNING_SIGN}
+                        text={warnings > 1 ? `${warnings}` : undefined}
+                        intent={Intent.WARNING}
+                        onClick={onWarningClick}
+                      />
+                    </Tooltip2>
                   </>
                 )}
                 {error && error.stageNumber === stage.stageNumber && (
@@ -355,7 +375,13 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
                         </div>
                       }
                     >
-                      <Icon icon={IconNames.ERROR} intent={Intent.DANGER} />
+                      <Button
+                        minimal
+                        small
+                        icon={IconNames.ERROR}
+                        intent={Intent.DANGER}
+                        onClick={onErrorClick}
+                      />
                     </Tooltip2>
                   </>
                 )}

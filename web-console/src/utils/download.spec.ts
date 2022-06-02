@@ -16,8 +16,15 @@
  * limitations under the License.
  */
 
-.execution-timer {
-  .timer {
-    pointer-events: none;
-  }
-}
+import { formatForFormat } from './download';
+
+describe('download', () => {
+  it('.formatForFormat', () => {
+    expect(formatForFormat(null, 'csv')).toEqual('"null"');
+    expect(formatForFormat('hello\nworld', 'csv')).toEqual('"hello world"');
+    expect(formatForFormat(123, 'csv')).toEqual('"123"');
+    expect(formatForFormat(new Date('2021-01-02T03:04:05.678Z'), 'csv')).toEqual(
+      '"2021-01-02T03:04:05.678Z"',
+    );
+  });
+});
