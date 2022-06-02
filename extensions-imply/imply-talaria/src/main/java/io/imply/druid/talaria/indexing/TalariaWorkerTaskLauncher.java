@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +62,9 @@ public class TalariaWorkerTaskLauncher
 
   // Mutable state meant to be accessible only to the main loop.
   private final Map<String, TaskState> tasks = new TreeMap<>();
+
+  // Set of tasks which are issued a cancel request by the leader.
+  private final Set<String> canceledWorkerTasks = ConcurrentHashMap.newKeySet();
 
   public TalariaWorkerTaskLauncher(
       final String controllerTaskId,
@@ -316,6 +320,7 @@ public class TalariaWorkerTaskLauncher
   {
     for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
       if (!taskEntry.getValue().isComplete()) {
+        canceledWorkerTasks.add(taskEntry.getKey());
         context.workerManager().cancel(taskEntry.getKey());
       }
     }
@@ -336,5 +341,17 @@ public class TalariaWorkerTaskLauncher
         throw new InterruptedException();
       }
     }
+  }
+
+  /**
+   * Checks if the leader has canceled the input taskId. This method is used in {@link io.imply.druid.talaria.exec.LeaderImpl}
+   * to figure out if the worker taskId is cancelled by the leader. If yes, the errors from that worker taskId our ignored
+   * for the error reports.
+   *
+   * @return true if task is canceled by the leader else false
+   */
+  public boolean isTaskCanceledByLeader(String taskId)
+  {
+    return canceledWorkerTasks.contains(taskId);
   }
 }
