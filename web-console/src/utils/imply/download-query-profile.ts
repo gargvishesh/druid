@@ -19,7 +19,7 @@
 import * as JSONBig from 'json-bigint-native';
 
 import { Api } from '../../singletons';
-import { downloadFile } from '../general';
+import { downloadFile } from '../download';
 
 interface QueryProfile {
   id: string;

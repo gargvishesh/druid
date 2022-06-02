@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, ButtonGroup, Intent, Menu, MenuItem } from '@blueprintjs/core';
+import { Button, ButtonGroup, Intent, Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -24,6 +24,7 @@ import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
 import { SpecDialog } from '../../dialogs';
+import { guessDataSourceNameFromInputSource } from '../../druid-models';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
 import {
@@ -47,6 +48,7 @@ import {
 
 import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
+import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
 import { ExecutionStateCache } from './execution-state-cache';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
@@ -79,8 +81,8 @@ export interface WorkbenchViewState {
 
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
-  initExternalConfig: boolean;
-  queryStatsId?: string;
+  initExternalConfig?: 'newTab' | 'currentTab';
+  details?: { id: string; initTab?: ExecutionDetailsTab };
 
   defaultSchema?: string;
   defaultTable?: string;
@@ -144,7 +146,6 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       editContextDialogOpen: false,
       historyDialogOpen: false,
       specDialogOpen: false,
-      initExternalConfig: false,
 
       showWorkHistory,
     };
@@ -182,9 +183,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, false);
   };
 
-  private readonly handleStats = (id: string) => {
+  private readonly handleDetails = (id: string, initTab?: ExecutionDetailsTab) => {
     this.setState({
-      queryStatsId: id,
+      details: { id, initTab },
     });
   };
 
@@ -206,13 +207,14 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderStatsDialog() {
-    const { queryStatsId } = this.state;
-    if (!queryStatsId) return;
+    const { details } = this.state;
+    if (!details) return;
 
     return (
       <ExecutionDetailsDialog
-        id={queryStatsId}
-        onClose={() => this.setState({ queryStatsId: undefined })}
+        id={details.id}
+        initTab={details.initTab}
+        onClose={() => this.setState({ details: undefined })}
       />
     );
   }
@@ -236,12 +238,19 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return (
       <ExternalConfigDialog
         onSetExternalConfig={(externalConfig, isArrays) => {
-          this.handleQueryChange(
-            this.getCurrentQuery().insertExternalPanel(externalConfig, isArrays),
-          );
+          if (initExternalConfig === 'newTab') {
+            this.handleNewTab(
+              WorkbenchQuery.blank().insertExternalPanel(externalConfig, isArrays),
+              'Ext ' + guessDataSourceNameFromInputSource(externalConfig.inputSource),
+            );
+          } else {
+            this.handleQueryChange(
+              this.getCurrentQuery().insertExternalPanel(externalConfig, isArrays),
+            );
+          }
         }}
         onClose={() => {
-          this.setState({ initExternalConfig: false });
+          this.setState({ initExternalConfig: undefined });
         }}
       />
     );
@@ -323,11 +332,20 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           onClick={() => this.setState({ historyDialogOpen: true })}
         />
         {extraEngines.includes('sql-task') && (
-          <MenuItem
-            icon={IconNames.TEXT_HIGHLIGHT}
-            text="Convert ingestion spec to SQL"
-            onClick={() => this.setState({ specDialogOpen: true })}
-          />
+          <>
+            <MenuItem
+              icon={IconNames.TEXT_HIGHLIGHT}
+              text="Convert ingestion spec to SQL"
+              onClick={() => this.setState({ specDialogOpen: true })}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon={IconNames.ROCKET_SLANT}
+              text="Load demo queries"
+              label="(replaces current tabs)"
+              onClick={() => this.handleQueriesChange(getDemoQueries())}
+            />
+          </>
         )}
       </Menu>
     );
@@ -340,20 +358,40 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return (
       <ButtonGroup className="toolbar">
         {extraEngines.includes('sql-task') && (
-          <Button
-            icon={IconNames.TH_DERIVED}
-            text="Connect external data"
-            onClick={e => {
-              if (e.shiftKey && e.altKey) {
-                this.handleQueriesChange(getDemoQueries());
-              } else {
+          <Popover2
+            position="bottom-left"
+            content={
+              <Menu>
+                <MenuItem
+                  text="Connect external data in a new tab"
+                  onClick={() => {
+                    this.setState({
+                      initExternalConfig: 'newTab',
+                    });
+                  }}
+                />
+                <MenuItem
+                  text="Add external data to the current tab"
+                  onClick={() => {
+                    this.setState({
+                      initExternalConfig: 'currentTab',
+                    });
+                  }}
+                />
+              </Menu>
+            }
+          >
+            <Button
+              icon={IconNames.TH_DERIVED}
+              text="Connect external data"
+              onDoubleClick={() => {
                 this.setState({
-                  initExternalConfig: true,
+                  initExternalConfig: 'newTab',
                 });
-              }
-            }}
-            minimal
-          />
+              }}
+              minimal
+            />
+          </Popover2>
         )}
         <Popover2 content={this.renderToolbarMoreMenu()}>
           <Button icon={IconNames.WRENCH} minimal />
@@ -484,7 +522,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           mandatoryQueryContext={mandatoryQueryContext}
           columnMetadata={columnMetadataState.getSomeData()}
           onQueryChange={this.handleQueryChange}
-          onStats={this.handleStats}
+          onDetails={this.handleDetails}
           extraEngines={extraEngines}
         />
       </div>
@@ -570,7 +608,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         {showWorkHistory && (
           <WorkPanel
             onClose={this.handleWorkPanelClose}
-            onExecutionDetails={this.handleStats}
+            onExecutionDetails={this.handleDetails}
             onRunQuery={query => this.handleQueryStringChange(query, true)}
             onNewTab={this.handleNewTab}
           />

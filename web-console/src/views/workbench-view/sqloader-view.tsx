@@ -35,7 +35,7 @@ import { executionBackgroundStatusCheck, submitTaskQuery } from './execution-uti
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
-import { StageProgress } from './stage-progress/stage-progress';
+import { StateProgressPane } from './state-progress-pane/state-progress-pane';
 import { TitleFrame } from './title-frame/title-frame';
 
 import './sqloader-view.scss';
@@ -119,7 +119,7 @@ export const SqloaderView = React.memo(function SqloaderView(props: SqloaderView
       )}
       {insertResultState.isLoading() && (
         <div className="loading-step">
-          <StageProgress
+          <StateProgressPane
             execution={insertResultState.intermediate}
             onCancel={() => insertQueryManager.cancelCurrent()}
             onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}

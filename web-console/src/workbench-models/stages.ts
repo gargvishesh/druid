@@ -17,10 +17,11 @@
  */
 
 import { sum } from 'd3-array';
+import hasOwnProp from 'has-own-prop';
 
 import { InputFormat } from '../druid-models/input-format';
 import { InputSource } from '../druid-models/input-source';
-import { oneOf } from '../utils';
+import { filterMap, oneOf } from '../utils';
 
 const PALETTE = [
   '#8dd3c7',
@@ -131,6 +132,18 @@ export interface WorkerCounter {
 
 function tallyWarningCount(warningCount: Record<string, number>): number {
   return sum(Object.values(warningCount));
+}
+
+function sumByKey(objs: Record<string, number>[]): Record<string, number> {
+  const res: Record<string, number> = {};
+  for (const obj of objs) {
+    for (const k in obj) {
+      if (hasOwnProp(obj, k)) {
+        res[k] = (res[k] || 0) + obj[k];
+      }
+    }
+  }
+  return res;
 }
 
 export interface StageCounter {
@@ -315,6 +328,19 @@ export class Stages {
     return sum(counters, w =>
       sum(w.warningCounters || [], o =>
         o.stageNumber === stageNumber ? tallyWarningCount(o.warningCounters.warningCount) : 0,
+      ),
+    );
+  }
+
+  getWarningBreakdownForStage(stage: StageDefinition): Record<string, number> {
+    const { counters } = this;
+    if (!counters) return {};
+    const { stageNumber } = stage;
+    return sumByKey(
+      counters.flatMap(w =>
+        filterMap(w.warningCounters || [], o =>
+          o.stageNumber === stageNumber ? o.warningCounters.warningCount : undefined,
+        ),
       ),
     );
   }

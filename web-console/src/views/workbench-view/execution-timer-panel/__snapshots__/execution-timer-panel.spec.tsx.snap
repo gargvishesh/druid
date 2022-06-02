@@ -2,7 +2,7 @@
 
 exports[`AnchoredQueryTimer matches snapshot 1`] = `
 <div
-  class="bp4-button-group execution-timer"
+  class="bp4-button-group execution-timer-panel"
 >
   <button
     class="bp4-button bp4-minimal timer"

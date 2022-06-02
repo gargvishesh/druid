@@ -22,16 +22,18 @@ import React from 'react';
 import { formatDuration, pluralIfNeeded } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 
-import './insert-success.scss';
+import './insert-success-pane.scss';
 
-export interface InsertSuccessProps {
+export interface InsertSuccessPaneProps {
   execution: Execution;
-  onStats(): void;
+  onDetails(): void;
   onQueryChange(queryString: string): void;
 }
 
-export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSuccessProps) {
-  const { execution, onStats, onQueryChange } = props;
+export const InsertSuccessPane = React.memo(function InsertSuccessPane(
+  props: InsertSuccessPaneProps,
+) {
+  const { execution, onDetails, onQueryChange } = props;
 
   const datasource = execution.getInsertDatasource();
   if (!datasource) return null;
@@ -51,14 +53,14 @@ export const InsertSuccess = React.memo(function InsertSuccess(props: InsertSucc
 
   const duration = execution.duration;
   return (
-    <div className="insert-success">
+    <div className="insert-success-pane">
       <p>
         {`${rows < 0 ? 'Data' : pluralIfNeeded(rows, 'row')} inserted into '${datasource}'.` +
           (warnings > 0 ? ` ${pluralIfNeeded(warnings, 'warning')} generated.` : '')}
       </p>
       <p>
         {duration ? `Insert query took ${formatDuration(duration)}. ` : `Insert query completed. `}
-        <span className="action" onClick={onStats}>
+        <span className="action" onClick={onDetails}>
           Show stats
         </span>
       </p>

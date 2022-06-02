@@ -47,7 +47,7 @@ import { DruidEngine, WorkbenchQuery } from '../../../workbench-models';
 import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
 import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
-import './run-more-button.scss';
+import './run-panel.scss';
 
 const PARALLELISM_OPTIONS = [1, 2, 4, 6, 8, 10, 16, 32, 64];
 
@@ -78,7 +78,7 @@ function setTalariaFinalizeAggregations(
   }
 }
 
-export interface RunMoreButtonProps {
+export interface RunPanelProps {
   query: WorkbenchQuery;
   onQueryChange(query: WorkbenchQuery): void;
   loading: boolean;
@@ -87,7 +87,7 @@ export interface RunMoreButtonProps {
   extraEngines: DruidEngine[];
 }
 
-export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreButtonProps) {
+export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const { query, onQueryChange, onRun, loading, small, extraEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customParallelismDialogOpen, setCustomParallelismDialogOpen] = useState(false);
@@ -180,7 +180,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
 
   const effectiveEngine = query.getEffectiveEngine();
   return (
-    <div className="run-more-button">
+    <div className="run-panel">
       <Button
         className={effectiveEngine === 'native' ? 'rune-button' : undefined}
         disabled={loading}
@@ -198,9 +198,10 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           onClick={() => onRun(true)}
           text="Preview"
           small={small}
+          minimal={small}
         />
       )}
-      {onQueryChange && (
+      {!small && onQueryChange && (
         <Popover2
           position={Position.BOTTOM_LEFT}
           content={
@@ -308,7 +309,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
             </Menu>
           }
         >
-          <Button small={small} rightIcon={IconNames.CARET_DOWN}>
+          <Button rightIcon={IconNames.CARET_DOWN}>
             {`Engine: ${queryEngine || `auto (${effectiveEngine})`}`}
           </Button>
         </Popover2>
@@ -329,7 +330,7 @@ export const RunMoreButton = React.memo(function RunMoreButton(props: RunMoreBut
           </Menu>
         }
       >
-        <Button small={small} rightIcon={IconNames.MORE} />
+        <Button small={small} minimal={small} rightIcon={IconNames.MORE} />
       </Popover2>
       {editContextDialogOpen && (
         <EditContextDialog

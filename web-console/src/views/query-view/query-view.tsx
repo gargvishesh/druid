@@ -33,7 +33,7 @@ import { QueryHistoryDialog } from '../../dialogs/query-history-dialog/query-his
 import { Api, AppToaster } from '../../singletons';
 import {
   ColumnMetadata,
-  downloadFile,
+  downloadQueryResults,
   DruidError,
   findEmptyLiteralPosition,
   localStorageGet,
@@ -47,7 +47,6 @@ import {
   QueryState,
   QueryWithContext,
   RowColumn,
-  stringifyValue,
 } from '../../utils';
 import { QueryContext } from '../../utils/query-context';
 import { QueryRecord, QueryRecordUtil } from '../../utils/query-history';
@@ -125,19 +124,6 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
       return true;
     } catch {
       return false;
-    }
-  }
-
-  static formatStr(s: null | string | number | Date, format: 'csv' | 'tsv') {
-    // stringify and remove line break
-    const str = stringifyValue(s).replace(/(?:\r\n|\r|\n)/g, ' ');
-
-    if (format === 'csv') {
-      // csv: single quote => double quote, handle ','
-      return `"${str.replace(/"/g, '""')}"`;
-    } else {
-      // tsv: single quote => double quote, \t => ''
-      return str.replace(/\t/g, '').replace(/"/g, '""');
     }
   }
 
@@ -288,33 +274,7 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
     const queryResult = queryResultState.data;
     if (!queryResult) return;
 
-    let lines: string[] = [];
-    let separator = '';
-
-    if (format === 'csv' || format === 'tsv') {
-      separator = format === 'csv' ? ',' : '\t';
-      lines.push(
-        queryResult.header.map(column => QueryView.formatStr(column.name, format)).join(separator),
-      );
-      lines = lines.concat(
-        queryResult.rows.map(r => r.map(cell => QueryView.formatStr(cell, format)).join(separator)),
-      );
-    } else {
-      // json
-      lines = queryResult.rows.map(r => {
-        const outputObject: Record<string, any> = {};
-        for (let k = 0; k < r.length; k++) {
-          const newName = queryResult.header[k];
-          if (newName) {
-            outputObject[newName.name] = r[k];
-          }
-        }
-        return JSONBig.stringify(outputObject);
-      });
-    }
-
-    const lineBreak = '\n';
-    downloadFile(lines.join(lineBreak), format, filename);
+    downloadQueryResults(queryResult, filename, format);
   };
 
   private readonly handleLoadMore = () => {

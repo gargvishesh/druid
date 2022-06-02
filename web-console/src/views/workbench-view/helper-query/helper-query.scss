@@ -52,8 +52,8 @@
     gap: 10px;
     align-items: center;
 
-    .execution-timer,
-    .execution-summary-button {
+    .execution-timer-panel,
+    .execution-summary-panel {
       position: absolute;
       top: 0;
       right: 0;
@@ -87,15 +87,16 @@
     .stats-container {
       position: relative;
 
-      .stage-progress {
+      .execution-error-pane {
+        height: 160px;
+        padding: 20px 22px;
+      }
+
+      .state-progress-pane {
         position: absolute;
         left: 15px;
         right: 15px;
         top: 15px;
-      }
-
-      .query-error {
-        height: 160px;
       }
 
       .execution-stages-pane {

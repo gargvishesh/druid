@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-.run-more-button {
-  display: flex;
-  gap: 5px;
-
-  .rune-button {
-    background-color: #2ca89e !important;
-  }
+.execution-summary-panel {
+  white-space: nowrap;
+  cursor: pointer;
 }

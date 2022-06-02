@@ -20,6 +20,7 @@ export * from './capabilities';
 export * from './column-metadata';
 export * from './data-type-utils';
 export * from './date';
+export * from './download';
 export * from './druid-lookup';
 export * from './druid-query';
 export * from './formatter';

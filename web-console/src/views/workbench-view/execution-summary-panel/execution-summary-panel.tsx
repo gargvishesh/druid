@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Button, ButtonGroup, Menu, MenuDivider, MenuItem, Position } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { Popover2 } from '@blueprintjs/popover2';
 import React from 'react';
 
-import { formatDurationHybrid, pluralIfNeeded } from '../../../utils';
+import { downloadQueryResults, formatDurationHybrid, pluralIfNeeded } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 
-import './execution-summary-button.scss';
+import './execution-summary-panel.scss';
 
-export interface ExecutionSummaryButtonProps {
+export interface ExecutionSummaryPanelProps {
   execution: Execution | undefined;
   onExecutionDetail(): void;
   onReset?: () => void;
 }
 
-export const ExecutionSummaryButton = React.memo(function ExecutionSummaryButton(
-  props: ExecutionSummaryButtonProps,
+export const ExecutionSummaryPanel = React.memo(function ExecutionSummaryPanel(
+  props: ExecutionSummaryPanelProps,
 ) {
   const { execution, onExecutionDetail, onReset } = props;
   const queryResult = execution?.result;
@@ -49,6 +50,10 @@ export const ExecutionSummaryButton = React.memo(function ExecutionSummaryButton
 
     const warningCount = execution?.stages?.getWarningCount();
 
+    const handleDownload = (format: string) => {
+      downloadQueryResults(queryResult, `results-${execution.id}.${format}`, format);
+    };
+
     buttons.push(
       <Button
         key="results"
@@ -58,7 +63,6 @@ export const ExecutionSummaryButton = React.memo(function ExecutionSummaryButton
           (warningCount ? ` and ${pluralIfNeeded(warningCount, 'warning')}` : '') +
           (execution.duration ? ` in ${formatDurationHybrid(execution.duration)}` : '')
         }
-        rightIcon={IconNames.INFO_SIGN}
         onClick={() => {
           if (!execution) return;
           if (execution.engine === 'sql-task') {
@@ -66,6 +70,21 @@ export const ExecutionSummaryButton = React.memo(function ExecutionSummaryButton
           }
         }}
       />,
+      <Popover2
+        key="download"
+        className="download-button"
+        content={
+          <Menu>
+            <MenuDivider title="Download results as..." />
+            <MenuItem text="CSV" onClick={() => handleDownload('csv')} />
+            <MenuItem text="TSV" onClick={() => handleDownload('tsv')} />
+            <MenuItem text="JSON (new line delimited)" onClick={() => handleDownload('json')} />
+          </Menu>
+        }
+        position={Position.BOTTOM_RIGHT}
+      >
+        <Button icon={IconNames.DOWNLOAD} minimal />
+      </Popover2>,
     );
   }
 
@@ -74,7 +93,7 @@ export const ExecutionSummaryButton = React.memo(function ExecutionSummaryButton
   }
 
   return (
-    <ButtonGroup className="execution-summary-button" minimal>
+    <ButtonGroup className="execution-summary-panel" minimal>
       {buttons}
     </ButtonGroup>
   );

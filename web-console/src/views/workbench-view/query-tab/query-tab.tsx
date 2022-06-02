@@ -40,11 +40,12 @@ import {
 import { QueryContext } from '../../../utils/query-context';
 import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../workbench-models';
 import { QueryError } from '../../query-view/query-error/query-error';
+import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionStateCache } from '../execution-state-cache';
-import { ExecutionSummaryButton } from '../execution-summary-button/execution-summary-button';
-import { ExecutionTimer } from '../execution-timer/execution-timer';
+import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
+import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import {
   executionBackgroundStatusCheck,
   reattachAsyncExecution,
@@ -55,11 +56,11 @@ import {
 import { ExportDialog } from '../export-dialog/export-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
-import { InsertSuccess } from '../insert-success/insert-success';
+import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { QueryOutput2 } from '../query-output2/query-output2';
-import { RunMoreButton } from '../run-more-button/run-more-button';
-import { StageProgress } from '../stage-progress/stage-progress';
+import { RunPanel } from '../run-panel/run-panel';
+import { StateProgressPane } from '../state-progress-pane/state-progress-pane';
 import { useWorkStateStore } from '../work-state-store';
 
 import './query-tab.scss';
@@ -73,12 +74,12 @@ export interface QueryTabProps {
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
-  onStats(id: string): void;
+  onDetails(id: string, initTab?: ExecutionDetailsTab): void;
   extraEngines: DruidEngine[];
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
-  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onStats, extraEngines } =
+  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onDetails, extraEngines } =
     props;
   const [showLiveReports, setShowLiveReports] = useState(true);
   const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
@@ -252,7 +253,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onDelete={() => {
                   onQueryChange(query.remove(i));
                 }}
-                onStats={onStats}
+                onDetails={onDetails}
                 extraEngines={extraEngines}
               />
             ))}
@@ -301,7 +302,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             </div>
           </div>
           <div className="run-bar">
-            <RunMoreButton
+            <RunPanel
               query={query}
               onQueryChange={onQueryChange}
               onRun={handleRun}
@@ -309,15 +310,15 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               extraEngines={extraEngines}
             />
             {executionState.isLoading() && (
-              <ExecutionTimer
+              <ExecutionTimerPanel
                 execution={executionState.intermediate}
                 onCancel={() => queryManager.cancelCurrent()}
               />
             )}
             {(execution || executionState.error) && (
-              <ExecutionSummaryButton
+              <ExecutionSummaryPanel
                 execution={execution}
-                onExecutionDetail={() => onStats(statsTaskId!)}
+                onExecutionDetail={() => onDetails(statsTaskId!)}
                 onReset={() => {
                   queryManager.reset();
                   onQueryChange(props.query.changeLastExecution(undefined));
@@ -350,15 +351,21 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onQueryAction={handleQueryAction}
               />
             ) : execution.isSuccessfulInsert() ? (
-              <InsertSuccess
+              <InsertSuccessPane
                 execution={execution}
-                onStats={() => onStats(statsTaskId!)}
+                onDetails={() => onDetails(statsTaskId!)}
                 onQueryChange={handleQueryStringChange}
               />
             ) : execution.error ? (
               <div className="stats-container">
                 <ExecutionErrorPane execution={execution} />
-                {execution.stages && <ExecutionStagesPane execution={execution} />}
+                {execution.stages && (
+                  <ExecutionStagesPane
+                    execution={execution}
+                    onErrorClick={() => onDetails(statsTaskId!, 'error')}
+                    onWarningClick={() => onDetails(statsTaskId!, 'warnings')}
+                  />
+                )}
               </div>
             ) : (
               <div>Unknown query execution state</div>
@@ -376,7 +383,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           {executionState.isLoading() &&
             (executionState.intermediate ? (
               <div className="stats-container">
-                <StageProgress
+                <StateProgressPane
                   execution={executionState.intermediate}
                   onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
                   showLiveReports={showLiveReports}

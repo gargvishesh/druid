@@ -18,7 +18,7 @@
 
 import { Column, QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
 
-import { deepGet, deleteKeys, oneOf } from '../utils';
+import { deepGet, deleteKeys, nonEmptyArray, oneOf } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
 import { DRUID_ENGINES, DruidEngine } from './druid-engine';
@@ -346,7 +346,7 @@ export class Execution {
     this.destination = value.destination;
     this.result = value.result;
     this.error = value.error;
-    this.warnings = value.warnings;
+    this.warnings = nonEmptyArray(value.warnings) ? value.warnings : undefined;
 
     this._payload = value._payload;
   }

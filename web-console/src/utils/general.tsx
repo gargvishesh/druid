@@ -18,7 +18,6 @@
 
 import { Intent } from '@blueprintjs/core';
 import copy from 'copy-to-clipboard';
-import FileSaver from 'file-saver';
 import hasOwnProp from 'has-own-prop';
 import * as JSONBig from 'json-bigint-native';
 import numeral from 'numeral';
@@ -291,25 +290,6 @@ export function arrangeWithPrefixSuffix(
 }
 
 // ----------------------------
-
-export function downloadFile(text: string, type: string, filename: string): void {
-  let blobType;
-  switch (type) {
-    case 'json':
-      blobType = 'application/json';
-      break;
-    case 'tsv':
-      blobType = 'text/tab-separated-values';
-      break;
-    default:
-      // csv
-      blobType = `text/${type}`;
-  }
-  const blob = new Blob([text], {
-    type: blobType,
-  });
-  FileSaver.saveAs(blob, filename);
-}
 
 export function copyAndAlert(copyString: string, alertMessage: string): void {
   copy(copyString, { format: 'text/plain' });

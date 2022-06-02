@@ -271,8 +271,6 @@ public class LeaderImpl implements Leader
   @Override
   public void stopGracefully()
   {
-    // TODO(gianm): Not very graceful.
-    workerTaskLauncher.stop();
     kernelManipulationQueue.add(
         kernel -> {
           throw new TalariaException(CanceledFault.INSTANCE);
