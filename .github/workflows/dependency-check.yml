@@ -1,12 +1,12 @@
-name: Vulnerability check for Imply Druid LTS release branch
+name: Vulnerability check for Imply Druid
 
 # NOTE: This workflow is identical to dependency-check-old-release except that
 # it excludes other projects that are not in the older branches
 
 on:
-  # Run every week on Sunday
+  # Run at 08:00 on every day-of-month.
   schedule:
-    - cron: "0 0 * * 0"
+    - cron: "0 8 */1 * *"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -20,9 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-          # The LTS branch
-          - release/2021.01
-          # The monthly release branch sees active development so another job is not needed
+          - release/2021.01  # The LTS branch
+          - monthly
     steps:
       - uses: actions/checkout@v2
         with:
@@ -50,7 +49,7 @@ jobs:
         if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
-          SLACK_USERNAME: "barista"
+          SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: "There is a vulnerability in the branch ${{ matrix.branch }} file a jira to fix this issue. Can github actions create this JIRA?"
           SLACK_TITLE: "[FAILED] Found vulnerability in dependencies for ${{ matrix.branch }}"
