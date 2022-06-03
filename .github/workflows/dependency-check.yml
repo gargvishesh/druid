@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-          - release/2021.01  # The LTS branch
+          - release/2022.01.0-LTS  # The LTS branch
           - monthly
     steps:
       - uses: actions/checkout@v2
