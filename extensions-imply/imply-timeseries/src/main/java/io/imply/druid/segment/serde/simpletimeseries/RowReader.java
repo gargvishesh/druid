@@ -17,18 +17,11 @@ public class RowReader
 
   private final RowIndexReader rowIndexReader;
   private final BlockCompressedPayloadReader dataReader;
-  private final int serializedSize;
 
-  private RowReader(RowIndexReader rowIndexReader, BlockCompressedPayloadReader dataReader, int serializedSize)
+  private RowReader(RowIndexReader rowIndexReader, BlockCompressedPayloadReader dataReader)
   {
     this.rowIndexReader = rowIndexReader;
     this.dataReader = dataReader;
-    this.serializedSize = serializedSize;
-  }
-
-  public int getSerializedSize()
-  {
-    return serializedSize;
   }
 
   public ByteBuffer getRow(int rowNumber)
@@ -43,12 +36,10 @@ public class RowReader
   {
     private final ByteBuffer rowIndexBuffer;
     private final ByteBuffer dataStorageBuffer;
-    private final int serializedSize;
 
     public Factory(ByteBuffer originalByteBuffer)
     {
       ByteBuffer masterByteBuffer = originalByteBuffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
-      serializedSize = masterByteBuffer.limit();
 
       int rowIndexSize = masterByteBuffer.getInt();
       rowIndexBuffer = masterByteBuffer.asReadOnlyBuffer().order(masterByteBuffer.order());
@@ -71,7 +62,7 @@ public class RowReader
           dataStorageBuffer,
           dataUncompressedByteBuffer
       );
-      RowReader rowReader = new RowReader(rowIndexReader, dataReader, serializedSize);
+      RowReader rowReader = new RowReader(rowIndexReader, dataReader);
 
       return rowReader;
     }
