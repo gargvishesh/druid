@@ -45,17 +45,37 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     this(timestamps, dataPoints, window, null, null, maxEntries);
   }
 
-  public SimpleTimeSeries(ImplyLongArrayList timestamps,
-                          ImplyDoubleArrayList dataPoints,
-                          Interval window,
-                          @Nullable EdgePoint start,
-                          @Nullable EdgePoint end,
-                          int maxEntries)
+  public SimpleTimeSeries(
+      ImplyLongArrayList timestamps,
+      ImplyDoubleArrayList dataPoints,
+      Interval window,
+      @Nullable EdgePoint start,
+      @Nullable EdgePoint end,
+      int maxEntries
+  )
   {
     super(window, start, end, maxEntries);
     this.timestamps = timestamps;
     this.dataPoints = dataPoints;
     this.maxEntries = maxEntries;
+  }
+
+  public SimpleTimeSeries withWindow(Interval newWindow)
+  {
+    List<Long> filteredTimestampList = new ArrayList<>();
+    List<Double> filteredDataPointsList = new ArrayList<>();
+
+    for (int i = 0; i < timestamps.size(); i++) {
+      long timestamp = timestamps.getLong(i);
+      if (newWindow.contains(timestamp)) {
+        filteredTimestampList.add(timestamp);
+        filteredDataPointsList.add(dataPoints.getDouble(i));
+      }
+    }
+    ImplyLongArrayList filteredTimestamps = new ImplyLongArrayList(filteredTimestampList);
+    ImplyDoubleArrayList filteredDataPoints = new ImplyDoubleArrayList(filteredDataPointsList);
+
+    return new SimpleTimeSeries(filteredTimestamps, filteredDataPoints, newWindow, maxEntries);
   }
 
   @JsonProperty
@@ -101,7 +121,9 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
 
     mergeSeries.forEach(SimpleTimeSeries::build);
     Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream().map(SimpleTimeSeries::getIterator).collect(Collectors.toList()),
+        mergeSeries.stream()
+                   .map(SimpleTimeSeries::getIterator)
+                   .collect(Collectors.toList()),
         Comparator.comparingLong(lhs -> lhs.lhs)
     );
 
@@ -115,7 +137,14 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       timestamps.add((long) dataPoint.lhs);
       dataPoints.add((double) dataPoint.rhs);
     }
-    SimpleTimeSeries mergedSeries = new SimpleTimeSeries(timestamps, dataPoints, getwindow(), getStart(), getEnd(), getMaxEntries());
+    SimpleTimeSeries mergedSeries = new SimpleTimeSeries(
+        timestamps,
+        dataPoints,
+        getwindow(),
+        getStart(),
+        getEnd(),
+        getMaxEntries()
+    );
     mergedSeries.build();
     copy(mergedSeries);
   }
@@ -125,9 +154,11 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   {
     for (int i = 1; i < timeSeries.size(); i++) {
       if (timeSeries.getTimestamps().getLong(i - 1) > timeSeries.getTimestamps().getLong(i)) {
-        throw new RE("SimpleTimeSeries data is not sorted." + "Found timestamp %d after %d while merging",
-                     timeSeries.getTimestamps().getLong(i),
-                     timeSeries.getTimestamps().getLong(i - 1));
+        throw new RE(
+            "SimpleTimeSeries data is not sorted." + "Found timestamp %d after %d while merging",
+            timeSeries.getTimestamps().getLong(i),
+            timeSeries.getTimestamps().getLong(i - 1)
+        );
       }
     }
     timeSeriesList.add(timeSeries);
@@ -183,9 +214,14 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       return false;
     }
     SimpleTimeSeries that = (SimpleTimeSeries) o;
-    return Objects.equals(timestamps, that.timestamps) &&
-           Objects.equals(dataPoints, that.dataPoints) &&
-           Objects.equals(timeSeriesList, that.timeSeriesList) &&
-           super.equals(o);
+    return Objects.equals(timestamps, that.timestamps) && Objects.equals(dataPoints, that.dataPoints) && Objects.equals(
+        timeSeriesList,
+        that.timeSeriesList
+    ) && super.equals(o);
+  }
+
+  public SimpleTimeSeriesData asSimpleTimeSeriesData()
+  {
+    return new SimpleTimeSeriesData(timestamps, dataPoints, getwindow());
   }
 }
