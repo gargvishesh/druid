@@ -34,14 +34,14 @@ To use MSQE, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
 - A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
-- Administrator access to Imply Manager so that you can enable the required extension. For security information related to data sources, see [Security](#security)
+- Imply Manager administrator access to enable the required extension. For security information related to datasources, see [Security](#security).
 
 ## Setup
 
 Turning the multi-stage query engine on is a two-part process:
 
 1. [Enable the engine in Imply Manager](#enable-the-multi-stage-query-engine-in-imply-manager).
-2. [Enable an enhanced version Query view in the Druid console](#enable-the-enhanced-query-view).
+2. [Enable the enhanced Query view in the Druid console](#enable-the-enhanced-query-view).
 
 ### Enable the multi-stage query engine in Imply Manager
 
@@ -102,70 +102,104 @@ To use MSQE with the Druid console, enable the enhanced version of the Query vie
 
    If an error related to missing extensions occurs, verify that the properties you set in **Advanced configs** match the ones in [Enable multi-stage query engine](#enable-the-multi-stage-query-engine-in-imply-manager).
 
-3. Go to the **Query** tab. 
+3. Go to the **Query** view. 
 4. Click the ellipsis (...) next to **Run**.
 5. For **Query engine**, select **sql-task**. If you don't see **Query engine** in the menu, you need to option (or alt) click the Druid logo to enable the view.
 
 You're ready to start running queries using the multi-stage query engine.
 
-## Run queries
+## Create and run queries
 
-The best way to start running multi-stage queries is with the enhanced query view
-in the Druid web console.
+The following section takes you through running a series of queries that reference externally hosted data. The best way to start running these queries is with the enhanced **Query** view in the Druid web console. 
 
 ![Empty UI](../assets/multi-stage-query/ui-empty.png)
 
-Run the following query to try the multi-stage query engine with external sample data.
+### Examine and load external data
 
-```sql
-SELECT *
-FROM TABLE(
-  EXTERN(
-    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-    '{"type": "json"}',
-    '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
-  )
-)
-LIMIT 100
-```
+The following example uses EXTERN to query a JSON file located at https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json. 
 
-The multi-stage query engine allows querying external data with the [`EXTERN`](#extern) function.
+Although you can manually create a query in the UI, you can use Druid to generate a base query for you that you can modify to meet your requirements.
 
-To ingest the query results into a table, run the following query.
+To generate a query from external data, do the following:
 
-```sql
-INSERT INTO wikipedia
-SELECT
-  TIME_PARSE("timestamp") AS __time,
-  *
-FROM TABLE(
-  EXTERN(
-    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-    '{"type": "json"}',
-    '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
-  )
-)
-PARTITIONED BY DAY
-```
+1. Select **Connect external data**.
+2. On the **Select input type** screen, choose **HTTP(s)** and add the following value to the URI field: `https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json`. Leave the username and password blank.
+3. Click **Connect data**.
+4. On the **Parse** screen, you can perform a few actions before you load the data into Druid:
+   - Expand a row to see what data it corresponds to from the source.
+   - Customize how the data is handled by selecting the **Input format** and its related options, such as adding **JSON parser features** for JSON files.
+5. When you're ready, click **Done**. You're returned to a tab in the **Query** view of the console where you can see the query that MSQE generated:
 
-The query returns information including the number of rows inserted into the table named "wikipedia" and how long the query took.
+   - The query includes context parameters for MSQE. For more information about context parameters, see [Context parameters](#context-parameters).
+   - The query inserts the data from the external source into a table named `wikipedia-2016-06-27-sampled`.
 
-The `PARTITIONED BY DAY` clause specifies day-based segment granularity. The
-data is inserted into the `wikipedia` table.
+   <details><summary>Show the query</summary>
 
-The data is now queryable. Run the following query to analyze the data
-in the ingested table, producing a list of top channels.
+   ```sql
+   --:context talariaReplaceTimeChunks: all
+   --:context talariaFinalizeAggregations: false
+   --:context groupByEnableMultiValueUnnesting: false
+   INSERT INTO "wikipedia-2016-06-27-sampled"
+   SELECT
+     isRobot,
+     channel,
+     "timestamp",
+     flags,
+     isUnpatrolled,
+     page,
+     diffUrl,
+     added,
+     comment,
+     commentLength,
+     isNew,
+     isMinor,
+     delta,
+     isAnonymous,
+     user,
+     deltaBucket,
+     deleted,
+     namespace,
+     cityName,
+     countryName,
+     regionIsoCode,
+     metroCode,
+     countryIsoCode,
+     regionName
+   FROM "wikipedia-2016-06-27-sampled"
+   PARTITIONED BY ALL
+   ```
+   </details>
+
+6. Review and modify the query to meet your needs. For example, you can change the table name or the partitioning to `PARTITIONED BY DAY` to specify day-based segment granularity. Note that if you want to partition by something other than ALL, you need to include `TIME_PARSE("timestamp") AS __time` in your SELECT statement:
+   
+   ```sql
+   ...
+   SELECT
+     TIME_PARSE("timestamp") AS __time,
+   ...
+   ...
+    PARTITIONED BY DAY
+    ```
+
+7. Optionally, preview the data before you ingest it.
+8. Run your query. The query returns information including the number of rows inserted into the table named `wikipedia-2016-06-27-sampled` and how long the query took.
+
+### Query the data
+
+The data that you loaded into `wikipedia-2016-06-27-sampled` is queryable after the ingestion completes. You can analyze the data in the table to do things like produce a list of top channels:
 
 ```sql
 SELECT
   channel,
   COUNT(*)
-FROM wikipedia
+FROM wikipedia-2016-06-27-sampled
 GROUP BY channel
 ORDER BY COUNT(*) DESC
 ```
 
-The same query would also work on the external data directly.
+With the EXTERN function, you could also run the same query on the external data directly:
+
+<details><summary>Show me the query</summary>
 
 ```sql
 SELECT
@@ -182,11 +216,157 @@ GROUP BY channel
 ORDER BY COUNT(*) DESC
 ```
 
-For more examples, see the [Example queries](#example-queries) section.
+</details>
+
+### Convert a JSON ingestion spec
+
+If you're already ingesting data with Druid's core query engine, you can use MSQE to help you convert the ingestion spec to a SQL query.
+
+In the **Query** view, do the following:
+
+1. Select the **Wrench icon > Convert ingestion spec to SQL**.
+2. Provide your ingestion spec. You can use this sample ingestion spec if you don't have one:
+
+   <details><summary>Show the spec</summary>
+   This spec uses data hosted at `https://static.imply.io/data/wikipedia.json.gz` and loads it into a table named `wikipedia`.
+   
+   ```json
+   {
+     "type": "index_parallel",
+     "spec": {
+       "ioConfig": {
+         "type": "index_parallel",
+         "inputSource": {
+           "type": "http",
+           "uris": [
+             "https://static.imply.io/data/wikipedia.json.gz"
+           ]
+         },
+         "inputFormat": {
+           "type": "json"
+         }
+       },
+       "tuningConfig": {
+         "type": "index_parallel",
+         "partitionsSpec": {
+           "type": "dynamic"
+         }
+       },
+       "dataSchema": {
+         "dataSource": "wikipedia",
+         "timestampSpec": {
+           "column": "timestamp",
+           "format": "iso"
+         },
+         "dimensionsSpec": {
+           "dimensions": [
+             "isRobot",
+             "channel",
+             "flags",
+             "isUnpatrolled",
+             "page",
+             "diffUrl",
+             {
+               "type": "long",
+               "name": "added"
+             },
+             "comment",
+             {
+               "type": "long",
+               "name": "commentLength"
+             },
+             "isNew",
+             "isMinor",
+             {
+               "type": "long",
+               "name": "delta"
+             },
+             "isAnonymous",
+             "user",
+             {
+               "type": "long",
+               "name": "deltaBucket"
+             },
+             {
+               "type": "long",
+               "name": "deleted"
+             },
+             "namespace",
+             "cityName",
+             "countryName",
+             "regionIsoCode",
+             "metroCode",
+             "countryIsoCode",
+             "regionName"
+           ]
+         },
+         "granularitySpec": {
+           "queryGranularity": "none",
+           "rollup": false,
+           "segmentGranularity": "day"
+         }
+       }
+     }
+   }
+   ```
+   
+   </details>
+
+3. Submit the spec. MSQE uses the JSON-based ingestion spec to generate a SQL query that you can use instead.
+   
+   <details><summary>Show the query</summary>
+   ```sql
+   -- This SQL query was auto generated from an ingestion spec
+   --:context talariaFinalizeAggregations: false
+   --:context groupByEnableMultiValueUnnesting: false
+   --:context talariaReplaceTimeChunks: all
+   INSERT INTO wikipedia
+   WITH ioConfigExtern AS (SELECT * FROM TABLE(
+     EXTERN(
+       '{"type":"http","uris":["https://static.imply.io/data/wikipedia.json.gz"]}',
+       '{"type":"json"}',
+       '[{"name":"timestamp","type":"string"},{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"diffUrl","type":"string"},{"name":"added","type":"long"},{"name":"comment","type":"string"},{"name":"commentLength","type":"long"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"delta","type":"long"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"string"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"}]'
+     )
+   ))
+   SELECT
+     TIME_PARSE("timestamp") AS __time,
+     "isRobot",
+     "channel",
+     "flags",
+     "isUnpatrolled",
+     "page",
+     "diffUrl",
+     "added",
+     "comment",
+     "commentLength",
+     "isNew",
+     "isMinor",
+     "delta",
+     "isAnonymous",
+     "user",
+     "deltaBucket",
+     "deleted",
+     "namespace",
+     "cityName",
+     "countryName",
+     "regionIsoCode",
+     "metroCode",
+     "countryIsoCode",
+     "regionName"
+   FROM ioConfigExtern
+   PARTITIONED BY DAY   
+   ```
+   
+   </details>
+
+4. Review the generated SQL to make sure it matches your requirements and does what you expect.
+5. Click **Run** to start the ingestion.
 
 ## Example queries
 
-You can copy the example queries into the **Query** UI.
+These example queries show you some of the other things you can do to modify your MSQE queries depending on your use case. You can copy the example queries into a tab in the **Query** view and run them.
+
+The queries use the table from the example described in [INSERT](#insert)
 
 ### INSERT with no rollup <a href="#example-insert" name="example-insert">#</a>
 
@@ -723,7 +903,7 @@ For examples, refer to the [Example queries](#example-queries) section.
 
 ```sql
 REPLACE INTO w000
-OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
+OVERWRITE ALL WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
 SELECT
   TIME_PARSE("timestamp") AS __time,
   *
@@ -1071,7 +1251,7 @@ The following table lists the possible values for `talariaStatus.payload.errorRe
 |----|-----------|----|
 |  BroadcastTablesTooLarge  | Size of the broadcast tables used in right hand side of the joins exceeded the memory reserved for them in a worker task  | &bull;&nbsp;maxBroadcastTablesSize: Memory reserved for the broadcast tables, measured in bytes |
 |  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
-|  CannotParseExternalData  |  A worker task could not parse data from an external data source.  |    |
+|  CannotParseExternalData  |  A worker task could not parse data from an external datasource.  |    |
 |  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
 |  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
 |  InsertCannotBeEmpty  |  An INSERT or REPLACE query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT or REPLACE queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
