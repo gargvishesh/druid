@@ -140,7 +140,7 @@ public class TalariaQueryMaker implements QueryMaker
       taskId = StringUtils.format("talaria-sql-%s-%s", targetDataSource, plannerContext.getSqlQueryId());
     }
 
-    Object talariaMode = plannerContext.getQueryContext().get(TalariaMode.CTX_TALARIA_MODE);
+    Object talariaMode = plannerContext.getQueryContext().getOrDefault(TalariaMode.CTX_TALARIA_MODE, "strict");
     if (talariaMode != null) {
       TalariaMode.populateDefaultQueryContext(talariaMode.toString(), plannerContext.getQueryContext());
     }
