@@ -75,7 +75,7 @@ public class TalariaQueryMaker implements QueryMaker
   private static final String DESTINATION_EXTERNAL = "external";
 
   private static final Granularity DEFAULT_SEGMENT_GRANULARITY = Granularities.ALL;
-  private static final int DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS = 1;
+  private static final int DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS = 2;
   private static final int DEFAULT_ROWS_PER_SEGMENT = 3000000;
 
   // Lower than the default to minimize the impact of per-row overheads that are not accounted for by
@@ -159,11 +159,15 @@ public class TalariaQueryMaker implements QueryMaker
       throw new ISE("Unable to serialize default segment granularity.");
     }
 
-    final long maxNumConcurrentSubTasks =
+    final long maxNumTotalTasks =
         Optional.ofNullable(plannerContext.getQueryContext().get(CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
                 .map(DimensionHandlerUtils::convertObjectToLong)
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
+    if (maxNumTotalTasks < 2) {
+      throw new IAE(CTX_MAX_NUM_CONCURRENT_SUB_TASKS + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
+    }
+    final long maxNumConcurrentSubTasks = maxNumTotalTasks - 1; // This parameter is used internally for the number of worker tasks only, so we subtract 1
 
     final int rowsPerSegment =
         Optional.ofNullable(plannerContext.getQueryContext().get(CTX_ROWS_PER_SEGMENT))

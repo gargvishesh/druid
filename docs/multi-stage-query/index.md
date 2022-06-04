@@ -1123,7 +1123,7 @@ The multi-stage query engine accepts Druid SQL
 
 |Parameter|Description|Default value|
 |----|-----------|----|
-| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the number of worker tasks to launch.<br /><br />The total number of tasks launched will be `talariaNumTasks` + 1, because there will also be a controller task.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. Therefore, it is important to set this parameter at most one lower than the total number of task slots.| 1 |
+| talariaNumTasks| (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not be able to execute. | 2 |
 | talariaFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. | true |
 | sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#error-codes) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | talariaRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](#known-issues-memory)</a>.
@@ -1279,10 +1279,9 @@ The following table lists the possible values for `talariaStatus.payload.errorRe
 
 The main driver of performance is parallelism. The most relevant considerations are:
 
-- The [`talariaNumTasks`](#context-parameters) query parameter determines the maximum number of worker tasks
-  your query will use. Generally, queries will perform better with more workers. The highest
-  possible value of `talariaNumTasks` is one less than the number of free task slots in your
-  cluster.
+- The [`talariaNumTasks`](#context-parameters) query parameter determines the maximum number of tasks (workers and one controller)
+  your query will use. Generally, queries will perform better with more workers. The lowest possible value of `talariaNumTasks` is 2
+  (one worker and one controller) and the highest possible value is equal to the number of free task slots in your cluster.
 - The EXTERN operator cannot split large files across different worker tasks. If you have fewer
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
@@ -1512,8 +1511,8 @@ When you use the multi-stage query engine, the following happens:
   simultaneously. Additionally, two controller tasks can deadlock each
   other if the sum of their `talariaNumTasks` exceeds available task
   capacity. To avoid this, ensure that the sum of `talariaNumTasks`
-  across all concurrently-running queries, plus the number of controller
-  tasks (one per query), does not exceed available task capacity. (17183)
+  across all concurrently-running queries does not exceed available task
+  capacity. (17183)
 
 - On cancelation or failure due to exception, the controller shuts down its worker tasks as part of
   an orderly exit. However, worker tasks may outlive the controller in situations where the
