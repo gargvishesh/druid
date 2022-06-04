@@ -32,7 +32,7 @@ public class JsonColumnIndexer extends NestedDataColumnIndexer
       if (stringValue.startsWith("[")
           || stringValue.startsWith("{")
           || stringValue.startsWith("\"")
-          || Character.isDigit(stringValue.charAt(0))) {
+          || (stringValue.length() > 0 && Character.isDigit(stringValue.charAt(0)))) {
         try {
           final Object deserialized = JSON_MAPPER.readValue(stringValue, Object.class);
           return super.processRowValsToUnsortedEncodedKeyComponent(deserialized, reportParseExceptions);
