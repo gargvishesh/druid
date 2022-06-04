@@ -988,6 +988,7 @@ public class WorkerImpl implements Worker
         memoryParameters.getSuperSorterMaxActiveProcessors(),
         memoryParameters.getSuperSorterMaxChannelsPerProcessor(),
         -1,
+        cancellationId,
         superSorterProgressTracker
     );
 
