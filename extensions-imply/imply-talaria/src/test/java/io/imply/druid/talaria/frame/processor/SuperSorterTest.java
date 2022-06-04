@@ -124,6 +124,7 @@ public class SuperSorterTest
           2,
           2,
           -1,
+          null,
           superSorterProgressTracker
       );
 
@@ -289,6 +290,7 @@ public class SuperSorterTest
           maxActiveProcessors / maxChannelsPerProcessor,
           maxChannelsPerProcessor,
           -1,
+          null,
           superSorterProgressTracker
       );
 

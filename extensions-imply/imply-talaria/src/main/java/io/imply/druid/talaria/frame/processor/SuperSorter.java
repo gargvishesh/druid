@@ -44,6 +44,7 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.utils.CloseableUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -89,6 +90,7 @@ public class SuperSorter
   private final int maxChannelsPerProcessor;
   private final int maxActiveProcessors;
   private final long rowLimit;
+  private final String cancellationId;
 
   private final Object runWorkersLock = new Object();
 
@@ -152,6 +154,7 @@ public class SuperSorter
       final int maxActiveProcessors,
       final int maxChannelsPerProcessor,
       final long rowLimit,
+      @Nullable final String cancellationId,
       @Nonnull SuperSorterProgressTracker superSorterProgressTracker
   )
   {
@@ -166,6 +169,7 @@ public class SuperSorter
     this.maxChannelsPerProcessor = maxChannelsPerProcessor;
     this.maxActiveProcessors = maxActiveProcessors;
     this.rowLimit = rowLimit;
+    this.cancellationId = cancellationId;
     this.superSorterProgressTracker = superSorterProgressTracker;
 
     for (int i = 0; i < inputChannels.size(); i++) {
@@ -206,26 +210,10 @@ public class SuperSorter
       return FutureUtils.futureWithBaggage(
           allDone,
           () -> {
-            // Cleanup that must happen regardless of success or failure.
             synchronized (runWorkersLock) {
-              if (log.isDebugEnabled()) {
-                log.debug(stateString());
+              if (activeProcessors == 0) {
+                cleanUp();
               }
-
-              outputsReadyByLevel.clear();
-              inputBuffer.clear();
-
-              for (FrameFile frameFile : penultimateFrameFileCache.values()) {
-                frameFile.close();
-              }
-
-              penultimateFrameFileCache.clear();
-
-              if (!inputChannelsToRead.isEmpty()) {
-                inputChannels.forEach(ReadableFrameChannel::doneReading);
-              }
-
-              inputChannelsToRead.clear();
             }
           }
       );
@@ -257,6 +245,10 @@ public class SuperSorter
 
     runWorkersIfPossible();
     setAllDoneIfPossible();
+
+    if (isAllDone() && activeProcessors == 0) {
+      cleanUp();
+    }
   }
 
   /**
@@ -269,11 +261,14 @@ public class SuperSorter
   @GuardedBy("runWorkersLock")
   private void runWorkersIfPossible()
   {
+    if (isAllDone()) {
+      // Do nothing if the instance is all done. This can happen in case of error or cancelation.
+      return;
+    }
+
     try {
       while (activeProcessors < maxActiveProcessors &&
              (runNextUltimateMerger() || runNextMiddleMerger() || runNextLevelZeroMerger() || runNextBatcher())) {
-        // Not 100% true that all workers use maxChannelsPerWorker, necessarily, but this is safe since we know a
-        // worker won't use *more*. If we change this, must change workerFinished too.
         activeProcessors += 1;
 
         if (log.isDebugEnabled()) {
@@ -289,7 +284,6 @@ public class SuperSorter
       }
     }
     catch (Throwable e) {
-      // TODO(gianm): More orderly cancellation in case of error
       allDone.setException(e);
     }
   }
@@ -584,8 +578,7 @@ public class SuperSorter
   private <T> void runWorker(final FrameProcessor<T> worker, final Consumer<T> outConsumer)
   {
     Futures.addCallback(
-        // TODO(gianm): add queryId for cancellation, but verify that cancellation doesn't break cleanup
-        exec.runFully(worker, null),
+        exec.runFully(worker, cancellationId),
         new FutureCallback<T>()
         {
           @Override
@@ -599,7 +592,6 @@ public class SuperSorter
               }
             }
             catch (Throwable e) {
-              // TODO(gianm): Better, more orderly cancellation in case of error
               synchronized (runWorkersLock) {
                 allDone.setException(e);
               }
@@ -609,7 +601,6 @@ public class SuperSorter
           @Override
           public void onFailure(Throwable t)
           {
-            // TODO(gianm): Cancel other ongoing work
             synchronized (runWorkersLock) {
               allDone.setException(t);
             }
@@ -701,6 +692,60 @@ public class SuperSorter
     return totalInputFrames != UNKNOWN_TOTAL;
   }
 
+  /**
+   * Whether this instance has finished its processing. This may be due to successful completion, or it may be due
+   * to cancelation or error.
+   *
+   * Note: it is possible for this method to return true even when {@link #activeProcessors} is nonzero. Processors
+   * take some time to exit after the instance becomes "done".
+   */
+  @GuardedBy("runWorkersLock")
+  private boolean isAllDone()
+  {
+    return allDone.isDone() || allDone.isCancelled();
+  }
+
+  /**
+   * Cleanup that must happen regardless of success or failure.
+   */
+  @GuardedBy("runWorkersLock")
+  private void cleanUp()
+  {
+    if (!isAllDone() || activeProcessors != 0) {
+      // This condition indicates a logic bug.
+      throw new ISE("Improper cleanup");
+    }
+
+    if (log.isDebugEnabled()) {
+      log.debug(stateString());
+    }
+
+    outputsReadyByLevel.clear();
+    inputBuffer.clear();
+
+    for (FrameFile frameFile : penultimateFrameFileCache.values()) {
+      CloseableUtils.closeAndSuppressExceptions(
+          frameFile,
+          e -> log.warn(e, "Could not close intermediate file [%s]", frameFile.file())
+      );
+    }
+
+    penultimateFrameFileCache.clear();
+
+    if (!inputChannelsToRead.isEmpty()) {
+      for (final ReadableFrameChannel inputChannel : inputChannels) {
+        CloseableUtils.closeAndSuppressExceptions(
+            inputChannel::doneReading,
+            e -> log.warn(e, "Could not close input channel")
+        );
+      }
+
+      inputChannels.forEach(ReadableFrameChannel::doneReading);
+    }
+
+    inputChannelsToRead.clear();
+  }
+
   private File mergerOutputFile(final int level, final long rank)
   {
     return new File(directory, StringUtils.format("merged.%d.%d", level, rank));
@@ -720,8 +765,7 @@ public class SuperSorter
              + " p=" + activeProcessors + "/" + maxActiveProcessors
              + " ch-pending=" + inputChannelsToRead
              + " to-merge=" + outputsReadyByLevel
-             + " cancel=" + (allDone.isCancelled() ? "y" : "n")
-             + " done=" + (allDone.isDone() ? "y" : "n");
+             + " done=" + (isAllDone() ? "y" : "n");
     }
   }
 
