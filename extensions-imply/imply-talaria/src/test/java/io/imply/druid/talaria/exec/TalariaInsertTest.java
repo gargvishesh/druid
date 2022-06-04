@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
+import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -370,6 +371,22 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .verifyPlanningErrors();
   }
 
+  @Test
+  public void testInsertQueryWithInvalidSubtaskCount()
+  {
+    Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                              .putAll(DEFAULT_TALARIA_CONTEXT)
+                                              .put(TalariaQueryMaker.CTX_MAX_NUM_CONCURRENT_SUB_TASKS, 1)
+                                              .build();
+    testIngestQuery().setSql(
+                         "insert into foo1 select  __time, dim1 , count(*) as cnt from foo where dim1 is not null group by 1, 2 PARTITIONED by day clustered by dim1")
+                     .setQueryContext(context)
+                     .setExpectedExecutionErrorMatcher(
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith(
+                             "talariaNumTasks cannot be less than 2 since at least 1 controller and 1 worker is necessary."))
+                     )
+                     .verifyExecutionError();
+  }
 
   @Nonnull
   private List<Object[]> expectedFooRows()
