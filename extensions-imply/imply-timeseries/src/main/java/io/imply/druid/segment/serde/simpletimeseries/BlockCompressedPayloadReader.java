@@ -126,19 +126,14 @@ public class BlockCompressedPayloadReader
   private ByteBuffer getUncompressedBlock(int blockNumber)
   {
     if (currentUncompressedBlockNumber != blockNumber) {
-      // if blockNumber is the last valid block, there is always an extra entry which is the position of the next
-      // start for an additional block, ie length of total compressed block stream
-      int blockStart = blockIndexView.getStart(blockNumber);
-      int nextBlockStart = blockIndexView.getStart(blockNumber + 1);
-      int compressedBlockSize = nextBlockStart - blockStart;
-      int blockPosition = compressedBlocksByteBuffer.position() + blockStart;
+      final IntIndexView.EntrySpan span = blockIndexView.getEntrySpan(blockNumber);
       ByteBuffer compressedBlock = compressedBlocksByteBuffer.asReadOnlyBuffer()
                                                              .order(compressedBlocksByteBuffer.order());
-      compressedBlock.position(blockPosition);
-      compressedBlock.limit(compressedBlock.position() + compressedBlockSize);
+      compressedBlock.position(compressedBlock.position() + span.getStart());
+      compressedBlock.limit(compressedBlock.position() + span.getSize());
       uncompressedByteBuffer.clear();
 
-      decompressor.decompress(compressedBlock, compressedBlockSize, uncompressedByteBuffer);
+      decompressor.decompress(compressedBlock, span.getSize(), uncompressedByteBuffer);
       currentUncompressedBlockNumber = blockNumber;
     }
 

@@ -608,6 +608,8 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
     final Yielder<Cursor> yielder = Yielders.each(cursorSequence);
     closer.register(yielder);
     final Cursor cursor = yielder.get();
+    closer.register(yielder);
+
     return cursor.getColumnSelectorFactory();
   }
 

@@ -16,8 +16,10 @@ import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.segment.ColumnCache;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.DimensionSelector;
@@ -109,7 +111,10 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
     QueryableIndex index = segments.get(0).asQueryableIndex();
     SimpleAscendingOffset offset = new SimpleAscendingOffset(index.getNumRows());
 
-    DimensionSelector selector = virtualColumn.makeDimensionSelector(DefaultDimensionSpec.of("ipv4"), index, offset);
+    Closer closer = Closer.create();
+    DimensionSelector selector = virtualColumn.makeDimensionSelector(
+        DefaultDimensionSpec.of("ipv4"), new ColumnCache(index, closer), offset
+    );
     Assert.assertTrue(selector.nameLookupPossibleInAdvance());
     Assert.assertEquals(6, selector.getValueCardinality());
     List<Object> results = new ArrayList<>();
@@ -133,6 +138,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
   }
 
   @Test
@@ -194,9 +200,10 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
     QueryableIndex index = segments.get(0).asQueryableIndex();
     VectorOffset offset = new NoFilterVectorOffset(4, 0, index.getNumRows());
 
+    Closer closer = Closer.create();
     SingleValueDimensionVectorSelector selector = virtualColumn.makeSingleValueVectorDimensionSelector(
         DefaultDimensionSpec.of("ipv4"),
-        index,
+        new ColumnCache(index, closer),
         offset
     );
     Assert.assertEquals(offset.getMaxVectorSize(), selector.getMaxVectorSize());
@@ -227,6 +234,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
   }
 
   @Test
@@ -241,11 +249,12 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         false
     );
 
+    Closer closer = Closer.create();
     QueryableIndex index = segments.get(0).asQueryableIndex();
     VectorOffset offset = new NoFilterVectorOffset(4, 0, index.getNumRows());
     VectorObjectSelector selector = virtualColumn.makeVectorObjectSelector(
         "ipv4",
-        index,
+        new ColumnCache(index, closer),
         offset
     );
     Assert.assertEquals(offset.getMaxVectorSize(), selector.getMaxVectorSize());
@@ -274,5 +283,6 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
   }
 }
