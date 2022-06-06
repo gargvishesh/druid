@@ -39,10 +39,9 @@ import {
   DoctorDialog,
   OverlordDynamicConfigDialog,
 } from '../../dialogs';
-import { usePermanentCallback } from '../../hooks';
+import { useLocalStorageState, usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
-import { Api, AppToaster } from '../../singletons';
-import { MULTI_STAGE_QUERY_ENABLED } from '../../singletons/multi-stage-query-enabled';
+import { AppToaster } from '../../singletons';
 import {
   Capabilities,
   localStorageGetJson,
@@ -241,11 +240,12 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
   const loadDataPrimary = false;
 
-  // BEGIN: Imply-added code for MSQE execution
-  const [showWorkbench, setShowWorkbench] = useState<any>(
-    MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW),
+  // BEGIN: Imply-added code for MSQE loader
+  const [showSqloader, setShowSqloader] = useLocalStorageState(
+    LocalStorageKeys.SQLOADER_SHOW,
+    false,
   );
-  // END: Imply-added code for MSQE execution
+  // END: Imply-added code for MSQE loader
 
   const helpMenu = (
     <Menu>
@@ -357,64 +357,19 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   );
 
   // BEGIN: Imply-added code for MSQE execution
-  const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
-    if (!MULTI_STAGE_QUERY_ENABLED || !e.altKey) return;
+  const handleLogoClick = usePermanentCallback((e: MouseEvent) => {
+    if (!e.altKey || !e.shiftKey) return;
     e.preventDefault();
-    const nextShowWorkbench = e.shiftKey ? (showWorkbench ? false : 'loader') : !showWorkbench;
-
-    if (nextShowWorkbench) {
-      // Check extension
-      let status: any;
-      try {
-        status = (await Api.instance.get(`/status`)).data;
-      } catch (e) {
-        AppToaster.show({
-          message: 'Could not get status',
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-
-      if (!Array.isArray(status.modules)) {
-        AppToaster.show({
-          message: 'Invalid status response',
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-
-      if (
-        !status.modules.some((module: any) =>
-          String(module.name).startsWith('io.imply.druid.talaria'),
-        )
-      ) {
-        AppToaster.show({
-          message: `'imply-talaria' module needs to be loaded to enable the multi-stage query engine capable query view.`,
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-    }
-
-    setShowWorkbench(!nextShowWorkbench);
-    localStorageSetJson(LocalStorageKeys.WORKBENCH_SHOW, nextShowWorkbench);
+    const nextShowSqloader = !showSqloader;
+    setShowSqloader(nextShowSqloader);
     AppToaster.show({
-      message: nextShowWorkbench ? (
-        <>
-          <p>You have enabled the multi-stage query engine capable query view.</p>
-          <p>
-            The multi-stage query engine is an Alpha feature only available as part of the Imply
-            distribution of Druid.
-          </p>
-          <p>Please share any feedback with your Imply Account Team.</p>
-        </>
-      ) : (
-        'You have disabled the multi-stage query engine capable query view.'
-      ),
+      message: nextShowSqloader
+        ? 'You have enabled the new and experimental SQL based data loader.'
+        : 'You have disabled the SQL based data loader.',
       intent: Intent.SUCCESS,
       timeout: 5000,
     });
-    location.hash = nextShowWorkbench ? '#workbench' : '#query';
+    location.hash = nextShowSqloader ? '#sqloader' : '#home';
   });
   // END: Imply-modified code for MSQE execution
 
@@ -471,27 +426,17 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         />
 
         <NavbarDivider />
-        {showWorkbench ? (
-          <AnchorButton
-            minimal
-            active={active === 'workbench'}
-            icon={IconNames.APPLICATION}
-            text="Query"
-            href="#workbench"
-            disabled={!capabilities.hasQuerying()}
-          />
-        ) : (
-          <AnchorButton
-            minimal
-            active={active === 'query'}
-            icon={IconNames.APPLICATION}
-            text="Query"
-            href="#query"
-            disabled={!capabilities.hasQuerying()}
-          />
-        )}
-        {/* BEGIN: Imply-added code for MSQE execution */}
-        {showWorkbench === 'loader' && (
+        <AnchorButton
+          minimal
+          active={active === 'workbench'}
+          icon={IconNames.APPLICATION}
+          text="Query"
+          href="#workbench"
+          disabled={!capabilities.hasQuerying()}
+        />
+
+        {/* BEGIN: Imply-added code for MSQE SQL based data loader */}
+        {showSqloader && (
           <AnchorButton
             minimal
             active={active === 'sqloader'}

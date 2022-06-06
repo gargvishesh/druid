@@ -16,5 +16,20 @@
  * limitations under the License.
  */
 
-// Set this to `false` to cripple all multi-stage query code in the console
-export const MULTI_STAGE_QUERY_ENABLED = true;
+import { shallow } from 'enzyme';
+import React from 'react';
+
+import { QueryErrorPane } from './query-error-pane';
+
+describe('QueryErrorPane', () => {
+  it('matches snapshot', () => {
+    const queryError = shallow(
+      <QueryErrorPane
+        error={new Error('something went wrong in line 7, column 8.')}
+        moveCursorTo={() => {}}
+      />,
+    );
+
+    expect(queryError).toMatchSnapshot();
+  });
+});

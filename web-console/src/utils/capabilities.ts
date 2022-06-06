@@ -19,6 +19,7 @@
 import { Api } from '../singletons';
 
 import { localStorageGetJson, LocalStorageKeys } from './local-storage-keys';
+import { deepGet } from './object-change';
 
 export type CapabilitiesMode = 'full' | 'no-sql' | 'no-proxy';
 
@@ -35,6 +36,7 @@ export type QueryType = 'none' | 'nativeOnly' | 'nativeAndSql';
 
 export interface CapabilitiesOptions {
   queryType: QueryType;
+  msqe: boolean;
   coordinator: boolean;
   overlord: boolean;
 }
@@ -49,6 +51,7 @@ export class Capabilities {
   static NO_PROXY: Capabilities;
 
   private readonly queryType: QueryType;
+  private readonly msqe: boolean;
   private readonly coordinator: boolean;
   private readonly overlord: boolean;
 
@@ -123,6 +126,21 @@ export class Capabilities {
     return true;
   }
 
+  static async detectMsqe(): Promise<boolean> {
+    try {
+      await Api.instance.post(`/druid/v2/sql/task?capabilities`, {
+        query: 'unparsable_query',
+      });
+      return false;
+    } catch (e) {
+      // If we get a real 'SQL parse failed' error with a 400 status code then we know the MSQE is enabled
+      return (
+        deepGet(e, 'response.status') === 400 &&
+        deepGet(e, 'response.data.error.error') === 'SQL parse failed'
+      );
+    }
+  }
+
   static async detectCapabilities(): Promise<Capabilities | undefined> {
     const capabilitiesOverride = localStorageGetJson(LocalStorageKeys.CAPABILITIES_OVERRIDE);
     if (capabilitiesOverride) return new Capabilities(capabilitiesOverride);
@@ -141,8 +159,11 @@ export class Capabilities {
       coordinator = overlord = await Capabilities.detectManagementProxy();
     }
 
+    const msqe = await Capabilities.detectMsqe();
+
     return new Capabilities({
       queryType,
+      msqe,
       coordinator,
       overlord,
     });
@@ -150,6 +171,7 @@ export class Capabilities {
 
   constructor(options: CapabilitiesOptions) {
     this.queryType = options.queryType;
+    this.msqe = options.msqe;
     this.coordinator = options.coordinator;
     this.overlord = options.overlord;
   }
@@ -204,6 +226,10 @@ export class Capabilities {
     return this.queryType === 'nativeAndSql';
   }
 
+  public hasMsqe(): boolean {
+    return this.msqe;
+  }
+
   public hasCoordinatorAccess(): boolean {
     return this.coordinator;
   }
@@ -222,31 +248,37 @@ export class Capabilities {
 }
 Capabilities.FULL = new Capabilities({
   queryType: 'nativeAndSql',
+  msqe: true,
   coordinator: true,
   overlord: true,
 });
 Capabilities.NO_SQL = new Capabilities({
   queryType: 'nativeOnly',
+  msqe: false,
   coordinator: true,
   overlord: true,
 });
 Capabilities.COORDINATOR_OVERLORD = new Capabilities({
   queryType: 'none',
+  msqe: false,
   coordinator: true,
   overlord: true,
 });
 Capabilities.COORDINATOR = new Capabilities({
   queryType: 'none',
+  msqe: false,
   coordinator: true,
   overlord: false,
 });
 Capabilities.OVERLORD = new Capabilities({
   queryType: 'none',
+  msqe: false,
   coordinator: false,
   overlord: true,
 });
 Capabilities.NO_PROXY = new Capabilities({
   queryType: 'nativeAndSql',
+  msqe: true,
   coordinator: false,
   overlord: false,
 });

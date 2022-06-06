@@ -107,10 +107,12 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       ? possibleLiveQueryMode
       : 'auto';
 
+    const hasSqlTask = props.extraEngines.includes('sql-task');
     const showWorkHistory = Boolean(
-      props.extraEngines.includes('sql-task') &&
-        localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
+      hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
     );
+
+    WorkbenchQuery.setSqlTaskEnabled(hasSqlTask);
 
     const tabEntries =
       Array.isArray(possibleTabEntries) && possibleTabEntries.length
@@ -355,9 +357,10 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     const { extraEngines } = this.props;
     const { showWorkHistory } = this.state;
 
+    const hasSqlTask = extraEngines.includes('sql-task');
     return (
       <ButtonGroup className="toolbar">
-        {extraEngines.includes('sql-task') && (
+        {hasSqlTask && (
           <Popover2
             position="bottom-left"
             content={
@@ -396,7 +399,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         <Popover2 content={this.renderToolbarMoreMenu()}>
           <Button icon={IconNames.WRENCH} minimal />
         </Popover2>
-        {!showWorkHistory && (
+        {hasSqlTask && !showWorkHistory && (
           <Button
             icon={IconNames.ONE_COLUMN}
             minimal
@@ -575,6 +578,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   };
 
   render(): JSX.Element {
+    const { extraEngines } = this.props;
     const { columnMetadataState, showWorkHistory } = this.state;
     const query = this.getCurrentQuery();
 
@@ -605,7 +609,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           />
         )}
         {this.renderCenterPanel()}
-        {showWorkHistory && (
+        {showWorkHistory && extraEngines.includes('sql-task') && (
           <WorkPanel
             onClose={this.handleWorkPanelClose}
             onExecutionDetails={this.handleDetails}
