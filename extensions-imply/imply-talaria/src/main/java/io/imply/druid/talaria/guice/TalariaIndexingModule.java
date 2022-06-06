@@ -11,12 +11,9 @@ package io.imply.druid.talaria.guice;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Provides;
-import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.indexing.TalariaControllerTask;
 import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFactory;
@@ -63,7 +60,6 @@ import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.DruidProcessingConfig;
 
 import java.util.Collections;
@@ -72,16 +68,9 @@ import java.util.Set;
 
 public class TalariaIndexingModule implements DruidModule
 {
-  @Inject
-  ImplyLicenseManager implyLicenseManager = null;
-
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    if (!isLicensed()) {
-      return Collections.emptyList();
-    }
-
     return Collections.singletonList(
         new SimpleModule(getClass().getSimpleName()).registerSubtypes(
             // Task classes
@@ -138,10 +127,6 @@ public class TalariaIndexingModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (!isLicensed()) {
-      return;
-    }
-
     PolyBind.createChoice(
         binder,
         "druid.talaria.externalsink.type",
@@ -162,23 +147,10 @@ public class TalariaIndexingModule implements DruidModule
     JsonConfigProvider.bind(binder, "druid.talaria.externalsink", LocalTalariaExternalSinkConfig.class);
   }
 
-  @VisibleForTesting
-  protected boolean isLicensed()
-  {
-    return implyLicenseManager.isFeatureEnabled(TalariaModules.FEATURE_NAME);
-  }
-
   @Provides
   @LazySingleton
   public Bouncer makeBouncer(final DruidProcessingConfig processingConfig, @Self final Set<NodeRole> nodeRoles)
   {
-    if (!isLicensed()) {
-      // This provider will not be used if none of the other Talaria stuff is bound, so this exception will
-      // not actually be reached in production. But include it here anyway, to make it clear that it is only
-      // expected to be used in concert with the rest of the extension.
-      throw new ISE("Not used");
-    }
-
     if (nodeRoles.contains(NodeRole.PEON) && !nodeRoles.contains(NodeRole.INDEXER)) {
       // CliPeon -> use only one thread regardless of configured # of processing threads. This matches the expected
       // resource usage pattern for CliPeon-based tasks (one task / one working thread per JVM).
