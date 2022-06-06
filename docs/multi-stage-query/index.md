@@ -33,7 +33,6 @@ exchange of data between servers.
 To use MSQE, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.01 STS or later. Imply recommends using the latest STS version. Note that the feature isn't available in an LTS release yet. 
-- A license that has an entitlement for the multi-stage query engine. The `features` section of your license string must contain the `talaria` snippet.
 - Imply Manager administrator access to enable the required extension. For security information related to datasources, see [Security](#security).
 
 ## Setup
@@ -63,12 +62,6 @@ In Imply Manager, perform the following steps to enable the multi-stage query en
 
 
 5. Add the following **Service properties**:
-
-   **Common** service properties include your multi-stage query engine entitled license:
-
-   ```bash
-   imply.license=<license string>
-   ```
 
    **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart to match your usage.
 
