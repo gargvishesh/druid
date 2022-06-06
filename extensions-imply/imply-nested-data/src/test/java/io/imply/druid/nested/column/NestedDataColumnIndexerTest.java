@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.segment.EncodedKeyComponent;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
@@ -115,6 +116,31 @@ public class NestedDataColumnIndexerTest extends InitializedNullHandlingTest
       Assert.assertEquals(104, key.getEffectiveSizeBytes());
       Assert.assertEquals(6, indexer.getCardinality());
     }
+  }
+
+  @Test
+  public void testJsonIndexerStringsParseException()
+  {
+    // same checks as testIndexer but json strings
+    JsonColumnIndexer indexer = new JsonColumnIndexer();
+    ObjectMapper jsonMapper = new DefaultObjectMapper();
+    Assert.assertEquals(0, indexer.getCardinality());
+
+    EncodedKeyComponent<StructuredData> key;
+    // new raw value, new field, new dictionary entry
+    key = indexer.processRowValsToUnsortedEncodedKeyComponent(
+        "{'foo':1",
+        false
+    );
+    // without parse exceptions is processed as a null
+    Assert.assertEquals(46, key.getEffectiveSizeBytes());
+    Assert.assertEquals(0, indexer.getCardinality());
+    Assert.assertThrows(ParseException.class, () ->
+        indexer.processRowValsToUnsortedEncodedKeyComponent(
+            "{'foo':1",
+            true
+        )
+    );
   }
 
   private void testIndexer(NestedDataColumnIndexer indexer)
