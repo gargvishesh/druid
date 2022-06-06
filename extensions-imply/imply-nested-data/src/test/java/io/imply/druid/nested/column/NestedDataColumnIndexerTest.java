@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.segment.EncodedKeyComponent;
 import org.apache.druid.testing.InitializedNullHandlingTest;
@@ -107,8 +108,13 @@ public class NestedDataColumnIndexerTest extends InitializedNullHandlingTest
         jsonMapper.writeValueAsString(""),
         false
     );
-    Assert.assertEquals(0, key.getEffectiveSizeBytes());
-    Assert.assertEquals(6, indexer.getCardinality());
+    if (NullHandling.replaceWithDefault()) {
+      Assert.assertEquals(0, key.getEffectiveSizeBytes());
+      Assert.assertEquals(6, indexer.getCardinality());
+    } else {
+      Assert.assertEquals(104, key.getEffectiveSizeBytes());
+      Assert.assertEquals(6, indexer.getCardinality());
+    }
   }
 
   private void testIndexer(NestedDataColumnIndexer indexer)
@@ -155,7 +161,12 @@ public class NestedDataColumnIndexerTest extends InitializedNullHandlingTest
     Assert.assertEquals(5, indexer.getCardinality());
 
     key = indexer.processRowValsToUnsortedEncodedKeyComponent("", false);
-    Assert.assertEquals(0, key.getEffectiveSizeBytes());
-    Assert.assertEquals(6, indexer.getCardinality());
+    if (NullHandling.replaceWithDefault()) {
+      Assert.assertEquals(0, key.getEffectiveSizeBytes());
+      Assert.assertEquals(6, indexer.getCardinality());
+    } else {
+      Assert.assertEquals(104, key.getEffectiveSizeBytes());
+      Assert.assertEquals(6, indexer.getCardinality());
+    }
   }
 }

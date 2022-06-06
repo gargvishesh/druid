@@ -29,10 +29,7 @@ public class JsonColumnIndexer extends NestedDataColumnIndexer
   {
     if (dimValues instanceof String) {
       final String stringValue = (String) dimValues;
-      if (stringValue.startsWith("[")
-          || stringValue.startsWith("{")
-          || stringValue.startsWith("\"")
-          || (stringValue.length() > 0 && Character.isDigit(stringValue.charAt(0)))) {
+      if (maybeJson(stringValue)) {
         try {
           final Object deserialized = JSON_MAPPER.readValue(stringValue, Object.class);
           return super.processRowValsToUnsortedEncodedKeyComponent(deserialized, reportParseExceptions);
@@ -43,5 +40,13 @@ public class JsonColumnIndexer extends NestedDataColumnIndexer
       }
     }
     return super.processRowValsToUnsortedEncodedKeyComponent(dimValues, reportParseExceptions);
+  }
+
+  private static boolean maybeJson(String val)
+  {
+    if (val.isEmpty()) {
+      return false;
+    }
+    return val.startsWith("[") || val.startsWith("{") || val.startsWith("\"") || Character.isDigit(val.charAt(0));
   }
 }
