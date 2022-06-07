@@ -22,7 +22,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
 import React, { useEffect, useRef, useState } from 'react';
 
-import { Loader } from '../../../components';
+import { Loader, QueryErrorPane } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { WorkbenchHistory } from '../../../singletons/workbench-history';
@@ -36,7 +36,6 @@ import {
   summarizeExternalConfig,
   WorkbenchQuery,
 } from '../../../workbench-models';
-import { QueryError } from '../../query-view/query-error/query-error';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
@@ -359,7 +358,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   <div>Unknown query execution state</div>
                 ))}
               {executionState.error && (
-                <QueryError
+                <QueryErrorPane
                   error={executionState.error}
                   moveCursorTo={position => {
                     moveToPosition(position);

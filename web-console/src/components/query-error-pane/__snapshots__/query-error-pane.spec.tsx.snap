@@ -1,8 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`QueryError matches snapshot 1`] = `
+exports[`QueryErrorPane matches snapshot 1`] = `
 <div
-  className="query-error"
+  className="query-error-pane"
 >
   something went wrong in line 7, column 8.
 </div>

@@ -58,11 +58,21 @@ export class WorkbenchQuery {
   static TMP_PREFIX = '_tmp_';
   static INLINE_DATASOURCE_MARKER = '__you_have_been_visited_by_talaria';
 
+  private static sqlTaskEnabled = false;
+
   static blank(): WorkbenchQuery {
     return new WorkbenchQuery({
       queryContext: {},
       queryParts: [WorkbenchQueryPart.blank()],
     });
+  }
+
+  static setSqlTaskEnabled(enabled: boolean): void {
+    WorkbenchQuery.sqlTaskEnabled = enabled;
+  }
+
+  static getSqlTaskEnabled(): boolean {
+    return WorkbenchQuery.sqlTaskEnabled;
   }
 
   static fromEffectiveQueryAndContext(queryString: string, context: QueryContext): WorkbenchQuery {
@@ -167,7 +177,7 @@ export class WorkbenchQuery {
     const { engine } = this;
     if (engine) return engine;
     if (this.getLastPart().isJsonLike()) return 'native';
-    return this.isTaskEngineNeeded() ? 'sql-task' : 'sql';
+    return WorkbenchQuery.getSqlTaskEnabled() && this.isTaskEngineNeeded() ? 'sql-task' : 'sql';
   }
 
   private getLastPart(): WorkbenchQueryPart {

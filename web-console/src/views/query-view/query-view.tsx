@@ -27,7 +27,7 @@ import React, { RefObject } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Loader } from '../../components';
+import { Loader, QueryErrorPane } from '../../components';
 import { EditContextDialog } from '../../dialogs/edit-context-dialog/edit-context-dialog';
 import { QueryHistoryDialog } from '../../dialogs/query-history-dialog/query-history-dialog';
 import { Api, AppToaster } from '../../singletons';
@@ -58,7 +58,6 @@ import {
   LiveQueryMode,
   LiveQueryModeSelector,
 } from './live-query-mode-selector/live-query-mode-selector';
-import { QueryError } from './query-error/query-error';
 import { QueryExtraInfo } from './query-extra-info/query-extra-info';
 import { QueryInput } from './query-input/query-input';
 import { QueryOutput } from './query-output/query-output';
@@ -443,7 +442,7 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
             />
           )}
           {queryResultState.error && (
-            <QueryError
+            <QueryErrorPane
               error={queryResultState.error}
               moveCursorTo={position => {
                 this.moveToPosition(position);

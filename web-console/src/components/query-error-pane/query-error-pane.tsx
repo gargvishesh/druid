@@ -18,24 +18,24 @@
 
 import React, { useState } from 'react';
 
-import { HighlightText } from '../../../components';
-import { DruidError, RowColumn } from '../../../utils';
+import { DruidError, RowColumn } from '../../utils';
+import { HighlightText } from '../highlight-text/highlight-text';
 
-import './query-error.scss';
+import './query-error-pane.scss';
 
-export interface QueryErrorProps {
+export interface QueryErrorPaneProps {
   error: DruidError;
   moveCursorTo: (rowColumn: RowColumn) => void;
   queryString?: string;
   onQueryStringChange?: (newQueryString: string, run?: boolean) => void;
 }
 
-export const QueryError = React.memo(function QueryError(props: QueryErrorProps) {
+export const QueryErrorPane = React.memo(function QueryErrorPane(props: QueryErrorPaneProps) {
   const { error, moveCursorTo, queryString, onQueryStringChange } = props;
   const [showMode, setShowMore] = useState(false);
 
   if (!error.errorMessage) {
-    return <div className="query-error">{error.message}</div>;
+    return <div className="query-error-pane">{error.message}</div>;
   }
 
   const { position, suggestion } = error;
@@ -59,7 +59,7 @@ export const QueryError = React.memo(function QueryError(props: QueryErrorProps)
   }
 
   return (
-    <div className="query-error">
+    <div className="query-error-pane">
       {suggestionElement}
       {error.error && <p>{`Error: ${error.error}`}</p>}
       {error.errorMessageWithoutExpectation && (

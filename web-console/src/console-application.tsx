@@ -25,8 +25,7 @@ import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
 import { AppToaster } from './singletons';
-import { MULTI_STAGE_QUERY_ENABLED } from './singletons/multi-stage-query-enabled';
-import { Capabilities, localStorageGetJson, LocalStorageKeys, QueryManager } from './utils';
+import { Capabilities, QueryManager } from './utils';
 import {
   DatasourcesView,
   HomeView,
@@ -164,10 +163,7 @@ export class ConsoleApplication extends React.PureComponent<
 
   private readonly goToQuery = (initQuery: string) => {
     this.initQuery = initQuery;
-    window.location.hash =
-      MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW)
-        ? 'workbench'
-        : 'query';
+    window.location.hash = 'workbench';
     this.resetInitialsWithDelay();
   };
 
@@ -227,7 +223,7 @@ export class ConsoleApplication extends React.PureComponent<
   // BEGIN: Imply-added code for MSQE execution
   private readonly wrappedWorkbenchView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
-    if (!MULTI_STAGE_QUERY_ENABLED) return null;
+    const { capabilities } = this.state;
 
     return this.wrapInViewContainer(
       'workbench',
@@ -239,7 +235,7 @@ export class ConsoleApplication extends React.PureComponent<
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
-        extraEngines={['sql-async', 'sql-task']}
+        extraEngines={capabilities.hasMsqe() ? ['sql-async', 'sql-task'] : []}
       />,
       'thin',
     );
@@ -337,17 +333,13 @@ export class ConsoleApplication extends React.PureComponent<
               <Route path="/services" component={this.wrappedServicesView} />
 
               <Route path="/query" component={this.wrappedQueryView} />
+              <Route
+                path={['/workbench/:tabId', '/workbench']}
+                component={this.wrappedWorkbenchView}
+              />
 
               {/* BEGIN: Imply-added code for MSQE execution */}
-              {MULTI_STAGE_QUERY_ENABLED && (
-                <Route
-                  path={['/workbench/:tabId', '/workbench']}
-                  component={this.wrappedWorkbenchView}
-                />
-              )}
-              {MULTI_STAGE_QUERY_ENABLED && (
-                <Route path="/sqloader" component={this.wrappedSqloaderView} />
-              )}
+              <Route path="/sqloader" component={this.wrappedSqloaderView} />
               {/* END: Imply-modified code for MSQE execution */}
 
               {/* BEGIN: Imply-added code for user management */}

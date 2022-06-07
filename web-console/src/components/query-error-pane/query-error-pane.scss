@@ -16,20 +16,13 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
-import React from 'react';
+@import '../../blueprint-overrides/common/colors';
+@import '../../variables';
 
-import { QueryError } from './query-error';
+.query-error-pane {
+  padding: 20px 22px;
 
-describe('QueryError', () => {
-  it('matches snapshot', () => {
-    const queryError = shallow(
-      <QueryError
-        error={new Error('something went wrong in line 7, column 8.')}
-        moveCursorTo={() => {}}
-      />,
-    );
-
-    expect(queryError).toMatchSnapshot();
-  });
-});
+  .#{$bp-ns}-dark & {
+    background: $dark-gray3;
+  }
+}

@@ -571,17 +571,19 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
     if (parsedQuery) {
       let ex: SqlExpression | undefined;
       let having = false;
-      const selectValue = parsedQuery.getSelectExpressionForIndex(headerIndex);
-      if (selectValue) {
-        const outputName = selectValue.getOutputName();
-        having = parsedQuery.isAggregateSelectIndex(headerIndex);
-        if (having && outputName) {
-          ex = SqlRef.column(outputName);
-        } else {
-          ex = selectValue.getUnderlyingExpression();
-        }
-      } else if (parsedQuery.hasStarInSelect()) {
+      if (parsedQuery.hasStarInSelect()) {
         ex = SqlRef.column(column.name);
+      } else {
+        const selectValue = parsedQuery.getSelectExpressionForIndex(headerIndex);
+        if (selectValue) {
+          const outputName = selectValue.getOutputName();
+          having = parsedQuery.isAggregateSelectIndex(headerIndex);
+          if (having && outputName) {
+            ex = SqlRef.column(outputName);
+          } else {
+            ex = selectValue.getUnderlyingExpression();
+          }
+        }
       }
 
       const jsonColumn = column.nativeType === 'COMPLEX<json>';

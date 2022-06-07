@@ -36,6 +36,7 @@ import { useQueryManager } from '../../../hooks';
 import {
   formatSignature,
   getDruidErrorMessage,
+  nonEmptyArray,
   queryDruidSql,
   QueryExplanation,
   QueryWithContext,
@@ -140,7 +141,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
     content = <div>{explainError.message}</div>;
   } else if (!explainResult) {
     content = <div />;
-  } else if (Array.isArray(explainResult) && explainResult.length) {
+  } else if (nonEmptyArray(explainResult)) {
     if (explainResult.length === 1) {
       content = renderQueryExplanation(explainResult[0]);
     } else {
@@ -159,7 +160,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
       );
     }
   } else {
-    content = <div className="generic-result">{explainResult}</div>;
+    content = <div className="generic-result">{String(explainResult)}</div>;
   }
 
   return (

@@ -24,7 +24,7 @@ import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 
-import { Loader } from '../../../components';
+import { Loader, QueryErrorPane } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { WorkbenchHistory } from '../../../singletons/workbench-history';
@@ -39,7 +39,6 @@ import {
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
 import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../workbench-models';
-import { QueryError } from '../../query-view/query-error/query-error';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
@@ -371,7 +370,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               <div>Unknown query execution state</div>
             ))}
           {executionState.error && (
-            <QueryError
+            <QueryErrorPane
               error={executionState.error}
               moveCursorTo={position => {
                 moveToPosition(position);

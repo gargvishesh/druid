@@ -35,6 +35,7 @@ export * from './loader/loader';
 export * from './menu-checkbox/menu-checkbox';
 export * from './more-button/more-button';
 export * from './popover-text/popover-text';
+export * from './query-error-pane/query-error-pane';
 export * from './refresh-button/refresh-button';
 export * from './rule-editor/rule-editor';
 export * from './segment-timeline/segment-timeline';
