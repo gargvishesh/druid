@@ -226,7 +226,8 @@ export class WorkbenchQuery {
     return true;
   }
 
-  public getIngestDatasource() {
+  public getIngestDatasource(): string | undefined {
+    if (this.getEffectiveEngine() !== 'sql-task') return;
     return this.getLastPart().getIngestDatasource();
   }
 
