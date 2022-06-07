@@ -22,7 +22,7 @@ public class SimpleTimeSeriesView
   private final RowReader rowReader;
   private final ObjectStrategy<SimpleTimeSeries> objectStrategy;
 
-  public SimpleTimeSeriesView(RowReader rowReader, ObjectStrategy<SimpleTimeSeries> objectStrategy)
+  public SimpleTimeSeriesView(RowReader rowReader, SimpleTimeSeriesObjectStrategy objectStrategy)
   {
     this.rowReader = rowReader;
     this.objectStrategy = objectStrategy;
@@ -37,11 +37,6 @@ public class SimpleTimeSeriesView
     Factory factory = new Factory(originalByteBuffer);
 
     return factory.create(rowIndexUncompressedBlock, dataUncompressedBlock);
-  }
-
-  public int getSerializedSize()
-  {
-    return rowReader.getSerializedSize();
   }
 
   @Nullable
@@ -64,7 +59,7 @@ public class SimpleTimeSeriesView
     public SimpleTimeSeriesView create(
         ByteBuffer rowIndexUncompressedByteBuffer,
         ByteBuffer dataUncompressedByteBuffer,
-        ObjectStrategy<SimpleTimeSeries> objectStrategy
+        SimpleTimeSeriesObjectStrategy objectStrategy
     )
     {
       SimpleTimeSeriesView simpleTimeSeriesView = new SimpleTimeSeriesView(

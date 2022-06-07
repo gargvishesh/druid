@@ -22,16 +22,19 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
 {
   private final SimpleTimeSeriesView simpleTimeSeriesView;
   private final Closer closer;
+  private int serializedSize;
 
-  private SimpleTimeSeriesComplexColumn(SimpleTimeSeriesView simpleTimeSeriesView, Closer closer)
+  private SimpleTimeSeriesComplexColumn(SimpleTimeSeriesView simpleTimeSeriesView, Closer closer, int serializedSize)
   {
     this.simpleTimeSeriesView = simpleTimeSeriesView;
     this.closer = closer;
+    this.serializedSize = serializedSize;
   }
 
   public static SimpleTimeSeriesComplexColumn create(
       SimpleTimeSeriesView.Factory simpleTimeSeriesViewFactory,
-      NativeClearedByteBufferProvider byteBufferProvider
+      NativeClearedByteBufferProvider byteBufferProvider,
+      int serializedSize
   )
   {
     Closer closer = Closer.create();
@@ -45,7 +48,7 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
         rowIndexUncompressedBlockHolder.get(), dataUncompressedBlockHolder.get()
     );
 
-    return new SimpleTimeSeriesComplexColumn(simpleTimeSeriesView, closer);
+    return new SimpleTimeSeriesComplexColumn(simpleTimeSeriesView, closer, serializedSize);
   }
 
   @Override
@@ -69,7 +72,7 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
   @Override
   public int getLength()
   {
-    return simpleTimeSeriesView.getSerializedSize();
+    return serializedSize;
   }
 
   @Override
