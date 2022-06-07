@@ -21,6 +21,10 @@ import { sane } from 'druid-query-toolkit';
 import { WorkbenchQuery } from './workbench-query';
 
 describe('WorkbenchQuery', () => {
+  beforeAll(() => {
+    WorkbenchQuery.setSqlTaskEnabled(true);
+  });
+
   describe('.commentOutInsertInto', () => {
     it('works when INSERT INTO is first', () => {
       const sql = sane`
@@ -93,7 +97,9 @@ describe('WorkbenchQuery', () => {
         CLUSTERED BY trip_id
       `;
 
-      expect(WorkbenchQuery.blank().changeQueryString(sql).getIngestDatasource()).toEqual('trips2');
+      const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
+      expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
+      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
     });
   });
 
