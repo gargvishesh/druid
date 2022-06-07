@@ -18,13 +18,13 @@ import com.google.inject.Key;
 import com.google.inject.Provides;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.NoopQueryMakerFactory;
-import io.imply.druid.talaria.sql.TalariaExternalOperatorConversion;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.metadata.input.InputSourceModule;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
+import org.apache.druid.sql.calcite.external.ExternalOperatorConversion;
 import org.apache.druid.sql.calcite.run.QueryMakerFactory;
 import org.apache.druid.sql.guice.SqlBindings;
 
@@ -60,7 +60,7 @@ public class TalariaSqlModule implements DruidModule
     binder.install(new InputSourceModule());
 
     // Set up the EXTERN macro.
-    SqlBindings.addOperatorConversion(binder, TalariaExternalOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, ExternalOperatorConversion.class);
 
     // Set up the ImplyQueryMakerFactory.
     PolyBind.optionBinder(binder, Key.get(QueryMakerFactory.class))
