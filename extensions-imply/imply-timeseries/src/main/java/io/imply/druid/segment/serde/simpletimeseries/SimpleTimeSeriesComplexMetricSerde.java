@@ -70,12 +70,14 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   @Override
   public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
+    int serializedSize = buffer.remaining();
     SimpleTimeSeriesView.Factory simpleTimeSeriesViewFactory = new SimpleTimeSeriesView.Factory(buffer);
 
     builder.setComplexColumnSupplier(
         () -> SimpleTimeSeriesComplexColumn.create(
             simpleTimeSeriesViewFactory,
-            NativeClearedByteBufferProvider.DEFAULT
+            NativeClearedByteBufferProvider.DEFAULT,
+            serializedSize
         )
     );
   }

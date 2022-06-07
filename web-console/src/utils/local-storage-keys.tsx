@@ -41,7 +41,7 @@ export const LocalStorageKeys = {
   LIVE_QUERY_MODE: 'live-query-mode' as const,
 
   // BEGIN: Imply-added code for the multi-stage query engine
-  WORKBENCH_SHOW: 'talaria-show' as const,
+  SQLOADER_SHOW: 'sqloader-show' as const,
   WORKBENCH_QUERIES: 'workbench-queries' as const,
   WORKBENCH_LAST_TAB: 'workbench-last-tab' as const,
   WORKBENCH_PANE_SIZE: 'workbench-pane-size' as const,

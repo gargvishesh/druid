@@ -24,7 +24,7 @@ exports[`QueryView matches snapshot 1`] = `
           "tableRefName": undefined,
           "type": "ref",
         },
-        "not": false,
+        "negated": false,
         "op": ">=",
         "rhs": SqlMulti {
           "args": SeparatedArray {
@@ -176,7 +176,7 @@ exports[`QueryView matches snapshot with query 1`] = `
           "tableRefName": undefined,
           "type": "ref",
         },
-        "not": false,
+        "negated": false,
         "op": ">=",
         "rhs": SqlMulti {
           "args": SeparatedArray {
