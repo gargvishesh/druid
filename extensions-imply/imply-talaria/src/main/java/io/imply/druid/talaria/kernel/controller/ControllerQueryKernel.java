@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.kernel.controller;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
@@ -482,5 +483,11 @@ public class ControllerQueryKernel
         }
       }
     }
+  }
+
+  @VisibleForTesting
+  ControllerStageKernel getControllerStageKernel(int stageNumber)
+  {
+    return stageTrackers.get(new StageId(queryDef.getQueryId(), stageNumber));
   }
 }
