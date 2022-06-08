@@ -19,7 +19,6 @@
 import { Api } from '../singletons';
 
 import { localStorageGetJson, LocalStorageKeys } from './local-storage-keys';
-import { deepGet } from './object-change';
 
 export type CapabilitiesMode = 'full' | 'no-sql' | 'no-proxy';
 
@@ -128,16 +127,10 @@ export class Capabilities {
 
   static async detectMsqe(): Promise<boolean> {
     try {
-      await Api.instance.post(`/druid/v2/sql/task?capabilities`, {
-        query: 'unparsable_query',
-      });
+      await Api.instance.get(`/druid/v2/sql/task/enabled?capabilities`);
+      return true;
+    } catch {
       return false;
-    } catch (e) {
-      // If we get a real 'SQL parse failed' error with a 400 status code then we know the MSQE is enabled
-      return (
-        deepGet(e, 'response.status') === 400 &&
-        deepGet(e, 'response.data.error.error') === 'SQL parse failed'
-      );
     }
   }
 
