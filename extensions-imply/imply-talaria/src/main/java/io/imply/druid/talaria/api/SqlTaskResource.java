@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.api;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.druid.common.exception.SanitizableException;
@@ -26,6 +27,9 @@ import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.server.initialization.ServerConfig;
+import org.apache.druid.server.security.Access;
+import org.apache.druid.server.security.AuthorizationUtils;
+import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlLifecycleFactory;
@@ -34,6 +38,7 @@ import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -41,8 +46,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,15 +64,41 @@ public class SqlTaskResource
 
   private final SqlLifecycleFactory sqlLifecycleFactory;
   private final ServerConfig serverConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public SqlTaskResource(
       final SqlLifecycleFactory sqlLifecycleFactory,
-      final ServerConfig serverConfig
+      final ServerConfig serverConfig,
+      final AuthorizerMapper authorizerMapper
   )
   {
     this.sqlLifecycleFactory = sqlLifecycleFactory;
     this.serverConfig = serverConfig;
+    this.authorizerMapper = authorizerMapper;
+  }
+
+  /**
+   * API that allows callers to check if this resource is installed without actually issuing a query. If installed,
+   * this call returns 200 OK. If not installed, it returns 404 Not Found.
+   */
+  @GET
+  @Path("/enabled")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response doGetEnabled(@Context final HttpServletRequest request)
+  {
+    // All authenticated users are authorized for this API: check an empty resource list.
+    final Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+        request,
+        Collections.emptyList(),
+        authorizerMapper
+    );
+
+    if (!authResult.isAllowed()) {
+      throw new ForbiddenException(authResult.toString());
+    }
+
+    return Response.ok(ImmutableMap.of("enabled", true)).build();
   }
 
   /**
@@ -160,7 +191,7 @@ public class SqlTaskResource
     }
     catch (ForbiddenException e) {
       throw (ForbiddenException) serverConfig.getErrorResponseTransformStrategy()
-                                                     .transformIfNeeded(e); // let ForbiddenExceptionMapper handle this
+                                             .transformIfNeeded(e); // let ForbiddenExceptionMapper handle this
     }
     catch (RelOptPlanner.CannotPlanException e) {
       SqlPlanningException spe = new SqlPlanningException(
