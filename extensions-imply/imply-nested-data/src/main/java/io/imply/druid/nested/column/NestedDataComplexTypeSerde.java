@@ -43,7 +43,7 @@ public class NestedDataComplexTypeSerde extends ComplexMetricSerde
     final SmileFactory smileFactory = new SmileFactory();
     smileFactory.configure(SmileGenerator.Feature.ENCODE_BINARY_AS_7BIT, false);
     smileFactory.delegateToTextual(true);
-    final ObjectMapper mapper = new DefaultObjectMapper(smileFactory);
+    final ObjectMapper mapper = new DefaultObjectMapper(smileFactory, null);
     mapper.getFactory().setCodec(mapper);
     mapper.registerModules(NestedDataModule.getJacksonModulesList());
     OBJECT_MAPPER = mapper;

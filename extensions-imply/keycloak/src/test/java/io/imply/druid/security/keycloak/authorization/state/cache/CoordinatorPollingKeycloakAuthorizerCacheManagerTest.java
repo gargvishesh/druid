@@ -79,7 +79,7 @@ public class CoordinatorPollingKeycloakAuthorizerCacheManagerTest
     final SmileFactory smileFactory = new SmileFactory();
     smileFactory.configure(SmileGenerator.Feature.ENCODE_BINARY_AS_7BIT, false);
     smileFactory.delegateToTextual(true);
-    objectMapper = new DefaultObjectMapper(smileFactory);
+    objectMapper = new DefaultObjectMapper(smileFactory, null);
     objectMapper.getFactory().setCodec(objectMapper);
     injector = Mockito.mock(Injector.class);
     authorizerMapper = Mockito.mock(AuthorizerMapper.class);
