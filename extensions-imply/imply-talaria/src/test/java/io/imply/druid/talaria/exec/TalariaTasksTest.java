@@ -9,13 +9,29 @@
 
 package io.imply.druid.talaria.exec;
 
+import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaException;
+import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
+import org.apache.druid.client.indexing.TaskStatus;
+import org.apache.druid.indexer.TaskLocation;
+import org.apache.druid.indexer.TaskState;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TalariaTasksTest
 {
@@ -108,5 +124,92 @@ public class TalariaTasksTest
         workerReport,
         TalariaTasks.makeErrorReport(WORKER_ID, WORKER_HOST, controllerReport, workerReport)
     );
+  }
+
+  @Test
+  public void test_queryWithoutEnoughSlots_shouldThrowException()
+  {
+    final int numSlots = 5;
+    final int numTasks = 10;
+
+    LeaderContext leaderContext = mock(LeaderContext.class);
+    when(leaderContext.workerManager()).thenReturn(new TasksTestWorkerManagerClient(numSlots));
+    TalariaWorkerTaskLauncher talariaWorkerTaskLauncher = new TalariaWorkerTaskLauncher(CONTROLLER_ID,
+                                                                                        "foo",
+                                                                                        leaderContext,
+                                                                                        numTasks,
+                                                                                        TimeUnit.SECONDS.toMillis(5)
+    );
+
+    try {
+      talariaWorkerTaskLauncher.start();
+      fail();
+    }
+    catch (Exception e) {
+      Assert.assertEquals(
+          ((TalariaException) e.getCause().getCause()).getFault().getCodeWithMessage(),
+          new TaskStartTimeoutFault().getCodeWithMessage()
+      );
+    }
+  }
+
+  static class TasksTestWorkerManagerClient implements WorkerManagerClient
+  {
+    // Num of slots available for tasks
+    final int numSlots;
+
+    public TasksTestWorkerManagerClient(int numSlots)
+    {
+      this.numSlots = numSlots;
+    }
+
+    Set<String> taskSlots;
+
+    @Override
+    public TaskLocation location(String workerId)
+    {
+      if (taskSlots.contains(workerId)) {
+        return TaskLocation.create("host", 80, 23);
+      } else {
+        return TaskLocation.unknown();
+      }
+    }
+
+    @Override
+    public Map<String, TaskStatus> statuses(Set<String> taskIds)
+    {
+      // Choose numSlots taskIds from the set and add it to taskSlots
+      if (taskSlots == null) {
+        taskSlots = taskIds.stream()
+                           .limit(numSlots)
+                           .collect(Collectors.toSet());
+      }
+
+      return taskSlots.stream()
+                      .collect(
+                          Collectors.toMap(
+                              taskId -> taskId,
+                              taskId -> new TaskStatus(taskId, TaskState.RUNNING, 2)
+                          )
+                      );
+    }
+
+    @Override
+    public String run(String leaderId, TalariaWorkerTask task)
+    {
+      return null;
+    }
+
+    @Override
+    public void cancel(String workerId)
+    {
+      // do nothing
+    }
+
+    @Override
+    public void close()
+    {
+      // do nothing
+    }
   }
 }

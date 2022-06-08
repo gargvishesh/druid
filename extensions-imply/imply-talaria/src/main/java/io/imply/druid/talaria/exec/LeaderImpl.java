@@ -174,6 +174,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -432,7 +434,8 @@ public class LeaderImpl implements Leader
         id(),
         task.getDataSource(),
         context,
-        task.getTuningConfig().getMaxNumConcurrentSubTasks()
+        task.getTuningConfig().getMaxNumConcurrentSubTasks(),
+        TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30) // 10 minutes +- 2 minutes jitter
     );
 
     long maxParseExceptions = -1;

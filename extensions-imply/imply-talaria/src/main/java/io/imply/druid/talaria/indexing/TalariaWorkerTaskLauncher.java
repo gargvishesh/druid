@@ -15,6 +15,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
+import io.imply.druid.talaria.indexing.error.TalariaException;
+import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
 import io.imply.druid.talaria.util.FutureUtils;
 import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
@@ -51,6 +53,7 @@ public class TalariaWorkerTaskLauncher
   private final LeaderContext context;
   private final int numTasks;
   private final ExecutorService exec;
+  private final long maxTaskStartDelayMillis;
 
   // Mutable state meant to be accessible by threads outside the main loop.
   // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
@@ -63,6 +66,10 @@ public class TalariaWorkerTaskLauncher
   // Mutable state meant to be accessible only to the main loop.
   private final Map<String, TaskState> tasks = new TreeMap<>();
 
+  // Map of task id to start time. Used to check if tasks take too long to start.
+  // Only used in the main loop.
+  private final Map<String, Long> startTimeMillis = new TreeMap<>();
+
   // Set of tasks which are issued a cancel request by the leader.
   private final Set<String> canceledWorkerTasks = ConcurrentHashMap.newKeySet();
 
@@ -70,7 +77,8 @@ public class TalariaWorkerTaskLauncher
       final String controllerTaskId,
       final String dataSource,
       final LeaderContext context,
-      final int numTasks
+      final int numTasks,
+      final long maxTaskStartDelayMillis
   )
   {
     this.controllerTaskId = controllerTaskId;
@@ -78,6 +86,7 @@ public class TalariaWorkerTaskLauncher
     this.context = context;
     this.exec = Execs.singleThreaded("talaria-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
     this.numTasks = numTasks;
+    this.maxTaskStartDelayMillis = maxTaskStartDelayMillis;
   }
 
   /**
@@ -191,6 +200,7 @@ public class TalariaWorkerTaskLauncher
       throw new ISE("Tasks cannot be started twice.");
     }
 
+    long taskStartTime = System.currentTimeMillis();
     // TODO(gianm): Start in parallel
     for (int i = 0; i < numTasks; i++) {
       if (stopped.get()) {
@@ -206,6 +216,7 @@ public class TalariaWorkerTaskLauncher
       );
 
       tasks.put(task.getId(), null);
+      startTimeMillis.put(task.getId(), taskStartTime);
       context.workerManager().run(task.getId(), task);
     }
 
@@ -245,11 +256,21 @@ public class TalariaWorkerTaskLauncher
             && !taskState.isComplete()
             && !TaskLocation.unknown().equals(workerManager.location(taskId));
 
-        if (!taskIsRunningWithLocationOrFinished) {
+        if (taskIsRunningWithLocationOrFinished) {
+          startTimeMillis.remove(taskId);
+        } else {
           allTasksAreRunningWithLocationOrFinished = false;
           break;
         }
       }
+
+      // If task has not finished or been assigned to a location to run for more than MAX_ACCEPTED_TASK_START_DELAY, fail the tasks.
+      startTimeMillis.forEach((taskId, startTime) -> {
+        long timeElapsedFromTaskStart = System.currentTimeMillis() - startTime;
+        if (timeElapsedFromTaskStart > maxTaskStartDelayMillis) {
+          throw new TalariaException(new TaskStartTimeoutFault());
+        }
+      });
 
       if (allTasksAreRunningWithLocationOrFinished) {
         return true;
