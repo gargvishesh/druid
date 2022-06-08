@@ -75,7 +75,9 @@ public class SpecificTaskServiceLocator implements ServiceLocator
         }
 
         // Use shared future for concurrent calls to "locate"; don't want multiple calls out to the Overlord at once.
-        pendingFuture = SettableFuture.create();
+        // Alias pendingFuture to retVal in case taskStatusFuture is already resolved. (This will make the callback
+        // below execute immediately, firing and nulling out pendingFuture.)
+        final SettableFuture<ServiceLocations> retVal = (pendingFuture = SettableFuture.create());
         pendingFuture.addListener(
             () -> {
               if (!taskStatusFuture.isDone()) {
@@ -125,6 +127,9 @@ public class SpecificTaskServiceLocator implements ServiceLocator
                     } else {
                       pendingFuture.set(ServiceLocations.forLocation(lastKnownLocation));
                     }
+
+                    // Clear pendingFuture once it has been set.
+                    pendingFuture = null;
                   }
                 }
               }
@@ -135,13 +140,16 @@ public class SpecificTaskServiceLocator implements ServiceLocator
                 synchronized (lock) {
                   if (pendingFuture != null) {
                     pendingFuture.setException(t);
+
+                    // Clear pendingFuture once it has been set.
+                    pendingFuture = null;
                   }
                 }
               }
             }
         );
 
-        return Futures.nonCancellationPropagating(pendingFuture);
+        return Futures.nonCancellationPropagating(retVal);
       } else {
         return Futures.immediateFuture(ServiceLocations.forLocation(lastKnownLocation));
       }
@@ -156,6 +164,9 @@ public class SpecificTaskServiceLocator implements ServiceLocator
       if (!closed) {
         if (pendingFuture != null) {
           pendingFuture.set(ServiceLocations.closed());
+
+          // Clear pendingFuture once it has been set.
+          pendingFuture = null;
         }
 
         closed = true;
