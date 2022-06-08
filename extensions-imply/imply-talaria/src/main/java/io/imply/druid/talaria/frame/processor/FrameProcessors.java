@@ -9,16 +9,15 @@
 
 package io.imply.druid.talaria.frame.processor;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.segment.FrameStorageAdapter;
 import io.imply.druid.talaria.util.FutureUtils;
@@ -160,13 +159,13 @@ public class FrameProcessors
 
   public static Cursor makeCursor(final Frame frame, final FrameReader frameReader)
   {
-    // Safe to keep using the Cursor after the Sequence is finished accumulating, because it does not do anything
-    // when it is closed. Refer to FrameStorageAdapter#makeCursors.
-    return Iterables.getOnlyElement(
+    // Safe to never close the Sequence that the Cursor comes from, because it does not do anything when it is closed.
+    // Refer to FrameStorageAdapter#makeCursors.
+
+    return Yielders.each(
         new FrameStorageAdapter(frame, frameReader, Intervals.ETERNITY)
             .makeCursors(null, Intervals.ETERNITY, VirtualColumns.EMPTY, Granularities.ALL, false, null)
-            .toList()
-    );
+    ).get();
   }
 
   /**

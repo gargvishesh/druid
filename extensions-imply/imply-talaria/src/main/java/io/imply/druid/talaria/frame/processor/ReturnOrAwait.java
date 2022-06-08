@@ -20,6 +20,8 @@ import java.util.Objects;
 
 public class ReturnOrAwait<T>
 {
+  private static final IntSet RANGE_SET_ONE = IntSets.singleton(0);
+
   @Nullable
   private final T retVal;
 
@@ -138,12 +140,18 @@ public class ReturnOrAwait<T>
 
   private static IntSet rangeSet(final int count)
   {
-    final IntSet retVal = new IntOpenHashSet();
+    if (count == 0) {
+      return IntSets.emptySet();
+    } else if (count == 1) {
+      return RANGE_SET_ONE;
+    } else {
+      final IntSet retVal = new IntOpenHashSet();
 
-    for (int i = 0; i < count; i++) {
-      retVal.add(i);
+      for (int i = 0; i < count; i++) {
+        retVal.add(i);
+      }
+
+      return retVal;
     }
-
-    return retVal;
   }
 }

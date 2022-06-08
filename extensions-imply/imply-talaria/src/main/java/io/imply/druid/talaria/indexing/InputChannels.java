@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.collect.Iterables;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
@@ -18,6 +19,7 @@ import io.imply.druid.talaria.frame.processor.FrameChannelMerger;
 import io.imply.druid.talaria.frame.processor.FrameChannelMuxer;
 import io.imply.druid.talaria.frame.processor.FrameProcessorExecutor;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.write.FrameWriters;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
@@ -30,6 +32,7 @@ import org.apache.druid.java.util.common.IAE;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -220,9 +223,14 @@ public class InputChannels
     } else {
       final FrameChannelMerger merger = new FrameChannelMerger(
           channels,
-          queueChannel,
           stageDefinition.getFrameReader(),
-          allocatorMaker.get(),
+          queueChannel,
+          FrameWriters.makeFrameWriterFactory(
+              FrameType.ROW_BASED,
+              allocatorMaker.get(),
+              stageDefinition.getFrameReader().signature(),
+              Collections.emptyList()
+          ),
           clusterBy,
           null,
           -1

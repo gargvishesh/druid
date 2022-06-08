@@ -14,7 +14,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
 import org.apache.datasketches.memory.MapHandle;
 import org.apache.datasketches.memory.Memory;
 import org.apache.druid.java.util.common.ByteBufferUtils;
@@ -50,10 +50,10 @@ import java.util.List;
 public class FrameTest
 {
   // Tests that use good frames built from a standard test file.
-  public static class GoodFrames extends InitializedNullHandlingTest
+  public static class GoodFramesTest extends InitializedNullHandlingTest
   {
-    private Frame frame;
-    private Frame sortedFrame;
+    private Frame columnarFrame;
+    private Frame rowBasedSortedFrame;
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -68,23 +68,50 @@ public class FrameTest
           new ClusterByColumn("__time", false)
       );
 
-      frame = Iterables.getOnlyElement(TestFrameSequenceBuilder.fromAdapter(adapter).frames().toList());
-      sortedFrame =
-          Iterables.getOnlyElement(TestFrameSequenceBuilder.fromAdapter(adapter).sortBy(sortBy).frames().toList());
+      columnarFrame = Iterables.getOnlyElement(
+          FrameSequenceBuilder
+              .fromAdapter(adapter)
+              .frameType(FrameType.COLUMNAR)
+              .frames()
+              .toList()
+      );
+
+      rowBasedSortedFrame = Iterables.getOnlyElement(
+          FrameSequenceBuilder
+              .fromAdapter(adapter)
+              .frameType(FrameType.ROW_BASED)
+              .sortBy(sortBy)
+              .frames()
+              .toList()
+      );
     }
 
     @Test
     public void test_numRows()
     {
-      Assert.assertEquals(1209, frame.numRows());
-      Assert.assertEquals(1209, sortedFrame.numRows());
+      Assert.assertEquals(1209, columnarFrame.numRows());
+      Assert.assertEquals(1209, rowBasedSortedFrame.numRows());
+    }
+
+    @Test
+    public void test_numRegions()
+    {
+      Assert.assertEquals(21, columnarFrame.numRegions());
+      Assert.assertEquals(2, rowBasedSortedFrame.numRegions());
+    }
+
+    @Test
+    public void test_isPermuted()
+    {
+      Assert.assertFalse(columnarFrame.isPermuted());
+      Assert.assertTrue(rowBasedSortedFrame.isPermuted());
     }
 
     @Test
     public void test_physicalRow_standard()
     {
-      for (int i = 0; i < frame.numRows(); i++) {
-        Assert.assertEquals(i, frame.physicalRow(i));
+      for (int i = 0; i < columnarFrame.numRows(); i++) {
+        Assert.assertEquals(i, columnarFrame.physicalRow(i));
       }
     }
 
@@ -93,7 +120,7 @@ public class FrameTest
     {
       expectedException.expect(IllegalArgumentException.class);
       expectedException.expectMessage("Row [-1] out of bounds");
-      frame.physicalRow(-1);
+      columnarFrame.physicalRow(-1);
     }
 
     @Test
@@ -101,7 +128,7 @@ public class FrameTest
     {
       expectedException.expect(IllegalArgumentException.class);
       expectedException.expectMessage("Row [1,209] out of bounds");
-      frame.physicalRow(Ints.checkedCast(frame.numRows()));
+      columnarFrame.physicalRow(Ints.checkedCast(columnarFrame.numRows()));
     }
 
     @Test
@@ -109,7 +136,7 @@ public class FrameTest
     {
       expectedException.expect(IllegalArgumentException.class);
       expectedException.expectMessage("Row [-1] out of bounds");
-      sortedFrame.physicalRow(-1);
+      rowBasedSortedFrame.physicalRow(-1);
     }
 
     @Test
@@ -117,13 +144,13 @@ public class FrameTest
     {
       expectedException.expect(IllegalArgumentException.class);
       expectedException.expectMessage("Row [1,209] out of bounds");
-      sortedFrame.physicalRow(Ints.checkedCast(frame.numRows()));
+      rowBasedSortedFrame.physicalRow(Ints.checkedCast(columnarFrame.numRows()));
     }
   }
 
   // Tests that explore "wrap", "decompress", and "writeTo" with different kinds of backing memory.
   @RunWith(Parameterized.class)
-  public static class WrapAndWrite extends InitializedNullHandlingTest
+  public static class WrapAndWriteTest extends InitializedNullHandlingTest
   {
     private static byte[] FRAME_DATA;
     private static byte[] FRAME_DATA_COMPRESSED;
@@ -296,7 +323,7 @@ public class FrameTest
     private final boolean compressed;
     private final Closer closer = Closer.create();
 
-    public WrapAndWrite(final MemType memType, final boolean compressed)
+    public WrapAndWriteTest(final MemType memType, final boolean compressed)
     {
       this.memType = memType;
       this.compressed = compressed;
@@ -321,7 +348,10 @@ public class FrameTest
     {
       final StorageAdapter adapter = new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
       final Frame frame =
-          Iterables.getOnlyElement(TestFrameSequenceBuilder.fromAdapter(adapter).frames().toList());
+          Iterables.getOnlyElement(FrameSequenceBuilder.fromAdapter(adapter)
+                                                       .frameType(FrameType.COLUMNAR)
+                                                       .frames()
+                                                       .toList());
       FRAME_DATA = frameToByteArray(frame, false);
       FRAME_DATA_COMPRESSED = frameToByteArray(frame, true);
     }
@@ -360,7 +390,7 @@ public class FrameTest
   }
 
   // Tests that explore behavior with various bad frames.
-  public static class BadFrames
+  public static class BadFramesTest
   {
     @Test
     public void testToDo()

@@ -11,9 +11,9 @@ package io.imply.druid.talaria.frame.file;
 
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.AppendableMemory;
-import io.imply.druid.talaria.frame.MemoryWithRange;
-import io.imply.druid.talaria.frame.read.Frame;
-import io.imply.druid.talaria.frame.write.HeapMemoryAllocator;
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.HeapMemoryAllocator;
+import io.imply.druid.talaria.frame.MemoryRange;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.io.Channels;
 import org.apache.druid.java.util.common.ISE;
@@ -91,7 +91,7 @@ public class FrameFileWriter implements Closeable
     bytesWritten += frame.writeTo(channel, true);
 
     // Write *end* of frame to tableOfContents.
-    final MemoryWithRange<WritableMemory> tocCursor = tableOfContents.cursor();
+    final MemoryRange<WritableMemory> tocCursor = tableOfContents.cursor();
     tocCursor.memory().putLong(tocCursor.start(), bytesWritten);
     tableOfContents.advanceCursor(Long.BYTES);
 
@@ -111,7 +111,7 @@ public class FrameFileWriter implements Closeable
           throw new ISE("Too many partitions");
         }
 
-        final MemoryWithRange<WritableMemory> partitionCursor = partitions.cursor();
+        final MemoryRange<WritableMemory> partitionCursor = partitions.cursor();
         highestPartitionWritten++;
         partitionCursor.memory().putInt(partitionCursor.start(), numFrames);
         partitions.advanceCursor(Integer.BYTES);
@@ -150,7 +150,7 @@ public class FrameFileWriter implements Closeable
     if (!tableOfContents.reserve(FOOTER_LENGTH)) {
       throw new ISE("Can't finish table of contents");
     }
-    final MemoryWithRange<WritableMemory> tocCursor = tableOfContents.cursor();
+    final MemoryRange<WritableMemory> tocCursor = tableOfContents.cursor();
     tocCursor.memory().putInt(tocCursor.start(), numFrames);
     tocCursor.memory().putInt(tocCursor.start() + Integer.BYTES, Ints.checkedCast(partitions.size() / Integer.BYTES));
     tableOfContents.advanceCursor(FOOTER_LENGTH);

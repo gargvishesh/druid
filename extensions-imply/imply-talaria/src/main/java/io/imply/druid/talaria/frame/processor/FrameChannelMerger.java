@@ -9,31 +9,36 @@
 
 package io.imply.druid.talaria.frame.processor;
 
-import io.imply.druid.talaria.frame.MemoryAllocator;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.read.FrameComparisonWidget;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.segment.row.FrameColumnSelectorFactory;
 import io.imply.druid.talaria.frame.write.FrameWriter;
+import io.imply.druid.talaria.frame.write.FrameWriterFactory;
+import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
+import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 import java.util.function.Supplier;
 
 public class FrameChannelMerger implements FrameProcessor<Long>
@@ -45,9 +50,8 @@ public class FrameChannelMerger implements FrameProcessor<Long>
   private final FrameReader frameReader;
   private final ClusterBy clusterBy;
   private final ClusterByPartitions partitions;
-  private final PriorityQueue<ChannelAndKey> priorityQueue;
-  private final Comparator<ClusterByKey> keyComparator;
-  private final MemoryAllocator allocator;
+  private final IntPriorityQueue priorityQueue;
+  private final FrameWriterFactory frameWriterFactory;
   private final FramePlus[] currentFrames;
   private final long rowLimit;
   private long rowsOutput = 0;
@@ -58,9 +62,9 @@ public class FrameChannelMerger implements FrameProcessor<Long>
 
   public FrameChannelMerger(
       final List<ReadableFrameChannel> inputChannels,
-      final WritableFrameChannel outputChannel,
       final FrameReader frameReader,
-      final MemoryAllocator allocator,
+      final WritableFrameChannel outputChannel,
+      final FrameWriterFactory frameWriterFactory,
       final ClusterBy clusterBy,
       @Nullable final ClusterByPartitions partitions,
       final long rowLimit
@@ -83,17 +87,19 @@ public class FrameChannelMerger implements FrameProcessor<Long>
     this.inputChannels = inputChannels;
     this.outputChannel = outputChannel;
     this.frameReader = frameReader;
-    this.allocator = allocator;
+    this.frameWriterFactory = frameWriterFactory;
     this.clusterBy = clusterBy;
     this.partitions = partitionsToUse;
     this.rowLimit = rowLimit;
-    this.keyComparator = clusterBy.keyComparator(frameReader.signature());
-    this.priorityQueue = new PriorityQueue<>(
-        inputChannels.size(),
-        Comparator.comparing(pair -> pair.key, keyComparator)
-    );
-
     this.currentFrames = new FramePlus[inputChannels.size()];
+    this.priorityQueue = new IntHeapPriorityQueue(
+        inputChannels.size(),
+        (k1, k2) -> currentFrames[k1].comparisonWidget.compare(
+            currentFrames[k1].rowNumber,
+            currentFrames[k2].comparisonWidget,
+            currentFrames[k2].rowNumber
+        )
+    );
 
     final List<Supplier<ColumnSelectorFactory>> frameColumnSelectorFactorySuppliers =
         new ArrayList<>(inputChannels.size());
@@ -104,7 +110,17 @@ public class FrameChannelMerger implements FrameProcessor<Long>
     }
 
     this.mergedColumnSelectorFactory =
-        new MultiColumnSelectorFactory(frameColumnSelectorFactorySuppliers, frameReader.signature());
+        new MultiColumnSelectorFactory(
+            frameColumnSelectorFactorySuppliers,
+
+            // Include ROW_SIGNATURE_COLUMN, ROW_MEMORY_COLUMN to potentially enable direct row memory copying.
+            // If these columns don't actually exist in the underlying column selector factories, they'll be ignored.
+            RowSignature.builder()
+                        .addAll(frameReader.signature())
+                        .add(FrameColumnSelectorFactory.ROW_SIGNATURE_COLUMN, ColumnType.UNKNOWN_COMPLEX)
+                        .add(FrameColumnSelectorFactory.ROW_MEMORY_COLUMN, ColumnType.UNKNOWN_COMPLEX)
+                        .build()
+        );
   }
 
   @Override
@@ -144,25 +160,23 @@ public class FrameChannelMerger implements FrameProcessor<Long>
       throw new NoSuchElementException();
     }
 
-    try (final FrameWriter mergedFrameWriter =
-             FrameWriter.create(mergedColumnSelectorFactory, allocator, frameReader.signature())) {
+    try (final FrameWriter mergedFrameWriter = frameWriterFactory.newFrameWriter(mergedColumnSelectorFactory)) {
       int mergedFramePartition = currentPartition;
       ClusterByKey currentPartitionEnd = partitions.get(currentPartition).getEnd();
 
       while (!priorityQueue.isEmpty()) {
-        final ChannelAndKey currentChannelAndKey = priorityQueue.peek();
-        mergedColumnSelectorFactory.setCurrentFactory(currentChannelAndKey.channel);
+        final int currentChannel = priorityQueue.firstInt();
+        mergedColumnSelectorFactory.setCurrentFactory(currentChannel);
 
         if (currentPartitionEnd != null) {
-          final ClusterByKey currentClusterByKey = currentChannelAndKey.key;
-
-          if (keyComparator.compare(currentClusterByKey, currentPartitionEnd) >= 0) {
+          final FramePlus currentFrame = currentFrames[currentChannel];
+          if (currentFrame.comparisonWidget.compare(currentFrame.rowNumber, currentPartitionEnd) >= 0) {
             // Current key is past the end of the partition. Advance currentPartition til it matches the current key.
             do {
               currentPartition++;
               currentPartitionEnd = partitions.get(currentPartition).getEnd();
             } while (currentPartitionEnd != null
-                     && keyComparator.compare(currentClusterByKey, currentPartitionEnd) >= 0);
+                     && currentFrame.comparisonWidget.compare(currentFrame.rowNumber, currentPartitionEnd) >= 0);
 
             if (mergedFrameWriter.getNumRows() == 0) {
               // Fall through: keep reading into the new partition.
@@ -178,7 +192,7 @@ public class FrameChannelMerger implements FrameProcessor<Long>
           rowsOutput++;
         } else {
           if (mergedFrameWriter.getNumRows() == 0) {
-            throw new FrameRowTooLargeException(allocator.capacity());
+            throw new FrameRowTooLargeException(frameWriterFactory.allocatorCapacity());
           }
 
           // Frame is full. Don't touch the priority queue; instead, return the current frame.
@@ -191,41 +205,29 @@ public class FrameChannelMerger implements FrameProcessor<Long>
           Arrays.fill(currentFrames, null);
         } else {
           // Continue populating the priority queue.
-          final ChannelAndKey channelAndKey = priorityQueue.poll();
-          final FramePlus channelFramePlus = currentFrames[channelAndKey.channel];
-          channelFramePlus.cursor.advance();
+          if (currentChannel != priorityQueue.dequeueInt()) {
+            // There's a bug in this function. Nothing sensible we can really include in this error message.
+            throw new ISE("Unexpected channel");
+          }
+
+          final FramePlus channelFramePlus = currentFrames[currentChannel];
+          channelFramePlus.advance();
 
           if (!channelFramePlus.cursor.isDone()) {
-            // Read next row from the current frame from "channel".
-            priorityQueue.add(
-                new ChannelAndKey(
-                    channelAndKey.channel,
-                    channelFramePlus.keySupplier.get()
-                )
-            );
+            // Add this channel back to the priority queue, so it pops back out at the right time.
+            priorityQueue.enqueue(currentChannel);
           } else {
             // Done reading current frame from "channel".
             // Clear it and see if there is another one available for immediate loading.
-            currentFrames[channelAndKey.channel] = null;
+            currentFrames[currentChannel] = null;
 
-            final ReadableFrameChannel channel = inputChannels.get(channelAndKey.channel);
+            final ReadableFrameChannel channel = inputChannels.get(currentChannel);
 
             if (channel.canRead()) {
               // Read next frame from this channel.
               final Frame frame = channel.read().getOrThrow();
-              final Cursor cursor = FrameProcessors.makeCursor(frame, frameReader);
-
-              currentFrames[channelAndKey.channel] = new FramePlus(
-                  cursor,
-                  clusterBy.keyReader(cursor.getColumnSelectorFactory(), frameReader.signature())
-              );
-
-              priorityQueue.add(
-                  new ChannelAndKey(
-                      channelAndKey.channel,
-                      currentFrames[channelAndKey.channel].keySupplier.get()
-                  )
-              );
+              currentFrames[currentChannel] = new FramePlus(frame, frameReader, clusterBy);
+              priorityQueue.enqueue(currentChannel);
             } else if (channel.isFinished()) {
               // Done reading this channel. Fall through and continue with other channels.
             } else {
@@ -261,14 +263,8 @@ public class FrameChannelMerger implements FrameProcessor<Long>
 
         if (channel.canRead()) {
           final Frame frame = channel.read().getOrThrow();
-          final Cursor cursor = FrameProcessors.makeCursor(frame, frameReader);
-
-          currentFrames[i] = new FramePlus(
-              cursor,
-              clusterBy.keyReader(cursor.getColumnSelectorFactory(), frameReader.signature())
-          );
-
-          priorityQueue.add(new ChannelAndKey(i, currentFrames[i].keySupplier.get()));
+          currentFrames[i] = new FramePlus(frame, frameReader, clusterBy);
+          priorityQueue.enqueue(i);
         } else if (!channel.isFinished()) {
           await.add(i);
         }
@@ -284,27 +280,20 @@ public class FrameChannelMerger implements FrameProcessor<Long>
   private static class FramePlus
   {
     private final Cursor cursor;
-    private final Supplier<ClusterByKey> keySupplier;
+    private final FrameComparisonWidget comparisonWidget;
+    private int rowNumber;
 
-    private FramePlus(
-        Cursor cursor,
-        Supplier<ClusterByKey> keySupplier
-    )
+    private FramePlus(Frame frame, FrameReader frameReader, ClusterBy clusterBy)
     {
-      this.cursor = cursor;
-      this.keySupplier = keySupplier;
+      this.cursor = FrameProcessors.makeCursor(frame, frameReader);
+      this.comparisonWidget = frameReader.makeComparisonWidget(frame, clusterBy.getColumns());
+      this.rowNumber = 0;
     }
-  }
 
-  private static class ChannelAndKey
-  {
-    final int channel;
-    final ClusterByKey key;
-
-    public ChannelAndKey(int channel, ClusterByKey key)
+    private void advance()
     {
-      this.channel = channel;
-      this.key = key;
+      cursor.advance();
+      rowNumber++;
     }
   }
 }

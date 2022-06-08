@@ -40,10 +40,10 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
    * @param outputChannelFactory     factory for generating output channels.
    * @param stageDefinition          stage definition
    * @param clusterBy                represents the expected ordering of frames written to output channels. If the
-   *                                 input is not already sorted this way, then each frame must be sorted using
-   *                                 {@link io.imply.druid.talaria.frame.write.FrameWriter#sort} before writing. It is not
-   *                                 necessary to do any sorting of data across frames; it is only required that each
-   *                                 individual frame is internally sorted.
+   *                                 input is not already sorted this way, then each frame must be sorted using the
+   *                                 "sortColumns" parameter of {@link io.imply.druid.talaria.frame.write.FrameWriters}
+   *                                 before writing. It is not necessary to do any sorting of data across frames; it is
+   *                                 only required that each individual frame is internally sorted.
    * @param providerThingy           Context which provides services needed by frame processors
    * @param maxOutstandingProcessors maximum number of processors that will be active at once
    *

@@ -25,7 +25,6 @@ import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
 
 import javax.annotation.Nullable;
-
 import java.util.Map;
 
 @JsonTypeName(TalariaWorkerTask.TYPE)

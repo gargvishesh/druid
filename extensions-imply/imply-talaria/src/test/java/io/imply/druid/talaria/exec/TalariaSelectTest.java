@@ -545,7 +545,7 @@ public class TalariaSelectTest extends TalariaTestRunner
   private List<Object[]> expectedMultiValueFooRowsGroupByList()
   {
     ArrayList<Object[]> expected = new ArrayList<>();
-    expected.add(new Object[]{null, !useDefault ? 2L : 3L});
+    expected.add(new Object[]{Collections.singletonList(null), !useDefault ? 2L : 3L});
     if (!useDefault) {
       expected.add(new Object[]{Collections.singletonList(""), 1L});
     }

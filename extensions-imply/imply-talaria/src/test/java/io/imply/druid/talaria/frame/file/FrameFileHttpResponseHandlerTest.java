@@ -11,11 +11,12 @@ package io.imply.druid.talaria.frame.file;
 
 import com.google.common.math.LongMath;
 import com.google.common.primitives.Ints;
-import io.imply.druid.talaria.frame.FrameTestUtil;
-import io.imply.druid.talaria.frame.TestFrameSequenceBuilder;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
+import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.response.ClientResponse;
@@ -66,7 +67,6 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
 
   private StorageAdapter adapter;
   private File file;
-  private int numFrames;
   private ReadableByteChunksFrameChannel channel;
   private FrameFileHttpResponseHandler handler;
   private HttpResponseHandler.TrafficCop trafficCop;
@@ -93,13 +93,12 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   {
     adapter = new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
     file = FrameTestUtil.writeFrameFile(
-        TestFrameSequenceBuilder.fromAdapter(adapter).maxRowsPerFrame(maxRowsPerFrame).frames(),
+        FrameSequenceBuilder.fromAdapter(adapter)
+                            .maxRowsPerFrame(maxRowsPerFrame)
+                            .frameType(FrameType.ROW_BASED) // No particular reason to test with both frame types
+                            .frames(),
         temporaryFolder.newFile()
     );
-
-    try (final FrameFile frameFile = FrameFile.open(file)) {
-      numFrames = frameFile.numFrames();
-    }
 
     channel = ReadableByteChunksFrameChannel.create("test");
     handler = new FrameFileHttpResponseHandler(channel, caughtExceptions::add);

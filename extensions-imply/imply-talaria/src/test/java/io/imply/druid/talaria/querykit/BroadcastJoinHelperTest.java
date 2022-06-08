@@ -11,15 +11,16 @@ package io.imply.druid.talaria.querykit;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.talaria.frame.FrameTestUtil;
-import io.imply.druid.talaria.frame.TestFrameSequenceBuilder;
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.Try;
 import io.imply.druid.talaria.frame.file.FrameFile;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
+import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
+import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
@@ -78,19 +79,21 @@ public class BroadcastJoinHelperTest extends InitializedNullHandlingTest
 
     // File 1: the entire test dataset.
     testDataFile1 = FrameTestUtil.writeFrameFile(
-        TestFrameSequenceBuilder.fromAdapter(adapter)
-                                .allocator(allocator)
-                                .frames(),
+        FrameSequenceBuilder.fromAdapter(adapter)
+                            .frameType(FrameType.ROW_BASED) // No particular reason to test with both frame types
+                            .allocator(allocator)
+                            .frames(),
         temporaryFolder.newFile()
     );
 
     // File 2: just two rows.
     testDataFile2 = FrameTestUtil.writeFrameFile(
-        TestFrameSequenceBuilder.fromAdapter(adapter)
-                                .allocator(allocator)
-                                .maxRowsPerFrame(1)
-                                .frames()
-                                .limit(2),
+        FrameSequenceBuilder.fromAdapter(adapter)
+                            .frameType(FrameType.ROW_BASED) // No particular reason to test with both frame types
+                            .allocator(allocator)
+                            .maxRowsPerFrame(1)
+                            .frames()
+                            .limit(2),
         temporaryFolder.newFile()
     );
 

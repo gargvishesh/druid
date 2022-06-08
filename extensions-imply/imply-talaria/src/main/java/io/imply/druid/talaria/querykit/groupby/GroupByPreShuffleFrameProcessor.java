@@ -10,6 +10,8 @@
 package io.imply.druid.talaria.querykit.groupby;
 
 import com.google.common.collect.Iterables;
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
@@ -18,10 +20,11 @@ import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.FrameRowTooLargeException;
 import io.imply.druid.talaria.frame.processor.ReturnOrAwait;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.segment.FrameSegment;
 import io.imply.druid.talaria.frame.write.FrameWriter;
+import io.imply.druid.talaria.frame.write.FrameWriterFactory;
+import io.imply.druid.talaria.frame.write.FrameWriters;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessor;
 import io.imply.druid.talaria.querykit.QueryWorkerInput;
 import io.imply.druid.talaria.querykit.SegmentWithInterval;
@@ -199,7 +202,14 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
   {
     if (frameWriter == null) {
       final MemoryAllocator allocator = getAllocator();
-      frameWriter = FrameWriter.create(frameWriterColumnSelectorFactory, allocator, aggregationSignature);
+      final FrameWriterFactory frameWriterFactory =
+          FrameWriters.makeFrameWriterFactory(
+              FrameType.ROW_BASED,
+              allocator,
+              aggregationSignature,
+              clusterBy.getColumns()
+          );
+      frameWriter = frameWriterFactory.newFrameWriter(frameWriterColumnSelectorFactory);
       currentAllocatorCapacity = allocator.capacity();
     }
   }
@@ -207,7 +217,6 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
   private void flushFrameWriterIfNeeded() throws IOException
   {
     if (frameWriter != null && frameWriter.getNumRows() > 0) {
-      frameWriter.sort(clusterBy.getColumns());
       final Frame frame = Frame.wrap(frameWriter.toByteArray());
       Iterables.getOnlyElement(outputChannels()).write(new FrameWithPartition(frame, FrameWithPartition.NO_PARTITION));
       frameWriter.close();

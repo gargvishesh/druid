@@ -13,6 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import io.imply.druid.talaria.frame.cluster.ClusterByKeyReader;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
@@ -38,11 +39,11 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
   private static final double MAX_COUNT_ITERATION_GROWTH_FACTOR = 1.05;
 
   private final ClusterBy clusterBy;
+  private final ClusterByKeyReader keyReader;
   private final KeyCollectorFactory<? extends KeyCollector<?>, ? extends KeyCollectorSnapshot> keyCollectorFactory;
   private final SortedMap<ClusterByKey, BucketHolder> buckets;
+  private final boolean checkHasMultipleValues;
 
-  // TODO(gianm): this is only really here to make sure we don't generate DimensionRangeShardSpec for multi-value dims.
-  //   if we could support that in DimensionRangeShardSpec, we could get rid of this.
   private final boolean[] hasMultipleValues;
 
   // TODO(gianm): max size is better than max keys. what if some of the keys are really big?
@@ -52,18 +53,21 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
 
   private ClusterByStatisticsCollectorImpl(
       final ClusterBy clusterBy,
-      final Comparator<ClusterByKey> comparator,
+      final ClusterByKeyReader keyReader,
       final KeyCollectorFactory<?, ?> keyCollectorFactory,
       final int maxRetainedKeys,
-      final int maxBuckets
+      final int maxBuckets,
+      final boolean checkHasMultipleValues
   )
   {
     this.clusterBy = clusterBy;
+    this.keyReader = keyReader;
     this.keyCollectorFactory = keyCollectorFactory;
     this.maxRetainedKeys = maxRetainedKeys;
-    this.buckets = new TreeMap<>(comparator);
+    this.buckets = new TreeMap<>(clusterBy.bucketComparator());
     this.maxBuckets = maxBuckets;
-    this.hasMultipleValues = new boolean[clusterBy.getColumns().size()];
+    this.checkHasMultipleValues = checkHasMultipleValues;
+    this.hasMultipleValues = checkHasMultipleValues ? new boolean[clusterBy.getColumns().size()] : null;
 
     if (maxBuckets > maxRetainedKeys) {
       throw new IAE("maxBuckets[%s] cannot be larger than maxRetainedKeys[%s]", maxBuckets, maxRetainedKeys);
@@ -75,22 +79,20 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
       final RowSignature signature,
       final int maxRetainedKeys,
       final int maxBuckets,
-      final boolean aggregate
+      final boolean aggregate,
+      final boolean checkHasMultipleValues
   )
   {
-    final Comparator<ClusterByKey> comparator = clusterBy.keyComparator(signature);
-    final KeyCollectorFactory<?, ?> keyCollectorFactory = KeyCollectors.makeStandardFactory(
-        clusterBy,
-        signature,
-        aggregate
-    );
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(signature);
+    final KeyCollectorFactory<?, ?> keyCollectorFactory = KeyCollectors.makeStandardFactory(clusterBy, aggregate);
 
     return new ClusterByStatisticsCollectorImpl(
         clusterBy,
-        comparator,
+        keyReader,
         keyCollectorFactory,
         maxRetainedKeys,
-        maxBuckets
+        maxBuckets,
+        checkHasMultipleValues
     );
   }
 
@@ -103,12 +105,13 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
   @Override
   public ClusterByStatisticsCollector add(final ClusterByKey key, final int weight)
   {
-    // TODO(gianm): hack alert: see note for hasMultipleValues
-    for (int i = 0; i < clusterBy.getColumns().size(); i++) {
-      hasMultipleValues[i] |= key.get(i) instanceof List;
+    if (checkHasMultipleValues) {
+      for (int i = 0; i < clusterBy.getColumns().size(); i++) {
+        hasMultipleValues[i] = hasMultipleValues[i] || keyReader.hasMultipleValues(key, i);
+      }
     }
 
-    final BucketHolder bucketHolder = getOrCreateBucketHolder(key.trim(clusterBy.getBucketByCount()));
+    final BucketHolder bucketHolder = getOrCreateBucketHolder(keyReader.trim(key, clusterBy.getBucketByCount()));
 
     bucketHolder.keyCollector.add(key, weight);
 
@@ -139,10 +142,10 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
         }
       }
 
-      // Update hasMultipleValues.
-      // TODO(gianm): hack alert: see note for hasMultipleValues
-      for (int i = 0; i < clusterBy.getColumns().size(); i++) {
-        hasMultipleValues[i] |= that.hasMultipleValues[i];
+      if (checkHasMultipleValues) {
+        for (int i = 0; i < clusterBy.getColumns().size(); i++) {
+          hasMultipleValues[i] |= that.hasMultipleValues[i];
+        }
       }
     } else {
       addAll(other.snapshot());
@@ -170,10 +173,10 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
       }
     }
 
-    // Update hasMultipleValues.
-    // TODO(gianm): hack alert: see note for hasMultipleValues
-    for (int keyPosition : snapshot.getHasMultipleValues()) {
-      hasMultipleValues[keyPosition] = true;
+    if (checkHasMultipleValues) {
+      for (int keyPosition : snapshot.getHasMultipleValues()) {
+        hasMultipleValues[keyPosition] = true;
+      }
     }
 
     return this;
@@ -192,11 +195,15 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
   @Override
   public boolean hasMultipleValues(final int keyPosition)
   {
-    if (keyPosition < 0 || keyPosition >= clusterBy.getColumns().size()) {
-      throw new IAE("Invalid keyPosition [%d]", keyPosition);
-    }
+    if (checkHasMultipleValues) {
+      if (keyPosition < 0 || keyPosition >= clusterBy.getColumns().size()) {
+        throw new IAE("Invalid keyPosition [%d]", keyPosition);
+      }
 
-    return hasMultipleValues[keyPosition];
+      return hasMultipleValues[keyPosition];
+    } else {
+      throw new ISE("hasMultipleValues not available for this collector");
+    }
   }
 
   @Override
@@ -308,12 +315,18 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
       bucketSnapshots.add(new ClusterByStatisticsSnapshot.Bucket(bucketEntry.getKey(), keyCollectorSnapshot));
     }
 
-    // TODO(gianm): hack alert: see note for hasMultipleValues
-    final IntSet hasMultipleValuesSet = new IntRBTreeSet();
-    for (int i = 0; i < hasMultipleValues.length; i++) {
-      if (hasMultipleValues[i]) {
-        hasMultipleValuesSet.add(i);
+    final IntSet hasMultipleValuesSet;
+
+    if (checkHasMultipleValues) {
+      hasMultipleValuesSet = new IntRBTreeSet();
+
+      for (int i = 0; i < hasMultipleValues.length; i++) {
+        if (hasMultipleValues[i]) {
+          hasMultipleValuesSet.add(i);
+        }
       }
+    } else {
+      hasMultipleValuesSet = null;
     }
 
     return new ClusterByStatisticsSnapshot(bucketSnapshots, hasMultipleValuesSet);

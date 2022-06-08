@@ -10,7 +10,7 @@
 package io.imply.druid.talaria.frame.channel;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 
 /**
  * TODO(gianm): Needs a way to detect that the thing writing to the channel has died (?) Or maybe not, if we can use whole-system cancellation

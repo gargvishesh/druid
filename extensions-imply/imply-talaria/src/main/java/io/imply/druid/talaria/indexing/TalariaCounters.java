@@ -9,7 +9,7 @@
 
 package io.imply.druid.talaria.indexing;
 
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.kernel.StagePartition;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSortedSet;

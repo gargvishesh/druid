@@ -9,8 +9,8 @@
 
 package io.imply.druid.talaria.frame.processor;
 
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 
 public class BlockingQueueOutputChannelFactory implements OutputChannelFactory
 {

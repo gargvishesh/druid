@@ -10,7 +10,6 @@
 package io.imply.druid.talaria.frame.cluster.statistics;
 
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import org.apache.druid.segment.column.RowSignature;
 
 public class KeyCollectors
 {
@@ -24,20 +23,19 @@ public class KeyCollectors
    */
   public static KeyCollectorFactory<?, ?> makeStandardFactory(
       final ClusterBy clusterBy,
-      final RowSignature signature,
       final boolean aggregate
   )
   {
     final KeyCollectorFactory<?, ?> baseFactory;
 
     if (aggregate) {
-      baseFactory = DistinctKeyCollectorFactory.create(clusterBy, signature);
+      baseFactory = DistinctKeyCollectorFactory.create(clusterBy);
     } else {
-      baseFactory = QuantilesSketchKeyCollectorFactory.create(clusterBy, signature);
+      baseFactory = QuantilesSketchKeyCollectorFactory.create(clusterBy);
     }
 
     // Wrap in DelegateOrMinKeyCollectorFactory, so we are guaranteed to be able to downsample to a single key. This
     // is important because it allows us to better handle large numbers of small buckets.
-    return new DelegateOrMinKeyCollectorFactory<>(clusterBy.keyComparator(signature), baseFactory);
+    return new DelegateOrMinKeyCollectorFactory<>(clusterBy.keyComparator(), baseFactory);
   }
 }

@@ -9,6 +9,9 @@
 
 package io.imply.druid.talaria.querykit.common;
 
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.FrameType;
+import io.imply.druid.talaria.frame.HeapMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
@@ -16,10 +19,10 @@ import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.processor.FrameRowTooLargeException;
 import io.imply.druid.talaria.frame.processor.ReturnOrAwait;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.write.FrameWriter;
-import io.imply.druid.talaria.frame.write.HeapMemoryAllocator;
+import io.imply.druid.talaria.frame.write.FrameWriterFactory;
+import io.imply.druid.talaria.frame.write.FrameWriters;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.Cursor;
@@ -129,8 +132,15 @@ public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
     final HeapMemoryAllocator unlimitedAllocator = HeapMemoryAllocator.unlimited();
 
     long rowsProcessedSoFarInFrame = 0;
-    try (final FrameWriter frameWriter =
-             FrameWriter.create(cursor.getColumnSelectorFactory(), unlimitedAllocator, frameReader.signature())) {
+
+    final FrameWriterFactory frameWriterFactory = FrameWriters.makeFrameWriterFactory(
+        FrameType.ROW_BASED,
+        unlimitedAllocator,
+        frameReader.signature(),
+        Collections.emptyList()
+    );
+
+    try (final FrameWriter frameWriter = frameWriterFactory.newFrameWriter(cursor.getColumnSelectorFactory())) {
       while (!cursor.isDone() && rowsProcessedSoFarInFrame < endRow) {
         if (rowsProcessedSoFarInFrame >= startRow && !frameWriter.addSelection()) {
           // Don't retry; it can't work because the allocator is unlimited anyway.

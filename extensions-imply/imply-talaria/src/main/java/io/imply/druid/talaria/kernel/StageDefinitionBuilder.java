@@ -25,6 +25,7 @@ public class StageDefinitionBuilder
   private RowSignature signature = RowSignature.empty();
   private int maxWorkerCount = 1;
   private ShuffleSpec shuffleSpec = null;
+  private boolean shuffleCheckHasMultipleValues = false;
 
   /**
    * Callers should use {@link StageDefinition#builder(int)} instead of directly using this constructor
@@ -65,6 +66,12 @@ public class StageDefinitionBuilder
     return this;
   }
 
+  public StageDefinitionBuilder shuffleCheckHasMultipleValues(final boolean shuffleCheckHasMultipleValues)
+  {
+    this.shuffleCheckHasMultipleValues = shuffleCheckHasMultipleValues;
+    return this;
+  }
+
   public StageDefinitionBuilder shuffleSpec(final ShuffleSpec shuffleSpec)
   {
     this.shuffleSpec = shuffleSpec;
@@ -94,7 +101,8 @@ public class StageDefinitionBuilder
         processorFactory,
         signature,
         shuffleSpec,
-        maxWorkerCount
+        maxWorkerCount,
+        shuffleCheckHasMultipleValues
     );
   }
 }

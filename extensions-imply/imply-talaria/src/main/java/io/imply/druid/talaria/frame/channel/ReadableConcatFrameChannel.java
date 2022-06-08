@@ -11,7 +11,7 @@ package io.imply.druid.talaria.frame.channel;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;

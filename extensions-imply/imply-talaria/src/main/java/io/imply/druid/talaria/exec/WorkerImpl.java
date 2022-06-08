@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.exec;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
@@ -18,6 +17,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
@@ -42,13 +42,12 @@ import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import io.imply.druid.talaria.indexing.CountingInputChannelFactory;
 import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
+import io.imply.druid.talaria.indexing.KeyStatisticsCollectionProcessor;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
-import io.imply.druid.talaria.indexing.TalariaClusterByStatisticsCollectionProcessor;
 import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
@@ -60,7 +59,6 @@ import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
-import io.imply.druid.talaria.kernel.ShuffleSpec;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.StagePartition;
@@ -329,7 +327,6 @@ public class WorkerImpl implements Worker
       }
 
       if (!didSomething && !kernelHolder.isDone()) {
-        // TODO(gianm): find a better way to report counters, turn this back to kmq.take()
         Consumer<KernelHolder> nextCommand;
         String countersString = null;
 
@@ -391,7 +388,6 @@ public class WorkerImpl implements Worker
     }
 
     if (channel instanceof ReadableNilFrameChannel) {
-      // TODO(gianm): support "offset" for nil channels
       // Build an empty frame file.
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
       FrameFileWriter.open(Channels.newChannel(baos)).close();
@@ -401,14 +397,12 @@ public class WorkerImpl implements Worker
       //noinspection ResultOfMethodCallIgnored: OK to ignore since "skip" always works for ByteArrayInputStream.
       in.skip(offset);
 
-      //noinspection UnstableApiUsage
       return in;
     } else if (channel instanceof ReadableFileFrameChannel) {
       final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
       final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r");
       randomAccessFile.seek(offset);
 
-      //noinspection UnstableApiUsage
       return Channels.newInputStream(randomAccessFile.getChannel());
     } else {
       String errorMsg = StringUtils.format(
@@ -439,7 +433,7 @@ public class WorkerImpl implements Worker
 
   @Override
   public boolean postResultPartitionBoundaries(
-      final Object stagePartitionBoundariesObject,
+      final ClusterByPartitions stagePartitionBoundaries,
       final String queryId,
       final int stageNumber
   )
@@ -448,22 +442,8 @@ public class WorkerImpl implements Worker
     final QueryDefinition queryDef = queryDefinitionMap.get(queryId);
 
     if (queryDef == null) {
-      // TODO(gianm): improve error?
       return false;
     }
-
-    // We need a specially-decorated ObjectMapper to deserialize partition boundaries.
-    final StageDefinition stageDef = queryDef.getStageDefinition(stageNumber);
-    final ObjectMapper decoratedObjectMapper =
-        TalariaTasks.decorateObjectMapperForClusterByKey(
-            context.jsonMapper(),
-            stageDef.getSignature(),
-            queryDef.getClusterByForStage(stageNumber),
-            stageDef.getShuffleSpec().map(ShuffleSpec::doesAggregateByClusterKey).orElse(false)
-        );
-
-    final ClusterByPartitions stagePartitionBoundaries =
-        decoratedObjectMapper.convertValue(stagePartitionBoundariesObject, ClusterByPartitions.class);
 
     kernelManipulationQueue.add(
         kernelHolder -> {
@@ -509,7 +489,6 @@ public class WorkerImpl implements Worker
   {
     return new InputChannelFactory()
     {
-      // TODO(gianm): Handle failures, retries of other tasks (changing task list)
       final Supplier<List<String>> taskList = Suppliers.memoize(
           () -> leaderClient.getTaskList().orElseThrow(() -> new ISE("Really expected tasks to be available by now"))
       )::get;
@@ -952,8 +931,7 @@ public class WorkerImpl implements Worker
       channel.doneWriting();
       channelsToSuperSort = Collections.singletonList(channel);
     } else if (stageDefinition.mustGatherResultKeyStatistics()) {
-      // TODO(gianm): Remove this silly extra step, which we currently need in order to populate result key stats
-      channelsToSuperSort = gatherResultKeyStatistics(
+      channelsToSuperSort = collectKeyStatistics(
           stageDefinition,
           clusterBy,
           processorOutputChannels,
@@ -968,8 +946,6 @@ public class WorkerImpl implements Worker
                                                    .collect(Collectors.toList());
     }
 
-    // TODO(gianm): Check if things are already partitioned properly, and if so, skip the supersorter
-    // TODO(gianm): Check if things are already sorted properly, and if so, configure the supersorter appropriately
     final File sorterTmpDir = new File(context.tempDir(), "super-sort-" + UUID.randomUUID());
     FileUtils.mkdirp(sorterTmpDir);
     if (!sorterTmpDir.isDirectory()) {
@@ -995,7 +971,7 @@ public class WorkerImpl implements Worker
     return sorter.run();
   }
 
-  private static List<ReadableFrameChannel> gatherResultKeyStatistics(
+  private static List<ReadableFrameChannel> collectKeyStatistics(
       final StageDefinition stageDefinition,
       final ClusterBy clusterBy,
       final OutputChannels processorOutputChannels,
@@ -1005,14 +981,14 @@ public class WorkerImpl implements Worker
   )
   {
     final List<ReadableFrameChannel> retVal = new ArrayList<>();
-    final List<TalariaClusterByStatisticsCollectionProcessor> resultKeyCollectionProcessors = new ArrayList<>();
+    final List<KeyStatisticsCollectionProcessor> processors = new ArrayList<>();
 
     for (final OutputChannel outputChannel : processorOutputChannels.getAllChannels()) {
       final BlockingQueueFrameChannel channel = BlockingQueueFrameChannel.minimal();
       retVal.add(channel);
 
-      resultKeyCollectionProcessors.add(
-          new TalariaClusterByStatisticsCollectionProcessor(
+      processors.add(
+          new KeyStatisticsCollectionProcessor(
               outputChannel.getReadableChannel(),
               channel,
               stageDefinition.getFrameReader(),
@@ -1024,17 +1000,16 @@ public class WorkerImpl implements Worker
 
     final ListenableFuture<ClusterByStatisticsCollector> clusterByStatisticsCollectorFuture =
         FrameProcessors.runAllFully(
-            Sequences.simple(resultKeyCollectionProcessors),
+            Sequences.simple(processors),
             exec,
             stageDefinition.createResultKeyStatisticsCollector(),
             ClusterByStatisticsCollector::addAll,
             // Run all processors simultaneously. They are lightweight and this keeps things moving.
-            resultKeyCollectionProcessors.size(),
+            processors.size(),
             Bouncer.unlimited(),
             cancellationId
         );
 
-    // TODO(gianm): extract helper method with other similar code
     Futures.addCallback(
         clusterByStatisticsCollectorFuture,
         new FutureCallback<ClusterByStatisticsCollector>()

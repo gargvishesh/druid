@@ -11,8 +11,8 @@ package io.imply.druid.talaria.frame.channel;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.file.FrameFile;
-import io.imply.druid.talaria.frame.read.Frame;
 import org.apache.druid.java.util.common.IAE;
 
 import java.io.IOException;

@@ -24,8 +24,6 @@ import java.util.Set;
 public class ClusterByStatisticsSnapshot
 {
   private final List<Bucket> buckets;
-
-  // TODO(gianm): hack alert: see note for hasMultipleValues in ClusterByStatisticsCollectorImpl
   private final Set<Integer> hasMultipleValues;
 
   @JsonCreator

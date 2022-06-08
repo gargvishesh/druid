@@ -28,7 +28,7 @@ public class FrameFilteredOffset extends Offset
   private final Offset baseOffset;
   private final ValueMatcher filterMatcher;
 
-  FrameFilteredOffset(
+  public FrameFilteredOffset(
       final Offset baseOffset,
       final ColumnSelectorFactory columnSelectorFactory,
       final Filter postFilter

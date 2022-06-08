@@ -111,21 +111,15 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
       clusterByColumns.add(new ClusterByColumn(QueryKitUtils.PARTITION_BOOST_COLUMN, false));
       signatureBuilder.add(QueryKitUtils.PARTITION_BOOST_COLUMN, ColumnType.LONG);
 
-      shuffleSpec = resultShuffleSpecFactory.build(
-          QueryKitUtils.clusterByWithSegmentGranularity(
-              new ClusterBy(clusterByColumns, 0),
-              segmentGranularity
-          ),
-          false
-      );
-
-      signatureToUse = QueryKitUtils.signatureWithSegmentGranularity(
-          signatureBuilder.build(),
-          segmentGranularity
+      final ClusterBy clusterBy =
+          QueryKitUtils.clusterByWithSegmentGranularity(new ClusterBy(clusterByColumns, 0), segmentGranularity);
+      shuffleSpec = resultShuffleSpecFactory.build(clusterBy, false);
+      signatureToUse = QueryKitUtils.sortableSignature(
+          QueryKitUtils.signatureWithSegmentGranularity(signatureBuilder.build(), segmentGranularity),
+          clusterBy.getColumns()
       );
     }
 
-    // TODO(gianm): For shuffle, put non-participating columns in a complex container
     queryDefBuilder.add(
         StageDefinition.builder(Math.max(minStageNumber, queryDefBuilder.getNextStageNumber()))
                        .inputStages(dataSourcePlan.getInputStageNumbers())
