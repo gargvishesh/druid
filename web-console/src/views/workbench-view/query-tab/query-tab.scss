@@ -91,9 +91,7 @@ $vertical-gap: 6px;
 
       .execution-timer-panel,
       .execution-summary-panel {
-        position: absolute;
-        top: 0;
-        right: 0;
+        margin-left: auto;
       }
     }
   }
