@@ -10,12 +10,12 @@
 package io.imply.druid.talaria.frame.processor;
 
 import com.google.common.base.Suppliers;
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableStreamFrameChannel;
 import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.StringUtils;
 

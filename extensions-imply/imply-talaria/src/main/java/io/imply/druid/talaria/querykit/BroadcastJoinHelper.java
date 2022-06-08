@@ -10,9 +10,9 @@
 package io.imply.druid.talaria.querykit;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.TalariaException;

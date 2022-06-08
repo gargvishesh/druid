@@ -9,9 +9,9 @@
 
 package io.imply.druid.talaria.frame.processor;
 
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
-import io.imply.druid.talaria.frame.read.Frame;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;

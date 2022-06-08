@@ -9,7 +9,7 @@
 
 package io.imply.druid.talaria.frame.segment;
 
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.Segment;
@@ -19,6 +19,11 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 
+/**
+ * A {@link Segment} implementation based on a single {@link Frame}.
+ *
+ * This class is used for both columnar and row-based frames.
+ */
 public class FrameSegment implements Segment
 {
   private final Frame frame;

@@ -10,9 +10,9 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.Try;
-import io.imply.druid.talaria.frame.read.Frame;
 
 public class CountingReadableFrameChannel implements ReadableFrameChannel
 {

@@ -58,10 +58,14 @@ public class AppendableMemory implements Closeable
   // Whether the blocks we've allocated are "packed"; meaning all non-final block limits equal the allocationSize.
   private boolean blocksPackedAndInitialSize = true;
 
+  // Return value of cursor().
+  private final MemoryRange<WritableMemory> cursor;
+
   private AppendableMemory(final MemoryAllocator allocator, final int initialAllocationSize)
   {
     this.allocator = allocator;
     this.nextAllocationSize = initialAllocationSize;
+    this.cursor = new MemoryRange<>(null, 0, 0);
   }
 
   /**
@@ -83,22 +87,16 @@ public class AppendableMemory implements Closeable
   }
 
   /**
-   * Return a pointer to the current cursor location, which is where the next elements should be written.
+   * Return a pointer to the current cursor location, which is where the next elements should be written. The returned
+   * object is updated on calls to {@link #advanceCursor} and {@link #rewindCursor}.
    *
    * The start of the returned range is the cursor location; the end is the end of the current Memory block.
    *
-   * This range is a snapshot. It does not advance or rewind when the cursor advances or rewinds.
+   * The returned Memory object is in little-endian order.
    */
-  public MemoryWithRange<WritableMemory> cursor()
+  public MemoryRange<WritableMemory> cursor()
   {
-    final int blockNumber = currentBlockNumber();
-
-    if (blockNumber < 0) {
-      throw new ISE("No memory; must call 'reserve' first");
-    }
-
-    final WritableMemory memory = blockHolders.get(blockNumber).get();
-    return new MemoryWithRange<>(memory, limits.getInt(blockNumber), memory.getCapacity());
+    return cursor;
   }
 
   /**
@@ -163,7 +161,8 @@ public class AppendableMemory implements Closeable
     }
 
     final int currentLimit = limits.getInt(blockNumber);
-    final long available = blockHolders.get(blockNumber).get().getCapacity() - currentLimit;
+    final WritableMemory currentBlockMemory = blockHolders.get(blockNumber).get();
+    final long available = currentBlockMemory.getCapacity() - currentLimit;
 
     if (bytes > available) {
       throw new IAE(
@@ -173,7 +172,9 @@ public class AppendableMemory implements Closeable
       );
     }
 
-    limits.set(blockNumber, currentLimit + bytes);
+    final int newLimit = currentLimit + bytes;
+    limits.set(blockNumber, newLimit);
+    cursor.set(currentBlockMemory, newLimit, currentBlockMemory.getCapacity() - newLimit);
   }
 
   /**
@@ -200,65 +201,11 @@ public class AppendableMemory implements Closeable
       throw new IAE("Cannot rewind [%d] bytes; current block is only [%d] bytes long", bytes, currentLimit);
     }
 
-    limits.set(blockNumber, currentLimit - bytes);
-  }
+    final int newLimit = currentLimit - bytes;
+    limits.set(blockNumber, newLimit);
 
-  /**
-   * Return a pointer to the given position. The position is interpreted as a global position across all blocks, not a
-   * position within a specific block.
-   *
-   * The start of the returned range is the requested location; the end is the limit of the Memory block that contains
-   * the requested position.
-   *
-   * @throws IAE if nothing exists at this position
-   */
-  public MemoryWithRange<WritableMemory> read(final long position)
-  {
-    final int blockNumber = findBlock(position);
-    if (blockNumber == NO_BLOCK) {
-      throw new IAE("No such position");
-    }
-
-    final int memoryStartPosition = Ints.checkedCast(position - globalStartPositions.getLong(blockNumber));
-    final int memoryEndPosition = limits.getInt(blockNumber);
-    if (memoryStartPosition >= memoryEndPosition) {
-      throw new IAE("No such position");
-    }
-
-    final WritableMemory memory = blockHolders.get(blockNumber).get();
-    return new MemoryWithRange<>(memory, memoryStartPosition, memoryEndPosition);
-  }
-
-  public int getInt(final long position)
-  {
-    final int blockNumber = findBlock(position);
-    final long blockPosition = position - globalStartPositions.getLong(blockNumber);
-    assertBlockBounds(blockNumber, blockPosition, Integer.BYTES);
-    return blockHolders.get(blockNumber).get().getInt(blockPosition);
-  }
-
-  public long getLong(final long position)
-  {
-    final int blockNumber = findBlock(position);
-    final long blockPosition = position - globalStartPositions.getLong(blockNumber);
-    assertBlockBounds(blockNumber, blockPosition, Long.BYTES);
-    return blockHolders.get(blockNumber).get().getLong(blockPosition);
-  }
-
-  public float getFloat(final long position)
-  {
-    final int blockNumber = findBlock(position);
-    final long blockPosition = position - globalStartPositions.getLong(blockNumber);
-    assertBlockBounds(blockNumber, blockPosition, Float.BYTES);
-    return blockHolders.get(blockNumber).get().getFloat(blockPosition);
-  }
-
-  public double getDouble(final long position)
-  {
-    final int blockNumber = findBlock(position);
-    final long blockPosition = position - globalStartPositions.getLong(blockNumber);
-    assertBlockBounds(blockNumber, blockPosition, Double.BYTES);
-    return blockHolders.get(blockNumber).get().getDouble(blockPosition);
+    final WritableMemory currentBlockMemory = blockHolders.get(blockNumber).get();
+    cursor.set(currentBlockMemory, newLimit, currentBlockMemory.getCapacity() - newLimit);
   }
 
   public long size()
@@ -272,6 +219,9 @@ public class AppendableMemory implements Closeable
     return sz;
   }
 
+  /**
+   * Write current memory to a channel.
+   */
   public void writeTo(final WritableByteChannel channel) throws IOException
   {
     for (int i = 0; i < blockHolders.size(); i++) {
@@ -291,12 +241,31 @@ public class AppendableMemory implements Closeable
     }
   }
 
+  /**
+   * Write current memory to a {@link WritableMemory} buffer.
+   */
+  public long writeTo(final WritableMemory memory, final long startPosition)
+  {
+    long currentPosition = startPosition;
+
+    for (int i = 0; i < blockHolders.size(); i++) {
+      final ResourceHolder<WritableMemory> memoryHolder = blockHolders.get(i);
+      final WritableMemory srcMemory = memoryHolder.get();
+      final int limit = limits.getInt(i);
+      srcMemory.copyTo(0, memory, currentPosition, limit);
+      currentPosition += limit;
+    }
+
+    return currentPosition - startPosition;
+  }
+
   public void clear()
   {
     blockHolders.forEach(ResourceHolder::close);
     blockHolders.clear();
     limits.clear();
     globalStartPositions.clear();
+    cursor.set(null, 0, 0);
   }
 
   @Override
@@ -308,6 +277,7 @@ public class AppendableMemory implements Closeable
   private void addBlock(final ResourceHolder<WritableMemory> block)
   {
     final int lastBlockNumber = currentBlockNumber();
+    final WritableMemory blockMemory = block.get();
 
     if (lastBlockNumber == NO_BLOCK) {
       globalStartPositions.add(0);
@@ -316,7 +286,7 @@ public class AppendableMemory implements Closeable
       final long newBlockGlobalStartPosition = globalStartPositions.getLong(lastBlockNumber) + lastBlockLimit;
       globalStartPositions.add(newBlockGlobalStartPosition);
 
-      if (block.get().getCapacity() != DEFAULT_INITIAL_ALLOCATION_SIZE
+      if (blockMemory.getCapacity() != DEFAULT_INITIAL_ALLOCATION_SIZE
           || lastBlockLimit != DEFAULT_INITIAL_ALLOCATION_SIZE) {
         blocksPackedAndInitialSize = false;
       }
@@ -324,6 +294,7 @@ public class AppendableMemory implements Closeable
 
     blockHolders.add(block);
     limits.add(0);
+    cursor.set(blockMemory, 0, blockMemory.getCapacity());
   }
 
   private int currentBlockNumber()
@@ -333,38 +304,5 @@ public class AppendableMemory implements Closeable
     } else {
       return blockHolders.size() - 1;
     }
-  }
-
-  private int findBlock(final long position)
-  {
-    if (blocksPackedAndInitialSize) {
-      long blockNumber = position / DEFAULT_INITIAL_ALLOCATION_SIZE;
-      if (blockNumber < 0 || blockNumber >= blockHolders.size()) {
-        throw new IAE("No such position");
-      }
-
-      return (int) blockNumber;
-    } else {
-      // Variable allocations: each block is twice as large as the last, so we can search half the remaining space
-      // with each iteration by looking at each block in reverse.
-      for (int blockNumber = globalStartPositions.size() - 1; blockNumber >= 0; blockNumber--) {
-        if (globalStartPositions.getLong(blockNumber) <= position) {
-          return blockNumber;
-        }
-      }
-
-      throw new IAE("No such position");
-    }
-  }
-
-  /**
-   * Checks that the range from the provided position (relative to block start), for the provided length, falls with
-   * the limit for {@code blockNumber}.
-   */
-  private void assertBlockBounds(final int blockNumber, final long blockPosition, final long length)
-  {
-    assert blockPosition >= 0
-           && length >= 0
-           && blockPosition + length <= limits.getInt(blockNumber);
   }
 }

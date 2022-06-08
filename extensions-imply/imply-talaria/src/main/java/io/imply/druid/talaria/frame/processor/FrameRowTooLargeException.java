@@ -9,11 +9,12 @@
 
 package io.imply.druid.talaria.frame.processor;
 
+import io.imply.druid.talaria.frame.write.FrameWriter;
 import org.apache.druid.java.util.common.StringUtils;
 
 /**
  * Exception that is conventionally thrown by workers when they call
- * {@link io.imply.druid.talaria.frame.write.FrameWriter#addSelection} and it returns false on an empty frame, or in
+ * {@link FrameWriter#addSelection} and it returns false on an empty frame, or in
  * a situation where allocating a new frame is impractical.
  */
 public class FrameRowTooLargeException extends RuntimeException

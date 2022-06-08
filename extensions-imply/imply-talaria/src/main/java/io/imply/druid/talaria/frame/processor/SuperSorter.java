@@ -17,6 +17,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
@@ -29,8 +31,8 @@ import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.write.FrameWriters;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
 import io.imply.druid.talaria.util.FutureUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
@@ -56,6 +58,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -554,9 +557,14 @@ public class SuperSorter
       final FrameChannelMerger worker =
           new FrameChannelMerger(
               in,
-              writableChannel,
               frameReader,
-              frameAllocator,
+              writableChannel,
+              FrameWriters.makeFrameWriterFactory(
+                  FrameType.ROW_BASED, // Row-based frames are generally preferred as inputs to mergers
+                  frameAllocator,
+                  frameReader.signature(),
+                  Collections.emptyList()
+              ),
               clusterBy,
               partitions,
               rowLimit

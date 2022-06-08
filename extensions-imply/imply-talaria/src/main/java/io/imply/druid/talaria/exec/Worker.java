@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.exec;
 
+import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.kernel.StageId;
@@ -63,7 +64,7 @@ public interface Worker
    * and queryId
    */
   boolean postResultPartitionBoundaries(
-      Object stagePartitionBoundariesObject,
+      ClusterByPartitions stagePartitionBoundaries,
       String queryId,
       int stageNumber
   );

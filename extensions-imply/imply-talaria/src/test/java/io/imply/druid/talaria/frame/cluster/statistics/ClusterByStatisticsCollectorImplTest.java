@@ -18,14 +18,16 @@ import com.google.common.math.LongMath;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
-import io.imply.druid.talaria.frame.cluster.ClusterByKeyDeserializerModule;
+import io.imply.druid.talaria.frame.cluster.ClusterByKeyReader;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
+import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
@@ -49,7 +51,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-public class ClusterByStatisticsCollectorImplTest
+public class ClusterByStatisticsCollectorImplTest extends InitializedNullHandlingTest
 {
   private static final double PARTITION_SIZE_LEEWAY = 0.3;
 
@@ -77,10 +79,12 @@ public class ClusterByStatisticsCollectorImplTest
     final boolean aggregate = false;
     final ClusterBy clusterBy = CLUSTER_BY_X;
     final Iterable<ClusterByKey> keys = () ->
-        LongStream.range(0, numRows).mapToObj(ClusterByKey::of).iterator();
+        LongStream.range(0, numRows)
+                  .mapToObj(n -> createKey(clusterBy, n))
+                  .iterator();
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -124,12 +128,12 @@ public class ClusterByStatisticsCollectorImplTest
     final List<ClusterByKey> keys = new ArrayList<>();
 
     for (int i = 0; i < numRows / 2; i++) {
-      keys.add(ClusterByKey.of((long) i));
-      keys.add(ClusterByKey.of((long) i));
+      keys.add(createKey(clusterBy, (long) i));
+      keys.add(createKey(clusterBy, (long) i));
     }
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -175,12 +179,12 @@ public class ClusterByStatisticsCollectorImplTest
 
     for (int i = 0; i < numRows / duplicationFactor; i++) {
       for (int j = 0; j < duplicationFactor; j++) {
-        keys.add(ClusterByKey.of((long) i));
+        keys.add(createKey(clusterBy, (long) i));
       }
     }
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -235,11 +239,11 @@ public class ClusterByStatisticsCollectorImplTest
       final Object[] key = new Object[2];
       key[0] = (long) (i % numBuckets);
       key[1] = (long) i;
-      keys.add(ClusterByKey.of(key));
+      keys.add(createKey(clusterBy, key));
     }
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -299,11 +303,11 @@ public class ClusterByStatisticsCollectorImplTest
       final Object[] key = new Object[2];
       key[0] = (long) (i % numBuckets);
       key[1] = (long) i;
-      keys.add(ClusterByKey.of(key));
+      keys.add(createKey(clusterBy, key));
     }
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -370,11 +374,11 @@ public class ClusterByStatisticsCollectorImplTest
       final Object[] key = new Object[2];
       key[0] = (long) (i % numBuckets);
       key[1] = (long) (i % 5); // Only five different Ys
-      keys.add(ClusterByKey.of(key));
+      keys.add(createKey(clusterBy, key));
     }
 
     final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights =
-        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator(SIGNATURE));
+        computeSortedKeyWeightsFromUnweightedKeys(keys, clusterBy.keyComparator());
 
     doTest(
         clusterBy,
@@ -430,7 +434,7 @@ public class ClusterByStatisticsCollectorImplTest
       final BiConsumer<String, ClusterByStatisticsCollectorImpl> testFn
   )
   {
-    final Comparator<ClusterByKey> comparator = clusterBy.keyComparator(SIGNATURE);
+    final Comparator<ClusterByKey> comparator = clusterBy.keyComparator();
 
     // Load into single collector, sorted order.
     final ClusterByStatisticsCollectorImpl sortedCollector = makeCollector(clusterBy, aggregate);
@@ -501,7 +505,7 @@ public class ClusterByStatisticsCollectorImplTest
   private ClusterByStatisticsCollectorImpl makeCollector(final ClusterBy clusterBy, final boolean aggregate)
   {
     return (ClusterByStatisticsCollectorImpl)
-        ClusterByStatisticsCollectorImpl.create(clusterBy, SIGNATURE, MAX_KEYS, MAX_BUCKETS, aggregate);
+        ClusterByStatisticsCollectorImpl.create(clusterBy, SIGNATURE, MAX_KEYS, MAX_BUCKETS, aggregate, false);
   }
 
   private static void verifyPartitions(
@@ -513,10 +517,12 @@ public class ClusterByStatisticsCollectorImplTest
       final long expectedPartitionSize
   )
   {
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(SIGNATURE);
+
     final int expectedNumberOfBuckets =
         sortedKeyWeights.keySet()
                         .stream()
-                        .map(key -> key.trim(clusterBy.getBucketByCount()))
+                        .map(key -> keyReader.trim(key, clusterBy.getBucketByCount()))
                         .collect(Collectors.toSet())
                         .size();
 
@@ -526,9 +532,17 @@ public class ClusterByStatisticsCollectorImplTest
         testName,
         partitions,
         sortedKeyWeights.firstKey(),
-        clusterBy.keyComparator(SIGNATURE)
+        clusterBy.keyComparator()
     );
     verifyPartitionWeights(testName, clusterBy, partitions, sortedKeyWeights, aggregate, expectedPartitionSize);
+  }
+
+  private static ClusterByKey createKey(final ClusterBy clusterBy, final Object... objects)
+  {
+    return ClusterByTestUtils.createKey(
+        ClusterByTestUtils.createKeySignature(clusterBy.getColumns(), SIGNATURE),
+        objects
+    );
   }
 
   private static void verifyPartitionsWithTargetWeight(
@@ -586,12 +600,14 @@ public class ClusterByStatisticsCollectorImplTest
       final int expectedNumberOfBuckets
   )
   {
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(SIGNATURE);
+
     Assert.assertEquals(
         StringUtils.format("%s: number of buckets", testName),
         expectedNumberOfBuckets,
         partitions.ranges()
                   .stream()
-                  .map(partition -> partition.getStart().trim(clusterBy.getBucketByCount()))
+                  .map(partition -> keyReader.trim(partition.getStart(), clusterBy.getBucketByCount()))
                   .distinct()
                   .count()
     );
@@ -667,16 +683,18 @@ public class ClusterByStatisticsCollectorImplTest
       final NavigableMap<ClusterByKey, List<Integer>> sortedKeyWeights
   )
   {
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(SIGNATURE);
     final List<ClusterByPartition> ranges = partitions.ranges();
 
     for (int i = 0; i < ranges.size(); i++) {
       final ClusterByPartition partition = ranges.get(i);
-      final ClusterByKey firstBucketKey = partition.getStart().trim(clusterBy.getBucketByCount());
-      final ClusterByKey lastBucketKey =
-          (partition.getEnd() == null
-           ? sortedKeyWeights.lastKey()
-           : sortedKeyWeights.subMap(partition.getStart(), true, partition.getEnd(), false).lastKey())
-              .trim(clusterBy.getBucketByCount());
+      final ClusterByKey firstBucketKey = keyReader.trim(partition.getStart(), clusterBy.getBucketByCount());
+      final ClusterByKey lastBucketKey = keyReader.trim(
+          partition.getEnd() == null
+          ? sortedKeyWeights.lastKey()
+          : sortedKeyWeights.subMap(partition.getStart(), true, partition.getEnd(), false).lastKey(),
+          clusterBy.getBucketByCount()
+      );
 
       Assert.assertEquals(
           StringUtils.format("%s: partition %d: first, last bucket key are equal", testName, i),
@@ -698,6 +716,7 @@ public class ClusterByStatisticsCollectorImplTest
       final long expectedPartitionSize
   )
   {
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(SIGNATURE);
     final List<ClusterByPartition> ranges = partitions.ranges();
 
     // Compute actual number of rows per partition.
@@ -713,7 +732,7 @@ public class ClusterByStatisticsCollectorImplTest
     // Compare actual size to desired size.
     for (int i = 0; i < ranges.size(); i++) {
       final ClusterByPartition partition = ranges.get(i);
-      final ClusterByKey bucketKey = partition.getStart().trim(clusterBy.getBucketByCount());
+      final ClusterByKey bucketKey = keyReader.trim(partition.getStart(), clusterBy.getBucketByCount());
       final long actualNumberOfRows = rowsPerPartition.get(partition.getStart());
 
       // Reasonable maximum number of rows per partition.
@@ -727,7 +746,7 @@ public class ClusterByStatisticsCollectorImplTest
       // Our algorithm allows the last partition of each bucket to be extra-small.
       final boolean isLastInBucket =
           i == partitions.size() - 1
-          || !partitions.get(i + 1).getStart().trim(clusterBy.getBucketByCount()).equals(bucketKey);
+          || !keyReader.trim(partitions.get(i + 1).getStart(), clusterBy.getBucketByCount()).equals(bucketKey);
 
       if (!isLastInBucket) {
         MatcherAssert.assertThat(
@@ -815,12 +834,10 @@ public class ClusterByStatisticsCollectorImplTest
   {
     try {
       final ObjectMapper jsonMapper = TestHelper.makeJsonMapper();
-      jsonMapper.registerModule(new ClusterByKeyDeserializerModule(SIGNATURE, collector.getClusterBy()));
       jsonMapper.registerModule(
           new KeyCollectorSnapshotDeserializerModule(
               KeyCollectors.makeStandardFactory(
                   collector.getClusterBy(),
-                  SIGNATURE,
                   aggregate
               )
           )

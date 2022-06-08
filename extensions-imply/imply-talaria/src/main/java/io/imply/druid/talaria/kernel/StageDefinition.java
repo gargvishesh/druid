@@ -39,6 +39,7 @@ public class StageDefinition
   private static final int PARTITION_STATS_MAX_BUCKETS = 5_000; // Limit for TooManyBuckets
   private static final int MAX_PARTITIONS = 25_000; // Limit for TooManyPartitions
 
+  // If adding any fields here, add them to builder(StageDefinition) below too.
   private final StageId id;
   private final List<StageId> inputStages;
   private final Set<StageId> broadcastInputStages;
@@ -46,6 +47,7 @@ public class StageDefinition
   private final FrameProcessorFactory processorFactory;
   private final RowSignature signature;
   private final int maxWorkerCount;
+  private final boolean shuffleCheckHasMultipleValues;
 
   @Nullable
   private final ShuffleSpec shuffleSpec;
@@ -62,7 +64,8 @@ public class StageDefinition
       @SuppressWarnings("rawtypes") @JsonProperty("processorFactory") final FrameProcessorFactory processorFactory,
       @JsonProperty("signature") final RowSignature signature,
       @Nullable @JsonProperty("shuffleSpec") final ShuffleSpec shuffleSpec,
-      @JsonProperty("maxWorkerCount") final int maxWorkerCount
+      @JsonProperty("maxWorkerCount") final int maxWorkerCount,
+      @JsonProperty("shuffleCheckHasMultipleValues") final boolean shuffleCheckHasMultipleValues
   )
   {
     this.id = Preconditions.checkNotNull(id, "id");
@@ -72,6 +75,7 @@ public class StageDefinition
     this.signature = Preconditions.checkNotNull(signature, "signature");
     this.shuffleSpec = shuffleSpec;
     this.maxWorkerCount = maxWorkerCount;
+    this.shuffleCheckHasMultipleValues = shuffleCheckHasMultipleValues;
     this.frameReader = Suppliers.memoize(() -> FrameReader.create(signature))::get;
 
     if (ImmutableSet.copyOf(inputStages).size() != inputStages.size()) {
@@ -112,7 +116,8 @@ public class StageDefinition
         .processorFactory(stageDef.getProcessorFactory())
         .signature(stageDef.getSignature())
         .shuffleSpec(stageDef.getShuffleSpec().orElse(null))
-        .maxWorkerCount(stageDef.getMaxWorkerCount());
+        .maxWorkerCount(stageDef.getMaxWorkerCount())
+        .shuffleCheckHasMultipleValues(stageDef.getShuffleCheckHasMultipleValues());
   }
 
   @JsonProperty
@@ -171,6 +176,13 @@ public class StageDefinition
     return maxWorkerCount;
   }
 
+  @JsonProperty("shuffleCheckHasMultipleValues")
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  boolean getShuffleCheckHasMultipleValues()
+  {
+    return shuffleCheckHasMultipleValues;
+  }
+
   public int getMaxPartitionCount()
   {
     // Pretends to be an instance method, but really returns a constant. Maybe one day this will be defined per stage.
@@ -213,7 +225,8 @@ public class StageDefinition
         signature,
         PARTITION_STATS_MAX_KEYS,
         PARTITION_STATS_MAX_BUCKETS,
-        shuffleSpec.doesAggregateByClusterKey()
+        shuffleSpec.doesAggregateByClusterKey(),
+        shuffleCheckHasMultipleValues
     );
   }
 
@@ -233,6 +246,7 @@ public class StageDefinition
     }
     StageDefinition that = (StageDefinition) o;
     return maxWorkerCount == that.maxWorkerCount
+           && shuffleCheckHasMultipleValues == that.shuffleCheckHasMultipleValues
            && Objects.equals(id, that.id)
            && Objects.equals(inputStages, that.inputStages)
            && Objects.equals(broadcastInputStages, that.broadcastInputStages)
@@ -251,6 +265,7 @@ public class StageDefinition
         processorFactory,
         signature,
         maxWorkerCount,
+        shuffleCheckHasMultipleValues,
         shuffleSpec
     );
   }
@@ -266,6 +281,7 @@ public class StageDefinition
            ", signature=" + signature +
            ", maxWorkerCount=" + maxWorkerCount +
            ", shuffleSpec=" + shuffleSpec +
+           (shuffleCheckHasMultipleValues ? ", shuffleCheckHasMultipleValues=" + shuffleCheckHasMultipleValues : "") +
            '}';
   }
 }

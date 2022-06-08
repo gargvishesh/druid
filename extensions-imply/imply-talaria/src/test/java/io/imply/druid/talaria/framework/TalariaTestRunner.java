@@ -25,7 +25,7 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Providers;
-import io.imply.druid.talaria.frame.FrameTestUtil;
+import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
 import io.imply.druid.talaria.guice.TalariaSqlModule;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;

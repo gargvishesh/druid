@@ -11,6 +11,7 @@ package io.imply.druid.talaria.indexing;
 
 import com.google.common.io.ByteStreams;
 import io.imply.druid.talaria.exec.Worker;
+import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -104,17 +105,16 @@ public class WorkerChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Path("/resultPartitionBoundaries/{queryId}/{stageNumber}")
   public Response httpPostResultPartitionBoundaries(
-      final Object stagePartitionBoundariesObject,
+      final ClusterByPartitions stagePartitionBoundaries,
       @PathParam("queryId") final String queryId,
       @PathParam("stageNumber") final int stageNumber,
       @Context final HttpServletRequest req
   )
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
-    if (worker.postResultPartitionBoundaries(stagePartitionBoundariesObject, queryId, stageNumber)) {
+    if (worker.postResultPartitionBoundaries(stagePartitionBoundaries, queryId, stageNumber)) {
       return Response.status(Response.Status.ACCEPTED).build();
     } else {
-      // TODO(gianm): improve error?
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
   }

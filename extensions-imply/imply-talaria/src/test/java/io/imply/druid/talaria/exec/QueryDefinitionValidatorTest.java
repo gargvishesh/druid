@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.exec;
 
-import io.imply.druid.talaria.frame.processor.TestFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;

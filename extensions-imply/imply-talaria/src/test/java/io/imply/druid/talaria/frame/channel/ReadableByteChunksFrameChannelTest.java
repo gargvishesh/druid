@@ -12,10 +12,11 @@ package io.imply.druid.talaria.frame.channel;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.talaria.frame.FrameTestUtil;
-import io.imply.druid.talaria.frame.TestFrameSequenceBuilder;
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.read.FrameReader;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
+import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
+import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.segment.TestIndex;
@@ -109,15 +110,16 @@ public class ReadableByteChunksFrameChannelTest
     public void testTruncatedFrameFile() throws IOException
     {
       final int allocatorSize = 64000;
-      final int truncatedSize = 30000; // Holds two full frames + one partial frame, after compression.
+      final int truncatedSize = 30000; // Holds two full columnar frames + one partial frame, after compression.
 
       final IncrementalIndexStorageAdapter adapter =
           new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
 
       final File file = FrameTestUtil.writeFrameFile(
-          TestFrameSequenceBuilder.fromAdapter(adapter)
-                                  .allocator(ArenaMemoryAllocator.create(ByteBuffer.allocate(allocatorSize)))
-                                  .frames(),
+          FrameSequenceBuilder.fromAdapter(adapter)
+                              .allocator(ArenaMemoryAllocator.create(ByteBuffer.allocate(allocatorSize)))
+                              .frameType(FrameType.COLUMNAR) // No particular reason to test with both frame types
+                              .frames(),
           temporaryFolder.newFile()
       );
 
@@ -154,9 +156,10 @@ public class ReadableByteChunksFrameChannelTest
           new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
 
       final File file = FrameTestUtil.writeFrameFile(
-          TestFrameSequenceBuilder.fromAdapter(adapter)
-                                  .allocator(ArenaMemoryAllocator.create(ByteBuffer.allocate(allocatorSize)))
-                                  .frames(),
+          FrameSequenceBuilder.fromAdapter(adapter)
+                              .allocator(ArenaMemoryAllocator.create(ByteBuffer.allocate(allocatorSize)))
+                              .frameType(FrameType.COLUMNAR) // No particular reason to test with both frame types
+                              .frames(),
           temporaryFolder.newFile()
       );
 
@@ -183,23 +186,27 @@ public class ReadableByteChunksFrameChannelTest
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    private final FrameType frameType;
     private final int maxRowsPerFrame;
     private final int chunkSize;
 
-    public ParameterizedWithTestIndex(final int maxRowsPerFrame, final int chunkSize)
+    public ParameterizedWithTestIndex(final FrameType frameType, final int maxRowsPerFrame, final int chunkSize)
     {
+      this.frameType = frameType;
       this.maxRowsPerFrame = maxRowsPerFrame;
       this.chunkSize = chunkSize;
     }
 
-    @Parameterized.Parameters(name = "maxRowsPerFrame = {0}, chunkSize = {1}")
+    @Parameterized.Parameters(name = "frameType = {0}, maxRowsPerFrame = {1}, chunkSize = {2}")
     public static Iterable<Object[]> constructorFeeder()
     {
       final List<Object[]> constructors = new ArrayList<>();
 
-      for (int maxRowsPerFrame : new int[]{1, 50, Integer.MAX_VALUE}) {
-        for (int chunkSize : new int[]{1, 10, 1_000, 5_000, 50_000, 1_000_000}) {
-          constructors.add(new Object[]{maxRowsPerFrame, chunkSize});
+      for (FrameType frameType : FrameType.values()) {
+        for (int maxRowsPerFrame : new int[]{1, 50, Integer.MAX_VALUE}) {
+          for (int chunkSize : new int[]{1, 10, 1_000, 5_000, 50_000, 1_000_000}) {
+            constructors.add(new Object[]{frameType, maxRowsPerFrame, chunkSize});
+          }
         }
       }
 
@@ -214,7 +221,10 @@ public class ReadableByteChunksFrameChannelTest
           new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
 
       final File file = FrameTestUtil.writeFrameFile(
-          TestFrameSequenceBuilder.fromAdapter(adapter).maxRowsPerFrame(maxRowsPerFrame).frames(),
+          FrameSequenceBuilder.fromAdapter(adapter)
+                              .maxRowsPerFrame(maxRowsPerFrame)
+                              .frameType(FrameType.ROW_BASED) // No particular reason to test with both frame types
+                              .frames(),
           temporaryFolder.newFile()
       );
 
@@ -262,7 +272,10 @@ public class ReadableByteChunksFrameChannelTest
           new IncrementalIndexStorageAdapter(TestIndex.getIncrementalTestIndex());
 
       final File file = FrameTestUtil.writeFrameFile(
-          TestFrameSequenceBuilder.fromAdapter(adapter).maxRowsPerFrame(maxRowsPerFrame).frames(),
+          FrameSequenceBuilder.fromAdapter(adapter)
+                              .maxRowsPerFrame(maxRowsPerFrame)
+                              .frameType(FrameType.ROW_BASED) // No particular reason to test with both frame types
+                              .frames(),
           temporaryFolder.newFile()
       );
 

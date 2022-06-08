@@ -49,7 +49,6 @@ import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
 import io.imply.druid.talaria.querykit.InputStageDataSource;
 import io.imply.druid.talaria.querykit.NilInputSource;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
-import io.imply.druid.talaria.querykit.common.OrderByFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPostShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
@@ -84,7 +83,6 @@ public class TalariaIndexingModule implements DruidModule
             ScanQueryFrameProcessorFactory.class,
             GroupByPreShuffleFrameProcessorFactory.class,
             GroupByPostShuffleFrameProcessorFactory.class,
-            OrderByFrameProcessorFactory.class,
             OffsetLimitFrameProcessorFactory.class,
             NilExtraInfoHolder.class,
 

@@ -15,6 +15,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 
 /**
  * Collects statistics that help determine how to optimally partition a dataset to achieve a desired {@link ClusterBy}.
+ *
  * Not thread-safe.
  */
 public interface ClusterByStatisticsCollector
@@ -53,7 +54,12 @@ public interface ClusterByStatisticsCollector
   /**
    * Whether this collector has encountered any multi-valued input at a particular key position.
    *
+   * This method exists because {@link org.apache.druid.timeline.partition.DimensionRangeShardSpec} does not
+   * support partitioning on multi-valued strings, so we need to know if any multi-valued strings exist in order
+   * to decide whether we can use this kind of shard spec.
+   *
    * @throws IllegalArgumentException if keyPosition is outside the range of {@link #getClusterBy()}
+   * @throws IllegalStateException    if this collector was not checking keys for multiple-values
    */
   boolean hasMultipleValues(int keyPosition);
 

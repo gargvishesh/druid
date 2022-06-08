@@ -43,8 +43,6 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
   @Nullable
   private final AtomicLong runningCountForLimit;
 
-  private final AtomicLong broadcastHashJoinRhsTablesMemoryCounter;
-
   @JsonCreator
   public ScanQueryFrameProcessorFactory(
       @JsonProperty("query") ScanQuery query,
@@ -56,7 +54,6 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
     this.inputSpecs = Preconditions.checkNotNull(inputSpecs, "inputSpecs");
     this.runningCountForLimit =
         query.isLimited() && query.getOrderBys().isEmpty() ? new AtomicLong() : null;
-    this.broadcastHashJoinRhsTablesMemoryCounter = new AtomicLong();
   }
 
   @JsonProperty

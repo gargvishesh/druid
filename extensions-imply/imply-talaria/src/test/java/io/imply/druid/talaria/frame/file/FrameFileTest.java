@@ -11,12 +11,13 @@ package io.imply.druid.talaria.frame.file;
 
 import com.google.common.math.IntMath;
 import io.imply.druid.talaria.TestArrayStorageAdapter;
-import io.imply.druid.talaria.frame.FrameTestUtil;
-import io.imply.druid.talaria.frame.TestFrameSequenceBuilder;
+import io.imply.druid.talaria.frame.Frame;
+import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
-import io.imply.druid.talaria.frame.read.Frame;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
+import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.segment.QueryableIndexStorageAdapter;
@@ -85,6 +86,7 @@ public class FrameFileTest extends InitializedNullHandlingTest
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
+  private final FrameType frameType;
   private final int maxRowsPerFrame;
   private final boolean partitioned;
   private final AdapterType adapterType;
@@ -94,19 +96,27 @@ public class FrameFileTest extends InitializedNullHandlingTest
   private File file;
 
   public FrameFileTest(
+      final FrameType frameType,
       final int maxRowsPerFrame,
       final boolean partitioned,
       final AdapterType adapterType,
       final FrameFile.Flag openMode
   )
   {
+    this.frameType = frameType;
     this.maxRowsPerFrame = maxRowsPerFrame;
     this.partitioned = partitioned;
     this.adapterType = adapterType;
     this.openMode = openMode;
   }
 
-  @Parameterized.Parameters(name = "maxRowsPerFrame = {0}, partitioned = {1}, adapter = {2}, openMode = {3}")
+  @Parameterized.Parameters(
+      name = "frameType = {0}, "
+             + "maxRowsPerFrame = {1}, "
+             + "partitioned = {2}, "
+             + "adapter = {3}, "
+             + "openMode = {4}"
+  )
   public static Iterable<Object[]> constructorFeeder()
   {
     final List<Object[]> constructors = new ArrayList<>();
@@ -115,11 +125,13 @@ public class FrameFileTest extends InitializedNullHandlingTest
         FrameFile.Flag.DS_MEMORY_MAP
     };
 
-    for (int maxRowsPerFrame : new int[]{1, 17, 50, PARTITION_SIZE, Integer.MAX_VALUE}) {
-      for (boolean partitioned : new boolean[]{true, false}) {
-        for (AdapterType adapterType : AdapterType.values()) {
-          for (FrameFile.Flag openMode : openModes) {
-            constructors.add(new Object[]{maxRowsPerFrame, partitioned, adapterType, openMode});
+    for (FrameType frameType : FrameType.values()) {
+      for (int maxRowsPerFrame : new int[]{1, 17, 50, PARTITION_SIZE, Integer.MAX_VALUE}) {
+        for (boolean partitioned : new boolean[]{true, false}) {
+          for (AdapterType adapterType : AdapterType.values()) {
+            for (FrameFile.Flag openMode : openModes) {
+              constructors.add(new Object[]{frameType, maxRowsPerFrame, partitioned, adapterType, openMode});
+            }
           }
         }
       }
@@ -136,7 +148,7 @@ public class FrameFileTest extends InitializedNullHandlingTest
     if (partitioned) {
       // Partition every PARTITION_SIZE rows.
       file = FrameTestUtil.writeFrameFileWithPartitions(
-          TestFrameSequenceBuilder.fromAdapter(adapter).maxRowsPerFrame(maxRowsPerFrame).frames().map(
+          FrameSequenceBuilder.fromAdapter(adapter).frameType(frameType).maxRowsPerFrame(maxRowsPerFrame).frames().map(
               new Function<Frame, FrameWithPartition>()
               {
                 private int rows = 0;
@@ -158,7 +170,7 @@ public class FrameFileTest extends InitializedNullHandlingTest
 
     } else {
       file = FrameTestUtil.writeFrameFile(
-          TestFrameSequenceBuilder.fromAdapter(adapter).maxRowsPerFrame(maxRowsPerFrame).frames(),
+          FrameSequenceBuilder.fromAdapter(adapter).frameType(frameType).maxRowsPerFrame(maxRowsPerFrame).frames(),
           temporaryFolder.newFile()
       );
     }

@@ -23,7 +23,6 @@ import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
-import io.imply.druid.talaria.querykit.common.OrderByFrameProcessorFactory;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -38,14 +37,11 @@ import org.apache.druid.query.groupby.orderby.NoopLimitSpec;
 import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.druid.query.ordering.StringComparator;
 import org.apache.druid.query.ordering.StringComparators;
-import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,44 +78,46 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     final int firstStageNumber = Math.max(minStageNumber, queryDefBuilder.getNextStageNumber());
 
     final Granularity segmentGranularity = QueryKitUtils.getSegmentGranularityFromContext(queryToRun.getContext());
-    final RowSignature signaturePreAggregation = computeSignaturePreAggregation(queryToRun);
-    final RowSignature signaturePostAggregation = computeSignaturePostAggregation(queryToRun);
-    final RowSignature signatureForResults =
-        QueryKitUtils.signatureWithSegmentGranularity(signaturePostAggregation, segmentGranularity);
-    final ClusterBy clusterByPreAggregation = computeClusterByPreAggregation(queryToRun);
-    final ClusterBy clusterByForResults =
+    final RowSignature intermediateSignature = computeIntermediateSignature(queryToRun);
+    final ClusterBy resultClusterBy =
         QueryKitUtils.clusterByWithSegmentGranularity(computeClusterByForResults(queryToRun), segmentGranularity);
-    final boolean doOrderBy = !clusterByForResults.equals(clusterByPreAggregation);
+    final RowSignature resultSignature =
+        QueryKitUtils.sortableSignature(
+            QueryKitUtils.signatureWithSegmentGranularity(computeResultSignature(queryToRun), segmentGranularity),
+            resultClusterBy.getColumns()
+        );
+    final ClusterBy intermediateClusterBy = computeIntermediateClusterBy(queryToRun);
+    final boolean doOrderBy = !resultClusterBy.equals(intermediateClusterBy);
     final boolean doLimitOrOffset =
         queryToRun.getLimitSpec() instanceof DefaultLimitSpec
         && (((DefaultLimitSpec) queryToRun.getLimitSpec()).isLimited()
             || ((DefaultLimitSpec) queryToRun.getLimitSpec()).isOffset());
 
-    final ShuffleSpecFactory shuffleSpecFactoryForAggregation;
-    final ShuffleSpecFactory shuffleSpecFactoryForOrderBy;
+    final ShuffleSpecFactory shuffleSpecFactoryPreAggregation;
+    final ShuffleSpecFactory shuffleSpecFactoryPostAggregation;
 
-    if (clusterByPreAggregation.getColumns().isEmpty()) {
+    if (intermediateClusterBy.getColumns().isEmpty()) {
       // Ignore shuffleSpecFactory, since we know only a single partition will come out, and we can save some effort.
-      shuffleSpecFactoryForAggregation = ShuffleSpecFactories.singlePartition();
-      shuffleSpecFactoryForOrderBy = ShuffleSpecFactories.singlePartition();
+      shuffleSpecFactoryPreAggregation = ShuffleSpecFactories.singlePartition();
+      shuffleSpecFactoryPostAggregation = ShuffleSpecFactories.singlePartition();
     } else if (doOrderBy) {
-      shuffleSpecFactoryForAggregation = ShuffleSpecFactories.subQueryWithMaxWorkerCount(maxWorkerCount);
-      shuffleSpecFactoryForOrderBy = doLimitOrOffset
-                                     ? ShuffleSpecFactories.singlePartition()
-                                     : resultShuffleSpecFactory;
+      shuffleSpecFactoryPreAggregation = ShuffleSpecFactories.subQueryWithMaxWorkerCount(maxWorkerCount);
+      shuffleSpecFactoryPostAggregation = doLimitOrOffset
+                                          ? ShuffleSpecFactories.singlePartition()
+                                          : resultShuffleSpecFactory;
     } else {
-      shuffleSpecFactoryForAggregation = doLimitOrOffset
+      shuffleSpecFactoryPreAggregation = doLimitOrOffset
                                          ? ShuffleSpecFactories.singlePartition()
                                          : resultShuffleSpecFactory;
-      shuffleSpecFactoryForOrderBy = null;
+      shuffleSpecFactoryPostAggregation = null;
     }
 
     queryDefBuilder.add(
         StageDefinition.builder(firstStageNumber)
                        .inputStages(dataSourcePlan.getInputStageNumbers())
                        .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
-                       .signature(signaturePreAggregation)
-                       .shuffleSpec(shuffleSpecFactoryForAggregation.build(clusterByPreAggregation, true))
+                       .signature(intermediateSignature)
+                       .shuffleSpec(shuffleSpecFactoryPreAggregation.build(intermediateClusterBy, true))
                        .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : maxWorkerCount)
                        .processorFactory(
                            new GroupByPreShuffleFrameProcessorFactory(
@@ -132,41 +130,23 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     queryDefBuilder.add(
         StageDefinition.builder(firstStageNumber + 1)
                        .inputStages(firstStageNumber)
-                       .signature(doOrderBy || doLimitOrOffset ? signaturePostAggregation : signatureForResults)
+                       .signature(resultSignature)
                        .maxWorkerCount(maxWorkerCount)
+                       .shuffleSpec(
+                           shuffleSpecFactoryPostAggregation != null
+                           ? shuffleSpecFactoryPostAggregation.build(resultClusterBy, false)
+                           : null
+                       )
                        .processorFactory(new GroupByPostShuffleFrameProcessorFactory(queryToRun))
     );
-
-    if (doOrderBy) {
-      final VirtualColumns virtualColumns;
-      final VirtualColumn segmentGranularityVirtualColumn = QueryKitUtils.makeSegmentGranularityVirtualColumn(
-          segmentGranularity,
-          queryToRun.getContextValue(QueryKitUtils.CTX_TIME_COLUMN_NAME)
-      );
-
-      if (segmentGranularityVirtualColumn == null) {
-        virtualColumns = VirtualColumns.EMPTY;
-      } else {
-        virtualColumns = VirtualColumns.create(Collections.singletonList(segmentGranularityVirtualColumn));
-      }
-
-      queryDefBuilder.add(
-          StageDefinition.builder(firstStageNumber + 2)
-                         .inputStages(firstStageNumber + 1)
-                         .signature(signatureForResults)
-                         .shuffleSpec(shuffleSpecFactoryForOrderBy.build(clusterByForResults, false))
-                         .maxWorkerCount(maxWorkerCount)
-                         .processorFactory(new OrderByFrameProcessorFactory(virtualColumns))
-      );
-    }
 
     if (doLimitOrOffset) {
       final DefaultLimitSpec limitSpec = (DefaultLimitSpec) queryToRun.getLimitSpec();
 
       queryDefBuilder.add(
-          StageDefinition.builder(firstStageNumber + (doOrderBy ? 3 : 2))
-                         .inputStages(firstStageNumber + (doOrderBy ? 2 : 1))
-                         .signature(signatureForResults)
+          StageDefinition.builder(firstStageNumber + 2)
+                         .inputStages(firstStageNumber + 1)
+                         .signature(resultSignature)
                          .maxWorkerCount(1)
                          .shuffleSpec(new MaxCountShuffleSpec(ClusterBy.none(), 1, false))
                          .processorFactory(
@@ -181,7 +161,11 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     return queryDefBuilder.queryId(queryId).build();
   }
 
-  static RowSignature computeSignaturePreAggregation(final GroupByQuery query)
+  /**
+   * Intermediate signature of a particular {@link GroupByQuery}. Does not include post-aggregators, and all
+   * aggregations are nonfinalized.
+   */
+  static RowSignature computeIntermediateSignature(final GroupByQuery query)
   {
     final RowSignature postAggregationSignature = query.getResultRowSignature(RowSignature.Finalization.NO);
     final RowSignature.Builder builder = RowSignature.builder();
@@ -196,21 +180,32 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     return builder.build();
   }
 
-  static RowSignature computeSignaturePostAggregation(final GroupByQuery query)
+  /**
+   * Result signature of a particular {@link GroupByQuery}. Includes post-aggregators, and aggregations are
+   * finalized by default. (But may be nonfinalized, depending on {@link #isFinalize}.
+   */
+  static RowSignature computeResultSignature(final GroupByQuery query)
   {
     final RowSignature.Finalization finalization =
         isFinalize(query) ? RowSignature.Finalization.YES : RowSignature.Finalization.NO;
     return query.getResultRowSignature(finalization);
   }
 
+  /**
+   * Whether aggregations appearing in the result of a query must be finalized.
+   *
+   * There is a discrepancy here with native execution. By default, native execution finalizes outer queries only.
+   * Here, we finalize all queries, including subqueries.
+   */
   static boolean isFinalize(final GroupByQuery query)
   {
-    // TODO(gianm): This is a discrepancy between native and talaria execution: native by default finalizes outer
-    //   queries only; talaria by default finalizes all queries, including subqueries.
     return QueryContexts.isFinalize(query, true);
   }
 
-  static ClusterBy computeClusterByPreAggregation(final GroupByQuery query)
+  /**
+   * Clustering for the intermediate shuffle in a groupBy query.
+   */
+  static ClusterBy computeIntermediateClusterBy(final GroupByQuery query)
   {
     final List<ClusterByColumn> columns = new ArrayList<>();
 
@@ -222,6 +217,9 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     return new ClusterBy(columns, 0);
   }
 
+  /**
+   * Clustering for the results of a groupBy query.
+   */
   static ClusterBy computeClusterByForResults(final GroupByQuery query)
   {
     if (query.getLimitSpec() instanceof DefaultLimitSpec) {
@@ -243,9 +241,14 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
       }
     }
 
-    return computeClusterByPreAggregation(query);
+    return computeIntermediateClusterBy(query);
   }
 
+  /**
+   * Returns silently if the provided {@link GroupByQuery} is supported by this kit. Throws an exception otherwise.
+   *
+   * @throws IllegalStateException if the query is not supported
+   */
   private static void validateQuery(final GroupByQuery query)
   {
     // Misc features that we do not support right now.
@@ -267,7 +270,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     if (query.getLimitSpec() instanceof DefaultLimitSpec) {
       final DefaultLimitSpec defaultLimitSpec = (DefaultLimitSpec) query.getLimitSpec();
 
-      final RowSignature resultSignature = computeSignaturePostAggregation(query);
+      final RowSignature resultSignature = computeResultSignature(query);
       for (final OrderByColumnSpec column : defaultLimitSpec.getColumns()) {
         final Optional<ColumnType> type = resultSignature.getColumnType(column.getDimension());
 

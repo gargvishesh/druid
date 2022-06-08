@@ -19,17 +19,18 @@ import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameChannelSequence;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import io.imply.druid.talaria.frame.cluster.ClusterByKeyReader;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.frame.processor.FrameProcessorExecutor;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
-import io.imply.druid.talaria.frame.write.ArenaMemoryAllocator;
 import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
@@ -65,6 +66,7 @@ import io.imply.druid.talaria.indexing.report.TalariaStatusReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.kernel.QueryDefinition;
+import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactories;
@@ -437,9 +439,9 @@ public class LeaderImpl implements Leader
 
     if (task.getSqlQueryContext() != null) {
       maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
-                                                        .get(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
-                                        .map(DimensionHandlerUtils::convertObjectToLong)
-                                        .orElse(TalariaWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
+                                                   .get(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
+                                   .map(DimensionHandlerUtils::convertObjectToLong)
+                                   .orElse(TalariaWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
     }
 
     this.faultsExceededChecker = new FaultsExceededChecker(
@@ -676,9 +678,8 @@ public class LeaderImpl implements Leader
 
           // We need a specially-decorated ObjectMapper to deserialize key statistics.
           final StageDefinition stageDef = queryKernel.getStageDefinition(stageId);
-          final ObjectMapper mapper = TalariaTasks.decorateObjectMapperForClusterByKey(
+          final ObjectMapper mapper = TalariaTasks.decorateObjectMapperForKeyCollectorSnapshot(
               context.jsonMapper(),
-              stageDef.getSignature(),
               stageDef.getShuffleSpec().get().getClusterBy(),
               stageDef.getShuffleSpec().get().doesAggregateByClusterKey()
           );
@@ -858,7 +859,8 @@ public class LeaderImpl implements Leader
           mayHaveMultiValuedClusterByFields
       );
     } else {
-      return generateSegmentIdsWithShardSpecsForAppend(destination, partitionBoundaries);
+      final ClusterByKeyReader keyReader = clusterBy.keyReader(signature);
+      return generateSegmentIdsWithShardSpecsForAppend(destination, partitionBoundaries, keyReader);
     }
   }
 
@@ -867,7 +869,8 @@ public class LeaderImpl implements Leader
    */
   private List<SegmentIdWithShardSpec> generateSegmentIdsWithShardSpecsForAppend(
       final DataSourceTalariaDestination destination,
-      final ClusterByPartitions partitionBoundaries
+      final ClusterByPartitions partitionBoundaries,
+      final ClusterByKeyReader keyReader
   ) throws IOException
   {
     final Granularity segmentGranularity = destination.getSegmentGranularity();
@@ -877,7 +880,7 @@ public class LeaderImpl implements Leader
     final List<SegmentIdWithShardSpec> retVal = new ArrayList<>(partitionBoundaries.size());
 
     for (ClusterByPartition partitionBoundary : partitionBoundaries) {
-      final DateTime timestamp = getBucketDateTime(partitionBoundary, segmentGranularity);
+      final DateTime timestamp = getBucketDateTime(partitionBoundary, segmentGranularity, keyReader);
       final SegmentIdWithShardSpec allocation;
       try {
         allocation = context.taskActionClient().submit(
@@ -904,7 +907,6 @@ public class LeaderImpl implements Leader
           throw e;
         }
       }
-
 
       if (allocation == null) {
         throw new TalariaException(
@@ -933,6 +935,7 @@ public class LeaderImpl implements Leader
       final boolean mayHaveMultiValuedClusterByFields
   ) throws IOException
   {
+    final ClusterByKeyReader keyReader = clusterBy.keyReader(signature);
     final SegmentIdWithShardSpec[] retVal = new SegmentIdWithShardSpec[partitionBoundaries.size()];
     final Granularity segmentGranularity = destination.getSegmentGranularity();
     final List<String> shardColumns;
@@ -948,7 +951,7 @@ public class LeaderImpl implements Leader
     final Map<DateTime, List<Pair<Integer, ClusterByPartition>>> partitionsByBucket = new HashMap<>();
     for (int i = 0; i < partitionBoundaries.ranges().size(); i++) {
       ClusterByPartition partitionBoundary = partitionBoundaries.ranges().get(i);
-      final DateTime bucketDateTime = getBucketDateTime(partitionBoundary, segmentGranularity);
+      final DateTime bucketDateTime = getBucketDateTime(partitionBoundary, segmentGranularity, keyReader);
       partitionsByBucket.computeIfAbsent(bucketDateTime, ignored -> new ArrayList<>())
                         .add(Pair.of(i, partitionBoundary));
     }
@@ -986,9 +989,9 @@ public class LeaderImpl implements Leader
         } else {
           final ClusterByPartition range = ranges.get(segmentNumber).rhs;
           final StringTuple start =
-              segmentNumber == 0 ? null : makeStringTuple(clusterBy, range.getStart());
+              segmentNumber == 0 ? null : makeStringTuple(clusterBy, keyReader, range.getStart());
           final StringTuple end =
-              segmentNumber == ranges.size() - 1 ? null : makeStringTuple(clusterBy, range.getEnd());
+              segmentNumber == ranges.size() - 1 ? null : makeStringTuple(clusterBy, keyReader, range.getEnd());
 
           shardSpec = new DimensionRangeShardSpec(shardColumns, start, end, segmentNumber, ranges.size());
         }
@@ -1420,27 +1423,46 @@ public class LeaderImpl implements Leader
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
     if (TalariaControllerTask.isIngestion(querySpec)) {
-      DataSchema dataSchema = generateDataSchema(
-          querySpec,
-          querySignature,
-          queryClusterBy,
-          columnMappings
-      );
-      return QueryDefinition
-          .builder(queryDef)
-          .add(
-              StageDefinition.builder(queryDef.getNextStageNumber())
-                             .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
-                             .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
-                             .processorFactory(
-                                 new TalariaSegmentGeneratorFrameProcessorFactory(
-                                     dataSchema,
-                                     columnMappings,
-                                     tuningConfig
-                                 )
+      // Find the stage that provides shuffled input to the final segment-generation stage.
+      StageDefinition finalShuffleStageDef = queryDef.getFinalStageDefinition();
+
+      while (!finalShuffleStageDef.doesShuffle() && finalShuffleStageDef.getInputStageIds().size() == 1) {
+        finalShuffleStageDef =
+            queryDef.getStageDefinition(Iterables.getOnlyElement(finalShuffleStageDef.getInputStageIds()));
+      }
+
+      if (!finalShuffleStageDef.doesShuffle()) {
+        finalShuffleStageDef = null;
+      }
+
+      // Add all query stages.
+      // Set shuffleCheckHasMultipleValues on the stage that serves as input to the final segment-generation stage.
+      final QueryDefinitionBuilder builder = QueryDefinition.builder();
+
+      for (final StageDefinition stageDef : queryDef.getStageDefinitions()) {
+        if (stageDef.equals(finalShuffleStageDef)) {
+          builder.add(StageDefinition.builder(stageDef).shuffleCheckHasMultipleValues(true));
+        } else {
+          builder.add(StageDefinition.builder(stageDef));
+        }
+      }
+
+      // Then, add a segment-generation stage.
+      final DataSchema dataSchema = generateDataSchema(querySpec, querySignature, queryClusterBy, columnMappings);
+      builder.add(
+          StageDefinition.builder(queryDef.getNextStageNumber())
+                         .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
+                         .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
+                         .processorFactory(
+                             new TalariaSegmentGeneratorFrameProcessorFactory(
+                                 dataSchema,
+                                 columnMappings,
+                                 tuningConfig
                              )
-          )
-          .build();
+                         )
+      );
+
+      return builder.build();
     } else if (querySpec.getDestination() instanceof ExternalTalariaDestination) {
       return QueryDefinition
           .builder(queryDef)
@@ -1604,13 +1626,17 @@ public class LeaderImpl implements Leader
                        .equals(QueryKitUtils.PARTITION_BOOST_COLUMN);
   }
 
-  private static StringTuple makeStringTuple(final ClusterBy clusterBy, final ClusterByKey key)
+  private static StringTuple makeStringTuple(
+      final ClusterBy clusterBy,
+      final ClusterByKeyReader keyReader,
+      final ClusterByKey key
+  )
   {
     final String[] array = new String[clusterBy.getColumns().size() - clusterBy.getBucketByCount()];
     final boolean boosted = isClusterByBoosted(clusterBy);
 
     for (int i = 0; i < array.length; i++) {
-      final Object val = key.get(clusterBy.getBucketByCount() + i);
+      final Object val = keyReader.read(key, clusterBy.getBucketByCount() + i);
 
       if (i == array.length - 1 && boosted) {
         // Boost column
@@ -1746,13 +1772,15 @@ public class LeaderImpl implements Leader
 
   private static DateTime getBucketDateTime(
       final ClusterByPartition partitionBoundary,
-      final Granularity segmentGranularity
+      final Granularity segmentGranularity,
+      final ClusterByKeyReader keyReader
   )
   {
     if (Granularities.ALL.equals(segmentGranularity)) {
       return DateTimes.utc(0);
     } else {
-      final DateTime timestamp = DateTimes.utc((long) partitionBoundary.getStart().get(0));
+      final ClusterByKey startKey = partitionBoundary.getStart();
+      final DateTime timestamp = DateTimes.utc((long) keyReader.read(startKey, 0));
 
       if (segmentGranularity.bucketStart(timestamp.getMillis()) != timestamp.getMillis()) {
         // It's a bug in... something? if this happens.

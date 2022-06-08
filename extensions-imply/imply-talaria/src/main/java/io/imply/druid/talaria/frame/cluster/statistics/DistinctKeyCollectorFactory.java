@@ -16,7 +16,6 @@ import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
 import it.unimi.dsi.fastutil.objects.Object2LongRBTreeMap;
 import org.apache.druid.collections.SerializablePair;
-import org.apache.druid.segment.column.RowSignature;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -31,12 +30,9 @@ public class DistinctKeyCollectorFactory implements KeyCollectorFactory<Distinct
     this.comparator = comparator;
   }
 
-  static DistinctKeyCollectorFactory create(
-      final ClusterBy clusterBy,
-      final RowSignature signature
-  )
+  static DistinctKeyCollectorFactory create(final ClusterBy clusterBy)
   {
-    return new DistinctKeyCollectorFactory(clusterBy.keyComparator(signature));
+    return new DistinctKeyCollectorFactory(clusterBy.keyComparator());
   }
 
   @Override

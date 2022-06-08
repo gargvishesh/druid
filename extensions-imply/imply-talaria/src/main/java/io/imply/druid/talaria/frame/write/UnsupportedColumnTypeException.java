@@ -20,7 +20,7 @@ public class UnsupportedColumnTypeException extends RuntimeException
   @Nullable
   private final ColumnType columnType;
 
-  UnsupportedColumnTypeException(final String columnName, @Nullable final ColumnType columnType)
+  public UnsupportedColumnTypeException(final String columnName, @Nullable final ColumnType columnType)
   {
     super(message(columnName, columnType));
     this.columnName = columnName;

@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.frame.segment;
 
-import io.imply.druid.talaria.frame.read.Frame;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -18,14 +17,14 @@ import org.apache.druid.segment.data.Offset;
 import org.joda.time.DateTime;
 
 /**
- * A {@link Cursor} that is based on a {@link Frame}.
+ * A simple {@link Cursor} that increments an offset.
  */
 public class FrameCursor implements Cursor
 {
   private final Offset offset;
   private final ColumnSelectorFactory columnSelectorFactory;
 
-  FrameCursor(Offset offset, ColumnSelectorFactory columnSelectorFactory)
+  public FrameCursor(Offset offset, ColumnSelectorFactory columnSelectorFactory)
   {
     this.offset = offset;
     this.columnSelectorFactory = columnSelectorFactory;

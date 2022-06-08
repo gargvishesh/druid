@@ -11,7 +11,6 @@ package io.imply.druid.talaria.exec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
-import io.imply.druid.talaria.frame.cluster.ClusterByKeyDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectors;
@@ -19,7 +18,6 @@ import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
-import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.server.DruidNode;
 
 import javax.annotation.Nullable;
@@ -32,22 +30,19 @@ public class TalariaTasks
   static final String GENERIC_QUERY_FAILED_MESSAGE = "Query failed";
 
   /**
-   * Returns a decorated copy of an ObjectMapper, enabled for the classes
-   * {@link io.imply.druid.talaria.frame.cluster.ClusterByKey} and
-   * {@link io.imply.druid.talaria.frame.cluster.statistics.KeyCollector}.
+   * Returns a decorated copy of an ObjectMapper that knows how to deserialize the appropriate kind of
+   * {@link io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshot}.
    */
-  static ObjectMapper decorateObjectMapperForClusterByKey(
+  static ObjectMapper decorateObjectMapperForKeyCollectorSnapshot(
       final ObjectMapper mapper,
-      final RowSignature frameSignature,
       final ClusterBy clusterBy,
       final boolean aggregate
   )
   {
     final KeyCollectorFactory<?, ?> keyCollectorFactory =
-        KeyCollectors.makeStandardFactory(clusterBy, frameSignature, aggregate);
+        KeyCollectors.makeStandardFactory(clusterBy, aggregate);
 
     final ObjectMapper mapperCopy = mapper.copy();
-    mapperCopy.registerModule(new ClusterByKeyDeserializerModule(frameSignature, clusterBy));
     mapperCopy.registerModule(new KeyCollectorSnapshotDeserializerModule(keyCollectorFactory));
     return mapperCopy;
   }

@@ -244,7 +244,12 @@ class ControllerStageKernel
   }
 
   /**
-   * TODO(gianm): hack alert: see note for hasMultipleValues in ClusterByStatisticsCollectorImpl
+   * Whether the result key statistics collector for this stage has encountered any multi-valued input at
+   * any key position.
+   *
+   * This method exists because {@link org.apache.druid.timeline.partition.DimensionRangeShardSpec} does not
+   * support partitioning on multi-valued strings, so we need to know if any multi-valued strings exist in order
+   * to decide whether we can use this kind of shard spec.
    */
   boolean collectorEncounteredAnyMultiValueField()
   {
@@ -311,7 +316,10 @@ class ControllerStageKernel
    * @param workerNumber the worker
    * @param snapshot     worker statistics
    */
-  ControllerStagePhase addResultKeyStatisticsForWorker(final int workerNumber, final ClusterByStatisticsSnapshot snapshot)
+  ControllerStagePhase addResultKeyStatisticsForWorker(
+      final int workerNumber,
+      final ClusterByStatisticsSnapshot snapshot
+  )
   {
     if (resultKeyStatisticsCollector == null) {
       throw new ISE("Stage does not gather result key statistics");
@@ -349,6 +357,7 @@ class ControllerStageKernel
 
   /**
    * Accepts and sets the results that each worker produces for this particular stage
+   *
    * @return true if the results for this stage have been gathered from all the workers, else false
    */
   @SuppressWarnings("unchecked")
@@ -447,6 +456,7 @@ class ControllerStageKernel
 
   /**
    * Marks the stage as failed and sets the reason for the same
+   *
    * @param reason reason for which this stage has failed
    */
   private void failForReason(final ControllerStageFailureReason reason)

@@ -9,12 +9,17 @@
 
 package io.imply.druid.talaria.frame.cluster.statistics;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
+import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
+import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.column.RowSignature;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -162,7 +167,7 @@ public class KeyCollectorTestUtils
     final List<Pair<ClusterByKey, Integer>> keyWeights = new ArrayList<>();
 
     for (int i = 0; i < numKeys; i++) {
-      final ClusterByKey key = ClusterByKey.of((long) i);
+      final ClusterByKey key = createSingleLongKey((long) i);
       keyWeights.add(Pair.of(key, 1));
     }
 
@@ -181,7 +186,7 @@ public class KeyCollectorTestUtils
 
     for (int i = 0; i < numKeys; i++) {
       final long keyNumber = random.nextInt(numKeys);
-      final ClusterByKey key = ClusterByKey.of(keyNumber); // Uniformly random
+      final ClusterByKey key = createSingleLongKey(keyNumber); // Uniformly random
       keyWeights.add(Pair.of(key, 1));
     }
 
@@ -204,7 +209,7 @@ public class KeyCollectorTestUtils
 
     for (int i = 0; i < numKeys; i++) {
       final long keyNumber = random.nextInt(numKeys);
-      final ClusterByKey key = ClusterByKey.of(keyNumber); // Uniformly random
+      final ClusterByKey key = createSingleLongKey(keyNumber); // Uniformly random
       final int weight = keyNumber < firstTenPercent && keyNumber >= lastTenPercent ? 3 : 1;
       keyWeights.add(Pair.of(key, weight));
     }
@@ -228,7 +233,7 @@ public class KeyCollectorTestUtils
 
     for (int i = 0; i < numKeys; i++) {
       final long keyNumber = random.nextInt(numKeys);
-      final ClusterByKey key = ClusterByKey.of(keyNumber); // Uniformly random
+      final ClusterByKey key = createSingleLongKey(keyNumber); // Uniformly random
       final int weight = keyNumber >= firstTenPercent && keyNumber < lastTenPercent ? 3 : 1;
       keyWeights.add(Pair.of(key, weight));
     }
@@ -264,10 +269,18 @@ public class KeyCollectorTestUtils
         keyNumber = 403;
       }
 
-      final ClusterByKey key = ClusterByKey.of(keyNumber);
+      final ClusterByKey key = createSingleLongKey(keyNumber);
       keyWeights.add(Pair.of(key, 1));
     }
 
     return keyWeights;
+  }
+
+  private static ClusterByKey createSingleLongKey(final long n)
+  {
+    final RowSignature signature = RowSignature.builder().add("x", ColumnType.LONG).build();
+    final List<ClusterByColumn> sortColumns = ImmutableList.of(new ClusterByColumn("x", false));
+    final RowSignature keySignature = ClusterByTestUtils.createKeySignature(sortColumns, signature);
+    return ClusterByTestUtils.createKey(keySignature, n);
   }
 }

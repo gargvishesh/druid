@@ -11,7 +11,7 @@ package io.imply.druid.talaria.frame.file;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 import org.apache.datasketches.memory.MapHandle;
 import org.apache.datasketches.memory.Memory;
 import org.apache.druid.java.util.common.ByteBufferUtils;

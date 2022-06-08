@@ -9,7 +9,7 @@
 
 package io.imply.druid.talaria.frame.channel;
 
-import io.imply.druid.talaria.frame.read.Frame;
+import io.imply.druid.talaria.frame.Frame;
 import org.apache.druid.java.util.common.guava.BaseSequence;
 
 import java.io.Closeable;

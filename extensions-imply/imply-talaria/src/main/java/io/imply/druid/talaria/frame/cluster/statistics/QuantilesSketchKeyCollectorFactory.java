@@ -10,25 +10,19 @@
 package io.imply.druid.talaria.frame.cluster.statistics;
 
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.dataformat.smile.databind.SmileMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
-import io.imply.druid.talaria.frame.cluster.ClusterByKeyDeserializer;
 import org.apache.datasketches.ArrayOfItemsSerDe;
 import org.apache.datasketches.memory.Memory;
+import org.apache.datasketches.memory.WritableMemory;
 import org.apache.datasketches.quantiles.ItemsSketch;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.segment.column.RowSignature;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.util.Comparator;
 
 public class QuantilesSketchKeyCollectorFactory
@@ -39,32 +33,15 @@ public class QuantilesSketchKeyCollectorFactory
   static final int SKETCH_INITIAL_K = 1 << 12;
 
   private final Comparator<ClusterByKey> comparator;
-  private final ArrayOfKeysSerDe arrayOfKeysSerDe;
 
-  private QuantilesSketchKeyCollectorFactory(
-      final Comparator<ClusterByKey> comparator,
-      final ArrayOfKeysSerDe arrayOfKeysSerDe
-  )
+  private QuantilesSketchKeyCollectorFactory(final Comparator<ClusterByKey> comparator)
   {
     this.comparator = comparator;
-    this.arrayOfKeysSerDe = arrayOfKeysSerDe;
   }
 
-  static QuantilesSketchKeyCollectorFactory create(final ClusterBy clusterBy, final RowSignature signature)
+  static QuantilesSketchKeyCollectorFactory create(final ClusterBy clusterBy)
   {
-    final ObjectMapper objectMapper = new SmileMapper();
-
-    objectMapper.registerModule(
-        new SimpleModule().addDeserializer(
-            ClusterByKey.class,
-            ClusterByKeyDeserializer.fromClusterByAndRowSignature(clusterBy, signature)
-        )
-    );
-
-    return new QuantilesSketchKeyCollectorFactory(
-        clusterBy.keyComparator(signature),
-        new ArrayOfKeysSerDe(objectMapper)
-    );
+    return new QuantilesSketchKeyCollectorFactory(clusterBy.keyComparator());
   }
 
   @Override
@@ -90,7 +67,8 @@ public class QuantilesSketchKeyCollectorFactory
   @Override
   public QuantilesSketchKeyCollectorSnapshot toSnapshot(QuantilesSketchKeyCollector collector)
   {
-    final String encodedSketch = StringUtils.encodeBase64String(collector.getSketch().toByteArray(arrayOfKeysSerDe));
+    final String encodedSketch =
+        StringUtils.encodeBase64String(collector.getSketch().toByteArray(ClusterByKeySerde.INSTANCE));
     return new QuantilesSketchKeyCollectorSnapshot(encodedSketch);
   }
 
@@ -100,45 +78,62 @@ public class QuantilesSketchKeyCollectorFactory
     final String encodedSketch = snapshot.getEncodedSketch();
     final byte[] bytes = StringUtils.decodeBase64String(encodedSketch);
     final ItemsSketch<ClusterByKey> sketch =
-        ItemsSketch.getInstance(Memory.wrap(bytes), comparator, arrayOfKeysSerDe);
+        ItemsSketch.getInstance(Memory.wrap(bytes), comparator, ClusterByKeySerde.INSTANCE);
     return new QuantilesSketchKeyCollector(comparator, sketch);
   }
 
-  private static class ArrayOfKeysSerDe extends ArrayOfItemsSerDe<ClusterByKey>
+  private static class ClusterByKeySerde extends ArrayOfItemsSerDe<ClusterByKey>
   {
-    private final ObjectMapper objectMapper;
+    private static final ClusterByKeySerde INSTANCE = new ClusterByKeySerde();
 
-    private ArrayOfKeysSerDe(final ObjectMapper objectMapper)
+    private ClusterByKeySerde()
     {
-      this.objectMapper = objectMapper;
     }
 
     @Override
     public byte[] serializeToByteArray(final ClusterByKey[] items)
     {
-      try {
-        return objectMapper.writeValueAsBytes(items);
+      int serializedSize = Integer.BYTES * items.length;
+
+      for (final ClusterByKey key : items) {
+        serializedSize += key.array().length;
       }
-      catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
+
+      final byte[] serializedBytes = new byte[serializedSize];
+      final WritableMemory writableMemory = WritableMemory.writableWrap(serializedBytes, ByteOrder.LITTLE_ENDIAN);
+      long keyWritePosition = (long) Integer.BYTES * items.length;
+
+      for (int i = 0; i < items.length; i++) {
+        final ClusterByKey key = items[i];
+        final byte[] keyBytes = key.array();
+
+        writableMemory.putInt((long) Integer.BYTES * i, keyBytes.length);
+        writableMemory.putByteArray(keyWritePosition, keyBytes, 0, keyBytes.length);
+
+        keyWritePosition += keyBytes.length;
       }
+
+      assert keyWritePosition == serializedSize;
+      return serializedBytes;
     }
 
     @Override
     public ClusterByKey[] deserializeFromMemory(final Memory mem, final int numItems)
     {
-      try {
-        final byte[] bytes = new byte[Ints.checkedCast(mem.getCapacity())];
-        mem.getByteArray(0, bytes, 0, bytes.length);
-        final ClusterByKey[] keys = objectMapper.readValue(bytes, ClusterByKey[].class);
-        if (keys.length != numItems) {
-          throw new ISE("Key count mismatch: expected [%d], got [%d]", numItems, keys.length);
-        }
-        return keys;
+      final ClusterByKey[] keys = new ClusterByKey[numItems];
+      long keyPosition = (long) Integer.BYTES * numItems;
+
+      for (int i = 0; i < numItems; i++) {
+        final int keyLength = mem.getInt((long) Integer.BYTES * i);
+        final byte[] keyBytes = new byte[keyLength];
+
+        mem.getByteArray(keyPosition, keyBytes, 0, keyLength);
+        keys[i] = ClusterByKey.wrap(keyBytes);
+
+        keyPosition += keyLength;
       }
-      catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+
+      return keys;
     }
   }
 }

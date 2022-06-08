@@ -12,33 +12,34 @@ package io.imply.druid.talaria.frame.cluster;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.hash.Hashing;
-import org.apache.druid.java.util.common.IAE;
 
 import java.util.Arrays;
 
 /**
  * Represents a specific cluster key associated with a {@link ClusterBy} instance.
+ *
+ * Instances of this class wrap a byte array in row-based frame format.
  */
 public class ClusterByKey
 {
-  private static final ClusterByKey EMPTY_KEY = new ClusterByKey(new Object[0]);
+  private static final ClusterByKey EMPTY_KEY = new ClusterByKey(new byte[0]);
 
-  private final Object[] key;
+  private final byte[] key;
 
   // Cached hashcode. Computed on demand, not in the constructor, to avoid unnecessary computation.
   private volatile long hashCode;
   private volatile boolean hashCodeComputed;
 
-  private ClusterByKey(Object[] key)
+  private ClusterByKey(byte[] key)
   {
     this.key = key;
   }
 
   /**
-   * Create a key from an array of objects.
+   * Create a key from a byte array. The array will be owned by the resulting key object.
    */
   @JsonCreator
-  public static ClusterByKey of(final Object... row)
+  public static ClusterByKey wrap(final byte[] row)
   {
     if (row.length == 0) {
       return EMPTY_KEY;
@@ -47,31 +48,16 @@ public class ClusterByKey
     }
   }
 
-  public Object get(final int i)
+  public static ClusterByKey empty()
   {
-    return key[i];
-  }
-
-  public ClusterByKey trim(final int newLength)
-  {
-    if (newLength == 0) {
-      return EMPTY_KEY;
-    } else if (key.length < newLength) {
-      throw new IAE("Cannot trim");
-    } else if (key.length == newLength) {
-      return this;
-    } else {
-      final Object[] trimmedArray = new Object[newLength];
-      System.arraycopy(key, 0, trimmedArray, 0, newLength);
-      return of(trimmedArray);
-    }
+    return EMPTY_KEY;
   }
 
   /**
    * Get the backing array for this key (not a copy).
    */
   @JsonValue
-  Object[] getArray()
+  public byte[] array()
   {
     return key;
   }
@@ -82,7 +68,7 @@ public class ClusterByKey
     // how we use these objects.)
     if (!hashCodeComputed) {
       // Use murmur3_128 for dispersion properties needed by DistinctKeyCollector#isKeySelected.
-      hashCode = Hashing.murmur3_128().hashInt(Arrays.hashCode(key)).asLong();
+      hashCode = Hashing.murmur3_128().hashBytes(key).asLong();
       hashCodeComputed = true;
     }
 

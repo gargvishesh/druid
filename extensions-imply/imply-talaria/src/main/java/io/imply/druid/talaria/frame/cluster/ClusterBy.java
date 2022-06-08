@@ -14,17 +14,16 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.segment.ColumnSelectorFactory;
+import org.apache.druid.java.util.common.guava.Comparators;
+import org.apache.druid.segment.ColumnInspector;
+import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 /**
  * Represents a partitioning key, ordering key, or both.
@@ -73,8 +72,6 @@ public class ClusterBy
    * Will always be less than, or equal to, the size of {@link #getColumns()}.
    *
    * Not relevant when a ClusterBy instance is used as an ordering key.
-   *
-   * TODO(gianm): Rename to getPartitionGroupKeySize
    */
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_DEFAULT)
@@ -84,43 +81,46 @@ public class ClusterBy
   }
 
   /**
-   * Supplier that reads keys for this instance out of a given {@link ColumnSelectorFactory} using the given signature.
+   * Create a reader for keys for this instance.
+   *
+   * The provided {@link ColumnInspector} is used to determine the types of fields in the keys. The provided signature
+   * does not have to exactly match the sortColumns: it merely has to contain them all.
    */
-  public Supplier<ClusterByKey> keyReader(
-      final ColumnSelectorFactory columnSelectorFactory,
-      final RowSignature signature
-  )
+  public ClusterByKeyReader keyReader(final ColumnInspector inspector)
   {
-    final List<Supplier<Object>> partReaders = new ArrayList<>();
+    final RowSignature.Builder newSignature = RowSignature.builder();
 
-    for (final ClusterByColumn part : columns) {
-      final ColumnType type = signature.getColumnType(part.columnName()).orElseThrow(
-          () -> new ISE("Column [%s] type not found, cannot use it in clusterBy", part.columnName())
-      );
+    for (final ClusterByColumn sortColumn : columns) {
+      final String columnName = sortColumn.columnName();
+      final ColumnCapabilities capabilities = inspector.getColumnCapabilities(columnName);
+      final ColumnType columnType =
+          Preconditions.checkNotNull(capabilities, "Type for column [%s]", columnName).toColumnType();
 
-      //noinspection rawtypes
-      final ClusterByColumnWidget widget = ClusterByColumnWidgets.create(part, type);
-      //noinspection unchecked
-      partReaders.add(widget.reader(widget.makeSelector(columnSelectorFactory)));
+      newSignature.add(columnName, columnType);
     }
 
-    return () -> {
-      final Object[] keyArray = new Object[partReaders.size()];
-
-      for (int i = 0; i < keyArray.length; i++) {
-        keyArray[i] = partReaders.get(i).get();
-      }
-
-      return ClusterByKey.of(keyArray);
-    };
+    return ClusterByKeyReader.create(newSignature.build());
   }
 
   /**
    * Comparator that compares keys for this instance using the given signature.
    */
-  public Comparator<ClusterByKey> keyComparator(final RowSignature signature)
+  public Comparator<ClusterByKey> keyComparator()
   {
-    return new ClusterByKeyComparator(this, Preconditions.checkNotNull(signature, "signature"));
+    return ClusterByKeyComparator.create(columns);
+  }
+
+  /**
+   * Comparator that compares bucket keys for this instance. Bucket keys are retrieved by calling
+   * {@link ClusterByKeyReader#trim(ClusterByKey, int)} with {@link #getBucketByCount()}.
+   */
+  public Comparator<ClusterByKey> bucketComparator()
+  {
+    if (bucketByCount == 0) {
+      return Comparators.alwaysEqual();
+    } else {
+      return ClusterByKeyComparator.create(columns.subList(0, bucketByCount));
+    }
   }
 
   @Override

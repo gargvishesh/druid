@@ -21,6 +21,7 @@ import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRow;
@@ -31,27 +32,46 @@ import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
+import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.java.util.common.granularity.PeriodGranularity;
 import org.apache.druid.java.util.common.guava.BaseSequence;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.ParseException;
+import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.query.Query;
+import org.apache.druid.query.expression.TimestampFloorExprMacro;
 import org.apache.druid.segment.RowAdapters;
 import org.apache.druid.segment.RowBasedSegment;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.VirtualColumn;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
+import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.timeline.SegmentId;
+import org.joda.time.DateTimeZone;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+/**
+ * Worker-side utility methods.
+ *
+ * @see QueryKitUtils for controller-side utility methods
+ */
 public class QueryWorkerUtils
 {
   private QueryWorkerUtils()
@@ -146,6 +166,46 @@ public class QueryWorkerUtils
     } else {
       return inputSpec.computeNumProcessors(inputChannels);
     }
+  }
+
+  /**
+   * Returns a virtual column named {@link QueryKitUtils#SEGMENT_GRANULARITY_COLUMN} that computes a segment
+   * granularity based on a particular time column. Returns null if no virtual column is needed because the
+   * granularity is {@link Granularities#ALL}. Throws an exception if the provided granularity is not supported.
+   *
+   * @throws IllegalArgumentException if the provided granularity is not supported
+   */
+  @Nullable
+  public static VirtualColumn makeSegmentGranularityVirtualColumn(final Query<?> query)
+  {
+    final Granularity segmentGranularity = QueryKitUtils.getSegmentGranularityFromContext(query.getContext());
+    final String timeColumnName = query.getContextValue(QueryKitUtils.CTX_TIME_COLUMN_NAME);
+
+    if (timeColumnName == null || Granularities.ALL.equals(segmentGranularity)) {
+      return null;
+    }
+
+    if (!(segmentGranularity instanceof PeriodGranularity)) {
+      throw new IAE("Granularity [%s] is not supported", segmentGranularity);
+    }
+
+    final PeriodGranularity periodSegmentGranularity = (PeriodGranularity) segmentGranularity;
+
+    if (periodSegmentGranularity.getOrigin() != null
+        || !periodSegmentGranularity.getTimeZone().equals(DateTimeZone.UTC)) {
+      throw new IAE("Granularity [%s] is not supported", segmentGranularity);
+    }
+
+    return new ExpressionVirtualColumn(
+        QueryKitUtils.SEGMENT_GRANULARITY_COLUMN,
+        StringUtils.format(
+            "timestamp_floor(%s, %s)",
+            CalciteSqlDialect.DEFAULT.quoteIdentifier(timeColumnName),
+            Calcites.escapeStringLiteral((periodSegmentGranularity).getPeriod().toString())
+        ),
+        ColumnType.LONG,
+        new ExprMacroTable(Collections.singletonList(new TimestampFloorExprMacro()))
+    );
   }
 
   private static Iterator<SegmentWithInterval> dataSegmentIterator(

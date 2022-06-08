@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.hamcrest.CoreMatchers;
@@ -27,7 +28,7 @@ public class DelegateOrMinKeyCollectorTest
 {
   private final ClusterBy clusterBy = new ClusterBy(ImmutableList.of(new ClusterByColumn("x", false)), 0);
   private final RowSignature signature = RowSignature.builder().add("x", ColumnType.LONG).build();
-  private final Comparator<ClusterByKey> comparator = clusterBy.keyComparator(signature);
+  private final Comparator<ClusterByKey> comparator = clusterBy.keyComparator();
 
   @Test
   public void testEmpty()
@@ -35,7 +36,7 @@ public class DelegateOrMinKeyCollectorTest
     final DelegateOrMinKeyCollector<QuantilesSketchKeyCollector> collector =
         new DelegateOrMinKeyCollectorFactory<>(
             comparator,
-            QuantilesSketchKeyCollectorFactory.create(clusterBy, signature)
+            QuantilesSketchKeyCollectorFactory.create(clusterBy)
         ).newKeyCollector();
 
     Assert.assertTrue(collector.getDelegate().isPresent());
@@ -52,14 +53,14 @@ public class DelegateOrMinKeyCollectorTest
     final DelegateOrMinKeyCollector<QuantilesSketchKeyCollector> collector =
         new DelegateOrMinKeyCollectorFactory<>(
             comparator,
-            QuantilesSketchKeyCollectorFactory.create(clusterBy, signature)
+            QuantilesSketchKeyCollectorFactory.create(clusterBy)
         ).newKeyCollector();
 
-    collector.add(ClusterByKey.of(1L), 1);
+    collector.add(createKey(1L), 1);
 
     Assert.assertTrue(collector.getDelegate().isPresent());
     Assert.assertFalse(collector.isEmpty());
-    Assert.assertEquals(ClusterByKey.of(1L), collector.minKey());
+    Assert.assertEquals(createKey(1L), collector.minKey());
     Assert.assertEquals(1, collector.estimatedRetainedKeys());
     Assert.assertEquals(1, collector.estimatedTotalWeight());
   }
@@ -70,15 +71,15 @@ public class DelegateOrMinKeyCollectorTest
     final DelegateOrMinKeyCollector<QuantilesSketchKeyCollector> collector =
         new DelegateOrMinKeyCollectorFactory<>(
             comparator,
-            QuantilesSketchKeyCollectorFactory.create(clusterBy, signature)
+            QuantilesSketchKeyCollectorFactory.create(clusterBy)
         ).newKeyCollector();
 
-    collector.add(ClusterByKey.of(1L), 1);
+    collector.add(createKey(1L), 1);
     Assert.assertTrue(collector.downSample());
 
     Assert.assertTrue(collector.getDelegate().isPresent());
     Assert.assertFalse(collector.isEmpty());
-    Assert.assertEquals(ClusterByKey.of(1L), collector.minKey());
+    Assert.assertEquals(createKey(1L), collector.minKey());
     Assert.assertEquals(1, collector.estimatedRetainedKeys());
     Assert.assertEquals(1, collector.estimatedTotalWeight());
 
@@ -96,15 +97,15 @@ public class DelegateOrMinKeyCollectorTest
     final DelegateOrMinKeyCollector<QuantilesSketchKeyCollector> collector =
         new DelegateOrMinKeyCollectorFactory<>(
             comparator,
-            QuantilesSketchKeyCollectorFactory.create(clusterBy, signature)
+            QuantilesSketchKeyCollectorFactory.create(clusterBy)
         ).newKeyCollector();
 
-    collector.add(ClusterByKey.of(1L), 1);
-    collector.add(ClusterByKey.of(2L), 1);
+    collector.add(createKey(1L), 1);
+    collector.add(createKey(1L), 1);
 
     Assert.assertTrue(collector.getDelegate().isPresent());
     Assert.assertFalse(collector.isEmpty());
-    Assert.assertEquals(ClusterByKey.of(1L), collector.minKey());
+    Assert.assertEquals(createKey(1L), collector.minKey());
     Assert.assertEquals(2, collector.estimatedRetainedKeys());
     Assert.assertEquals(2, collector.estimatedTotalWeight());
 
@@ -114,8 +115,16 @@ public class DelegateOrMinKeyCollectorTest
 
     Assert.assertFalse(collector.getDelegate().isPresent());
     Assert.assertFalse(collector.isEmpty());
-    Assert.assertEquals(ClusterByKey.of(1L), collector.minKey());
+    Assert.assertEquals(createKey(1L), collector.minKey());
     Assert.assertEquals(1, collector.estimatedRetainedKeys());
     Assert.assertEquals(1, collector.estimatedTotalWeight());
+  }
+
+  private ClusterByKey createKey(final Object... objects)
+  {
+    return ClusterByTestUtils.createKey(
+        ClusterByTestUtils.createKeySignature(clusterBy.getColumns(), signature),
+        objects
+    );
   }
 }

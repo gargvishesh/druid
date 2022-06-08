@@ -28,31 +28,26 @@ import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
-import org.apache.druid.java.util.common.granularity.PeriodGranularity;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.query.JoinDataSource;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.TableDataSource;
-import org.apache.druid.query.expression.TimestampFloorExprMacro;
 import org.apache.druid.query.filter.DimFilter;
 import org.apache.druid.query.filter.DimFilterUtils;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.query.planning.PreJoinableClause;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.apache.druid.query.spec.QuerySegmentSpec;
-import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
 import org.apache.druid.timeline.DataSegment;
@@ -66,12 +61,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
+/**
+ * Controller-side utility methods.
+ *
+ * @see QueryWorkerUtils for controller-side utility methods
+ */
 public class QueryKitUtils
 {
   // TODO(gianm): use safer name for __boost column
@@ -270,6 +271,9 @@ public class QueryKitUtils
     }
   }
 
+  /**
+   * Adds bucketing by {@link #SEGMENT_GRANULARITY_COLUMN} to a {@link ClusterBy} if needed.
+   */
   public static ClusterBy clusterByWithSegmentGranularity(
       final ClusterBy clusterBy,
       final Granularity segmentGranularity
@@ -285,6 +289,9 @@ public class QueryKitUtils
     }
   }
 
+  /**
+   * Adds {@link #SEGMENT_GRANULARITY_COLUMN} to a {@link RowSignature} if needed.
+   */
   public static RowSignature signatureWithSegmentGranularity(
       final RowSignature signature,
       final Granularity segmentGranularity
@@ -304,27 +311,38 @@ public class QueryKitUtils
     }
   }
 
-  @Nullable
-  public static VirtualColumn makeSegmentGranularityVirtualColumn(
-      final Granularity segmentGranularity,
-      final String timeColumnName
+  /**
+   * Returns a copy of "signature" with columns rearranged so the provided clusterByColumns appear as a prefix.
+   * Throws an error if any of the clusterByColumns are not present in the input signature, or if any of their
+   * types are unknown.
+   */
+  public static RowSignature sortableSignature(
+      final RowSignature signature,
+      final List<ClusterByColumn> clusterByColumns
   )
   {
-    if (Granularities.ALL.equals(segmentGranularity)) {
-      return null;
-    } else {
-      // TODO(gianm): does not escape timeColumnName! does not use origin, timeZone! make the expr directly?
-      return new ExpressionVirtualColumn(
-          SEGMENT_GRANULARITY_COLUMN,
-          StringUtils.format(
-              "timestamp_floor(\"%s\", '%s')",
-              timeColumnName,
-              ((PeriodGranularity) segmentGranularity).getPeriod()
-          ),
-          ColumnType.LONG,
-          new ExprMacroTable(Collections.singletonList(new TimestampFloorExprMacro()))
-      );
+    final RowSignature.Builder builder = RowSignature.builder();
+
+    for (final ClusterByColumn columnName : clusterByColumns) {
+      final Optional<ColumnType> columnType = signature.getColumnType(columnName.columnName());
+      if (!columnType.isPresent()) {
+        throw new IAE("Column [%s] not present in signature", columnName);
+      }
+
+      builder.add(columnName.columnName(), columnType.get());
     }
+
+    final Set<String> clusterByColumnNames =
+        clusterByColumns.stream().map(ClusterByColumn::columnName).collect(Collectors.toSet());
+
+    for (int i = 0; i < signature.size(); i++) {
+      final String columnName = signature.getColumnName(i);
+      if (!clusterByColumnNames.contains(columnName)) {
+        builder.add(columnName, signature.getColumnType(i).orElse(null));
+      }
+    }
+
+    return builder.build();
   }
 
   private static List<QueryWorkerInputSpec> makeInputSpecsForTable(
