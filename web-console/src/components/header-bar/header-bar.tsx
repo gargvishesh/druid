@@ -433,6 +433,11 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           text="Query"
           href="#workbench"
           disabled={!capabilities.hasQuerying()}
+          onClick={e => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            location.hash = '#query';
+          }}
         />
 
         {/* BEGIN: Imply-added code for MSQE SQL based data loader */}
