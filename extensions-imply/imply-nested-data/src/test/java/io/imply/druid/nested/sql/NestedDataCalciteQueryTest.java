@@ -1691,6 +1691,40 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByRootKeys2() throws Exception
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "JSON_KEYS(nest, '.'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new ExpressionVirtualColumn("v0", "list_keys(\"nest\",'.')", ColumnType.STRING_ARRAY, macroTable)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0", ColumnType.STRING_ARRAY)
+                            )
+                        )
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{null, 4L},
+            new Object[]{"[\"x\",\"y\",\"z\"]", 1L},
+            new Object[]{"[\"x\",\"y\",\"z\",\"mixed\"]", 2L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByAllPaths() throws Exception
   {
     cannotVectorize();

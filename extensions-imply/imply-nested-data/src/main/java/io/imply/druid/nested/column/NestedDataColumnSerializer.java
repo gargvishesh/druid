@@ -83,7 +83,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   private GenericIndexedWriter<String> dictionaryWriter;
   private FixedIndexedWriter<Long> longDictionaryWriter;
   private FixedIndexedWriter<Double> doubleDictionaryWriter;
-  private GenericIndexedWriter<StructuredData> rawWriter;
+  private CompressedVariableSizedBlobColumnSerializer rawWriter;
   private ByteBufferWriter<ImmutableBitmap> nullBitmapWriter;
   private MutableBitmap nullRowsBitmap;
 
@@ -151,10 +151,12 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
         true
     );
     doubleDictionaryWriter.open();
-    rawWriter = createGenericIndexedWriter(
-        NestedDataComplexTypeSerde.INSTANCE.getObjectStrategy(),
-        segmentWriteOutMedium
+    rawWriter = new CompressedVariableSizedBlobColumnSerializer(
+        getInternalFileName(name, RAW_FILE_NAME),
+        segmentWriteOutMedium,
+        indexSpec.getJsonCompression() != null ? indexSpec.getJsonCompression() : CompressionStrategy.LZ4
     );
+    rawWriter.open();
     nullBitmapWriter = new ByteBufferWriter<>(
         segmentWriteOutMedium,
         indexSpec.getBitmapSerdeFactory().getObjectStrategy()
@@ -231,7 +233,7 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
     if (data == null) {
       nullRowsBitmap.add(rowCount);
     }
-    rawWriter.write(data);
+    rawWriter.addValue(NestedDataComplexTypeSerde.INSTANCE.toBytes(data));
     if (data != null) {
       StructuredDataProcessor.ProcessResults processed = fieldProcessor.processFields(data.getValue());
       Set<String> set = processed.getLiteralFields();
@@ -289,13 +291,13 @@ public class NestedDataColumnSerializer implements GenericColumnSerializer<Struc
   {
     Preconditions.checkState(closedForWrite, "Not closed yet!");
 
-    // version 2
-    channel.write(ByteBuffer.wrap(new byte[]{0x02}));
+    // version 3
+    channel.write(ByteBuffer.wrap(new byte[]{0x03}));
     channel.write(ByteBuffer.wrap(metadataBytes));
     fieldsWriter.writeTo(channel, smoosher);
     fieldsInfoWriter.writeTo(channel, smoosher);
 
-    // version 2 stores large components in separate files to prevent exceeding smoosh file limit (int max)
+    // version 3 stores large components in separate files to prevent exceeding smoosh file limit (int max)
     writeInternal(smoosher, dictionaryWriter, STRING_DICTIONARY_FILE_NAME);
     writeInternal(smoosher, longDictionaryWriter, LONG_DICTIONARY_FILE_NAME);
     writeInternal(smoosher, doubleDictionaryWriter, DOUBLE_DICTIONARY_FILE_NAME);
