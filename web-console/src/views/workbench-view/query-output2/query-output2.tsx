@@ -239,7 +239,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
         const paths = getJsonPaths(
           filterMap(queryResult.rows, row => {
             const v = row[headerIndex];
-            // Strangely talaria and broker deal with JSON differently
+            // Strangely multi-stage-query-engine and broker deal with JSON differently
             if (v && typeof v === 'object') return v;
             try {
               return JSONBig.parse(v);

@@ -57,7 +57,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 @JsonTypeName("segmentGenerator")
-public class TalariaSegmentGeneratorFrameProcessorFactory
+public class MSQSegmentGeneratorFrameProcessorFactory
     implements FrameProcessorFactory<List<SegmentIdWithShardSpec>, TalariaSegmentGeneratorFrameProcessor, DataSegment, Set<DataSegment>>
 {
   private final DataSchema dataSchema;
@@ -65,7 +65,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
   private final ParallelIndexTuningConfig tuningConfig;
 
   @JsonCreator
-  public TalariaSegmentGeneratorFrameProcessorFactory(
+  public MSQSegmentGeneratorFrameProcessorFactory(
       @JsonProperty("dataSchema") final DataSchema dataSchema,
       @JsonProperty("columnMappings") final ColumnMappings columnMappings,
       @JsonProperty("tuningConfig") final ParallelIndexTuningConfig tuningConfig
@@ -215,7 +215,7 @@ public class TalariaSegmentGeneratorFrameProcessorFactory
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TalariaSegmentGeneratorFrameProcessorFactory that = (TalariaSegmentGeneratorFrameProcessorFactory) o;
+    MSQSegmentGeneratorFrameProcessorFactory that = (MSQSegmentGeneratorFrameProcessorFactory) o;
     return Objects.equals(dataSchema, that.dataSchema)
            && Objects.equals(columnMappings, that.columnMappings)
            && Objects.equals(tuningConfig, that.tuningConfig);

@@ -12,7 +12,7 @@ package io.imply.druid.talaria.indexing.report;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 
 import javax.annotation.Nullable;
 
@@ -24,7 +24,7 @@ public class TalariaTaskReportPayload
   private final TalariaStagesReport stages;
 
   @Nullable
-  private final TalariaCountersSnapshot counters;
+  private final MSQCountersSnapshot counters;
 
   @Nullable
   private final TalariaResultsReport results;
@@ -33,7 +33,7 @@ public class TalariaTaskReportPayload
   public TalariaTaskReportPayload(
       @JsonProperty("status") TalariaStatusReport status,
       @JsonProperty("stages") @Nullable TalariaStagesReport stages,
-      @JsonProperty("counters") @Nullable TalariaCountersSnapshot counters,
+      @JsonProperty("counters") @Nullable MSQCountersSnapshot counters,
       @JsonProperty("results") @Nullable TalariaResultsReport results
   )
   {
@@ -60,7 +60,7 @@ public class TalariaTaskReportPayload
   @Nullable
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public TalariaCountersSnapshot getCounters()
+  public MSQCountersSnapshot getCounters()
   {
     return counters;
   }

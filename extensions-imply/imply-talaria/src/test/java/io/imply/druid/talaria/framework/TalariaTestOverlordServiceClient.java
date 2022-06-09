@@ -15,7 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderImpl;
-import io.imply.druid.talaria.indexing.TalariaControllerTask;
+import io.imply.druid.talaria.indexing.MSQControllerTask;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.rpc.RetryPolicy;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
@@ -59,7 +59,7 @@ public class TalariaTestOverlordServiceClient implements OverlordServiceClient
     try {
       talariaTestLeaderContext = new TalariaTestLeaderContext(objectMapper, injector, taskActionClient);
 
-      TalariaControllerTask cTask = objectMapper.convertValue(taskObject, TalariaControllerTask.class);
+      MSQControllerTask cTask = objectMapper.convertValue(taskObject, MSQControllerTask.class);
       talariaQuerySpec.put(cTask.getId(), cTask.getQuerySpec());
 
       leader = new LeaderImpl(

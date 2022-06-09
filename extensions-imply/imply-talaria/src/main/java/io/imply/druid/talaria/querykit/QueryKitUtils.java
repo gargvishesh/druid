@@ -83,7 +83,7 @@ public class QueryKitUtils
   public static final String SEGMENT_GRANULARITY_COLUMN = "__bucket";
 
   // TODO(gianm): hack alert: this is redundant to the ColumnMappings, but is here because QueryKit doesn't get those
-  public static final String CTX_TIME_COLUMN_NAME = "talariaTimeColumn";
+  public static final String CTX_TIME_COLUMN_NAME = "msqTimeColumn";
 
   private static final ObjectMapper OBJECT_MAPPER = new DefaultObjectMapper();
 

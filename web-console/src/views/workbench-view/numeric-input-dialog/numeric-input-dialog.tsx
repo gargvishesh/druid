@@ -19,10 +19,12 @@
 import { Button, Classes, Dialog, Intent, NumericInput } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-const MIN = 1;
+const DEFAULT_MIN_VALUE = 1;
 
 interface NumericInputDialogProps {
   title: string;
+  message?: JSX.Element;
+  minValue?: number;
   initValue: number;
   onSave(value: number): void;
   onClose(): void;
@@ -31,7 +33,7 @@ interface NumericInputDialogProps {
 export const NumericInputDialog = React.memo(function NumericInputDialog(
   props: NumericInputDialogProps,
 ) {
-  const { title, initValue, onSave, onClose } = props;
+  const { title, message, minValue, initValue, onSave, onClose } = props;
 
   const [value, setValue] = useState<number>(initValue);
 
@@ -44,13 +46,14 @@ export const NumericInputDialog = React.memo(function NumericInputDialog(
       canOutsideClickClose={false}
     >
       <div className={Classes.DIALOG_BODY}>
+        {message}
         <NumericInput
           value={value}
           onValueChange={(v: number) => {
             if (isNaN(v)) return;
-            setValue(Math.max(v, MIN));
+            setValue(Math.max(v, DEFAULT_MIN_VALUE));
           }}
-          min={MIN}
+          min={minValue ?? DEFAULT_MIN_VALUE}
           stepSize={1}
           minorStepSize={null}
           majorStepSize={10}

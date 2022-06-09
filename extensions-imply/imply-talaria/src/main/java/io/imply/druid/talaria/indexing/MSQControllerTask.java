@@ -14,12 +14,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
+import io.imply.druid.talaria.exec.TalariaTasks;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import io.imply.druid.talaria.util.TalariaContext;
@@ -45,11 +45,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@JsonTypeName(TalariaControllerTask.TYPE)
-public class TalariaControllerTask extends AbstractTask
+@JsonTypeName(MSQControllerTask.TYPE)
+public class MSQControllerTask extends AbstractTask
 {
-  public static final String TYPE = "talaria0";
-  public static final String DUMMY_DATASOURCE_FOR_SELECT = "__you_have_been_visited_by_talaria";
+  public static final String TYPE = "query_controller";
+  public static final String DUMMY_DATASOURCE_FOR_SELECT = "__query_select";
 
   private final TalariaQuerySpec querySpec;
 
@@ -74,7 +74,7 @@ public class TalariaControllerTask extends AbstractTask
   private volatile Leader leader;
 
   @JsonCreator
-  public TalariaControllerTask(
+  public MSQControllerTask(
       @JsonProperty("id") @Nullable String id,
       @JsonProperty("spec") TalariaQuerySpec querySpec,
       @JsonProperty("sqlQuery") @Nullable String sqlQuery,
@@ -84,7 +84,7 @@ public class TalariaControllerTask extends AbstractTask
   )
   {
     super(
-        getOrMakeId(id, TYPE, getDataSourceForTaskMetadata(Preconditions.checkNotNull(querySpec, "querySpec"))),
+        id != null ? id : TalariaTasks.controllerTaskId(null),
         id,
         null,
         getDataSourceForTaskMetadata(querySpec),
@@ -143,9 +143,9 @@ public class TalariaControllerTask extends AbstractTask
   public boolean isReady(TaskActionClient taskActionClient) throws Exception
   {
     // If we're in replace mode, acquire locks for all intervals before declaring the task ready.
-    if (isIngestion(querySpec) && ((DataSourceTalariaDestination) querySpec.getDestination()).isReplaceTimeChunks()) {
+    if (isIngestion(querySpec) && ((DataSourceMSQDestination) querySpec.getDestination()).isReplaceTimeChunks()) {
       final List<Interval> intervals =
-          ((DataSourceTalariaDestination) querySpec.getDestination()).getReplaceTimeChunks();
+          ((DataSourceMSQDestination) querySpec.getDestination()).getReplaceTimeChunks();
 
       for (final Interval interval : intervals) {
         final TaskLock taskLock =
@@ -202,10 +202,10 @@ public class TalariaControllerTask extends AbstractTask
    */
   private static String getDataSourceForTaskMetadata(final TalariaQuerySpec querySpec)
   {
-    final TalariaDestination destination = querySpec.getDestination();
+    final MSQDestination destination = querySpec.getDestination();
 
-    if (destination instanceof DataSourceTalariaDestination) {
-      return ((DataSourceTalariaDestination) destination).getDataSource();
+    if (destination instanceof DataSourceMSQDestination) {
+      return ((DataSourceMSQDestination) destination).getDataSource();
     } else {
       return DUMMY_DATASOURCE_FOR_SELECT;
     }
@@ -213,6 +213,6 @@ public class TalariaControllerTask extends AbstractTask
 
   public static boolean isIngestion(final TalariaQuerySpec querySpec)
   {
-    return querySpec.getDestination() instanceof DataSourceTalariaDestination;
+    return querySpec.getDestination() instanceof DataSourceMSQDestination;
   }
 }

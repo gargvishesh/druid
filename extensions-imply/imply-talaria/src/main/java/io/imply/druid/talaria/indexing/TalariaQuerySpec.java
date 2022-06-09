@@ -22,14 +22,14 @@ public class TalariaQuerySpec
 {
   private final Query<?> query;
   private final ColumnMappings columnMappings;
-  private final TalariaDestination destination;
+  private final MSQDestination destination;
   private final ParallelIndexTuningConfig tuningConfig;
 
   @JsonCreator
   public TalariaQuerySpec(
       @JsonProperty("query") Query<?> query,
       @JsonProperty("columnMappings") @Nullable ColumnMappings columnMappings,
-      @JsonProperty("destination") TalariaDestination destination,
+      @JsonProperty("destination") MSQDestination destination,
       @JsonProperty("tuningConfig") ParallelIndexTuningConfig tuningConfig
   )
   {
@@ -59,7 +59,7 @@ public class TalariaQuerySpec
   }
 
   @JsonProperty
-  public TalariaDestination getDestination()
+  public MSQDestination getDestination()
   {
     return destination;
   }
@@ -112,7 +112,7 @@ public class TalariaQuerySpec
   {
     private Query<?> query;
     private ColumnMappings columnMappings;
-    private TalariaDestination destination;
+    private MSQDestination destination;
     private ParallelIndexTuningConfig tuningConfig;
 
 
@@ -128,9 +128,9 @@ public class TalariaQuerySpec
       return this;
     }
 
-    public Builder setTalariaDestination(TalariaDestination talariaDestination)
+    public Builder setTalariaDestination(MSQDestination MSQDestination)
     {
-      this.destination = talariaDestination;
+      this.destination = MSQDestination;
       return this;
     }
 
@@ -143,7 +143,7 @@ public class TalariaQuerySpec
     public TalariaQuerySpec build()
     {
       if (destination == null) {
-        destination = TaskReportTalariaDestination.instance();
+        destination = TaskReportMSQDestination.instance();
       }
       return new TalariaQuerySpec(query, columnMappings, destination, tuningConfig);
     }

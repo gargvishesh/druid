@@ -46,7 +46,7 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
   public static RowSignature getSignature(final ScanQuery scanQuery, final ObjectMapper jsonMapper)
   {
     try {
-      final String s = scanQuery.getContextValue(DruidQuery.CTX_TALARIA_SCAN_SIGNATURE);
+      final String s = scanQuery.getContextValue(DruidQuery.CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE);
       return jsonMapper.readValue(s, RowSignature.class);
     }
     catch (JsonProcessingException e) {

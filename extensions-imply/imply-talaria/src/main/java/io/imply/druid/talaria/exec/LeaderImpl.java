@@ -33,16 +33,16 @@ import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
-import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
-import io.imply.druid.talaria.indexing.ExternalTalariaDestination;
+import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
+import io.imply.druid.talaria.indexing.ExternalMSQDestination;
 import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.TalariaControllerTask;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQControllerTask;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQSegmentGeneratorFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.MSQTaskList;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
-import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFactory;
-import io.imply.druid.talaria.indexing.TalariaTaskList;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
-import io.imply.druid.talaria.indexing.TaskReportTalariaDestination;
+import io.imply.druid.talaria.indexing.TaskReportMSQDestination;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.FaultsExceededChecker;
@@ -52,8 +52,8 @@ import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotReplaceExistingSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TalariaWarnings;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
@@ -187,23 +187,23 @@ public class LeaderImpl implements Leader
 {
   private static final Logger log = new Logger(LeaderImpl.class);
 
-  private final TalariaControllerTask task;
+  private final MSQControllerTask task;
   private final LeaderContext context;
 
   // TODO(gianm): ArrayBlockingQueue; limit size; reasonable errors on overflow
   private final BlockingQueue<Consumer<ControllerQueryKernel>> kernelManipulationQueue = new LinkedBlockingDeque<>();
 
   // For system error reporting. This is the very first error we got from a worker. (We only report that one.)
-  private final AtomicReference<TalariaErrorReport> workerErrorRef = new AtomicReference<>();
+  private final AtomicReference<MSQErrorReport> workerErrorRef = new AtomicReference<>();
 
   // For system warning reporting
-  private final ConcurrentLinkedQueue<TalariaErrorReport> workerWarnings = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<MSQErrorReport> workerWarnings = new ConcurrentLinkedQueue<>();
 
   // For live reports.
   private final AtomicReference<QueryDefinition> queryDefRef = new AtomicReference<>();
 
   // For live reports. task ID -> last reported counters snapshot
-  private final ConcurrentHashMap<String, TalariaCountersSnapshot.WorkerCounters> taskCountersForLiveReports = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, MSQCountersSnapshot.WorkerCounters> taskCountersForLiveReports = new ConcurrentHashMap<>();
 
   // For live reports. stage number -> stage phase
   private final ConcurrentHashMap<Integer, ControllerStagePhase> stagePhasesForLiveReports = new ConcurrentHashMap<>();
@@ -227,7 +227,7 @@ public class LeaderImpl implements Leader
   private volatile FaultsExceededChecker faultsExceededChecker = null;
 
   public LeaderImpl(
-      final TalariaControllerTask task,
+      final MSQControllerTask task,
       final LeaderContext context
   )
   {
@@ -242,7 +242,7 @@ public class LeaderImpl implements Leader
   }
 
   @Override
-  public TalariaControllerTask task()
+  public MSQControllerTask task()
   {
     return task;
   }
@@ -288,12 +288,12 @@ public class LeaderImpl implements Leader
     QueryDefinition queryDef = null;
     ControllerQueryKernel queryKernel = null;
     ListenableFuture<Map<String, TaskState>> workerTaskRunnerFuture = null;
-    TalariaCountersSnapshot countersSnapshot = null;
+    MSQCountersSnapshot countersSnapshot = null;
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
 
     final TaskState taskStateForReport;
-    final TalariaErrorReport errorForReport;
+    final MSQErrorReport errorForReport;
 
     try {
       this.queryStartTime = DateTimes.nowUtc();
@@ -318,11 +318,11 @@ public class LeaderImpl implements Leader
     } else {
       // Query failure. Generate an error report and log the error(s) we encountered.
       final String selfHost = TalariaTasks.getHostFromSelfNode(selfDruidNode);
-      final TalariaErrorReport controllerError =
+      final MSQErrorReport controllerError =
           exceptionEncountered != null
-          ? TalariaErrorReport.fromException(id(), selfHost, null, exceptionEncountered)
+          ? MSQErrorReport.fromException(id(), selfHost, null, exceptionEncountered)
           : null;
-      final TalariaErrorReport workerError = workerErrorRef.get();
+      final MSQErrorReport workerError = workerErrorRef.get();
 
       taskStateForReport = TaskState.FAILED;
       errorForReport = TalariaTasks.makeErrorReport(id(), selfHost, controllerError, workerError);
@@ -519,7 +519,7 @@ public class LeaderImpl implements Leader
         queryKernel.startStage(stageId);
 
         // Allocate segments, if this is the final stage of an ingestion.
-        if (TalariaControllerTask.isIngestion(task.getQuerySpec())
+        if (MSQControllerTask.isIngestion(task.getQuerySpec())
             && stageId.getStageNumber() == queryDef.getFinalStageDefinition().getStageNumber()) {
           // We need to find the shuffle details (like partition ranges) to generate segments. Generally this is
           // going to correspond to the stage immediately prior to the final segment-generator stage.
@@ -553,7 +553,7 @@ public class LeaderImpl implements Leader
               || queryKernel.hasStageCollectorEncounteredAnyMultiValueField(shuffleStageId);
 
           segmentsToGenerate = generateSegmentIdsWithShardSpecs(
-              (DataSourceTalariaDestination) task.getQuerySpec().getDestination(),
+              (DataSourceMSQDestination) task.getQuerySpec().getDestination(),
               queryKernel.getStageDefinition(shuffleStageId).getSignature(),
               queryKernel.getStageDefinition(shuffleStageId).getShuffleSpec().get().getClusterBy(),
               partitionBoundaries,
@@ -704,7 +704,7 @@ public class LeaderImpl implements Leader
   }
 
   @Override
-  public void workerError(TalariaErrorReport errorReport)
+  public void workerError(MSQErrorReport errorReport)
   {
     if (!workerTaskLauncher.isTaskCanceledByLeader(errorReport.getTaskId())) {
       workerErrorRef.compareAndSet(null, errorReport);
@@ -717,7 +717,7 @@ public class LeaderImpl implements Leader
    * limiting is implemented in {@link io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher}
    */
   @Override
-  public void workerWarning(List<TalariaErrorReport> errorReports)
+  public void workerWarning(List<MSQErrorReport> errorReports)
   {
     // This check is just to safeguard that leader doesn't run out of memory. The actual limiting should be done
     // on the worker's side as well. Also, it uses double lock checking
@@ -744,7 +744,7 @@ public class LeaderImpl implements Leader
     if (!workerTaskLauncher.isTaskCanceledByLeader(workerId)) {
       workerErrorRef.compareAndSet(
           null,
-          TalariaErrorReport.fromFault(
+          MSQErrorReport.fromFault(
               workerId,
               null,
               null,
@@ -755,10 +755,10 @@ public class LeaderImpl implements Leader
   }
 
   /**
-   * Periodic update of {@link TalariaCountersSnapshot} from subtasks.
+   * Periodic update of {@link MSQCountersSnapshot} from subtasks.
    */
   @Override
-  public void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot)
+  public void updateCounters(String workerTaskId, MSQCountersSnapshot.WorkerCounters workerSnapshot)
   {
     taskCountersForLiveReports.put(workerTaskId, workerSnapshot);
     Optional<Pair<String, Long>> warningsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded(
@@ -766,7 +766,7 @@ public class LeaderImpl implements Leader
     if (warningsExceeded.isPresent()) {
       String errorCode = warningsExceeded.get().lhs;
       Long limit = warningsExceeded.get().rhs;
-      workerError(TalariaErrorReport.fromFault(
+      workerError(MSQErrorReport.fromFault(
           id(),
           selfDruidNode.getHost(),
           null,
@@ -853,7 +853,7 @@ public class LeaderImpl implements Leader
    * @throws TalariaException with {@link InsertCannotAllocateSegmentFault} if an allocation cannot be made
    */
   private List<SegmentIdWithShardSpec> generateSegmentIdsWithShardSpecs(
-      final DataSourceTalariaDestination destination,
+      final DataSourceMSQDestination destination,
       final RowSignature signature,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitionBoundaries,
@@ -878,7 +878,7 @@ public class LeaderImpl implements Leader
    * Used by {@link #generateSegmentIdsWithShardSpecs}.
    */
   private List<SegmentIdWithShardSpec> generateSegmentIdsWithShardSpecsForAppend(
-      final DataSourceTalariaDestination destination,
+      final DataSourceMSQDestination destination,
       final ClusterByPartitions partitionBoundaries,
       final ClusterByKeyReader keyReader
   ) throws IOException
@@ -938,7 +938,7 @@ public class LeaderImpl implements Leader
    * Used by {@link #generateSegmentIdsWithShardSpecs}.
    */
   private List<SegmentIdWithShardSpec> generateSegmentIdsWithShardSpecsForReplace(
-      final DataSourceTalariaDestination destination,
+      final DataSourceMSQDestination destination,
       final RowSignature signature,
       final ClusterBy clusterBy,
       final ClusterByPartitions partitionBoundaries,
@@ -1025,7 +1025,7 @@ public class LeaderImpl implements Leader
       return Optional.empty();
     }
 
-    return workerTaskLauncher.getTaskList().map(TalariaTaskList::getTaskIds);
+    return workerTaskLauncher.getTaskList().map(MSQTaskList::getTaskIds);
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1037,7 +1037,7 @@ public class LeaderImpl implements Leader
       @Nullable final List<SegmentIdWithShardSpec> segmentsToGenerate
   )
   {
-    if (TalariaControllerTask.isIngestion(task.getQuerySpec()) &&
+    if (MSQControllerTask.isIngestion(task.getQuerySpec()) &&
         stageNumber == queryDef.getFinalStageDefinition().getStageNumber()) {
       // noinspection unchecked,rawtypes
       return (List) makeSegmentGeneratorWorkerFactoryInfos(workerInputs, segmentsToGenerate);
@@ -1139,7 +1139,7 @@ public class LeaderImpl implements Leader
   }
 
   /**
-   * Publish the list of segments. Additionally, if {@link DataSourceTalariaDestination#isReplaceTimeChunks()},
+   * Publish the list of segments. Additionally, if {@link DataSourceMSQDestination#isReplaceTimeChunks()},
    * also drop all other segments within the replacement intervals.
    * <p>
    * If any existing segments cannot be dropped because their intervals are not wholly contained within the
@@ -1147,8 +1147,8 @@ public class LeaderImpl implements Leader
    */
   private void publishAllSegments(final Set<DataSegment> segments) throws IOException
   {
-    final DataSourceTalariaDestination destination =
-        (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
+    final DataSourceMSQDestination destination =
+        (DataSourceMSQDestination) task.getQuerySpec().getDestination();
     final Set<DataSegment> segmentsToDrop;
 
     if (destination.isReplaceTimeChunks()) {
@@ -1217,14 +1217,14 @@ public class LeaderImpl implements Leader
   }
 
   /**
-   * When doing an ingestion with {@link DataSourceTalariaDestination#isReplaceTimeChunks()}, finds intervals
+   * When doing an ingestion with {@link DataSourceMSQDestination#isReplaceTimeChunks()}, finds intervals
    * containing data that should be dropped.
    */
   private List<Interval> findIntervalsToDrop(final Set<DataSegment> publishedSegments)
   {
     // Safe to cast because publishAllSegments is only called for dataSource destinations.
-    final DataSourceTalariaDestination destination =
-        (DataSourceTalariaDestination) task.getQuerySpec().getDestination();
+    final DataSourceMSQDestination destination =
+        (DataSourceMSQDestination) task.getQuerySpec().getDestination();
     final List<Interval> replaceIntervals =
         new ArrayList<>(JodaUtils.condenseIntervals(destination.getReplaceTimeChunks()));
     final List<Interval> publishIntervals =
@@ -1232,12 +1232,12 @@ public class LeaderImpl implements Leader
     return IntervalUtils.difference(replaceIntervals, publishIntervals);
   }
 
-  private TalariaCountersSnapshot getCountersFromAllTasks()
+  private MSQCountersSnapshot getCountersFromAllTasks()
   {
-    final Optional<TalariaTaskList> taskList = workerTaskLauncher.getTaskList();
+    final Optional<MSQTaskList> taskList = workerTaskLauncher.getTaskList();
 
     if (taskList.isPresent()) {
-      final List<ListenableFuture<TalariaCountersSnapshot.WorkerCounters>> futures = new ArrayList<>();
+      final List<ListenableFuture<MSQCountersSnapshot.WorkerCounters>> futures = new ArrayList<>();
 
       for (String taskId : taskList.get().getTaskIds()) {
         futures.add(
@@ -1250,15 +1250,15 @@ public class LeaderImpl implements Leader
         );
       }
 
-      return new TalariaCountersSnapshot(FutureUtils.getUnchecked(FutureUtils.allAsList(futures, true), true));
+      return new MSQCountersSnapshot(FutureUtils.getUnchecked(FutureUtils.allAsList(futures, true), true));
     } else {
-      return new TalariaCountersSnapshot(Collections.emptyList());
+      return new MSQCountersSnapshot(Collections.emptyList());
     }
   }
 
   private void postFinishToAllTasks()
   {
-    final Optional<TalariaTaskList> taskList = workerTaskLauncher.getTaskList();
+    final Optional<MSQTaskList> taskList = workerTaskLauncher.getTaskList();
 
     if (taskList.isPresent()) {
       final List<ListenableFuture<Void>> futures = new ArrayList<>();
@@ -1271,12 +1271,12 @@ public class LeaderImpl implements Leader
     }
   }
 
-  private TalariaCountersSnapshot makeCountersSnapshotForLiveReports()
+  private MSQCountersSnapshot makeCountersSnapshotForLiveReports()
   {
-    return new TalariaCountersSnapshot(new ArrayList<>(taskCountersForLiveReports.values()));
+    return new MSQCountersSnapshot(new ArrayList<>(taskCountersForLiveReports.values()));
   }
 
-  private TalariaCountersSnapshot getFinalCountersSnapshot(final ControllerQueryKernel queryKernel)
+  private MSQCountersSnapshot getFinalCountersSnapshot(final ControllerQueryKernel queryKernel)
   {
     if (queryKernel.isSuccess()) {
       return getCountersFromAllTasks();
@@ -1373,7 +1373,7 @@ public class LeaderImpl implements Leader
       final ControllerQueryKernel queryKernel
   ) throws IOException
   {
-    if (queryKernel.isSuccess() && TalariaControllerTask.isIngestion(task.getQuerySpec())) {
+    if (queryKernel.isSuccess() && MSQControllerTask.isIngestion(task.getQuerySpec())) {
       final StageId finalStageId = queryKernel.getStageId(queryDef.getFinalStageDefinition().getStageNumber());
 
       //noinspection unchecked
@@ -1395,16 +1395,16 @@ public class LeaderImpl implements Leader
     final ParallelIndexTuningConfig tuningConfig = querySpec.getTuningConfig();
     final ShuffleSpecFactory shuffleSpecFactory;
 
-    if (TalariaControllerTask.isIngestion(querySpec)) {
+    if (MSQControllerTask.isIngestion(querySpec)) {
       shuffleSpecFactory = (clusterBy, aggregate) ->
           new TargetSizeShuffleSpec(
               clusterBy,
               tuningConfig.getPartitionsSpec().getMaxRowsPerSegment(),
               aggregate
           );
-    } else if (querySpec.getDestination() instanceof TaskReportTalariaDestination) {
+    } else if (querySpec.getDestination() instanceof TaskReportMSQDestination) {
       shuffleSpecFactory = ShuffleSpecFactories.singlePartition();
-    } else if (querySpec.getDestination() instanceof ExternalTalariaDestination) {
+    } else if (querySpec.getDestination() instanceof ExternalMSQDestination) {
       shuffleSpecFactory = ShuffleSpecFactories.subQueryWithMaxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks());
     } else {
       throw new ISE("Unsupported destination [%s]", querySpec.getDestination());
@@ -1432,7 +1432,7 @@ public class LeaderImpl implements Leader
     final ClusterBy queryClusterBy = queryDef.getClusterByForStage(queryDef.getFinalStageDefinition().getStageNumber());
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
-    if (TalariaControllerTask.isIngestion(querySpec)) {
+    if (MSQControllerTask.isIngestion(querySpec)) {
       // Find the stage that provides shuffled input to the final segment-generation stage.
       StageDefinition finalShuffleStageDef = queryDef.getFinalStageDefinition();
 
@@ -1464,7 +1464,7 @@ public class LeaderImpl implements Leader
                          .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
                          .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
                          .processorFactory(
-                             new TalariaSegmentGeneratorFrameProcessorFactory(
+                             new MSQSegmentGeneratorFrameProcessorFactory(
                                  dataSchema,
                                  columnMappings,
                                  tuningConfig
@@ -1473,7 +1473,7 @@ public class LeaderImpl implements Leader
       );
 
       return builder.build();
-    } else if (querySpec.getDestination() instanceof ExternalTalariaDestination) {
+    } else if (querySpec.getDestination() instanceof ExternalMSQDestination) {
       return QueryDefinition
           .builder(queryDef)
           .add(
@@ -1483,7 +1483,7 @@ public class LeaderImpl implements Leader
                              .processorFactory(new TalariaExternalSinkFrameProcessorFactory(columnMappings))
           )
           .build();
-    } else if (querySpec.getDestination() instanceof TaskReportTalariaDestination) {
+    } else if (querySpec.getDestination() instanceof TaskReportMSQDestination) {
       return queryDef;
     } else {
       throw new ISE("Unsupported destination [%s]", querySpec.getDestination());
@@ -1497,7 +1497,7 @@ public class LeaderImpl implements Leader
       ColumnMappings columnMappings
   )
   {
-    final DataSourceTalariaDestination destination = (DataSourceTalariaDestination) querySpec.getDestination();
+    final DataSourceMSQDestination destination = (DataSourceMSQDestination) querySpec.getDestination();
     final boolean isRollupQ = isRollupQuery(querySpec.getQuery());
 
     final Pair<List<DimensionSchema>, List<AggregatorFactory>> dimensionsAndAggregators =
@@ -1571,14 +1571,14 @@ public class LeaderImpl implements Leader
 
   private static boolean isInlineResults(final TalariaQuerySpec querySpec)
   {
-    return querySpec.getDestination() instanceof TaskReportTalariaDestination;
+    return querySpec.getDestination() instanceof TaskReportMSQDestination;
   }
 
   private static boolean isTimeBucketedIngestion(final TalariaQuerySpec querySpec)
   {
-    return TalariaControllerTask.isIngestion(querySpec)
-           && !((DataSourceTalariaDestination) querySpec.getDestination()).getSegmentGranularity()
-                                                                          .equals(Granularities.ALL);
+    return MSQControllerTask.isIngestion(querySpec)
+           && !((DataSourceMSQDestination) querySpec.getDestination()).getSegmentGranularity()
+                                                                      .equals(Granularities.ALL);
   }
 
   /**
@@ -1865,8 +1865,8 @@ public class LeaderImpl implements Leader
 
   private static TalariaStatusReport makeStatusReport(
       final TaskState taskState,
-      @Nullable final TalariaErrorReport errorReport,
-      final Queue<TalariaErrorReport> errorReports,
+      @Nullable final MSQErrorReport errorReport,
+      final Queue<MSQErrorReport> errorReports,
       @Nullable final DateTime queryStartTime,
       final long queryDuration
   )

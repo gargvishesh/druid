@@ -56,7 +56,7 @@ export interface WorkbenchQueryValue {
 export class WorkbenchQuery {
   static PREVIEW_LIMIT = 10000;
   static TMP_PREFIX = '_tmp_';
-  static INLINE_DATASOURCE_MARKER = '__you_have_been_visited_by_talaria';
+  static INLINE_DATASOURCE_MARKER = '__query_select';
 
   private static sqlTaskEnabled = false;
 
@@ -87,7 +87,7 @@ export class WorkbenchQuery {
     }
     delete cleanContext['sqlQueryId'];
     delete cleanContext['sqlOuterLimit'];
-    delete cleanContext['talaria'];
+    delete cleanContext['multiStageQuery'];
 
     let retQuery = WorkbenchQuery.blank()
       .changeQueryString(queryString)
@@ -122,7 +122,7 @@ export class WorkbenchQuery {
   }
 
   static commentOutNumTasks(sqlString: string): string {
-    return sqlString.replace(/--:(context\s+talariaNumTasks\s*:)/g, '--$1');
+    return sqlString.replace(/--:(context\s+msqNumTasks\s*:)/g, '--$1');
   }
 
   public readonly queryParts: WorkbenchQueryPart[];
@@ -305,9 +305,9 @@ export class WorkbenchQuery {
       }
     }
 
-    // Remove talariaNumTasks from the context if it exists
-    if (typeof this.queryContext.talariaNumTasks !== 'undefined') {
-      ret = ret.changeQueryContext(deepDelete(this.queryContext, 'talariaNumTasks'));
+    // Remove msqNumTasks from the context if it exists
+    if (typeof this.queryContext.msqNumTasks !== 'undefined') {
+      ret = ret.changeQueryContext(deepDelete(this.queryContext, 'msqNumTasks'));
     }
 
     // Remove everything pertaining to INSERT INTO / REPLACE INTO from the query string
@@ -320,7 +320,7 @@ export class WorkbenchQuery {
           .toString()
       : WorkbenchQuery.commentOutIngestParts(this.getQueryString());
 
-    // Remove talariaNumTasks from the query string if it exists
+    // Remove msqNumTasks from the query string if it exists
     return ret.changeQueryString(WorkbenchQuery.commentOutNumTasks(newQueryString));
   }
 

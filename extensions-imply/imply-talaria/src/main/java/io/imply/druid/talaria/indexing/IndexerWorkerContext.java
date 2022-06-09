@@ -206,16 +206,17 @@ public class IndexerWorkerContext implements WorkerContext
   @Override
   public WorkerClient makeWorkerClient(String leaderId, String workerId)
   {
-    final StorageConnector storageConnector;
-    try {
-      storageConnector = injector().getInstance(Key.get(StorageConnector.class, Talaria.class));
-    }
-    catch (ConfigurationException configurationException) {
-      throw new TalariaException(new DurableStorageConfigurationFault(configurationException.getMessage()));
-    }
-
     // Ignore workerId parameter. The workerId is passed into each method of WorkerClient individually.
     if (durableStorageEnabled) {
+
+      final StorageConnector storageConnector;
+      try {
+        storageConnector = injector().getInstance(Key.get(StorageConnector.class, Talaria.class));
+      }
+      catch (ConfigurationException configurationException) {
+        throw new TalariaException(new DurableStorageConfigurationFault(configurationException.getMessage()));
+      }
+
       return new IndexerWorkerClient(
           leaderId,
           clientFactory,

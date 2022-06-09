@@ -18,7 +18,7 @@
 
 import { TabEntry, WorkbenchQuery } from '../../workbench-models';
 
-const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ talariaNumTasks: 2 });
+const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ msqNumTasks: 3 });
 
 export function getDemoQueries(): TabEntry[] {
   return [
@@ -45,7 +45,7 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaFinalizeAggregations: false
+--:context msqFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_rollup" OVERWRITE ALL
 
@@ -87,7 +87,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaFinalizeAggregations: false
+--:context msqFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_etl" OVERWRITE ALL
 WITH
@@ -141,7 +141,7 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context talariaFinalizeAggregations: false
+--:context msqFinalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_reingest" OVERWRITE ALL
 WITH

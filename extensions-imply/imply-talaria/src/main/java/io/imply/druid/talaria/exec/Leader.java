@@ -12,9 +12,9 @@ package io.imply.druid.talaria.exec;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.TalariaControllerTask;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.MSQControllerTask;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskReport;
 
@@ -58,7 +58,7 @@ public interface Leader
   /**
    * The task which this leader runs.
    */
-  TalariaControllerTask task();
+  MSQControllerTask task();
 
   /**
    * Runs the leader in the current thread. Surrounding classes provide
@@ -92,17 +92,17 @@ public interface Leader
    * taskId, not by query/stage/worker, because system errors are associated
    * with a task rather than a specific query/stage/worker execution context.
    */
-  void workerError(TalariaErrorReport errorReport);
+  void workerError(MSQErrorReport errorReport);
 
   /**
    * System warning reported by a subtask. Indicates that the worker has encountered a non-lethal error. Worker should
    * continue its execution in such a case. If the worker wants to report an error and stop its execution,
    * please use {@link Leader#workerError}
    */
-  void workerWarning(List<TalariaErrorReport> errorReports);
+  void workerWarning(List<MSQErrorReport> errorReports);
 
   /**
-   * Periodic update of {@link TalariaCountersSnapshot} for a specific worker task.
+   * Periodic update of {@link MSQCountersSnapshot} for a specific worker task.
    * Indicates a hard failure of the worker: fatal exception, the worker's
    * host dropped out of ZK, etc. The worker should be presumed dead. Restart
    * a new one if possible. If, due to a split network, the worker does
@@ -120,9 +120,9 @@ public interface Leader
   void workerFailed(String workerId);
 
   /**
-   * Periodic update of {@link TalariaCountersSnapshot} from subtasks.
+   * Periodic update of {@link MSQCountersSnapshot} from subtasks.
    */
-  void updateCounters(String workerTaskId, TalariaCountersSnapshot.WorkerCounters workerSnapshot);
+  void updateCounters(String workerTaskId, MSQCountersSnapshot.WorkerCounters workerSnapshot);
 
   /**
    * Reports that results are ready for a subtask.

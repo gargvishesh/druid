@@ -183,7 +183,7 @@ export class Stages {
 
   static getCleanProcessorType(stage: StageDefinition): string {
     return String(stage.processorType)
-      .replace(/^Talaria/, '')
+      .replace(/^MSQ/, '')
       .replace(/FrameProcessorFactory$/, '');
   }
 

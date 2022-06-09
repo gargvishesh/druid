@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.druid.java.util.common.IAE;
 
-public enum TalariaCounterType
+public enum MSQCounterType
 {
   INPUT_STAGE("inputStageChannel"),
   INPUT_EXTERNAL("inputExternal"),
@@ -23,15 +23,15 @@ public enum TalariaCounterType
 
   private final String key;
 
-  TalariaCounterType(String key)
+  MSQCounterType(String key)
   {
     this.key = key;
   }
 
   @JsonCreator
-  public static TalariaCounterType fromString(final String key)
+  public static MSQCounterType fromString(final String key)
   {
-    for (final TalariaCounterType counterType : values()) {
+    for (final MSQCounterType counterType : values()) {
       if (counterType.key().equals(key)) {
         return counterType;
       }

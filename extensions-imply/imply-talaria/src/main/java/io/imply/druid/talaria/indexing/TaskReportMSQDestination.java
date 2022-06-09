@@ -11,18 +11,18 @@ package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-public class TaskReportTalariaDestination implements TalariaDestination
+public class TaskReportMSQDestination implements MSQDestination
 {
-  public static final TaskReportTalariaDestination INSTANCE = new TaskReportTalariaDestination();
+  public static final TaskReportMSQDestination INSTANCE = new TaskReportMSQDestination();
   static final String TYPE = "taskReport";
 
-  private TaskReportTalariaDestination()
+  private TaskReportMSQDestination()
   {
     // Singleton.
   }
 
   @JsonCreator
-  public static TaskReportTalariaDestination instance()
+  public static TaskReportMSQDestination instance()
   {
     return INSTANCE;
   }
@@ -30,6 +30,6 @@ public class TaskReportTalariaDestination implements TalariaDestination
   @Override
   public String toString()
   {
-    return "TaskReportTalariaDestination{}";
+    return "TaskReportMSQDestination{}";
   }
 }

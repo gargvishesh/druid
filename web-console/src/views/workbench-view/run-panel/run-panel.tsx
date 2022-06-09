@@ -33,7 +33,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
 import { getLink } from '../../../links';
-import { deepDelete, deepSet, pluralIfNeeded, QueryWithContext } from '../../../utils';
+import {
+  deepDelete,
+  deepSet,
+  formatInteger,
+  pluralIfNeeded,
+  QueryWithContext,
+} from '../../../utils';
 import {
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
@@ -49,32 +55,32 @@ import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog
 
 import './run-panel.scss';
 
-const PARALLELISM_OPTIONS = [1, 2, 4, 6, 8, 10, 16, 32, 64];
+const PARALLELISM_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
 
-function getParallelism(context: QueryContext): number {
-  const { talariaNumTasks } = context;
-  return typeof talariaNumTasks === 'number' ? talariaNumTasks : 1;
+function getNumTasks(context: QueryContext): number {
+  const { msqNumTasks } = context;
+  return Math.max(typeof msqNumTasks === 'number' ? msqNumTasks : 0, 2);
 }
 
-function changeParallelism(context: QueryContext, parallelism: number | undefined): QueryContext {
-  return typeof parallelism === 'number'
-    ? deepSet(context, 'talariaNumTasks', parallelism)
-    : deepDelete(context, 'talariaNumTasks');
+function changeNumTasks(context: QueryContext, numTasks: number | undefined): QueryContext {
+  return typeof numTasks === 'number'
+    ? deepSet(context, 'msqNumTasks', numTasks)
+    : deepDelete(context, 'msqNumTasks');
 }
 
-function getTalariaFinalizeAggregations(context: QueryContext): boolean {
-  const { talariaFinalizeAggregations } = context;
-  return typeof talariaFinalizeAggregations === 'boolean' ? talariaFinalizeAggregations : true;
+function getFinalizeAggregations(context: QueryContext): boolean {
+  const { msqFinalizeAggregations } = context;
+  return typeof msqFinalizeAggregations === 'boolean' ? msqFinalizeAggregations : true;
 }
 
-function setTalariaFinalizeAggregations(
+function setFinalizeAggregations(
   context: QueryContext,
-  talariaFinalizeAggregations: boolean,
+  msqFinalizeAggregations: boolean,
 ): QueryContext {
-  if (talariaFinalizeAggregations) {
-    return deepDelete(context, 'talariaFinalizeAggregations');
+  if (msqFinalizeAggregations) {
+    return deepDelete(context, 'msqFinalizeAggregations');
   } else {
-    return deepSet(context, 'talariaFinalizeAggregations', false);
+    return deepSet(context, 'msqFinalizeAggregations', false);
   }
 }
 
@@ -90,7 +96,7 @@ export interface RunPanelProps {
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const { query, onQueryChange, onRun, loading, small, extraEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
-  const [customParallelismDialogOpen, setCustomParallelismDialogOpen] = useState(false);
+  const [customNumTasksDialogOpen, setCustomNumTasksDialogOpen] = useState(false);
   const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const emptyQuery = query.isEmptyQuery();
@@ -98,7 +104,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const queryContext = query.queryContext;
   const numContextKeys = Object.keys(queryContext).length;
 
-  const talariaFinalizeAggregations = getTalariaFinalizeAggregations(queryContext);
+  const msqFinalizeAggregations = getFinalizeAggregations(queryContext);
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
   const useApproximateTopN = getUseApproximateTopN(queryContext);
   const useCache = getUseCache(queryContext);
@@ -118,8 +124,8 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
     if (typeof apiQuery.query !== 'string') return;
     const queryContext = apiQuery.context || {};
     if (engine === 'sql-task') {
-      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `talaria` engine selector
-      queryContext.talaria = true;
+      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `multiStageQuery` engine selector
+      queryContext.multiStageQuery = true;
     }
     setExplainDialogQuery({
       queryString: apiQuery.query,
@@ -160,7 +166,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
 
   useHotkeys(hotkeys);
 
-  const parallelism = getParallelism(queryContext);
+  const numTasks = getNumTasks(queryContext);
   const queryEngine = query.engine;
   function renderQueryEngineMenuItem(e: DruidEngine | undefined) {
     return (
@@ -219,44 +225,38 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                 <>
                   <MenuItem
                     icon={IconNames.TWO_COLUMNS}
-                    text="Task parallelism"
-                    label={String(parallelism)}
+                    text="Number of tasks to launch"
+                    label={String(numTasks)}
                   >
                     <Menu>
                       {PARALLELISM_OPTIONS.map(p => (
                         <MenuItem
                           key={String(p)}
-                          icon={p === parallelism ? IconNames.TICK : IconNames.BLANK}
-                          text={String(p)}
+                          icon={p === numTasks ? IconNames.TICK : IconNames.BLANK}
+                          text={formatInteger(p)}
+                          label={`(1 controller + ${pluralIfNeeded(p - 1, 'worker')})`}
                           onClick={() =>
-                            onQueryChange(
-                              query.changeQueryContext(changeParallelism(queryContext, p)),
-                            )
+                            onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)))
                           }
                           shouldDismissPopover={false}
                         />
                       ))}
                       <MenuItem
                         icon={
-                          PARALLELISM_OPTIONS.includes(parallelism)
-                            ? IconNames.BLANK
-                            : IconNames.TICK
+                          PARALLELISM_OPTIONS.includes(numTasks) ? IconNames.BLANK : IconNames.TICK
                         }
                         text="Custom"
-                        onClick={() => setCustomParallelismDialogOpen(true)}
+                        onClick={() => setCustomNumTasksDialogOpen(true)}
                       />
                     </Menu>
                   </MenuItem>
                   <MenuCheckbox
-                    checked={talariaFinalizeAggregations}
+                    checked={msqFinalizeAggregations}
                     text="Finalize aggregations"
                     onChange={() => {
                       onQueryChange(
                         query.changeQueryContext(
-                          setTalariaFinalizeAggregations(
-                            queryContext,
-                            !talariaFinalizeAggregations,
-                          ),
+                          setFinalizeAggregations(queryContext, !msqFinalizeAggregations),
                         ),
                       );
                     }}
@@ -344,14 +344,24 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           }}
         />
       )}
-      {customParallelismDialogOpen && (
+      {customNumTasksDialogOpen && (
         <NumericInputDialog
-          title="Custom parallelism value"
-          initValue={parallelism}
+          title="Custom task number"
+          message={
+            <>
+              <p>Specify the total number of tasks that should be launched.</p>
+              <p>
+                There must be at least 2 tasks to account for the controller and at least one
+                worker.
+              </p>
+            </>
+          }
+          minValue={2}
+          initValue={numTasks}
           onSave={p => {
-            onQueryChange(query.changeQueryContext(changeParallelism(queryContext, p)));
+            onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)));
           }}
-          onClose={() => setCustomParallelismDialogOpen(false)}
+          onClose={() => setCustomNumTasksDialogOpen(false)}
         />
       )}
       {explainDialogQuery && (

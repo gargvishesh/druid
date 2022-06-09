@@ -15,8 +15,8 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import io.imply.druid.talaria.frame.processor.Bouncer;
-import io.imply.druid.talaria.indexing.TalariaControllerTask;
-import io.imply.druid.talaria.indexing.TalariaSegmentGeneratorFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.MSQControllerTask;
+import io.imply.druid.talaria.indexing.MSQSegmentGeneratorFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
@@ -86,12 +86,12 @@ public class TalariaIndexingModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule(getClass().getSimpleName()).registerSubtypes(
             // Task classes
-            TalariaControllerTask.class,
+            MSQControllerTask.class,
             TalariaWorkerTask.class,
 
             // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
-            TalariaSegmentGeneratorFrameProcessorFactory.class,
-            TalariaSegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
+            MSQSegmentGeneratorFrameProcessorFactory.class,
+            MSQSegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
             TalariaExternalSinkFrameProcessorFactory.class,
             ScanQueryFrameProcessorFactory.class,
             GroupByPreShuffleFrameProcessorFactory.class,

@@ -119,7 +119,7 @@ describe('WorkbenchQuery', () => {
         )
         )
         (
-        --:context talariaFinalizeAggregations: false
+        --:context msqFinalizeAggregations: false
         --:context groupByEnableMultiValueUnnesting: false
         --PLACE INTO task_statuses OVERWRITE ALL
         SELECT

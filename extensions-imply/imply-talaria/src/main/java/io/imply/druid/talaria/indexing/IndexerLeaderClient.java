@@ -12,7 +12,7 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.exec.LeaderClient;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.rpc.DruidServiceClient;
 import io.imply.druid.talaria.rpc.RequestBuilder;
@@ -67,7 +67,7 @@ public class IndexerLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postCounters(String workerId, TalariaCountersSnapshot.WorkerCounters snapshot)
+  public void postCounters(String workerId, MSQCountersSnapshot.WorkerCounters snapshot)
   {
     serviceClient.request(
         new RequestBuilder(HttpMethod.POST, StringUtils.format("/counters/%s", StringUtils.urlEncode(workerId)))
@@ -94,7 +94,7 @@ public class IndexerLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postWorkerError(String workerId, TalariaErrorReport errorWrapper)
+  public void postWorkerError(String workerId, MSQErrorReport errorWrapper)
   {
     final String path = StringUtils.format(
         "/workerError/%s",
@@ -109,7 +109,7 @@ public class IndexerLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postWorkerWarning(String workerId, List<TalariaErrorReport> talariaErrorReports)
+  public void postWorkerWarning(String workerId, List<MSQErrorReport> MSQErrorReports)
   {
     final String path = StringUtils.format(
         "/workerWarning/%s",
@@ -118,7 +118,7 @@ public class IndexerLeaderClient implements LeaderClient
 
     serviceClient.request(
         new RequestBuilder(HttpMethod.POST, path)
-            .content(MediaType.APPLICATION_JSON, jsonMapper, talariaErrorReports),
+            .content(MediaType.APPLICATION_JSON, jsonMapper, MSQErrorReports),
         IgnoreHttpResponseHandler.INSTANCE
     ).valueOrThrow();
   }
@@ -126,9 +126,9 @@ public class IndexerLeaderClient implements LeaderClient
   @Override
   public Optional<List<String>> getTaskList()
   {
-    final TalariaTaskList retVal = serviceClient.request(
+    final MSQTaskList retVal = serviceClient.request(
         new RequestBuilder(HttpMethod.GET, "/taskList"),
-        JsonHttpResponseHandler.create(jsonMapper, TalariaTaskList.class)
+        JsonHttpResponseHandler.create(jsonMapper, MSQTaskList.class)
     ).valueOrThrow();
 
     return Optional.ofNullable(retVal.getTaskIds());

@@ -33,7 +33,7 @@ public class TalariaInsertContextKeys
    * Controls sort order within segments. Normally, this is the same as the overall order of the query (from the
    * CLUSTERED BY clause) but it can be overridden.
    */
-  public static final String CTX_SORT_ORDER = "talariaSegmentSortOrder";
+  public static final String CTX_SORT_ORDER = "msqSegmentSortOrder";
 
   private static final Pattern LOOKS_LIKE_JSON_ARRAY = Pattern.compile("^\\s*\\[.*", Pattern.DOTALL);
 

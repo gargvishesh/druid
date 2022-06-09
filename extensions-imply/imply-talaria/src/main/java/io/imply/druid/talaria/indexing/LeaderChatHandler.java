@@ -11,7 +11,7 @@ package io.imply.druid.talaria.indexing;
 
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
@@ -34,7 +34,7 @@ import java.util.Map;
 public class LeaderChatHandler implements ChatHandler
 {
   private final Leader leader;
-  private final TalariaControllerTask task;
+  private final MSQControllerTask task;
   private final TaskToolbox toolbox;
 
   public LeaderChatHandler(TaskToolbox toolbox, Leader leader)
@@ -77,7 +77,7 @@ public class LeaderChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostWorkerError(
-      final TalariaErrorReport errorReport,
+      final MSQErrorReport errorReport,
       @PathParam("taskId") final String taskId,
       @Context final HttpServletRequest req
   )
@@ -97,7 +97,7 @@ public class LeaderChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostWorkerWarning(
-      final List<TalariaErrorReport> errorReport,
+      final List<MSQErrorReport> errorReport,
       @PathParam("taskId") final String taskId,
       @Context final HttpServletRequest req
   )
@@ -109,7 +109,7 @@ public class LeaderChatHandler implements ChatHandler
 
 
   /**
-   * Used by subtasks to post {@link TalariaCountersSnapshot} periodically.
+   * Used by subtasks to post {@link MSQCountersSnapshot} periodically.
    *
    * See {@link io.imply.druid.talaria.exec.LeaderClient#postCounters} for the client-side code that calls this API.
    */
@@ -118,7 +118,7 @@ public class LeaderChatHandler implements ChatHandler
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostCounters(
-      final TalariaCountersSnapshot.WorkerCounters workerSnapshot,
+      final MSQCountersSnapshot.WorkerCounters workerSnapshot,
       @PathParam("taskId") final String taskId,
       @Context final HttpServletRequest req
   )
@@ -160,7 +160,7 @@ public class LeaderChatHandler implements ChatHandler
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
 
-    return Response.ok(new TalariaTaskList(leader.getTaskIds().orElse(null))).build();
+    return Response.ok(new MSQTaskList(leader.getTaskIds().orElse(null))).build();
   }
 
   /**

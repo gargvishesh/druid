@@ -10,7 +10,7 @@
 package io.imply.druid.talaria.exec;
 
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
@@ -90,7 +90,7 @@ public interface Worker
   /**
    * Returns the snapshot of the worker counters
    */
-  TalariaCountersSnapshot getCounters();
+  MSQCountersSnapshot getCounters();
 
   /**
    * Called when the worker receives a POST request to clean up the stage with stageId, and is no longer required.

@@ -105,9 +105,9 @@ describe('spec conversion', () => {
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
-      --:context talariaNumTasks: 4
+      --:context msqNumTasks: 5
       --:context maxParseExceptions: 3
-      --:context talariaFinalizeAggregations: false
+      --:context msqFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
       REPLACE INTO wikipedia OVERWRITE ALL
       WITH source AS (SELECT * FROM TABLE(
@@ -241,7 +241,7 @@ describe('spec conversion', () => {
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
-      --:context talariaFinalizeAggregations: false
+      --:context msqFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false
       REPLACE INTO wikipedia_rollup OVERWRITE ALL
       WITH source AS (SELECT * FROM TABLE(

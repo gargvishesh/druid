@@ -23,8 +23,6 @@ public class TalariaModules
 {
   private static final Logger log = new Logger(TalariaModules.class);
 
-  static final String FEATURE_NAME = "talaria";
-
   static Set<NodeRole> getNodeRoles(final Injector injector)
   {
     try {

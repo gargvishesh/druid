@@ -90,7 +90,7 @@ export const WorkPanel = React.memo(function WorkPanel(props: WorkPanelProps) {
   "duration",
   "error_msg" AS "errorMessage"
 FROM sys.tasks
-WHERE "type" = 'talaria0'
+WHERE "type" = 'query_controller'
 ORDER BY "created_time" DESC
 LIMIT 100`,
       });

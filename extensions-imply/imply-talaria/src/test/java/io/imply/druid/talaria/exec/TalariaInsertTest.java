@@ -383,7 +383,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setQueryContext(context)
                      .setExpectedExecutionErrorMatcher(
                          ThrowableMessageMatcher.hasMessage(CoreMatchers.startsWith(
-                             "talariaNumTasks cannot be less than 2 since at least 1 controller and 1 worker is necessary."))
+                             "msqNumTasks cannot be less than 2 since at least 1 controller and 1 worker is necessary."))
                      )
                      .verifyExecutionError();
   }

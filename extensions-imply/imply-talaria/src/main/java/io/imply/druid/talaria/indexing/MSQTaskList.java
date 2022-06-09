@@ -16,13 +16,13 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-public class TalariaTaskList
+public class MSQTaskList
 {
   @Nullable
   private final List<String> taskIds;
 
   @JsonCreator
-  public TalariaTaskList(@Nullable @JsonProperty("taskIds") List<String> taskIds)
+  public MSQTaskList(@Nullable @JsonProperty("taskIds") List<String> taskIds)
   {
     this.taskIds = taskIds;
   }
@@ -43,7 +43,7 @@ public class TalariaTaskList
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TalariaTaskList that = (TalariaTaskList) o;
+    MSQTaskList that = (MSQTaskList) o;
     return Objects.equals(taskIds, that.taskIds);
   }
 
@@ -56,7 +56,7 @@ public class TalariaTaskList
   @Override
   public String toString()
   {
-    return "TalariaTaskList{" +
+    return "MSQTaskList{" +
            "taskIds=" + taskIds +
            '}';
   }

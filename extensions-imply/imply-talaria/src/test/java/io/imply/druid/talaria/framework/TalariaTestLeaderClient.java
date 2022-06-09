@@ -12,8 +12,8 @@ package io.imply.druid.talaria.framework;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderClient;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.kernel.StageId;
 import org.apache.druid.java.util.common.ISE;
 
@@ -46,7 +46,7 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postCounters(String workerId, TalariaCountersSnapshot.WorkerCounters snapshot)
+  public void postCounters(String workerId, MSQCountersSnapshot.WorkerCounters snapshot)
   {
     if (snapshot != null) {
       leader.updateCounters(workerId, snapshot);
@@ -60,15 +60,15 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postWorkerError(String workerId, TalariaErrorReport errorWrapper)
+  public void postWorkerError(String workerId, MSQErrorReport errorWrapper)
   {
     leader.workerError(errorWrapper);
   }
 
   @Override
-  public void postWorkerWarning(String workerId, List<TalariaErrorReport> talariaErrorReports)
+  public void postWorkerWarning(String workerId, List<MSQErrorReport> MSQErrorReports)
   {
-    leader.workerWarning(talariaErrorReports);
+    leader.workerWarning(MSQErrorReports);
   }
 
   @Override

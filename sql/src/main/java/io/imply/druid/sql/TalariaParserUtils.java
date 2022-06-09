@@ -16,10 +16,10 @@ import org.apache.druid.sql.calcite.planner.PlannerContext;
  */
 public class TalariaParserUtils
 {
-  public static final String CTX_TALARIA = "talaria";
+  public static final String CTX_MULTI_STAGE_QUERY = "multiStageQuery";
 
   public static boolean isTalaria(final PlannerContext plannerContext)
   {
-    return plannerContext.getQueryContext().getAsBoolean(CTX_TALARIA, false);
+    return plannerContext.getQueryContext().getAsBoolean(CTX_MULTI_STAGE_QUERY, false);
   }
 }

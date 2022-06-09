@@ -121,7 +121,7 @@ public class SqlTaskResource
   )
   {
     final Map<String, Object> newContext = new HashMap<>(sqlQuery.getContext());
-    newContext.put("talaria", true);
+    newContext.put("multiStageQuery", true);
     final SqlQuery rewrittenQuery = sqlQuery.withQueryContext(newContext);
 
     // An MSQE query looks like a regular query, but returns the Task ID

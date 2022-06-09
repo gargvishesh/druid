@@ -10,8 +10,8 @@
 package io.imply.druid.talaria.exec;
 
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.kernel.StageId;
 
 import javax.annotation.Nullable;
@@ -30,7 +30,7 @@ public interface LeaderClient extends AutoCloseable
   );
   void postCounters(
       String workerId,
-      TalariaCountersSnapshot.WorkerCounters snapshot
+      MSQCountersSnapshot.WorkerCounters snapshot
   );
   void postResultsComplete(
       StageId stageId,
@@ -39,12 +39,12 @@ public interface LeaderClient extends AutoCloseable
   );
   void postWorkerError(
       String workerId,
-      TalariaErrorReport errorWrapper
+      MSQErrorReport errorWrapper
   );
 
   void postWorkerWarning(
       String workerId,
-      List<TalariaErrorReport> talariaErrorReports
+      List<MSQErrorReport> MSQErrorReports
   );
   Optional<List<String>> getTaskList();
 

@@ -65,7 +65,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
@@ -140,7 +140,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
@@ -214,7 +214,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -2,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
@@ -292,7 +292,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 4,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
@@ -368,7 +368,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 10,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
@@ -442,7 +442,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaMode.CTX_TALARIA_MODE, "nonStrict",
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
@@ -517,7 +517,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                              + ") group by 1")
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, 0,
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
@@ -623,7 +623,7 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setQueryContext(ImmutableMap.of(
                          TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED, -1,
                          TalariaMode.CTX_TALARIA_MODE, "strict",
-                         "talaria", true
+                         "multiStageQuery", true
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))

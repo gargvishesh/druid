@@ -185,14 +185,14 @@ public class IndexerWorkerClient implements WorkerClient
   }
 
   @Override
-  public ListenableFuture<TalariaCountersSnapshot> getCounters(String workerTaskId)
+  public ListenableFuture<MSQCountersSnapshot> getCounters(String workerTaskId)
   {
     return Futures.transform(
         getClient(workerTaskId).asyncRequest(
             new RequestBuilder(HttpMethod.GET, "/counters"),
-            JsonHttpResponseHandler.create(jsonMapper, TalariaCountersSnapshot.class)
+            JsonHttpResponseHandler.create(jsonMapper, MSQCountersSnapshot.class)
         ),
-        (Function<Either<RpcServerError, TalariaCountersSnapshot>, TalariaCountersSnapshot>) Either::valueOrThrow
+        (Function<Either<RpcServerError, MSQCountersSnapshot>, MSQCountersSnapshot>) Either::valueOrThrow
     );
   }
 

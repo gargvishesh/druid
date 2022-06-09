@@ -12,18 +12,18 @@ package io.imply.druid.talaria.util;
 import java.util.Map;
 
 /**
- * Class for all talaria context params
+ * Class for all msq context params
  */
 public class TalariaContext
 {
-  public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
-  public static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
+  public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "msqNumTasks";
+  public static final String CTX_FINALIZE_AGGREGATIONS = "msqFinalizeAggregations";
 
-  public static final String CTX_DURABLE_SHUFFLE_STORAGE = "talariaDurableShuffleStorage";
+  public static final String CTX_DURABLE_SHUFFLE_STORAGE = "msqDurableShuffleStorage";
 
-  public static final String CTX_DESTINATION = "talariaDestination";
-  public static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
-  public static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
+  public static final String CTX_DESTINATION = "msqDestination";
+  public static final String CTX_ROWS_PER_SEGMENT = "msqRowsPerSegment";
+  public static final String CTX_ROWS_IN_MEMORY = "msqRowsInMemory";
 
   public static boolean isDurableStorageEnabled(Map<String, Object> propertyMap)
   {

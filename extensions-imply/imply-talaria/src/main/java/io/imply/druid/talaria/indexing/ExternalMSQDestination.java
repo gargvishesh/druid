@@ -11,18 +11,18 @@ package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-public class ExternalTalariaDestination implements TalariaDestination
+public class ExternalMSQDestination implements MSQDestination
 {
-  public static final ExternalTalariaDestination INSTANCE = new ExternalTalariaDestination();
+  public static final ExternalMSQDestination INSTANCE = new ExternalMSQDestination();
   static final String TYPE = "external";
 
-  private ExternalTalariaDestination()
+  private ExternalMSQDestination()
   {
     // Singleton.
   }
 
   @JsonCreator
-  public static ExternalTalariaDestination instance()
+  public static ExternalMSQDestination instance()
   {
     return INSTANCE;
   }
@@ -30,6 +30,6 @@ public class ExternalTalariaDestination implements TalariaDestination
   @Override
   public String toString()
   {
-    return "ExternalTalariaDestination{}";
+    return "ExternalMSQDestination{}";
   }
 }

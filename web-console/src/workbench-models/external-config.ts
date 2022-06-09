@@ -32,7 +32,7 @@ import * as JSONBig from 'json-bigint-native';
 import { InputFormat, InputSource } from '../druid-models';
 import { nonEmptyArray } from '../utils';
 
-export const TALARIA_MAX_COLUMNS = 2000;
+export const MULTI_STAGE_QUERY_MAX_COLUMNS = 2000;
 
 export interface ExternalConfig {
   inputSource: InputSource;
@@ -93,7 +93,7 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 }
 
 const INITIAL_CONTEXT_LINES = [
-  `--:context talariaFinalizeAggregations: false`,
+  `--:context msqFinalizeAggregations: false`,
   `--:context groupByEnableMultiValueUnnesting: false`,
 ];
 
@@ -106,7 +106,7 @@ export function externalConfigToInitQuery(
     .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
       config.columns
-        .slice(0, TALARIA_MAX_COLUMNS)
+        .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
         .map(({ name }, i) =>
           SqlRef.column(name).applyIf(
             isArrays[i],

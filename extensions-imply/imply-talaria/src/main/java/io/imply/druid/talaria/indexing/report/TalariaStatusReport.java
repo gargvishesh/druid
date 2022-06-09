@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import org.apache.druid.indexer.TaskState;
 import org.joda.time.DateTime;
 
@@ -25,9 +25,9 @@ public class TalariaStatusReport
   private final TaskState status;
 
   @Nullable
-  private final TalariaErrorReport errorReport;
+  private final MSQErrorReport errorReport;
 
-  private final Queue<TalariaErrorReport> warningReports;
+  private final Queue<MSQErrorReport> warningReports;
 
   @Nullable
   private final DateTime startTime;
@@ -38,8 +38,8 @@ public class TalariaStatusReport
   @JsonCreator
   public TalariaStatusReport(
       @JsonProperty("status") TaskState status,
-      @JsonProperty("error") @Nullable TalariaErrorReport errorReport,
-      @JsonProperty("warnings") Queue<TalariaErrorReport> warningReports,
+      @JsonProperty("error") @Nullable MSQErrorReport errorReport,
+      @JsonProperty("warnings") Queue<MSQErrorReport> warningReports,
       @JsonProperty("startTime") @Nullable DateTime startTime,
       @JsonProperty("durationMs") long durationMs
   )
@@ -61,13 +61,13 @@ public class TalariaStatusReport
   @Nullable
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public TalariaErrorReport getErrorReport()
+  public MSQErrorReport getErrorReport()
   {
     return errorReport;
   }
 
   @JsonProperty
-  public Queue<TalariaErrorReport> getWarningReports()
+  public Queue<MSQErrorReport> getWarningReports()
   {
     return warningReports;
   }

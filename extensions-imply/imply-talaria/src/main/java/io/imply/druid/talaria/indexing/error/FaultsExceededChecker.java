@@ -10,7 +10,7 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 
@@ -45,13 +45,13 @@ public class FaultsExceededChecker
    * @return An optional which is empty if the faults count in the present in the task counters donot exceed their
    * prescribed limit, else it contains the errorCode and the maximum allowed faults for that errorCode
    */
-  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final Map<String, TalariaCountersSnapshot.WorkerCounters> taskCounters)
+  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final Map<String, MSQCountersSnapshot.WorkerCounters> taskCounters)
   {
     Map<String, Long> allWarnings = new HashMap<>();
-    for (Map.Entry<String, TalariaCountersSnapshot.WorkerCounters> workerCountersEntry : taskCounters.entrySet()) {
-      List<TalariaCountersSnapshot.WarningCounters> warningCountersList = workerCountersEntry.getValue()
-                                                                                             .getWarningCounters();
-      for (TalariaCountersSnapshot.WarningCounters warningCounters : warningCountersList) {
+    for (Map.Entry<String, MSQCountersSnapshot.WorkerCounters> workerCountersEntry : taskCounters.entrySet()) {
+      List<MSQCountersSnapshot.WarningCounters> warningCountersList = workerCountersEntry.getValue()
+                                                                                         .getWarningCounters();
+      for (MSQCountersSnapshot.WarningCounters warningCounters : warningCountersList) {
         Map<String, Long> warningCount = warningCounters.getWarningCountersSnapshot().getWarningCount();
         for (Map.Entry<String, Long> entry : warningCount.entrySet()) {
           allWarnings.compute(

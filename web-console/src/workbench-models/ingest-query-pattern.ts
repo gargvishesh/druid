@@ -35,10 +35,10 @@ import {
   ExternalConfig,
   externalConfigToTableExpression,
   fitExternalConfigPattern,
-  TALARIA_MAX_COLUMNS,
+  MULTI_STAGE_QUERY_MAX_COLUMNS,
 } from './external-config';
 
-const TALARIA_FINALIZE_AGGREGATIONS = 'talariaFinalizeAggregations';
+const MULTI_STAGE_QUERY_FINALIZE_AGGREGATIONS = 'msqFinalizeAggregations';
 const GROUP_BY_ENABLE_MULTI_VALUE_UNNESTING = 'groupByEnableMultiValueUnnesting';
 
 export type IngestMode = 'insert' | 'replace';
@@ -68,7 +68,7 @@ export function externalConfigToIngestQueryPattern(
     mainExternalConfig: config,
     filters: [],
     dimensions: config.columns
-      .slice(0, TALARIA_MAX_COLUMNS)
+      .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
       .map(({ name }, i) =>
         SqlRef.column(name).applyIf(
           isArrays[i],
@@ -255,7 +255,7 @@ export function ingestQueryPatternToQuery(
 
   const initialContextLines: string[] = metrics
     ? [
-        `--:context ${TALARIA_FINALIZE_AGGREGATIONS}: false`,
+        `--:context ${MULTI_STAGE_QUERY_FINALIZE_AGGREGATIONS}: false`,
         `--:context ${GROUP_BY_ENABLE_MULTI_VALUE_UNNESTING}: false`,
       ]
     : [];

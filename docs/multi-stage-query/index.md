@@ -1378,7 +1378,7 @@ In the current release, the security model for the multi-stage query engine is:
 - Queries that INSERT or REPLACE into a Druid datasource require the WRITE DATASOURCE permission on that
   datasource.
 - Queries that use the EXTERN operator require the WRITE DATASOURCE permission on the
-  `__you_have_been_visited_by_talaria` datasource. The purpose of this permission is to ensure that
+  `__query_select` datasource. The purpose of this permission is to ensure that
   the user has write permission to _some_ datasource and is therefore permitted to use external
   input sources. No data will be inserted into this stub datasource.
 
@@ -1443,7 +1443,7 @@ helper SQL queries (8).
 
 6. The "Work history" panel lets you see previous queries executed by all users in the cluster.
 It is equivalent to the task view in the Ingestion tab with the filter of `
-type=’talaria0’`.
+type=’query_controller’`.
 Work history panel can be shown/hidden from the toolbar wrench button (5).
 
 7. You can click on each query entry to attach to that query to track its progress.
@@ -1491,10 +1491,10 @@ change in future releases.
 
 Key concepts for multi-stage query execution:
 
-- **Controller**: an indexing service task of type `talaria0` that manages
+- **Controller**: an indexing service task of type `query_controller` that manages
   the execution of a query. There is one controller task per query.
 
-- **Worker**: indexing service tasks of type `talaria1` that execute a
+- **Worker**: indexing service tasks of type `query_worker` that execute a
   query. There may be more than one worker task per query. Internally,
   the tasks process items in parallel using their processing pools.
   (i.e., up to `druid.processing.numThreads` of execution parallelism
@@ -1513,7 +1513,7 @@ When you use the multi-stage query engine, the following happens:
 
 1.  The **Broker** plans your SQL query into a native query, as usual.
 
-2.  The Broker wraps the native query into a task of type `talaria0`
+2.  The Broker wraps the native query into a task of type `query_controller`
     and submits it to the indexing service. The Broker returns the task
     ID to you and exits.
 

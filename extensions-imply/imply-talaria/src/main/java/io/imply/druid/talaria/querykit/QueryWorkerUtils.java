@@ -14,7 +14,7 @@ import com.google.common.collect.Iterators;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.indexing.CountableInputSourceReader;
 import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.TalariaCounterType;
+import io.imply.druid.talaria.indexing.MSQCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.WarningCounters;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
@@ -127,7 +127,7 @@ public class QueryWorkerUtils
               inputSpec.getSegments(),
               dataSegmentProvider,
               talariaCounters.getOrCreateChannelCounters(
-                  TalariaCounterType.INPUT_DRUID,
+                  MSQCounterType.INPUT_DRUID,
                   workerNumber,
                   stageDefinition.getStageNumber(),
                   -1
@@ -143,7 +143,7 @@ public class QueryWorkerUtils
               inputSpec.getSignature(),
               temporaryDirectory,
               talariaCounters.getOrCreateChannelCounters(
-                  TalariaCounterType.INPUT_EXTERNAL,
+                  MSQCounterType.INPUT_EXTERNAL,
                   workerNumber,
                   stageDefinition.getStageNumber(),
                   -1

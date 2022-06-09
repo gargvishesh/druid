@@ -16,7 +16,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
 import io.imply.druid.talaria.kernel.StageId;
@@ -69,7 +69,7 @@ public class ExceptionWrappingWorkerClient implements WorkerClient
   }
 
   @Override
-  public ListenableFuture<TalariaCountersSnapshot> getCounters(String workerTaskId)
+  public ListenableFuture<MSQCountersSnapshot> getCounters(String workerTaskId)
   {
     return wrap(workerTaskId, client, c -> c.getCounters(workerTaskId));
   }

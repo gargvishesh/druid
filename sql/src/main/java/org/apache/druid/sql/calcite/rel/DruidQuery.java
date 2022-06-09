@@ -115,7 +115,7 @@ import java.util.stream.Collectors;
 public class DruidQuery
 {
   // BEGIN: Imply-added code for Talaria execution
-  public static final String CTX_TALARIA_SCAN_SIGNATURE = "talariaSignature";
+  public static final String CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE = "msqSignature";
   // END: Imply-added code for Talaria execution
 
   private final DataSource dataSource;
@@ -1343,7 +1343,7 @@ public class DruidQuery
 
   // BEGIN: Imply-added code for Talaria execution
   /**
-   * Returns a copy of "queryContext" with {@link #CTX_TALARIA_SCAN_SIGNATURE} added if this query is running
+   * Returns a copy of "queryContext" with {@link #CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE} added if this query is running
    * under a Talaria executor.
    */
   private QueryContext withScanSignatureIfNeeded(
@@ -1373,7 +1373,7 @@ public class DruidQuery
 
       try {
         queryContext.addSystemParam(
-            CTX_TALARIA_SCAN_SIGNATURE,
+            CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE,
             plannerContext.getJsonMapper().writeValueAsString(signature)
         );
         return queryContext;

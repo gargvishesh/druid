@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class DataSourceTalariaDestination implements TalariaDestination
+public class DataSourceMSQDestination implements MSQDestination
 {
   static final String TYPE = "dataSource";
 
@@ -35,7 +35,7 @@ public class DataSourceTalariaDestination implements TalariaDestination
   private final List<Interval> replaceTimeChunks;
 
   @JsonCreator
-  public DataSourceTalariaDestination(
+  public DataSourceMSQDestination(
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
       @JsonProperty("segmentSortOrder") List<String> segmentSortOrder,
@@ -127,7 +127,7 @@ public class DataSourceTalariaDestination implements TalariaDestination
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    DataSourceTalariaDestination that = (DataSourceTalariaDestination) o;
+    DataSourceMSQDestination that = (DataSourceMSQDestination) o;
     return Objects.equals(dataSource, that.dataSource)
            && Objects.equals(segmentGranularity, that.segmentGranularity)
            && Objects.equals(segmentSortOrder, that.segmentSortOrder)
@@ -143,7 +143,7 @@ public class DataSourceTalariaDestination implements TalariaDestination
   @Override
   public String toString()
   {
-    return "DataSourceTalariaDestination{" +
+    return "DataSourceMSQDestination{" +
            "dataSource='" + dataSource + '\'' +
            ", segmentGranularity=" + segmentGranularity +
            ", segmentSortOrder=" + segmentSortOrder +

@@ -221,7 +221,7 @@ describe('Stages', () => {
         {
           stageNumber: 1,
           inputStages: [0],
-          processorType: 'TalariaSegmentGeneratorFrameProcessorFactory',
+          processorType: 'MSQSegmentGeneratorFrameProcessorFactory',
           phase: 'READING_INPUT',
           workerCount: 1,
           partitionCount: 1,

@@ -19,13 +19,13 @@ import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
 import java.util.Map;
 import java.util.Objects;
 
-public class TalariaPartitionAssignment
+public class MSQPartitionAssignment
 {
   private final ClusterByPartitions partitions;
   private final Map<Integer, SegmentIdWithShardSpec> allocations;
 
   @JsonCreator
-  public TalariaPartitionAssignment(
+  public MSQPartitionAssignment(
       @JsonProperty("partitions") ClusterByPartitions partitions,
       @JsonProperty("allocations") Map<Integer, SegmentIdWithShardSpec> allocations
   )
@@ -62,7 +62,7 @@ public class TalariaPartitionAssignment
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TalariaPartitionAssignment that = (TalariaPartitionAssignment) o;
+    MSQPartitionAssignment that = (MSQPartitionAssignment) o;
     return Objects.equals(partitions, that.partitions) && Objects.equals(
         allocations,
         that.allocations
@@ -78,7 +78,7 @@ public class TalariaPartitionAssignment
   @Override
   public String toString()
   {
-    return "TalariaPartitionAssignment{" +
+    return "MSQPartitionAssignment{" +
            "partitions=" + partitions +
            ", allocations=" + allocations +
            '}';

@@ -23,7 +23,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.file.FrameFile;
 import io.imply.druid.talaria.frame.processor.RemoteOutputChannelFactory;
 import io.imply.druid.talaria.guice.Talaria;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.java.util.common.ISE;
@@ -104,7 +104,7 @@ public class TalariaTestWorkerClient implements WorkerClient
   }
 
   @Override
-  public ListenableFuture<TalariaCountersSnapshot> getCounters(String taskId)
+  public ListenableFuture<MSQCountersSnapshot> getCounters(String taskId)
   {
     return Futures.immediateFuture(inMemoryWorkers.get(taskId).getCounters());
   }

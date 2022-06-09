@@ -43,7 +43,7 @@ public class TalariaWarningReportSimplePublisher implements TalariaWarningReport
   @Override
   public void publishException(int stageNumber, Throwable e)
   {
-    TalariaErrorReport warningReport = TalariaErrorReport.fromException(taskId, host, stageNumber, e);
+    MSQErrorReport warningReport = MSQErrorReport.fromException(taskId, host, stageNumber, e);
     leaderClient.postWorkerWarning(workerId, ImmutableList.of(warningReport));
   }
 
