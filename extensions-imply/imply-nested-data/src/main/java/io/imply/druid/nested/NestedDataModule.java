@@ -71,14 +71,28 @@ public class NestedDataModule implements DruidModule
   public static void registerExpressionAndSqlOperators(Binder binder)
   {
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.StructExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.JsonObjectExprMacro.class);
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.GetPathExprMacro.class);
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.ListKeysExprMacro.class);
     ExpressionModule.addExprMacro(binder, NestedDataExpressions.ListPathsExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.JsonPathsExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.JsonValueExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.JsonQueryExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.ToJsonExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.ToJsonStringExprMacro.class);
+    ExpressionModule.addExprMacro(binder, NestedDataExpressions.ParseJsonExprMacro.class);
 
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.GetPathOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonGetPathAliasOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonKeysOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonPathsOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonQueryOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonValueOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonValueAnyOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.JsonObjectOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.ToJsonOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.ToJsonStringOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, NestedDataOperatorConversions.ParseJsonOperatorConversion.class);
   }
 
 

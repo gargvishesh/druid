@@ -60,7 +60,24 @@ To store and index JSON columns, specify the `json` type in the dimension spec o
         "queryGranularity": "none",
         "rollup": false,
         "segmentGranularity": "year"
-      }
+      },
+      "transforms": [
+        {
+          "type": "expression",
+          "name": "msg_x",
+          "expression": "json_value(msg, '$.x')"
+        },
+        {
+          "type": "expression",
+          "name": "msg_identity",
+          "expression": "json_query(msg, '$.')"
+        },
+        {
+          "type": "expression",
+          "name": "msg_reconstruct",
+          "expression": "json_object('x', json_value(msg, '$.x'), 'y', json_value(x, '$.y'))"
+        }
+      ]
     }
   }
 }
@@ -82,6 +99,11 @@ SELECT * FROM TABLE(
 
 | function | notes |
 |---|---|
-| `JSON_GET_PATH(expr, path)` | get a literal value from a nested JSON column `expr` using "jq" syntax of `path` |
-| `JSON_KEYS(expr, path)`| get array of field names in `expr` at the specified "jq" `path`, or null if the data does not exist or have any fields |
-| `JSON_PATHS(expr)` | get array of all `jq` paths available in `expr` |
+| `JSON_VALUE(expr, path)` | Extract a Druid literal (`STRING`, `LONG`, `DOUBLE`) value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path` |
+| `JSON_QUERY(expr, path)` | Extract a `COMPLEX<json>` value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path` |
+| `JSON_OBJECT(KEY expr1 VALUE expr2[, KEY expr3 VALUE expr4 ...])` | Construct a `COMPLEX<json>` storing the results of `VALUE` expressions at `KEY` expressions |
+| `PARSE_JSON(expr)` | Deserialize a JSON `STRING` into a `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs. |
+| `TO_JSON(expr)` | Convert any input type to `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs, like a `CAST` operation (rather than deserializing `STRING` values like `PARSE_JSON`) |
+| `TO_JSON_STRING(expr)` | Convert a `COMPLEX<json>` input into a JSON `STRING` value |
+| `JSON_KEYS(expr, path)`| get array of field names in `expr` at the specified JSONPath `path`, or null if the data does not exist or have any fields |
+| `JSON_PATHS(expr)` | get array of all JSONPath paths available in `expr` |

@@ -20,18 +20,141 @@ import java.util.stream.IntStream;
 
 public class PathFinder
 {
+  public static String toNormalizedJsonPath(List<PathPart> paths)
+  {
+    if (paths.isEmpty()) {
+      return "$.";
+    }
+    StringBuilder bob = new StringBuilder();
+    boolean first = true;
+    for (PathPart partFinder : paths) {
+      if (partFinder instanceof MapField) {
+        if (first) {
+          bob.append("$.");
+        } else {
+          bob.append(".");
+        }
+        final String id = partFinder.getPartName();
+        if (id.contains(".") || id.contains("'") || id.contains("\"") || id.contains("[") || id.contains("]")) {
+          bob.append("['").append(id).append("']");
+        } else {
+          bob.append(id);
+        }
+      } else if (partFinder instanceof ArrayElement) {
+        if (first) {
+          bob.append("$");
+        }
+        bob.append("[").append(partFinder.getPartName()).append("]");
+      }
+      first = false;
+    }
+    return bob.toString();
+  }
+
+  /**
+   * split a JSONPath path into a series of extractors to find things in stuff
+   */
+  public static List<PathPart> parseJsonPath(@Nullable String path)
+  {
+    if (path == null || path.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<PathPart> parts = new ArrayList<>();
+
+    if (!path.startsWith("$")) {
+      badFormatJsonPath(path, "must start with '$'");
+    }
+
+    if (path.length() == 1) {
+      return Collections.emptyList();
+    }
+
+    int partMark = -1;  // position to start the next substring to build the path part
+    int dotMark = -1;   // last position where a '.' character was encountered, indicating the start of a new part
+    int arrayMark = -1; // position of leading '[' indicating start of array (or field name if ' immediately follows)
+    int quoteMark = -1; // position of leading ', indicating a quoted field name
+
+    // start at position 1 since $ is special
+    for (int i = 1; i < path.length(); i++) {
+      final char current = path.charAt(i);
+      if (current == '.' && arrayMark < 0 && quoteMark < 0) {
+        if (dotMark >= 0) {
+          parts.add(new MapField(getPathSubstring(path, partMark, i)));
+        }
+        dotMark = i;
+        partMark = i + 1;
+      } else if (current == '[' && arrayMark < 0 && quoteMark < 0) {
+        if (dotMark == (i - 1) && dotMark != 0) {
+          badFormatJsonPath(path, "invalid position " + i + " for '[', must not follow '.' or must be contained with '");
+        }
+        if (dotMark >= 0 && i > 1) {
+          parts.add(new MapField(getPathSubstring(path, partMark, i)));
+          dotMark = -1;
+        }
+        arrayMark = i;
+        partMark = i + 1;
+      } else if (current == ']' && arrayMark >= 0 && quoteMark < 0) {
+        String maybeNumber = getPathSubstring(path, partMark, i);
+        Integer index;
+        try {
+          index = Integer.parseInt(maybeNumber);
+          parts.add(new ArrayElement(index));
+          dotMark = -1;
+          arrayMark = -1;
+          partMark = i + 1;
+        }
+        catch (NumberFormatException ignored) {
+          badFormatJsonPath(path, "expected number for array specifier got " + maybeNumber + " instead. Use ' if this value was meant to be a field name");
+        }
+      } else if (dotMark == -1 && arrayMark == -1) {
+        badFormatJsonPath(path, "path parts must be separated with '.'");
+      } else if (current == '\'' && quoteMark < 0) {
+        if (arrayMark != i - 1) {
+          badFormatJsonPath(path, "' must be immediately after '['");
+        }
+        quoteMark = i;
+        partMark = i + 1;
+      } else if (current == '\'' && quoteMark >= 0 && path.charAt(i - 1) != '\\') {
+        parts.add(new MapField(getPathSubstring(path, partMark, i)));
+        dotMark = -1;
+        quoteMark = -1;
+        // chomp to next char to eat closing array
+        if (++i == path.length()) {
+          break;
+        }
+        if (path.charAt(i) != ']') {
+          badFormatJsonPath(path, "closing ' must immediately precede ']'");
+        }
+        partMark = i + 1;
+        arrayMark = -1;
+      }
+    }
+    // add the last element, this should never be an array because they close themselves
+    if (partMark < path.length()) {
+      if (quoteMark != -1) {
+        badFormatJsonPath(path, "unterminated '");
+      }
+      if (arrayMark != -1) {
+        badFormatJsonPath(path, "unterminated '['");
+      }
+      parts.add(new MapField(path.substring(partMark)));
+    }
+
+    return parts;
+  }
+
   /**
    * Given a list of part finders, convert it to a "normalized" 'jq' path format that is consistent with how
    * {@link StructuredDataProcessor} constructs field path names
    */
-  public static String toNormalizedJqPath(List<PathPartFinder> paths)
+  public static String toNormalizedJqPath(List<PathPart> paths)
   {
     if (paths.isEmpty()) {
       return StructuredDataProcessor.ROOT_LITERAL;
     }
     StringBuilder bob = new StringBuilder();
     boolean first = true;
-    for (PathPartFinder partFinder : paths) {
+    for (PathPart partFinder : paths) {
       if (partFinder instanceof MapField) {
         bob.append(".");
         bob.append("\"").append(partFinder.getPartName()).append("\"");
@@ -49,12 +172,12 @@ public class PathFinder
   /**
    * split a jq path into a series of extractors to find things in stuff
    */
-  public static List<PathPartFinder> parseJqPath(@Nullable String path)
+  public static List<PathPart> parseJqPath(@Nullable String path)
   {
     if (path == null || path.isEmpty()) {
       return Collections.emptyList();
     }
-    List<PathPartFinder> parts = new ArrayList<>();
+    List<PathPart> parts = new ArrayList<>();
 
     if (path.charAt(0) != '.') {
       badFormat(path, "must start with '.'");
@@ -163,11 +286,16 @@ public class PathFinder
     throw new IAE("Bad format, '%s' is not a valid 'jq' path: %s", path, message);
   }
 
+  private static void badFormatJsonPath(String path, String message)
+  {
+    throw new IAE("Bad format, '%s' is not a valid JSONPath path: %s", path, message);
+  }
+
   /**
    * Dig through a thing to find stuff, if that stuff is a not nested itself
    */
   @Nullable
-  public static String findStringLiteral(@Nullable Object data, List<PathPartFinder> path)
+  public static String findStringLiteral(@Nullable Object data, List<PathPart> path)
   {
     Object currentObject = find(data, path);
     if (currentObject instanceof Map || currentObject instanceof List || currentObject instanceof Object[]) {
@@ -182,7 +310,7 @@ public class PathFinder
   }
 
   @Nullable
-  public static Object findLiteral(@Nullable Object data, List<PathPartFinder> path)
+  public static Object findLiteral(@Nullable Object data, List<PathPart> path)
   {
     Object currentObject = find(data, path);
     if (currentObject instanceof Map || currentObject instanceof List || currentObject instanceof Object[]) {
@@ -197,7 +325,7 @@ public class PathFinder
   }
 
   @Nullable
-  public static Object[] findKeys(@Nullable Object data, List<PathPartFinder> path)
+  public static Object[] findKeys(@Nullable Object data, List<PathPart> path)
   {
     Object currentObject = find(data, path);
     if (currentObject instanceof Map) {
@@ -216,11 +344,11 @@ public class PathFinder
    * Dig through a thing to find stuff
    */
   @Nullable
-  public static Object find(@Nullable Object data, List<PathPartFinder> path)
+  public static Object find(@Nullable Object data, List<PathPart> path)
   {
     Object currentObject = data;
-    for (PathPartFinder pathPartFinder : path) {
-      Object objectAtPath = pathPartFinder.find(currentObject);
+    for (PathPart pathPart : path) {
+      Object objectAtPath = pathPart.find(currentObject);
       if (objectAtPath == null) {
         return null;
       }
@@ -229,7 +357,7 @@ public class PathFinder
     return currentObject;
   }
 
-  public interface PathPartFinder
+  public interface PathPart
   {
     @Nullable
     Object find(@Nullable Object input);
@@ -237,7 +365,7 @@ public class PathFinder
     String getPartName();
   }
 
-  static class MapField implements PathPartFinder
+  static class MapField implements PathPart
   {
     private final String path;
 
@@ -263,7 +391,7 @@ public class PathFinder
     }
   }
 
-  static class ArrayElement implements PathPartFinder
+  static class ArrayElement implements PathPart
   {
     private final int index;
 

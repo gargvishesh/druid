@@ -37,7 +37,7 @@ public class PathFinderTest
   @Test
   public void testParseJqPath()
   {
-    List<PathFinder.PathPartFinder> pathParts;
+    List<PathFinder.PathPart> pathParts;
 
     pathParts = PathFinder.parseJqPath(".");
     Assert.assertEquals(0, pathParts.size());
@@ -182,6 +182,129 @@ public class PathFinderTest
   }
 
   @Test
+  public void testParseJsonPath()
+  {
+    List<PathFinder.PathPart> pathParts;
+
+    pathParts = PathFinder.parseJsonPath("$.");
+    Assert.assertEquals(0, pathParts.size());
+
+    pathParts = PathFinder.parseJsonPath("$");
+    Assert.assertEquals(0, pathParts.size());
+
+    // { "z" : "hello" }
+    pathParts = PathFinder.parseJsonPath("$.z");
+    Assert.assertEquals(1, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("z", pathParts.get(0).getPartName());
+    Assert.assertEquals(".\"z\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.z", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // { "z" : "hello" }
+    pathParts = PathFinder.parseJsonPath("$['z']");
+    Assert.assertEquals(1, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("z", pathParts.get(0).getPartName());
+    Assert.assertEquals(".\"z\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.z", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // { "x" : ["a", "b"]}
+    pathParts = PathFinder.parseJsonPath("$.x[1]");
+    Assert.assertEquals(2, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertEquals(".\"x\"[1]", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x[1]", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // { "x" : ["a", "b"]}
+    pathParts = PathFinder.parseJsonPath("$['x'][1]");
+    Assert.assertEquals(2, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertEquals(".\"x\"[1]", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x[1]", PathFinder.toNormalizedJsonPath(pathParts));
+
+
+    // { "x" : { "1" : "hello" }}
+    pathParts = PathFinder.parseJsonPath("$['x']['1']");
+    Assert.assertEquals(2, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.MapField);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertEquals(".\"x\".\"1\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x.1", PathFinder.toNormalizedJsonPath(pathParts));
+
+
+    // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
+    pathParts = PathFinder.parseJsonPath("$.x[1].foo.bar");
+    Assert.assertEquals(4, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertTrue(pathParts.get(2) instanceof PathFinder.MapField);
+    Assert.assertEquals("foo", pathParts.get(2).getPartName());
+    Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
+    Assert.assertEquals("bar", pathParts.get(3).getPartName());
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x[1].foo.bar", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
+    pathParts = PathFinder.parseJsonPath("$.x[1]['foo'].bar");
+    Assert.assertEquals(4, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertTrue(pathParts.get(2) instanceof PathFinder.MapField);
+    Assert.assertEquals("foo", pathParts.get(2).getPartName());
+    Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
+    Assert.assertEquals("bar", pathParts.get(3).getPartName());
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x[1].foo.bar", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // { "x" : [ { "foo" : { "bar" : "hello" }}, { "foo" : { "bar" : "world" }}]}
+    pathParts = PathFinder.parseJsonPath("$['x'][1].foo['bar']");
+    Assert.assertEquals(4, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.ArrayElement);
+    Assert.assertEquals("1", pathParts.get(1).getPartName());
+    Assert.assertTrue(pathParts.get(2) instanceof PathFinder.MapField);
+    Assert.assertEquals("foo", pathParts.get(2).getPartName());
+    Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
+    Assert.assertEquals("bar", pathParts.get(3).getPartName());
+    Assert.assertEquals(".\"x\"[1].\"foo\".\"bar\"", PathFinder.toNormalizedJqPath(pathParts));
+    Assert.assertEquals("$.x[1].foo.bar", PathFinder.toNormalizedJsonPath(pathParts));
+
+    // stress out the parser
+    // { "x.y.z]?[\\\"]][]\" : { "13234.12[]][23" : { "f?o.o" : { ".b?.a.r.": "hello" }}}}
+    pathParts = PathFinder.parseJsonPath("$['x.y.z][\\']][]']['13234.12[]][23']['fo.o']['.b.a.r.']");
+    Assert.assertEquals(4, pathParts.size());
+    Assert.assertTrue(pathParts.get(0) instanceof PathFinder.MapField);
+    Assert.assertEquals("x.y.z][\\']][]", pathParts.get(0).getPartName());
+    Assert.assertTrue(pathParts.get(1) instanceof PathFinder.MapField);
+    Assert.assertEquals("13234.12[]][23", pathParts.get(1).getPartName());
+    Assert.assertTrue(pathParts.get(2) instanceof PathFinder.MapField);
+    Assert.assertEquals("fo.o", pathParts.get(2).getPartName());
+    Assert.assertTrue(pathParts.get(3) instanceof PathFinder.MapField);
+    Assert.assertEquals(".b.a.r.", pathParts.get(3).getPartName());
+    Assert.assertEquals(
+        ".\"x.y.z][\\']][]\".\"13234.12[]][23\".\"fo.o\".\".b.a.r.\"",
+        PathFinder.toNormalizedJqPath(pathParts)
+    );
+    Assert.assertEquals(
+        "$.['x.y.z][\\']][]'].['13234.12[]][23'].['fo.o'].['.b.a.r.']",
+        PathFinder.toNormalizedJsonPath(pathParts)
+    );
+  }
+
+  @Test
   public void testBadFormatMustStartWithDot()
   {
     expectedException.expect(IAE.class);
@@ -266,7 +389,7 @@ public class PathFinderTest
   @Test
   public void testPathSplitter()
   {
-    List<PathFinder.PathPartFinder> pathParts;
+    List<PathFinder.PathPart> pathParts;
 
     pathParts = PathFinder.parseJqPath(".");
     Assert.assertEquals(NESTER, PathFinder.find(NESTER, pathParts));

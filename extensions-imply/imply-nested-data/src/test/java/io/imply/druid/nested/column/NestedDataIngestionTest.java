@@ -163,6 +163,45 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
   }
 
   @Test
+  public void testIngestAndScanSegmentsRealtimeWithFallback() throws Exception
+  {
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .columns("x", "x_0", "y_c_1")
+                                             .virtualColumns(
+                                                 new NestedFieldVirtualColumn("nest", ".x", "x", ColumnType.LONG, true),
+                                                 new NestedFieldVirtualColumn("nester", ".x[0]", "x_0", NestedDataComplexTypeSerde.TYPE, true),
+                                                 new NestedFieldVirtualColumn("nester", ".y.c[1]", "y_c_1", NestedDataComplexTypeSerde.TYPE, true),
+                                                 new NestedFieldVirtualColumn("nester", ".", "nester_root", NestedDataComplexTypeSerde.TYPE, true)
+                                             )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
+    List<Segment> realtimeSegs = ImmutableList.of(
+        NestedDataTestUtils.createDefaultHourlyIncrementalIndex()
+    );
+    List<Segment> segs = NestedDataTestUtils.createDefaultHourlySegments(helper, tempFolder, closer);
+
+
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(realtimeSegs, scanQuery);
+    final Sequence<ScanResultValue> seq2 = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> resultsRealtime = seq.toList();
+    List<ScanResultValue> resultsSegments = seq2.toList();
+    logResults(resultsSegments);
+    logResults(resultsRealtime);
+    Assert.assertEquals(1, resultsRealtime.size());
+    Assert.assertEquals(resultsRealtime.size(), resultsSegments.size());
+    Assert.assertEquals(resultsSegments.get(0).getEvents().toString(), resultsRealtime.get(0).getEvents().toString());
+  }
+
+  @Test
   public void testIngestAndScanSegmentsTsv() throws Exception
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
@@ -423,14 +462,14 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
 
   private VirtualColumns makeNestedNumericVirtualColumns()
   {
-    List<PathFinder.PathPartFinder> longParts = PathFinder.parseJqPath(".long");
-    List<PathFinder.PathPartFinder> doubleParts = PathFinder.parseJqPath(".double");
-    List<PathFinder.PathPartFinder> mixedNumericParts = PathFinder.parseJqPath(".mixed_numeric");
-    List<PathFinder.PathPartFinder> mixedParts = PathFinder.parseJqPath(".mixed");
-    List<PathFinder.PathPartFinder> sparseLongParts = PathFinder.parseJqPath(".sparse_long");
-    List<PathFinder.PathPartFinder> sparseDoubleParts = PathFinder.parseJqPath(".sparse_double");
-    List<PathFinder.PathPartFinder> sparseMixedNumericParts = PathFinder.parseJqPath(".sparse_mixed_numeric");
-    List<PathFinder.PathPartFinder> sparseMixedParts = PathFinder.parseJqPath(".sparse_mixed");
+    List<PathFinder.PathPart> longParts = PathFinder.parseJqPath(".long");
+    List<PathFinder.PathPart> doubleParts = PathFinder.parseJqPath(".double");
+    List<PathFinder.PathPart> mixedNumericParts = PathFinder.parseJqPath(".mixed_numeric");
+    List<PathFinder.PathPart> mixedParts = PathFinder.parseJqPath(".mixed");
+    List<PathFinder.PathPart> sparseLongParts = PathFinder.parseJqPath(".sparse_long");
+    List<PathFinder.PathPart> sparseDoubleParts = PathFinder.parseJqPath(".sparse_double");
+    List<PathFinder.PathPart> sparseMixedNumericParts = PathFinder.parseJqPath(".sparse_mixed_numeric");
+    List<PathFinder.PathPart> sparseMixedParts = PathFinder.parseJqPath(".sparse_mixed");
 
     NestedFieldVirtualColumn longVirtualColumn = new NestedFieldVirtualColumn(
         "nest",

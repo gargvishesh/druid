@@ -55,11 +55,13 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
 
   public abstract DimensionSelector makeDimensionSelector(String field, ReadableOffset readableOffset, ExtractionFn fn);
   public abstract ColumnValueSelector<?> makeColumnValueSelector(String field, ReadableOffset readableOffset);
+
   public abstract SingleValueDimensionVectorSelector makeSingleValueDimensionVectorSelector(
       String field,
       ReadableVectorOffset readableOffset
   );
   public abstract VectorObjectSelector makeVectorObjectSelector(String field, ReadableVectorOffset readableOffset);
+
   public abstract VectorValueSelector makeVectorValueSelector(String field, ReadableVectorOffset readableOffset);
   public abstract ColumnHolder readNestedFieldColumn(String field);
 
