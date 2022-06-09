@@ -22,6 +22,7 @@ import java.io.File;
 public interface WorkerContext
 {
   ObjectMapper jsonMapper();
+
   // TODO(paul): Per Gian, this is a hack in TalariaWorkerTask carried over here.
   Injector injector();
 
@@ -33,10 +34,16 @@ public interface WorkerContext
   void registerWorker(Worker worker, Closer closer);
 
   LeaderClient makeLeaderClient(String leaderId);
-  WorkerClient makeWorkerClient(String workerId);
+
+  WorkerClient makeWorkerClient(String leaderId, String workerId);
+
   File tempDir();
+
   FrameContext frameContext(QueryDefinition queryDef, int stageNumber);
+
   int threadCount();
+
   DruidNode selfNode();
+
   Bouncer processorBouncer();
 }

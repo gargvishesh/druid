@@ -76,4 +76,5 @@
   <suppress checks="Header" files="io.imply.druid.query.aggregation.*" />
   <suppress checks="Header" files="io.imply.druid.meter.*" />
   <suppress checks="Header" files="io.imply.druid.sql.*" />
+  <suppress checks="Header" files="io.imply.druid.storage.*" />
 </suppressions>

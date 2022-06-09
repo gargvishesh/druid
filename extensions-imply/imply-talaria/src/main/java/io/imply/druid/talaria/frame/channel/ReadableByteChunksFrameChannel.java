@@ -99,6 +99,8 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
    * if the amount of queued bytes is at or above this channel's limit. If the Optional is present, you are politely
    * requested to wait for the future to resolve before adding additional chunks. (This is not enforced; addChunk will
    * continue to accept new chunks even if the channel is over its limit.)
+   *
+   * When done adding chunks call {@code doneWriting}.
    */
   public Optional<ListenableFuture<?>> addChunk(final byte[] chunk)
   {
@@ -155,6 +157,9 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
     }
   }
 
+  /**
+   * Call method when caller is done adding chunks.
+   */
   public void doneWriting()
   {
     synchronized (lock) {

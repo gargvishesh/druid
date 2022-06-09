@@ -8,6 +8,7 @@
 #
 
 io.imply.druid.talaria.guice.TalariaIndexingModule
+io.imply.druid.talaria.guice.TalariaFaultToleranceModule
 io.imply.druid.talaria.guice.TalariaServiceClientModule
 io.imply.druid.talaria.guice.TalariaSqlModule
 io.imply.druid.talaria.guice.SqlTaskModule

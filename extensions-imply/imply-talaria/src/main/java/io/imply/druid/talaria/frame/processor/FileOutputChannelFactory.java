@@ -26,6 +26,9 @@ import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * Output channel factory implementation backed by a local file.
+ */
 public class FileOutputChannelFactory implements OutputChannelFactory
 {
   private final File fileChannelsDirectory;

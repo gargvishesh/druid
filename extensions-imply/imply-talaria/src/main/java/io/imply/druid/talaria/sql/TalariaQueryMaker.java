@@ -19,6 +19,7 @@ import io.imply.druid.talaria.indexing.TalariaInsertContextKeys;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import io.imply.druid.talaria.util.FutureUtils;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
@@ -62,12 +63,6 @@ import java.util.stream.Collectors;
 
 public class TalariaQueryMaker implements QueryMaker
 {
-  public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "talariaNumTasks";
-  public static final String CTX_FINALIZE_AGGREGATIONS = "talariaFinalizeAggregations";
-
-  private static final String CTX_DESTINATION = "talariaDestination";
-  private static final String CTX_ROWS_PER_SEGMENT = "talariaRowsPerSegment";
-  private static final String CTX_ROWS_IN_MEMORY = "talariaRowsInMemory";
 
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
@@ -146,7 +141,8 @@ public class TalariaQueryMaker implements QueryMaker
     }
 
     final String ctxDestination =
-        DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext().get(CTX_DESTINATION));
+        DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext()
+                                                                  .get(TalariaContext.CTX_DESTINATION));
 
     Object segmentGranularity;
     try {
@@ -160,23 +156,25 @@ public class TalariaQueryMaker implements QueryMaker
     }
 
     final long maxNumTotalTasks =
-        Optional.ofNullable(plannerContext.getQueryContext().get(CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
+        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
                 .map(DimensionHandlerUtils::convertObjectToLong)
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
     if (maxNumTotalTasks < 2) {
-      throw new IAE(CTX_MAX_NUM_CONCURRENT_SUB_TASKS + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
+      throw new IAE(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+                    + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
     }
-    final long maxNumConcurrentSubTasks = maxNumTotalTasks - 1; // This parameter is used internally for the number of worker tasks only, so we subtract 1
+    // This parameter is used internally for the number of worker tasks only, so we subtract 1
+    final long maxNumConcurrentSubTasks = maxNumTotalTasks - 1;
 
     final int rowsPerSegment =
-        Optional.ofNullable(plannerContext.getQueryContext().get(CTX_ROWS_PER_SEGMENT))
+        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_ROWS_PER_SEGMENT))
                 .map(DimensionHandlerUtils::convertObjectToLong)
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_ROWS_PER_SEGMENT);
 
     final int rowsInMemory =
-        Optional.ofNullable(plannerContext.getQueryContext().get(CTX_ROWS_IN_MEMORY))
+        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_ROWS_IN_MEMORY))
                 .map(DimensionHandlerUtils::convertObjectToLong)
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_ROWS_IN_MEMORY);
@@ -334,7 +332,8 @@ public class TalariaQueryMaker implements QueryMaker
 
   static boolean isFinalizeAggregations(final PlannerContext plannerContext)
   {
-    return Numbers.parseBoolean(plannerContext.getQueryContext().getOrDefault(CTX_FINALIZE_AGGREGATIONS, true));
+    return Numbers.parseBoolean(plannerContext.getQueryContext()
+                                              .getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
   }
 
   private static Map<String, ColumnType> buildAggregationIntermediateTypeMap(final DruidQuery druidQuery)

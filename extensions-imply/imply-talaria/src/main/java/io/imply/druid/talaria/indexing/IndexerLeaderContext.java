@@ -12,10 +12,12 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
+import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.druid.client.coordinator.CoordinatorClient;
@@ -27,7 +29,9 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.server.DruidNode;
 
+import javax.annotation.Nullable;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Indexer implementation of the Talaria leader context.
@@ -40,11 +44,17 @@ public class IndexerLeaderContext implements LeaderContext
   private final OverlordServiceClient overlordClient;
   private final WorkerManagerClient workerManager;
 
+  private final boolean faultToleranceEnabled;
+  @Nullable
+  private final ExecutorService remoteFetchExecutorService;
+
   public IndexerLeaderContext(
       final TaskToolbox toolbox,
       final Injector injector,
       final DruidServiceClientFactory clientFactory,
-      final OverlordServiceClient overlordClient
+      final OverlordServiceClient overlordClient,
+      final boolean faultToleranceEnabled,
+      @Nullable final ExecutorService remoteFetchExecutorService
   )
   {
     this.toolbox = toolbox;
@@ -52,6 +62,8 @@ public class IndexerLeaderContext implements LeaderContext
     this.clientFactory = clientFactory;
     this.overlordClient = overlordClient;
     this.workerManager = new IndexerWorkerManagerClient(overlordClient);
+    this.faultToleranceEnabled = faultToleranceEnabled;
+    this.remoteFetchExecutorService = remoteFetchExecutorService;
   }
 
   @Override
@@ -88,7 +100,27 @@ public class IndexerLeaderContext implements LeaderContext
   public WorkerClient taskClientFor(Leader leader)
   {
     // Ignore leader parameter.
-    return new IndexerWorkerClient(clientFactory, overlordClient, jsonMapper());
+    if (faultToleranceEnabled) {
+      return new IndexerWorkerClient(
+          leader.id(),
+          clientFactory,
+          overlordClient,
+          jsonMapper(),
+          injector.getInstance(Key.get(StorageConnector.class, Talaria.class)),
+          faultToleranceEnabled,
+          remoteFetchExecutorService
+      );
+    } else {
+      return new IndexerWorkerClient(
+          leader.id(),
+          clientFactory,
+          overlordClient,
+          jsonMapper(),
+          null,
+          false,
+          null
+      );
+    }
   }
 
   @Override

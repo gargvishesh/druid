@@ -27,7 +27,7 @@ import org.apache.druid.java.util.common.RetryUtils;
 import javax.annotation.Nullable;
 import java.io.File;
 
-public class S3SqlAsyncResultManagerConfig
+public class S3OutputConfig
 {
   @JsonProperty
   private String bucket;

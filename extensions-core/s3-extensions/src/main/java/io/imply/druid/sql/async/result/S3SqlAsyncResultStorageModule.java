@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Key;
+import com.google.inject.name.Names;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
@@ -46,7 +47,8 @@ public class S3SqlAsyncResultStorageModule implements DruidModule
     JsonConfigProvider.bind(
         binder,
         StringUtils.format("%s.s3", "druid.query.async.storage"),
-        S3SqlAsyncResultManagerConfig.class
+        S3OutputConfig.class,
+        Names.named("async")
     );
 
     PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))

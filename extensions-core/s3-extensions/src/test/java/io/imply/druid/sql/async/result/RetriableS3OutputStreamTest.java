@@ -68,7 +68,7 @@ public class RetriableS3OutputStreamTest
       ResultFormat.OBJECT
   );
 
-  private S3SqlAsyncResultManagerConfig config;
+  private S3OutputConfig config;
   private long maxResultsSize;
   private long chunkSize;
 
@@ -77,7 +77,7 @@ public class RetriableS3OutputStreamTest
   {
     final File tempDir = temporaryFolder.newFolder();
     chunkSize = 10L;
-    config = new S3SqlAsyncResultManagerConfig()
+    config = new S3OutputConfig()
     {
       @Override
       public File getTempDir()
