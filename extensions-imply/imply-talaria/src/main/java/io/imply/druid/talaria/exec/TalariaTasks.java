@@ -15,12 +15,14 @@ import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectors;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.server.DruidNode;
 
 import javax.annotation.Nullable;
+import java.util.UUID;
 
 public class TalariaTasks
 {
@@ -28,6 +30,24 @@ public class TalariaTasks
    * Message used by {@link #makeErrorReport} when no other message is known.
    */
   static final String GENERIC_QUERY_FAILED_MESSAGE = "Query failed";
+
+  private static final String TASK_ID_PREFIX = "query-";
+
+  /**
+   * Returns a controller task ID given a
+   */
+  public static String controllerTaskId(@Nullable final String queryId)
+  {
+    return TASK_ID_PREFIX + (queryId == null ? UUID.randomUUID().toString() : queryId);
+  }
+
+  /**
+   * Returns a controller task ID given a
+   */
+  public static String workerTaskId(final String controllerTaskId, final int workerNumber)
+  {
+    return StringUtils.format("%s-worker%d", controllerTaskId, workerNumber);
+  }
 
   /**
    * Returns a decorated copy of an ObjectMapper that knows how to deserialize the appropriate kind of
@@ -49,7 +69,7 @@ public class TalariaTasks
 
   /**
    * Returns the host:port from a {@link DruidNode}. Convenience method to make it easier to construct
-   * {@link TalariaErrorReport} instances.
+   * {@link MSQErrorReport} instances.
    */
   @Nullable
   static String getHostFromSelfNode(@Nullable final DruidNode selfNode)
@@ -61,7 +81,7 @@ public class TalariaTasks
    * Builds an error report from a possible controller error report and a possible worker error report. Both may be
    * null, in which case this function will return a report with {@link UnknownFault}.
    *
-   * We only include a single {@link TalariaErrorReport} in the task report, because it's important that a query have
+   * We only include a single {@link MSQErrorReport} in the task report, because it's important that a query have
    * a single {@link io.imply.druid.talaria.indexing.error.TalariaFault} explaining why it failed. To aid debugging
    * in cases where we choose the controller error over the worker error, we'll log the worker error too, even though
    * it doesn't appear in the report.
@@ -72,16 +92,16 @@ public class TalariaTasks
    * RPCs to the canceled tasks will fail. We want to ignore these failed RPCs and get to the "true" error that
    * started it all.)
    */
-  static TalariaErrorReport makeErrorReport(
+  static MSQErrorReport makeErrorReport(
       final String controllerTaskId,
       final String controllerHost,
-      @Nullable TalariaErrorReport controllerErrorReport,
-      @Nullable TalariaErrorReport workerErrorReport
+      @Nullable MSQErrorReport controllerErrorReport,
+      @Nullable MSQErrorReport workerErrorReport
   )
   {
     if (controllerErrorReport == null && workerErrorReport == null) {
       // Something went wrong, but we have no idea what.
-      return TalariaErrorReport.fromFault(
+      return MSQErrorReport.fromFault(
           controllerTaskId,
           controllerHost,
           null,
@@ -105,9 +125,9 @@ public class TalariaTasks
   }
 
   /**
-   * Returns a string form of a {@link TalariaErrorReport} suitable for logging.
+   * Returns a string form of a {@link MSQErrorReport} suitable for logging.
    */
-  static String errorReportToLogMessage(final TalariaErrorReport errorReport)
+  static String errorReportToLogMessage(final MSQErrorReport errorReport)
   {
     final StringBuilder logMessage = new StringBuilder("Work failed");
 

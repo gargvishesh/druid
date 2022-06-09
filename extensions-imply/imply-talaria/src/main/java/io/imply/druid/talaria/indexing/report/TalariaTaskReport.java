@@ -17,7 +17,7 @@ import org.apache.druid.indexing.common.TaskReport;
 @JsonTypeName(TalariaTaskReport.REPORT_KEY)
 public class TalariaTaskReport implements TaskReport
 {
-  public static final String REPORT_KEY = "talaria";
+  public static final String REPORT_KEY = "multiStageQuery";
 
   private final String taskId;
   private final TalariaTaskReportPayload payload;

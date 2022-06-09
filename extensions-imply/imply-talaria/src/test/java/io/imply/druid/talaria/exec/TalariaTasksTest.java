@@ -11,7 +11,7 @@ package io.imply.druid.talaria.exec;
 
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
@@ -44,7 +44,7 @@ public class TalariaTasksTest
   public void test_makeErrorReport_allNull()
   {
     Assert.assertEquals(
-        TalariaErrorReport.fromFault(
+        MSQErrorReport.fromFault(
             CONTROLLER_ID,
             CONTROLLER_HOST,
             null,
@@ -57,10 +57,10 @@ public class TalariaTasksTest
   @Test
   public void test_makeErrorReport_controllerOnly()
   {
-    final TalariaErrorReport controllerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport controllerReport = TalariaTasks.makeErrorReport(
         CONTROLLER_ID,
         CONTROLLER_HOST,
-        TalariaErrorReport.fromFault(CONTROLLER_ID, CONTROLLER_HOST, null, new TooManyColumnsFault(1, 10)),
+        MSQErrorReport.fromFault(CONTROLLER_ID, CONTROLLER_HOST, null, new TooManyColumnsFault(1, 10)),
         null
     );
 
@@ -70,10 +70,10 @@ public class TalariaTasksTest
   @Test
   public void test_makeErrorReport_workerOnly()
   {
-    final TalariaErrorReport workerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport workerReport = TalariaTasks.makeErrorReport(
         WORKER_ID,
         WORKER_HOST,
-        TalariaErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
+        MSQErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
         null
     );
 
@@ -83,17 +83,17 @@ public class TalariaTasksTest
   @Test
   public void test_makeErrorReport_controllerPreferred()
   {
-    final TalariaErrorReport controllerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport controllerReport = TalariaTasks.makeErrorReport(
         WORKER_ID,
         WORKER_HOST,
-        TalariaErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyWorkersFault(2, 20)),
+        MSQErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyWorkersFault(2, 20)),
         null
     );
 
-    final TalariaErrorReport workerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport workerReport = TalariaTasks.makeErrorReport(
         WORKER_ID,
         WORKER_HOST,
-        TalariaErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
+        MSQErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
         null
     );
 
@@ -106,17 +106,17 @@ public class TalariaTasksTest
   @Test
   public void test_makeErrorReport_workerPreferred()
   {
-    final TalariaErrorReport controllerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport controllerReport = TalariaTasks.makeErrorReport(
         WORKER_ID,
         WORKER_HOST,
-        TalariaErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new WorkerRpcFailedFault(WORKER_ID)),
+        MSQErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new WorkerRpcFailedFault(WORKER_ID)),
         null
     );
 
-    final TalariaErrorReport workerReport = TalariaTasks.makeErrorReport(
+    final MSQErrorReport workerReport = TalariaTasks.makeErrorReport(
         WORKER_ID,
         WORKER_HOST,
-        TalariaErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
+        MSQErrorReport.fromFault(WORKER_ID, WORKER_HOST, null, new TooManyColumnsFault(1, 10)),
         null
     );
 

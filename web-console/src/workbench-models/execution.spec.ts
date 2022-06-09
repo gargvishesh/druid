@@ -66,7 +66,7 @@ describe('Execution', () => {
         Execution.fromTaskPayloadAndReport(
           {} as any,
           {
-            asyncResultId: 'talaria-sql-1392d806-c17f-4937-94ee-8fa0a3ce1566',
+            asyncResultId: 'multi-stage-query-sql-1392d806-c17f-4937-94ee-8fa0a3ce1566',
             error: null,
           } as any,
         ),
@@ -77,10 +77,10 @@ describe('Execution', () => {
       expect(
         Execution.fromTaskPayloadAndReport(
           {
-            task: 'talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
+            task: 'multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
             payload: {
-              type: 'talaria0',
-              id: 'talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
+              type: 'query_controller',
+              id: 'multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
               spec: {
                 query: {
                   queryType: 'scan',
@@ -124,9 +124,9 @@ describe('Execution', () => {
                     queryId: 'hello',
                     sqlOuterLimit: 1001,
                     sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
-                    talaria: true,
-                    talariaNumTasks: 2,
-                    talariaSignature:
+                    multiStageQuery: true,
+                    msqNumTasks: 2,
+                    msqSignature:
                       '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
                   },
 
@@ -201,26 +201,26 @@ describe('Execution', () => {
                 queryId: 'hello',
                 sqlOuterLimit: 1001,
                 sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
-                talaria: true,
-                talariaNumTasks: 2,
-                talariaSignature:
+                multiStageQuery: true,
+                msqNumTasks: 2,
+                msqSignature:
                   '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
               },
 
               sqlTypeNames: ['VARCHAR', 'VARCHAR'],
               context: { forceTimeChunkLock: true, useLineageBasedSegmentAllocation: true },
-              groupId: 'talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
-              dataSource: '__you_have_been_visited_by_talaria',
+              groupId: 'multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
+              dataSource: '__query_select',
               resource: {
-                availabilityGroup: 'talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
+                availabilityGroup: 'multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
                 requiredCapacity: 1,
               },
             },
           },
 
           {
-            talaria: {
-              taskId: 'talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
+            multiStageQuery: {
+              taskId: 'multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9',
               payload: {
                 status: {
                   status: 'SUCCESS',
@@ -282,9 +282,9 @@ describe('Execution', () => {
                         queryId: 'hello',
                         sqlOuterLimit: 1001,
                         sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
-                        talaria: true,
-                        talariaNumTasks: 2,
-                        talariaSignature:
+                        multiStageQuery: true,
+                        msqNumTasks: 2,
+                        msqSignature:
                           '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
                       },
 
@@ -396,11 +396,11 @@ describe('Execution', () => {
                 "forceTimeChunkLock": true,
                 "useLineageBasedSegmentAllocation": true,
               },
-              "dataSource": "__you_have_been_visited_by_talaria",
-              "groupId": "talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
-              "id": "talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
+              "dataSource": "__query_select",
+              "groupId": "multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
+              "id": "multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
               "resource": Object {
-                "availabilityGroup": "talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
+                "availabilityGroup": "multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
                 "requiredCapacity": 1,
               },
               "spec": Object {
@@ -426,12 +426,12 @@ describe('Execution', () => {
                   "context": Object {
                     "__userIdentity__": "allowAll",
                     "finalize": true,
+                    "msqNumTasks": 2,
+                    "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
+                    "multiStageQuery": true,
                     "queryId": "hello",
                     "sqlOuterLimit": 1001,
                     "sqlQueryId": "b275662f-6d9e-4275-b437-533dd9fe9ed9",
-                    "talaria": true,
-                    "talariaNumTasks": 2,
-                    "talariaSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
                   },
                   "dataSource": Object {
                     "inputFormat": Object {
@@ -547,20 +547,20 @@ describe('Execution', () => {
         LIMIT 5",
               "sqlQueryContext": Object {
                 "__userIdentity__": "allowAll",
+                "msqNumTasks": 2,
+                "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
+                "multiStageQuery": true,
                 "queryId": "hello",
                 "sqlOuterLimit": 1001,
                 "sqlQueryId": "b275662f-6d9e-4275-b437-533dd9fe9ed9",
-                "talaria": true,
-                "talariaNumTasks": 2,
-                "talariaSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
               },
               "sqlTypeNames": Array [
                 "VARCHAR",
                 "VARCHAR",
               ],
-              "type": "talaria0",
+              "type": "query_controller",
             },
-            "task": "talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
+            "task": "multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
           },
           "destination": Object {
             "type": "taskReport",
@@ -568,7 +568,7 @@ describe('Execution', () => {
           "duration": 1164,
           "engine": "sql-task",
           "error": undefined,
-          "id": "talaria-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
+          "id": "multi-stage-query-sql-b275662f-6d9e-4275-b437-533dd9fe9ed9",
           "nativeQuery": Object {
             "batchSize": 20480,
             "columns": Array [
@@ -578,12 +578,12 @@ describe('Execution', () => {
             "context": Object {
               "__userIdentity__": "allowAll",
               "finalize": true,
+              "msqNumTasks": 2,
+              "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
+              "multiStageQuery": true,
               "queryId": "hello",
               "sqlOuterLimit": 1001,
               "sqlQueryId": "b275662f-6d9e-4275-b437-533dd9fe9ed9",
-              "talaria": true,
-              "talariaNumTasks": 2,
-              "talariaSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
             },
             "dataSource": Object {
               "inputFormat": Object {
@@ -631,9 +631,9 @@ describe('Execution', () => {
           },
           "queryContext": Object {
             "__userIdentity__": "allowAll",
+            "msqNumTasks": 2,
+            "multiStageQuery": true,
             "sqlOuterLimit": 1001,
-            "talaria": true,
-            "talariaNumTasks": 2,
           },
           "result": QueryResult {
             "header": Array [
@@ -651,9 +651,9 @@ describe('Execution', () => {
             "query": Object {
               "context": Object {
                 "__userIdentity__": "allowAll",
+                "msqNumTasks": 2,
+                "multiStageQuery": true,
                 "sqlOuterLimit": 1001,
-                "talaria": true,
-                "talariaNumTasks": 2,
               },
             },
             "queryDuration": undefined,
@@ -934,12 +934,12 @@ describe('Execution', () => {
                   "context": Object {
                     "__userIdentity__": "allowAll",
                     "finalize": true,
+                    "msqNumTasks": 2,
+                    "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
+                    "multiStageQuery": true,
                     "queryId": "hello",
                     "sqlOuterLimit": 1001,
                     "sqlQueryId": "b275662f-6d9e-4275-b437-533dd9fe9ed9",
-                    "talaria": true,
-                    "talariaNumTasks": 2,
-                    "talariaSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
                   },
                   "dataSource": Object {
                     "inputFormat": Object {

@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Injector;
+import io.imply.druid.talaria.exec.TalariaTasks;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerContext;
 import io.imply.druid.talaria.exec.WorkerImpl;
@@ -34,9 +35,10 @@ import java.util.concurrent.Executors;
 @JsonTypeName(TalariaWorkerTask.TYPE)
 public class TalariaWorkerTask extends AbstractTask
 {
-  public static final String TYPE = "talaria1";
+  public static final String TYPE = "query_worker";
 
   private final String controllerTaskId;
+  private final int workerNumber;
 
   // TODO(gianm): HACK HACK HACK
   @JacksonInject
@@ -50,21 +52,21 @@ public class TalariaWorkerTask extends AbstractTask
   @JsonCreator
   @VisibleForTesting
   public TalariaWorkerTask(
-      @JsonProperty("id") @Nullable String id,
-      @JsonProperty("groupId") final String groupId,
       @JsonProperty("controllerTaskId") final String controllerTaskId,
       @JsonProperty("dataSource") final String dataSource,
+      @JsonProperty("workerNumber") final int workerNumber,
       @JsonProperty("context") final Map<String, Object> context
   )
   {
     super(
-        getOrMakeId(id, TYPE, dataSource),
-        groupId,
+        TalariaTasks.workerTaskId(controllerTaskId, workerNumber),
+        controllerTaskId,
         null,
         dataSource,
         context
     );
     this.controllerTaskId = controllerTaskId;
+    this.workerNumber = workerNumber;
     durableStorageEnabled = TalariaContext.isDurableStorageEnabled(getContext());
 
     this.remoteFetchExecutorService = durableStorageEnabled
@@ -78,6 +80,12 @@ public class TalariaWorkerTask extends AbstractTask
   public String getControllerTaskId()
   {
     return controllerTaskId;
+  }
+
+  @JsonProperty
+  public int getWorkerNumber()
+  {
+    return workerNumber;
   }
 
   @Nullable

@@ -32,10 +32,10 @@ import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
 import io.imply.druid.talaria.guice.TalariaSqlModule;
-import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
+import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFaultTest;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaFault;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
@@ -177,7 +177,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 {
 
   public static final Map<String, Object> DEFAULT_TALARIA_CONTEXT = ImmutableMap.<String, Object>builder()
-                                                                                .put("talaria", true)
+                                                                                .put("multiStageQuery", true)
                                                                                 .put(
                                                                                     TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE,
                                                                                     true
@@ -544,7 +544,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   {
     TalariaTaskReportPayload payload =
         (TalariaTaskReportPayload) indexingServiceClient.getReportForTask(controllerTaskId)
-                                                        .get("talaria")
+                                                        .get("multiStageQuery")
                                                         .getPayload();
     if (payload.getStatus().getStatus().isFailure()) {
       throw new ISE(
@@ -561,11 +561,11 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     return payload;
   }
 
-  private TalariaErrorReport getErrorReportOrThrow(String controllerTaskId)
+  private MSQErrorReport getErrorReportOrThrow(String controllerTaskId)
   {
     TalariaTaskReportPayload payload =
         (TalariaTaskReportPayload) indexingServiceClient.getReportForTask(controllerTaskId)
-                                                        .get("talaria")
+                                                        .get("multiStageQuery")
                                                         .getPayload();
     if (!payload.getStatus().getStatus().isFailure()) {
       throw new ISE(
@@ -782,10 +782,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
         if (expectedTalariaFault != null) {
-          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          MSQErrorReport msqErrorReport = getErrorReportOrThrow(controllerId);
           Assert.assertEquals(
               expectedTalariaFault.getCodeWithMessage(),
-              talariaErrorReport.getFault().getCodeWithMessage()
+              msqErrorReport.getFault().getCodeWithMessage()
           );
           return;
         }
@@ -871,7 +871,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         }
         if (expectedDestinationIntervals != null) {
           Assert.assertNotNull(foundSpec);
-          DataSourceTalariaDestination destination = (DataSourceTalariaDestination) foundSpec.getDestination();
+          DataSourceMSQDestination destination = (DataSourceMSQDestination) foundSpec.getDestination();
           Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
         }
         // assert results
@@ -921,10 +921,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         String controllerId = runTalariaQuery(sql, queryContext);
 
         if (expectedTalariaFault != null) {
-          TalariaErrorReport talariaErrorReport = getErrorReportOrThrow(controllerId);
+          MSQErrorReport msqErrorReport = getErrorReportOrThrow(controllerId);
           Assert.assertEquals(
               expectedTalariaFault.getCodeWithMessage(),
-              talariaErrorReport.getFault().getCodeWithMessage()
+              msqErrorReport.getFault().getCodeWithMessage()
           );
           return null;
         }

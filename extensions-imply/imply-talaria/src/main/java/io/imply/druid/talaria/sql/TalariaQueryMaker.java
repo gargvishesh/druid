@@ -14,7 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
-import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
+import io.imply.druid.talaria.exec.TalariaTasks;
+import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
 import io.imply.druid.talaria.indexing.TalariaInsertContextKeys;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
@@ -63,7 +64,6 @@ import java.util.stream.Collectors;
 
 public class TalariaQueryMaker implements QueryMaker
 {
-
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
   private static final String DESTINATION_REPORT = "taskReport";
@@ -126,14 +126,7 @@ public class TalariaQueryMaker implements QueryMaker
   @Override
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
-    // druid-sql module does not depend on druid-indexing-service, so we must create the task from scratch.
-    final String taskId;
-
-    if (targetDataSource == null) {
-      taskId = StringUtils.format("talaria-sql-%s", plannerContext.getSqlQueryId());
-    } else {
-      taskId = StringUtils.format("talaria-sql-%s-%s", targetDataSource, plannerContext.getSqlQueryId());
-    }
+    String taskId = TalariaTasks.controllerTaskId(plannerContext.getSqlQueryId());
 
     Object talariaMode = plannerContext.getQueryContext().getOrDefault(TalariaMode.CTX_TALARIA_MODE, "strict");
     if (talariaMode != null) {
@@ -143,6 +136,16 @@ public class TalariaQueryMaker implements QueryMaker
     final String ctxDestination =
         DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext()
                                                                   .get(TalariaContext.CTX_DESTINATION));
+
+    boolean containsTalariaQueryContextParameter =
+        plannerContext.getQueryContext().getMergedParams().keySet()
+                      .stream()
+                      .anyMatch(param -> StringUtils.toLowerCase(param).contains("talaria"));
+
+    if (containsTalariaQueryContextParameter) {
+      throw new ISE("Context parameters which contain the string \"talaria\" are now defunct. "
+                    + "Please check the documentation for the appropriate MSQE property.");
+    }
 
     Object segmentGranularity;
     try {
@@ -270,7 +273,7 @@ public class TalariaQueryMaker implements QueryMaker
       );
 
       destinationSpec = jsonMapper.convertValue(
-          new DataSourceTalariaDestination(
+          new DataSourceMSQDestination(
               targetDataSource,
               segmentGranularityObject,
               segmentSortOrder,
@@ -318,7 +321,7 @@ public class TalariaQueryMaker implements QueryMaker
 
     final Map<String, Object> taskSpec =
         ImmutableMap.<String, Object>builder()
-                    .put("type", "talaria0")
+                    .put("type", "query_controller")
                     .put("id", taskId)
                     .put("spec", querySpec)
                     .put("sqlQuery", plannerContext.getSql())

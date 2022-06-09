@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * Counters are all tracked on a per-worker basis by the {@link #workerCountersMap} object.
  * <p>
- * Immutable {@link TalariaCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
+ * Immutable {@link MSQCountersSnapshot} snapshots can be created by {@link #snapshot()}. These are used for
  * worker-to-controller counters propagation (see {@link io.imply.druid.talaria.exec.LeaderClient#postCounters})
  * and reporting to end users (see {@link io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload#getCounters}).
  */
@@ -49,7 +49,7 @@ public class TalariaCounters
   }
 
   public ChannelCounters getOrCreateChannelCounters(
-      final TalariaCounterType counterType,
+      final MSQCounterType counterType,
       final int workerNumber,
       final int stageNumber,
       final int partitionNumber
@@ -69,17 +69,17 @@ public class TalariaCounters
     return workerCounters(workerNumber).getOrCreateWarningCounters(stageNumber);
   }
 
-  public TalariaCountersSnapshot snapshot()
+  public MSQCountersSnapshot snapshot()
   {
-    final List<TalariaCountersSnapshot.WorkerCounters> workerCountersSnapshot = new ArrayList<>();
+    final List<MSQCountersSnapshot.WorkerCounters> workerCountersSnapshot = new ArrayList<>();
 
     for (final Map.Entry<Integer, WorkerCounters> workerEntry : workerCountersMap.entrySet()) {
-      final EnumMap<TalariaCounterType, List<TalariaCountersSnapshot.ChannelCounters>> workerSnapshotMap =
-          new EnumMap<>(TalariaCounterType.class);
+      final EnumMap<MSQCounterType, List<MSQCountersSnapshot.ChannelCounters>> workerSnapshotMap =
+          new EnumMap<>(MSQCounterType.class);
 
-      for (Map.Entry<TalariaCounterType, ConcurrentHashMap<StagePartitionNumber, ChannelCounters>> counterTypeEntry :
+      for (Map.Entry<MSQCounterType, ConcurrentHashMap<StagePartitionNumber, ChannelCounters>> counterTypeEntry :
           workerEntry.getValue().countersMap.entrySet()) {
-        final TalariaCounterType counterType = counterTypeEntry.getKey();
+        final MSQCounterType counterType = counterTypeEntry.getKey();
         final ConcurrentHashMap<StagePartitionNumber, ChannelCounters> channelCountersMap = counterTypeEntry.getValue();
 
         for (Map.Entry<StagePartitionNumber, ChannelCounters> channelEntry : channelCountersMap.entrySet()) {
@@ -87,7 +87,7 @@ public class TalariaCounters
           final ChannelCounters channelCounters = channelEntry.getValue();
 
           workerSnapshotMap.computeIfAbsent(counterType, ignored -> new ArrayList<>()).add(
-              new TalariaCountersSnapshot.ChannelCounters(
+              new MSQCountersSnapshot.ChannelCounters(
                   stagePartitionNumber.getStageNumber(),
                   stagePartitionNumber.getPartitionNumber(),
                   channelCounters.frames.get(),
@@ -100,7 +100,7 @@ public class TalariaCounters
       }
 
       // Sort by stageNumber + partitionNumber so the snapshots look nice.
-      for (final List<TalariaCountersSnapshot.ChannelCounters> countersList : workerSnapshotMap.values()) {
+      for (final List<MSQCountersSnapshot.ChannelCounters> countersList : workerSnapshotMap.values()) {
         countersList.sort(
             Comparator.comparing(
                 channelCounters -> new StagePartitionNumber(
@@ -111,26 +111,26 @@ public class TalariaCounters
         );
       }
 
-      List<TalariaCountersSnapshot.SortProgressTracker> sortProgressTrackerSnapshotList = new ArrayList<>();
+      List<MSQCountersSnapshot.SortProgressTracker> sortProgressTrackerSnapshotList = new ArrayList<>();
       for (Map.Entry<Integer, SuperSorterProgressTracker> sortProgressTrackerEntry : workerEntry.getValue().sortProgressTrackerMap.entrySet()) {
         sortProgressTrackerSnapshotList.add(
-            new TalariaCountersSnapshot.SortProgressTracker(
+            new MSQCountersSnapshot.SortProgressTracker(
                 sortProgressTrackerEntry.getKey(), sortProgressTrackerEntry.getValue().snapshot()
             )
         );
       }
 
-      List<TalariaCountersSnapshot.WarningCounters> warningCountersList = new ArrayList<>();
+      List<MSQCountersSnapshot.WarningCounters> warningCountersList = new ArrayList<>();
       for (Map.Entry<Integer, WarningCounters> warningCountersEntry : workerEntry.getValue().warningCountersMap.entrySet()) {
         warningCountersList.add(
-            new TalariaCountersSnapshot.WarningCounters(
+            new MSQCountersSnapshot.WarningCounters(
                 warningCountersEntry.getKey(), warningCountersEntry.getValue().snapshot()
             )
         );
       }
 
       workerCountersSnapshot.add(
-          new TalariaCountersSnapshot.WorkerCounters(
+          new MSQCountersSnapshot.WorkerCounters(
               workerEntry.getKey(),
               workerSnapshotMap,
               sortProgressTrackerSnapshotList,
@@ -139,7 +139,7 @@ public class TalariaCounters
       );
     }
 
-    return new TalariaCountersSnapshot(workerCountersSnapshot);
+    return new MSQCountersSnapshot(workerCountersSnapshot);
   }
 
   private WorkerCounters workerCounters(final int workerNumber)
@@ -173,11 +173,11 @@ public class TalariaCounters
         sb.append(StringUtils.format("S%d:W%d:", stageNumber, workerEntry.getKey()));
 
         final long inputRows =
-            workerCounters.getTotalRows(TalariaCounterType.INPUT_STAGE, stageNumber)
-            + workerCounters.getTotalRows(TalariaCounterType.INPUT_EXTERNAL, stageNumber)
-            + workerCounters.getTotalRows(TalariaCounterType.INPUT_DRUID, stageNumber);
-        final long processorRows = workerCounters.getTotalRows(TalariaCounterType.PROCESSOR, stageNumber);
-        final long sortRows = workerCounters.getTotalRows(TalariaCounterType.SORT, stageNumber);
+            workerCounters.getTotalRows(MSQCounterType.INPUT_STAGE, stageNumber)
+            + workerCounters.getTotalRows(MSQCounterType.INPUT_EXTERNAL, stageNumber)
+            + workerCounters.getTotalRows(MSQCounterType.INPUT_DRUID, stageNumber);
+        final long processorRows = workerCounters.getTotalRows(MSQCounterType.PROCESSOR, stageNumber);
+        final long sortRows = workerCounters.getTotalRows(MSQCounterType.SORT, stageNumber);
         final long workerWarnings = workerCounters.getOrCreateWarningCounters(stageNumber).totalWarningCount();
 
         sb.append(inputRows);
@@ -202,7 +202,7 @@ public class TalariaCounters
   private static class WorkerCounters
   {
     // TODO(gianm): more generic way of handling these counters: get rid of the copy/paste code
-    private final ConcurrentHashMap<TalariaCounterType, ConcurrentHashMap<StagePartitionNumber, ChannelCounters>> countersMap =
+    private final ConcurrentHashMap<MSQCounterType, ConcurrentHashMap<StagePartitionNumber, ChannelCounters>> countersMap =
         new ConcurrentHashMap<>();
 
     // stage number -> sort progress
@@ -216,7 +216,7 @@ public class TalariaCounters
       // Only created in this file.
     }
 
-    private long getTotalRows(final TalariaCounterType counterType, final int stageNumber)
+    private long getTotalRows(final MSQCounterType counterType, final int stageNumber)
     {
       final ConcurrentHashMap<StagePartitionNumber, ChannelCounters> channelCountersMap = countersMap.get(counterType);
 

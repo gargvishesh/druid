@@ -59,7 +59,7 @@ public class TalariaWarningReportLimiterPublisher implements TalariaWarningRepor
   @Override
   public void publishException(int stageNumber, Throwable e)
   {
-    String errorCode = TalariaErrorReport.getFaultFromException(e).getErrorCode();
+    String errorCode = MSQErrorReport.getFaultFromException(e).getErrorCode();
     synchronized (lock) {
       totalCount = totalCount + 1;
       errorCodeToCurrentCount.compute(errorCode, (ignored, count) -> count == null ? 1L : count + 1);

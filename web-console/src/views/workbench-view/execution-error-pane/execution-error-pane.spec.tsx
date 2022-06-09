@@ -30,9 +30,9 @@ describe('ExecutionErrorPane', () => {
         execution={
           new Execution({
             engine: 'sql-task',
-            id: 'talaria1_kttm',
+            id: 'query_worker_kttm',
             error: {
-              taskId: 'talaria1_kttm_naobfgjd_2021-12-03T23:16:15.269Z',
+              taskId: 'query_worker_kttm_naobfgjd_2021-12-03T23:16:15.269Z',
               host: 'ip-10-3-228-20.ec2.internal:8100',
               stageNumber: 0,
               error: {

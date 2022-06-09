@@ -51,16 +51,15 @@ import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.KeyStatisticsCollectionProcessor;
+import io.imply.druid.talaria.indexing.MSQCounterType;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
-import io.imply.druid.talaria.indexing.TalariaCounterType;
 import io.imply.druid.talaria.indexing.TalariaCounters;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
-import io.imply.druid.talaria.indexing.error.TalariaErrorReport;
+import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
-import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.StageDefinition;
@@ -125,7 +124,6 @@ public class WorkerImpl implements Worker
   private final WorkerContext context;
 
   private final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue = new LinkedBlockingDeque<>();
-  private final ConcurrentMap<String, QueryDefinition> queryDefinitionMap = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<StageId, ConcurrentHashMap<Integer, ReadableFrameChannel>> stageOutputs = new ConcurrentHashMap<>();
   private final TalariaCounters talariaCounters = new TalariaCounters();
 
@@ -176,19 +174,19 @@ public class WorkerImpl implements Worker
   public TaskStatus run() throws Exception
   {
     try (final Closer closer = Closer.create()) {
-      Optional<TalariaErrorReport> maybeErrorReport;
+      Optional<MSQErrorReport> maybeErrorReport;
 
       try {
         maybeErrorReport = runTask(closer);
       }
       catch (Throwable e) {
         maybeErrorReport = Optional.of(
-            TalariaErrorReport.fromException(id(), TalariaTasks.getHostFromSelfNode(selfDruidNode), null, e)
+            MSQErrorReport.fromException(id(), TalariaTasks.getHostFromSelfNode(selfDruidNode), null, e)
         );
       }
 
       if (maybeErrorReport.isPresent()) {
-        final TalariaErrorReport errorReport = maybeErrorReport.get();
+        final MSQErrorReport errorReport = maybeErrorReport.get();
         final String errorLogMessage = TalariaTasks.errorReportToLogMessage(errorReport);
         log.warn(errorLogMessage);
 
@@ -209,7 +207,7 @@ public class WorkerImpl implements Worker
    * Runs worker logic. Returns an empty Optional on success. On failure, returns an error report for errors that
    * happened in other threads; throws exceptions for errors that happened in the main worker loop.
    */
-  public Optional<TalariaErrorReport> runTask(final Closer closer) throws Exception
+  public Optional<MSQErrorReport> runTask(final Closer closer) throws Exception
   {
     this.selfDruidNode = context.selfNode();
     this.leaderClient = context.makeLeaderClient(task.getControllerTaskId());
@@ -339,7 +337,7 @@ public class WorkerImpl implements Worker
         if (kernel.getPhase() == WorkerStagePhase.FAILED) {
           // Better than throwing an exception, because we can include the stage number.
           return Optional.of(
-              TalariaErrorReport.fromException(
+              MSQErrorReport.fromException(
                   id(),
                   TalariaTasks.getHostFromSelfNode(selfDruidNode),
                   stageDefinition.getId().getStageNumber(),
@@ -442,8 +440,9 @@ public class WorkerImpl implements Worker
   @Override
   public void postWorkOrder(final WorkOrder workOrder)
   {
-    // TODO(gianm): Prevent conflicts but retain idempotency (must save WorkOrder?)
-    queryDefinitionMap.putIfAbsent(workOrder.getQueryDefinition().getQueryId(), workOrder.getQueryDefinition());
+    if (task.getWorkerNumber() != workOrder.getWorkerNumber()) {
+      throw new ISE("Worker number mismatch: expected [%d]", task.getWorkerNumber());
+    }
 
     kernelManipulationQueue.add(
         kernelHolder ->
@@ -462,11 +461,6 @@ public class WorkerImpl implements Worker
   )
   {
     final StageId stageId = new StageId(queryId, stageNumber);
-    final QueryDefinition queryDef = queryDefinitionMap.get(queryId);
-
-    if (queryDef == null) {
-      return false;
-    }
 
     kernelManipulationQueue.add(
         kernelHolder -> {
@@ -503,7 +497,7 @@ public class WorkerImpl implements Worker
   }
 
   @Override
-  public TalariaCountersSnapshot getCounters()
+  public MSQCountersSnapshot getCounters()
   {
     return talariaCounters.snapshot();
   }
@@ -629,26 +623,24 @@ public class WorkerImpl implements Worker
    */
   private void postCountersToController()
   {
-    if (!queryDefinitionMap.isEmpty()) {
-      // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
-      // If this "Iterables.getOnlyElement" fails it is because we were assigned multiple worker numbers for
-      // different work orders, which is not expected.
+    // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
+    // If the workerCounter size > 1, it is a failure because we were assigned multiple worker numbers for
+    // different work orders, which is not expected.
 
-      List<TalariaCountersSnapshot.WorkerCounters> workerCounters =
-          talariaCounters.snapshot().getWorkerCounters();
+    List<MSQCountersSnapshot.WorkerCounters> workerCounters =
+        talariaCounters.snapshot().getWorkerCounters();
 
-      if (workerCounters != null && workerCounters.size() != 0) {
-        if (workerCounters.size() > 1) {
-          throw new ISE(
-              "Multiple worker numbers [%s] for different work orders were assigned, which is not expected.",
-              workerCounters.stream()
-                            .map(TalariaCountersSnapshot.WorkerCounters::getWorkerNumber)
-                            .collect(Collectors.toList())
-          );
-        } else {
-          if (leaderAlive) {
-            leaderClient.postCounters(id(), workerCounters.get(0));
-          }
+    if (workerCounters != null && workerCounters.size() != 0) {
+      if (workerCounters.size() > 1) {
+        throw new ISE(
+            "Multiple worker numbers [%s] for different work orders were assigned, which is not expected.",
+            workerCounters.stream()
+                          .map(MSQCountersSnapshot.WorkerCounters::getWorkerNumber)
+                          .collect(Collectors.toList())
+        );
+      } else {
+        if (leaderAlive) {
+          leaderClient.postCounters(id(), workerCounters.get(0));
         }
       }
     }
@@ -720,7 +712,7 @@ public class WorkerImpl implements Worker
                 inputChannelFactory,
                 partitionNumber ->
                     counters.getOrCreateChannelCounters(
-                        TalariaCounterType.INPUT_STAGE,
+                        MSQCounterType.INPUT_STAGE,
                         workerNumber,
                         stageDef.getStageNumber(),
                         partitionNumber
@@ -768,7 +760,7 @@ public class WorkerImpl implements Worker
                 workerOutputChannelFactory,
                 partitionNumber ->
                     counters.getOrCreateChannelCounters(
-                        TalariaCounterType.PROCESSOR,
+                        MSQCounterType.PROCESSOR,
                         workerNumber,
                         stageDef.getStageNumber(),
                         partitionNumber
@@ -803,7 +795,7 @@ public class WorkerImpl implements Worker
               ),
               partitionNumber ->
                   counters.getOrCreateChannelCounters(
-                      TalariaCounterType.SORT,
+                      MSQCounterType.SORT,
                       workerNumber,
                       stageDef.getStageNumber(),
                       partitionNumber

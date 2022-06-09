@@ -29,7 +29,7 @@ const IGNORE_CONTEXT_KEYS = [
   'queryId',
   'sqlQueryId',
   'sqlInsertSegmentGranularity',
-  'talariaSignature',
+  'msqSignature',
 ];
 
 // Hack around the concept that we might get back a SqlWithQuery and will need to unpack it
@@ -236,14 +236,14 @@ export class Execution {
   static fromTaskPayloadAndReport(
     taskPayload: { payload: any; task: string },
     taskReport: {
-      talaria: { payload: any; taskId: string };
+      multiStageQuery: { payload: any; taskId: string };
       error?: any;
     },
   ): Execution {
     // Must have status set for a valid report
-    const id = deepGet(taskReport, 'talaria.taskId');
-    const status = deepGet(taskReport, 'talaria.payload.status.status');
-    const warnings = deepGet(taskReport, 'talaria.payload.status.warningReports');
+    const id = deepGet(taskReport, 'multiStageQuery.taskId');
+    const status = deepGet(taskReport, 'multiStageQuery.payload.status.status');
+    const warnings = deepGet(taskReport, 'multiStageQuery.payload.status.warningReports');
 
     if (typeof id !== 'string' || !Execution.validTaskStatus(status)) {
       throw new Error('Invalid payload');
@@ -252,22 +252,22 @@ export class Execution {
     let error: ExecutionError | undefined;
     if (status === 'FAILED') {
       error =
-        deepGet(taskReport, 'talaria.payload.status.errorReport') ||
+        deepGet(taskReport, 'multiStageQuery.payload.status.errorReport') ||
         (typeof taskReport.error === 'string'
           ? { error: { errorCode: 'UnknownError', errorMessage: taskReport.error } }
           : undefined);
     }
 
-    const stages = deepGet(taskReport, 'talaria.payload.stages');
-    const startTime = new Date(deepGet(taskReport, 'talaria.payload.status.startTime'));
-    const durationMs = deepGet(taskReport, 'talaria.payload.status.durationMs');
+    const stages = deepGet(taskReport, 'multiStageQuery.payload.stages');
+    const startTime = new Date(deepGet(taskReport, 'multiStageQuery.payload.status.startTime'));
+    const durationMs = deepGet(taskReport, 'multiStageQuery.payload.status.durationMs');
 
     let result: QueryResult | undefined;
     const resultsPayload: {
       signature: { name: string; type: string }[];
       sqlTypeNames: string[];
       results: any[];
-    } = deepGet(taskReport, 'talaria.payload.results');
+    } = deepGet(taskReport, 'multiStageQuery.payload.results');
     if (resultsPayload) {
       const { signature, sqlTypeNames, results } = resultsPayload;
       result = new QueryResult({
@@ -286,7 +286,7 @@ export class Execution {
       startTime: isNaN(startTime.getTime()) ? undefined : startTime,
       duration: typeof durationMs === 'number' ? durationMs : undefined,
       stages: Array.isArray(stages)
-        ? new Stages(stages, deepGet(taskReport, 'talaria.payload.counters'))
+        ? new Stages(stages, deepGet(taskReport, 'multiStageQuery.payload.counters'))
         : undefined,
       error,
       warnings: Array.isArray(warnings) ? warnings : undefined,

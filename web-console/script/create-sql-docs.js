@@ -102,7 +102,7 @@ const IMPLY_FUNCTION_DOCS = {
     ['expr', convertMarkdownToHtml('Get array of all JSONPath paths available in `expr`')],
   ],
 };
-// END: Imply-modified code
+// END: Imply-added code
 
 function hasHtmlTags(str) {
   return /<(a|br|span|div|p|code)\/?>/.test(str);
@@ -185,10 +185,10 @@ const readDoc = async () => {
     );
   }
 
-  // BEGIN: Imply-added code for Talaria execution
+  // BEGIN: Imply-added code for Multi Stage Query execution
   console.log(`Adding ${Object.keys(IMPLY_FUNCTION_DOCS).length} Imply only functions`);
   Object.assign(functionDocs, IMPLY_FUNCTION_DOCS);
-  // END: Imply-modified code for Talaria execution
+  // END: Imply-modified code for Multi Stage Query execution
 
   const content = `/*
  * Licensed to the Apache Software Foundation (ASF) under one

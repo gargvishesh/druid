@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
 /**
  * Error code for Talaria queries.
  *
- * See {@link TalariaErrorReport#getFaultFromException} for a mapping of exception type to error code.
+ * See {@link MSQErrorReport#getFaultFromException} for a mapping of exception type to error code.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "errorCode")
 public interface TalariaFault

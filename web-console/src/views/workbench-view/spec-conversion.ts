@@ -125,7 +125,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   const maxNumConcurrentSubTasks = deepGet(spec, 'spec.tuningConfig.maxNumConcurrentSubTasks');
   if (maxNumConcurrentSubTasks > 1) {
-    lines.push(`--:context talariaNumTasks: ${maxNumConcurrentSubTasks}`);
+    lines.push(`--:context msqNumTasks: ${maxNumConcurrentSubTasks + 1}`);
   }
 
   const maxParseExceptions = deepGet(spec, 'spec.tuningConfig.maxParseExceptions');
@@ -134,7 +134,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
   }
 
   lines.push(
-    `--:context talariaFinalizeAggregations: false`,
+    `--:context msqFinalizeAggregations: false`,
     `--:context groupByEnableMultiValueUnnesting: false`,
   );
 

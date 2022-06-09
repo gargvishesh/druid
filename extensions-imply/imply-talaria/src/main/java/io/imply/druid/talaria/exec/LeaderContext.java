@@ -27,7 +27,7 @@ import java.util.Map;
 public interface LeaderContext
 {
   ObjectMapper jsonMapper();
-  // TODO(paul): Per Gian, this is a hack in TalariaControllerTask carried over here.
+  // TODO(paul): Per Gian, this is a hack in MSQControllerTask carried over here.
   Injector injector();
   DruidNode selfNode();
 

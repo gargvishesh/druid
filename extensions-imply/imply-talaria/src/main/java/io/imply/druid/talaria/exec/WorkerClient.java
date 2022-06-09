@@ -12,7 +12,7 @@ package io.imply.druid.talaria.exec;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import io.imply.druid.talaria.indexing.TalariaCountersSnapshot;
+import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 
@@ -34,7 +34,7 @@ public interface WorkerClient extends AutoCloseable
 
   ListenableFuture<Void> postFinish(String workerId);
 
-  ListenableFuture<TalariaCountersSnapshot> getCounters(String workerId);
+  ListenableFuture<MSQCountersSnapshot> getCounters(String workerId);
 
   ListenableFuture<Void> postCleanupStage(String workerTaskId, StageId stageId);
 

@@ -59,7 +59,7 @@ public class TalariaWorkerTaskLauncher
 
   // Mutable state meant to be accessible by threads outside the main loop.
   // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
-  private final SettableFuture<TalariaTaskList> startFuture = SettableFuture.create();
+  private final SettableFuture<MSQTaskList> startFuture = SettableFuture.create();
   private final SettableFuture<Map<String, TaskState>> stopFuture = SettableFuture.create();
   private final AtomicBoolean started = new AtomicBoolean();
   private final AtomicBoolean stopped = new AtomicBoolean();
@@ -87,7 +87,7 @@ public class TalariaWorkerTaskLauncher
     this.controllerTaskId = controllerTaskId;
     this.dataSource = dataSource;
     this.context = context;
-    this.exec = Execs.singleThreaded("talaria-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
+    this.exec = Execs.singleThreaded("multi-stage-query-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
     this.numTasks = numTasks;
     this.durableStageStorageEnabled = durableStageStorageEnabled;
     this.maxTaskStartDelayMillis = maxTaskStartDelayMillis;
@@ -134,7 +134,7 @@ public class TalariaWorkerTaskLauncher
     FutureUtils.getUnchecked(stopFuture, true);
   }
 
-  public Optional<TalariaTaskList> getTaskList()
+  public Optional<MSQTaskList> getTaskList()
   {
     if (startFuture.isDone()) {
       return Optional.of(FutureUtils.getUncheckedImmediately(startFuture));
@@ -179,7 +179,7 @@ public class TalariaWorkerTaskLauncher
   {
     try {
       if (startAllTasks() && waitForTasksToLaunch()) {
-        startFuture.set(new TalariaTaskList(ImmutableList.copyOf(tasks.keySet())));
+        startFuture.set(new MSQTaskList(ImmutableList.copyOf(tasks.keySet())));
         return true;
       } else {
         startFuture.setException(new ISE("stop() called before start() finished"));
@@ -210,17 +210,15 @@ public class TalariaWorkerTaskLauncher
     }
 
     long taskStartTime = System.currentTimeMillis();
-    // TODO(gianm): Start in parallel
     for (int i = 0; i < numTasks; i++) {
       if (stopped.get()) {
         return false;
       }
 
       final TalariaWorkerTask task = new TalariaWorkerTask(
-          null,
-          null,
           controllerTaskId,
           dataSource,
+          i,
           taskContext
       );
 

@@ -22,7 +22,7 @@ import org.apache.druid.java.util.common.parsers.ParseException;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
-public class TalariaErrorReport
+public class MSQErrorReport
 {
   private final String taskId;
   @Nullable
@@ -34,7 +34,7 @@ public class TalariaErrorReport
   private final String exceptionStackTrace;
 
   @JsonCreator
-  TalariaErrorReport(
+  MSQErrorReport(
       @JsonProperty("taskId") final String taskId,
       @JsonProperty("host") @Nullable final String host,
       @JsonProperty("stageNumber") final Integer stageNumber,
@@ -49,24 +49,24 @@ public class TalariaErrorReport
     this.exceptionStackTrace = exceptionStackTrace;
   }
 
-  public static TalariaErrorReport fromFault(
+  public static MSQErrorReport fromFault(
       final String taskId,
       @Nullable final String host,
       @Nullable final Integer stageNumber,
       final TalariaFault fault
   )
   {
-    return new TalariaErrorReport(taskId, host, stageNumber, fault, null);
+    return new MSQErrorReport(taskId, host, stageNumber, fault, null);
   }
 
-  public static TalariaErrorReport fromException(
+  public static MSQErrorReport fromException(
       final String taskId,
       @Nullable final String host,
       @Nullable final Integer stageNumber,
       final Throwable e
   )
   {
-    return new TalariaErrorReport(
+    return new MSQErrorReport(
         taskId,
         host,
         stageNumber,
@@ -120,7 +120,7 @@ public class TalariaErrorReport
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TalariaErrorReport that = (TalariaErrorReport) o;
+    MSQErrorReport that = (MSQErrorReport) o;
     return Objects.equals(taskId, that.taskId)
            && Objects.equals(host, that.host)
            && Objects.equals(stageNumber, that.stageNumber)
@@ -137,7 +137,7 @@ public class TalariaErrorReport
   @Override
   public String toString()
   {
-    return "TalariaErrorReport{" +
+    return "MSQErrorReport{" +
            "taskId='" + taskId + '\'' +
            ", host='" + host + '\'' +
            ", stageNumber=" + stageNumber +

@@ -14,11 +14,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = DataSourceTalariaDestination.TYPE, value = DataSourceTalariaDestination.class),
-    @JsonSubTypes.Type(name = ExternalTalariaDestination.TYPE, value = ExternalTalariaDestination.class),
-    @JsonSubTypes.Type(name = TaskReportTalariaDestination.TYPE, value = TaskReportTalariaDestination.class)
+    @JsonSubTypes.Type(name = DataSourceMSQDestination.TYPE, value = DataSourceMSQDestination.class),
+    @JsonSubTypes.Type(name = ExternalMSQDestination.TYPE, value = ExternalMSQDestination.class),
+    @JsonSubTypes.Type(name = TaskReportMSQDestination.TYPE, value = TaskReportMSQDestination.class)
 })
-public interface TalariaDestination
+public interface MSQDestination
 {
   // No methods. Just a marker interface for deserialization.
 }

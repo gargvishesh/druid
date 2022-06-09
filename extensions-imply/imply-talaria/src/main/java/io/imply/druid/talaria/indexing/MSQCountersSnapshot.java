@@ -23,13 +23,13 @@ import java.util.List;
 /**
  * Like {@link TalariaCounters}, but immutable.
  */
-public class TalariaCountersSnapshot
+public class MSQCountersSnapshot
 {
   private final List<WorkerCounters> workerCounters;
 
   @JsonCreator
   @VisibleForTesting
-  public TalariaCountersSnapshot(final List<WorkerCounters> workerCounters)
+  public MSQCountersSnapshot(final List<WorkerCounters> workerCounters)
   {
     this.workerCounters = Preconditions.checkNotNull(workerCounters, "workerCounters");
   }
@@ -43,7 +43,7 @@ public class TalariaCountersSnapshot
   public static class WorkerCounters
   {
     private final int workerNumber;
-    private final EnumMap<TalariaCounterType, List<ChannelCounters>> countersMap;
+    private final EnumMap<MSQCounterType, List<ChannelCounters>> countersMap;
 
     private final List<SortProgressTracker> sortProgress;
     private final List<WarningCounters> warningCounters;
@@ -51,7 +51,7 @@ public class TalariaCountersSnapshot
     @JsonCreator
     public WorkerCounters(
         @JsonProperty("workerNumber") Integer workerNumber,
-        @JsonProperty("counters") EnumMap<TalariaCounterType, List<ChannelCounters>> countersMap,
+        @JsonProperty("counters") EnumMap<MSQCounterType, List<ChannelCounters>> countersMap,
         @Nullable @JsonProperty("sortProgress") List<SortProgressTracker> sortProgress,
         @JsonProperty ("warningCounters") List<WarningCounters> warningCounters
     )
@@ -69,7 +69,7 @@ public class TalariaCountersSnapshot
     }
 
     @JsonProperty("counters")
-    public EnumMap<TalariaCounterType, List<ChannelCounters>> getCountersMap()
+    public EnumMap<MSQCounterType, List<ChannelCounters>> getCountersMap()
     {
       return countersMap;
     }

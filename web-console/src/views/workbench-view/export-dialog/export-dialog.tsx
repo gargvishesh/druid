@@ -98,7 +98,7 @@ export const ExportDialog = React.memo(function ExportDialog(props: ExportDialog
       return await submitTaskQuery({
         query: apiQuery,
         context: {
-          talariaDestination: asyncDownloadParams.local ? undefined : 'external',
+          MSQDestination: asyncDownloadParams.local ? undefined : 'external',
         },
         skipResults: true,
         prefixLines: sqlPrefixLines,
