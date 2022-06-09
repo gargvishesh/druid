@@ -12,21 +12,23 @@ package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketchToEstimatePostAggregator;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
+import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
+import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SessionAvgScoreToEstimateOperatorConversion extends DirectOperatorConversion
+public class SessionAvgScoreToEstimateOperatorConversion implements SqlOperatorConversion
 {
   private static final String FUNCTION_NAME = "SESSION_AVG_SCORE_ESTIMATE";
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
@@ -35,9 +37,21 @@ public class SessionAvgScoreToEstimateOperatorConversion extends DirectOperatorC
       .returnTypeInference(ReturnTypes.DOUBLE)
       .build();
 
-  public SessionAvgScoreToEstimateOperatorConversion()
+  @Override
+  public SqlOperator calciteOperator()
   {
-    super(SQL_FUNCTION, FUNCTION_NAME);
+    return SQL_FUNCTION;
+  }
+
+  @Nullable
+  @Override
+  public DruidExpression toDruidExpression(
+      PlannerContext plannerContext,
+      RowSignature rowSignature,
+      RexNode rexNode
+  )
+  {
+    return null;
   }
 
   @Nullable

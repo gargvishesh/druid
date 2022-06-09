@@ -21,6 +21,7 @@ import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSk
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreAggregatorFactory;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramFilteringPostAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramPostAggregator;
+import io.imply.druid.query.aggregation.datasketches.tuple.SessionSampleRatePostAggregator;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -151,7 +152,8 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
             new SessionAvgScoreToHistogramFilteringOperatorConversion(),
             new MurmurHashOperatorConversions.Murmur3OperatorConversion(),
             new MurmurHashOperatorConversions.Murmur3_64OperatorConversion(),
-            new SessionFilterOperatorConversion()
+            new SessionFilterOperatorConversion(),
+            new SessionSampleRateOperatorConversion()
         )
     );
   }
@@ -175,7 +177,8 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
         + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(dim1, m1, 100), 3.5),\n"
         + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(m1 * 2, m1 * 3, 100), 7),\n"
         + "  SESSION_AVG_SCORE_HISTOGRAM_FILTERING(SESSION_AVG_SCORE(dim1, m1), ARRAY[3.5], ARRAY[1]),\n"
-        + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(dim1, m1 - 2, true), 1)"
+        + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(dim1, m1 - 2, true), 1),\n"
+        + "  SESSION_SAMPLE_RATE(SESSION_AVG_SCORE(dim1, m1)) "
         + "FROM foo",
         Collections.singletonList(
             Druids.newTimeseriesQueryBuilder()
@@ -259,6 +262,10 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
                           "p13",
                           new FieldAccessPostAggregator("p12", "a4:agg"),
                           new double[]{1}
+                      ),
+                      new SessionSampleRatePostAggregator(
+                          "p15",
+                          new FieldAccessPostAggregator("p14", "a1:agg")
                       )
                   )
                   .context(QUERY_CONTEXT_DEFAULT)
@@ -272,7 +279,8 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
             "[2,3]",
             "[2,4]",
             "ZauJNuxDxpB9JU1IDrmw8QnDIUw7B9NV",
-            "[1,4]"
+            "[1,4]",
+            1.0D
         }));
   }
 

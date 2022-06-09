@@ -48,7 +48,7 @@ public class JsonColumnIndexer extends NestedDataColumnIndexer
     return super.processRowValsToUnsortedEncodedKeyComponent(dimValues, reportParseExceptions);
   }
 
-  private static boolean maybeJson(String val)
+  public static boolean maybeJson(String val)
   {
     if (val.isEmpty()) {
       return false;

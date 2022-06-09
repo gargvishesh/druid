@@ -48,7 +48,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   private final String columnName;
   private final String path;
   private final String outputName;
-  private final List<PathFinder.PathPartFinder> parts;
+  private final List<PathFinder.PathPart> parts;
   /**
    * type information for nested fields is completely absent in the SQL planner, so it guesses the best it can
    * from the context of how something is being used. This might not be the same as if it had actual type information,
@@ -57,12 +57,15 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Nullable
   private final ColumnType expectedType;
 
+  private final boolean processFromRaw;
+
   @JsonCreator
   public NestedFieldVirtualColumn(
       @JsonProperty("columnName") String columnName,
       @JsonProperty("path") String path,
       @JsonProperty("outputName") String outputName,
-      @JsonProperty("expectedType") @Nullable ColumnType expectedType
+      @JsonProperty("expectedType") @Nullable ColumnType expectedType,
+      @JsonProperty("processFromRaw") @Nullable Boolean processFromRaw
   )
   {
     this.columnName = columnName;
@@ -70,6 +73,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     this.parts = PathFinder.parseJqPath(path);
     this.path = PathFinder.toNormalizedJqPath(parts);
     this.expectedType = expectedType;
+    this.processFromRaw = processFromRaw == null ? false : processFromRaw;
   }
 
   @VisibleForTesting
@@ -79,18 +83,25 @@ public class NestedFieldVirtualColumn implements VirtualColumn
       String outputName
   )
   {
-    this.columnName = columnName;
-    this.outputName = outputName;
-    this.parts = PathFinder.parseJqPath(path);
-    this.path = PathFinder.toNormalizedJqPath(parts);
-    this.expectedType = null;
+    this(columnName, path, outputName, null, null);
+  }
+
+  @VisibleForTesting
+  public NestedFieldVirtualColumn(
+      String columnName,
+      String path,
+      String outputName,
+      ColumnType expectedType
+  )
+  {
+    this(columnName, path, outputName, expectedType, null);
   }
 
   public NestedFieldVirtualColumn(
       String columnName,
       String outputName,
       ColumnType expectedType,
-      List<PathFinder.PathPartFinder> parts,
+      List<PathFinder.PathPart> parts,
       String normalizedPath
   )
   {
@@ -99,6 +110,24 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     this.parts = parts;
     this.path = normalizedPath;
     this.expectedType = expectedType;
+    this.processFromRaw = false;
+  }
+
+  public NestedFieldVirtualColumn(
+      String columnName,
+      String outputName,
+      ColumnType expectedType,
+      List<PathFinder.PathPart> parts,
+      String normalizedPath,
+      boolean processFromRaw
+  )
+  {
+    this.columnName = columnName;
+    this.outputName = outputName;
+    this.parts = parts;
+    this.path = normalizedPath;
+    this.expectedType = expectedType;
+    this.processFromRaw = processFromRaw;
   }
 
   @Override
@@ -107,6 +136,7 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     return new CacheKeyBuilder(VirtualColumnCacheHelper.CACHE_TYPE_ID_USER_DEFINED).appendString("nested-field")
                                                                                    .appendString(columnName)
                                                                                    .appendString(path)
+                                                                                   .appendBoolean(processFromRaw)
                                                                                    .build();
   }
 
@@ -133,6 +163,12 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   public ColumnType getExpectedType()
   {
     return expectedType;
+  }
+
+  @JsonProperty
+  public boolean isProcessFromRaw()
+  {
+    return processFromRaw;
   }
 
   @Override
@@ -173,68 +209,9 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   {
     final ColumnValueSelector baseSelector = factory.makeColumnValueSelector(this.columnName);
 
-    class FieldColumnSelector implements ColumnValueSelector<Object>
-    {
-      @Override
-      public double getDouble()
-      {
-        Object o = getObject();
-        if (o instanceof Number) {
-          return ((Number) o).doubleValue();
-        }
-        return 0.0;
-      }
-
-      @Override
-      public float getFloat()
-      {
-        Object o = getObject();
-        if (o instanceof Number) {
-          return ((Number) o).floatValue();
-        }
-        return 0f;
-      }
-
-      @Override
-      public long getLong()
-      {
-        Object o = getObject();
-        if (o instanceof Number) {
-          return ((Number) o).longValue();
-        }
-        return 0L;
-      }
-
-      @Override
-      public void inspectRuntimeShape(RuntimeShapeInspector inspector)
-      {
-        inspector.visit("baseSelector", baseSelector);
-      }
-
-      @Override
-      public boolean isNull()
-      {
-        return !(getObject() instanceof Number);
-      }
-
-      @Nullable
-      @Override
-      public Object getObject()
-      {
-        StructuredData data = StructuredData.possiblyWrap(baseSelector.getObject());
-        return PathFinder.findLiteral(
-            data == null ? null : data.getValue(),
-            parts
-        );
-      }
-
-      @Override
-      public Class<?> classOfObject()
-      {
-        return Object.class;
-      }
-    }
-    return new FieldColumnSelector();
+    return processFromRaw
+           ? new RawFieldColumnSelector(baseSelector, parts)
+           : new RawFieldLiteralColumnValueSelector(baseSelector, parts);
   }
 
   @Nullable
@@ -265,7 +242,9 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     if (column == null) {
       return NilColumnValueSelector.instance();
     }
-    return column.makeColumnValueSelector(path, offset);
+    return processFromRaw
+           ? new RawFieldColumnSelector(column.makeColumnValueSelector(offset), parts)
+           : column.makeColumnValueSelector(path, offset);
   }
 
   @Override
@@ -301,7 +280,9 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     if (column == null) {
       return NilVectorSelector.create(offset);
     }
-    return column.makeVectorObjectSelector(path, offset);
+    return processFromRaw
+           ? new RawFieldVectorObjectSelector(column.makeVectorObjectSelector(offset), parts)
+           : column.makeVectorObjectSelector(path, offset);
   }
 
   @Nullable
@@ -379,13 +360,13 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     }
     NestedFieldVirtualColumn that = (NestedFieldVirtualColumn) o;
     return columnName.equals(that.columnName) && outputName.equals(that.outputName) && path.equals(that.path)
-           && Objects.equals(expectedType, that.expectedType);
+           && Objects.equals(expectedType, that.expectedType) && processFromRaw == that.processFromRaw;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(columnName, path, outputName, expectedType);
+    return Objects.hash(columnName, path, outputName, expectedType, processFromRaw);
   }
 
   @Override
@@ -396,6 +377,203 @@ public class NestedFieldVirtualColumn implements VirtualColumn
            ", path='" + path + '\'' +
            ", outputName='" + outputName + '\'' +
            ", typeHint='" + expectedType + '\'' +
+           ", allowFallback=" + processFromRaw +
            '}';
+  }
+
+
+  /**
+   * Process the "raw" data to extract literals with {@link PathFinder#findLiteral(Object, List)}. Like
+   * {@link RawFieldColumnSelector} but only literals and does not wrap the results in {@link StructuredData}.
+   *
+   * This is used as a selector on realtime data when the native field columns are not available.
+   */
+  public static class RawFieldLiteralColumnValueSelector implements ColumnValueSelector<Object>
+  {
+    private final ColumnValueSelector baseSelector;
+    private final List<PathFinder.PathPart> parts;
+
+    public RawFieldLiteralColumnValueSelector(ColumnValueSelector baseSelector, List<PathFinder.PathPart> parts)
+    {
+      this.baseSelector = baseSelector;
+      this.parts = parts;
+    }
+
+    @Override
+    public double getDouble()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).doubleValue();
+      }
+      return 0.0;
+    }
+
+    @Override
+    public float getFloat()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).floatValue();
+      }
+      return 0f;
+    }
+
+    @Override
+    public long getLong()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).longValue();
+      }
+      return 0L;
+    }
+
+    @Override
+    public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+    {
+      inspector.visit("baseSelector", baseSelector);
+    }
+
+    @Override
+    public boolean isNull()
+    {
+      return !(getObject() instanceof Number);
+    }
+
+    @Nullable
+    @Override
+    public Object getObject()
+    {
+      StructuredData data = StructuredData.possiblyWrap(baseSelector.getObject());
+      return PathFinder.findLiteral(data == null ? null : data.getValue(), parts);
+    }
+
+    @Override
+    public Class<?> classOfObject()
+    {
+      return Object.class;
+    }
+  }
+
+  /**
+   * Process the "raw" data to extract values with {@link PathFinder#find(Object, List)}, wrapping the result in
+   * {@link StructuredData}
+   */
+  public static class RawFieldColumnSelector implements ColumnValueSelector<Object>
+  {
+    private final ColumnValueSelector baseSelector;
+    private final List<PathFinder.PathPart> parts;
+
+    public RawFieldColumnSelector(ColumnValueSelector baseSelector, List<PathFinder.PathPart> parts)
+    {
+      this.baseSelector = baseSelector;
+      this.parts = parts;
+    }
+
+    @Override
+    public double getDouble()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).doubleValue();
+      }
+      return 0.0;
+    }
+
+    @Override
+    public float getFloat()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).floatValue();
+      }
+      return 0f;
+    }
+
+    @Override
+    public long getLong()
+    {
+      Object o = getObject();
+      if (o instanceof Number) {
+        return ((Number) o).longValue();
+      }
+      return 0L;
+    }
+
+    @Override
+    public void inspectRuntimeShape(RuntimeShapeInspector inspector)
+    {
+      inspector.visit("baseSelector", baseSelector);
+    }
+
+    @Override
+    public boolean isNull()
+    {
+      return !(getObject() instanceof Number);
+    }
+
+    @Nullable
+    @Override
+    public Object getObject()
+    {
+      StructuredData data = StructuredData.possiblyWrap(baseSelector.getObject());
+      return StructuredData.possiblyWrap(PathFinder.find(data == null ? null : data.getValue(), parts));
+    }
+
+    @Override
+    public Class<?> classOfObject()
+    {
+      return Object.class;
+    }
+  }
+
+  /**
+   * Process the "raw" data to extract vectors of values with {@link PathFinder#find(Object, List)}, wrapping the result
+   * in {@link StructuredData}
+   */
+  public static class RawFieldVectorObjectSelector implements VectorObjectSelector
+  {
+    private final VectorObjectSelector baseSelector;
+    private final List<PathFinder.PathPart> parts;
+    private final Object[] vector;
+
+    public RawFieldVectorObjectSelector(
+        VectorObjectSelector baseSelector,
+        List<PathFinder.PathPart> parts
+    )
+    {
+      this.baseSelector = baseSelector;
+      this.parts = parts;
+      this.vector = new Object[baseSelector.getMaxVectorSize()];
+    }
+
+    @Override
+    public Object[] getObjectVector()
+    {
+      Object[] baseVector = baseSelector.getObjectVector();
+      for (int i = 0; i < baseSelector.getCurrentVectorSize(); i++) {
+        vector[i] = compute(baseVector[i]);
+      }
+      return vector;
+    }
+
+    @Override
+    public int getMaxVectorSize()
+    {
+      return baseSelector.getMaxVectorSize();
+    }
+
+    @Override
+    public int getCurrentVectorSize()
+    {
+      return baseSelector.getCurrentVectorSize();
+    }
+
+    private Object compute(Object input)
+    {
+      StructuredData data = StructuredData.possiblyWrap(input);
+      return StructuredData.possiblyWrap(PathFinder.find(data == null ? null : data.getValue(), parts));
+    }
   }
 }
