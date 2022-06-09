@@ -134,13 +134,23 @@ public class IndexerWorkerContext implements WorkerContext
       try {
         leaderLocations = leaderLocator.locate().get();
       }
-      catch (Exception e) {
-        log.noStackTrace().warn(e, "Error occurred while fetching leader location. Retrying.");
-        continue;
+      catch (Throwable e) {
+        // Service locator exceptions are not recoverable.
+        log.noStackTrace().warn(
+            e,
+            "Periodic fetch of leader location encountered an exception. Worker task [%s] will exit.",
+            worker.id()
+        );
+        worker.leaderFailed();
+        break;
       }
 
       if (leaderLocations.isClosed() || leaderLocations.getLocations().isEmpty()) {
-        log.warn("Periodic fetch of leader location returned [%s]. Worker will exit.", leaderLocations);
+        log.warn(
+            "Periodic fetch of leader location returned [%s]. Worker task [%s] will exit.",
+            leaderLocations,
+            worker.id()
+        );
         worker.leaderFailed();
         break;
       }
@@ -149,8 +159,7 @@ public class IndexerWorkerContext implements WorkerContext
         Thread.sleep(sleepTimeMillis);
       }
       catch (InterruptedException ignored) {
-        log.error("Leader status checker interrupted while sleeping");
-        break;
+        // Do nothing: an interrupt means we were shut down. Status checker should exit quietly.
       }
     }
   }
