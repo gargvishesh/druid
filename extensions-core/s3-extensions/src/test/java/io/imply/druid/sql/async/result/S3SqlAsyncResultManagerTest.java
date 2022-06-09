@@ -64,7 +64,7 @@ public class S3SqlAsyncResultManagerTest
   {
     final S3SqlAsyncResultManager resultManager = new S3SqlAsyncResultManager(
         AMAZON_S3,
-        new S3SqlAsyncResultManagerConfig()
+        new S3OutputConfig()
         {
           @Override
           public String getBucket()

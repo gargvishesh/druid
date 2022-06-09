@@ -23,6 +23,7 @@ import io.imply.druid.talaria.indexing.IndexerFrameContext;
 import io.imply.druid.talaria.indexing.IndexerWorkerContext;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskReportFileWriter;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -40,6 +41,7 @@ import org.apache.druid.server.security.AuthTestUtils;
 
 import java.io.File;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 public class TalariaTestWorkerContext implements WorkerContext
 {
@@ -49,17 +51,21 @@ public class TalariaTestWorkerContext implements WorkerContext
   Map<String, Worker> inMemoryWorkers;
   private File file = FileUtils.createTempDir();
 
+  private final ExecutorService remoteExecutorService;
+
   public TalariaTestWorkerContext(
       Map<String, Worker> inMemoryWorkers,
       Leader leader,
       ObjectMapper mapper,
-      Injector injector
+      Injector injector,
+      ExecutorService remoteExecutorService
   )
   {
     this.inMemoryWorkers = inMemoryWorkers;
     this.leader = leader;
     this.mapper = mapper;
     this.injector = injector;
+    this.remoteExecutorService = remoteExecutorService;
   }
 
   @Override
@@ -87,9 +93,15 @@ public class TalariaTestWorkerContext implements WorkerContext
   }
 
   @Override
-  public WorkerClient makeWorkerClient(String workerId)
+  public WorkerClient makeWorkerClient(String leaderId, String workerId)
   {
-    return new TalariaTestWorkerClient(inMemoryWorkers);
+    return new TalariaTestWorkerClient(
+        leaderId,
+        inMemoryWorkers,
+        TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
+        injector,
+        remoteExecutorService
+    );
   }
 
   @Override
@@ -166,7 +178,9 @@ public class TalariaTestWorkerContext implements WorkerContext
                 null,
                 null
             ),
-            injector
+            injector,
+            TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
+            remoteExecutorService
         ),
         indexIO,
         injector.getInstance(DataSegmentProvider.class),

@@ -14,7 +14,7 @@ import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StageDefinitionBuilder;
-import io.imply.druid.talaria.sql.TalariaQueryMaker;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
@@ -97,7 +97,7 @@ public class QueryDefinitionValidatorTest
         inputFiles,
         Limits.MAX_INPUT_FILES_PER_WORKER,
         numWorkers + 1,
-        TalariaQueryMaker.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+        TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
     ));
     QueryDefinitionValidator.validateQueryDef(createQueryDefinition(1, numWorkers, inputFiles));
   }

@@ -12,7 +12,7 @@ package io.imply.druid.talaria.indexing.error;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.imply.druid.talaria.sql.TalariaQueryMaker;
+import io.imply.druid.talaria.util.TalariaContext;
 
 @JsonTypeName(TooManyInputFilesFault.CODE)
 public class TooManyInputFilesFault extends BaseTalariaFault
@@ -39,7 +39,7 @@ public class TooManyInputFilesFault extends BaseTalariaFault
         numInputFiles,
         maxInputFiles,
         minNumWorkers,
-        TalariaQueryMaker.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+        TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
     );
     this.numInputFiles = numInputFiles;
     this.maxInputFiles = maxInputFiles;

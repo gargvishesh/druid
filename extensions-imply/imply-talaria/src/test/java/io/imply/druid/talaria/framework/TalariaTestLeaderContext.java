@@ -23,6 +23,7 @@ import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerImpl;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 public class TalariaTestLeaderContext implements LeaderContext
@@ -69,6 +71,8 @@ public class TalariaTestLeaderContext implements LeaderContext
   private ObjectMapper mapper;
 
   private Map<String, TaskReport> report = null;
+
+  private final ExecutorService remoteExecutorService = Execs.multiThreaded(30, "Remote storage fetcher");
 
   public TalariaTestLeaderContext(ObjectMapper mapper, Injector injector, TaskActionClient taskActionClient)
   {
@@ -100,7 +104,7 @@ public class TalariaTestLeaderContext implements LeaderContext
       }
       Worker worker = new WorkerImpl(
           task,
-          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector)
+          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector, remoteExecutorService)
       );
       inMemoryWorkers.put(task.getId(), worker);
       statusMap.put(task.getId(), TaskStatus.running(task.getId()));
@@ -220,7 +224,13 @@ public class TalariaTestLeaderContext implements LeaderContext
   @Override
   public WorkerClient taskClientFor(Leader leader)
   {
-    return new TalariaTestWorkerClient(inMemoryWorkers);
+    return new TalariaTestWorkerClient(
+        leader.id(),
+        inMemoryWorkers,
+        TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
+        injector,
+        remoteExecutorService
+    );
 
   }
 

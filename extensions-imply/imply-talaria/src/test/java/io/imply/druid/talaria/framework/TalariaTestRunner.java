@@ -25,7 +25,11 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Providers;
+import io.imply.druid.storage.LocalFileStorageConnectorProvider;
+import io.imply.druid.storage.StorageConnector;
+import io.imply.druid.storage.StorageConnectorProvider;
 import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
+import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
 import io.imply.druid.talaria.guice.TalariaSqlModule;
 import io.imply.druid.talaria.indexing.DataSourceTalariaDestination;
@@ -40,6 +44,7 @@ import io.imply.druid.talaria.querykit.LazyResourceHolder;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -48,6 +53,7 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.GuiceInjectors;
 import org.apache.druid.guice.IndexingServiceTuningConfigModule;
+import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.hll.HyperLogLogCollector;
@@ -169,9 +175,13 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
  */
 public class TalariaTestRunner extends BaseCalciteQueryTest
 {
-  
+
   public static final Map<String, Object> DEFAULT_TALARIA_CONTEXT = ImmutableMap.<String, Object>builder()
                                                                                 .put("talaria", true)
+                                                                                .put(
+                                                                                    TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE,
+                                                                                    true
+                                                                                )
                                                                                 .build();
 
   public static final Map<String, Object>
@@ -183,7 +193,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   public static final Map<String, Object>
       ROLLUP_CONTEXT = ImmutableMap.<String, Object>builder()
                                    .putAll(DEFAULT_TALARIA_CONTEXT)
-                                   .put(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, false)
+                                   .put(TalariaContext.CTX_FINALIZE_AGGREGATIONS, false)
                                    .put(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING, false)
                                    .build();
 
@@ -260,7 +270,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             binder.bind(SpecificSegmentsQuerySegmentWalker.class).toInstance(walker);
 
             binder.bind(GroupByStrategySelector.class)
-                  .toInstance(GroupByQueryRunnerTest.makeQueryRunnerFactory(groupByQueryConfig, groupByBuffers).getStrategySelector());
+                  .toInstance(GroupByQueryRunnerTest.makeQueryRunnerFactory(groupByQueryConfig, groupByBuffers)
+                                                    .getStrategySelector());
 
             LocalDataSegmentPusherConfig config = new LocalDataSegmentPusherConfig();
             try {
@@ -275,8 +286,23 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             ));
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
+            // Client is not used in tests
             binder.bind(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class))
-                  .toProvider(Providers.of(null)); // Client is not used in tests
+                  .toProvider(Providers.of(null));
+            // fault tolerance module
+            try {
+              JsonConfigProvider.bind(
+                  binder,
+                  TalariaIndexingModule.TALARIA_INTERMEDIATE_STORAGE,
+                  StorageConnectorProvider.class,
+                  Talaria.class
+              );
+              binder.bind(Key.get(StorageConnector.class, Talaria.class))
+                    .toProvider(new LocalFileStorageConnectorProvider(tmpFolder.newFolder("fault").toURI().getPath()));
+            }
+            catch (IOException e) {
+              throw new ISE(e, "Unable to create setup storage connector");
+            }
           }
         },
         new IndexingServiceTuningConfigModule(),

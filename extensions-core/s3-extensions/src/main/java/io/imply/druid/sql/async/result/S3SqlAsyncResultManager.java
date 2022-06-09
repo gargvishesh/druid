@@ -24,6 +24,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
@@ -47,12 +48,12 @@ import java.util.stream.Collectors;
 public class S3SqlAsyncResultManager implements SqlAsyncResultManager
 {
   private final ImplyServerSideEncryptingAmazonS3 s3Client;
-  private final S3SqlAsyncResultManagerConfig config;
+  private final S3OutputConfig config;
 
   @Inject
   public S3SqlAsyncResultManager(
       ImplyServerSideEncryptingAmazonS3 s3Client,
-      S3SqlAsyncResultManagerConfig config
+      @Named("async") S3OutputConfig config
   ) throws IOException
   {
     if (Strings.isNullOrEmpty(config.getBucket())) {

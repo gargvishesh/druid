@@ -18,6 +18,7 @@ import io.imply.druid.talaria.exec.WorkerManagerClient;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
 import io.imply.druid.talaria.util.FutureUtils;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
@@ -26,7 +27,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.logger.Logger;
 
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,7 @@ public class TalariaWorkerTaskLauncher
   private final int numTasks;
   private final ExecutorService exec;
   private final long maxTaskStartDelayMillis;
+  private final boolean durableStageStorageEnabled;
 
   // Mutable state meant to be accessible by threads outside the main loop.
   // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
@@ -78,6 +80,7 @@ public class TalariaWorkerTaskLauncher
       final String dataSource,
       final LeaderContext context,
       final int numTasks,
+      final boolean durableStageStorageEnabled,
       final long maxTaskStartDelayMillis
   )
   {
@@ -86,6 +89,7 @@ public class TalariaWorkerTaskLauncher
     this.context = context;
     this.exec = Execs.singleThreaded("talaria-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
     this.numTasks = numTasks;
+    this.durableStageStorageEnabled = durableStageStorageEnabled;
     this.maxTaskStartDelayMillis = maxTaskStartDelayMillis;
   }
 
@@ -191,13 +195,18 @@ public class TalariaWorkerTaskLauncher
   /**
    * Starts all tasks. Returns true once that happens, or false if {@link #stop()} is called while launching. Throws
    * an error if tasks fail to launch.
-   *
+   * <p>
    * As a side effect, updates {@link #tasks} with task IDs and null statuses.
    */
   private boolean startAllTasks()
   {
     if (!tasks.isEmpty()) {
       throw new ISE("Tasks cannot be started twice.");
+    }
+
+    Map<String, Object> taskContext = new HashMap<>();
+    if (durableStageStorageEnabled) {
+      taskContext.put(TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE, durableStageStorageEnabled);
     }
 
     long taskStartTime = System.currentTimeMillis();
@@ -212,7 +221,7 @@ public class TalariaWorkerTaskLauncher
           null,
           controllerTaskId,
           dataSource,
-          Collections.emptyMap()
+          taskContext
       );
 
       tasks.put(task.getId(), null);
@@ -268,7 +277,8 @@ public class TalariaWorkerTaskLauncher
       startTimeMillis.forEach((taskId, startTime) -> {
         long timeElapsedFromTaskStart = System.currentTimeMillis() - startTime;
         if (timeElapsedFromTaskStart > maxTaskStartDelayMillis) {
-          throw new TalariaException(new TaskStartTimeoutFault());
+          // adding 1 to accomodate the controller
+          throw new TalariaException(new TaskStartTimeoutFault(numTasks + 1));
         }
       });
 
@@ -296,7 +306,7 @@ public class TalariaWorkerTaskLauncher
    * Wait for all tasks to enter state SUCCESS, or for one of them to enter state FAILURE, or for {@link #stop()} to
    * be called (if "stoppable" is set to true). Returns quietly once any of these things happens. Throws an error
    * if Overlord API calls fail while waiting for tasks to finish.
-   *
+   * <p>
    * As a side effect, updates {@link #tasks} with task statuses.
    */
   private void waitForTasksToFinish(final boolean stoppable) throws InterruptedException

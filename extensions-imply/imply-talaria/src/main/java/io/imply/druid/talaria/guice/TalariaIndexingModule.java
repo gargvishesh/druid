@@ -22,6 +22,7 @@ import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
 import io.imply.druid.talaria.indexing.error.ColumnTypeNotSupportedFault;
+import io.imply.druid.talaria.indexing.error.DurableStorageConfigurationFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotAllocateSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotBeEmptyFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
@@ -67,6 +68,18 @@ import java.util.Set;
 
 public class TalariaIndexingModule implements DruidModule
 {
+  private static final String BASE_TALARIA_KEY = "druid.talaria";
+  public static final String TALARIA_EXTERNAL_SINK = String.join(".", BASE_TALARIA_KEY, "externalsink");
+  public static final String TALARIA_EXTERNAL_SINK_TYPE = String.join(".", TALARIA_EXTERNAL_SINK, "type");
+  public static final String TALARIA_INTERMEDIATE_STORAGE = String.join(".", BASE_TALARIA_KEY, "intermediate.storage");
+  public static final String TALARIA_INTERMEDIATE_STORAGE_TYPE = String.join(".", TALARIA_INTERMEDIATE_STORAGE, "type");
+
+  public static final String TALARIA_INTERMEDIATE_STORAGE_ENABLED = String.join(
+      ".",
+      TALARIA_INTERMEDIATE_STORAGE,
+      "enable"
+  );
+
   @Override
   public List<? extends Module> getJacksonModules()
   {
@@ -97,6 +110,7 @@ public class TalariaIndexingModule implements DruidModule
             CanceledFault.class,
             CannotParseExternalDataFault.class,
             ColumnTypeNotSupportedFault.class,
+            DurableStorageConfigurationFault.class,
             InsertCannotAllocateSegmentFault.class,
             InsertCannotBeEmptyFault.class,
             InsertCannotOrderByDescendingFault.class,
@@ -127,7 +141,7 @@ public class TalariaIndexingModule implements DruidModule
   {
     PolyBind.createChoice(
         binder,
-        "druid.talaria.externalsink.type",
+        TALARIA_EXTERNAL_SINK_TYPE,
         Key.get(TalariaExternalSink.class),
         Key.get(NilTalariaExternalSink.class)
     );
@@ -142,7 +156,7 @@ public class TalariaIndexingModule implements DruidModule
             .to(LocalTalariaExternalSink.class)
             .in(LazySingleton.class);
 
-    JsonConfigProvider.bind(binder, "druid.talaria.externalsink", LocalTalariaExternalSinkConfig.class);
+    JsonConfigProvider.bind(binder, TALARIA_EXTERNAL_SINK, LocalTalariaExternalSinkConfig.class);
   }
 
   @Provides

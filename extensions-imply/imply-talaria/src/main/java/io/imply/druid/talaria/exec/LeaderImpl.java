@@ -91,6 +91,7 @@ import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import io.imply.druid.talaria.util.FutureUtils;
 import io.imply.druid.talaria.util.IntervalUtils;
 import io.imply.druid.talaria.util.PassthroughAggregatorFactory;
+import io.imply.druid.talaria.util.TalariaContext;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.druid.data.input.StringTuple;
@@ -430,19 +431,25 @@ public class LeaderImpl implements Leader
     this.netClient = new ExceptionWrappingWorkerClient(context.taskClientFor(this));
     closer.register(netClient::close);
 
+    final boolean isDurableStorageEnabled =
+        TalariaContext.isDurableStorageEnabled(task.getQuerySpec().getQuery().getContext());
+
+    log.info("Durable storage mode is set to %s", isDurableStorageEnabled);
+
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(
         id(),
         task.getDataSource(),
         context,
         task.getTuningConfig().getMaxNumConcurrentSubTasks(),
-        TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30) // 10 minutes +- 2 minutes jitter
+        isDurableStorageEnabled,
+        TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30)// 10 minutes +- 2 minutes jitter
     );
 
     long maxParseExceptions = -1;
 
     if (task.getSqlQueryContext() != null) {
-      maxParseExceptions = Optional.ofNullable(task.getSqlQueryContext()
-                                                   .get(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
+      maxParseExceptions = Optional.ofNullable(
+                                       task.getSqlQueryContext().get(TalariaWarnings.CTX_MAX_PARSE_EXCEPTIONS_ALLOWED))
                                    .map(DimensionHandlerUtils::convertObjectToLong)
                                    .orElse(TalariaWarnings.DEFAULT_MAX_PARSE_EXCEPTIONS_ALLOWED);
     }
@@ -1557,7 +1564,7 @@ public class LeaderImpl implements Leader
    */
   private static boolean isRollupQuery(Query<?> query)
   {
-    return query.getContextBoolean(TalariaQueryMaker.CTX_FINALIZE_AGGREGATIONS, true) == false
+    return query.getContextBoolean(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true) == false
            && query.getContextBoolean(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING, true) == false
            && query instanceof GroupByQuery;
   }

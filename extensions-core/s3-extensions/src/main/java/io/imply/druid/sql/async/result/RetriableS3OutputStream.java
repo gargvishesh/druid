@@ -53,11 +53,12 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
  * A retriable output stream for s3. How it works is,
- *
+ * <p>
  * 1) When new data is written, it first creates a chunk in local disk.
  * 2) New data is written to the local chunk until it is full.
  * 3) When the chunk is full, it uploads the chunk to s3 using the multipart upload API.
@@ -66,16 +67,16 @@ import java.util.concurrent.TimeUnit;
  * 4) Once the upload succeeds, it creates a new chunk and continue.
  * 5) When the stream is closed, it uploads the last chunk and finalize the multipart upload.
  * {@link #close()} can be blocked until upload is done.
- *
+ * <p>
  * For compression format support, this output stream supports compression formats if they are <i>concatenatable</i>,
  * such as ZIP or GZIP.
- *
+ * <p>
  * This class is not thread-safe.
- *
+ * <p>
  * This class can be moved to the s3 extension as a low-level API,
  * whereas it currently provides only high-level APIs such as S3DataSegmentPuller.
  */
-class RetriableS3OutputStream extends OutputStream
+public class RetriableS3OutputStream extends OutputStream
 {
   public static final long S3_MULTIPART_UPLOAD_MIN_PART_SIZE = 5L * 1024 * 1024;
   public static final long S3_MULTIPART_UPLOAD_MAX_PART_SIZE = 5L * 1024 * 1024 * 1024L;
@@ -84,7 +85,7 @@ class RetriableS3OutputStream extends OutputStream
   private static final Joiner JOINER = Joiner.on("/").skipNulls();
   private static final int S3_MULTIPART_UPLOAD_MAX_NUM_PARTS = 10_000;
 
-  private final S3SqlAsyncResultManagerConfig config;
+  private final S3OutputConfig config;
   private final ImplyServerSideEncryptingAmazonS3 s3;
   private final String s3Key;
   private final String uploadId;
@@ -114,51 +115,70 @@ class RetriableS3OutputStream extends OutputStream
   private boolean error;
   private boolean closed;
 
-  static RetriableS3OutputStream create(
-      S3SqlAsyncResultManagerConfig config,
+  public static RetriableS3OutputStream create(
+      S3OutputConfig config,
       ImplyServerSideEncryptingAmazonS3 s3,
       SqlAsyncQueryDetails queryDetails
   ) throws IOException
   {
-    final RetriableS3OutputStream stream = new RetriableS3OutputStream(config, s3, queryDetails);
-    validateChunkSize(config.getMaxResultsSize(), stream.chunkSize);
-    return stream;
+    return new RetriableS3OutputStream(
+        config,
+        s3,
+        getS3KeyForQuery(
+            config.getPrefix(),
+            SqlAsyncUtil.safeId(queryDetails.getAsyncResultId())
+        )
+    );
   }
 
   @VisibleForTesting
   static RetriableS3OutputStream createWithoutChunkSizeValidation(
-      S3SqlAsyncResultManagerConfig config,
+      S3OutputConfig config,
       ImplyServerSideEncryptingAmazonS3 s3,
       SqlAsyncQueryDetails queryDetails
   ) throws IOException
   {
-    return new RetriableS3OutputStream(config, s3, queryDetails);
+    return new RetriableS3OutputStream(config, s3, queryDetails.getAsyncResultId(), false);
+  }
+
+  public RetriableS3OutputStream(
+      S3OutputConfig config,
+      ImplyServerSideEncryptingAmazonS3 s3,
+      String s3Key
+  ) throws IOException
+  {
+
+    this(config, s3, s3Key, true);
   }
 
   private RetriableS3OutputStream(
-      S3SqlAsyncResultManagerConfig config,
+      S3OutputConfig config,
       ImplyServerSideEncryptingAmazonS3 s3,
-      SqlAsyncQueryDetails queryDetails
+      String s3Key,
+      boolean chunkValidation
   ) throws IOException
   {
     this.config = config;
     this.s3 = s3;
-    this.s3Key = getS3KeyForQuery(config.getPrefix(), queryDetails.getAsyncResultId());
+    this.s3Key = s3Key;
 
     final InitiateMultipartUploadResult result = s3.initiateMultipartUpload(
         new InitiateMultipartUploadRequest(config.getBucket(), s3Key)
     );
     this.uploadId = result.getUploadId();
-    this.chunkStorePath = new File(config.getTempDir(), SqlAsyncUtil.safeId(queryDetails.getAsyncResultId()));
+    this.chunkStorePath = new File(config.getTempDir(), SqlAsyncUtil.safeId(uploadId + UUID.randomUUID()));
     FileUtils.mkdirp(this.chunkStorePath);
     this.chunkSize = config.getChunkSize() == null ? computeChunkSize(config) : config.getChunkSize();
+    if (chunkValidation) {
+      validateChunkSize(config.getMaxResultsSize(), chunkSize);
+    }
     this.pushStopwatch = Stopwatch.createUnstarted();
     this.pushStopwatch.reset();
 
     this.currentChunk = new Chunk(nextChunkId, new File(chunkStorePath, String.valueOf(nextChunkId++)));
   }
 
-  private static long computeChunkSize(S3SqlAsyncResultManagerConfig config)
+  private static long computeChunkSize(S3OutputConfig config)
   {
     return computeMinChunkSize(config.getMaxResultsSize());
   }
@@ -190,11 +210,11 @@ class RetriableS3OutputStream extends OutputStream
     );
   }
 
-  static String getS3KeyForQuery(String prefix, String asyncResultId)
+  public static String getS3KeyForQuery(String prefix, String asyncResultId)
   {
     return JOINER.join(
         prefix,
-        SqlAsyncUtil.safeId(asyncResultId)
+        asyncResultId
     );
   }
 

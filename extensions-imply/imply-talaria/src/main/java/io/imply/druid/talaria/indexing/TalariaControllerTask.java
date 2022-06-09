@@ -22,6 +22,7 @@ import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskLock;
@@ -35,11 +36,14 @@ import org.apache.druid.indexing.common.task.Tasks;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.concurrent.Execs;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @JsonTypeName(TalariaControllerTask.TYPE)
 public class TalariaControllerTask extends AbstractTask
@@ -60,6 +64,8 @@ public class TalariaControllerTask extends AbstractTask
   // Enables users, and the web console, to see the original SQL type names (if any). Not used by any other Druid logic.
   @Nullable
   private final List<String> sqlTypeNames;
+  @Nullable
+  private final ExecutorService remoteFetchExecutorService;
 
   // TODO(gianm): HACK HACK HACK
   @JacksonInject
@@ -89,6 +95,10 @@ public class TalariaControllerTask extends AbstractTask
     this.sqlQuery = sqlQuery;
     this.sqlQueryContext = sqlQueryContext;
     this.sqlTypeNames = sqlTypeNames;
+    this.remoteFetchExecutorService = TalariaContext.isDurableStorageEnabled(querySpec.getQuery().getContext())
+                                      ? Executors.newCachedThreadPool(Execs.makeThreadFactory(getId()
+                                                                                              + "-remote-fetcher-%d"))
+                                      : null;
 
     addToContext(Tasks.FORCE_TIME_CHUNK_LOCK_KEY, true);
   }
@@ -158,7 +168,14 @@ public class TalariaControllerTask extends AbstractTask
     final DruidServiceClientFactory clientFactory =
         injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
     final OverlordServiceClient overlordClient = injector.getInstance(OverlordServiceClient.class);
-    final LeaderContext context = new IndexerLeaderContext(toolbox, injector, clientFactory, overlordClient);
+    final LeaderContext context = new IndexerLeaderContext(
+        toolbox,
+        injector,
+        clientFactory,
+        overlordClient,
+        TalariaContext.isDurableStorageEnabled(querySpec.getQuery().getContext()),
+        remoteFetchExecutorService
+    );
     leader = new LeaderImpl(this, context);
     return leader.run();
   }
@@ -168,6 +185,10 @@ public class TalariaControllerTask extends AbstractTask
   {
     if (leader != null) {
       leader.stopGracefully();
+    }
+    if (remoteFetchExecutorService != null) {
+      // This is to make sure we donot leak connections.
+      remoteFetchExecutorService.shutdownNow();
     }
   }
 

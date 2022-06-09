@@ -134,11 +134,13 @@ public class TalariaTasksTest
 
     LeaderContext leaderContext = mock(LeaderContext.class);
     when(leaderContext.workerManager()).thenReturn(new TasksTestWorkerManagerClient(numSlots));
-    TalariaWorkerTaskLauncher talariaWorkerTaskLauncher = new TalariaWorkerTaskLauncher(CONTROLLER_ID,
-                                                                                        "foo",
-                                                                                        leaderContext,
-                                                                                        numTasks,
-                                                                                        TimeUnit.SECONDS.toMillis(5)
+    TalariaWorkerTaskLauncher talariaWorkerTaskLauncher = new TalariaWorkerTaskLauncher(
+        CONTROLLER_ID,
+        "foo",
+        leaderContext,
+        numTasks,
+        false,
+        TimeUnit.SECONDS.toMillis(5)
     );
 
     try {
@@ -148,7 +150,7 @@ public class TalariaTasksTest
     catch (Exception e) {
       Assert.assertEquals(
           ((TalariaException) e.getCause().getCause()).getFault().getCodeWithMessage(),
-          new TaskStartTimeoutFault().getCodeWithMessage()
+          new TaskStartTimeoutFault(numTasks + 1).getCodeWithMessage()
       );
     }
   }

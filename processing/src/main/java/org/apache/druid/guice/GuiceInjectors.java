@@ -24,6 +24,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.imply.druid.license.ImplyLicenseModule;
+import io.imply.druid.storage.StorageConnectorModule;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.math.expr.ExpressionProcessingModule;
 
@@ -47,6 +48,7 @@ public class GuiceInjectors
         new NullHandlingModule(),
         new ImplyLicenseModule(),
         new ExpressionProcessingModule(),
+        new StorageConnectorModule(),
         binder -> {
           binder.bind(DruidSecondaryModule.class);
           JsonConfigProvider.bind(binder, "druid.extensions", ExtensionsConfig.class);

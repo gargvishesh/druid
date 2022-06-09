@@ -69,12 +69,12 @@ function cast(ex: SqlExpression, as: string): SqlExpression {
 
 const CAST_TARGETS: string[] = ['VARCHAR', 'BIGINT', 'DOUBLE'];
 
-function jsonGetPath(ex: SqlExpression, path: string): SqlExpression {
-  return SqlExpression.parse(`JSON_GET_PATH(${ex}, ${SqlLiteral.create(path)})`);
+function jsonValue(ex: SqlExpression, path: string): SqlExpression {
+  return SqlExpression.parse(`JSON_VALUE(${ex}, ${SqlLiteral.create(path)})`);
 }
 
 function getJsonPaths(jsons: Record<string, any>[]): string[] {
-  return ['.'].concat(computeFlattenExprsForData(jsons, 'jq', 'include-arrays', true));
+  return ['$.'].concat(computeFlattenExprsForData(jsons, 'path', 'include-arrays', true));
 }
 
 function isComparable(x: unknown): boolean {
@@ -251,7 +251,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
 
         if (paths.length) {
           menuItems.push(
-            <MenuItem key="get_json" icon={IconNames.DIAGRAM_TREE} text="Get JSON path...">
+            <MenuItem key="json_value" icon={IconNames.DIAGRAM_TREE} text="Get JSON value for...">
               {paths.map(path => {
                 return (
                   <MenuItem
@@ -261,8 +261,8 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
                       if (!selectExpression) return;
                       onQueryAction(q =>
                         q.addSelect(
-                          jsonGetPath(selectExpression.getUnderlyingExpression(), path).as(
-                            selectExpression.getOutputName() + path,
+                          jsonValue(selectExpression.getUnderlyingExpression(), path).as(
+                            selectExpression.getOutputName() + path.replace(/^\$/, ''),
                           ),
                           { insertIndex: headerIndex + 1 },
                         ),
