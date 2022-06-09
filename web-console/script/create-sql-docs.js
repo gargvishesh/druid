@@ -26,7 +26,7 @@ const writefile = 'lib/sql-docs.js';
 const MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS = 150;
 const MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES = 14;
 
-// BEGIN: Imply-added code for Talaria execution
+// BEGIN: Imply-added code
 const IMPLY_FUNCTION_DOCS = {
   TABLE: [
     [
@@ -47,32 +47,62 @@ const IMPLY_FUNCTION_DOCS = {
       ),
     ],
   ],
-  JSON_GET_PATH: [
+  JSON_VALUE: [
     [
-      'jsonExpression, selectorPath',
+      'expr, path',
       convertMarkdownToHtml(
-        'Gets the `selectorPath` out of the `jsonExpression`. The `selectorPath` must be expressed as a jq like selector.',
+        'Extract a Druid literal (`STRING`, `LONG`, `DOUBLE`) value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path`',
       ),
     ],
   ],
+  JSON_QUERY: [
+    [
+      'expr, path',
+      convertMarkdownToHtml(
+        'Extract a `COMPLEX<json>` value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path`',
+      ),
+    ],
+  ],
+  JSON_OBJECT: [
+    [
+      'KEY expr1 VALUE expr2[, KEY expr3 VALUE expr4 ...]',
+      convertMarkdownToHtml(
+        'Construct a `COMPLEX<json>` storing the results of `VALUE` expressions at `KEY` expressions',
+      ),
+    ],
+  ],
+  PARSE_JSON: [
+    [
+      'expr',
+      convertMarkdownToHtml(
+        'Deserialize a JSON `STRING` into a `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs.',
+      ),
+    ],
+  ],
+  TO_JSON: [
+    [
+      'expr',
+      convertMarkdownToHtml(
+        'Convert any input type to `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs, like a `CAST` operation (rather than deserializing `STRING` values like `PARSE_JSON`)',
+      ),
+    ],
+  ],
+  TO_JSON_STRING: [
+    ['expr', convertMarkdownToHtml('Convert a `COMPLEX<json>` input into a JSON `STRING` value')],
+  ],
   JSON_KEYS: [
     [
-      'jsonExpression, selectorPath',
+      'expr, path',
       convertMarkdownToHtml(
-        'Returns an array of keys located under the `selectorPath` path within `jsonExpression`.',
+        'Get array of field names in `expr` at the specified JSONPath `path`, or null if the data does not exist or have any fields',
       ),
     ],
   ],
   JSON_PATHS: [
-    [
-      'jsonExpression, selectorPath',
-      convertMarkdownToHtml(
-        'Returns an array of all the paths located under the `selectorPath` path within `jsonExpression`.',
-      ),
-    ],
+    ['expr', convertMarkdownToHtml('Get array of all JSONPath paths available in `expr`')],
   ],
 };
-// END: Imply-modified code for Talaria execution
+// END: Imply-modified code
 
 function hasHtmlTags(str) {
   return /<(a|br|span|div|p|code)\/?>/.test(str);
