@@ -186,7 +186,7 @@ public class NestedDataColumnMerger implements DimensionMergerV9
 
     closer.register(col);
 
-    if (col instanceof NestedDataComplexColumnV1) {
+    if (col instanceof UncompressedNestedDataComplexColumn) {
       return getSortedIndexFromV1QueryableAdapter(mergedFields, col);
     }
     return null;
@@ -198,7 +198,7 @@ public class NestedDataColumnMerger implements DimensionMergerV9
   )
   {
     @SuppressWarnings("unchecked")
-    NestedDataComplexColumnV1 column = (NestedDataComplexColumnV1) col;
+    UncompressedNestedDataComplexColumn column = (UncompressedNestedDataComplexColumn) col;
     closer.register(column);
     for (int i = 0; i < column.fields.size(); i++) {
       String fieldPath = column.fields.get(i);

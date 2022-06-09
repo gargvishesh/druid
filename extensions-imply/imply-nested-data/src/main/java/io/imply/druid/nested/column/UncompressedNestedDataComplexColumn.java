@@ -50,11 +50,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
+public class UncompressedNestedDataComplexColumn extends NestedDataComplexColumn
 {
-  private final NestedDataColumnMetadata metadata;
-  private final ColumnConfig columnConfig;
-  private final Closer closer;
+  final ColumnConfig columnConfig;
+  final NestedDataColumnMetadata metadata;
+  final Closer closer;
   final GenericIndexed<StructuredData> rawColumn;
   final ImmutableBitmap nullValues;
   final GenericIndexed<String> fields;
@@ -65,7 +65,7 @@ public class NestedDataComplexColumnV1 extends NestedDataComplexColumn
   final SmooshedFileMapper fileMapper;
 
 
-  public NestedDataComplexColumnV1(
+  public UncompressedNestedDataComplexColumn(
       NestedDataColumnMetadata metadata,
       ColumnConfig columnConfig,
       GenericIndexed<StructuredData> rawColumn,
