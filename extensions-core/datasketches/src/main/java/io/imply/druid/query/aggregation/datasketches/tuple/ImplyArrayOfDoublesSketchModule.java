@@ -25,6 +25,7 @@ import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreTo
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreToHistogramFilteringOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreToHistogramOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionFilterOperatorConversion;
+import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionSampleRateOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
@@ -42,6 +43,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
   static final String SESSION_AVG_SCORE = "sessionAvgScore";
   static final String SESSION_AVG_SCORE_HISTOGRAM = "sessionAvgScoreHistogram";
   static final String SESSION_AVG_SCORE_HISTOGRAM_FILTERING = "sessionAvgScoreHistogramFiltering";
+  static final String SESSION_SAMPLE_RATE = "sessionSampleRate";
   public static final String SESSION_FILTERING_VIRTUAL_COLUMN = "session-filtering";
   private ImplyLicenseManager implyLicenseManager;
   private final Logger log = new Logger(ImplyArrayOfDoublesSketchModule.class);
@@ -57,6 +59,9 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
   {
     ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3Macro.class);
     ExpressionModule.addExprMacro(binder, MurmurHashExprMacros.Murmur3_64Macro.class);
+
+    SqlBindings.addOperatorConversion(binder, MurmurHashOperatorConversions.Murmur3OperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, MurmurHashOperatorConversions.Murmur3_64OperatorConversion.class);
 
     if (implyLicenseManager.isFeatureEnabled(SAMPLED_AVG_SCORE_FEATURE_NAME) ||
         implyLicenseManager.isFeatureEnabled(SESSIONIZATION_FEATURE_NAME)) {
@@ -100,8 +105,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     SqlBindings.addOperatorConversion(binder, SessionAvgScoreToEstimateOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, SessionAvgScoreToHistogramFilteringOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, SessionFilterOperatorConversion.class);
-    SqlBindings.addOperatorConversion(binder, MurmurHashOperatorConversions.Murmur3OperatorConversion.class);
-    SqlBindings.addOperatorConversion(binder, MurmurHashOperatorConversions.Murmur3_64OperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, SessionSampleRateOperatorConversion.class);
   }
 
   private void configureAdTechAggregator(Binder binder)
@@ -115,6 +119,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
         new NamedType(SessionAvgScoreAggregatorFactory.class, SESSION_AVG_SCORE),
         new NamedType(SessionAvgScoreToHistogramPostAggregator.class, SESSION_AVG_SCORE_HISTOGRAM),
         new NamedType(SessionAvgScoreToHistogramFilteringPostAggregator.class, SESSION_AVG_SCORE_HISTOGRAM_FILTERING),
+        new NamedType(SessionSampleRatePostAggregator.class, SESSION_SAMPLE_RATE),
         new NamedType(ImplySessionFilteringVirtualColumn.class, SESSION_FILTERING_VIRTUAL_COLUMN)
     );
   }
