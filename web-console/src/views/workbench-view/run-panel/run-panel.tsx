@@ -18,6 +18,7 @@
 
 import {
   Button,
+  ButtonGroup,
   Icon,
   Intent,
   Menu,
@@ -55,7 +56,7 @@ import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog
 
 import './run-panel.scss';
 
-const PARALLELISM_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
+const NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
 
 function getNumTasks(context: QueryContext): number {
   const { msqNumTasks } = context;
@@ -208,48 +209,21 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         />
       )}
       {!small && onQueryChange && (
-        <Popover2
-          position={Position.BOTTOM_LEFT}
-          content={
-            <Menu>
-              <MenuDivider title="Select engine" />
-              {availableEngines.map(renderQueryEngineMenuItem)}
-              <MenuDivider />
-              <MenuItem
-                icon={IconNames.PROPERTIES}
-                text="Edit context"
-                onClick={() => setEditContextDialogOpen(true)}
-                label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
-              />
-              {effectiveEngine === 'sql-task' ? (
-                <>
-                  <MenuItem
-                    icon={IconNames.TWO_COLUMNS}
-                    text="Number of tasks to launch"
-                    label={String(numTasks)}
-                  >
-                    <Menu>
-                      {PARALLELISM_OPTIONS.map(p => (
-                        <MenuItem
-                          key={String(p)}
-                          icon={p === numTasks ? IconNames.TICK : IconNames.BLANK}
-                          text={formatInteger(p)}
-                          label={`(1 controller + ${pluralIfNeeded(p - 1, 'worker')})`}
-                          onClick={() =>
-                            onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)))
-                          }
-                          shouldDismissPopover={false}
-                        />
-                      ))}
-                      <MenuItem
-                        icon={
-                          PARALLELISM_OPTIONS.includes(numTasks) ? IconNames.BLANK : IconNames.TICK
-                        }
-                        text="Custom"
-                        onClick={() => setCustomNumTasksDialogOpen(true)}
-                      />
-                    </Menu>
-                  </MenuItem>
+        <ButtonGroup>
+          <Popover2
+            position={Position.BOTTOM_LEFT}
+            content={
+              <Menu>
+                <MenuDivider title="Select engine" />
+                {availableEngines.map(renderQueryEngineMenuItem)}
+                <MenuDivider />
+                <MenuItem
+                  icon={IconNames.PROPERTIES}
+                  text="Edit context"
+                  onClick={() => setEditContextDialogOpen(true)}
+                  label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
+                />
+                {effectiveEngine === 'sql-task' ? (
                   <MenuCheckbox
                     checked={msqFinalizeAggregations}
                     text="Finalize aggregations"
@@ -261,58 +235,94 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                       );
                     }}
                   />
-                </>
-              ) : (
-                <>
+                ) : (
+                  <>
+                    <MenuCheckbox
+                      checked={useCache}
+                      text="Use cache"
+                      onChange={() => {
+                        onQueryChange(
+                          query.changeQueryContext(setUseCache(queryContext, !useCache)),
+                        );
+                      }}
+                    />
+                    <MenuCheckbox
+                      checked={useApproximateTopN}
+                      text="Use approximate TopN"
+                      onChange={() => {
+                        onQueryChange(
+                          query.changeQueryContext(
+                            setUseApproximateTopN(queryContext, !useApproximateTopN),
+                          ),
+                        );
+                      }}
+                    />
+                  </>
+                )}
+                {effectiveEngine !== 'native' && (
                   <MenuCheckbox
-                    checked={useCache}
-                    text="Use cache"
-                    onChange={() => {
-                      onQueryChange(query.changeQueryContext(setUseCache(queryContext, !useCache)));
-                    }}
-                  />
-                  <MenuCheckbox
-                    checked={useApproximateTopN}
-                    text="Use approximate TopN"
+                    checked={useApproximateCountDistinct}
+                    text="Use approximate COUNT(DISTINCT)"
                     onChange={() => {
                       onQueryChange(
                         query.changeQueryContext(
-                          setUseApproximateTopN(queryContext, !useApproximateTopN),
+                          setUseApproximateCountDistinct(
+                            queryContext,
+                            !useApproximateCountDistinct,
+                          ),
                         ),
                       );
                     }}
                   />
-                </>
-              )}
-              {effectiveEngine !== 'native' && (
+                )}
                 <MenuCheckbox
-                  checked={useApproximateCountDistinct}
-                  text="Use approximate COUNT(DISTINCT)"
+                  checked={!query.unlimited}
+                  intent={query.unlimited ? Intent.WARNING : undefined}
+                  text="Limit inline results"
+                  labelElement={
+                    query.unlimited ? <Icon icon={IconNames.WARNING_SIGN} /> : undefined
+                  }
                   onChange={() => {
-                    onQueryChange(
-                      query.changeQueryContext(
-                        setUseApproximateCountDistinct(queryContext, !useApproximateCountDistinct),
-                      ),
-                    );
+                    onQueryChange(query.toggleUnlimited());
                   }}
                 />
-              )}
-              <MenuCheckbox
-                checked={!query.unlimited}
-                intent={query.unlimited ? Intent.WARNING : undefined}
-                text="Limit inline results"
-                labelElement={query.unlimited ? <Icon icon={IconNames.WARNING_SIGN} /> : undefined}
-                onChange={() => {
-                  onQueryChange(query.toggleUnlimited());
-                }}
-              />
-            </Menu>
-          }
-        >
-          <Button rightIcon={IconNames.CARET_DOWN}>
-            {`Engine: ${queryEngine || `auto (${effectiveEngine})`}`}
-          </Button>
-        </Popover2>
+              </Menu>
+            }
+          >
+            <Button
+              text={`Engine: ${queryEngine || `auto (${effectiveEngine})`}`}
+              rightIcon={IconNames.CARET_DOWN}
+            />
+          </Popover2>
+          {effectiveEngine === 'sql-task' && (
+            <Popover2
+              position={Position.BOTTOM_LEFT}
+              content={
+                <Menu>
+                  <MenuDivider title="Number of tasks to launch" />
+                  {NUM_TASK_OPTIONS.map(p => (
+                    <MenuItem
+                      key={String(p)}
+                      icon={p === numTasks ? IconNames.TICK : IconNames.BLANK}
+                      text={formatInteger(p)}
+                      label={`(1 controller + ${pluralIfNeeded(p - 1, 'worker')})`}
+                      onClick={() =>
+                        onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)))
+                      }
+                    />
+                  ))}
+                  <MenuItem
+                    icon={NUM_TASK_OPTIONS.includes(numTasks) ? IconNames.BLANK : IconNames.TICK}
+                    text="Custom"
+                    onClick={() => setCustomNumTasksDialogOpen(true)}
+                  />
+                </Menu>
+              }
+            >
+              <Button text={`Tasks: ${numTasks}`} rightIcon={IconNames.CARET_DOWN} />
+            </Popover2>
+          )}
+        </ButtonGroup>
       )}
       <Popover2
         position={Position.BOTTOM_LEFT}
