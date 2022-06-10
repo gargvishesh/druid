@@ -19,6 +19,9 @@ import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.processor.ReturnOrAwait;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.segment.FrameStorageAdapter;
+import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
+import io.imply.druid.talaria.indexing.error.TalariaException;
+import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.util.FutureUtils;
 import io.imply.druid.talaria.util.SequenceUtils;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -29,6 +32,7 @@ import org.apache.druid.data.input.Row;
 import org.apache.druid.data.input.Rows;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -217,7 +221,20 @@ public class TalariaSegmentGeneratorFrameProcessor implements FrameProcessor<Dat
       if (timeColumnNumber < 0) {
         return 0;
       } else {
-        return (long) backingArray[timeColumnNumber];
+        final Object timestamp = backingArray[timeColumnNumber];
+
+        if (timestamp instanceof Long) {
+          return (long) timestamp;
+        } else if (timestamp == null) {
+          throw new TalariaException(InsertTimeNullFault.INSTANCE);
+        } else {
+          // Normally we expect the SQL layer to validate that __time for INSERT is a TIMESTAMP type, which would
+          // be a long at execution time. So a nice user-friendly message isn't needed here: it would only happen
+          // if the SQL layer is bypassed. Nice, friendly users wouldn't do that :)
+          final UnknownFault fault =
+              UnknownFault.forMessage(StringUtils.format("Incorrect type for [%s]", ColumnHolder.TIME_COLUMN_NAME));
+          throw new TalariaException(fault);
+        }
       }
     }
 

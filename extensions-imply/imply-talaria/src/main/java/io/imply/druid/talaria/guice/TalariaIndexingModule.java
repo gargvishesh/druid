@@ -28,6 +28,7 @@ import io.imply.druid.talaria.indexing.error.InsertCannotBeEmptyFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotOrderByDescendingFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotReplaceExistingSegmentFault;
 import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFault;
+import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.RowTooLargeFault;
@@ -116,6 +117,7 @@ public class TalariaIndexingModule implements DruidModule
             InsertCannotOrderByDescendingFault.class,
             InsertCannotReplaceExistingSegmentFault.class,
             InsertLockPreemptedFault.class,
+            InsertTimeNullFault.class,
             InsertTimeOutOfBoundsFault.class,
             QueryNotSupportedFault.class,
             RowTooLargeFault.class,
