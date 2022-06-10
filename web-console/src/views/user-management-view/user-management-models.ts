@@ -16,7 +16,14 @@
  * limitations under the License.
  */
 
-export type PermissionType = 'DATASOURCE' | 'VIEW' | 'CONFIG' | 'STATE' | 'SYSTEM_TABLE';
+export type PermissionType =
+  | 'DATASOURCE'
+  | 'VIEW'
+  | 'CONFIG'
+  | 'STATE'
+  | 'SYSTEM_TABLE'
+  | 'QUERY_CONTEXT'
+  | 'EXTERNAL';
 
 export interface Permission {
   resource: {
@@ -32,6 +39,8 @@ export const PERMISSION_TYPES: PermissionType[] = [
   'CONFIG',
   'STATE',
   'SYSTEM_TABLE',
+  'QUERY_CONTEXT',
+  'EXTERNAL',
 ];
 
 export function formatPermission(permission: Permission): string {
@@ -50,75 +59,21 @@ export interface RoleEntry {
   permissions?: Permission[];
 }
 
-export const ALL_PERMISSIONS: Permission[] = [
-  {
-    resource: {
-      name: '.*',
-      type: 'CONFIG',
+export const ALL_PERMISSIONS: Permission[] = PERMISSION_TYPES.flatMap(type => {
+  return [
+    {
+      resource: {
+        name: '.*',
+        type,
+      },
+      action: 'READ',
     },
-    action: 'READ',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'CONFIG',
+    {
+      resource: {
+        name: '.*',
+        type,
+      },
+      action: 'WRITE',
     },
-    action: 'WRITE',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'SYSTEM_TABLE',
-    },
-    action: 'READ',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'SYSTEM_TABLE',
-    },
-    action: 'WRITE',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'DATASOURCE',
-    },
-    action: 'READ',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'DATASOURCE',
-    },
-    action: 'WRITE',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'VIEW',
-    },
-    action: 'READ',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'VIEW',
-    },
-    action: 'WRITE',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'STATE',
-    },
-    action: 'READ',
-  },
-  {
-    resource: {
-      name: '.*',
-      type: 'STATE',
-    },
-    action: 'WRITE',
-  },
-];
+  ];
+});
