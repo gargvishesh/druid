@@ -15,10 +15,13 @@ import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectors;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
+import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.server.DruidNode;
 
 import javax.annotation.Nullable;
@@ -47,6 +50,26 @@ public class TalariaTasks
   public static String workerTaskId(final String controllerTaskId, final int workerNumber)
   {
     return StringUtils.format("%s-worker%d", controllerTaskId, workerNumber);
+  }
+
+  /**
+   * If "Object" is a Long, returns it. Otherwise, throws an appropriate exception assuming this operation is
+   * being done to read the primary timestamp (__time) as part of an INSERT.
+   */
+  public static long primaryTimestampFromObjectForInsert(final Object timestamp)
+  {
+    if (timestamp instanceof Long) {
+      return (long) timestamp;
+    } else if (timestamp == null) {
+      throw new TalariaException(InsertTimeNullFault.INSTANCE);
+    } else {
+      // Normally we expect the SQL layer to validate that __time for INSERT is a TIMESTAMP type, which would
+      // be a long at execution time. So a nice user-friendly message isn't needed here: it would only happen
+      // if the SQL layer is bypassed. Nice, friendly users wouldn't do that :)
+      final UnknownFault fault =
+          UnknownFault.forMessage(StringUtils.format("Incorrect type for [%s]", ColumnHolder.TIME_COLUMN_NAME));
+      throw new TalariaException(fault);
+    }
   }
 
   /**
@@ -116,7 +139,8 @@ public class TalariaTasks
       // Pick the "best" error if both are set. See the javadoc for the logic we use. In these situations, we
       // expect the caller to also log the other one. (There is no logging in _this_ method, because it's a helper
       // function, and it's best if helper functions run quietly.)
-      if (workerErrorReport != null && (controllerErrorReport.getFault() instanceof WorkerRpcFailedFault || controllerErrorReport.getFault() instanceof CanceledFault)) {
+      if (workerErrorReport != null && (controllerErrorReport.getFault() instanceof WorkerRpcFailedFault
+                                        || controllerErrorReport.getFault() instanceof CanceledFault)) {
         return workerErrorReport;
       } else {
         return controllerErrorReport;
