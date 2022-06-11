@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
+import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.java.util.common.ISE;
@@ -356,6 +357,54 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
 
+  }
+
+  @Test
+  public void testInsertNullTimestamp()
+  {
+    final RowSignature rowSignature =
+        RowSignature.builder()
+                    .add("__time", ColumnType.LONG)
+                    .add("dim1", ColumnType.STRING)
+                    .build();
+
+    testIngestQuery()
+        .setSql(
+            "INSERT INTO foo1\n"
+            + "SELECT TIME_PARSE(dim1) AS __time, dim1 as cnt\n"
+            + "FROM foo\n"
+            + "PARTITIONED BY DAY\n"
+            + "CLUSTERED BY dim1")
+        .setExpectedDataSource("foo1")
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedTalariaFault(InsertTimeNullFault.instance())
+        .verifyResults();
+  }
+
+  @Test
+  public void testInsertWrongTypeTimestamp()
+  {
+    final RowSignature rowSignature =
+        RowSignature.builder()
+                    .add("__time", ColumnType.LONG)
+                    .add("dim1", ColumnType.STRING)
+                    .build();
+
+    testIngestQuery()
+        .setSql(
+            "INSERT INTO foo1\n"
+            + "SELECT dim1 AS __time, cnt\n"
+            + "FROM foo\n"
+            + "PARTITIONED BY DAY\n"
+            + "CLUSTERED BY dim1")
+        .setExpectedDataSource("foo1")
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+            CoreMatchers.instanceOf(SqlPlanningException.class),
+            ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                "Field \"__time\" must be of type TIMESTAMP"))
+        ))
+        .verifyPlanningErrors();
   }
 
   @Test

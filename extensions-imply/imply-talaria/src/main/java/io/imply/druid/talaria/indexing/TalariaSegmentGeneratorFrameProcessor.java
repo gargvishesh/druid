@@ -11,6 +11,7 @@ package io.imply.druid.talaria.indexing;
 
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.exec.TalariaTasks;
 import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
@@ -217,7 +218,7 @@ public class TalariaSegmentGeneratorFrameProcessor implements FrameProcessor<Dat
       if (timeColumnNumber < 0) {
         return 0;
       } else {
-        return (long) backingArray[timeColumnNumber];
+        return TalariaTasks.primaryTimestampFromObjectForInsert(backingArray[timeColumnNumber]);
       }
     }
 
