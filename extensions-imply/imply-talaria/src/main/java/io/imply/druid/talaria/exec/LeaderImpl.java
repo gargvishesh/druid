@@ -1790,7 +1790,8 @@ public class LeaderImpl implements Leader
       return DateTimes.utc(0);
     } else {
       final ClusterByKey startKey = partitionBoundary.getStart();
-      final DateTime timestamp = DateTimes.utc((long) keyReader.read(startKey, 0));
+      final DateTime timestamp =
+          DateTimes.utc(TalariaTasks.primaryTimestampFromObjectForInsert(keyReader.read(startKey, 0)));
 
       if (segmentGranularity.bucketStart(timestamp.getMillis()) != timestamp.getMillis()) {
         // It's a bug in... something? if this happens.
