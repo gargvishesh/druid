@@ -29,6 +29,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -65,8 +66,8 @@ public class TalariaWorkerTaskLauncher
   private final AtomicBoolean stopped = new AtomicBoolean();
   private final CountDownLatch stopLatch = new CountDownLatch(1);
 
-  // Mutable state meant to be accessible only to the main loop.
-  private final Map<String, TaskState> tasks = new TreeMap<>();
+  // Mutable state meant to be accessible only to the main loop. LinkedHashMap since order of key set matters.
+  private final Map<String, TaskState> tasks = new LinkedHashMap<>();
 
   // Map of task id to start time. Used to check if tasks take too long to start.
   // Only used in the main loop.
