@@ -11,6 +11,7 @@ package io.imply.druid.talaria.guice;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Provides;
@@ -30,8 +31,11 @@ import io.imply.druid.talaria.indexing.error.InsertCannotReplaceExistingSegmentF
 import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
+import io.imply.druid.talaria.indexing.error.NotEnoughMemoryFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.RowTooLargeFault;
+import io.imply.druid.talaria.indexing.error.TalariaFault;
+import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
 import io.imply.druid.talaria.indexing.error.TooManyBucketsFault;
 import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyInputFilesFault;
@@ -81,61 +85,76 @@ public class TalariaIndexingModule implements DruidModule
       "enable"
   );
 
+  public static final List<Class<? extends TalariaFault>> FAULT_CLASSES = ImmutableList.of(
+      BroadcastTablesTooLargeFault.class,
+      CanceledFault.class,
+      CannotParseExternalDataFault.class,
+      ColumnTypeNotSupportedFault.class,
+      DurableStorageConfigurationFault.class,
+      InsertCannotAllocateSegmentFault.class,
+      InsertCannotBeEmptyFault.class,
+      InsertCannotOrderByDescendingFault.class,
+      InsertCannotReplaceExistingSegmentFault.class,
+      InsertLockPreemptedFault.class,
+      InsertTimeNullFault.class,
+      InsertTimeOutOfBoundsFault.class,
+      NotEnoughMemoryFault.class,
+      QueryNotSupportedFault.class,
+      RowTooLargeFault.class,
+      TaskStartTimeoutFault.class,
+      TooManyBucketsFault.class,
+      TooManyColumnsFault.class,
+      TooManyInputFilesFault.class,
+      TooManyPartitionsFault.class,
+      TooManyWarningsFault.class,
+      TooManyWorkersFault.class,
+      UnknownFault.class,
+      WorkerFailedFault.class,
+      WorkerRpcFailedFault.class
+  );
+
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return Collections.singletonList(
-        new SimpleModule(getClass().getSimpleName()).registerSubtypes(
-            // Task classes
-            MSQControllerTask.class,
-            TalariaWorkerTask.class,
+    final SimpleModule module = new SimpleModule(getClass().getSimpleName());
 
-            // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
-            MSQSegmentGeneratorFrameProcessorFactory.class,
-            MSQSegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
-            TalariaExternalSinkFrameProcessorFactory.class,
-            ScanQueryFrameProcessorFactory.class,
-            GroupByPreShuffleFrameProcessorFactory.class,
-            GroupByPostShuffleFrameProcessorFactory.class,
-            OffsetLimitFrameProcessorFactory.class,
-            NilExtraInfoHolder.class,
+    module.registerSubtypes(
+        // Task classes
+        MSQControllerTask.class,
+        TalariaWorkerTask.class,
 
-            // DataSource classes (note: ExternalDataSource is in TalariaSqlModule)
-            InputStageDataSource.class,
+        // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
+        MSQSegmentGeneratorFrameProcessorFactory.class,
+        MSQSegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
+        TalariaExternalSinkFrameProcessorFactory.class,
+        ScanQueryFrameProcessorFactory.class,
+        GroupByPreShuffleFrameProcessorFactory.class,
+        GroupByPostShuffleFrameProcessorFactory.class,
+        OffsetLimitFrameProcessorFactory.class,
+        NilExtraInfoHolder.class,
 
-            // TaskReport classes
-            TalariaTaskReport.class,
+        // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
+        TalariaExternalSinkFrameProcessorFactory.class,
+        ScanQueryFrameProcessorFactory.class,
+        GroupByPreShuffleFrameProcessorFactory.class,
+        GroupByPostShuffleFrameProcessorFactory.class,
+        OffsetLimitFrameProcessorFactory.class,
+        NilExtraInfoHolder.class,
 
-            // TalariaFault classes
-            BroadcastTablesTooLargeFault.class,
-            CanceledFault.class,
-            CannotParseExternalDataFault.class,
-            ColumnTypeNotSupportedFault.class,
-            DurableStorageConfigurationFault.class,
-            InsertCannotAllocateSegmentFault.class,
-            InsertCannotBeEmptyFault.class,
-            InsertCannotOrderByDescendingFault.class,
-            InsertCannotReplaceExistingSegmentFault.class,
-            InsertLockPreemptedFault.class,
-            InsertTimeNullFault.class,
-            InsertTimeOutOfBoundsFault.class,
-            QueryNotSupportedFault.class,
-            RowTooLargeFault.class,
-            TooManyBucketsFault.class,
-            TooManyColumnsFault.class,
-            TooManyInputFilesFault.class,
-            TooManyPartitionsFault.class,
-            TooManyWarningsFault.class,
-            TooManyWorkersFault.class,
-            UnknownFault.class,
-            WorkerFailedFault.class,
-            WorkerRpcFailedFault.class,
+        // DataSource classes (note: ExternalDataSource is in TalariaSqlModule)
+        InputStageDataSource.class,
 
-            // Other
-            PassthroughAggregatorFactory.class,
-            NilInputSource.class
-        )
+        // TaskReport classes
+        TalariaTaskReport.class,
+
+        // Other
+        PassthroughAggregatorFactory.class,
+        NilInputSource.class
     );
+
+    FAULT_CLASSES.forEach(module::registerSubtypes);
+
+    return Collections.singletonList(module);
   }
 
   @Override

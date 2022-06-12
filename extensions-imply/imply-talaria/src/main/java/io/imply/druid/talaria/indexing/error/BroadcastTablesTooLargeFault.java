@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 @JsonTypeName(BroadcastTablesTooLargeFault.CODE)
 public class BroadcastTablesTooLargeFault extends BaseTalariaFault
 {
@@ -34,5 +36,27 @@ public class BroadcastTablesTooLargeFault extends BaseTalariaFault
   public long getMaxBroadcastTablesSize()
   {
     return maxBroadcastTablesSize;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    BroadcastTablesTooLargeFault that = (BroadcastTablesTooLargeFault) o;
+    return maxBroadcastTablesSize == that.maxBroadcastTablesSize;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxBroadcastTablesSize);
   }
 }

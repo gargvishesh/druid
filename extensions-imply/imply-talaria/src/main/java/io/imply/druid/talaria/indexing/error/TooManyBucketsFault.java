@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 @JsonTypeName(TooManyBucketsFault.CODE)
 public class TooManyBucketsFault extends BaseTalariaFault
 {
@@ -39,5 +41,27 @@ public class TooManyBucketsFault extends BaseTalariaFault
   public int getMaxBuckets()
   {
     return maxBuckets;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    TooManyBucketsFault that = (TooManyBucketsFault) o;
+    return maxBuckets == that.maxBuckets;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxBuckets);
   }
 }

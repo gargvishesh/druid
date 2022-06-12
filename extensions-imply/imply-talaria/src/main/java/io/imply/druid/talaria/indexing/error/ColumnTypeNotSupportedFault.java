@@ -18,6 +18,7 @@ import io.imply.druid.talaria.frame.write.UnsupportedColumnTypeException;
 import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 @JsonTypeName(ColumnTypeNotSupportedFault.CODE)
 public class ColumnTypeNotSupportedFault extends BaseTalariaFault
@@ -52,5 +53,27 @@ public class ColumnTypeNotSupportedFault extends BaseTalariaFault
   public ColumnType getColumnType()
   {
     return columnType;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    ColumnTypeNotSupportedFault that = (ColumnTypeNotSupportedFault) o;
+    return Objects.equals(columnName, that.columnName) && Objects.equals(columnType, that.columnType);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), columnName, columnType);
   }
 }

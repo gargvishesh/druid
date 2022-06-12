@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 @JsonTypeName(TooManyPartitionsFault.CODE)
 public class TooManyPartitionsFault extends BaseTalariaFault
 {
@@ -36,5 +38,27 @@ public class TooManyPartitionsFault extends BaseTalariaFault
   public int getMaxPartitions()
   {
     return maxPartitions;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    TooManyPartitionsFault that = (TooManyPartitionsFault) o;
+    return maxPartitions == that.maxPartitions;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxPartitions);
   }
 }
