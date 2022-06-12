@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 
+import java.util.Objects;
+
 @JsonTypeName(InsertCannotOrderByDescendingFault.CODE)
 public class InsertCannotOrderByDescendingFault extends BaseTalariaFault
 {
@@ -34,5 +36,27 @@ public class InsertCannotOrderByDescendingFault extends BaseTalariaFault
   public String getColumnName()
   {
     return columnName;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    InsertCannotOrderByDescendingFault that = (InsertCannotOrderByDescendingFault) o;
+    return Objects.equals(columnName, that.columnName);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), columnName);
   }
 }

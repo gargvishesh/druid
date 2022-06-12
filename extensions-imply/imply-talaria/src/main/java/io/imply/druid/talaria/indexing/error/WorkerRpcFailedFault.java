@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 @JsonTypeName(WorkerRpcFailedFault.CODE)
 public class WorkerRpcFailedFault extends BaseTalariaFault
 {
@@ -31,5 +33,27 @@ public class WorkerRpcFailedFault extends BaseTalariaFault
   public String getWorkerTaskId()
   {
     return workerTaskId;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    WorkerRpcFailedFault that = (WorkerRpcFailedFault) o;
+    return Objects.equals(workerTaskId, that.workerTaskId);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), workerTaskId);
   }
 }

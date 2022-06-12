@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 
+import java.util.Objects;
+
 @JsonTypeName(InsertCannotBeEmptyFault.CODE)
 public class InsertCannotBeEmptyFault extends BaseTalariaFault
 {
@@ -34,5 +36,27 @@ public class InsertCannotBeEmptyFault extends BaseTalariaFault
   public String getDataSource()
   {
     return dataSource;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    InsertCannotBeEmptyFault that = (InsertCannotBeEmptyFault) o;
+    return Objects.equals(dataSource, that.dataSource);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), dataSource);
   }
 }

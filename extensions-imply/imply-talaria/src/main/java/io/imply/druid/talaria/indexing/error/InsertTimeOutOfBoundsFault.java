@@ -12,6 +12,8 @@ package io.imply.druid.talaria.indexing.error;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.joda.time.Interval;
 
+import java.util.Objects;
+
 public class InsertTimeOutOfBoundsFault extends BaseTalariaFault
 {
   static final String CODE = "InsertTimeOutOfBounds";
@@ -28,5 +30,27 @@ public class InsertTimeOutOfBoundsFault extends BaseTalariaFault
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    InsertTimeOutOfBoundsFault that = (InsertTimeOutOfBoundsFault) o;
+    return Objects.equals(interval, that.interval);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), interval);
   }
 }

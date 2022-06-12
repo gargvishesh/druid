@@ -15,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import org.joda.time.Interval;
 
+import java.util.Objects;
+
 @JsonTypeName(InsertCannotAllocateSegmentFault.CODE)
 public class InsertCannotAllocateSegmentFault extends BaseTalariaFault
 {
@@ -44,5 +46,27 @@ public class InsertCannotAllocateSegmentFault extends BaseTalariaFault
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    InsertCannotAllocateSegmentFault that = (InsertCannotAllocateSegmentFault) o;
+    return Objects.equals(dataSource, that.dataSource) && Objects.equals(interval, that.interval);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), dataSource, interval);
   }
 }

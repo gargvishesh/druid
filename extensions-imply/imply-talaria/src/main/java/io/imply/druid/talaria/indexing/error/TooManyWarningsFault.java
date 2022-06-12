@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 @JsonTypeName(TooManyWarningsFault.CODE)
 public class TooManyWarningsFault extends BaseTalariaFault
 {
@@ -43,5 +45,27 @@ public class TooManyWarningsFault extends BaseTalariaFault
   public String getErrorCode()
   {
     return errorCode;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    TooManyWarningsFault that = (TooManyWarningsFault) o;
+    return maxWarnings == that.maxWarnings && Objects.equals(errorCode, that.errorCode);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxWarnings, errorCode);
   }
 }

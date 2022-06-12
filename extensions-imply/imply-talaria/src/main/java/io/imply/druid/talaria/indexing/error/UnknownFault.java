@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 @JsonTypeName(UnknownFault.CODE)
 public class UnknownFault extends BaseTalariaFault
@@ -24,8 +25,7 @@ public class UnknownFault extends BaseTalariaFault
   @Nullable
   private final String message;
 
-  @JsonCreator
-  private UnknownFault(@JsonProperty("message") @Nullable final String message)
+  private UnknownFault(@Nullable final String message)
   {
     super(CODE, message);
     this.message = message;
@@ -48,5 +48,27 @@ public class UnknownFault extends BaseTalariaFault
   public String getMessage()
   {
     return message;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    UnknownFault that = (UnknownFault) o;
+    return Objects.equals(message, that.message);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), message);
   }
 }

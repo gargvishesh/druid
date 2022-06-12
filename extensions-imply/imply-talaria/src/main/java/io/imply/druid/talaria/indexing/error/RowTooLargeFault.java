@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 // TODO(gianm): use this somewhere
 @JsonTypeName(RowTooLargeFault.CODE)
 public class RowTooLargeFault extends BaseTalariaFault
@@ -32,5 +34,27 @@ public class RowTooLargeFault extends BaseTalariaFault
   public long getMaxFrameSize()
   {
     return maxFrameSize;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    RowTooLargeFault that = (RowTooLargeFault) o;
+    return maxFrameSize == that.maxFrameSize;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxFrameSize);
   }
 }

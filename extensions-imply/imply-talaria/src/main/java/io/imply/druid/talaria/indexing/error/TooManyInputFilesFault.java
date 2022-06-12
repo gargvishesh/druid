@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.talaria.util.TalariaContext;
 
+import java.util.Objects;
+
 @JsonTypeName(TooManyInputFilesFault.CODE)
 public class TooManyInputFilesFault extends BaseTalariaFault
 {
@@ -62,5 +64,29 @@ public class TooManyInputFilesFault extends BaseTalariaFault
   public int getMinNumWorkers()
   {
     return minNumWorkers;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    TooManyInputFilesFault that = (TooManyInputFilesFault) o;
+    return numInputFiles == that.numInputFiles
+           && maxInputFiles == that.maxInputFiles
+           && minNumWorkers == that.minNumWorkers;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), numInputFiles, maxInputFiles, minNumWorkers);
   }
 }
