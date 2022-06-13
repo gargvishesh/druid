@@ -22,7 +22,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
  * Uses unlimited attempts, because it makes sense to keep retrying as long as the task locator says the task may
  * come back. In essence, we're relying on the Overlord's task-monitoring mechanism to tell us when to give up.
  *
- * Returns true from {@link #retryHttpResponse} when encountering an HTTP 404 with a
+ * Returns true from {@link #retryHttpResponse} when encountering an HTTP 400 or HTTP 404 with a
  * {@link ChatHandlerResource#TASK_ID_HEADER} header for a different task. This can happen when a task is suspended and
  * then later restored in a different location, and then some *other* task reuses its old port. This task-mismatch
  * scenario is retried indefinitely, since we expect that the {@link SpecificTaskServiceLocator} will update the
@@ -60,7 +60,8 @@ public class SpecificTaskRetryPolicy implements RetryPolicy
   private boolean isTaskMismatch(final HttpResponse response)
   {
     // See class-level javadocs for details on why we do this.
-    if (response.getStatus().equals(HttpResponseStatus.NOT_FOUND)) {
+    if (response.getStatus().equals(HttpResponseStatus.NOT_FOUND)
+        || response.getStatus().equals(HttpResponseStatus.BAD_REQUEST)) {
       final String headerTaskId = StringUtils.urlDecode(response.headers().get(ChatHandlerResource.TASK_ID_HEADER));
       return headerTaskId != null && !headerTaskId.equals(taskId);
     } else {
