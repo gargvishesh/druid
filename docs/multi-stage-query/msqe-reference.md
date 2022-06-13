@@ -1,0 +1,109 @@
+---
+id: msqe-reference
+title: Reference
+---
+
+> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+
+## Context variables
+
+In addition to the Druid SQL [context parameters](../querying/sql-query-context.md), Multi-Stage Query Engine (MSQE) supports context variables that are specific to it.
+
+You provide context variables alongside your queries to customize the behavior of the query. The way you provide the variables depends on how you submit your query:
+
+- **Druid console**: Add your variables before your query like so:
+   
+   ```sql
+   --:context <key>: <value> 
+   --:context msqFinalizeAggregations: false
+   INSERT INTO myTable
+   ...
+   ```
+
+- **API**: Add them in a `context` section of your JSON object like so:
+
+   ```sql
+   {
+    "query": "SELECT 1 + 1",
+    "context": {
+        "<key>": <value>,
+        "multiStageQuery": true
+    }
+   }
+   ```
+
+
+|Parameter|Description|Default value|
+|----|-----------|----|
+| msqNumTasks              | (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not launch and throw a `TaskStartTimeout` exception after about 10 minutes.  | 2 |
+| msqFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. For more information about aggregations, see [SQL aggregation functions](../querying/sql-aggregations.md). | true |
+| sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#error-codes) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
+| msqRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](./msqe-release.md#memory-usage)</a>. | 100,000 |
+| msqSegmentSortOrder | (INSERT only)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](./msqe-sql-syntax.md#clustered-by) clause. When `msqSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `msqSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
+| maxParseExceptions| (SELECT or INSERT)<br /><br />Maximum number of parse exceptions that are ignored while executing the query before it stops with `TooManyWarningsFault`. Can be set to -1 to ignore all the parse exceptions<br /><br />| -1 |
+| msqMode| (SELECT or INSERT)<br /><br />Execute a query with a predefined set of parameters which are pretuned. It can be set to `strict` or `nonStrict`. Setting the mode to `strict` is equivalent to setting `maxParseExceptions: 0`: the query fails if there is a malformed record. Setting the mode to `nonStrict` is equivalent to setting `maxParseExceptions: -1`: the query won't fail regardless of the number of malformed records.  .<br /><br />| no default value |
+| msqRowsPerSegment        | (INSERT or REPLACE)<br /><br />Number of rows per segment to target. The actual number of rows per segment may be somewhat higher or lower than this number. In most cases, you should stick to the default. For general information about sizing rows per segment, see [Segment Size Optimization](../operations/segment-optimization.md). | 3,000,000 |
+| talariaDurableShuffleStorage | (SELECT OR INSERT OR REPLACE) <br /><br />Whether to use durable storage for shuffle mesh. To use this feature, durable storage must be configured at the server level using `druid.talaria.intermediate.storage.enable=true` and its [associated properties](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). If these properties are not configured, any query with the context variable `talariaDurableShuffleStorage=true` fails with a configuration error. <br /><br /> | false |
+
+## Report response fields
+
+The following table describes the response fields when you retrieve a report for a MSQE task using the `/druid/indexer/v1/task` endpoint:
+
+|Field|Description|
+|-----|-----------|
+|multiStageQuery.taskId|Controller task ID.|
+|multiStageQuery.payload.status|Query status container.|
+|multiStageQuery.payload.status.status|RUNNING, SUCCESS, or FAILED.|
+|multiStageQuery.payload.status.startTime|Start time of the query in ISO format. Only present if the query has started running.|
+|multiStageQuery.payload.status.durationMs|Milliseconds elapsed after the query has started running. -1 denotes that the query hasn't started running yet.|
+|multiStageQuery.payload.status.errorReport|Error object. Only present if there was an error.|
+|multiStageQuery.payload.status.errorReport.taskId|The task that reported the error, if known. May be a controller task or a worker task.|
+|multiStageQuery.payload.status.errorReport.host|The hostname and port of the task that reported the error, if known.|
+|multiStageQuery.payload.status.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
+|multiStageQuery.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#error-codes). Always present if there is an error.|
+|multiStageQuery.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#error-codes). Always present if there is an error.|
+|multiStageQuery.payload.status.errorReport.error.errorMessage|User-friendly error message. Not always present, even if there is an error.|
+|multiStageQuery.payload.status.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
+|multiStageQuery.payload.stages|Array of query stages.|
+|multiStageQuery.payload.stages[].stageNumber|Each stage has a number that differentiates it from other stages.|
+|multiStageQuery.payload.stages[].inputStages|Array of input stage numbers.|
+|multiStageQuery.payload.stages[].stageType|String that describes the logic of this stage. This is not necessarily unique across stages.|
+|multiStageQuery.payload.stages[].phase|Either NEW, READING_INPUT, POST_READING, RESULTS_COMPLETE, or FAILED. Only present if the stage has started.|
+|multiStageQuery.payload.stages[].workerCount|Number of parallel tasks that this stage is running on. Only present if the stage has started.|
+|multiStageQuery.payload.stages[].partitionCount|Number of output partitions generated by this stage. Only present if the stage has started and has computed its number of output partitions.|
+|multiStageQuery.payload.stages[].inputFileCount|Number of external input files or Druid segments read by this stage. Does not include inputs from other stages in the same query.|
+|multiStageQuery.payload.stages[].startTime|Start time of this stage. Only present if the stage has started.|
+|multiStageQuery.payload.stages[].query|Native Druid query for this stage. Only present for the first stage that corresponds to a particular native Druid query.|
+
+## Error codes
+
+The following table lists the possible values for `talariaStatus.payload.errorReport.error.errorCode`:
+
+|Code|Meaning|Additional fields|
+|----|-----------|----|
+|  BroadcastTablesTooLarge  | Size of the broadcast tables used in right hand side of the joins exceeded the memory reserved for them in a worker task  | &bull;&nbsp;maxBroadcastTablesSize: Memory reserved for the broadcast tables, measured in bytes |
+|  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
+|  CannotParseExternalData  |  A worker task could not parse data from an external datasource.  |    |
+|  DurableStorageConfiguration  | Durable storage mode could not be activated due to a misconfiguration.<br /><br /> Check [durable storage for shuffle mesh](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle) for instructions on configuration.  |  |
+|  ColumnTypeNotSupported  |  The query tried to use a column type that is not supported by the frame format.<br /><br />This currently occurs with ARRAY types, which are not yet implemented for frames.  | &bull;&nbsp;columnName<br /> <br />&bull;&nbsp;columnType   |
+|  InsertCannotAllocateSegment  |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Two common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>|   &bull;&nbsp;dataSource<br /> <br />&bull;&nbsp;interval: interval for the attempted new segment allocation  |
+|  InsertCannotBeEmpty  |  An INSERT or REPLACE query did not generate any output rows, in a situation where output rows are required for success.<br /> <br />Can happen for INSERT or REPLACE queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  &bull;&nbsp;dataSource  |
+|  InsertCannotOrderByDescending  |  An INSERT query contained an `CLUSTERED BY` expression with descending order.<br /> <br />Currently, Druid's segment generation code only supports ascending order.  |   &bull;&nbsp;columnName |
+|  InsertCannotReplaceExistingSegment  |  A REPLACE query or an INSERT query with `sqlReplaceTimeChunks` set cannot proceed because an existing segment partially overlaps those bounds and the portion within those bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink `sqlReplaceTimeChunks` to match the query results.</li><li>Expand `sqlReplaceTimeChunks` to fully contain the existing segment.</li></ul>| &bull;&nbsp;segmentId: the existing segment  |
+|  InsertLockPreempted  | An INSERT or REPLACE query was canceled by a higher-priority ingestion job, such as a realtime ingestion task.  | |
+|  InsertTimeNull  | An INSERT or REPLACE query encountered a null timestamp in the `__time` field.<br /><br />This can happen due to using an expression like `TIME_PARSE(timestamp) AS __time` with an unparseable timestamp. (TIME_PARSE returns null when it cannot parse a timestamp.) In this case, try parsing your timestamps using a different function or pattern.<br /><br />If your timestamps may genuinely be null, consider using COALESCE to provide a default value. One option is CURRENT_TIMESTAMP, which represents the start time of the job. |
+|  InsertTimeOutOfBounds  |  A REPLACE query or an INSERT query  with `sqlReplaceTimeChunks` generated a timestamp outside the bounds of the `sqlReplaceTimeChunks` parameter.<br /> <br />To avoid this error, consider adding a WHERE filter to only select times from the chunks that you want to replace.  |  &bull;&nbsp;interval: time chunk interval corresponding to the out-of-bounds timestamp  |
+| QueryNotSupported   |   QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that the multi-stage engine does not yet support, like GROUPING SETS. |    |
+|  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
+|  TaskStartTimeout  | Unable to launch all the worker tasks in time. <br /> <br />There might be insufficient available slots to start all the worker tasks simultaneously.<br /> <br /> Try splitting up the query into smaller chunks with lesser `msqNumTasks` number. Another option is to increase capacity.  | |
+|  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](./msqe-advanced-configs.md#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
+| TooManyInputFiles | Too many input files/segments per worker.<br /> <br />See the [Limits](./msqe-advanced-configs.md#limits) table for the specific limit. |&bull;&nbsp;numInputFiles: the total number of input files/segments for the stage<br /><br />&bull;&nbsp;maxInputFiles: the maximum number of input files/segments per worker per stage<br /><br />&bull;&nbsp;minNumWorker: the minimum number of workers required for a sucessfull run |
+|  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT or REPLACE query generated too many segments. See the [Limits](./msqe-advanced-configs.md#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
+|  TooManyColumns |  Too many output columns for a stage.<br /> <br />See the [Limits](./msqe-advanced-configs.md#limits) table for the specific limit.  | &bull;&nbsp;maxColumns: the limit on columns which was exceeded   |
+|  TooManyWarnings |  Too many warnings of a particular type generated. | &bull;&nbsp;errorCode: The errorCode corresponding to the exception that exceeded the required limit. <br /><br />&bull;&nbsp;maxWarnings: Maximum number of warnings that are allowed for the corresponding errorCode.   |
+|  TooManyWorkers |  Too many workers running simultaneously.<br /> <br />See the [Limits](./msqe-advanced-configs.md#limits) table for the specific limit.  | &bull;&nbsp;workers: a number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage, if multiple stages are running simultaneously. <br /><br />&bull;&nbsp;maxWorkers: the hard or soft limit on workers which was exceeded   |
+|  NotEnoughMemory  |  Not enough memory to launch a stage.  |  &bull;&nbsp;serverMemory: the amount of memory available to a single process<br /><br />&bull;&nbsp;serverWorkers: the number of workers running in a single process<br /><br />&bull;&nbsp;serverThreads: the number of threads in a single process  |
+|  WorkerFailed  |  A worker task failed unexpectedly.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
+|  WorkerRpcFailed  |  A remote procedure call to a worker task failed unrecoverably.  |  &bull;&nbsp;workerTaskId: the id of the worker task  |
+|  UnknownError   |  All other errors.  |    |
+

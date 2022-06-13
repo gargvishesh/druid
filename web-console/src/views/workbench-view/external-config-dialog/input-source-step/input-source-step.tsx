@@ -112,7 +112,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
 
       return extractQueryResults(
         await submitTaskQuery({
-          query: `SELECT raw FROM ${externExpression}`,
+          query: `SELECT REPLACE(raw, U&'\\0000', '') AS "raw" FROM ${externExpression}`, // Make sure to remove possible \u0000 chars as they are not allowed and will produce an InvalidNullByte error message
           context: {
             sqlOuterLimit: 100,
           },
