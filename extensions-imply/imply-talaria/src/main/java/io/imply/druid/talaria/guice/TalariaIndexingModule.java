@@ -31,6 +31,7 @@ import io.imply.druid.talaria.indexing.error.InsertCannotReplaceExistingSegmentF
 import io.imply.druid.talaria.indexing.error.InsertLockPreemptedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeOutOfBoundsFault;
+import io.imply.druid.talaria.indexing.error.InvalidNullByteFault;
 import io.imply.druid.talaria.indexing.error.NotEnoughMemoryFault;
 import io.imply.druid.talaria.indexing.error.QueryNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.RowTooLargeFault;
@@ -98,6 +99,7 @@ public class TalariaIndexingModule implements DruidModule
       InsertLockPreemptedFault.class,
       InsertTimeNullFault.class,
       InsertTimeOutOfBoundsFault.class,
+      InvalidNullByteFault.class,
       NotEnoughMemoryFault.class,
       QueryNotSupportedFault.class,
       RowTooLargeFault.class,
