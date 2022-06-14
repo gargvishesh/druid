@@ -107,9 +107,14 @@ public class FrameReader
     if (columnNumber < 0) {
       return null;
     } else {
-      // Better than frameReader.frameSignature().getColumnCapabilities(column), because this method has more
-      // insight into what's actually going on with this column (nulls, multivalue, etc).
-      return columnReaders.get(columnNumber).readColumn(frame).getCapabilities();
+      switch (frame.type()) {
+        case COLUMNAR:
+          // Better than frameReader.frameSignature().getColumnCapabilities(columnName), because this method has more
+          // insight into what's actually going on with this column (nulls, multivalue, etc).
+          return columnReaders.get(columnNumber).readColumn(frame).getCapabilities();
+        default:
+          return signature.getColumnCapabilities(columnName);
+      }
     }
   }
 
