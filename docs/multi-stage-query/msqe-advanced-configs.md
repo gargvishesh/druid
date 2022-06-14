@@ -50,7 +50,7 @@ The following table describes the properties used to configure durable storage f
 
 | Config  | Description  | Required | Default |
 |---------|--------------------------|----------|---------|
-| `druid.talaria.intermediate.storage`                      | Set to `true` to enable this feature.  | Yes      | None    |
+| `druid.talaria.intermediate.storage.enable`                      | Set to `true` to enable this feature.  | Yes      | None    |
 | `druid.talaria.intermediate.storage.type`                      | Must be set to `s3`.  | Yes      | None    |
 | `druid.talaria.intermediate.storage.bucket`                    | S3 bucket to store intermediate stage. results.  | Yes      | None  |
 | `druid.talaria.intermediate.storage.prefix`                    | S3 prefix to store intermediate stage results. Provide a unique value for the prefix. Clusters should not share the same prefix.  | Yes      | None |
