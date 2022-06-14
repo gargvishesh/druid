@@ -74,7 +74,7 @@ import java.util.Set;
 
 public class TalariaIndexingModule implements DruidModule
 {
-  private static final String BASE_TALARIA_KEY = "druid.talaria";
+  private static final String BASE_TALARIA_KEY = "druid.msq";
   public static final String TALARIA_EXTERNAL_SINK = String.join(".", BASE_TALARIA_KEY, "externalsink");
   public static final String TALARIA_EXTERNAL_SINK_TYPE = String.join(".", TALARIA_EXTERNAL_SINK, "type");
   public static final String TALARIA_INTERMEDIATE_STORAGE = String.join(".", BASE_TALARIA_KEY, "intermediate.storage");
