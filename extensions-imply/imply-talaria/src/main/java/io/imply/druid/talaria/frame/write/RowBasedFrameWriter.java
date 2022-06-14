@@ -17,6 +17,8 @@ import io.imply.druid.talaria.frame.MemoryRange;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.field.FieldWriter;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.indexing.error.InvalidNullByteFault;
+import io.imply.druid.talaria.indexing.error.TalariaException;
 import org.apache.datasketches.memory.Memory;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.IAE;
@@ -275,11 +277,18 @@ public class RowBasedFrameWriter implements FrameWriter
 
     for (int i = 0; i < fieldWriters.size(); i++) {
       final FieldWriter fieldWriter = fieldWriters.get(i);
-      final long writeResult = fieldWriter.writeTo(
-          dataCursor.memory(),
-          dataCursor.start() + bytesWritten,
-          remainingInBlock - bytesWritten
-      );
+      final long writeResult;
+
+      try {
+        writeResult = fieldWriter.writeTo(
+            dataCursor.memory(),
+            dataCursor.start() + bytesWritten,
+            remainingInBlock - bytesWritten
+        );
+      }
+      catch (InvalidNullByteException e) {
+        throw new TalariaException(new InvalidNullByteFault(signature.getColumnName(i)));
+      }
 
       if (writeResult < 0) {
         // Reset to beginning of loop.
