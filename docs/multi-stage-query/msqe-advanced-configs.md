@@ -42,22 +42,32 @@ The following is used for removing intermediate stage results:
 
 To use durable storage for mesh shuffles, you need to include the following context variable when you submit a query:
 
-```sql
---:context talariaDurableShuffleStorage=true
-```
+**UI**
+
+   ```sql
+   --:context msqDurableShuffleStorage=true
+   ```
+
+**API**
+
+   ```json
+   "context": {
+       "msqDurableShuffleStorage": true
+   }
+   ```
 
 The following table describes the properties used to configure durable storage for MSQE:
 
 | Config  | Description  | Required | Default |
 |---------|--------------------------|----------|---------|
-| `druid.talaria.intermediate.storage.enable`                      | Set to `true` to enable this feature.  | Yes      | None    |
-| `druid.talaria.intermediate.storage.type`                      | Must be set to `s3`.  | Yes      | None    |
-| `druid.talaria.intermediate.storage.bucket`                    | S3 bucket to store intermediate stage. results.  | Yes      | None  |
-| `druid.talaria.intermediate.storage.prefix`                    | S3 prefix to store intermediate stage results. Provide a unique value for the prefix. Clusters should not share the same prefix.  | Yes      | None |
-| `druid.talaria.intermediate.storage.tempDir`                   | Directory path on the local disk to store intermediate stage results. temporarily.  | Yes      | None |
-| `druid.talaria.intermediate.storage.maxResultsSize`            | Max size of each partition file per stage. It should be between 5MiB and 5TiB. Supports a human-readable format.  For eg if a stage has 50 partitions we can effectively use s3 up to 250TIB of stage output assuming each partition file <=5TiB. | No       | 100MiB  |
-| `druid.talaria.intermediate.storage.chunkSize`                 | Imply recommends using the default value for most cases. This property defines the size of each chunk to temporarily store in `druid.talaria.intermediate.storage.tempDir`. Druid computes the chunk size automatically if this property is not set. The chunk size must be between 5MiB and 5GiB. | No       | None    |
-| `druid.talaria.intermediate.storage.maxTriesOnTransientErrors` | Imply recommends using the default value for most cases. This property defines the max number times to attempt S3 API calls to avoid failures due to transient errors.  | no       | 10      |
+| `druid.msq.intermediate.storage.enable`                      | Set to `true` to enable this feature.  | Yes      | None    |
+| `druid.msq.intermediate.storage.type`                      | Must be set to `s3`.  | Yes      | None    |
+| `druid.msq.intermediate.storage.bucket`                    | S3 bucket to store intermediate stage. results.  | Yes      | None  |
+| `druid.msq.intermediate.storage.prefix`                    | S3 prefix to store intermediate stage results. Provide a unique value for the prefix. Clusters should not share the same prefix.  | Yes      | None |
+| `druid.msq.intermediate.storage.tempDir`                   | Directory path on the local disk to store intermediate stage results. temporarily.  | Yes      | None |
+| `druid.msq.intermediate.storage.maxResultsSize`            | Max size of each partition file per stage. It should be between 5MiB and 5TiB. Supports a human-readable format.  For eg if a stage has 50 partitions we can effectively use s3 up to 250TIB of stage output assuming each partition file <=5TiB. | No       | 100MiB  |
+| `druid.msq.intermediate.storage.chunkSize`                 | Imply recommends using the default value for most cases. This property defines the size of each chunk to temporarily store in `druid.msq.intermediate.storage.tempDir`. Druid computes the chunk size automatically if this property is not set. The chunk size must be between 5MiB and 5GiB. | No       | None    |
+| `druid.msq.intermediate.storage.maxTriesOnTransientErrors` | Imply recommends using the default value for most cases. This property defines the max number times to attempt S3 API calls to avoid failures due to transient errors.  | no       | 10      |
 
 ## Performance
 

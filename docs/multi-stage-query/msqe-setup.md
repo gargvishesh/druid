@@ -34,13 +34,13 @@ For Imply Hybrid, you enable MSQE by selecting the feature flag for it in Imply 
      
         ```bash
         # Required for using durable storage for mesh shuffle
-        druid.talaria.intermediate.storage.enable=true
-        druid.talaria.intermediate.storage=s3
-        druid.talaria.intermediate.storage.bucket=<your_bucket>
-        druid.talaria.intermediate.storage.prefix=<your_prefix<>
-        druid.talaria.intermediate.storage.tempDir=</path/to/your/temp/dir>
+        druid.msq.intermediate.storage.enable=true
+        druid.msq.intermediate.storage.type=s3
+        druid.msq.intermediate.storage.bucket=your_bucket>
+        druid.msq.intermediate.storage.prefix=<your_prefix<>
+        druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
         # Optional for using durable storage for mesh shuffle
-        druid.talaria.intermediate.storage.maxResultsSize=5GiB
+        druid.msq.intermediate.storage.maxResultsSize=5GiB
         ```
    
       For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-advanced-configs.md#s3).
@@ -75,13 +75,13 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
 
    ```bash
    # Required for using durable storage for mesh shuffle
-   druid.talaria.intermediate.storage.enable=true
-   druid.talaria.intermediate.storage=s3
-   druid.talaria.intermediate.storage.bucket=<your_bucket>
-   druid.talaria.intermediate.storage.prefix=<your_prefix<>
-   druid.talaria.intermediate.storage.tempDir=</path/to/your/temp/dir>
+   druid.msq.intermediate.storage.enable=true
+   druid.msq.intermediate.storage.type=s3
+   druid.msq.intermediate.storage.bucket=your_bucket>
+   druid.msq.intermediate.storage.prefix=<your_prefix<>
+   druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
    # Optional for using durable storage for mesh shuffle
-   druid.talaria.intermediate.storage.maxResultsSize=5GiB
+   druid.msq.intermediate.storage.maxResultsSize=5GiB
    ```
    
    For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-advanced-configs.md#s3).

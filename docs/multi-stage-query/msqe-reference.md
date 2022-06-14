@@ -43,7 +43,7 @@ You provide context variables alongside your queries to customize the behavior o
 | maxParseExceptions| (SELECT or INSERT)<br /><br />Maximum number of parse exceptions that are ignored while executing the query before it stops with `TooManyWarningsFault`. Can be set to -1 to ignore all the parse exceptions<br /><br />| -1 |
 | msqMode| (SELECT or INSERT)<br /><br />Execute a query with a predefined set of parameters which are pretuned. It can be set to `strict` or `nonStrict`. Setting the mode to `strict` is equivalent to setting `maxParseExceptions: 0`: the query fails if there is a malformed record. Setting the mode to `nonStrict` is equivalent to setting `maxParseExceptions: -1`: the query won't fail regardless of the number of malformed records.  .<br /><br />| no default value |
 | msqRowsPerSegment        | (INSERT or REPLACE)<br /><br />Number of rows per segment to target. The actual number of rows per segment may be somewhat higher or lower than this number. In most cases, you should stick to the default. For general information about sizing rows per segment, see [Segment Size Optimization](../operations/segment-optimization.md). | 3,000,000 |
-| talariaDurableShuffleStorage | (SELECT OR INSERT OR REPLACE) <br /><br />Whether to use durable storage for shuffle mesh. To use this feature, durable storage must be configured at the server level using `druid.talaria.intermediate.storage.enable=true` and its [associated properties](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). If these properties are not configured, any query with the context variable `talariaDurableShuffleStorage=true` fails with a configuration error. <br /><br /> | false |
+| msqDurableShuffleStorage | (SELECT OR INSERT OR REPLACE) <br /><br />Whether to use durable storage for shuffle mesh. To use this feature, durable storage must be configured at the server level using `druid.msq.intermediate.storage.enable=true` and its [associated properties](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). If these properties are not configured, any query with the context variable `msqDurableShuffleStorage=true` fails with a configuration error. <br /><br /> | false |
 
 ## Report response fields
 
@@ -77,7 +77,7 @@ The following table describes the response fields when you retrieve a report for
 
 ## Error codes
 
-The following table lists the possible values for `talariaStatus.payload.errorReport.error.errorCode`:
+The following table describes the error codes you may encounter in a report for an MSQE query:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
