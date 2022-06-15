@@ -21,12 +21,16 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.filter.NotDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
+import org.apache.druid.query.groupby.orderby.DefaultLimitSpec;
+import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
+import org.apache.druid.query.ordering.StringComparators;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
@@ -144,6 +148,110 @@ public class TalariaSelectTest extends TalariaTestRunner
             ImmutableList.of(
                 new Object[]{1L, 6L}
             )).verifyResults();
+  }
+
+  @Test
+  public void testGroupByOrderByDimension()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("m1", ColumnType.FLOAT)
+                                            .add("cnt", ColumnType.LONG)
+                                            .build();
+
+    final GroupByQuery query =
+        GroupByQuery.builder()
+                    .setDataSource(CalciteTests.DATASOURCE1)
+                    .setInterval(querySegmentSpec(Filtration.eternity()))
+                    .setGranularity(Granularities.ALL)
+                    .setDimensions(dimensions(new DefaultDimensionSpec("m1", "d0", ColumnType.FLOAT)))
+                    .setAggregatorSpecs(aggregators(new CountAggregatorFactory("a0")))
+                    .setLimitSpec(
+                        new DefaultLimitSpec(
+                            ImmutableList.of(
+                                new OrderByColumnSpec(
+                                    "d0",
+                                    OrderByColumnSpec.Direction.DESCENDING,
+                                    StringComparators.NUMERIC
+                                )
+                            ),
+                            null
+                        )
+                    )
+                    .setContext(DEFAULT_TALARIA_CONTEXT)
+                    .build();
+
+    testSelectQuery()
+        .setSql("select m1, count(*) as cnt from foo group by m1 order by m1 desc")
+        .setExpectedTalariaQuerySpec(
+            TalariaQuerySpec.builder()
+                            .setQuery(query)
+                            .setColumnMappings(ColumnMappings.identity(rowSignature))
+                            .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                            .build())
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedResultRows(
+            ImmutableList.of(
+                new Object[]{6f, 1L},
+                new Object[]{5f, 1L},
+                new Object[]{4f, 1L},
+                new Object[]{3f, 1L},
+                new Object[]{2f, 1L},
+                new Object[]{1f, 1L}
+            )
+        )
+        .verifyResults();
+  }
+
+  @Test
+  public void testGroupByOrderByAggregation()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("m1", ColumnType.FLOAT)
+                                            .add("sum_m1", ColumnType.DOUBLE)
+                                            .build();
+
+    final GroupByQuery query =
+        GroupByQuery.builder()
+                    .setDataSource(CalciteTests.DATASOURCE1)
+                    .setInterval(querySegmentSpec(Filtration.eternity()))
+                    .setGranularity(Granularities.ALL)
+                    .setDimensions(dimensions(new DefaultDimensionSpec("m1", "d0", ColumnType.FLOAT)))
+                    .setAggregatorSpecs(aggregators(new DoubleSumAggregatorFactory("a0", "m1")))
+                    .setLimitSpec(
+                        new DefaultLimitSpec(
+                            ImmutableList.of(
+                                new OrderByColumnSpec(
+                                    "a0",
+                                    OrderByColumnSpec.Direction.DESCENDING,
+                                    StringComparators.NUMERIC
+                                )
+                            ),
+                            null
+                        )
+                    )
+                    .setContext(DEFAULT_TALARIA_CONTEXT)
+                    .build();
+
+    testSelectQuery()
+        .setSql("select m1, sum(m1) as sum_m1 from foo group by m1 order by sum_m1 desc")
+        .setExpectedTalariaQuerySpec(
+            TalariaQuerySpec.builder()
+                            .setQuery(query)
+                            .setColumnMappings(ColumnMappings.identity(rowSignature))
+                            .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                            .build()
+        )
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedResultRows(
+            ImmutableList.of(
+                new Object[]{6f, 6d},
+                new Object[]{5f, 5d},
+                new Object[]{4f, 4d},
+                new Object[]{3f, 3d},
+                new Object[]{2f, 2d},
+                new Object[]{1f, 1d}
+            )
+        ).verifyResults();
   }
 
   @Test

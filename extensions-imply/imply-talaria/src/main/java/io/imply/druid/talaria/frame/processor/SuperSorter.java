@@ -563,6 +563,8 @@ public class SuperSorter
                   FrameType.ROW_BASED, // Row-based frames are generally preferred as inputs to mergers
                   frameAllocator,
                   frameReader.signature(),
+
+                  // No sortColumns, because FrameChannelMerger generates frames that are sorted all on its own
                   Collections.emptyList()
               ),
               clusterBy,

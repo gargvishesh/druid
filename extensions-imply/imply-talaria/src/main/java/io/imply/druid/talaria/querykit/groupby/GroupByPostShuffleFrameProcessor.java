@@ -15,6 +15,7 @@ import io.imply.druid.talaria.frame.MemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
+import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.processor.FrameRowTooLargeException;
@@ -59,6 +60,7 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
   private final MemoryAllocator allocator;
   private final FrameReader frameReader;
   private final RowSignature resultSignature;
+  private final ClusterBy clusterBy;
   private final ColumnSelectorFactory columnSelectorFactoryForFrameWriter;
   private final Comparator<ResultRow> compareFn;
   private final BinaryOperator<ResultRow> mergeFn;
@@ -79,6 +81,7 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
       final WritableFrameChannel outputChannel,
       final FrameReader frameReader,
       final RowSignature resultSignature,
+      final ClusterBy clusterBy,
       final MemoryAllocator allocator
   )
   {
@@ -87,6 +90,7 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
     this.outputChannel = outputChannel;
     this.frameReader = frameReader;
     this.resultSignature = resultSignature;
+    this.clusterBy = clusterBy;
     this.allocator = allocator;
     this.compareFn = strategySelector.strategize(query).createResultComparator(query);
     this.mergeFn = strategySelector.strategize(query).createMergeFn(query);
@@ -256,7 +260,7 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
   {
     if (frameWriter == null) {
       final FrameWriterFactory frameWriterFactory =
-          FrameWriters.makeFrameWriterFactory(FrameType.ROW_BASED, allocator, resultSignature, Collections.emptyList());
+          FrameWriters.makeFrameWriterFactory(FrameType.ROW_BASED, allocator, resultSignature, clusterBy.getColumns());
       frameWriter = frameWriterFactory.newFrameWriter(columnSelectorFactoryForFrameWriter);
     }
   }

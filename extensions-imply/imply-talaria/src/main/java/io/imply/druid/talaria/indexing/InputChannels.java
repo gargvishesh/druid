@@ -229,6 +229,8 @@ public class InputChannels
               FrameType.ROW_BASED,
               allocatorMaker.get(),
               stageDefinition.getFrameReader().signature(),
+
+              // No sortColumns, because FrameChannelMerger generates frames that are sorted all on its own
               Collections.emptyList()
           ),
           clusterBy,
