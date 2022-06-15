@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class IpAddressExpressions
 {
   public static final ExpressionType TYPE = Preconditions.checkNotNull(
-      ExpressionType.fromColumnType(IpAddressModule.TYPE)
+      ExpressionType.fromColumnType(IpAddressModule.ADDRESS_TYPE)
   );
 
   public static class ParseExprMacro implements ExprMacroTable.ExprMacro

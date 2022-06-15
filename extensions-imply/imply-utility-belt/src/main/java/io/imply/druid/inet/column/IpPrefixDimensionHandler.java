@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -31,7 +34,7 @@ import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import java.util.Comparator;
 
-public class IpAddressDimensionHandler implements DimensionHandler<Integer, Integer, IpAddressBlob>
+public class IpPrefixDimensionHandler implements DimensionHandler<Integer, Integer, IpPrefixBlob>
 {
   static final Comparator<ColumnValueSelector> DIMENSION_COMPARATOR = (s1, s2) -> {
     int row1 = getRow(s1);
@@ -42,7 +45,7 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
 
   private final String name;
 
-  public IpAddressDimensionHandler(String name)
+  public IpPrefixDimensionHandler(String name)
   {
     this.name = name;
   }
@@ -56,19 +59,19 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
   @Override
   public DimensionSpec getDimensionSpec()
   {
-    return new DefaultDimensionSpec(name, name, IpAddressModule.ADDRESS_TYPE);
+    return new DefaultDimensionSpec(name, name, IpAddressModule.PREFIX_TYPE);
   }
 
   @Override
   public DimensionSchema getDimensionSchema(ColumnCapabilities capabilities)
   {
-    return new IpAddressDimensionSchema(name, true);
+    return new IpPrefixDimensionSchema(name, true);
   }
 
   @Override
-  public DimensionIndexer<Integer, Integer, IpAddressBlob> makeIndexer(boolean useMaxMemoryEstimates)
+  public DimensionIndexer<Integer, Integer, IpPrefixBlob> makeIndexer(boolean useMaxMemoryEstimates)
   {
-    return new IpAddressDictionaryEncodedColumnIndexer(true, useMaxMemoryEstimates);
+    return new IpPrefixDictionaryEncodedColumnIndexer(true, useMaxMemoryEstimates);
   }
 
   @Override
@@ -80,7 +83,7 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
       Closer closer
   )
   {
-    return new IpAddressDictionaryEncodedColumnMerger(
+    return new IpPrefixDictionaryEncodedColumnMerger(
         name,
         indexSpec,
         segmentWriteOutMedium,

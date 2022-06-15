@@ -191,6 +191,8 @@ The conversion table is applied with the following rules:
 
 ## IP Address Columns
 
+### IP Address Column
+
 IPv4 and IPv6 addresses can be ingested into specialized column type that stores IP address in their native 128-bit binary format.
 
 ```json
@@ -200,4 +202,13 @@ IPv4 and IPv6 addresses can be ingested into specialized column type that stores
 }
 ```
 
-_WIP_
+### IP Prefix Column
+
+IPv4 and IPv6 prefixes can be ingested into specialized column type that stores IP prefix using the address's native 128-bit binary format plus 8-bit for the size of the prefix.
+
+```json
+{
+   "type": "ipPrefix",
+   "name": "someColumnName"
+}
+```

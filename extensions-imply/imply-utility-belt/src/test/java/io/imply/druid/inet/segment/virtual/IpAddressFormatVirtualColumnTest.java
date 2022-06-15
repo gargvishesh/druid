@@ -97,7 +97,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testDimensionSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -138,7 +138,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testDimensionSelectorWithColumnSelectorFactory() throws Exception
   {
-    Segment segment = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
+    Segment segment = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -182,7 +182,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testSingleValueDimensionVectorSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -232,7 +232,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testVectorObjectSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",

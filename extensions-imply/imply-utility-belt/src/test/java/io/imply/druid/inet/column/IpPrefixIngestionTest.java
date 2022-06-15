@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -13,7 +16,6 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.inet.IpAddressModule;
-import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
@@ -35,14 +37,14 @@ import org.junit.rules.TemporaryFolder;
 import java.util.Collections;
 import java.util.List;
 
-public class IpAddressIngestionTest extends InitializedNullHandlingTest
+public class IpPrefixIngestionTest extends InitializedNullHandlingTest
 {
   private final AggregationTestHelper helper;
 
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-  public IpAddressIngestionTest()
+  public IpPrefixIngestionTest()
   {
     IpAddressModule.registerHandlersAndSerde();
     List<? extends Module> mods = IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE.getJacksonModules();
@@ -66,36 +68,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();
-    List<Segment> segs = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
-
-    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
-
-    List<ScanResultValue> results = seq.toList();
-    Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
-  }
-
-  @Test
-  public void testIngestIpAndScanSegmentsWithIpStringify() throws Exception
-  {
-    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
-                                             .dataSource("test_datasource")
-                                             .intervals(
-                                                 new MultipleIntervalSegmentSpec(
-                                                     Collections.singletonList(Intervals.ETERNITY)
-                                                 )
-                                             )
-                                             .virtualColumns(new IpAddressFormatVirtualColumn(
-                                                 "v0",
-                                                 "ipv4",
-                                                 true,
-                                                 false
-                                             ))
-                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .limit(100)
-                                             .context(ImmutableMap.of())
-                                             .build();
-    List<Segment> segs = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segs = IpAddressTestUtils.createIpPrefixDefaultHourlySegments(helper, tempFolder);
 
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
@@ -118,7 +91,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();
-    List<Segment> segs = IpAddressTestUtils.createIpAddressSegments(
+    List<Segment> segs = IpAddressTestUtils.createIpPrefixSegments(
         helper,
         tempFolder,
         Granularities.HOUR,
@@ -147,7 +120,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .context(ImmutableMap.of())
                                              .build();
 
-    List<Segment> segs = IpAddressTestUtils.createIpAddressDefaultDaySegments(helper, tempFolder);
+    List<Segment> segs = IpAddressTestUtils.createIpPrefixDefaultDaySegments(helper, tempFolder);
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
     List<ScanResultValue> results = seq.toList();
@@ -166,11 +139,11 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                                  )
                                              )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .filters(new SelectorDimFilter("ipv4", "22.22.23.24", null))
+                                             .filters(new SelectorDimFilter("ipv4", "22.22.23.24/32", null))
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();
-    List<Segment> segs = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segs = IpAddressTestUtils.createIpPrefixDefaultHourlySegments(helper, tempFolder);
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
     List<ScanResultValue> results = seq.toList();
@@ -206,7 +179,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .context(ImmutableMap.of())
                                              .build();
 
-    List<Segment> segs = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segs = IpAddressTestUtils.createIpPrefixDefaultHourlySegments(helper, tempFolder);
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
 
@@ -219,7 +192,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   @Test
   public void testIngestIpAndScanIncrementalIndex() throws Exception
   {
-    Segment index = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
+    Segment index = IpAddressTestUtils.createIpPrefixDefaultHourlyIncrementalIndex();
 
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
@@ -233,36 +206,6 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                              .context(ImmutableMap.of())
                                              .build();
 
-    Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(
-        ImmutableList.of(index),
-        scanQuery
-    );
-    List<ScanResultValue> results = seq.toList();
-    Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
-  }
-
-  @Test
-  public void testIngestIpAndScanIncrementalIndexWithIpStringify() throws Exception
-  {
-    Segment index = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
-    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
-                                             .dataSource("test_datasource")
-                                             .intervals(
-                                                 new MultipleIntervalSegmentSpec(
-                                                     Collections.singletonList(Intervals.ETERNITY)
-                                                 )
-                                             )
-                                             .virtualColumns(new IpAddressFormatVirtualColumn(
-                                                 "v0",
-                                                 "ipv4",
-                                                 true,
-                                                 false
-                                             ))
-                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .limit(100)
-                                             .context(ImmutableMap.of())
-                                             .build();
     Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(
         ImmutableList.of(index),
         scanQuery
@@ -275,7 +218,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   @Test
   public void testIngestIpAndScanIncrementalIndexRollup() throws Exception
   {
-    Segment index = IpAddressTestUtils.createIpAddressDefaultDailyIncrementalIndex();
+    Segment index = IpAddressTestUtils.createIpPrefixDefaultDailyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
                                              .intervals(
@@ -300,7 +243,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   @Test
   public void testIngestIpAndScanIncrementalIndexAndFilter() throws Exception
   {
-    Segment index = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
+    Segment index = IpAddressTestUtils.createIpPrefixDefaultHourlyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
                                              .intervals(
@@ -309,7 +252,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
                                                  )
                                              )
                                              .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
-                                             .filters(new SelectorDimFilter("ipv4", "22.22.23.24", null))
+                                             .filters(new SelectorDimFilter("ipv4", "22.22.23.24/32", null))
                                              .limit(100)
                                              .context(ImmutableMap.of())
                                              .build();
@@ -326,7 +269,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
   @Test
   public void testIngestIpAndScanIncrementalIndexAndFilterRangeIncrementalIndex() throws Exception
   {
-    Segment index = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
+    Segment index = IpAddressTestUtils.createIpPrefixDefaultHourlyIncrementalIndex();
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
                                              .dataSource("test_datasource")
                                              .intervals(

@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -15,10 +18,10 @@ import io.imply.druid.inet.IpAddressModule;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.segment.column.ColumnType;
 
-public class IpAddressDimensionSchema extends DimensionSchema
+public class IpPrefixDimensionSchema extends DimensionSchema
 {
   @JsonCreator
-  public IpAddressDimensionSchema(
+  public IpPrefixDimensionSchema(
       @JsonProperty("name") String name,
       @JsonProperty("createBitmapIndex") Boolean createBitmapIndex
   )
@@ -29,12 +32,12 @@ public class IpAddressDimensionSchema extends DimensionSchema
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.ADDRESS_TYPE_NAME;
+    return IpAddressModule.PREFIX_TYPE_NAME;
   }
 
   @Override
   public ColumnType getColumnType()
   {
-    return IpAddressModule.ADDRESS_TYPE;
+    return IpAddressModule.PREFIX_TYPE;
   }
 }

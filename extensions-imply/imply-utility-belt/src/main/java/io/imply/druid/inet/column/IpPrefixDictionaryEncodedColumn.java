@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -40,13 +43,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 
-public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn<IpAddressBlob>, ComplexColumn
+public class IpPrefixDictionaryEncodedColumn implements DictionaryEncodedColumn<IpPrefixBlob>, ComplexColumn
 {
   private final ColumnarInts column;
   private final GenericIndexed<ByteBuffer> dictionary;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
 
-  public IpAddressDictionaryEncodedColumn(
+  public IpPrefixDictionaryEncodedColumn(
       ColumnarInts column,
       GenericIndexed<ByteBuffer> dictionary,
       GenericIndexed<ImmutableBitmap> bitmaps
@@ -83,14 +86,14 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
 
   @Nullable
   @Override
-  public IpAddressBlob lookupName(int id)
+  public IpPrefixBlob lookupName(int id)
   {
     ByteBuffer blob = dictionary.get(id);
-    return IpAddressBlob.ofByteBuffer(blob);
+    return IpPrefixBlob.ofByteBuffer(blob);
   }
 
   @Override
-  public int lookupId(IpAddressBlob name)
+  public int lookupId(IpPrefixBlob name)
   {
     if (name == null) {
       return dictionary.indexOf(null);
@@ -111,7 +114,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
   )
   {
 
-    class IpAddressBlobDimensionSelector extends AbstractDimensionSelector
+    class IpPrefixBlobDimensionSelector extends AbstractDimensionSelector
         implements SingleValueHistoricalDimensionSelector, IdLookup
     {
       private final SingleIndexedInt row = new SingleIndexedInt();
@@ -158,7 +161,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
               @Override
               public void inspectRuntimeShape(RuntimeShapeInspector inspector)
               {
-                inspector.visit("column", IpAddressDictionaryEncodedColumn.this);
+                inspector.visit("column", IpPrefixDictionaryEncodedColumn.this);
               }
             };
           } else {
@@ -199,7 +202,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
           @Override
           public void inspectRuntimeShape(RuntimeShapeInspector inspector)
           {
-            inspector.visit("column", IpAddressDictionaryEncodedColumn.this);
+            inspector.visit("column", IpPrefixDictionaryEncodedColumn.this);
           }
         };
       }
@@ -207,13 +210,13 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       @Override
       public Object getObject()
       {
-        return IpAddressDictionaryEncodedColumn.this.lookupName(getRowValue());
+        return IpPrefixDictionaryEncodedColumn.this.lookupName(getRowValue());
       }
 
       @Override
       public Class classOfObject()
       {
-        return IpAddressBlob.class;
+        return IpPrefixBlob.class;
       }
 
       @Override
@@ -241,7 +244,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       @Override
       public String lookupName(int id)
       {
-        final IpAddressBlob value = IpAddressDictionaryEncodedColumn.this.lookupName(id);
+        final IpPrefixBlob value = IpPrefixDictionaryEncodedColumn.this.lookupName(id);
         final String asString = value == null ? null : value.asCompressedString();
         return extractionFn == null ? asString : extractionFn.apply(asString);
       }
@@ -277,13 +280,13 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       public int lookupId(String name)
       {
         if (extractionFn == null) {
-          return IpAddressDictionaryEncodedColumn.this.lookupId(IpAddressBlob.ofString(name));
+          return IpPrefixDictionaryEncodedColumn.this.lookupId(IpPrefixBlob.ofString(name));
         }
         throw new UnsupportedOperationException("cannot perform lookup when applying an extraction function");
       }
     }
 
-    return new IpAddressBlobDimensionSelector();
+    return new IpPrefixBlobDimensionSelector();
   }
 
   @Override
@@ -309,10 +312,10 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
   @Override
   public VectorObjectSelector makeVectorObjectSelector(ReadableVectorOffset offset)
   {
-    class DictionaryEncodedIpAddressVectorObjectSelector implements VectorObjectSelector
+    class DictionaryEncodedIpPrefixVectorObjectSelector implements VectorObjectSelector
     {
       private final int[] vector = new int[offset.getMaxVectorSize()];
-      private final IpAddressBlob[] blobs = new IpAddressBlob[offset.getMaxVectorSize()];
+      private final IpPrefixBlob[] blobs = new IpPrefixBlob[offset.getMaxVectorSize()];
       private int id = ReadableVectorInspector.NULL_ID;
 
       @Override
@@ -348,19 +351,19 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       }
     }
 
-    return new DictionaryEncodedIpAddressVectorObjectSelector();
+    return new DictionaryEncodedIpPrefixVectorObjectSelector();
   }
 
   @Override
   public Class<?> getClazz()
   {
-    return IpAddressBlob.class;
+    return IpPrefixBlob.class;
   }
 
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.ADDRESS_TYPE_NAME;
+    return IpAddressModule.PREFIX_TYPE_NAME;
   }
 
   @Override
@@ -384,21 +387,5 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
     catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-
-  public ColumnarInts getEncodedValuesColumn()
-  {
-    return column;
-  }
-
-  public GenericIndexed<ByteBuffer> getDictionary()
-  {
-    return dictionary;
-  }
-
-  public GenericIndexed<ImmutableBitmap> getBitmaps()
-  {
-    return bitmaps;
   }
 }

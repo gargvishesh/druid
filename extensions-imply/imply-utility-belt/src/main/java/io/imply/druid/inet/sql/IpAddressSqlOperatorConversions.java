@@ -48,7 +48,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.ADDRESS_TYPE,
                     true
                 )
             )
@@ -90,7 +90,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.ADDRESS_TYPE,
                     true
                 )
             )
@@ -210,7 +210,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.ADDRESS_TYPE,
                     true
                 )
             )
