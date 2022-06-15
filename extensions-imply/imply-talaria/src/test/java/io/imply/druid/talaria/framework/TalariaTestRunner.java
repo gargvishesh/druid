@@ -840,7 +840,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           }
         }
 
-        log.info("Found spec %s", foundSpec);
+        log.info("Found spec: %s", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(foundSpec));
 
         // Sorting rows as we are not controlling the order of segment generation in UT's.
         Collections.sort(foundResultRows, Comparator.comparing(Arrays::toString));
@@ -944,11 +944,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                                  .collect(Collectors.joining("\n")));
 
           TalariaQuerySpec spec = indexingServiceClient.getQuerySpecForTask(controllerId);
-          log.info("found spec %s", spec);
-          return new Pair<TalariaQuerySpec, Pair<RowSignature, List<Object[]>>>(
-              spec,
-              rowSignatureListPair.get()
-          );
+          log.info("Found spec: %s", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(spec));
+          return new Pair<>(spec, rowSignatureListPair.get());
         }
       }
       catch (Exception e) {
