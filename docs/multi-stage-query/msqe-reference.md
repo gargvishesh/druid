@@ -47,7 +47,7 @@ You provide context variables alongside your queries to customize the behavior o
 
 ## Report response fields
 
-The following table describes the response fields when you retrieve a report for a MSQE task using the `/druid/indexer/v1/task` endpoint:
+The following table describes the response fields when you retrieve a report for a MSQE task using the `/druid/indexer/v1/task/{taskId}/reports` endpoint:
 
 |Field|Description|
 |-----|-----------|
@@ -59,11 +59,14 @@ The following table describes the response fields when you retrieve a report for
 |multiStageQuery.payload.status.errorReport|Error object. Only present if there was an error.|
 |multiStageQuery.payload.status.errorReport.taskId|The task that reported the error, if known. May be a controller task or a worker task.|
 |multiStageQuery.payload.status.errorReport.host|The hostname and port of the task that reported the error, if known.|
-|multiStageQuery.payload.status.errorReport.stageNumber|The stage number that reported the error, if it happened during execution of a specific stage.|
+|multiStageQuery.payload.status.errorReport.stageNumber|The stage number that reported the error if it happened during execution of a specific stage.|
 |multiStageQuery.payload.status.errorReport.error|Error object. Contains `errorCode` at a minimum, and may contain other fields as described in the [error code table](#error-codes). Always present if there is an error.|
 |multiStageQuery.payload.status.errorReport.error.errorCode|One of the error codes from the [error code table](#error-codes). Always present if there is an error.|
 |multiStageQuery.payload.status.errorReport.error.errorMessage|User-friendly error message. Not always present, even if there is an error.|
 |multiStageQuery.payload.status.errorReport.exceptionStackTrace|Java stack trace in string form, if the error was due to a server-side exception.|
+|msq.payload.status.counters.warningCounters | The collection of warnings that occurred and how many times they occurred when the query ran. They're organized by stage. If there were no warnings, it's an empty array.
+|msq.payload.status.counters.warningCounters.stageNumber | The stage number that reported a warning if it happened during execution of a specific stage.|
+|msq.payload.status.counters.warningCounters.warningCounters.warningCount.{} | The warnings and how many times they occurred for the stage. |
 |multiStageQuery.payload.stages|Array of query stages.|
 |multiStageQuery.payload.stages[].stageNumber|Each stage has a number that differentiates it from other stages.|
 |multiStageQuery.payload.stages[].inputStages|Array of input stage numbers.|
