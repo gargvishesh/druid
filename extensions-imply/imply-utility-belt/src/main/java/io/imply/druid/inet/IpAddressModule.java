@@ -20,6 +20,11 @@ import io.imply.druid.inet.column.IpAddressBlobJsonSerializer;
 import io.imply.druid.inet.column.IpAddressComplexTypeSerde;
 import io.imply.druid.inet.column.IpAddressDimensionHandler;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
+import io.imply.druid.inet.column.IpPrefixBlob;
+import io.imply.druid.inet.column.IpPrefixBlobJsonSerializer;
+import io.imply.druid.inet.column.IpPrefixComplexTypeSerde;
+import io.imply.druid.inet.column.IpPrefixDimensionHandler;
+import io.imply.druid.inet.column.IpPrefixDimensionSchema;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import io.imply.druid.inet.sql.IpAddressSqlOperatorConversions;
@@ -41,8 +46,10 @@ public class IpAddressModule implements DruidModule
 
   @VisibleForTesting
   public static final String FEATURE_NAME = "enhanced-ip-support";
-  public static final String TYPE_NAME = "ipAddress";
-  public static final ColumnType TYPE = ColumnType.ofComplex(IpAddressModule.TYPE_NAME);
+  public static final String ADDRESS_TYPE_NAME = "ipAddress";
+  public static final ColumnType ADDRESS_TYPE = ColumnType.ofComplex(IpAddressModule.ADDRESS_TYPE_NAME);
+  public static final String PREFIX_TYPE_NAME = "ipPrefix";
+  public static final ColumnType PREFIX_TYPE = ColumnType.ofComplex(IpAddressModule.PREFIX_TYPE_NAME);
   private ImplyLicenseManager implyLicenseManager;
 
   @Inject
@@ -62,10 +69,12 @@ public class IpAddressModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule("IpAddressModule")
             .registerSubtypes(
-                new NamedType(IpAddressDimensionSchema.class, TYPE_NAME),
+                new NamedType(IpAddressDimensionSchema.class, ADDRESS_TYPE_NAME),
+                new NamedType(IpPrefixDimensionSchema.class, PREFIX_TYPE_NAME),
                 new NamedType(IpAddressFormatVirtualColumn.class, IpAddressFormatVirtualColumn.TYPE_NAME)
             )
             .addSerializer(IpAddressBlob.class, new IpAddressBlobJsonSerializer())
+            .addSerializer(IpPrefixBlob.class, new IpPrefixBlobJsonSerializer())
     );
   }
 
@@ -93,13 +102,22 @@ public class IpAddressModule implements DruidModule
   @VisibleForTesting
   public static void registerHandlersAndSerde()
   {
-    if (ComplexMetrics.getSerdeForType(TYPE_NAME) == null) {
-      ComplexMetrics.registerSerde(TYPE_NAME, IpAddressComplexTypeSerde.INSTANCE);
+    if (ComplexMetrics.getSerdeForType(ADDRESS_TYPE_NAME) == null) {
+      ComplexMetrics.registerSerde(ADDRESS_TYPE_NAME, IpAddressComplexTypeSerde.INSTANCE);
     }
 
     DimensionHandlerUtils.registerDimensionHandlerProvider(
-        TYPE_NAME,
+        ADDRESS_TYPE_NAME,
         IpAddressDimensionHandler::new
+    );
+
+    if (ComplexMetrics.getSerdeForType(PREFIX_TYPE_NAME) == null) {
+      ComplexMetrics.registerSerde(PREFIX_TYPE_NAME, IpPrefixComplexTypeSerde.INSTANCE);
+    }
+
+    DimensionHandlerUtils.registerDimensionHandlerProvider(
+        PREFIX_TYPE_NAME,
+        IpPrefixDimensionHandler::new
     );
   }
 }

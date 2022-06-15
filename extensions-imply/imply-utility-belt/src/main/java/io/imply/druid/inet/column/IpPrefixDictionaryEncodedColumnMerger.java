@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -38,18 +41,18 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.Comparator;
 
-public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedColumnMerger<IpAddressBlob>
+public class IpPrefixDictionaryEncodedColumnMerger extends DictionaryEncodedColumnMerger<IpPrefixBlob>
 {
   public static final SerializerUtils SERIALIZER_UTILS = new SerializerUtils();
-  public static final Comparator<Pair<Integer, PeekingIterator<IpAddressBlob>>> DICTIONARY_MERGING_COMPARATOR =
+  public static final Comparator<Pair<Integer, PeekingIterator<IpPrefixBlob>>> DICTIONARY_MERGING_COMPARATOR =
       DictionaryMergingIterator.makePeekingComparator();
 
-  private static final Indexed<IpAddressBlob> NULL_VALUE = new ListIndexed<>(Collections.singletonList(null));
+  private static final Indexed<IpPrefixBlob> NULL_VALUE = new ListIndexed<>(Collections.singletonList(null));
   private static final byte VERSION = 0x00;
 
   private final byte[] metadataBytes;
 
-  public IpAddressDictionaryEncodedColumnMerger(
+  public IpPrefixDictionaryEncodedColumnMerger(
       String name,
       IndexSpec indexSpec,
       SegmentWriteOutMedium segmentWriteOutMedium,
@@ -63,7 +66,7 @@ public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedCol
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       SERIALIZER_UTILS.writeString(
           baos,
-          IpAddressComplexTypeSerde.JSON_MAPPER.writeValueAsString(
+          IpPrefixComplexTypeSerde.JSON_MAPPER.writeValueAsString(
               new IpAddressBlobColumnMetadata(indexSpec.getBitmapSerdeFactory())
           )
       );
@@ -75,26 +78,26 @@ public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedCol
   }
 
   @Override
-  protected Comparator<Pair<Integer, PeekingIterator<IpAddressBlob>>> getDictionaryMergingComparator()
+  protected Comparator<Pair<Integer, PeekingIterator<IpPrefixBlob>>> getDictionaryMergingComparator()
   {
     return DICTIONARY_MERGING_COMPARATOR;
   }
 
   @Override
-  protected Indexed<IpAddressBlob> getNullDimValue()
+  protected Indexed<IpPrefixBlob> getNullDimValue()
   {
     return NULL_VALUE;
   }
 
   @Override
-  protected ObjectStrategy<IpAddressBlob> getObjectStrategy()
+  protected ObjectStrategy<IpPrefixBlob> getObjectStrategy()
   {
-    return IpAddressBlob.STRATEGY;
+    return IpPrefixBlob.STRATEGY;
   }
 
   @Nullable
   @Override
-  protected IpAddressBlob coerceValue(IpAddressBlob value)
+  protected IpPrefixBlob coerceValue(IpPrefixBlob value)
   {
     return value;
   }
@@ -107,7 +110,7 @@ public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedCol
         .setHasMultipleValues(false)
         .addSerde(
             ComplexColumnPartSerde.serializerBuilder()
-                                  .withTypeName(IpAddressModule.ADDRESS_TYPE_NAME)
+                                  .withTypeName(IpAddressModule.PREFIX_TYPE_NAME)
                                   .withDelegate(new Serializer()
                                   {
                                     @Override

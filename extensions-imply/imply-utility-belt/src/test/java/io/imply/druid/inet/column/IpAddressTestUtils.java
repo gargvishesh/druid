@@ -23,12 +23,16 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.segment.IncrementalIndexSegment;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.TestHelper;
+import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.timeline.SegmentId;
+import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -55,7 +59,7 @@ public class IpAddressTestUtils
     JSON_MAPPER.registerModules(LICENSED_IP_ADDRESS_MODULE.getJacksonModules());
   }
 
-  public static List<Segment> createSegments(
+  public static List<Segment> createIpAddressSegments(
       AggregationTestHelper helper,
       TemporaryFolder tempFolder,
       Granularity granularity,
@@ -75,7 +79,7 @@ public class IpAddressTestUtils
     );
   }
 
-  public static Segment createIncrementalIndex(
+  public static Segment createIpAddressIncrementalIndex(
       Granularity granularity,
       boolean rollup,
       boolean deserializeComplexMetrics,
@@ -86,6 +90,45 @@ public class IpAddressTestUtils
     return createIncrementalIndex(
         "simple_ip_test_data.tsv",
         "simple_ip_test_data_record_parser.json",
+        "simple_ip_test_data_aggregators.json",
+        granularity,
+        rollup,
+        deserializeComplexMetrics,
+        maxRowCount
+    );
+  }
+
+  public static List<Segment> createIpPrefixSegments(
+      AggregationTestHelper helper,
+      TemporaryFolder tempFolder,
+      Granularity granularity,
+      boolean rollup,
+      int maxRowCount
+  ) throws Exception
+  {
+    return createSegments(
+        helper,
+        tempFolder,
+        "simple_ip_prefix_test_data.tsv",
+        "simple_ip_prefix_test_data_record_parser.json",
+        "simple_ip_test_data_aggregators.json",
+        granularity,
+        rollup,
+        maxRowCount
+    );
+  }
+
+  public static Segment createIpPrefixIncrementalIndex(
+      Granularity granularity,
+      boolean rollup,
+      boolean deserializeComplexMetrics,
+      int maxRowCount
+  )
+      throws Exception
+  {
+    return createIncrementalIndex(
+        "simple_ip_prefix_test_data.tsv",
+        "simple_ip_prefix_test_data_record_parser.json",
         "simple_ip_test_data_aggregators.json",
         granularity,
         rollup,
@@ -175,20 +218,30 @@ public class IpAddressTestUtils
     return new IncrementalIndexSegment(index, SegmentId.dummy("test_datasource"));
   }
 
-  public static Segment createDefaultHourlyIncrementalIndex() throws Exception
+  public static Segment createIpAddressDefaultHourlyIncrementalIndex() throws Exception
   {
-    return createIncrementalIndex(Granularities.HOUR, true, true, 1000);
+    return createIpAddressIncrementalIndex(Granularities.HOUR, true, true, 1000);
   }
 
-  public static Segment createDefaultDailyIncrementalIndex() throws Exception
+  public static Segment createIpAddressDefaultDailyIncrementalIndex() throws Exception
   {
-    return createIncrementalIndex(Granularities.DAY, true, true, 1000);
+    return createIpAddressIncrementalIndex(Granularities.DAY, true, true, 1000);
   }
 
-  public static List<Segment> createDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+  public static Segment createIpPrefixDefaultHourlyIncrementalIndex() throws Exception
+  {
+    return createIpPrefixIncrementalIndex(Granularities.HOUR, true, true, 1000);
+  }
+
+  public static Segment createIpPrefixDefaultDailyIncrementalIndex() throws Exception
+  {
+    return createIpPrefixIncrementalIndex(Granularities.DAY, true, true, 1000);
+  }
+
+  public static List<Segment> createIpAddressDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
       throws Exception
   {
-    return createSegments(
+    return createIpAddressSegments(
         helper,
         tempFolder,
         Granularities.HOUR,
@@ -197,10 +250,34 @@ public class IpAddressTestUtils
     );
   }
 
-  public static List<Segment> createDefaultDaySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+  public static List<Segment> createIpAddressDefaultDaySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
       throws Exception
   {
-    return createSegments(
+    return createIpAddressSegments(
+        helper,
+        tempFolder,
+        Granularities.DAY,
+        true,
+        1000
+    );
+  }
+
+  public static List<Segment> createIpPrefixDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+      throws Exception
+  {
+    return createIpPrefixSegments(
+        helper,
+        tempFolder,
+        Granularities.HOUR,
+        true,
+        1000
+    );
+  }
+
+  public static List<Segment> createIpPrefixDefaultDaySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)
+      throws Exception
+  {
+    return createIpPrefixSegments(
         helper,
         tempFolder,
         Granularities.DAY,
@@ -217,5 +294,21 @@ public class IpAddressTestUtils
   public static String readFileFromClasspathAsString(String fileName) throws IOException
   {
     return Files.asCharSource(readFileFromClasspath(fileName), StandardCharsets.UTF_8).read();
+  }
+
+  public static void verifyResults(RowSignature rowSignature, List<ResultRow> results, List<Object[]> expected)
+  {
+    Assert.assertEquals(expected.size(), results.size());
+    for (int i = 0; i < expected.size(); i++) {
+      final Object[] resultRow = results.get(i).getArray();
+      Assert.assertEquals(expected.get(i).length, resultRow.length);
+      for (int j = 0; j < resultRow.length; j++) {
+        if (rowSignature.getColumnType(j).map(t -> t.anyOf(ValueType.DOUBLE, ValueType.FLOAT)).orElse(false)) {
+          Assert.assertEquals((Double) resultRow[j], (Double) expected.get(i)[j], 0.01);
+        } else {
+          Assert.assertEquals(resultRow[j], expected.get(i)[j]);
+        }
+      }
+    }
   }
 }

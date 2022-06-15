@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -40,14 +43,14 @@ import javax.annotation.Nullable;
 import java.util.BitSet;
 import java.util.Objects;
 
-public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedColumnIndexer<Integer, IpAddressBlob>
+public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedColumnIndexer<Integer, IpPrefixBlob>
 {
   private final boolean hasBitmapIndexes;
   private final boolean useMaxMemoryEstimates;
 
-  public IpAddressDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes, boolean useMaxMemoryEstimates)
+  public IpPrefixDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes, boolean useMaxMemoryEstimates)
   {
-    super(new DimensionDictionary<>(IpAddressBlob.class));
+    super(new DimensionDictionary<>(IpPrefixBlob.class));
     this.hasBitmapIndexes = hasBitmapIndexes;
     this.useMaxMemoryEstimates = useMaxMemoryEstimates;
   }
@@ -60,7 +63,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
   )
   {
     final long oldDictSizeInBytes = useMaxMemoryEstimates ? 0 : dimLookup.sizeInBytes();
-    final int id = dimLookup.add(IpAddressBlob.parse(dimValues, reportParseExceptions));
+    final int id = dimLookup.add(IpPrefixBlob.parse(dimValues, reportParseExceptions));
     final long estimate = useMaxMemoryEstimates
                           ? Integer.BYTES
                           : Integer.BYTES + dimLookup.sizeInBytes() - oldDictSizeInBytes;
@@ -238,7 +241,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
           // Sanity check; IDs beyond maxId should not be known to callers. (See comment above.)
           throw new ISE("id[%d] >= maxId[%d]", id, maxId);
         }
-        final IpAddressBlob strValue = getActualValue(id, false);
+        final IpPrefixBlob strValue = getActualValue(id, false);
         String valueAsCompressedString = null;
         if (strValue != null) {
           valueAsCompressedString = strValue.asCompressedString();
@@ -268,7 +271,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
           );
         }
 
-        final IpAddressBlob blob = IpAddressBlob.ofString(name);
+        final IpPrefixBlob blob = IpPrefixBlob.ofString(name);
         final int id = getEncodedValue(blob, false);
 
         if (id < maxId) {
@@ -318,7 +321,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
   public ColumnCapabilities getColumnCapabilities()
   {
     return ColumnCapabilitiesImpl.createDefault()
-                                 .setType(IpAddressModule.ADDRESS_TYPE)
+                                 .setType(IpAddressModule.PREFIX_TYPE)
                                  .setDictionaryEncoded(dictionaryEncodesAllValues())
                                  .setHasBitmapIndexes(true)
                                  .setDictionaryValuesUnique(true)
@@ -331,7 +334,7 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
       @Nullable Integer rhs
   )
   {
-    return Comparators.<IpAddressBlob>naturalNullsFirst().compare(
+    return Comparators.<IpPrefixBlob>naturalNullsFirst().compare(
         getActualValue(lhs, false),
         getActualValue(rhs, false)
     );

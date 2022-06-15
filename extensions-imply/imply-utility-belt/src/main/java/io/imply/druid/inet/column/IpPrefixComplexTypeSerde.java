@@ -1,10 +1,13 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *  * Copyright (c) Imply Data, Inc. All rights reserved.
+ *  *
+ *  * This software is the confidential and proprietary information
+ *  * of Imply Data, Inc. You shall not disclose such Confidential
+ *  * Information and shall use it only in accordance with the terms
+ *  * of the license agreement you entered into with Imply.
+ *
+ *
  */
 
 package io.imply.druid.inet.column;
@@ -32,9 +35,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import static io.imply.druid.inet.column.IpAddressDictionaryEncodedColumnMerger.SERIALIZER_UTILS;
-
-public class IpAddressComplexTypeSerde extends ComplexMetricSerde
+public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
 {
   private static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
@@ -67,12 +68,12 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 
   public static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
 
-  public static final IpAddressComplexTypeSerde INSTANCE = new IpAddressComplexTypeSerde();
+  public static final IpPrefixComplexTypeSerde INSTANCE = new IpPrefixComplexTypeSerde();
 
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.ADDRESS_TYPE_NAME;
+    return IpAddressModule.PREFIX_TYPE_NAME;
   }
 
   @Override
@@ -98,8 +99,8 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
     try {
       byte version = buffer.get();
       Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
-      IpAddressBlobColumnMetadata metadata = IpAddressComplexTypeSerde.JSON_MAPPER.readValue(
-          SERIALIZER_UTILS.readString(buffer),
+      IpAddressBlobColumnMetadata metadata = IpPrefixComplexTypeSerde.JSON_MAPPER.readValue(
+          IpPrefixDictionaryEncodedColumnMerger.SERIALIZER_UTILS.readString(buffer),
           IpAddressBlobColumnMetadata.class
       );
 
@@ -128,7 +129,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
           true,
           false
       );
-      IpAddressDictionaryEncodedColumnSupplier supplier = new IpAddressDictionaryEncodedColumnSupplier(
+      IpPrefixDictionaryEncodedColumnSupplier supplier = new IpPrefixDictionaryEncodedColumnSupplier(
           column,
           dictionaryBytes,
           bitmaps
@@ -136,7 +137,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 
       builder.setDictionaryEncodedColumnSupplier(supplier);
       builder.setType(ValueType.COMPLEX);
-      builder.setComplexTypeName(IpAddressModule.ADDRESS_TYPE_NAME);
+      builder.setComplexTypeName(IpAddressModule.PREFIX_TYPE_NAME);
       builder.setFilterable(true);
     }
     catch (IOException ex) {
@@ -147,6 +148,6 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return IpAddressBlob.STRATEGY;
+    return IpPrefixBlob.STRATEGY;
   }
 }

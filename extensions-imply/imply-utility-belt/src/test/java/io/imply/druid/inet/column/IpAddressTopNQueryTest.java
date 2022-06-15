@@ -73,10 +73,10 @@ public class IpAddressTopNQueryTest
     );
     this.useRealtimeSegments = useRealtimeSegments;
     if (useRealtimeSegments) {
-      this.segments = ImmutableList.of(IpAddressTestUtils.createDefaultHourlyIncrementalIndex());
+      this.segments = ImmutableList.of(IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex());
     } else {
       tempFolder.create();
-      this.segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+      this.segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
     }
   }
 
