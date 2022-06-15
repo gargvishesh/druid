@@ -71,7 +71,7 @@ The following table describes the response fields when you retrieve a report for
 |multiStageQuery.payload.status.warningReport.error|Contains `errorCode` at a minimum and may contain other fields as described in the [error code table](#error-codes). Always present if there is an error.
 |multiStageQuery.payload.status.counters.warningCounters | The collection of warnings that occurred and how many times they occurred when the query ran. They're organized by stage. If there were no warnings, it's an empty array.
 |multiStageQuery.payload.status.counters.warningCounters.stageNumber | The stage number that reported a warning if it happened during execution of a specific stage.|
-|multiStageQuery.payload.status.counters.warningCounters.warningCounters.warningCount | A map containing an  error code and count. |
+|multiStageQuery.payload.status.counters.warningCounters.warningCounters.warningCount | A map containing an error code and count. |
 |multiStageQuery.payload.stages|Array of query stages.|
 |multiStageQuery.payload.stages[].stageNumber|Each stage has a number that differentiates it from other stages.|
 |multiStageQuery.payload.stages[].inputStages|Array of input stage numbers.|
