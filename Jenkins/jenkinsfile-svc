@@ -1,0 +1,115 @@
+def setupMavenSettings() {
+    script {
+        withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
+            sh script: '''
+                mkdir -p ~/.m2
+                cp -f $MVN_SETTINGS_PATH ~/.m2/settings.xml
+            ''',
+               label: 'setup maven settings'
+        }
+    }
+}
+
+def mavenInstall() {
+    setupMavenSettings()
+    sh script: '''
+        ${MVN} clean install -q -ff -pl \' !distribution \' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
+        ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+    ''',
+    label: 'mvn install'
+}
+
+def resetWs() {
+    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+}
+
+pipeline {
+    options {
+        timeout(time: 4, unit: 'HOURS')
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
+    }
+
+    agent none
+
+    triggers {
+        cron('0 */12 * * *')
+    }
+
+    environment {
+        MVN = "mvn -B"
+        MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
+        MAVEN_SKIP_TESTS = "-Pskip-tests"
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1647252999"
+        RT_REGISTRY_URL = "https://repo.cnc.imply.io/artifactory"
+        RT_REGISTRY_CREDS = "repo.qa.imply.io"
+        RT_SERVER_ID = "repo-qa-imply-io"
+        RT_DOCKER_REPOSITORY_PREFIX = "repo.cnc.imply.io"
+        DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
+        DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
+        DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+    }
+
+    stages {
+        stage('Security Vulnerability check') {
+
+            agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+
+            steps {
+                mavenInstall()
+                sh script: '''#!/bin/bash
+                    set -o pipefail
+
+                    dependency_check() {
+                        rm -f /tmp/component-reports-failed
+                        touch /tmp/component-reports-failed
+                        ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' 2>&1 | \
+                        tee >(grep -F 'Failed to request component-reports' >> /tmp/component-reports-failed)
+                    }
+
+                    DEPENDENCY_CHECK_STATUS=0
+                    ALL_ATTEMPTS_FAILED=0
+
+                    for i in $(seq 1 10); do
+                        if dependency_check; then
+                            echo "Dependency check succeeded"
+                            break
+                        elif [[ $(cat /tmp/component-reports-failed) ]]; then
+                            if [[ "${i}" = "10" ]]; then
+                                echo "All attempts are failed"
+                                ALL_ATTEMPTS_FAILED=1
+                            else
+                                echo "Sleeping 30 seconds before next attempt"
+                                sleep 30
+                            fi
+                        else
+                            echo "Dependency check failed not from component-reports issue. Failing"
+                            DEPENDENCY_CHECK_STATUS=1
+                            break
+                        fi
+                    done
+
+                    [[ "${DEPENDENCY_CHECK_STATUS}" = "0" ]] || { echo "The OWASP dependency check has found security vulnerabilities. Please use a newer version
+                    of the dependency that does not have vulnerabilities. If the analysis has false positives,
+                    they can be suppressed by adding entries to owasp-dependency-check-suppressions.xml (for more
+                    information, see https://jeremylong.github.io/DependencyCheck/general/suppression.html).
+                    " && exit 1; }
+
+                    [[ "${ALL_ATTEMPTS_FAILED}" = "0" ]] || false
+                ''',
+                label: 'dependency check'
+            }
+
+            post {
+                always {
+                    archiveArtifacts "target/**/*"
+                }
+                failure {
+                    slackSend channel: 'espresso-machine', color: "#FF0000", message: "Dependency Check failed - (<${env.BUILD_URL}|Open>)"
+                }
+                cleanup {
+                    resetWs()
+                }
+            }
+        }
+    }
+}
