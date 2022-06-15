@@ -51,7 +51,7 @@ All SELECT capabilities are available for INSERT queries. However, MSQE does not
 
 An INSERT query consists of the following parts:
 
-1. Optional [context parameters](./msqe-reference.md#context-variables).
+1. Optional [context parameters](./msqe-api.md#context-variables).
 2. An `INSERT INTO <dataSource>` clause at the start of your query, such as `INSERT INTO w000` in the example that follows.
 3. A clause for the data you want to insert, `SELECT...FROM TABLE...` in the example.
 4. A [PARTITIONED BY](#partitioned-by) clause for your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
@@ -90,7 +90,7 @@ When working with REPLACE queries, keep the following in mind:
 
 An REPLACE query consists of the following parts:
 
-1. Optional [context parameters](./msqe-reference.md#context-variables).
+1. Optional [context parameters](./msqe-api.md#context-variables).
 2. A `REPLACE INTO <dataSource>` clause at the start of your query, such as `REPLACE INTO w000` in the examples that follow.
 3. An OVERWRITE clause after the datasource, either OVERWRITE ALL or OVERWRITE WHERE ...:
 
@@ -210,7 +210,7 @@ Using CLUSTERED BY has the following benefits:
    consideration when they cannot possibly contain data matching a query's filter.
 
 For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be single-valued
-string columns and the [`sqlReplaceTimeChunks`](./msqe-reference.md#context-variables) parameter must be provided as part of
+string columns and the [`sqlReplaceTimeChunks`](./msqe-api.md#context-variables) parameter must be provided as part of
 the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
 columns or if `sqlReplaceTimeChunks` is not provided, Druid still clusters data during
 ingestion but won't perform dimension-based segment pruning at query time.
