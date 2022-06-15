@@ -77,7 +77,7 @@ The main driver of performance is parallelism. A secondary driver of performance
 
 The most relevant considerations are:
 
-- The [`msqNumTasks`](./msqe-reference.md#context-variables) query parameter determines the maximum number of worker tasks
+- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of worker tasks
   your query will use. Generally, queries will perform better with more workers. The highest
   possible value of `msqNumTasks` is one less than the number of free task slots in your
   cluster.

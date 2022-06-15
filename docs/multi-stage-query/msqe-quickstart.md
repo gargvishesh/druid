@@ -13,7 +13,7 @@ MSQE uses the Enhanced Query view, which provides you with a UI to edit and use 
 
 The following screenshot shows you a populated enhanced Query view along with a description of its parts: 
 
-<details><summary>Show the screenshot</summary>
+<details open><summary>Show the screenshot</summary>
 
 ![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
 
@@ -39,7 +39,7 @@ Additionally, you can see results, query stats, and the query.
 by name anywhere in the SQL query where you can use a table.
 They are essentially UI driven views that only exist within the given query tab.
 
-9. Context comments can be inserted anywhere in the query to set context parameters. These comments are parsed out of the query text and added to the context object in the API payload. For a full list, see [Context parameters](./msqe-reference.md#context-variables).
+9. Context comments can be inserted anywhere in the query to set context parameters. These comments are parsed out of the query text and added to the context object in the API payload. For a full list, see [Context parameters](./msqe-api.md#context-variables).
 
 10.  The `Run` button’s more menu (`...`) lets you export the data as well as define the context for the query including the parallelism for the query.
 
@@ -83,7 +83,7 @@ To generate a query from external data, do the following:
    - Customize how the data is handled by selecting the **Input format** and its related options, such as adding **JSON parser features** for JSON files.
 5. When you're ready, click **Done**. You're returned to a **Query** tab in the console where you can see the query that the Druid console generated:
 
-   - The query includes context variables for MSQE.  The syntax is unique to the Console: `--: context {key}: {value}`. When submitting queries to Druid directly, set the context variables in the context section of the SQL query object. For more information about context parameters, see [Context variables](./msqe-reference.md#context-variables).
+   - The query includes context variables for MSQE.  The syntax is unique to the Console: `--: context {key}: {value}`. When submitting queries to Druid directly, set the context variables in the context section of the SQL query object. For more information about context parameters, see [Context variables](./msqe-api.md#context-variables).
    - For information about what the different parts of this query are, see [MSQE SQL syntax](./msqe-sql-syntax.md).
    - The query inserts the data from the external source into a table named `wikipedia-2016-06-27-sampled`:
 
