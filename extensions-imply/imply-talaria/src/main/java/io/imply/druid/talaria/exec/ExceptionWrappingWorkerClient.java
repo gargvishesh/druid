@@ -14,7 +14,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
+import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.TalariaException;
@@ -24,7 +24,6 @@ import io.imply.druid.talaria.kernel.WorkOrder;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Wrapper around any {@link WorkerClient} that converts exceptions into {@link TalariaException}
@@ -75,21 +74,15 @@ public class ExceptionWrappingWorkerClient implements WorkerClient
   }
 
   @Override
-  public ReadableFrameChannel getChannelData(
+  public ListenableFuture<Boolean> fetchChannelData(
       String workerTaskId,
       StageId stageId,
       int partitionNumber,
-      ExecutorService connectExec
+      long offset,
+      ReadableByteChunksFrameChannel channel
   )
   {
-    // Unlike other methods, getChannelData does not return a future, so don't use "wrap".
-
-    try {
-      return client.getChannelData(workerTaskId, stageId, partitionNumber, connectExec);
-    }
-    catch (Exception e) {
-      throw new TalariaException(e, new WorkerRpcFailedFault(workerTaskId));
-    }
+    return wrap(workerTaskId, client, c -> c.fetchChannelData(workerTaskId, stageId, partitionNumber, offset, channel));
   }
 
   @Override

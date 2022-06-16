@@ -35,6 +35,7 @@ import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
 import io.imply.druid.talaria.indexing.ExternalMSQDestination;
+import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
 import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
@@ -86,6 +87,8 @@ import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFa
 import io.imply.druid.talaria.querykit.groupby.GroupByQueryKit;
 import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryKit;
+import io.imply.druid.talaria.shuffle.DurableStorageInputChannelFactory;
+import io.imply.druid.talaria.shuffle.WorkerInputChannelFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
 import io.imply.druid.talaria.util.FutureUtils;
@@ -1293,18 +1296,31 @@ public class LeaderImpl implements Leader
   {
     if (queryKernel.isSuccess() && isInlineResults(task.getQuerySpec())) {
       final StageId finalStageId = queryKernel.getStageId(queryDef.getFinalStageDefinition().getStageNumber());
-
       final List<String> taskIds = getTaskIds().get();
+      final Closer closer = Closer.create();
 
       final ListeningExecutorService resultReaderExec =
           MoreExecutors.listeningDecorator(Execs.singleThreaded("result-reader-%d"));
+      closer.register(resultReaderExec::shutdownNow);
+
+      final InputChannelFactory inputChannelFactory;
+
+      if (TalariaContext.isDurableStorageEnabled(task.getQuerySpec().getQuery().getContext())) {
+        inputChannelFactory = DurableStorageInputChannelFactory.createStandardImplementation(
+            id(),
+            () -> taskIds,
+            TalariaTasks.makeStorageConnector(context.injector()),
+            closer
+        );
+      } else {
+        inputChannelFactory = new WorkerInputChannelFactory(netClient, () -> taskIds);
+      }
 
       final InputChannels inputChannels = InputChannels.create(
           queryDef,
           new int[]{queryKernel.getStageDefinition(finalStageId).getStageNumber()},
           queryKernel.getResultPartitionsForStage(finalStageId),
-          (stageId, workerNumber, partitionNumber) ->
-              netClient.getChannelData(taskIds.get(workerNumber), stageId, partitionNumber, resultReaderExec),
+          inputChannelFactory,
           () -> ArenaMemoryAllocator.createOnHeap(5_000_000),
           new FrameProcessorExecutor(resultReaderExec),
           null

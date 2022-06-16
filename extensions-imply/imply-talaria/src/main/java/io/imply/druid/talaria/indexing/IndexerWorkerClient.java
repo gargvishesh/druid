@@ -11,17 +11,16 @@ package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableInputStreamFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.file.FrameFileHttpResponseHandler;
-import io.imply.druid.talaria.frame.processor.RemoteOutputChannelFactory;
+import io.imply.druid.talaria.frame.file.FrameFilePartialFetch;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.rpc.DruidServiceClient;
@@ -34,72 +33,43 @@ import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import io.imply.druid.talaria.rpc.indexing.SpecificTaskRetryPolicy;
 import io.imply.druid.talaria.rpc.indexing.SpecificTaskServiceLocator;
 import org.apache.druid.java.util.common.Either;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.utils.CloseableUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.joda.time.Duration;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 public class IndexerWorkerClient implements WorkerClient
 {
-  private final String leaderId;
-  private static final Duration HTTP_CHANNEL_TIMEOUT = Duration.standardMinutes(5);
-
   private final DruidServiceClientFactory clientFactory;
   private final OverlordServiceClient overlordClient;
   private final ObjectMapper jsonMapper;
 
-  @Nullable
-  private final StorageConnector storageConnector;
-
   @GuardedBy("clientMap")
   private final Map<String, Pair<DruidServiceClient, Closeable>> clientMap = new HashMap<>();
-  private final boolean faultToleranceEnabled;
-
-  @Nullable
-  private final ExecutorService remoteInputStreamPool;
 
   public IndexerWorkerClient(
-      final String leaderId,
       final DruidServiceClientFactory clientFactory,
       final OverlordServiceClient overlordClient,
-      final ObjectMapper jsonMapper,
-      @Nullable final StorageConnector storageConnector,
-      final boolean faultToleranceEnabled,
-      @Nullable final ExecutorService remoteInputStreamPool
-
+      final ObjectMapper jsonMapper
   )
   {
-    this.leaderId = leaderId;
     this.clientFactory = clientFactory;
     this.overlordClient = overlordClient;
     this.jsonMapper = jsonMapper;
-    this.storageConnector = storageConnector;
-    this.faultToleranceEnabled = faultToleranceEnabled;
-    this.remoteInputStreamPool = remoteInputStreamPool;
   }
 
-
-  @Nonnull
-  public static String getChannelId(String workerTaskId, String path)
-  {
-    return StringUtils.format("%s:%s", workerTaskId, path);
-  }
 
   @Nonnull
   public static String getStagePartitionPath(StageId stageId, int partitionNumber)
@@ -196,77 +166,67 @@ public class IndexerWorkerClient implements WorkerClient
     );
   }
 
+  private static final Logger log = new Logger(IndexerWorkerClient.class);
+
   @Override
-  public ReadableFrameChannel getChannelData(
+  public ListenableFuture<Boolean> fetchChannelData(
       String workerTaskId,
       StageId stageId,
       int partitionNumber,
-      ExecutorService connectExec
+      long offset,
+      ReadableByteChunksFrameChannel channel
   )
   {
     final DruidServiceClient client = getClient(workerTaskId);
+    final String path = getStagePartitionPath(stageId, partitionNumber);
 
-    if (faultToleranceEnabled) {
-      try {
-        final String remotePartitionPath = RemoteOutputChannelFactory.getPartitionFileName(
-            leaderId,
-            workerTaskId,
-            stageId.getStageNumber(),
-            partitionNumber
+    final SettableFuture<Boolean> retVal = SettableFuture.create();
+    final ListenableFuture<Either<RpcServerError, FrameFilePartialFetch>> clientFuture =
+        client.asyncRequest(
+            new RequestBuilder(HttpMethod.GET, StringUtils.format("%s?offset=%d", path, offset))
+                .header(HttpHeaders.ACCEPT_ENCODING, "identity"), // Data is compressed at app level
+            new FrameFileHttpResponseHandler(channel)
         );
-        RetryUtils.retry(() -> {
-          if (!storageConnector.pathExists(remotePartitionPath)) {
-            throw new ISE(
-                "Could not find remote output of workerTask[%s] stage[%d] partition[%d]",
-                workerTaskId,
-                stageId.getStageNumber(),
-                partitionNumber
-            );
+
+    Futures.addCallback(
+        clientFuture,
+        new FutureCallback<Either<RpcServerError, FrameFilePartialFetch>>()
+        {
+          @Override
+          public void onSuccess(Either<RpcServerError, FrameFilePartialFetch> result)
+          {
+            if (result.isError()) {
+              // RpcServerError is nonrecoverable.
+              retVal.setException(new RuntimeException(result.error().toString()));
+            } else {
+              final FrameFilePartialFetch partialFetch = result.valueOrThrow();
+
+              if (partialFetch.isExceptionCaught()) {
+                // Exception while reading channel. Recoverable.
+                log.noStackTrace().info(
+                    partialFetch.getExceptionCaught(),
+                    "Encountered exception while reading channel [%s]",
+                    channel.getId()
+                );
+              }
+
+              // Empty fetch means this is the last fetch for the channel.
+              partialFetch.backpressureFuture().addListener(
+                  () -> retVal.set(partialFetch.isEmptyFetch()),
+                  Execs.directExecutor()
+              );
+            }
           }
-          return Boolean.TRUE;
-        }, (throwable) -> true, 10);
-        final InputStream inputStream = storageConnector.read(remotePartitionPath);
 
-        ReadableInputStreamFrameChannel readableInputStreamFrameChannel = new ReadableInputStreamFrameChannel(
-            inputStream,
-            remotePartitionPath,
-            remoteInputStreamPool
-        );
-        readableInputStreamFrameChannel.startReading();
-        return readableInputStreamFrameChannel;
-      }
-      catch (Exception e) {
-        throw new ISE(
-            e,
-            "Could not find remote output of workerTask[%s] stage[%d] partition[%d]",
-            workerTaskId,
-            stageId.getStageNumber(),
-            partitionNumber
-        );
-      }
-    } else {
-      final String path = getStagePartitionPath(stageId, partitionNumber);
-      final String channelId = getChannelId(workerTaskId, path);
-      final ReadableByteChunksFrameChannel channel = ReadableByteChunksFrameChannel.create(channelId);
-      final TalariaFrameChannelConnectionManager connectionManager =
-          new TalariaFrameChannelConnectionManager(channel, connectExec);
+          @Override
+          public void onFailure(Throwable t)
+          {
+            retVal.setException(t);
+          }
+        }
+    );
 
-      return connectionManager.connect(
-          (connectionNumber, offset) ->
-              client.request(
-                  // Include read timeout even though these calls may take a long time. If something has gone wrong with
-                  // the connection, disconnecting and allowing the connection manager to reconnect can jog it back to
-                  // a working state. Use a longer timeout than the standard one, though.
-                  new RequestBuilder(HttpMethod.GET, StringUtils.format("%s?offset=%d", path, offset))
-                      .header(HttpHeaders.ACCEPT_ENCODING, "identity") // Data is compressed at app level
-                      .timeout(HTTP_CHANNEL_TIMEOUT),
-                  new FrameFileHttpResponseHandler(
-                      channel,
-                      e -> connectionManager.handleChannelException(connectionNumber, e)
-                  )
-              )
-      );
-    }
+    return retVal;
   }
 
   @Override

@@ -23,7 +23,6 @@ import io.imply.druid.talaria.indexing.IndexerFrameContext;
 import io.imply.druid.talaria.indexing.IndexerWorkerContext;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
-import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskReportFileWriter;
 import org.apache.druid.indexing.common.TaskToolbox;
@@ -48,9 +47,8 @@ public class TalariaTestWorkerContext implements WorkerContext
   private final Leader leader;
   private final ObjectMapper mapper;
   private final Injector injector;
-  Map<String, Worker> inMemoryWorkers;
-  private File file = FileUtils.createTempDir();
-
+  private final Map<String, Worker> inMemoryWorkers;
+  private final File file = FileUtils.createTempDir();
   private final ExecutorService remoteExecutorService;
 
   public TalariaTestWorkerContext(
@@ -93,15 +91,9 @@ public class TalariaTestWorkerContext implements WorkerContext
   }
 
   @Override
-  public WorkerClient makeWorkerClient(String leaderId, String workerId)
+  public WorkerClient makeWorkerClient()
   {
-    return new TalariaTestWorkerClient(
-        leaderId,
-        inMemoryWorkers,
-        TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
-        injector,
-        remoteExecutorService
-    );
+    return new TalariaTestWorkerClient(inMemoryWorkers);
   }
 
   @Override
@@ -139,48 +131,19 @@ public class TalariaTestWorkerContext implements WorkerContext
 
     return new IndexerFrameContext(
         new IndexerWorkerContext(
-            new TaskToolbox(
-                null,
-                null,
-                null,
-                null,
-                injector.getInstance(DataSegmentPusher.class),
-                null,
-                null,
-                null,
-                injector.getInstance(DataSegmentAnnouncer.class),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                mapper,
-                tempDir(),
-                indexIO,
-                null,
-                null,
-                null,
-                indexMerger,
-                null,
-                null,
-                null,
-                null,
-                reportFileWriter,
-                null,
-                AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-                new NoopChatHandlerProvider(),
-                NoopRowIngestionMeters::new,
-                null,
-                null,
-                null,
-                null,
-                null
-            ),
-            injector,
-            TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
-            remoteExecutorService
+            new TaskToolbox.Builder()
+                .segmentPusher(injector.getInstance(DataSegmentPusher.class))
+                .segmentAnnouncer(injector.getInstance(DataSegmentAnnouncer.class))
+                .jsonMapper(mapper)
+                .taskWorkDir(tempDir())
+                .indexIO(indexIO)
+                .indexMergerV9(indexMerger)
+                .taskReportFileWriter(reportFileWriter)
+                .authorizerMapper(AuthTestUtils.TEST_AUTHORIZER_MAPPER)
+                .chatHandlerProvider(new NoopChatHandlerProvider())
+                .rowIngestionMetersFactory(NoopRowIngestionMeters::new)
+                .build(),
+            injector
         ),
         indexIO,
         injector.getInstance(DataSegmentProvider.class),

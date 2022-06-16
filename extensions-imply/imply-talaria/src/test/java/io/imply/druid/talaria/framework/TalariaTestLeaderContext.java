@@ -23,7 +23,6 @@ import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerImpl;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
-import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
@@ -224,14 +223,7 @@ public class TalariaTestLeaderContext implements LeaderContext
   @Override
   public WorkerClient taskClientFor(Leader leader)
   {
-    return new TalariaTestWorkerClient(
-        leader.id(),
-        inMemoryWorkers,
-        TalariaContext.isDurableStorageEnabled(leader.task().getSqlQueryContext()),
-        injector,
-        remoteExecutorService
-    );
-
+    return new TalariaTestWorkerClient(inMemoryWorkers);
   }
 
   @Override

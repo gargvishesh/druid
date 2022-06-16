@@ -12,10 +12,8 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import com.google.inject.ConfigurationException;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.exec.LeaderClient;
 import io.imply.druid.talaria.exec.TalariaDataSegmentProvider;
 import io.imply.druid.talaria.exec.Worker;
@@ -24,9 +22,6 @@ import io.imply.druid.talaria.exec.WorkerContext;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.frame.processor.FrameContext;
-import io.imply.druid.talaria.guice.Talaria;
-import io.imply.druid.talaria.indexing.error.DurableStorageConfigurationFault;
-import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.ServiceLocations;
@@ -48,7 +43,6 @@ import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.realtime.appenderator.UnifiedIndexerAppenderatorsManager;
 import org.apache.druid.server.DruidNode;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -64,31 +58,17 @@ public class IndexerWorkerContext implements WorkerContext
   private final IndexIO indexIO;
   private final TalariaDataSegmentProvider dataSegmentProvider;
   private final DruidServiceClientFactory clientFactory;
-  private final boolean durableStorageEnabled;
 
   @GuardedBy("this")
   private OverlordServiceClient overlordClient;
 
   @GuardedBy("this")
-  private LeaderClient leaderClient;
-
-  @GuardedBy("this")
   private ServiceLocator leaderLocator;
 
-  @Nullable
-  private final ExecutorService remoteFetchExecutorService;
-
-  public IndexerWorkerContext(
-      TaskToolbox toolbox,
-      Injector injector,
-      boolean durableStorageEnabled,
-      @Nullable
-      ExecutorService remoteFetchExecutorService
-  )
+  public IndexerWorkerContext(TaskToolbox toolbox, Injector injector)
   {
     this.toolbox = toolbox;
     this.injector = injector;
-    this.durableStorageEnabled = durableStorageEnabled;
 
     final SegmentCacheManager segmentCacheManager =
         injector.getInstance(SegmentCacheManagerFactory.class)
@@ -96,7 +76,6 @@ public class IndexerWorkerContext implements WorkerContext
     this.indexIO = injector.getInstance(IndexIO.class);
     this.dataSegmentProvider = new TalariaDataSegmentProvider(segmentCacheManager, this.indexIO);
     this.clientFactory = injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
-    this.remoteFetchExecutorService = remoteFetchExecutorService;
   }
 
   // Note: NOT part of the interface! Not available in the Talaria server.
@@ -189,54 +168,22 @@ public class IndexerWorkerContext implements WorkerContext
   }
 
   @Override
-  public synchronized LeaderClient makeLeaderClient(String leaderId)
+  public LeaderClient makeLeaderClient(String leaderId)
   {
-    if (leaderClient == null) {
-      final ServiceLocator locator = makeLeaderLocator(leaderId);
+    final ServiceLocator locator = makeLeaderLocator(leaderId);
 
-      leaderClient = new IndexerLeaderClient(
-          clientFactory.makeClient(leaderId, locator, new SpecificTaskRetryPolicy(leaderId)),
-          jsonMapper(),
-          locator
-      );
-    }
-    return leaderClient;
+    return new IndexerLeaderClient(
+        clientFactory.makeClient(leaderId, locator, new SpecificTaskRetryPolicy(leaderId)),
+        jsonMapper(),
+        locator
+    );
   }
 
   @Override
-  public WorkerClient makeWorkerClient(String leaderId, String workerId)
+  public WorkerClient makeWorkerClient()
   {
     // Ignore workerId parameter. The workerId is passed into each method of WorkerClient individually.
-    if (durableStorageEnabled) {
-
-      final StorageConnector storageConnector;
-      try {
-        storageConnector = injector().getInstance(Key.get(StorageConnector.class, Talaria.class));
-      }
-      catch (ConfigurationException configurationException) {
-        throw new TalariaException(new DurableStorageConfigurationFault(configurationException.getMessage()));
-      }
-
-      return new IndexerWorkerClient(
-          leaderId,
-          clientFactory,
-          makeOverlordClient(),
-          jsonMapper(),
-          storageConnector,
-          durableStorageEnabled,
-          remoteFetchExecutorService
-      );
-    } else {
-      return new IndexerWorkerClient(
-          leaderId,
-          clientFactory,
-          makeOverlordClient(),
-          jsonMapper(),
-          null,
-          durableStorageEnabled,
-          null
-      );
-    }
+    return new IndexerWorkerClient(clientFactory, makeOverlordClient(), jsonMapper());
   }
 
   @Override

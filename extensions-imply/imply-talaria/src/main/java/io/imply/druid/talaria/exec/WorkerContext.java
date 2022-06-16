@@ -35,7 +35,7 @@ public interface WorkerContext
 
   LeaderClient makeLeaderClient(String leaderId);
 
-  WorkerClient makeWorkerClient(String leaderId, String workerId);
+  WorkerClient makeWorkerClient();
 
   File tempDir();
 

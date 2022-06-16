@@ -7,42 +7,63 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.frame.processor;
+package io.imply.druid.talaria.shuffle;
 
+import com.google.common.base.Preconditions;
 import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.WritableStreamFrameChannel;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
+import io.imply.druid.talaria.frame.processor.OutputChannel;
+import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 
 import java.io.IOException;
 import java.nio.channels.Channels;
-import java.util.concurrent.ExecutorService;
 
-public class RemoteOutputChannelFactory implements OutputChannelFactory
+public class DurableStorageOutputChannelFactory implements OutputChannelFactory
 {
-  final String controllerTaskId;
-  final String workerTaskId;
-  final int stageNumber;
+  private final String controllerTaskId;
+  private final String workerTaskId;
+  private final int stageNumber;
+  private final int frameSize;
+  private final StorageConnector storageConnector;
 
-  final StorageConnector storageConnector;
-
-  final ExecutorService executorService;
-
-  public RemoteOutputChannelFactory(
-      String controllerTaskId,
-      String workerTaskId,
-      int stageNumber,
-      StorageConnector storageConnector,
-      ExecutorService executorService
+  public DurableStorageOutputChannelFactory(
+      final String controllerTaskId,
+      final String workerTaskId,
+      final int stageNumber,
+      final int frameSize,
+      final StorageConnector storageConnector
   )
   {
-    this.controllerTaskId = controllerTaskId;
-    this.workerTaskId = workerTaskId;
+    this.controllerTaskId = Preconditions.checkNotNull(controllerTaskId, "controllerTaskId");
+    this.workerTaskId = Preconditions.checkNotNull(workerTaskId, "workerTaskId");
     this.stageNumber = stageNumber;
-    this.storageConnector = storageConnector;
-    this.executorService = executorService;
+    this.frameSize = frameSize;
+    this.storageConnector = Preconditions.checkNotNull(storageConnector, "storageConnector");
+  }
+
+  /**
+   * Creates an instance that is the standard production implementation. Closeable items are registered with
+   * the provided Closer.
+   */
+  public static DurableStorageOutputChannelFactory createStandardImplementation(
+      final String controllerTaskId,
+      final String workerTaskId,
+      final int stageNumber,
+      final int frameSize,
+      final StorageConnector storageConnector
+  )
+  {
+    return new DurableStorageOutputChannelFactory(
+        controllerTaskId,
+        workerTaskId,
+        stageNumber,
+        frameSize,
+        storageConnector
+    );
   }
 
   @Override
@@ -58,7 +79,7 @@ public class RemoteOutputChannelFactory implements OutputChannelFactory
 
     return OutputChannel.pair(
         writableChannel,
-        ArenaMemoryAllocator.createOnHeap(1_000_000),
+        ArenaMemoryAllocator.createOnHeap(frameSize),
         () -> null, // remote reads should happen by the IndexerWorkerClient#getChannelData
         partitionNumber
     );

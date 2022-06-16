@@ -19,18 +19,13 @@ import io.imply.druid.talaria.exec.TalariaTasks;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerContext;
 import io.imply.druid.talaria.exec.WorkerImpl;
-import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
-import org.apache.druid.java.util.common.concurrent.Execs;
 
-import javax.annotation.Nullable;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @JsonTypeName(TalariaWorkerTask.TYPE)
 public class TalariaWorkerTask extends AbstractTask
@@ -45,9 +40,6 @@ public class TalariaWorkerTask extends AbstractTask
   private Injector injector;
 
   private volatile Worker worker;
-  private final boolean durableStorageEnabled;
-  @Nullable
-  private final ExecutorService remoteFetchExecutorService;
 
   @JsonCreator
   @VisibleForTesting
@@ -65,15 +57,9 @@ public class TalariaWorkerTask extends AbstractTask
         dataSource,
         context
     );
+
     this.controllerTaskId = controllerTaskId;
     this.workerNumber = workerNumber;
-    durableStorageEnabled = TalariaContext.isDurableStorageEnabled(getContext());
-
-    this.remoteFetchExecutorService = durableStorageEnabled
-                                      ? Executors.newCachedThreadPool(Execs.makeThreadFactory(getId()
-                                                                                              + "-remote-fetcher-%d"))
-                                      : null;
-
   }
 
   @JsonProperty
@@ -86,12 +72,6 @@ public class TalariaWorkerTask extends AbstractTask
   public int getWorkerNumber()
   {
     return workerNumber;
-  }
-
-  @Nullable
-  public ExecutorService getRemoteFetchExecutorService()
-  {
-    return remoteFetchExecutorService;
   }
 
   @Override
@@ -110,12 +90,7 @@ public class TalariaWorkerTask extends AbstractTask
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    WorkerContext context = new IndexerWorkerContext(
-        toolbox,
-        injector,
-        durableStorageEnabled,
-        remoteFetchExecutorService
-    );
+    final WorkerContext context = new IndexerWorkerContext(toolbox, injector);
     worker = new WorkerImpl(this, context);
     return worker.run();
   }
@@ -125,10 +100,6 @@ public class TalariaWorkerTask extends AbstractTask
   {
     if (worker != null) {
       worker.stopGracefully();
-    }
-    if (remoteFetchExecutorService != null) {
-      // This is to make sure we donot leak connections.
-      remoteFetchExecutorService.shutdownNow();
     }
   }
 }
