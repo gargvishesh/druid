@@ -11,7 +11,7 @@ title: Enable the multi-stage query engine
 To use the Multi-Stage Query Engine (MSQE), make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.06 STS or later. Imply recommends using the latest STS version. MSQE isn't available in an LTS release yet. 
-- Administrator access to Imply Manager so that you can enable MSQE. For security information related to datasources, see [Security](./msqe-advanced-configs.md#security).
+- Administrator access to Imply Manager so that you can enable MSQE. For security information related to datasources, see [Security](./msqe-security.md).
 
 
 ## Enable MSQE in Imply
@@ -43,7 +43,7 @@ For Imply Hybrid, you enable MSQE by selecting the feature flag for it in Imply 
         druid.msq.intermediate.storage.maxResultsSize=5GiB
         ```
    
-      For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-advanced-configs.md#s3).
+      For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-security.md#s3).
 
 6. Apply the changes to your cluster. The cluster state changes to **UPDATING**, and MSQE will be available when the updates complete.
 
@@ -84,7 +84,7 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
    druid.msq.intermediate.storage.maxResultsSize=5GiB
    ```
    
-   For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-advanced-configs.md#s3).
+   For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-security.md#s3).
 
    **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart to match your usage.
 
