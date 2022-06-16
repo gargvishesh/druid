@@ -39,11 +39,11 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
   static final String AD_TECH_INVENTORY = "adTechInventory";
   static final String SAMPLED_AVG_SCORE_FEATURE_NAME = "sampled-avg-score";
   static final String AD_TECH_AGGREGATORS_FEATURE_NAME = "ad-tech-aggregators";
-  static final String SESSIONIZATION_FEATURE_NAME = "sessionization";
   static final String SESSION_AVG_SCORE = "sessionAvgScore";
   static final String SESSION_AVG_SCORE_HISTOGRAM = "sessionAvgScoreHistogram";
   static final String SESSION_AVG_SCORE_HISTOGRAM_FILTERING = "sessionAvgScoreHistogramFiltering";
   static final String SESSION_SAMPLE_RATE = "sessionSampleRate";
+  public static final String SESSIONIZATION_FEATURE_NAME = "sessionization";
   public static final String SESSION_FILTERING_VIRTUAL_COLUMN = "session-filtering";
   private ImplyLicenseManager implyLicenseManager;
   private final Logger log = new Logger(ImplyArrayOfDoublesSketchModule.class);
