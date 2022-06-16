@@ -10,11 +10,16 @@
 package io.imply.druid.talaria.exec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectors;
+import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
+import io.imply.druid.talaria.indexing.error.DurableStorageConfigurationFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
@@ -98,6 +103,16 @@ public class TalariaTasks
   static String getHostFromSelfNode(@Nullable final DruidNode selfNode)
   {
     return selfNode != null ? selfNode.getHostAndPortToUse() : null;
+  }
+
+  static StorageConnector makeStorageConnector(final Injector injector)
+  {
+    try {
+      return injector.getInstance(Key.get(StorageConnector.class, Talaria.class));
+    }
+    catch (Exception e) {
+      throw new TalariaException(new DurableStorageConfigurationFault(e.toString()));
+    }
   }
 
   /**

@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.indexing;
 
-import com.google.common.io.ByteStreams;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.kernel.StageId;
@@ -18,6 +17,7 @@ import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.segment.realtime.firehose.ChatHandlers;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.utils.CloseableUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -27,17 +27,20 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 
 public class WorkerChatHandler implements ChatHandler
 {
+  /**
+   * Callers must be able to store an entire chunk in memory. It can't be too large.
+   */
+  private static final long CHANNEL_DATA_CHUNK_SIZE = 1_000_000;
+
   private final Worker worker;
   private final TalariaWorkerTask task;
   private final TaskToolbox toolbox;
@@ -50,7 +53,9 @@ public class WorkerChatHandler implements ChatHandler
   }
 
   /**
-   * See {@link io.imply.druid.talaria.exec.WorkerClient#getChannelData} for the client-side code that calls this API.
+   * Returns up to {@link #CHANNEL_DATA_CHUNK_SIZE} bytes of stage output data.
+   *
+   * See {@link io.imply.druid.talaria.exec.WorkerClient#fetchChannelData} for the client-side code that calls this API.
    */
   @GET
   @Path("/channels/{queryId}/{stageNumber}/{partitionNumber}")
@@ -65,16 +70,23 @@ public class WorkerChatHandler implements ChatHandler
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
     try {
-      InputStream inputStream = worker.readChannel(queryId, stageNumber, partitionNumber, offset);
+      final InputStream inputStream = worker.readChannel(queryId, stageNumber, partitionNumber, offset);
       if (inputStream == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      return Response.status(Response.Status.OK).entity(new StreamingOutput()
-      {
-        @Override
-        public void write(OutputStream output) throws IOException, WebApplicationException
-        {
-          ByteStreams.copy(inputStream, output);
+      return Response.ok((StreamingOutput) output -> {
+        try {
+          final byte[] tmp = new byte[8192];
+
+          long bytesReadTotal = 0;
+          int bytesReadThisCall;
+          while (bytesReadTotal < CHANNEL_DATA_CHUNK_SIZE && (bytesReadThisCall = inputStream.read(tmp)) != -1) {
+            output.write(tmp, 0, (int) Math.min(CHANNEL_DATA_CHUNK_SIZE - bytesReadTotal, bytesReadThisCall));
+            bytesReadTotal += bytesReadThisCall;
+          }
+        }
+        finally {
+          CloseableUtils.closeAll(inputStream, output);
         }
       }).build();
     }

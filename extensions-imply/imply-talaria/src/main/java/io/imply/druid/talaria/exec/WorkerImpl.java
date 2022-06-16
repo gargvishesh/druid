@@ -17,8 +17,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.inject.Key;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
@@ -43,9 +41,7 @@ import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
-import io.imply.druid.talaria.frame.processor.RemoteOutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
-import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.indexing.CountingInputChannelFactory;
 import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
@@ -68,8 +64,12 @@ import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.kernel.worker.WorkerStageKernel;
 import io.imply.druid.talaria.kernel.worker.WorkerStagePhase;
+import io.imply.druid.talaria.shuffle.DurableStorageInputChannelFactory;
+import io.imply.druid.talaria.shuffle.DurableStorageOutputChannelFactory;
+import io.imply.druid.talaria.shuffle.WorkerInputChannelFactory;
 import io.imply.druid.talaria.util.DecoratedExecutorService;
 import io.imply.druid.talaria.util.TalariaContext;
+import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.ISE;
@@ -108,7 +108,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -126,36 +125,19 @@ public class WorkerImpl implements Worker
   private final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue = new LinkedBlockingDeque<>();
   private final ConcurrentHashMap<StageId, ConcurrentHashMap<Integer, ReadableFrameChannel>> stageOutputs = new ConcurrentHashMap<>();
   private final TalariaCounters talariaCounters = new TalariaCounters();
+  private final boolean durableStageStorageEnabled;
 
   private volatile DruidNode selfDruidNode;
   private volatile LeaderClient leaderClient;
   private volatile WorkerClient workerClient;
   private volatile Bouncer processorBouncer;
-
-  @Nullable
-  private final StorageConnector storageConnector;
-
   private volatile boolean leaderAlive = true;
-
-  @Nullable
-  private final ExecutorService executorService;
-
-  private final boolean durableStageStorageEnabled;
 
   public WorkerImpl(TalariaWorkerTask task, WorkerContext context)
   {
     this.task = task;
     this.context = context;
-
-    if (TalariaContext.isDurableStorageEnabled(task.getContext())) {
-      storageConnector = context.injector().getInstance(Key.get(StorageConnector.class, Talaria.class));
-      executorService = task().getRemoteFetchExecutorService();
-      durableStageStorageEnabled = true;
-    } else {
-      storageConnector = null;
-      executorService = null;
-      durableStageStorageEnabled = false;
-    }
+    this.durableStageStorageEnabled = TalariaContext.isDurableStorageEnabled(task.getContext());
   }
 
   @Override
@@ -213,7 +195,7 @@ public class WorkerImpl implements Worker
     this.leaderClient = context.makeLeaderClient(task.getControllerTaskId());
     closer.register(leaderClient::close);
     context.registerWorker(this, closer); // Uses leaderClient, so must be called after leaderClient is initialized
-    this.workerClient = new ExceptionWrappingWorkerClient(context.makeWorkerClient(task().getControllerTaskId(), id()));
+    this.workerClient = new ExceptionWrappingWorkerClient(context.makeWorkerClient());
     closer.register(workerClient::close);
     this.processorBouncer = context.processorBouncer();
 
@@ -243,8 +225,7 @@ public class WorkerImpl implements Worker
 
     closer.register(talariaWarningReportPublisher);
 
-    // TODO(gianm): consider using a different thread pool for connecting
-    final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(workerExec.getExecutorService());
+    InputChannelFactory inputChannelFactory = null; // Defer creation to ensure errors are reported properly.
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
 
     // TODO(gianm): push this into kernel
@@ -261,10 +242,14 @@ public class WorkerImpl implements Worker
         if (kernel.getPhase() == WorkerStagePhase.NEW) {
           log.debug("New work order: %s", context.jsonMapper().writeValueAsString(kernel.getWorkOrder()));
 
-          // Compute memory parameters *now*, instead of before receiving the work order, to ensure that the
-          // error can propagate back up to the controller. Also, compute memory parameters for all stages,
+          // Create inputChannelFactory and stageFrameContexts *now*, instead of before the work order, to ensure
+          // that any errors can propagate back up to the controller. Also, compute memory parameters for all stages,
           // even ones that haven't been assigned yet, so we can fail-fast if some won't work. (We expect
           // that all stages will get assigned to the same pool of workers.)
+          if (inputChannelFactory == null) {
+            inputChannelFactory = makeBaseInputChannelFactory(closer);
+          }
+
           for (final StageDefinition stageDef : kernel.getWorkOrder().getQueryDefinition().getStageDefinitions()) {
             stageFrameContexts.computeIfAbsent(
                 stageDef.getId(),
@@ -422,9 +407,14 @@ public class WorkerImpl implements Worker
     } else if (channel instanceof ReadableFileFrameChannel) {
       final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
       final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r");
-      randomAccessFile.seek(offset);
 
-      return Channels.newInputStream(randomAccessFile.getChannel());
+      if (offset >= randomAccessFile.length()) {
+        randomAccessFile.close();
+        return new ByteArrayInputStream(ByteArrays.EMPTY_ARRAY);
+      } else {
+        randomAccessFile.seek(offset);
+        return Channels.newInputStream(randomAccessFile.getChannel());
+      }
     } else {
       String errorMsg = StringUtils.format(
           "Returned server error to client because channel for [%s] is not nil or file-based (class = %s)",
@@ -502,71 +492,45 @@ public class WorkerImpl implements Worker
     return talariaCounters.snapshot();
   }
 
-  private InputChannelFactory makeBaseInputChannelFactory(final ExecutorService connectExec)
+  private InputChannelFactory makeBaseInputChannelFactory(final Closer closer)
   {
-    return new InputChannelFactory()
-    {
-      final Supplier<List<String>> taskList = Suppliers.memoize(
-          () -> leaderClient.getTaskList().orElseThrow(() -> new ISE("Really expected tasks to be available by now"))
-      )::get;
+    final Supplier<List<String>> workerTaskList = Suppliers.memoize(
+        () -> leaderClient.getTaskList().orElseThrow(() -> new ISE("Really expected tasks to be available by now"))
+    )::get;
 
-      @Override
-      public ReadableFrameChannel openChannel(StageId stageId, int workerNumber, int partitionNumber)
-      {
-        final String taskId = taskList.get().get(workerNumber);
-        if (taskId.equals(id()) && !durableStageStorageEnabled) {
-          final ConcurrentMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.get(stageId);
-          if (partitionOutputsForStage == null) {
-            throw new ISE("Unable to find outputs for stage: [%s]", stageId);
-          }
-          final ReadableFrameChannel myChannel = partitionOutputsForStage.get(partitionNumber);
-
-          if (myChannel instanceof ReadableFileFrameChannel) {
-            // Must duplicate the channel to avoid double-closure upon task cleanup.
-            final FrameFile frameFile = ((ReadableFileFrameChannel) myChannel).getFrameFileReference();
-            return new ReadableFileFrameChannel(frameFile);
-          } else if (myChannel instanceof ReadableNilFrameChannel) {
-            return myChannel;
-          } else {
-            throw new ISE("Output for stage: [%s] are stored in an instance of %s which is not "
-                          + "supported", stageId, myChannel.getClass());
-          }
-        } else {
-          return workerClient.getChannelData(taskId, stageId, partitionNumber, connectExec);
-        }
-      }
-    };
-  }
-
-  private OutputChannelFactory makeFileOutputChannelFactory(final int stageNumber, final int frameSize)
-  {
-    final File fileChannelDirectory = new File(context.tempDir(), StringUtils.format("output_stage_%06d", stageNumber));
-    return new FileOutputChannelFactory(fileChannelDirectory, frameSize);
-  }
-
-  private OutputChannelFactory makeRemoteOutputChannelFactory(
-      final String controllerTaskId,
-      final String workerTaskId,
-      final int stageNumber
-  )
-  {
-    if (storageConnector == null) {
-      // Indicates a logic issue
-      throw new ISE(
-          "Storage connector cannot be null while using a %s",
-          RemoteOutputChannelFactory.class.getSimpleName()
+    if (durableStageStorageEnabled) {
+      return DurableStorageInputChannelFactory.createStandardImplementation(
+          task.getControllerTaskId(),
+          workerTaskList,
+          TalariaTasks.makeStorageConnector(context.injector()),
+          closer
       );
+    } else {
+      return new WorkerOrLocalInputChannelFactory(workerTaskList);
     }
-    return new RemoteOutputChannelFactory(
-        controllerTaskId,
-        workerTaskId,
-        stageNumber,
-        storageConnector,
-        executorService
-    );
-
   }
 
+  private OutputChannelFactory makeStageOutputChannelFactory(final FrameContext frameContext, final int stageNumber)
+  {
+    // Use the standard frame size, since we assume this size when computing how much is needed to merge output
+    // files from different workers.
+    final int frameSize = frameContext.memoryParameters().getStandardFrameSize();
+
+    if (durableStageStorageEnabled) {
+      return DurableStorageOutputChannelFactory.createStandardImplementation(
+          task.getControllerTaskId(),
+          id(),
+          stageNumber,
+          frameSize,
+          TalariaTasks.makeStorageConnector(context.injector())
+      );
+    } else {
+      final File fileChannelDirectory =
+          new File(context.tempDir(), StringUtils.format("output_stage_%06d", stageNumber));
+
+      return new FileOutputChannelFactory(fileChannelDirectory, frameSize);
+    }
+  }
 
   private ListeningExecutorService makeProcessingPool()
   {
@@ -670,12 +634,14 @@ public class WorkerImpl implements Worker
       // todo: clean the stage output in case of a worker crash.
       if (durableStageStorageEnabled) {
         try {
-          storageConnector.delete(RemoteOutputChannelFactory.getPartitionFileName(
+          final String fileName = DurableStorageOutputChannelFactory.getPartitionFileName(
               task.getControllerTaskId(),
               task.getId(),
               stageId.getStageNumber(),
               partition
-          ));
+          );
+
+          TalariaTasks.makeStorageConnector(context.injector()).delete(fileName);
         }
         catch (IOException e) {
           throw new RuntimeException(e);
@@ -733,21 +699,8 @@ public class WorkerImpl implements Worker
       workerOutputChannelFactory =
           new BlockingQueueOutputChannelFactory(frameContext.memoryParameters().getLargeFrameSize());
     } else {
-      // Writing directly to an output file. Use the standard frame size, since we assume this size when computing
-      // how much memory is needed to merge output files from different workers.
-
-      if (durableStageStorageEnabled) {
-        workerOutputChannelFactory = makeRemoteOutputChannelFactory(
-            task.getControllerTaskId(),
-            task.getId(),
-            stageDef.getStageNumber()
-        );
-      } else {
-        workerOutputChannelFactory = makeFileOutputChannelFactory(
-            stageDef.getStageNumber(),
-            frameContext.memoryParameters().getStandardFrameSize()
-        );
-      }
+      // Writing stage output.
+      workerOutputChannelFactory = makeStageOutputChannelFactory(frameContext, stageDef.getStageNumber());
     }
 
     final ResultAndChannels<?> workerResultAndOutputChannels =
@@ -783,16 +736,7 @@ public class WorkerImpl implements Worker
     if (stageDef.doesShuffle()) {
       final CountingOutputChannelFactory shuffleOutputChannelFactory =
           new CountingOutputChannelFactory(
-              durableStageStorageEnabled ?
-              makeRemoteOutputChannelFactory(
-                  task.getControllerTaskId(),
-                  task.getId(),
-                  stageDef.getStageNumber()
-              ) :
-              makeFileOutputChannelFactory(
-                  stageDef.getStageNumber(),
-                  frameContext.memoryParameters().getStandardFrameSize()
-              ),
+              makeStageOutputChannelFactory(frameContext, stageDef.getStageNumber()),
               partitionNumber ->
                   counters.getOrCreateChannelCounters(
                       MSQCounterType.SORT,
@@ -1170,6 +1114,49 @@ public class WorkerImpl implements Worker
         kernel.getStageDefinition().doesShuffle() ? "SHUFFLE" : "RETAIN",
         kernel.getPhase()
     );
+  }
+
+  /**
+   * An {@link InputChannelFactory} that loads data locally when possible, and otherwise connects directly to other
+   * workers. Used when durable shuffle storage is off.
+   */
+  private class WorkerOrLocalInputChannelFactory implements InputChannelFactory
+  {
+    private final Supplier<List<String>> taskList;
+    private final WorkerInputChannelFactory workerInputChannelFactory;
+
+    public WorkerOrLocalInputChannelFactory(final Supplier<List<String>> taskList)
+    {
+      this.workerInputChannelFactory = new WorkerInputChannelFactory(workerClient, taskList);
+      this.taskList = taskList;
+    }
+
+    @Override
+    public ReadableFrameChannel openChannel(StageId stageId, int workerNumber, int partitionNumber)
+    {
+      final String taskId = taskList.get().get(workerNumber);
+      if (taskId.equals(id())) {
+        final ConcurrentMap<Integer, ReadableFrameChannel> partitionOutputsForStage = stageOutputs.get(stageId);
+        if (partitionOutputsForStage == null) {
+          throw new ISE("Unable to find outputs for stage: [%s]", stageId);
+        }
+
+        final ReadableFrameChannel myChannel = partitionOutputsForStage.get(partitionNumber);
+
+        if (myChannel instanceof ReadableFileFrameChannel) {
+          // Must duplicate the channel to avoid double-closure upon task cleanup.
+          final FrameFile frameFile = ((ReadableFileFrameChannel) myChannel).getFrameFileReference();
+          return new ReadableFileFrameChannel(frameFile);
+        } else if (myChannel instanceof ReadableNilFrameChannel) {
+          return myChannel;
+        } else {
+          throw new ISE("Output for stage: [%s] are stored in an instance of %s which is not "
+                        + "supported", stageId, myChannel.getClass());
+        }
+      } else {
+        return workerInputChannelFactory.openChannel(stageId, workerNumber, partitionNumber);
+      }
+    }
   }
 
   private static class KernelHolder

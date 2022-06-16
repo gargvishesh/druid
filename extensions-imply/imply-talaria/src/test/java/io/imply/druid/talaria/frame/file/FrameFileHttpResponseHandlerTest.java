@@ -13,19 +13,17 @@ import com.google.common.math.LongMath;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.testutil.FrameSequenceBuilder;
 import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
+import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.response.ClientResponse;
-import org.apache.druid.java.util.http.client.response.HttpResponseHandler;
 import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.TestIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.apache.druid.testing.InitializedNullHandlingTest;
-import org.easymock.EasyMock;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.jboss.netty.buffer.ByteBufferBackedChannelBuffer;
@@ -36,7 +34,6 @@ import org.jboss.netty.handler.codec.http.HttpChunk;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -53,8 +50,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 
 @RunWith(Parameterized.class)
 public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTest
@@ -63,13 +58,11 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private final int maxRowsPerFrame;
-  private final BlockingQueue<Throwable> caughtExceptions = new LinkedBlockingDeque<>();
 
   private StorageAdapter adapter;
   private File file;
   private ReadableByteChunksFrameChannel channel;
   private FrameFileHttpResponseHandler handler;
-  private HttpResponseHandler.TrafficCop trafficCop;
 
   public FrameFileHttpResponseHandlerTest(final int maxRowsPerFrame)
   {
@@ -101,36 +94,30 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
     );
 
     channel = ReadableByteChunksFrameChannel.create("test");
-    handler = new FrameFileHttpResponseHandler(channel, caughtExceptions::add);
-    trafficCop = EasyMock.createMock(HttpResponseHandler.TrafficCop.class);
-  }
-
-  @After
-  public void tearDown()
-  {
-    // Tests should clear these out if they expected exceptions.
-    Assert.assertEquals("number of exceptions", 0, caughtExceptions.size());
-    EasyMock.verify(trafficCop);
+    handler = new FrameFileHttpResponseHandler(channel);
   }
 
   @Test
   public void testNonChunkedResponse() throws Exception
   {
-    EasyMock.expect(trafficCop.resume(0)).andReturn(0L);
-    EasyMock.replay(trafficCop);
-
-    final ClientResponse<ReadableByteChunksFrameChannel> response1 = handler.handleResponse(
+    final ClientResponse<FrameFilePartialFetch> response1 = handler.handleResponse(
         makeResponse(HttpResponseStatus.OK, Files.readAllBytes(file.toPath())),
-        trafficCop
+        null
     );
 
-    Assert.assertTrue(response1.isFinished());
-    Assert.assertFalse(response1.isContinueReading());
+    Assert.assertFalse(response1.isFinished());
+    Assert.assertTrue(response1.isContinueReading());
+    Assert.assertFalse(response1.getObj().isExceptionCaught());
+    Assert.assertFalse(response1.getObj().isEmptyFetch());
 
-    final ClientResponse<ReadableFrameChannel> response2 = handler.done(response1);
+    final ClientResponse<FrameFilePartialFetch> response2 = handler.done(response1);
 
     Assert.assertTrue(response2.isFinished());
     Assert.assertTrue(response2.isContinueReading());
+    Assert.assertFalse(response2.getObj().isExceptionCaught());
+    Assert.assertFalse(response2.getObj().isEmptyFetch());
+
+    channel.doneWriting();
 
     FrameTestUtil.assertRowsEqual(
         FrameTestUtil.readRowsFromAdapter(adapter, null, false),
@@ -139,20 +126,38 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   }
 
   @Test
+  public void testEmptyResponse()
+  {
+    final ClientResponse<FrameFilePartialFetch> response1 = handler.handleResponse(
+        makeResponse(HttpResponseStatus.OK, ByteArrays.EMPTY_ARRAY),
+        null
+    );
+
+    Assert.assertFalse(response1.isFinished());
+    Assert.assertTrue(response1.isContinueReading());
+    Assert.assertFalse(response1.getObj().isExceptionCaught());
+    Assert.assertTrue(response1.getObj().isEmptyFetch());
+
+    final ClientResponse<FrameFilePartialFetch> response2 = handler.done(response1);
+
+    Assert.assertTrue(response2.isFinished());
+    Assert.assertTrue(response2.isContinueReading());
+    Assert.assertFalse(response2.getObj().isExceptionCaught());
+    Assert.assertTrue(response2.getObj().isEmptyFetch());
+  }
+
+  @Test
   public void testChunkedResponse() throws Exception
   {
-    EasyMock.expect(trafficCop.resume(EasyMock.anyLong())).andReturn(0L).atLeastOnce();
-    EasyMock.replay(trafficCop);
-
     final int chunkSize = 99;
     final byte[] allBytes = Files.readAllBytes(file.toPath());
 
-    ClientResponse<ReadableByteChunksFrameChannel> response = handler.handleResponse(
+    ClientResponse<FrameFilePartialFetch> response = handler.handleResponse(
         makeResponse(HttpResponseStatus.OK, byteSlice(allBytes, 0, chunkSize)),
-        trafficCop
+        null
     );
 
-    Assert.assertTrue(response.isFinished());
+    Assert.assertFalse(response.isFinished());
 
     for (int p = chunkSize; p < allBytes.length; p += chunkSize) {
       response = handler.handleChunk(
@@ -161,13 +166,19 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
           p / chunkSize
       );
 
-      Assert.assertTrue(response.isFinished());
+      Assert.assertFalse(response.isFinished());
+      Assert.assertFalse(response.getObj().isExceptionCaught());
+      Assert.assertFalse(response.getObj().isEmptyFetch());
     }
 
-    final ClientResponse<ReadableFrameChannel> finalResponse = handler.done(response);
+    final ClientResponse<FrameFilePartialFetch> finalResponse = handler.done(response);
 
     Assert.assertTrue(finalResponse.isFinished());
     Assert.assertTrue(finalResponse.isContinueReading());
+    Assert.assertFalse(response.getObj().isExceptionCaught());
+    Assert.assertFalse(response.getObj().isEmptyFetch());
+
+    channel.doneWriting();
 
     FrameTestUtil.assertRowsEqual(
         FrameTestUtil.readRowsFromAdapter(adapter, null, false),
@@ -178,19 +189,18 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   @Test
   public void testServerErrorResponse()
   {
-    EasyMock.replay(trafficCop);
-
-    ClientResponse<ReadableByteChunksFrameChannel> response = handler.handleResponse(
+    ClientResponse<FrameFilePartialFetch> response = handler.handleResponse(
         makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, StringUtils.toUtf8("Oh no!")),
-        trafficCop
+        null
     );
 
-    final ClientResponse<ReadableFrameChannel> finalResponse = handler.done(response);
+    final ClientResponse<FrameFilePartialFetch> finalResponse = handler.done(response);
     Assert.assertTrue(finalResponse.isFinished());
     Assert.assertTrue(finalResponse.isContinueReading());
 
     // Verify that the exception handler was called.
-    final Throwable e = caughtExceptions.poll();
+    Assert.assertTrue(finalResponse.getObj().isExceptionCaught());
+    final Throwable e = finalResponse.getObj().getExceptionCaught();
     MatcherAssert.assertThat(e, CoreMatchers.instanceOf(IllegalStateException.class));
     MatcherAssert.assertThat(
         e,
@@ -206,21 +216,20 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   @Test
   public void testChunkedServerErrorResponse()
   {
-    EasyMock.replay(trafficCop);
-
-    ClientResponse<ReadableByteChunksFrameChannel> response = handler.handleResponse(
+    ClientResponse<FrameFilePartialFetch> response = handler.handleResponse(
         makeResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, StringUtils.toUtf8("Oh ")),
-        trafficCop
+        null
     );
 
     response = handler.handleChunk(response, makeChunk(StringUtils.toUtf8("no!")), 1);
 
-    final ClientResponse<ReadableFrameChannel> finalResponse = handler.done(response);
+    final ClientResponse<FrameFilePartialFetch> finalResponse = handler.done(response);
     Assert.assertTrue(finalResponse.isFinished());
     Assert.assertTrue(finalResponse.isContinueReading());
 
     // Verify that the exception handler was called.
-    final Throwable e = caughtExceptions.poll();
+    Assert.assertTrue(finalResponse.getObj().isExceptionCaught());
+    final Throwable e = finalResponse.getObj().getExceptionCaught();
     MatcherAssert.assertThat(e, CoreMatchers.instanceOf(IllegalStateException.class));
     MatcherAssert.assertThat(
         e,
@@ -236,19 +245,16 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
   @Test
   public void testCaughtExceptionDuringChunkedResponse() throws Exception
   {
-    EasyMock.expect(trafficCop.resume(EasyMock.anyLong())).andReturn(0L).anyTimes();
-    EasyMock.replay(trafficCop);
-
     // Split file into 4 quarters.
     final int chunkSize = Ints.checkedCast(LongMath.divide(file.length(), 4, RoundingMode.CEILING));
     final byte[] allBytes = Files.readAllBytes(file.toPath());
 
-    ClientResponse<ReadableByteChunksFrameChannel> response = handler.handleResponse(
+    ClientResponse<FrameFilePartialFetch> response = handler.handleResponse(
         makeResponse(HttpResponseStatus.OK, byteSlice(allBytes, 0, chunkSize)),
-        trafficCop
+        null
     );
 
-    Assert.assertTrue(response.isFinished());
+    Assert.assertFalse(response.isFinished());
 
     // Add next chunk.
     response = handler.handleChunk(
@@ -268,7 +274,8 @@ public class FrameFileHttpResponseHandlerTest extends InitializedNullHandlingTes
     );
 
     // Verify that the exception handler was called.
-    final Throwable e = caughtExceptions.poll();
+    Assert.assertTrue(response.getObj().isExceptionCaught());
+    final Throwable e = response.getObj().getExceptionCaught();
     MatcherAssert.assertThat(e, CoreMatchers.instanceOf(IllegalStateException.class));
     MatcherAssert.assertThat(e, ThrowableMessageMatcher.hasMessage(CoreMatchers.equalTo("Oh no!")));
 

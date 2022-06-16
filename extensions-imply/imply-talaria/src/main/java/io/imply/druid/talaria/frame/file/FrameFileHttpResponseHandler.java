@@ -12,9 +12,7 @@ package io.imply.druid.talaria.frame.file;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.http.client.response.ClientResponse;
 import org.apache.druid.java.util.http.client.response.HttpResponseHandler;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -23,131 +21,94 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 /**
  * An {@link HttpResponseHandler} that streams data into a {@link ReadableByteChunksFrameChannel}.
  *
- * In the successful case, this class calls {@link ReadableByteChunksFrameChannel#doneWriting()} on the channel.
- * However, in the unsuccessful case, this class does *not* set an error on the channel. Instead, it calls the
- * provided {@link #exceptionCallback}. This allows for reconnection and resuming, which is typically managed
- * by a {@link io.imply.druid.talaria.indexing.TalariaFrameChannelConnectionManager}.
+ * It is not required that the request actually fetches an entire frame file. The return object for this handler,
+ * {@link FrameFilePartialFetch}, allows callers to tell how much of the file was read in a particular request.
  *
- * This class implements backpressure: when {@link ReadableByteChunksFrameChannel#addChunk} returns a backpressure
- * future, we use the {@link HttpResponseHandler.TrafficCop} mechanism to throttle reading.
+ * This handler implements backpressure through {@link FrameFilePartialFetch#backpressureFuture()}. This allows callers
+ * to back off from issuing the next request, if appropriate. However: the handler does not implement backpressure
+ * through the {@link HttpResponseHandler.TrafficCop} mechanism. Therefore, it is important that each request retrieve
+ * a modest amount of data.
  */
-public class FrameFileHttpResponseHandler
-    implements HttpResponseHandler<ReadableByteChunksFrameChannel, ReadableFrameChannel>
+public class FrameFileHttpResponseHandler implements HttpResponseHandler<FrameFilePartialFetch, FrameFilePartialFetch>
 {
   private final ReadableByteChunksFrameChannel channel;
-  private final Consumer<Throwable> exceptionCallback;
-  private final AtomicBoolean exceptionCaught = new AtomicBoolean();
 
-  private volatile TrafficCop trafficCop;
-
-  public FrameFileHttpResponseHandler(
-      final ReadableByteChunksFrameChannel channel,
-      final Consumer<Throwable> exceptionCallback
-  )
+  public FrameFileHttpResponseHandler(final ReadableByteChunksFrameChannel channel)
   {
     this.channel = Preconditions.checkNotNull(channel, "channel");
-    this.exceptionCallback = Preconditions.checkNotNull(exceptionCallback, "exceptionCallback");
   }
 
   @Override
-  public ClientResponse<ReadableByteChunksFrameChannel> handleResponse(
-      final HttpResponse response,
-      final TrafficCop trafficCop
-  )
+  public ClientResponse<FrameFilePartialFetch> handleResponse(final HttpResponse response, final TrafficCop trafficCop)
   {
-    this.trafficCop = trafficCop;
+    final ClientResponse<FrameFilePartialFetch> clientResponse = ClientResponse.unfinished(new FrameFilePartialFetch());
 
     if (response.getStatus().getCode() != HttpResponseStatus.OK.getCode()) {
       // Note: if the error body is chunked, we will discard all future chunks due to setting exceptionCaught here.
       // This is OK because we don't need the body; just the HTTP status code.
-      handleException(new ISE("Server for [%s] returned [%s]", channel.getId(), response.getStatus()));
-      return ClientResponse.finished(channel, true);
+      exceptionCaught(clientResponse, new ISE("Server for [%s] returned [%s]", channel.getId(), response.getStatus()));
+      return clientResponse;
     } else {
-      return response(channel, response.getContent(), 0);
+      return response(clientResponse, response.getContent());
     }
   }
 
   @Override
-  public ClientResponse<ReadableByteChunksFrameChannel> handleChunk(
-      final ClientResponse<ReadableByteChunksFrameChannel> clientResponse,
+  public ClientResponse<FrameFilePartialFetch> handleChunk(
+      final ClientResponse<FrameFilePartialFetch> clientResponse,
       final HttpChunk chunk,
       final long chunkNum
   )
   {
-    return response(clientResponse.getObj(), chunk.getContent(), chunkNum);
+    return response(clientResponse, chunk.getContent());
   }
 
   @Override
-  public ClientResponse<ReadableFrameChannel> done(final ClientResponse<ReadableByteChunksFrameChannel> clientResponse)
+  public ClientResponse<FrameFilePartialFetch> done(final ClientResponse<FrameFilePartialFetch> clientResponse)
   {
-    final ReadableByteChunksFrameChannel channel = clientResponse.getObj();
-
-    if (!exceptionCaught.get()) {
-      // If there was an exception, don't close the channel. The exception callback will do this if it wants to.
-      channel.doneWriting();
-    }
-
-    return ClientResponse.finished(channel);
+    return ClientResponse.finished(clientResponse.getObj());
   }
 
   @Override
-  public void exceptionCaught(final ClientResponse<ReadableByteChunksFrameChannel> clientResponse, final Throwable e)
-  {
-    handleException(e);
-  }
-
-  private ClientResponse<ReadableByteChunksFrameChannel> response(
-      final ReadableByteChunksFrameChannel channel,
-      final ChannelBuffer content,
-      final long chunkNum
+  public void exceptionCaught(
+      final ClientResponse<FrameFilePartialFetch> clientResponse,
+      final Throwable e
   )
   {
-    if (exceptionCaught.get()) {
+    clientResponse.getObj().exceptionCaught(e);
+  }
+
+  private ClientResponse<FrameFilePartialFetch> response(
+      final ClientResponse<FrameFilePartialFetch> clientResponse,
+      final ChannelBuffer content
+  )
+  {
+    final FrameFilePartialFetch clientResponseObj = clientResponse.getObj();
+
+    if (clientResponseObj.isExceptionCaught()) {
       // If there was an exception, exit early without updating "channel". Important because "handleChunk" can be
       // called after "handleException" in two cases: it can be called after an error "response", if the error body
       // is chunked; and it can be called when "handleChunk" is called after "exceptionCaught". In neither case do
       // we want to add that extra chunk to the channel.
-      return ClientResponse.finished(channel, true);
+      return ClientResponse.finished(clientResponseObj);
     }
 
     final byte[] chunk = new byte[content.readableBytes()];
     content.getBytes(content.readerIndex(), chunk);
-    final Optional<ListenableFuture<?>> addVal = channel.addChunk(chunk);
 
-    final boolean keepReading;
-
-    if (!addVal.isPresent()) {
-      keepReading = true;
-    } else {
-      keepReading = false;
-      addVal.get().addListener(
-          () -> trafficCop.resume(chunkNum),
-          Execs.directExecutor()
-      );
+    try {
+      final Optional<ListenableFuture<?>> backpressureFuture = channel.addChunk(chunk);
+      backpressureFuture.ifPresent(clientResponseObj::setBackpressureFuture);
+      clientResponseObj.addBytesRead(chunk.length);
+    }
+    catch (Exception e) {
+      clientResponseObj.exceptionCaught(e);
     }
 
-    return ClientResponse.finished(channel, keepReading);
-  }
-
-  private void handleException(final Throwable e)
-  {
-    if (exceptionCaught.compareAndSet(false, true)) {
-      try {
-        exceptionCallback.accept(e);
-      }
-      catch (Throwable e2) {
-        e2.addSuppressed(e);
-
-        if (channel != null) {
-          channel.setError(e2);
-        }
-      }
-    }
+    return ClientResponse.unfinished(clientResponseObj);
   }
 }

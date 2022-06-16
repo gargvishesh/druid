@@ -17,7 +17,6 @@ import io.imply.druid.talaria.rpc.ServiceLocations;
 import io.imply.druid.talaria.rpc.ServiceLocator;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.TaskToolbox;
-import org.apache.druid.java.util.common.concurrent.Execs;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -28,7 +27,6 @@ public class IndexerWorkerContextTest
 {
 
   private IndexerWorkerContext indexerWorkerContext = null;
-  private static final String TASK_ID = "dummy-id";
 
   @Before
   public void setup()
@@ -39,9 +37,7 @@ public class IndexerWorkerContextTest
 
     indexerWorkerContext = new IndexerWorkerContext(
         Mockito.mock(TaskToolbox.class),
-        injectorMock,
-        false,
-        Execs.singleThreaded("test-indexer-talaria")
+        injectorMock
     );
   }
 

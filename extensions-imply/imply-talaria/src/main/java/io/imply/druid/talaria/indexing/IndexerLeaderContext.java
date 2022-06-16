@@ -10,17 +10,12 @@
 package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.ConfigurationException;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
-import io.imply.druid.talaria.guice.Talaria;
-import io.imply.druid.talaria.indexing.error.DurableStorageConfigurationFault;
-import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.druid.client.coordinator.CoordinatorClient;
@@ -103,35 +98,7 @@ public class IndexerLeaderContext implements LeaderContext
   public WorkerClient taskClientFor(Leader leader)
   {
     // Ignore leader parameter.
-    if (faultToleranceEnabled) {
-      final StorageConnector storageConnector;
-      try {
-        storageConnector = injector().getInstance(Key.get(StorageConnector.class, Talaria.class));
-      }
-      catch (ConfigurationException configurationException) {
-        throw new TalariaException(new DurableStorageConfigurationFault(configurationException.getMessage()));
-      }
-
-      return new IndexerWorkerClient(
-          leader.id(),
-          clientFactory,
-          overlordClient,
-          jsonMapper(),
-          storageConnector,
-          faultToleranceEnabled,
-          remoteFetchExecutorService
-      );
-    } else {
-      return new IndexerWorkerClient(
-          leader.id(),
-          clientFactory,
-          overlordClient,
-          jsonMapper(),
-          null,
-          false,
-          null
-      );
-    }
+    return new IndexerWorkerClient(clientFactory, overlordClient, jsonMapper());
   }
 
   @Override
