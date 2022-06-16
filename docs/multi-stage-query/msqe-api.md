@@ -111,7 +111,7 @@ When using MSQE, the endpoints you frequently use may include:
 - `GET /druid/indexer/v1/task/{taskId}/reports` to get the query report
 - `POST /druid/indexer/v1/task/{taskId}/shutdown` to cancel a query
 
-For SELECT queries, you need write access for the source datasource. For INSERT and REPLACE queries, you need write access for the target datasource.
+For information about the permissions required, see [Security](./msqe-security.md)
 
 ### MSQE reports
 

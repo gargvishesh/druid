@@ -5,38 +5,6 @@ title: Advanced configs
 
 > The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-## Security
-
-The permission you need depends on what you are trying to do with the Multi-Stage Query Engine (MSQE):
-
-- All authenticated users can use MSQE through the UI and API if the extension is loaded. However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data.
-  - Queries that SELECT from a Druid datasource require the READ DATASOURCE permission on that
-  datasource.
-  - Queries that INSERT or REPLACE into a Druid datasource require the WRITE DATASOURCE permission on that
-  datasource.
-
-### API
-
-Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they are not the user who submitted the query. The following list describes the permissions required based on what action you are trying to perform:
-
-- Submit a query: Depending on the kind of query, the user must have READ or WRITE DATASOURCE permissions. For SELECT queries, you need READ datasource permission for the data you are trying to read. For INSERT or REPLACE queries, you need  WRITE DATASOURCE permission on the datasource.
-- Retrieve status: The user must have READ DATASOURCE permission.
-- View reports: The user must have READ DATASOURCE permission unless they have access to the Overlord API. Users with access to the Overlord API can view reports. Reports for SELECT queries include the status and results and so may be rather large.
-
-
-### S3
-
-If you enable durable storage for mesh shuffle with S3 as the storage, the following S3 permissions are required:
-
-The following are used for pushing and fetching intermediate stage results to and from S3:
-
-- `s3:GetObject`
-- `s3:PutObject`
-- `s3:AbortMultipartUpload`
-
-The following is used for removing intermediate stage results:
-
-- `s3:DeleteObject`
 
 ## Durable storage for mesh shuffle
 

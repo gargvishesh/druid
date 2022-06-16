@@ -9,7 +9,7 @@ Before you start, make sure you've [enabled the Multi-Stage Query Engine (MSQE)]
 
 ## Enhanced Query view
 
-MSQE uses the Enhanced Query view, which provides you with a UI to edit and use SQL queries. If MSQE is enabled, the enhanced Query view is available automatically. No additional configuraiton is required.
+MSQE uses the Enhanced Query view, which provides you with a UI to edit and use SQL queries. If MSQE is enabled, the enhanced Query view is available automatically. No additional configuration is required.
 
 The following screenshot shows you a populated enhanced Query view along with a description of its parts: 
 
@@ -319,7 +319,7 @@ In the **Query** view, do the following:
 
 To prepare to start ingesting your data, do the following:
 
-- Review the [security details](./msqe-advanced-configs.md#security) for MSQE, so that you understand what kind of access is required for your datasources in order to use MSQE. 
+- Review the [security details](./msqe-security.md) for MSQE, so that you understand what kind of access is required for your datasources in order to use MSQE. 
 - Read more about how [MSQE query syntax](./msqe-sql-syntax.md)
 - Look at the example queries to see examples of what you can do with MSQE.
 
