@@ -29,6 +29,7 @@ import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecor
 import org.apache.druid.indexing.seekablestream.common.RecordSupplier;
 import org.apache.druid.indexing.seekablestream.common.StreamException;
 import org.apache.druid.indexing.seekablestream.common.StreamPartition;
+import org.apache.druid.indexing.seekablestream.extension.KafkaConfigOverrides;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.metadata.DynamicConfigProvider;
@@ -61,10 +62,11 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
 
   public KafkaRecordSupplier(
       Map<String, Object> consumerProperties,
-      ObjectMapper sortingMapper
+      ObjectMapper sortingMapper,
+      KafkaConfigOverrides configOverrides
   )
   {
-    this(getKafkaConsumer(sortingMapper, consumerProperties));
+    this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides));
   }
 
   @VisibleForTesting
@@ -218,7 +220,6 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
     if (dynamicConfigProviderJson != null) {
       DynamicConfigProvider dynamicConfigProvider = configMapper.convertValue(dynamicConfigProviderJson, DynamicConfigProvider.class);
       Map<String, String> dynamicConfig = dynamicConfigProvider.getConfig();
-
       for (Map.Entry<String, String> e : dynamicConfig.entrySet()) {
         properties.setProperty(e.getKey(), e.getValue());
       }
@@ -251,11 +252,25 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
     return deserializerObject;
   }
 
-  private static KafkaConsumer<byte[], byte[]> getKafkaConsumer(ObjectMapper sortingMapper, Map<String, Object> consumerProperties)
+  public static KafkaConsumer<byte[], byte[]> getKafkaConsumer(
+      ObjectMapper sortingMapper,
+      Map<String, Object> consumerProperties,
+      KafkaConfigOverrides configOverrides
+  )
   {
     final Map<String, Object> consumerConfigs = KafkaConsumerConfigs.getConsumerProperties();
     final Properties props = new Properties();
-    addConsumerPropertiesFromConfig(props, sortingMapper, consumerProperties);
+    Map<String, Object> effectiveConsumerProperties;
+    if (configOverrides != null) {
+      effectiveConsumerProperties = configOverrides.overrideConfigs(consumerProperties);
+    } else {
+      effectiveConsumerProperties = consumerProperties;
+    }
+    addConsumerPropertiesFromConfig(
+        props,
+        sortingMapper,
+        effectiveConsumerProperties
+    );
     props.putIfAbsent("isolation.level", "read_committed");
     props.putIfAbsent("group.id", StringUtils.format("kafka-supervisor-%s", IdUtils.getRandomId()));
     props.putAll(consumerConfigs);

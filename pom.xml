@@ -192,7 +192,8 @@
         <module>extensions-imply/imply-timeseries</module>
         <module>extensions-imply/imply-sql-async</module>
         <module>extensions-imply/imply-nested-data</module>
-        <!-- distribution packaging -->
+        <module>extensions-imply/imply-polaris-secrets-provider</module>
+      <!-- distribution packaging -->
         <module>distribution</module>
     </modules>
 
