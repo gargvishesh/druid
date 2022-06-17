@@ -101,7 +101,7 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, Kafka
 
       props.put("auto.offset.reset", "none");
 
-      return new KafkaRecordSupplier(props, configMapper);
+      return new KafkaRecordSupplier(props, configMapper, ioConfig.getConfigOverrides());
     }
     finally {
       Thread.currentThread().setContextClassLoader(currCtxCl);

@@ -608,6 +608,8 @@
                                         <argument>io.imply:imply-external-druid-schema</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:statsd-emitter</argument>
+                                        <argument>-c</argument>
+                                        <argument>io.imply:imply-polaris-secrets-provider</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
