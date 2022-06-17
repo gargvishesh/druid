@@ -96,10 +96,10 @@ export interface WorkbenchViewState {
 }
 
 export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, WorkbenchViewState> {
-  private readonly metadataQueryManager: QueryManager<null, ColumnMetadata[]>;
+  private metadataQueryManager: QueryManager<null, ColumnMetadata[]> | undefined;
 
-  constructor(props: WorkbenchViewProps, context: any) {
-    super(props, context);
+  constructor(props: WorkbenchViewProps) {
+    super(props);
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
     const possibleLiveQueryMode = localStorageGetJson(LocalStorageKeys.WORKBENCH_LIVE_MODE);
@@ -151,7 +151,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
       showWorkHistory,
     };
+  }
 
+  componentDidMount(): void {
     this.metadataQueryManager = new QueryManager({
       processQuery: async () => {
         return await queryDruidSql<ColumnMetadata>({
@@ -170,14 +172,12 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         });
       },
     });
-  }
 
-  componentDidMount(): void {
     this.metadataQueryManager.runQuery(null);
   }
 
   componentWillUnmount(): void {
-    this.metadataQueryManager.terminate();
+    this.metadataQueryManager?.terminate();
   }
 
   private readonly handleWorkPanelClose = () => {
@@ -622,7 +622,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         {this.renderExternalConfigDialog()}
         {this.renderTabRenameDialog()}
         {this.renderSpecDialog()}
-        <MetadataChangeDetector onChange={() => this.metadataQueryManager.runQuery(null)} />
+        <MetadataChangeDetector onChange={() => this.metadataQueryManager?.runQuery(null)} />
       </div>
     );
   }
