@@ -58,7 +58,7 @@ export class WorkbenchQuery {
   static TMP_PREFIX = '_tmp_';
   static INLINE_DATASOURCE_MARKER = '__query_select';
 
-  private static sqlTaskEnabled = false;
+  private static enabledQueryEngines: DruidEngine[] = ['native', 'sql'];
 
   static blank(): WorkbenchQuery {
     return new WorkbenchQuery({
@@ -67,12 +67,12 @@ export class WorkbenchQuery {
     });
   }
 
-  static setSqlTaskEnabled(enabled: boolean): void {
-    WorkbenchQuery.sqlTaskEnabled = enabled;
+  static setQueryEngines(queryEngines: DruidEngine[]): void {
+    WorkbenchQuery.enabledQueryEngines = queryEngines;
   }
 
-  static getSqlTaskEnabled(): boolean {
-    return WorkbenchQuery.sqlTaskEnabled;
+  static getQueryEngines(): DruidEngine[] {
+    return WorkbenchQuery.enabledQueryEngines;
   }
 
   static fromEffectiveQueryAndContext(queryString: string, context: QueryContext): WorkbenchQuery {
@@ -176,8 +176,11 @@ export class WorkbenchQuery {
   public getEffectiveEngine(): DruidEngine {
     const { engine } = this;
     if (engine) return engine;
-    if (this.getLastPart().isJsonLike()) return 'native';
-    return WorkbenchQuery.getSqlTaskEnabled() && this.isTaskEngineNeeded() ? 'sql-task' : 'sql';
+    const enabledEngines = WorkbenchQuery.getQueryEngines();
+    if (enabledEngines.includes('native') && this.getLastPart().isJsonLike()) return 'native';
+    if (enabledEngines.includes('sql-task') && this.isTaskEngineNeeded()) return 'sql-task';
+    if (enabledEngines.includes('sql')) return 'sql';
+    return enabledEngines[0] || 'sql';
   }
 
   private getLastPart(): WorkbenchQueryPart {
@@ -268,22 +271,30 @@ export class WorkbenchQuery {
     return this.changeUnlimited(!unlimited);
   }
 
-  public materializeQuery(): WorkbenchQuery {
+  public materializeHelpers(): WorkbenchQuery {
     const { query } = this.getApiQuery();
-    if (typeof query !== 'string') return this;
+    const queryString = query.query;
+    if (typeof queryString !== 'string') return this;
     const lastPart = this.getLastPart();
     return this.changeQueryParts([
       new WorkbenchQueryPart({
         id: lastPart.id,
         queryName: lastPart.queryName,
-        queryString: query,
+        queryString,
       }),
     ]);
   }
 
-  public explodeQuery(): WorkbenchQuery {
+  public extractCteHelpers(): WorkbenchQuery {
     const { queryParts } = this;
-    return this.changeQueryParts(queryParts.flatMap(queryPart => queryPart.explodeQueryPart()));
+
+    let changed = false;
+    const newParts = queryParts.flatMap(queryPart => {
+      const helpers = queryPart.extractCteHelpers();
+      if (helpers) changed = true;
+      return helpers || [queryPart];
+    });
+    return changed ? this.changeQueryParts(newParts) : this;
   }
 
   public makePreview(): WorkbenchQuery {

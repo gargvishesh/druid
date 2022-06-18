@@ -35,12 +35,14 @@ import {
   LocalStorageKeys,
   localStorageSet,
   localStorageSetJson,
+  oneOf,
   queryDruidSql,
   QueryManager,
   QueryState,
 } from '../../utils';
 import { DruidEngine, generate8HexId, TabEntry, WorkbenchQuery } from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
+import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 import {
   LIVE_QUERY_MODES,
   LiveQueryMode,
@@ -72,7 +74,8 @@ export interface WorkbenchViewProps {
   initQuery: string | undefined;
   defaultQueryContext?: Record<string, any>;
   mandatoryQueryContext?: Record<string, any>;
-  extraEngines: DruidEngine[];
+  queryEngines: DruidEngine[];
+  allowExplain: boolean;
 }
 
 export interface WorkbenchViewState {
@@ -81,13 +84,13 @@ export interface WorkbenchViewState {
 
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
-  initExternalConfig?: 'newTab' | 'currentTab';
+  initExternalConfig: boolean;
   details?: { id: string; initTab?: ExecutionDetailsTab };
 
   defaultSchema?: string;
   defaultTable?: string;
 
-  editContextDialogOpen: boolean;
+  explainDialogOpen: boolean;
   historyDialogOpen: boolean;
   specDialogOpen: boolean;
   renamingTab?: TabEntry;
@@ -107,12 +110,12 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       ? possibleLiveQueryMode
       : 'auto';
 
-    const hasSqlTask = props.extraEngines.includes('sql-task');
+    WorkbenchQuery.setQueryEngines(props.queryEngines);
+
+    const hasSqlTask = props.queryEngines.includes('sql-task');
     const showWorkHistory = Boolean(
       hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
     );
-
-    WorkbenchQuery.setSqlTaskEnabled(hasSqlTask);
 
     const tabEntries =
       Array.isArray(possibleTabEntries) && possibleTabEntries.length
@@ -132,20 +135,17 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     }
 
     if (!tabEntries.length) {
-      tabEntries.push({
-        id: generate8HexId(),
-        tabName: 'Tab 1',
-        query: WorkbenchQuery.blank().changeQueryContext(props.defaultQueryContext || {}),
-      });
+      tabEntries.push(this.getInitTab());
     }
 
     this.state = {
       tabEntries,
       liveQueryMode,
+      initExternalConfig: false,
 
       columnMetadataState: QueryState.INIT,
 
-      editContextDialogOpen: false,
+      explainDialogOpen: false,
       historyDialogOpen: false,
       specDialogOpen: false,
 
@@ -180,6 +180,18 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     this.metadataQueryManager?.terminate();
   }
 
+  private readonly openExplainDialog = () => {
+    this.setState({ explainDialogOpen: true });
+  };
+
+  private readonly openHistoryDialog = () => {
+    this.setState({ historyDialogOpen: true });
+  };
+
+  private readonly openSpecDialog = () => {
+    this.setState({ specDialogOpen: true });
+  };
+
   private readonly handleWorkPanelClose = () => {
     this.setState({ showWorkHistory: false });
     localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, false);
@@ -190,6 +202,14 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       details: { id, initTab },
     });
   };
+
+  private getInitTab(): TabEntry {
+    return {
+      id: generate8HexId(),
+      tabName: 'Tab 1',
+      query: WorkbenchQuery.blank().changeQueryContext(this.props.defaultQueryContext || {}),
+    };
+  }
 
   private getTabId(): string | undefined {
     const { tabId, initQuery } = this.props;
@@ -221,6 +241,47 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
+  private renderExplainDialog() {
+    const { queryEngines } = this.props;
+    const { explainDialogOpen } = this.state;
+    if (!explainDialogOpen) return;
+
+    const query = this.getCurrentQuery();
+
+    const { engine, query: apiQuery } = query.getApiQuery();
+    if (typeof apiQuery.query !== 'string') return;
+    const queryContext = apiQuery.context || {};
+    if (engine === 'sql-task') {
+      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `multiStageQuery` engine selector
+      queryContext.multiStageQuery = true;
+    }
+
+    return (
+      <ExplainDialog
+        queryWithContext={{
+          queryString: apiQuery.query,
+          queryContext,
+          wrapQueryLimit: undefined,
+        }}
+        mandatoryQueryContext={{}}
+        onClose={() => {
+          this.setState({ explainDialogOpen: false });
+        }}
+        openQueryLabel={
+          oneOf(engine, 'sql', 'sql-async') && queryEngines.includes('native')
+            ? 'Open in new tab'
+            : undefined
+        }
+        onOpenQuery={queryString => {
+          this.handleNewTab(
+            WorkbenchQuery.blank().changeEngine('native').changeQueryString(queryString),
+            'Explained query',
+          );
+        }}
+      />
+    );
+  }
+
   private renderHistoryDialog() {
     const { historyDialogOpen } = this.state;
     if (!historyDialogOpen) return;
@@ -240,19 +301,13 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return (
       <ExternalConfigDialog
         onSetExternalConfig={(externalConfig, isArrays) => {
-          if (initExternalConfig === 'newTab') {
-            this.handleNewTab(
-              WorkbenchQuery.blank().insertExternalPanel(externalConfig, isArrays),
-              'Ext ' + guessDataSourceNameFromInputSource(externalConfig.inputSource),
-            );
-          } else {
-            this.handleQueryChange(
-              this.getCurrentQuery().insertExternalPanel(externalConfig, isArrays),
-            );
-          }
+          this.handleNewTab(
+            WorkbenchQuery.blank().insertExternalPanel(externalConfig, isArrays),
+            'Ext ' + guessDataSourceNameFromInputSource(externalConfig.inputSource),
+          );
         }}
         onClose={() => {
-          this.setState({ initExternalConfig: undefined });
+          this.setState({ initExternalConfig: false });
         }}
       />
     );
@@ -313,7 +368,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderToolbarMoreMenu() {
-    const { extraEngines } = this.props;
+    const { queryEngines } = this.props;
     const query = this.getCurrentQuery();
 
     return (
@@ -321,24 +376,20 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         <MenuItem
           icon={IconNames.DOCUMENT_SHARE}
           text="Extract helper queries"
-          onClick={() => this.handleQueryChange(query.explodeQuery())}
+          onClick={() => this.handleQueryChange(query.extractCteHelpers())}
         />
         <MenuItem
           icon={IconNames.DOCUMENT_OPEN}
           text="Materialize helper queries"
-          onClick={() => this.handleQueryChange(query.materializeQuery())}
+          onClick={() => this.handleQueryChange(query.materializeHelpers())}
         />
-        <MenuItem
-          icon={IconNames.HISTORY}
-          text="Query history"
-          onClick={() => this.setState({ historyDialogOpen: true })}
-        />
-        {extraEngines.includes('sql-task') && (
+        <MenuItem icon={IconNames.HISTORY} text="Query history" onClick={this.openHistoryDialog} />
+        {queryEngines.includes('sql-task') && (
           <>
             <MenuItem
               icon={IconNames.TEXT_HIGHLIGHT}
               text="Convert ingestion spec to SQL"
-              onClick={() => this.setState({ specDialogOpen: true })}
+              onClick={this.openSpecDialog}
             />
             <MenuDivider />
             <MenuItem
@@ -354,47 +405,23 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderToolbar() {
-    const { extraEngines } = this.props;
+    const { queryEngines } = this.props;
     const { showWorkHistory } = this.state;
 
-    const hasSqlTask = extraEngines.includes('sql-task');
+    const hasSqlTask = queryEngines.includes('sql-task');
     return (
       <ButtonGroup className="toolbar">
         {hasSqlTask && (
-          <Popover2
-            position="bottom-left"
-            content={
-              <Menu>
-                <MenuItem
-                  text="Connect external data in a new tab"
-                  onClick={() => {
-                    this.setState({
-                      initExternalConfig: 'newTab',
-                    });
-                  }}
-                />
-                <MenuItem
-                  text="Add external data to the current tab"
-                  onClick={() => {
-                    this.setState({
-                      initExternalConfig: 'currentTab',
-                    });
-                  }}
-                />
-              </Menu>
-            }
-          >
-            <Button
-              icon={IconNames.TH_DERIVED}
-              text="Connect external data"
-              onDoubleClick={() => {
-                this.setState({
-                  initExternalConfig: 'newTab',
-                });
-              }}
-              minimal
-            />
-          </Popover2>
+          <Button
+            icon={IconNames.TH_DERIVED}
+            text="Connect external data"
+            onClick={() => {
+              this.setState({
+                initExternalConfig: true,
+              });
+            }}
+            minimal
+          />
         )}
         <Popover2 content={this.renderToolbarMoreMenu()}>
           <Button icon={IconNames.WRENCH} minimal />
@@ -415,7 +442,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderCenterPanel() {
-    const { onTabChange, mandatoryQueryContext, extraEngines } = this.props;
+    const { onTabChange, mandatoryQueryContext, queryEngines, allowExplain } = this.props;
     const { columnMetadataState, tabEntries } = this.state;
     const currentTabEntry = this.getCurrentTabEntry();
 
@@ -425,87 +452,105 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           {tabEntries.map((tabEntry, i) => {
             const currentId = tabEntry.id;
             const active = currentTabEntry === tabEntry;
-            const disabled = tabEntries.length <= 1;
             return (
               <ButtonGroup key={i} minimal className={classNames('tab-button', { active })}>
+                {active ? (
+                  <Popover2
+                    position="bottom"
+                    content={
+                      <Menu>
+                        <MenuItem
+                          icon={IconNames.EDIT}
+                          text="Rename tab"
+                          onClick={() => this.setState({ renamingTab: tabEntry })}
+                        />
+                        <MenuItem
+                          icon={IconNames.DUPLICATE}
+                          text="Duplicate tab"
+                          onClick={() => {
+                            const id = generate8HexId();
+                            const newTabEntry: TabEntry = {
+                              id,
+                              tabName: tabEntry.tabName + ' (copy)',
+                              query: tabEntry.query.duplicate(),
+                            };
+                            this.handleQueriesChange(
+                              tabEntries
+                                .slice(0, i + 1)
+                                .concat(newTabEntry, tabEntries.slice(i + 1)),
+                              () => {
+                                onTabChange(newTabEntry.id);
+                              },
+                            );
+                          }}
+                        />
+                        {tabEntries.length > 1 && (
+                          <MenuItem
+                            icon={IconNames.CROSS}
+                            text="Close other tabs"
+                            intent={Intent.DANGER}
+                            onClick={() => {
+                              tabEntries.forEach(tabEntry => {
+                                if (tabEntry.id === currentId) return;
+                                cleanupTabEntry(tabEntry);
+                              });
+                              this.handleQueriesChange(
+                                tabEntries.filter(({ id }) => id === currentId),
+                                () => {
+                                  if (!active) return;
+                                  onTabChange(tabEntry.id);
+                                },
+                              );
+                            }}
+                          />
+                        )}
+                        <MenuItem
+                          icon={IconNames.CROSS}
+                          text="Close all tabs"
+                          intent={Intent.DANGER}
+                          onClick={() => {
+                            tabEntries.forEach(cleanupTabEntry);
+                            this.handleQueriesChange([], () => {
+                              onTabChange(this.state.tabEntries[0].id);
+                            });
+                          }}
+                        />
+                      </Menu>
+                    }
+                  >
+                    <Button
+                      className="tab-name"
+                      text={tabEntry.tabName}
+                      title={tabEntry.tabName}
+                      onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
+                    />
+                  </Popover2>
+                ) : (
+                  <Button
+                    className="tab-name"
+                    text={tabEntry.tabName}
+                    title={tabEntry.tabName}
+                    onClick={() => {
+                      localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
+                      onTabChange(currentId);
+                    }}
+                  />
+                )}
                 <Button
-                  className="tab-name"
-                  text={tabEntry.tabName}
-                  title={tabEntry.tabName}
+                  className="tab-close"
+                  icon={IconNames.CROSS}
+                  title={`Close tab '${tabEntry.tabName}`}
                   onClick={() => {
-                    localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
-                    onTabChange(currentId);
+                    cleanupTabEntry(tabEntry);
+                    this.handleQueriesChange(
+                      tabEntries.filter(({ id }) => id !== currentId),
+                      () => {
+                        if (!active) return;
+                        onTabChange(this.state.tabEntries[Math.max(0, i - 1)].id);
+                      },
+                    );
                   }}
-                  onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
                 />
-                <Popover2
-                  className="tab-extra"
-                  position="bottom"
-                  content={
-                    <Menu>
-                      <MenuItem
-                        icon={IconNames.EDIT}
-                        text="Rename tab"
-                        onClick={() => this.setState({ renamingTab: tabEntry })}
-                      />
-                      <MenuItem
-                        icon={IconNames.DUPLICATE}
-                        text="Duplicate tab"
-                        onClick={() => {
-                          const id = generate8HexId();
-                          const newTabEntry: TabEntry = {
-                            id,
-                            tabName: tabEntry.tabName + ' (copy)',
-                            query: tabEntry.query.duplicate(),
-                          };
-                          this.handleQueriesChange(
-                            tabEntries.slice(0, i + 1).concat(newTabEntry, tabEntries.slice(i + 1)),
-                            () => {
-                              onTabChange(newTabEntry.id);
-                            },
-                          );
-                        }}
-                      />
-                      <MenuItem
-                        icon={IconNames.CROSS}
-                        text="Close tab"
-                        intent={Intent.DANGER}
-                        disabled={disabled}
-                        onClick={() => {
-                          cleanupTabEntry(tabEntry);
-                          this.handleQueriesChange(
-                            tabEntries.filter(({ id }) => id !== currentId),
-                            () => {
-                              if (!active) return;
-                              onTabChange(tabEntries[Math.max(0, i - 1)].id);
-                            },
-                          );
-                        }}
-                      />
-                      <MenuItem
-                        icon={IconNames.CROSS}
-                        text="Close other tabs"
-                        intent={Intent.DANGER}
-                        disabled={disabled}
-                        onClick={() => {
-                          tabEntries.forEach(tabEntry => {
-                            if (tabEntry.id === currentId) return;
-                            cleanupTabEntry(tabEntry);
-                          });
-                          this.handleQueriesChange(
-                            tabEntries.filter(({ id }) => id === currentId),
-                            () => {
-                              if (!active) return;
-                              onTabChange(tabEntry.id);
-                            },
-                          );
-                        }}
-                      />
-                    </Menu>
-                  }
-                >
-                  <Button icon={IconNames.MORE} />
-                </Popover2>
               </ButtonGroup>
             );
           })}
@@ -526,15 +571,19 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           columnMetadata={columnMetadataState.getSomeData()}
           onQueryChange={this.handleQueryChange}
           onDetails={this.handleDetails}
-          extraEngines={extraEngines}
+          onExplain={allowExplain ? this.openExplainDialog : undefined}
+          queryEngines={queryEngines}
         />
       </div>
     );
   }
 
-  private readonly handleQueriesChange = (newQueries: TabEntry[], callback?: () => void) => {
-    localStorageSetJson(LocalStorageKeys.WORKBENCH_QUERIES, newQueries);
-    this.setState({ tabEntries: newQueries }, callback);
+  private readonly handleQueriesChange = (tabEntries: TabEntry[], callback?: () => void) => {
+    if (!tabEntries.length) {
+      tabEntries.push(this.getInitTab());
+    }
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_QUERIES, tabEntries);
+    this.setState({ tabEntries }, callback);
   };
 
   private readonly handleQueryChange = (newQuery: WorkbenchQuery, _preferablyRun?: boolean) => {
@@ -578,7 +627,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   };
 
   render(): JSX.Element {
-    const { extraEngines } = this.props;
+    const { queryEngines } = this.props;
     const { columnMetadataState, showWorkHistory } = this.state;
     const query = this.getCurrentQuery();
 
@@ -609,7 +658,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           />
         )}
         {this.renderCenterPanel()}
-        {showWorkHistory && extraEngines.includes('sql-task') && (
+        {showWorkHistory && queryEngines.includes('sql-task') && (
           <WorkPanel
             onClose={this.handleWorkPanelClose}
             onExecutionDetails={this.handleDetails}
@@ -618,6 +667,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           />
         )}
         {this.renderStatsDialog()}
+        {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
         {this.renderTabRenameDialog()}

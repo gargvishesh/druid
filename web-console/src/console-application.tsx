@@ -39,6 +39,7 @@ import {
   UserManagementView,
   WorkbenchView,
 } from './views';
+import { DruidEngine } from './workbench-models';
 
 import './console-application.scss';
 
@@ -225,6 +226,14 @@ export class ConsoleApplication extends React.PureComponent<
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
     const { capabilities } = this.state;
 
+    const queryEngines: DruidEngine[] = ['native'];
+    if (capabilities.hasSql()) {
+      queryEngines.push('sql');
+    }
+    if (capabilities.hasMsqe()) {
+      queryEngines.push('sql-async', 'sql-task');
+    }
+
     return this.wrapInViewContainer(
       'workbench',
       <WorkbenchView
@@ -235,7 +244,8 @@ export class ConsoleApplication extends React.PureComponent<
         initQuery={this.initQuery}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
-        extraEngines={capabilities.hasMsqe() ? ['sql-async', 'sql-task'] : []}
+        queryEngines={queryEngines}
+        allowExplain
       />,
       'thin',
     );

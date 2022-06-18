@@ -63,7 +63,7 @@ export function ExecutionStageDetailPane(props: ExecutionStageDetailPaneProps) {
         key={e.index}
         title={`${inProgress ? 'In progress...\n' : ''}Frames: ${formatFrames(e.frames)}`}
       >
-        <div className="label">{`${labelPrefix}${e.index + 1}${inProgress ? '*' : ''}`}</div>
+        <div className="label">{`${labelPrefix}${e.index}${inProgress ? '*' : ''}`}</div>
         <BracedText text={formatRows(e.rows)} braces={rowBraces} /> &nbsp;{' '}
         {e.bytes > 0 && <BracedText text={formatSize(e.bytes)} braces={byteBraces} />}
       </div>

@@ -34,13 +34,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
 import { getLink } from '../../../links';
-import {
-  deepDelete,
-  deepSet,
-  formatInteger,
-  pluralIfNeeded,
-  QueryWithContext,
-} from '../../../utils';
+import { deepDelete, deepSet, formatInteger, pluralIfNeeded } from '../../../utils';
 import {
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
@@ -51,7 +45,6 @@ import {
   setUseCache,
 } from '../../../utils/query-context';
 import { DruidEngine, WorkbenchQuery } from '../../../workbench-models';
-import { ExplainDialog } from '../../query-view/explain-dialog/explain-dialog';
 import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
 import './run-panel.scss';
@@ -91,14 +84,14 @@ export interface RunPanelProps {
   loading: boolean;
   small?: boolean;
   onRun(preview: boolean): void;
-  extraEngines: DruidEngine[];
+  onExplain: (() => void) | undefined;
+  queryEngines: DruidEngine[];
 }
 
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
-  const { query, onQueryChange, onRun, loading, small, extraEngines } = props;
+  const { query, onQueryChange, onRun, onExplain, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customNumTasksDialogOpen, setCustomNumTasksDialogOpen] = useState(false);
-  const [explainDialogQuery, setExplainDialogQuery] = useState<QueryWithContext | undefined>();
 
   const emptyQuery = query.isEmptyQuery();
   const ingestMode = query.isIngestQuery();
@@ -120,24 +113,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
     onRun(true);
   }, [onRun]);
 
-  const handleExplain = useCallback(() => {
-    const { engine, query: apiQuery } = query.getApiQuery();
-    if (typeof apiQuery.query !== 'string') return;
-    const queryContext = apiQuery.context || {};
-    if (engine === 'sql-task') {
-      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `multiStageQuery` engine selector
-      queryContext.multiStageQuery = true;
-    }
-    setExplainDialogQuery({
-      queryString: apiQuery.query,
-      queryContext,
-      wrapQueryLimit: undefined,
-    });
-  }, [query]);
-
   const hotkeys = useMemo(() => {
     if (small) return [];
-    return [
+    const keys = [
       {
         allowInInput: true,
         global: true,
@@ -154,16 +132,19 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         label: 'Preview the current query',
         onKeyDown: handlePreview,
       },
-      {
+    ];
+    if (onExplain) {
+      keys.push({
         allowInInput: true,
         global: true,
         group: 'Query',
         combo: 'mod + e',
         label: 'Explain the current query',
-        onKeyDown: handleExplain,
-      },
-    ];
-  }, [small, handleRun, handlePreview, handleExplain]);
+        onKeyDown: onExplain,
+      });
+    }
+    return keys;
+  }, [small, handleRun, handlePreview, onExplain]);
 
   useHotkeys(hotkeys);
 
@@ -181,9 +162,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
     );
   }
 
-  const availableEngines = ([undefined, 'native', 'sql'] as (DruidEngine | undefined)[]).concat(
-    extraEngines,
-  );
+  const availableEngines = ([undefined] as (DruidEngine | undefined)[]).concat(queryEngines);
 
   const effectiveEngine = query.getEffectiveEngine();
   return (
@@ -214,9 +193,13 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
             position={Position.BOTTOM_LEFT}
             content={
               <Menu>
-                <MenuDivider title="Select engine" />
-                {availableEngines.map(renderQueryEngineMenuItem)}
-                <MenuDivider />
+                {queryEngines.length > 1 && (
+                  <>
+                    <MenuDivider title="Select engine" />
+                    {availableEngines.map(renderQueryEngineMenuItem)}
+                    <MenuDivider />
+                  </>
+                )}
                 <MenuItem
                   icon={IconNames.PROPERTIES}
                   text="Edit context"
@@ -328,8 +311,8 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         position={Position.BOTTOM_LEFT}
         content={
           <Menu>
-            {effectiveEngine !== 'native' && (
-              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={handleExplain} />
+            {onExplain && (
+              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
             )}
             <MenuItem
               icon={IconNames.HELP}
@@ -372,14 +355,6 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
             onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)));
           }}
           onClose={() => setCustomNumTasksDialogOpen(false)}
-        />
-      )}
-      {explainDialogQuery && (
-        <ExplainDialog
-          queryWithContext={explainDialogQuery}
-          mandatoryQueryContext={{}}
-          setQueryString={queryString => onQueryChange(query.changeQueryString(queryString))}
-          onClose={() => setExplainDialogQuery(undefined)}
         />
       )}
     </div>

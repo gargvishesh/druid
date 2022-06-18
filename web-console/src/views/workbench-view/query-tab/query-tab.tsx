@@ -74,12 +74,20 @@ export interface QueryTabProps {
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
-  extraEngines: DruidEngine[];
+  onExplain: (() => void) | undefined;
+  queryEngines: DruidEngine[];
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
-  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onDetails, extraEngines } =
-    props;
+  const {
+    query,
+    columnMetadata,
+    mandatoryQueryContext,
+    onQueryChange,
+    onDetails,
+    onExplain,
+    queryEngines,
+  } = props;
   const [showLiveReports, setShowLiveReports] = useState(true);
   const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
 
@@ -253,7 +261,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                   onQueryChange(query.remove(i));
                 }}
                 onDetails={onDetails}
-                extraEngines={extraEngines}
+                queryEngines={queryEngines}
               />
             ))}
             <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
@@ -306,7 +314,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onQueryChange={onQueryChange}
               onRun={handleRun}
               loading={executionState.loading}
-              extraEngines={extraEngines}
+              queryEngines={queryEngines}
+              onExplain={onExplain}
             />
             {executionState.isLoading() && (
               <ExecutionTimerPanel
@@ -386,6 +395,9 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                   execution={executionState.intermediate}
                   onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
                   showLiveReports={showLiveReports}
+                  onCancel={() => {
+                    queryManager.cancelCurrent();
+                  }}
                 />
                 {executionState.intermediate.stages && showLiveReports && (
                   <ExecutionStagesPane execution={executionState.intermediate} />

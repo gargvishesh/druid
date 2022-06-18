@@ -60,11 +60,12 @@ export interface ExplainDialogProps {
   queryWithContext: QueryWithContext;
   mandatoryQueryContext?: Record<string, any>;
   onClose: () => void;
-  setQueryString: (queryString: string) => void;
+  openQueryLabel: string | undefined;
+  onOpenQuery: (queryString: string) => void;
 }
 
 export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDialogProps) {
-  const { queryWithContext, onClose, setQueryString, mandatoryQueryContext } = props;
+  const { queryWithContext, onClose, openQueryLabel, onOpenQuery, mandatoryQueryContext } = props;
 
   const [explainState] = useQueryManager<QueryWithContext, QueryExplanation[] | string>({
     processQuery: async (queryWithContext: QueryWithContext) => {
@@ -120,17 +121,19 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
         <FormGroup className="signature-group" label="Signature">
           <InputGroup defaultValue={formatSignature(queryExplanation)} readOnly />
         </FormGroup>
-        <Button
-          className="open-query"
-          text="Open query"
-          rightIcon={IconNames.ARROW_TOP_RIGHT}
-          intent={Intent.PRIMARY}
-          minimal
-          onClick={() => {
-            setQueryString(queryString);
-            onClose();
-          }}
-        />
+        {openQueryLabel && (
+          <Button
+            className="open-query"
+            text={openQueryLabel}
+            rightIcon={IconNames.ARROW_TOP_RIGHT}
+            intent={Intent.PRIMARY}
+            minimal
+            onClick={() => {
+              onOpenQuery(queryString);
+              onClose();
+            }}
+          />
+        )}
       </div>
     );
   }

@@ -294,8 +294,9 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
       <ExplainDialog
         queryWithContext={explainDialogQuery}
         mandatoryQueryContext={mandatoryQueryContext}
-        setQueryString={this.handleQueryStringChange}
+        onOpenQuery={this.handleQueryStringChange}
         onClose={() => this.setState({ explainDialogQuery: undefined })}
+        openQueryLabel="Open query"
       />
     );
   }

@@ -71,13 +71,13 @@ $work-panel-width: 250px;
           text-overflow: ellipsis;
         }
 
-        .tab-extra {
+        .tab-close {
           opacity: 0;
         }
 
         &.active,
         &:hover {
-          .tab-extra {
+          .tab-close {
             opacity: 1;
           }
         }

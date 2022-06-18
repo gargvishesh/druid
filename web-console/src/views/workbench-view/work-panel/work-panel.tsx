@@ -149,7 +149,7 @@ LIMIT 100`,
                         execution.sqlQuery,
                         execution.queryContext,
                       )
-                        .explodeQuery()
+                        .extractCteHelpers()
                         .changeLastExecution({ engine: 'sql-task', id: w.taskId }),
                       'Attached',
                     );

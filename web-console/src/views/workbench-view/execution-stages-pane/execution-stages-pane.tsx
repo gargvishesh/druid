@@ -394,7 +394,7 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
           id: 'data_processed',
           accessor: () => null,
           className: 'padded',
-          width: 310,
+          width: 350,
           Cell({ original }) {
             return (
               <>
