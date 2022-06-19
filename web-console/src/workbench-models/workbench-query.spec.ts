@@ -19,10 +19,11 @@
 import { sane } from 'druid-query-toolkit';
 
 import { WorkbenchQuery } from './workbench-query';
+import { WorkbenchQueryPart } from './workbench-query-part';
 
 describe('WorkbenchQuery', () => {
   beforeAll(() => {
-    WorkbenchQuery.setSqlTaskEnabled(true);
+    WorkbenchQuery.setQueryEngines(['native', 'sql', 'sql-task']);
   });
 
   describe('.commentOutInsertInto', () => {
@@ -103,7 +104,7 @@ describe('WorkbenchQuery', () => {
     });
   });
 
-  describe('#expload', () => {
+  describe('#extractCteHelpers', () => {
     it('works', () => {
       const sql = sane`
         REPLACE INTO task_statuses OVERWRITE ALL
@@ -134,7 +135,7 @@ describe('WorkbenchQuery', () => {
         PARTITIONED BY ALL
       `;
 
-      expect(WorkbenchQuery.blank().changeQueryString(sql).explodeQuery().getQueryString())
+      expect(WorkbenchQuery.blank().changeQueryString(sql).extractCteHelpers().getQueryString())
         .toEqual(sane`
           REPLACE INTO task_statuses OVERWRITE ALL
           SELECT
@@ -147,5 +148,55 @@ describe('WorkbenchQuery', () => {
           PARTITIONED BY ALL
         `);
     });
+  });
+
+  describe('#materializeHelpers', () => {
+    expect(
+      WorkbenchQuery.blank()
+        .changeQueryParts([
+          new WorkbenchQueryPart({
+            id: 'aaa',
+            queryName: 'kttm_data',
+            queryString: sane`
+            SELECT * FROM TABLE(
+              EXTERN(
+                '{"type":"http","uris":["https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"]}',
+                '{"type":"json"}',
+                '[{"name":"timestamp","type":"string"},{"name":"agent_category","type":"string"},{"name":"agent_type","type":"string"},{"name":"browser","type":"string"},{"name":"browser_version","type":"string"},{"name":"city","type":"string"},{"name":"continent","type":"string"},{"name":"country","type":"string"},{"name":"version","type":"string"},{"name":"event_type","type":"string"},{"name":"event_subtype","type":"string"},{"name":"loaded_image","type":"string"},{"name":"adblock_list","type":"string"},{"name":"forwarded_for","type":"string"},{"name":"language","type":"string"},{"name":"number","type":"long"},{"name":"os","type":"string"},{"name":"path","type":"string"},{"name":"platform","type":"string"},{"name":"referrer","type":"string"},{"name":"referrer_host","type":"string"},{"name":"region","type":"string"},{"name":"remote_address","type":"string"},{"name":"screen","type":"string"},{"name":"session","type":"string"},{"name":"session_length","type":"long"},{"name":"timezone","type":"string"},{"name":"timezone_offset","type":"long"},{"name":"window","type":"string"}]'
+              )
+            )
+        `,
+          }),
+          new WorkbenchQueryPart({
+            id: 'bbb',
+            queryName: 'country_lookup',
+            queryString: sane`
+            SELECT * FROM TABLE(
+              EXTERN(
+                '{"type":"http","uris":["https://static.imply.io/lookup/country.tsv"]}',
+                '{"type":"tsv","findColumnsFromHeader":true}',
+                '[{"name":"Country","type":"string"},{"name":"Capital","type":"string"},{"name":"ISO3","type":"string"},{"name":"ISO2","type":"string"}]'
+              )
+            )
+        `,
+          }),
+          new WorkbenchQueryPart({
+            id: 'ccc',
+            queryName: 'x',
+            queryString: sane`
+            SELECT
+              os,
+              CONCAT(country, ' (', country_lookup.ISO3, ')') AS "country",
+              COUNT(DISTINCT session) AS "unique_sessions"
+            FROM kttm_data
+            LEFT JOIN country_lookup ON country_lookup.Country = kttm_data.country
+            GROUP BY 1, 2
+            ORDER BY 3 DESC
+            LIMIT 10
+        `,
+          }),
+        ])
+        .materializeHelpers(),
+    );
   });
 });

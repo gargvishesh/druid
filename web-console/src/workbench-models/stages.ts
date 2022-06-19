@@ -113,8 +113,8 @@ export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
   inputExternal: 'Input external',
   inputDruid: 'Input druid',
   inputStageChannel: 'Input stage',
-  processor: 'Processed',
-  sort: 'Sorted',
+  processor: 'Processor output',
+  sort: 'Sort output',
 };
 
 export interface WorkerCounter {
@@ -427,20 +427,23 @@ export class Stages {
     type: 'input' | 'output',
   ): SimpleCounter[] | undefined {
     const { counters } = this;
-    const { partitionCount, stageNumber } = stage;
+    const { stageNumber } = stage;
     const counterType: CounterType =
       type === 'input' ? 'inputStageChannel' : Stages.stageOutputCounterType(stage);
 
     if (!this.hasCounterForStage(stage, counterType)) return;
 
-    const simpleCounters = [];
-    for (let i = 0; i < partitionCount; i++) {
-      simpleCounters.push({
-        index: i,
-        rows: 0,
-        bytes: 0,
-        frames: 0,
-      });
+    const simpleCounters: SimpleCounter[] = [];
+    if (type === 'output') {
+      // If we are in output mode then we clearly know how many partitions to expect to initialize their counters with 0s
+      for (let i = 0; i < stage.partitionCount; i++) {
+        simpleCounters.push({
+          index: i,
+          rows: 0,
+          bytes: 0,
+          frames: 0,
+        });
+      }
     }
 
     if (counters) {
@@ -448,11 +451,20 @@ export class Stages {
         const specificCounters = counter.counters[counterType];
         if (specificCounters) {
           for (const c of specificCounters) {
-            const mySimpleCounter = simpleCounters[c.partitionNumber];
-            if (mySimpleCounter && c.stageNumber === stageNumber) {
-              mySimpleCounter.rows += c.rows;
-              mySimpleCounter.bytes += c.bytes;
-              mySimpleCounter.frames += c.frames;
+            if (c.stageNumber === stageNumber) {
+              let mySimpleCounter = simpleCounters[c.partitionNumber];
+              if (!mySimpleCounter) {
+                simpleCounters[c.partitionNumber] = mySimpleCounter = {
+                  index: c.partitionNumber,
+                  rows: c.rows,
+                  bytes: c.bytes,
+                  frames: c.frames,
+                };
+              } else {
+                mySimpleCounter.rows += c.rows;
+                mySimpleCounter.bytes += c.bytes;
+                mySimpleCounter.frames += c.frames;
+              }
             }
           }
         }

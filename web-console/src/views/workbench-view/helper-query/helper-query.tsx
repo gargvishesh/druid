@@ -71,7 +71,7 @@ export interface HelperQueryProps {
   onQueryChange(newQuery: WorkbenchQuery): void;
   onDelete(): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
-  extraEngines: DruidEngine[];
+  queryEngines: DruidEngine[];
 }
 
 export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryProps) {
@@ -82,7 +82,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     onQueryChange,
     onDelete,
     onDetails,
-    extraEngines,
+    queryEngines,
   } = props;
   const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
 
@@ -306,7 +306,8 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               onRun={handleRun}
               loading={executionState.loading}
               small
-              extraEngines={extraEngines}
+              queryEngines={queryEngines}
+              onExplain={undefined}
             />
             {executionState.isLoading() && (
               <ExecutionTimerPanel
@@ -370,7 +371,12 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               {executionState.isLoading() &&
                 (executionState.intermediate ? (
                   <div className="stats-container">
-                    <StateProgressPane execution={executionState.intermediate} />
+                    <StateProgressPane
+                      execution={executionState.intermediate}
+                      onCancel={() => {
+                        queryManager.cancelCurrent();
+                      }}
+                    />
                   </div>
                 ) : (
                   <Loader

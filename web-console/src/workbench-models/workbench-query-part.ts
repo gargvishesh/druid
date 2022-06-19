@@ -234,14 +234,14 @@ export class WorkbenchQueryPart {
     return WorkbenchQueryPart.isTaskEngineNeeded(this.queryString);
   }
 
-  public explodeQueryPart(): WorkbenchQueryPart[] {
+  public extractCteHelpers(): WorkbenchQueryPart[] | undefined {
     let flatQuery: SqlQuery;
     try {
       // We need to do our own parsing here because this.parseQuery necessarily must be a SqlQuery
       // object, and we might have a SqlWithQuery here.
       flatQuery = (SqlExpression.parse(this.queryString) as SqlWithQuery).flattenWith();
     } catch {
-      return [this];
+      return;
     }
 
     const possibleNewParts = flatQuery.getWithParts().map(({ table, columns, query }) => {
@@ -250,9 +250,7 @@ export class WorkbenchQueryPart {
     });
 
     const newParts = compact(possibleNewParts);
-    if (newParts.length !== possibleNewParts.length) {
-      return [this];
-    }
+    if (newParts.length !== possibleNewParts.length) return;
 
     return newParts.concat(this.changeQueryString(flatQuery.changeWithParts(undefined).toString()));
   }

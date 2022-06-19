@@ -1238,7 +1238,7 @@ ORDER BY 1`;
             show: capabilities.hasSql() && visibleColumns.shown('Total rows'),
             accessor: 'total_rows',
             filterable: false,
-            width: 100,
+            width: 110,
             className: 'padded',
             Cell: ({ value }) => {
               if (isNumberLikeNaN(value)) return '-';
