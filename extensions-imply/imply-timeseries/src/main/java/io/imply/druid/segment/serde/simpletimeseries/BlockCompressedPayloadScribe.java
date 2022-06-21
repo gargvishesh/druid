@@ -10,19 +10,23 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Preconditions;
+import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
+import org.apache.druid.segment.data.CompressionStrategy;
+import org.apache.druid.segment.serde.Serializer;
+import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
-public class BlockCompressedPayloadScribe
+public class BlockCompressedPayloadScribe implements Serializer
 {
   private final BlockCompressedPayloadWriterFactory writerFactory;
   private BlockCompressedPayloadWriter writer;
   private BlockCompressedPayloadSerializer serializer;
   private State state = State.START;
 
-  public BlockCompressedPayloadScribe(BlockCompressedPayloadWriterFactory writerFactory)
+  private BlockCompressedPayloadScribe(BlockCompressedPayloadWriterFactory writerFactory)
   {
     this.writerFactory = writerFactory;
   }
@@ -59,12 +63,14 @@ public class BlockCompressedPayloadScribe
     }
   }
 
-  public void transferTo(WritableByteChannel channel) throws IOException
+  @Override
+  public void writeTo(WritableByteChannel channel, FileSmoosher smoosher) throws IOException
   {
     Preconditions.checkState(state == State.CLOSED);
-    serializer.transferTo(channel);
+    serializer.writeTo(channel, smoosher);
   }
 
+  @Override
   public long getSerializedSize()
   {
     Preconditions.checkState(state == State.CLOSED);
@@ -78,18 +84,35 @@ public class BlockCompressedPayloadScribe
     CLOSED
   }
 
-  public static class Factory
+  public static class Builder
   {
-    private final BlockCompressedPayloadWriterFactory writerFactory;
+    private final NativeClearedByteBufferProvider byteBufferProvider;
+    private final SegmentWriteOutMedium writeOutMedium;
 
-    public Factory(BlockCompressedPayloadWriterFactory writerFactory)
+    private CompressionStrategy compressionStrategy = CompressionStrategy.LZ4;
+
+    public Builder(NativeClearedByteBufferProvider byteBufferProvider, SegmentWriteOutMedium writeOutMedium)
     {
-      this.writerFactory = writerFactory;
+
+      this.byteBufferProvider = byteBufferProvider;
+      this.writeOutMedium = writeOutMedium;
     }
 
-    public BlockCompressedPayloadScribe create() throws IOException
+    public Builder setCompressionStrategy(CompressionStrategy compressionStrategy)
     {
-      BlockCompressedPayloadScribe payloadScribe = new BlockCompressedPayloadScribe(writerFactory);
+      this.compressionStrategy = compressionStrategy;
+
+      return this;
+    }
+
+    public BlockCompressedPayloadScribe build() throws IOException
+    {
+      BlockCompressedPayloadScribe payloadScribe =
+          new BlockCompressedPayloadScribe(new BlockCompressedPayloadWriterFactory(
+              byteBufferProvider,
+              writeOutMedium,
+              compressionStrategy.getCompressor()
+          ));
 
       payloadScribe.open();
 

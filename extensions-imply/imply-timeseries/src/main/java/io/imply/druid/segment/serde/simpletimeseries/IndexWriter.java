@@ -10,6 +10,7 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import org.apache.druid.segment.writeout.WriteOutBytes;
 
 import java.io.IOException;
@@ -64,6 +65,6 @@ public class IndexWriter
 
   public long getSerializedSize()
   {
-    return indexSizeSerializer.getSerializedSize() + outBytes.size();
+    return indexSizeSerializer.getSerializedSize() + Ints.checkedCast(outBytes.size());
   }
 }

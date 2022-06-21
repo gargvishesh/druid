@@ -14,7 +14,6 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.GenericColumnSerializer;
-import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -93,31 +92,26 @@ import java.nio.channels.WritableByteChannel;
 
 public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeries>
 {
-  private final SegmentWriteOutMedium segmentWriteOutMedium;
   private final SimpleTimeSeriesObjectStrategy objectStrategy;
-  private final NativeClearedByteBufferProvider byteBufferProvider;
 
   private RowWriter rowWriter;
   private State state = State.START;
+  private RowWriter.Builder rowWriterBuilder;
 
   public SimpleTimeSeriesColumnSerializer(
-      SegmentWriteOutMedium segmentWriteOutMedium,
-      SimpleTimeSeriesObjectStrategy objectStrategy,
-      NativeClearedByteBufferProvider byteBufferProvider
-  )
-  {
-    this.segmentWriteOutMedium = segmentWriteOutMedium;
-    this.objectStrategy = objectStrategy;
-    this.byteBufferProvider = byteBufferProvider;
-  }
-
-  public SimpleTimeSeriesColumnSerializer(
-      SegmentWriteOutMedium segmentWriteOutMedium,
+      RowWriter.Builder rowWriterBuilder,
       SimpleTimeSeriesObjectStrategy objectStrategy
   )
   {
-    this(segmentWriteOutMedium, objectStrategy, NativeClearedByteBufferProvider.DEFAULT);
+    this.rowWriterBuilder = rowWriterBuilder;
+    this.objectStrategy = objectStrategy;
   }
+
+  public SimpleTimeSeriesColumnSerializer(RowWriter.Builder rowWriterBuilder)
+  {
+    this(rowWriterBuilder, SimpleTimeSeriesComplexMetricSerde.SIMPLE_TIME_SERIES_OBJECT_STRATEGY);
+  }
+
 
   @Override
   public void open() throws IOException
@@ -125,7 +119,7 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.START || state == State.OPEN, "open called in invalid state %s", state);
 
     if (state == State.START) {
-      rowWriter = RowWriter.create(byteBufferProvider, segmentWriteOutMedium);
+      rowWriter = rowWriterBuilder.build();
       state = State.OPEN;
     }
   }
@@ -138,7 +132,7 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     SimpleTimeSeries timeSeries = selector.getObject();
     byte[] rowBytes = objectStrategy.toBytes(timeSeries);
 
-    rowWriter.appendIndexedRow(rowBytes);
+    rowWriter.write(rowBytes);
   }
 
 
@@ -174,7 +168,7 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     }
 
     state = State.FINAL_CLOSED;
-    rowWriter.transferTo(channel);
+    rowWriter.writeTo(channel, smoosher);
   }
 
   private enum State
