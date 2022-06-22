@@ -646,6 +646,40 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByPathSelectorFilterNull() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "JSON_VALUE(nest, '$.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE JSON_VALUE(nest, '$.z') IS NOT NULL GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".z", "v0", ColumnType.STRING),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(not(selector("v0", null, null)))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByPathBoundFilterLong() throws Exception
   {
     testQuery(
