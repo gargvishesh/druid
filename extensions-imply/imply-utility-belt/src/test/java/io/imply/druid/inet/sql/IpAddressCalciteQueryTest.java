@@ -19,6 +19,7 @@ import io.imply.druid.inet.column.IpAddressDimensionSchema;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -160,6 +161,11 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                   .put("ipv6", "890d:941d:cc37:3229:2ece:5e9f:fd53:0073")
                   .put("ipvmix", "77b7:23dc:0aca:5c74:5148:cc23:103e:af9b")
                   .put("string", "eee")
+                  .put("long", 1L)
+                  .build(),
+      ImmutableMap.<String, Object>builder()
+                  .put("t", "2000-01-02")
+                  .put("string", "fff")
                   .put("long", 1L)
                   .build()
   );
@@ -326,6 +332,19 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                NullHandling.defaultStringValue(),
+                "\"AAAAAAAAAAAAAP//AQIDBA==\"",
+                1L
+            },
+            new Object[]{
                 "109.8.10.192",
                 "890d:941d:cc37:3229:2ece:5e9f:fd53:73",
                 "77b7:23dc:aca:5c74:5148:cc23:103e:af9b",
@@ -470,6 +489,42 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByFormatSelectorFilterNull() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "string, "
+        + "SUM(cnt) "
+        + "FROM druid.iptest WHERE IP_STRINGIFY(ipv4) IS NOT NULL GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("string", "d0")
+                            )
+                        )
+                        .setDimFilter(not(selector("v0", null, null)))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"aaa", 2L},
+            new Object[]{"bbb", 2L},
+            new Object[]{"ccc", 2L},
+            new Object[]{"ddd", 2L},
+            new Object[]{"eee", 2L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByFormatBoundFilter() throws Exception
   {
     testQuery(
@@ -535,7 +590,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{
-                5L
+                NullHandling.replaceWithDefault() ? 6L : 5L
             }
         )
     );

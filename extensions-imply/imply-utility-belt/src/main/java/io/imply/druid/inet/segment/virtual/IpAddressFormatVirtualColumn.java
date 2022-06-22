@@ -43,7 +43,9 @@ import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexCapabilities;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DruidPredicateIndex;
+import org.apache.druid.segment.column.NullValueIndex;
 import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
+import org.apache.druid.segment.column.SimpleImmutableBitmapIndex;
 import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.IndexedInts;
@@ -587,13 +589,20 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
         DictionaryEncodedIpAddressBlobValueIndex.class
     );
 
+    if (index == null) {
+      throw new UnsupportedOperationException("How can this be?");
+    }
+
     return new ColumnIndexSupplier()
     {
       @Nullable
       @Override
       public <T> T as(Class<T> clazz)
       {
-        if (clazz.equals(StringValueSetIndex.class)) {
+        if (clazz.equals(NullValueIndex.class)) {
+          final BitmapColumnIndex nullIndex = new SimpleImmutableBitmapIndex(index.getBitmapForValue(null));
+          return (T) (NullValueIndex) () -> nullIndex;
+        } else if (clazz.equals(StringValueSetIndex.class)) {
           return (T) new IpFormatStringValueSetIndex(index);
         } else if (clazz.equals(DruidPredicateIndex.class)) {
           return (T) new IpFormatPredicateIndex(index);
