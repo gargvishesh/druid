@@ -59,12 +59,9 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   }
 
   @Override
-  public GenericColumnSerializer<SimpleTimeSeries> getSerializer(
-      SegmentWriteOutMedium segmentWriteOutMedium,
-      String column
-  )
+  public GenericColumnSerializer<SimpleTimeSeries> getSerializer(SegmentWriteOutMedium writeOutMedium, String column)
   {
-    return new SimpleTimeSeriesColumnSerializer(segmentWriteOutMedium, SIMPLE_TIME_SERIES_OBJECT_STRATEGY);
+    return new SimpleTimeSeriesColumnSerializer(new RowWriter.Builder(writeOutMedium));
   }
 
   @Override

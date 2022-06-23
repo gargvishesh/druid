@@ -49,11 +49,11 @@ public class SimpleTimeSeriesView
 
   public static class Factory
   {
-    private final RowReader.Factory rowReaderFactory;
+    private final RowReader.Builder rowReaderBuilder;
 
     public Factory(ByteBuffer originalByteBuffer)
     {
-      rowReaderFactory = new RowReader.Factory(originalByteBuffer);
+      rowReaderBuilder = new RowReader.Builder(originalByteBuffer);
     }
 
     public SimpleTimeSeriesView create(
@@ -63,7 +63,7 @@ public class SimpleTimeSeriesView
     )
     {
       SimpleTimeSeriesView simpleTimeSeriesView = new SimpleTimeSeriesView(
-          rowReaderFactory.create(rowIndexUncompressedByteBuffer, dataUncompressedByteBuffer), objectStrategy
+          rowReaderBuilder.build(rowIndexUncompressedByteBuffer, dataUncompressedByteBuffer), objectStrategy
       );
 
       return simpleTimeSeriesView;

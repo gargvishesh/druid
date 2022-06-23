@@ -60,9 +60,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   public void setup() throws Exception
   {
     SegmentWriteOutMedium writeOutMedium = new OnHeapMemorySegmentWriteOutMedium();
-    columnSerializer = new SimpleTimeSeriesColumnSerializer(writeOutMedium,
-                                                            SimpleTimeSeriesComplexMetricSerde.SIMPLE_TIME_SERIES_OBJECT_STRATEGY
-    );
+    columnSerializer = new SimpleTimeSeriesColumnSerializer(new RowWriter.Builder(writeOutMedium));
     columnSerializer.open();
     rowIndexUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();
     dataUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();

@@ -9,12 +9,15 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
+import com.google.common.primitives.Ints;
+import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
+import org.apache.druid.segment.serde.Serializer;
 import org.apache.druid.segment.writeout.WriteOutBytes;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
-public class BlockCompressedPayloadSerializer
+public class BlockCompressedPayloadSerializer implements Serializer
 {
   private final IntSerializer intSerializer = new IntSerializer();
   private final BlockIndexWriter blockIndexWriter;
@@ -26,17 +29,19 @@ public class BlockCompressedPayloadSerializer
     this.dataOutBytes = dataOutBytes;
   }
 
-  public void transferTo(WritableByteChannel channel) throws IOException
+  @Override
+  public void writeTo(WritableByteChannel channel, FileSmoosher smoosher) throws IOException
   {
     blockIndexWriter.transferTo(channel);
     channel.write(intSerializer.serialize(dataOutBytes.size()));
     dataOutBytes.writeTo(channel);
   }
 
+  @Override
   public long getSerializedSize()
   {
-    return +blockIndexWriter.getSerializedSize()
+    return blockIndexWriter.getSerializedSize()
            + intSerializer.getSerializedSize()
-           + dataOutBytes.size();
+           + Ints.checkedCast(dataOutBytes.size());
   }
 }
