@@ -18,20 +18,21 @@ import java.nio.ByteOrder;
 
 public class BlockCompressedPayloadReader
 {
-  private static final CompressionStrategy.Decompressor DECOMPRESSOR = CompressionStrategy.LZ4.getDecompressor();
 
   private final IntIndexView blockIndexView;
   private final ByteBuffer compressedBlocksByteBuffer;
   private final ByteBuffer uncompressedByteBuffer;
   private final int blockSize;
   private final long maxValidUncompressedOffset;
+  private final CompressionStrategy.Decompressor decompressor;
 
   private int currentUncompressedBlockNumber = -1;
 
-  public BlockCompressedPayloadReader(
+  private BlockCompressedPayloadReader(
       IntIndexView blockIndexView,
       ByteBuffer compressedBlocksByteBuffer,
-      ByteBuffer uncompressedByteBuffer
+      ByteBuffer uncompressedByteBuffer,
+      CompressionStrategy.Decompressor decompressor
   )
   {
     this.blockIndexView = blockIndexView;
@@ -40,9 +41,14 @@ public class BlockCompressedPayloadReader
     uncompressedByteBuffer.clear();
     blockSize = uncompressedByteBuffer.remaining();
     maxValidUncompressedOffset = Integer.MAX_VALUE * (long) blockSize;
+    this.decompressor = decompressor;
   }
 
-  public static BlockCompressedPayloadReader create(ByteBuffer originalByteBuffer, ByteBuffer uncompressedByteBuffer)
+  public static BlockCompressedPayloadReader create(
+      ByteBuffer originalByteBuffer,
+      ByteBuffer uncompressedByteBuffer,
+      CompressionStrategy.Decompressor decompressor
+  )
   {
     ByteBuffer masterByteBuffer = originalByteBuffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
 
@@ -59,9 +65,16 @@ public class BlockCompressedPayloadReader
     return new BlockCompressedPayloadReader(
         new IntIndexView(blockIndexBuffer),
         compressedBlockStreamByteBuffer,
-        uncompressedByteBuffer
+        uncompressedByteBuffer,
+        decompressor
     );
   }
+
+  public static BlockCompressedPayloadReader create(ByteBuffer originalByteBuffer, ByteBuffer uncompressedByteBuffer)
+  {
+    return create(originalByteBuffer, uncompressedByteBuffer, CompressionStrategy.LZ4.getDecompressor());
+  }
+
 
   public ByteBuffer read(long uncompressedStart, int size)
   {
@@ -77,6 +90,7 @@ public class BlockCompressedPayloadReader
 
     if (size <= currentUncompressedBlock.remaining()) {
       ByteBuffer resultByteBuffer = currentUncompressedBlock.asReadOnlyBuffer().order(currentUncompressedBlock.order());
+
       resultByteBuffer.limit(blockOffset + size);
 
       return resultByteBuffer;
@@ -124,7 +138,7 @@ public class BlockCompressedPayloadReader
       compressedBlock.limit(compressedBlock.position() + compressedBlockSize);
       uncompressedByteBuffer.clear();
 
-      DECOMPRESSOR.decompress(compressedBlock, compressedBlockSize, uncompressedByteBuffer);
+      decompressor.decompress(compressedBlock, compressedBlockSize, uncompressedByteBuffer);
       currentUncompressedBlockNumber = blockNumber;
     }
 

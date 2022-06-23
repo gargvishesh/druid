@@ -10,12 +10,14 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Preconditions;
+import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
+import org.apache.druid.segment.serde.Serializer;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
 
-public class RowIndexWriter
+public class RowIndexWriter implements Serializer
 {
   private final LongSerializer longSerializer = new LongSerializer();
   private final BlockCompressedPayloadScribe payloadScribe;
@@ -23,7 +25,7 @@ public class RowIndexWriter
   private long position = 0;
   private boolean open = true;
 
-  RowIndexWriter(BlockCompressedPayloadScribe payloadScribe)
+  public RowIndexWriter(BlockCompressedPayloadScribe payloadScribe)
   {
     this.payloadScribe = payloadScribe;
   }
@@ -44,11 +46,13 @@ public class RowIndexWriter
     open = false;
   }
 
-  public void transferTo(WritableByteChannel channel) throws IOException
+  @Override
+  public void writeTo(WritableByteChannel channel, FileSmoosher smoosher) throws IOException
   {
-    payloadScribe.transferTo(channel);
+    payloadScribe.writeTo(channel, smoosher);
   }
 
+  @Override
   public long getSerializedSize()
   {
     return payloadScribe.getSerializedSize();
