@@ -339,10 +339,6 @@ public class LeaderImpl implements Leader
       if (workerError != null) {
         log.warn("Worker: %s", TalariaTasks.errorReportToLogMessage(workerError));
       }
-
-      // Delete all temporary files as a failsafe
-      final String leaderDirName = StringUtils.format("controller_%s", task.getId());
-      TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
     }
 
     try {
@@ -422,6 +418,10 @@ public class LeaderImpl implements Leader
     if (workerTaskRunnerFuture != null) {
       workerTaskRunnerFuture.get();
     }
+
+    // Delete all temporary files as a failsafe
+    final String leaderDirName = StringUtils.format("controller_%s", task.getId());
+    TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
 
     if (taskStateForReport == TaskState.SUCCESS) {
       return TaskStatus.success(id());
