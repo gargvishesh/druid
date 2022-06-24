@@ -19,6 +19,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameChannelSequence;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
@@ -338,6 +339,10 @@ public class LeaderImpl implements Leader
       if (workerError != null) {
         log.warn("Worker: %s", TalariaTasks.errorReportToLogMessage(workerError));
       }
+
+      // Delete all temporary files as a failsafe
+      final String leaderDirName = StringUtils.format("controller_%s", task.getId());
+      TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
     }
 
     try {

@@ -58,6 +58,12 @@ public class LocalFileStorageConnector implements StorageConnector
     new File(objectPath(path)).delete();
   }
 
+  @Override
+  public void deleteRecursively(String dirName) throws IOException
+  {
+    FileUtils.deleteDirectory(new File(objectPath(dirName)));
+  }
+
   private String objectPath(String path)
   {
     return JOINER.join(basePath, path);

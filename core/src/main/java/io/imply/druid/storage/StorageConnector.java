@@ -68,4 +68,10 @@ public interface StorageConnector
   @SuppressWarnings("all")
   void delete(String path) throws IOException;
 
+  /**
+   * Delete a directory pointed to by the path and also recursively deletes all files in said directory.
+   * @param path path
+   * @throws IOException
+   */
+  void deleteRecursively(String path) throws IOException;
 }
