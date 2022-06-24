@@ -644,7 +644,7 @@ public class WorkerImpl implements Worker
         }
         catch (Exception e) {
           // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
-          log.warn(e, "Error while cleaning up temporary files at path {}", fileName);
+          log.warn(e, "Error while cleaning up temporary files at path " + fileName);
         }
       }
     }
