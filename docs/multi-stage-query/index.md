@@ -3,7 +3,7 @@ id: index
 title: Overview
 ---
 
-> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT and REPLACE queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
 

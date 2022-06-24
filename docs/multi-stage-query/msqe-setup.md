@@ -1,10 +1,10 @@
 ---
 id: msqe-setup
 sidebar_label: Setup
-title: Enable the multi-stage query engine
+title: Enable the Multi-Stage Query Engine
 ---
 
-> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Prerequisites
 
@@ -113,4 +113,4 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
 
 ## Next steps
 
-Start with the [Multi-stage query engine quickstart](./msqe-quickstart.md). It walks you through running queries against external datasources that are publicly hosted.
+Start with the [Multi-Stage Query Engine quickstart](./msqe-quickstart.md). It walks you through running queries against external datasources that are publicly hosted.

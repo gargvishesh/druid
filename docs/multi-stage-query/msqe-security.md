@@ -1,8 +1,10 @@
 ---
 id: msqe-security
-title: Security for the multi-stage query engine
+title: Security for the Multi-Stage Query Engine
 sidebar_label: Security
 ---
+
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 All authenticated users can use the Multi-Stage Query Engine (MSQE) through the UI and API if the extension is loaded. However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data. The permission you need depends on what you are trying to do with the Multi-Stage Query Engine (MSQE).
 
@@ -14,7 +16,7 @@ The permission required to submit a query depends on the type of query:
   datasource
   - EXTERN references to external data require READ permission on the resource name "EXTERNAL" of the resource type "EXTERNAL".
 
-Multi-stage query engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they didn't submit the query. The actions include retrieving the status or canceling a query. For more information about the Overlord API and MSQE, see [Interact with a query](./msqe-api.md#interact-with-a-query).
+Multi-Stage Query Engine tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they didn't submit the query. The actions include retrieving the status or canceling a query. For more information about the Overlord API and MSQE, see [Interact with a query](./msqe-api.md#interact-with-a-query).
 
 To interact with a query through the Overlord API, you need the following permissions:
 
