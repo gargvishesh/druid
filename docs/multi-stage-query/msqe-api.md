@@ -3,9 +3,9 @@ id: msqe-api
 title: API
 ---
 
-> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-> Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the multi-stage query engine automatically.
+> Earlier versions of the Multi-Stage Query Engine used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the Multi-Stage Query Engine automatically.
 
 During the preview phase, the enhanced Query view will provide the most stable experience. Use the UI if you do not need a programmatic interface.
 
@@ -97,12 +97,12 @@ print(response.text)
 
 |Field|Description|
 |-----|-----------|
-|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](https://docs.imply.io/latest/druid/operations/api-reference.html#overlord) can be used to interact with this controller task.|
+|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](../operations/api-reference.md#overlord) can be used to interact with this controller task.|
 |state|Initial state for the query, which is "RUNNING".|
 
 ## Interact with a query
 
-Because queries run as Overlord tasks, use the [task APIs](/operations/api-reference#overlord) to interact with a query.
+Because queries run as Overlord tasks, use the [task APIs](../operations/api-reference.md#overlord) to interact with a query.
 
 When using MSQE, the endpoints you frequently use may include:
 
@@ -153,7 +153,7 @@ You provide context variables alongside your queries to customize the behavior o
 
 |Parameter|Description|Default value|
 |----|-----------|----|
-| msqNumTasks              | (SELECT or INSERT)<br /><br />The multi-stage query engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not launch and throw a `TaskStartTimeout` exception after about 10 minutes.  | 2 |
+| msqNumTasks              | (SELECT or INSERT)<br /><br />The Multi-Stage Query Engine executes queries using the indexing service, i.e. using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not launch and throw a `TaskStartTimeout` exception after about 10 minutes.  | 2 |
 | msqFinalizeAggregations | (SELECT or INSERT)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. For more information about aggregations, see [SQL aggregation functions](../querying/sql-aggregations.md). | true |
 | sqlReplaceTimeChunks | (INSERT only)<br /><br />Whether Druid will replace existing data in certain time chunks during ingestion. This can either be the word "all" or a comma-separated list of intervals in ISO8601 format, like `2000-01-01/P1D,2001-02-01/P1D`. The provided intervals must be aligned with the granularity given in `PARTITIONED BY` clause.<br /><br />At the end of a successful query, any data previously existing in the provided intervals will be replaced by data from the query. If the query generates no data for a particular time chunk in the list, then that time chunk will become empty. If set to `all`, the results of the query will replace all existing data.<br /><br />All ingested data must fall within the provided time chunks. If any ingested data falls outside the provided time chunks, the query will fail with an [InsertTimeOutOfBounds](#error-codes) error.<br /><br />When `sqlReplaceTimeChunks` is set, all `CLUSTERED BY` columns are singly-valued strings, and there is no LIMIT or OFFSET, then Druid will generate "range" shard specs. Otherwise, Druid will generate "numbered" shard specs. | null<br /><br />(i.e., append to existing data, rather than replace)|
 | msqRowsInMemory | (INSERT only)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](./msqe-release.md#memory-usage)</a>. | 100,000 |
