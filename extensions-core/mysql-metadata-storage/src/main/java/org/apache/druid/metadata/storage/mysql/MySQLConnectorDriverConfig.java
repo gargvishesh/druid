@@ -26,7 +26,7 @@ import java.util.Objects;
 public class MySQLConnectorDriverConfig
 {
   @JsonProperty
-  private String driverClassName = "com.mysql.jdbc.Driver";
+  private String driverClassName = "org.mariadb.jdbc.Driver";
 
   @JsonProperty
   public String getDriverClassName()
