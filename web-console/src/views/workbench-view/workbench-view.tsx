@@ -40,7 +40,13 @@ import {
   QueryManager,
   QueryState,
 } from '../../utils';
-import { DruidEngine, generate8HexId, TabEntry, WorkbenchQuery } from '../../workbench-models';
+import {
+  DruidEngine,
+  Execution,
+  generate8HexId,
+  TabEntry,
+  WorkbenchQuery,
+} from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 import {
@@ -85,7 +91,7 @@ export interface WorkbenchViewState {
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
   initExternalConfig: boolean;
-  details?: { id: string; initTab?: ExecutionDetailsTab };
+  details?: { id: string; initTab?: ExecutionDetailsTab; initExecution?: Execution };
 
   defaultSchema?: string;
   defaultTable?: string;
@@ -228,7 +234,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return this.getCurrentTabEntry().query;
   }
 
-  private renderStatsDialog() {
+  private renderExecutionDetailsDialog() {
     const { details } = this.state;
     if (!details) return;
 
@@ -236,6 +242,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       <ExecutionDetailsDialog
         id={details.id}
         initTab={details.initTab}
+        initExecution={details.initExecution}
         onClose={() => this.setState({ details: undefined })}
       />
     );
@@ -666,7 +673,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             onNewTab={this.handleNewTab}
           />
         )}
-        {this.renderStatsDialog()}
+        {this.renderExecutionDetailsDialog()}
         {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}

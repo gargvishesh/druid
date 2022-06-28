@@ -25,7 +25,7 @@ import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionWarningsPane } from '../execution-warnings-pane/execution-warnings-pane';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
-import { QueryOutput2 } from '../query-output2/query-output2';
+import { ResultTablePane } from '../result-table-pane/result-table-pane';
 
 import './execution-details-pane.scss';
 
@@ -77,7 +77,7 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
       case 'result':
         if (!execution.result) return;
         return (
-          <QueryOutput2
+          <ResultTablePane
             runeMode={execution.engine === 'native'}
             queryResult={execution.result}
             onExport={() => {}}

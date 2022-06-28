@@ -57,7 +57,7 @@ import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input
 import { HelperQuery } from '../helper-query/helper-query';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
-import { QueryOutput2 } from '../query-output2/query-output2';
+import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
 import { StateProgressPane } from '../state-progress-pane/state-progress-pane';
 import { useWorkStateStore } from '../work-state-store';
@@ -352,7 +352,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           )}
           {execution &&
             (execution.result ? (
-              <QueryOutput2
+              <ResultTablePane
                 runeMode={execution.engine === 'native'}
                 queryResult={execution.result}
                 onExport={handleExport}

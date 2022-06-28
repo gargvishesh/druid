@@ -857,7 +857,6 @@ ORDER BY "rank" DESC, "created_time" DESC`;
             Header: 'Status',
             id: 'status',
             width: 110,
-            className: 'padded',
             accessor: row => ({
               status: row.status,
               created_time: row.created_time,
@@ -868,15 +867,25 @@ ORDER BY "rank" DESC, "created_time" DESC`;
               const { status } = row.original;
               const errorMsg = row.original.error_msg;
               return (
-                <span>
-                  <span style={{ color: statusToColor(status) }}>&#x25cf;&nbsp;</span>
-                  {status}
-                  {errorMsg && (
-                    <a onClick={() => this.setState({ alertErrorMsg: errorMsg })} title={errorMsg}>
-                      &nbsp;?
-                    </a>
-                  )}
-                </span>
+                <TableFilterableCell
+                  field="status"
+                  value={status}
+                  filters={taskFilter}
+                  onFiltersChange={filters => this.setState({ taskFilter: filters })}
+                >
+                  <span>
+                    <span style={{ color: statusToColor(status) }}>&#x25cf;&nbsp;</span>
+                    {status}
+                    {errorMsg && (
+                      <a
+                        onClick={() => this.setState({ alertErrorMsg: errorMsg })}
+                        title={errorMsg}
+                      >
+                        &nbsp;?
+                      </a>
+                    )}
+                  </span>
+                </TableFilterableCell>
               );
             },
             sortMethod: (d1, d2) => {

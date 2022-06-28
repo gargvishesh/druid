@@ -53,7 +53,7 @@ import { ExportDialog } from '../export-dialog/export-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
-import { QueryOutput2 } from '../query-output2/query-output2';
+import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
 import { StateProgressPane } from '../state-progress-pane/state-progress-pane';
 import { useWorkStateStore } from '../work-state-store';
@@ -331,7 +331,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             <div className="output-pane">
               {execution &&
                 (execution.result ? (
-                  <QueryOutput2
+                  <ResultTablePane
                     runeMode={execution.engine === 'native'}
                     queryResult={execution.result}
                     onExport={handleExport}
