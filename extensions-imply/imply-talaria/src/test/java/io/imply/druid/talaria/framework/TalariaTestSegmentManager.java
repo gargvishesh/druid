@@ -19,16 +19,16 @@ import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Segment manager for tests to retrieve the generated segments in case of an insert query
  */
 public class TalariaTestSegmentManager
 {
-  private final Map<SegmentId, DataSegment> dataSegments = new HashMap<>();
-  private final Map<SegmentId, Segment> segments = new HashMap<>();
+  protected final Map<SegmentId, DataSegment> dataSegments = new ConcurrentHashMap<>();
+  private final Map<SegmentId, Segment> segments = new ConcurrentHashMap<>();
   private final SegmentCacheManager segmentCacheManager;
   private final IndexIO indexIO;
 
@@ -43,9 +43,9 @@ public class TalariaTestSegmentManager
 
   public void addDataSegment(DataSegment dataSegment)
   {
-    dataSegments.put(dataSegment.getId(), dataSegment);
-
     synchronized (lock) {
+      dataSegments.put(dataSegment.getId(), dataSegment);
+
       try {
         segmentCacheManager.getSegmentFiles(dataSegment);
       }
@@ -58,6 +58,11 @@ public class TalariaTestSegmentManager
   public Collection<DataSegment> getAllDataSegments()
   {
     return dataSegments.values();
+  }
+
+  public Collection<SegmentId> getAllDataSegmentIds()
+  {
+    return dataSegments.keySet();
   }
 
   public void addSegment(Segment segment)

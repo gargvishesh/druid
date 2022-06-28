@@ -11,6 +11,7 @@ package io.imply.druid.talaria.exec;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
@@ -18,6 +19,7 @@ import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -25,8 +27,11 @@ import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.SqlPlanningException;
+import org.apache.druid.sql.calcite.parser.DruidSqlReplace;
+import org.apache.druid.timeline.SegmentId;
 import org.apache.druid.timeline.partition.DimensionRangeShardSpec;
 import org.hamcrest.CoreMatchers;
+import org.joda.time.Interval;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 
@@ -34,6 +39,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -159,7 +165,7 @@ public class TalariaInsertTest extends TalariaTestRunner
                          "INSERT INTO foo1 SELECT MV_TO_ARRAY(dim3) AS dim3 FROM foo GROUP BY 1 PARTITIONED BY ALL TIME")
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
-                     .setExpectedResultRows(expectedMultiValueFooRows())
+                     .setExpectedResultRows(expectedMultiValueFooRowsToArray())
                      .verifyResults();
   }
 
@@ -437,6 +443,133 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .verifyExecutionError();
   }
 
+  @Test
+  public void testInsertSegmentsInsertIntoNewTable()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("m1", ColumnType.FLOAT)
+                                            .build();
+
+    testIngestQuery().setSql(" INSERT INTO foobar "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "PARTITIONED BY ALL TIME ")
+                     .setExpectedDataSource("foobar")
+                     .setQueryContext(REPLACE_TIME_CHUCKS_CONTEXT)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
+                     .setExpectedResultRows(
+                         ImmutableList.of(
+                             new Object[]{946684800000L, 1.0f},
+                             new Object[]{946771200000L, 2.0f},
+                             new Object[]{946857600000L, 3.0f},
+                             new Object[]{978307200000L, 4.0f},
+                             new Object[]{978393600000L, 5.0f},
+                             new Object[]{978480000000L, 6.0f}
+                         )
+                     )
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foobar", Intervals.ETERNITY, "test", 0)))
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertSegmentsRepartitionTable()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("m1", ColumnType.FLOAT)
+                                            .build();
+
+    testIngestQuery().setSql(" INSERT INTO foo "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "PARTITIONED BY MONTH")
+                     .setExpectedDataSource("foo")
+                     .setQueryContext(REPLACE_TIME_CHUCKS_CONTEXT)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
+                     .setExpectedResultRows(
+                         ImmutableList.of(
+                             new Object[]{946684800000L, 1.0f},
+                             new Object[]{946771200000L, 2.0f},
+                             new Object[]{946857600000L, 3.0f},
+                             new Object[]{978307200000L, 4.0f},
+                             new Object[]{978393600000L, 5.0f},
+                             new Object[]{978480000000L, 6.0f}
+                         )
+                     )
+                     .setExpectedSegment(ImmutableSet.of(
+                         SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0),
+                         SegmentId.of("foo", Interval.parse("2001-01-01T/P1M"), "test", 0))
+                     )
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertWithReplaceTimeChunks()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("m1", ColumnType.FLOAT)
+                                            .build();
+
+    final Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                                    .putAll(DEFAULT_TALARIA_CONTEXT)
+                                                    .put(DruidSqlReplace.SQL_REPLACE_TIME_CHUNKS, "2000-01-01T/2000-03-01T")
+                                                    .build();
+
+    testIngestQuery().setSql(" INSERT INTO foo "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "WHERE __time >= TIMESTAMP '2000-01-01' AND __time < TIMESTAMP '2000-01-03' "
+                             + "PARTITIONED BY MONTH")
+                     .setExpectedDataSource("foo")
+                     .setQueryContext(context)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedDestinationIntervals(Collections.singletonList(Interval.parse("2000-01-01T/2000-03-01T")))
+                     .setExpectedResultRows(
+                         ImmutableList.of(
+                             new Object[]{946684800000L, 1.0f},
+                             new Object[]{946771200000L, 2.0f}
+                         )
+                     )
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
+                     .verifyResults();
+  }
+
+  @Test
+  public void testInsertReplaceTimeChunksLargerThanData()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("m1", ColumnType.FLOAT)
+                                            .build();
+
+    final Map<String, Object> context = ImmutableMap.<String, Object>builder()
+                                                    .putAll(DEFAULT_TALARIA_CONTEXT)
+                                                    .put(DruidSqlReplace.SQL_REPLACE_TIME_CHUNKS, "2000-01-01T/2002-01-01T")
+                                                    .build();
+
+    testIngestQuery().setSql(" INSERT INTO foo "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "WHERE __time >= TIMESTAMP '2000-01-01' AND __time < TIMESTAMP '2000-01-03' "
+                             + "PARTITIONED BY MONTH")
+                     .setExpectedDataSource("foo")
+                     .setQueryContext(context)
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedDestinationIntervals(Collections.singletonList(Interval.parse("2000-01-01T/2002-01-01T")))
+                     .setExpectedResultRows(
+                         ImmutableList.of(
+                             new Object[]{946684800000L, 1.0f},
+                             new Object[]{946771200000L, 2.0f}
+                         )
+                     )
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
+                     .verifyResults();
+  }
+
   @Nonnull
   private List<Object[]> expectedFooRows()
   {
@@ -475,6 +608,22 @@ public class TalariaInsertTest extends TalariaTestRunner
 
   @Nonnull
   private List<Object[]> expectedMultiValueFooRows()
+  {
+    List<Object[]> expectedRows = new ArrayList<>(ImmutableList.of(
+        new Object[]{0L, ImmutableList.of("a", "b")},
+        new Object[]{0L, ImmutableList.of("b", "c")}
+    ));
+    if (!useDefault) {
+      expectedRows.add(new Object[]{0L, ""});
+    }
+    expectedRows.addAll(ImmutableList.of(
+        new Object[]{0L, "d"}
+    ));
+    return expectedRows;
+  }
+
+  @Nonnull
+  private List<Object[]> expectedMultiValueFooRowsToArray()
   {
     List<Object[]> expectedRows = new ArrayList<>(ImmutableList.of(
         new Object[]{0L, ImmutableList.of("a", "b")},

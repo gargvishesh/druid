@@ -624,6 +624,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected Map<String, Object> queryContext = DEFAULT_TALARIA_CONTEXT;
     protected RowSignature expectedRowSignature = null;
     protected TalariaQuerySpec expectedTalariaQuerySpec = null;
+    protected Set<SegmentId> expectedSegments = null;
     protected List<Object[]> expectedResultRows = null;
     protected Matcher<Throwable> expectedValidationErrorMatcher = null;
     protected Matcher<Throwable> expectedExecutionErrorMatcher = null;
@@ -647,6 +648,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     {
       Preconditions.checkArgument(!expectedRowSignature.equals(RowSignature.empty()), "Row signature cannot be empty");
       this.expectedRowSignature = expectedRowSignature;
+      return (Builder) this;
+    }
+
+    public Builder setExpectedSegment(Set<SegmentId> expectedRowSignature)
+    {
+      Preconditions.checkArgument(!expectedRowSignature.equals(RowSignature.empty()), "Row signature cannot be empty");
+      this.expectedSegments = expectedRowSignature;
       return (Builder) this;
     }
 
@@ -873,6 +881,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertNotNull(foundSpec);
           DataSourceMSQDestination destination = (DataSourceMSQDestination) foundSpec.getDestination();
           Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
+        }
+        if (expectedSegments != null) {
+          Assert.assertEquals(expectedSegments, segmentManager.getAllDataSegmentIds());
         }
         // assert results
         assertResultsEquals(sql, expectedResultRows, transformedOutputRows);
