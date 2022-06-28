@@ -418,9 +418,14 @@ public class LeaderImpl implements Leader
       workerTaskRunnerFuture.get();
     }
 
-    // Delete all temporary files as a failsafe
     final String leaderDirName = StringUtils.format("controller_%s", task.getId());
-    TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
+    try {
+      // Delete all temporary files as a failsafe
+      TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
+    } catch (Exception e) {
+      // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
+      log.warn(e, "Error while cleaning up temporary files at path " + leaderDirName);
+    }
 
     if (taskStateForReport == TaskState.SUCCESS) {
       return TaskStatus.success(id());
