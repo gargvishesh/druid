@@ -125,6 +125,45 @@ public class NestedDataIngestionTest extends InitializedNullHandlingTest
   }
 
   @Test
+  public void testIngestAndScanSegmentsRollup() throws Exception
+  {
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .virtualColumns(
+                                                 new NestedFieldVirtualColumn("nest", ".long", "long")
+                                             )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
+    List<Segment> segs = ImmutableList.<Segment>builder().addAll(
+        NestedDataTestUtils.createSegments(
+            helper,
+            tempFolder,
+            closer,
+            NestedDataTestUtils.NUMERIC_DATA_FILE,
+            NestedDataTestUtils.NUMERIC_PARSER_FILE,
+            NestedDataTestUtils.SIMPLE_AGG_FILE,
+            Granularities.YEAR,
+            true,
+            1000
+        )
+    ).build();
+
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> results = seq.toList();
+    logResults(results);
+    Assert.assertEquals(1, results.size());
+    Assert.assertEquals(6, ((List) results.get(0).getEvents()).size());
+  }
+
+  @Test
   public void testIngestAndScanSegmentsRealtime() throws Exception
   {
     Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
