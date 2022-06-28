@@ -19,6 +19,7 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import React from 'react';
 
+import { Execution } from '../../../workbench-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionDetailsPaneLoader } from '../execution-details-pane-loader/execution-details-pane-loader';
 
@@ -27,18 +28,19 @@ import './execution-details-dialog.scss';
 export interface ExecutionDetailsDialogProps {
   id: string;
   initTab?: ExecutionDetailsTab;
+  initExecution?: Execution;
   onClose: () => void;
 }
 
 export const ExecutionDetailsDialog = React.memo(function ExecutionDetailsDialog(
   props: ExecutionDetailsDialogProps,
 ) {
-  const { id, initTab, onClose } = props;
+  const { id, initTab, initExecution, onClose } = props;
 
   return (
     <Dialog className="execution-details-dialog" isOpen onClose={onClose} title="Execution details">
       <div className={Classes.DIALOG_BODY}>
-        <ExecutionDetailsPaneLoader id={id} initTab={initTab} />
+        <ExecutionDetailsPaneLoader id={id} initTab={initTab} initExecution={initExecution} />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
