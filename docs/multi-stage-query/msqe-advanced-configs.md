@@ -13,7 +13,7 @@ To use durable storage for mesh shuffles, you need to include the following cont
 **UI**
 
    ```sql
-   --:context msqDurableShuffleStorage:true
+   --:context msqDurableShuffleStorage: true
    ```
 
 **API**
