@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class TalariaTestSegmentManager
 {
-  protected final Map<SegmentId, DataSegment> dataSegments = new ConcurrentHashMap<>();
+  private final Map<SegmentId, DataSegment> dataSegments = new ConcurrentHashMap<>();
   private final Map<SegmentId, Segment> segments = new ConcurrentHashMap<>();
   private final SegmentCacheManager segmentCacheManager;
   private final IndexIO indexIO;
