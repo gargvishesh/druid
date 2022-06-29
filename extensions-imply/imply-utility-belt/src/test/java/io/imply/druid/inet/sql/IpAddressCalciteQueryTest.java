@@ -73,8 +73,8 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
           new CountSqlAggregator(new ApproxCountDistinctSqlAggregator(new BuiltinApproxCountDistinctSqlAggregator()))
       ),
       ImmutableSet.of(
-          new IpAddressSqlOperatorConversions.ParseOperatorConversion(),
-          new IpAddressSqlOperatorConversions.TryParseOperatorConversion(),
+          new IpAddressSqlOperatorConversions.AddressParseOperatorConversion(),
+          new IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion(),
           new IpAddressSqlOperatorConversions.StringifyOperatorConversion(),
           new IpAddressSqlOperatorConversions.PrefixOperatorConversion(),
           new IpAddressSqlOperatorConversions.MatchOperatorConversion()
@@ -246,8 +246,8 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
       exprMacros.add(CalciteTests.INJECTOR.getInstance(clazz));
     }
     exprMacros.add(CalciteTests.INJECTOR.getInstance(LookupExprMacro.class));
-    exprMacros.add(new IpAddressExpressions.ParseExprMacro());
-    exprMacros.add(new IpAddressExpressions.TryParseExprMacro());
+    exprMacros.add(new IpAddressExpressions.AddressParseExprMacro());
+    exprMacros.add(new IpAddressExpressions.AddressTryParseExprMacro());
     exprMacros.add(new IpAddressExpressions.StringifyExprMacro());
     exprMacros.add(new IpAddressExpressions.PrefixExprMacro());
     exprMacros.add(new IpAddressExpressions.MatchExprMacro());
