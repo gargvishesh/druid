@@ -37,10 +37,20 @@ public class IpPrefixBlobTest
   public void testFromStringNoPrefix()
   {
     String v6 = "1:2:3:0:0:6::";
-    Assert.assertNull(IpPrefixBlob.ofString(v6));
+    IPAddressString stringv6 = new IPAddressString(v6);
+    byte[] addressAndPrefixByte = new byte[17];
+    System.arraycopy(stringv6.getAddress().getBytes(), 0, addressAndPrefixByte, 0, stringv6.getAddress().getBytes().length);
+    addressAndPrefixByte[addressAndPrefixByte.length - 1] = new Integer(128).byteValue();
+    IpPrefixBlob blobv6 = IpPrefixBlob.ofString(v6);
+    Assert.assertArrayEquals(addressAndPrefixByte, blobv6.getBytes());
+
 
     String v4 = "1.2.3.4";
-    Assert.assertNull(IpPrefixBlob.ofString(v4));
+    IPAddressString stringv4 = new IPAddressString(v4);
+    System.arraycopy(stringv4.getAddress().toIPv6().getBytes(), 0, addressAndPrefixByte, 0, stringv4.getAddress().toIPv6().getBytes().length);
+    addressAndPrefixByte[addressAndPrefixByte.length - 1] = new Integer(128).byteValue();
+    IpPrefixBlob blobv4 = IpPrefixBlob.ofString(v4);
+    Assert.assertArrayEquals(addressAndPrefixByte, blobv4.getBytes());
   }
 
   @Test
@@ -67,7 +77,7 @@ public class IpPrefixBlobTest
     String v4 = "1.2.3.4/32";
     IPAddressString stringv4 = new IPAddressString(v4);
     System.arraycopy(stringv4.getAddress().toIPv6().getBytes(), 0, addressAndPrefixByte, 0, stringv4.getAddress().toIPv6().getBytes().length);
-    addressAndPrefixByte[addressAndPrefixByte.length - 1] = stringv4.getNetworkPrefixLength().byteValue();
+    addressAndPrefixByte[addressAndPrefixByte.length - 1] = stringv4.getAddress().toIPv6().getNetworkPrefixLength().byteValue();
     IpPrefixBlob blobv4 = IpPrefixBlob.ofString(v4);
     Assert.assertArrayEquals(addressAndPrefixByte, blobv4.getBytes());
   }
@@ -94,7 +104,7 @@ public class IpPrefixBlobTest
     IpPrefixBlob blobv4 = IpPrefixBlob.parse(v4, true);
     byte[] addressAndPrefixByte = new byte[17];
     System.arraycopy(stringv4.getAddress().toIPv6().getBytes(), 0, addressAndPrefixByte, 0, stringv4.getAddress().toIPv6().getBytes().length);
-    addressAndPrefixByte[addressAndPrefixByte.length - 1] = stringv4.getNetworkPrefixLength().byteValue();
+    addressAndPrefixByte[addressAndPrefixByte.length - 1] = stringv4.getAddress().toIPv6().getNetworkPrefixLength().byteValue();
     Assert.assertArrayEquals(addressAndPrefixByte, blobv4.getBytes());
   }
 

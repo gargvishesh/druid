@@ -12,7 +12,9 @@ package io.imply.druid.inet.expression;
 import com.google.common.base.Preconditions;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressBlob;
+import io.imply.druid.inet.column.IpPrefixBlob;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -26,11 +28,14 @@ import java.util.stream.Collectors;
 
 public class IpAddressExpressions
 {
-  public static final ExpressionType TYPE = Preconditions.checkNotNull(
+  public static final ExpressionType IP_ADDRESS_TYPE = Preconditions.checkNotNull(
       ExpressionType.fromColumnType(IpAddressModule.ADDRESS_TYPE)
   );
+  public static final ExpressionType IP_PREFIX_TYPE = Preconditions.checkNotNull(
+      ExpressionType.fromColumnType(IpAddressModule.PREFIX_TYPE)
+  );
 
-  public static class ParseExprMacro implements ExprMacroTable.ExprMacro
+  public static class AddressParseExprMacro implements ExprMacroTable.ExprMacro
   {
     public static final String NAME = "ip_parse";
 
@@ -47,7 +52,7 @@ public class IpAddressExpressions
       {
         public ParseExpr(Expr arg)
         {
-          super(NAME, arg);
+          super(NAME, arg, IP_ADDRESS_TYPE);
         }
 
         @Override
@@ -67,7 +72,44 @@ public class IpAddressExpressions
     }
   }
 
-  public static class TryParseExprMacro implements ExprMacroTable.ExprMacro
+  public static class PrefixParseExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "ip_prefix_parse";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(List<Expr> args)
+    {
+      class PrefixParseExpr extends BaseParseExpr
+      {
+        public PrefixParseExpr(Expr arg)
+        {
+          super(NAME, arg, IP_PREFIX_TYPE);
+        }
+
+        @Override
+        public ExprEval eval(ObjectBinding bindings)
+        {
+          return parse(bindings, true);
+        }
+
+        @Override
+        public Expr visit(Shuttle shuttle)
+        {
+          Expr newArg = arg.visit(shuttle);
+          return shuttle.visit(new PrefixParseExpr(newArg));
+        }
+      }
+      return new PrefixParseExpr(args.get(0));
+    }
+  }
+
+  public static class AddressTryParseExprMacro implements ExprMacroTable.ExprMacro
   {
     public static final String NAME = "ip_try_parse";
 
@@ -84,7 +126,7 @@ public class IpAddressExpressions
       {
         public TryParseExpr(Expr arg)
         {
-          super(NAME, arg);
+          super(NAME, arg, IP_ADDRESS_TYPE);
         }
 
         @Override
@@ -101,6 +143,43 @@ public class IpAddressExpressions
         }
       }
       return new TryParseExpr(args.get(0));
+    }
+  }
+
+  public static class PrefixTryParseExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "ip_prefix_try_parse";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(List<Expr> args)
+    {
+      class PrefixTryParseExpr extends BaseParseExpr
+      {
+        public PrefixTryParseExpr(Expr arg)
+        {
+          super(NAME, arg, IP_PREFIX_TYPE);
+        }
+
+        @Override
+        public ExprEval eval(ObjectBinding bindings)
+        {
+          return parse(bindings, false);
+        }
+
+        @Override
+        public Expr visit(Shuttle shuttle)
+        {
+          Expr newArg = arg.visit(shuttle);
+          return shuttle.visit(new PrefixTryParseExpr(newArg));
+        }
+      }
+      return new PrefixTryParseExpr(args.get(0));
     }
   }
 
@@ -128,18 +207,26 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
+          if (!IP_ADDRESS_TYPE.equals(input.type()) && !IP_PREFIX_TYPE.equals(input.type()) && input.value() != null) {
+            throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
           }
           boolean compact = true;
           if (args.size() > 1) {
             compact = args.get(1).eval(bindings).asBoolean();
           }
-          IpAddressBlob blob = (IpAddressBlob) input.value();
-          if (blob == null) {
-            return ExprEval.ofType(ExpressionType.STRING, null);
+          if (IP_ADDRESS_TYPE.equals(input.type())) {
+            IpAddressBlob blob = (IpAddressBlob) input.value();
+            if (blob == null) {
+              return ExprEval.ofType(ExpressionType.STRING, null);
+            }
+            return ExprEval.ofType(ExpressionType.STRING, blob.stringify(compact, false));
+          } else {
+            IpPrefixBlob blob = (IpPrefixBlob) input.value();
+            if (blob == null) {
+              return ExprEval.ofType(ExpressionType.STRING, null);
+            }
+            return ExprEval.ofType(ExpressionType.STRING, blob.stringify(compact, false));
           }
-          return ExprEval.ofType(ExpressionType.STRING, blob.stringify(compact, false));
         }
 
         @Override
@@ -195,14 +282,14 @@ public class IpAddressExpressions
           public ExprEval eval(ObjectBinding bindings)
           {
             ExprEval input = args.get(0).eval(bindings);
-            if (!TYPE.equals(input.type()) && input.value() != null) {
-              throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
+            if (!IP_ADDRESS_TYPE.equals(input.type()) && input.value() != null) {
+              throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
             }
             IpAddressBlob blob = (IpAddressBlob) input.value();
             if (blob == null) {
-              return ExprEval.ofComplex(TYPE, null);
+              return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
             }
-            return ExprEval.ofComplex(TYPE, blob.toPrefix(prefixLength));
+            return ExprEval.ofComplex(IP_ADDRESS_TYPE, blob.toPrefix(prefixLength));
           }
 
           @Override
@@ -216,7 +303,7 @@ public class IpAddressExpressions
           @Override
           public ExpressionType getOutputType(InputBindingInspector inspector)
           {
-            return TYPE;
+            return IP_ADDRESS_TYPE;
           }
         }
         return new PrefixExpr(args, prefixLength);
@@ -233,16 +320,16 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] must take [%s] as input", name, TYPE.asTypeString());
+          if (!IP_ADDRESS_TYPE.equals(input.type()) && input.value() != null) {
+            throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
           }
           ExprEval prefixSize = args.get(1).eval(bindings);
           IpAddressBlob blob = (IpAddressBlob) input.value();
           if (blob == null) {
-            return ExprEval.ofComplex(TYPE, null);
+            return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
           }
           int prefixLength = prefixSize.asInt();
-          return ExprEval.ofComplex(TYPE, blob.toPrefix(prefixLength));
+          return ExprEval.ofComplex(IP_ADDRESS_TYPE, blob.toPrefix(prefixLength));
         }
 
         @Override
@@ -256,7 +343,7 @@ public class IpAddressExpressions
         @Override
         public ExpressionType getOutputType(InputBindingInspector inspector)
         {
-          return TYPE;
+          return IP_ADDRESS_TYPE;
         }
       }
 
@@ -303,19 +390,33 @@ public class IpAddressExpressions
           public ExprEval eval(ObjectBinding bindings)
           {
             ExprEval input = args.get(0).eval(bindings);
-            if (!TYPE.equals(input.type()) && input.value() != null) {
+            if (input.value() == null) {
+              return ExprEval.ofLongBoolean(literal == null);
+            } else if (input.type().is(ExprType.STRING)) {
+              String ip = (String) input.value();
+              IpAddressBlob blob = IpAddressBlob.ofString(ip);
+              if (blob == null) {
+                throw new IAE(
+                    "Function[%s] first argument [%s] is invalid",
+                    name,
+                    input.value()
+                );
+              } else {
+                return ExprEval.ofLongBoolean(blob.matches(literal));
+              }
+            } else if (IP_ADDRESS_TYPE.equals(input.type())) {
+              IpAddressBlob blob = (IpAddressBlob) input.value();
+              if (blob == null) {
+                return ExprEval.ofLongBoolean(literal == null);
+              }
+              return ExprEval.ofLongBoolean(blob.matches(literal));
+            } else {
               throw new IAE(
-                  "Function[%s] first argument must be [%s] as input, got [%s]",
+                  "Function[%s] first argument is invalid type, got [%s]",
                   name,
-                  TYPE.asTypeString(),
                   input.type()
               );
             }
-            IpAddressBlob blob = (IpAddressBlob) input.value();
-            if (blob == null) {
-              return ExprEval.ofLongBoolean(literal == null);
-            }
-            return ExprEval.ofLongBoolean(blob.matches(literal));
           }
 
           @Override
@@ -335,6 +436,77 @@ public class IpAddressExpressions
 
         return new MatchExpr(args);
       }
+
+      if (args.get(0).isLiteral()) {
+        final ExprEval literalEval = args.get(0).eval(InputBindings.nilBindings());
+        if (!literalEval.type().is(ExprType.STRING)) {
+          throw new IAE(
+              "Function[%s] first argument must be [%s] as input, got [%s]",
+              NAME,
+              ExpressionType.STRING.asTypeString(),
+              literalEval.type()
+          );
+        }
+        final String literal = literalEval.asString();
+
+        class MatchExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+        {
+          public MatchExpr(List<Expr> args)
+          {
+            super(NAME, args);
+          }
+
+          @Override
+          public ExprEval eval(ObjectBinding bindings)
+          {
+            ExprEval input = args.get(1).eval(bindings);
+            if (input.value() == null) {
+              return ExprEval.ofLongBoolean(literal == null);
+            } else if (input.type().is(ExprType.STRING)) {
+              String ip = (String) input.value();
+              IpPrefixBlob blob = IpPrefixBlob.ofString(ip);
+              if (blob == null) {
+                throw new IAE(
+                    "Function[%s] second argument [%s] is invalid",
+                    name,
+                    input.value()
+                );
+              } else {
+                return ExprEval.ofLongBoolean(blob.matches(literal));
+              }
+            } else if (IP_PREFIX_TYPE.equals(input.type())) {
+              IpPrefixBlob blob = (IpPrefixBlob) input.value();
+              if (blob == null) {
+                return ExprEval.ofLongBoolean(literal == null);
+              }
+              return ExprEval.ofLongBoolean(blob.matches(literal));
+            } else {
+              throw new IAE(
+                  "Function[%s] second argument is invalid type, got [%s]",
+                  name,
+                  input.type()
+              );
+            }
+          }
+
+          @Override
+          public Expr visit(Shuttle shuttle)
+          {
+            List<Expr> newArgs = args.stream().map(x -> x.visit(shuttle)).collect(Collectors.toList());
+            return shuttle.visit(new MatchExpr(newArgs));
+          }
+
+          @Nullable
+          @Override
+          public ExpressionType getOutputType(InputBindingInspector inspector)
+          {
+            return ExpressionType.LONG;
+          }
+        }
+
+        return new MatchExpr(args);
+      }
+
       class DynamicMatchExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
       {
         public DynamicMatchExpr(List<Expr> args)
@@ -347,28 +519,30 @@ public class IpAddressExpressions
         {
           ExprEval input = args.get(0).eval(bindings);
           ExprEval matchesInput = args.get(1).eval(bindings);
-          if (!TYPE.equals(input.type()) && input.value() != null) {
+
+          if ((IP_ADDRESS_TYPE.equals(input.type()) || input.value() == null) && (matchesInput.value() == null || matchesInput.type().is(ExprType.STRING))) {
+            // The first argument is Ip Address Complex type (or null) and the second argument is String (or null)...
+            IpAddressBlob blob = (IpAddressBlob) input.value();
+            if (blob == null) {
+              return ExprEval.ofLongBoolean(matchesInput.value() == null);
+            }
+            return ExprEval.ofLongBoolean(blob.matches(matchesInput.asString()));
+          } else if ((IP_PREFIX_TYPE.equals(matchesInput.type()) || matchesInput.value() == null) && (input.value() == null || input.type().is(ExprType.STRING))) {
+            // Or, the first argument is String (or null) and the second argument is Ip Prefix Complex type (or null)
+            IpPrefixBlob blob = (IpPrefixBlob) matchesInput.value();
+            if (blob == null) {
+              return ExprEval.ofLongBoolean(input.value() == null);
+            }
+            return ExprEval.ofLongBoolean(blob.matches(input.asString()));
+          } else {
+            // TODO maybe write a better message
             throw new IAE(
-                "Function[%s] first argument must be [%s] as input, got [%s]",
+                "Function[%s] invalid arguments, got first argument [%s] and second argument [%s]",
                 name,
-                TYPE.asTypeString(),
-                input.type()
-            );
-          }
-          if (!matchesInput.type().is(ExprType.STRING)) {
-            throw new IAE(
-                "Function[%s] second argument must be [%s] as input, got [%s]",
-                name,
-                ExpressionType.STRING.asTypeString(),
+                input.type(),
                 matchesInput.type()
             );
           }
-          IpAddressBlob blob = (IpAddressBlob) input.value();
-          if (blob == null) {
-            return ExprEval.ofLongBoolean(matchesInput.value() == null);
-          }
-
-          return ExprEval.ofLongBoolean(blob.matches(matchesInput.asString()));
         }
 
         @Override
@@ -392,9 +566,12 @@ public class IpAddressExpressions
 
   private abstract static class BaseParseExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
   {
-    public BaseParseExpr(String name, Expr arg)
+    ExpressionType expressionType;
+
+    public BaseParseExpr(String name, Expr arg, ExpressionType expressionType)
     {
       super(name, arg);
+      this.expressionType = expressionType;
     }
 
     ExprEval parse(ObjectBinding bindings, boolean reportParseException)
@@ -403,15 +580,24 @@ public class IpAddressExpressions
       if (!toParse.type().is(ExprType.STRING)) {
         throw new IAE("Function[%s] must take a string as input, given [%s]", name, toParse.type().asTypeString());
       }
-      IpAddressBlob blob = IpAddressBlob.parse(toParse.asString(), reportParseException);
-      return ExprEval.ofComplex(TYPE, blob);
+      if (expressionType.equals(IP_ADDRESS_TYPE)) {
+        IpAddressBlob blob = IpAddressBlob.parse(toParse.asString(), reportParseException);
+        return ExprEval.ofComplex(expressionType, blob);
+      } else if (expressionType.equals(IP_PREFIX_TYPE)) {
+        IpPrefixBlob blob = IpPrefixBlob.parse(toParse.asString(), reportParseException);
+        return ExprEval.ofComplex(expressionType, blob);
+      } else {
+        throw new ISE("Invalid expressionType. Got expressionType=%s", expressionType.getClass().getName());
+      }
     }
 
     @Nullable
     @Override
     public ExpressionType getOutputType(InputBindingInspector inspector)
     {
-      return TYPE;
+      return expressionType;
     }
   }
+
+
 }
