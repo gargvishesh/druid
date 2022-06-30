@@ -41,6 +41,7 @@ import { QueryContext } from '../../../utils/query-context';
 import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../workbench-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
+import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionStateCache } from '../execution-state-cache';
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
@@ -59,7 +60,6 @@ import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
-import { StateProgressPane } from '../state-progress-pane/state-progress-pane';
 import { useWorkStateStore } from '../work-state-store';
 
 import './query-tab.scss';
@@ -88,7 +88,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     onExplain,
     queryEngines,
   } = props;
-  const [showLiveReports, setShowLiveReports] = useState(true);
   const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
 
   const handleExport = usePermanentCallback(() => {
@@ -195,6 +194,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
       }
     },
     backgroundStatusCheck: executionBackgroundStatusCheck,
+    swallowBackgroundError: Api.isNetworkError,
   });
 
   useEffect(() => {
@@ -365,7 +365,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onQueryChange={handleQueryStringChange}
               />
             ) : execution.error ? (
-              <div className="stats-container">
+              <div className="error-container">
                 <ExecutionErrorPane execution={execution} />
                 {execution.stages && (
                   <ExecutionStagesPane
@@ -390,19 +390,14 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           )}
           {executionState.isLoading() &&
             (executionState.intermediate ? (
-              <div className="stats-container">
-                <StateProgressPane
-                  execution={executionState.intermediate}
-                  onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
-                  showLiveReports={showLiveReports}
-                  onCancel={() => {
-                    queryManager.cancelCurrent();
-                  }}
-                />
-                {executionState.intermediate.stages && showLiveReports && (
-                  <ExecutionStagesPane execution={executionState.intermediate} />
-                )}
-              </div>
+              <ExecutionProgressPane
+                execution={executionState.intermediate}
+                intermediateError={executionState.intermediateError}
+                onCancel={() => {
+                  queryManager.cancelCurrent();
+                }}
+                allowLiveReportsPane
+              />
             ) : (
               <Loader
                 cancelText="Cancel query"

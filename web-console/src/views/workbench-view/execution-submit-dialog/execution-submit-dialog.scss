@@ -16,6 +16,16 @@
  * limitations under the License.
  */
 
-export * from './download';
-export * from './download-query-detail-archive';
-export * from './druid-query-context';
+@import '../../../variables';
+
+.execution-submit-dialog {
+  &.#{$bp-ns}-dialog {
+    top: 5%;
+    width: 90%;
+  }
+
+  .execution-submit-dialog-textarea {
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+  }
+}

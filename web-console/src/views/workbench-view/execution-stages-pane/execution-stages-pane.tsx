@@ -32,6 +32,7 @@ import {
   formatInteger,
   formatPercent,
   NumberLike,
+  oneOf,
 } from '../../../utils';
 import {
   ClusterBy,
@@ -144,6 +145,7 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
 
   function detailedStats(stage: StageDefinition) {
     const { phase } = stage;
+    const phaseIsWorking = oneOf(phase, 'NEW', 'READING_INPUT', 'POST_READING');
     return (
       <div className="execution-stage-detail-pane-container">
         {detailedStatsForPartition(stage, 'input', phase === 'READING_INPUT')}
@@ -151,8 +153,8 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
         {detailedStatsForWorker(stage, 'inputDruid', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'inputStageChannel', phase === 'READING_INPUT')}
         {detailedStatsForWorker(stage, 'processor', phase === 'READING_INPUT')}
-        {detailedStatsForWorker(stage, 'sort', phase !== 'RESULTS_READY')}
-        {detailedStatsForPartition(stage, 'output', phase !== 'RESULTS_READY')}
+        {detailedStatsForWorker(stage, 'sort', phaseIsWorking)}
+        {detailedStatsForPartition(stage, 'output', phaseIsWorking)}
       </div>
     );
   }
@@ -472,6 +474,7 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
         {
           Header: 'Cluster by',
           id: 'clusterBy',
+          className: 'padded',
           accessor: row => formatClusterBy(row.clusterBy),
           Cell({ value, original }) {
             const clusterBy: ClusterBy | undefined = original.clusterBy;

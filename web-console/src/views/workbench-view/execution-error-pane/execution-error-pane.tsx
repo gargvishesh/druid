@@ -22,7 +22,7 @@ import React, { useState } from 'react';
 
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import { AppToaster } from '../../../singletons';
-import { downloadQueryProfile } from '../../../utils';
+import { downloadQueryDetailArchive } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 
 import './execution-error-pane.scss';
@@ -93,10 +93,10 @@ export const ExecutionErrorPane = React.memo(function ExecutionErrorPane(
         Debug:{' '}
         <a
           onClick={() => {
-            void downloadQueryProfile(execution.id);
+            void downloadQueryDetailArchive(execution.id);
           }}
         >
-          download query profile
+          download query detail archive
         </a>
       </p>
 

@@ -22,17 +22,17 @@ import React, { useState } from 'react';
 import { Execution } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
-import './state-progress-pane.scss';
+import './execution-progress-bar-pane.scss';
 
-export interface StateProgressPaneProps {
+export interface ExecutionProgressBarPaneProps {
   execution: Execution | undefined;
   onCancel?(): void;
   onToggleLiveReports?(): void;
   showLiveReports?: boolean;
 }
 
-export const StateProgressPane = React.memo(function StateProgressPane(
-  props: StateProgressPaneProps,
+export const ExecutionProgressBarPane = React.memo(function ExecutionProgressBarPane(
+  props: ExecutionProgressBarPaneProps,
 ) {
   const { execution, onCancel, onToggleLiveReports, showLiveReports } = props;
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -50,7 +50,7 @@ export const StateProgressPane = React.memo(function StateProgressPane(
 
   const idx = stages ? stages.currentStageIndex() : -1;
   return (
-    <div className="state-progress-pane">
+    <div className="execution-progress-bar-pane">
       <Label>
         {stages
           ? execution.isWaitingForQuery()
