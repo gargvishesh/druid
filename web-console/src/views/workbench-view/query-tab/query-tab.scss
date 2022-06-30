@@ -119,27 +119,12 @@ $vertical-gap: 6px;
       }
     }
 
-    .stats-container {
+    .error-container {
       position: relative;
 
       .execution-error-pane {
         height: 160px;
         padding: 20px 22px;
-      }
-
-      .state-progress-pane {
-        position: absolute;
-        left: 15px;
-        right: 15px;
-        top: 15px;
-      }
-
-      .execution-stages-pane {
-        position: absolute;
-        top: 160px;
-        left: 10px;
-        right: 10px;
-        bottom: 10px;
       }
     }
   }

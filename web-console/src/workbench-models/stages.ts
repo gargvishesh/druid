@@ -191,14 +191,6 @@ export class Stages {
     return stage.processorType === 'OffsetLimitFrameProcessorFactory' ? 0.1 : 1;
   }
 
-  static stageHasSort(stage: StageDefinition): boolean {
-    return (stage.clusterBy?.columns?.length || 0) > 0;
-  }
-
-  static stageOutputCounterType(stage: StageDefinition): CounterType {
-    return Stages.stageHasSort(stage) ? 'sort' : 'processor';
-  }
-
   public readonly stages: StageDefinition[];
   private readonly counters?: WorkerCounter[];
 
@@ -219,6 +211,27 @@ export class Stages {
     return this.stages[this.stages.length - 1];
   }
 
+  stageHasSort(stage: StageDefinition): boolean {
+    const { counters } = this;
+    const { stageNumber } = stage;
+
+    // A stage has sort if it has a defined clustered by, or some 'processor' counter is writing to partition -1 or some 'sort' counter exists
+    // ToDo: lobby to have a stage.hasSort property to avoid all of this logic
+    return Boolean(
+      (stage.clusterBy?.columns?.length || 0) > 0 ||
+        counters?.some(w =>
+          w.counters.processor?.some(
+            c => c.stageNumber === stageNumber && c.partitionNumber === -1,
+          ),
+        ) ||
+        counters?.some(w => w.counters.sort?.some(c => c.stageNumber === stageNumber)),
+    );
+  }
+
+  stageOutputCounterType(stage: StageDefinition): CounterType {
+    return this.stageHasSort(stage) ? 'sort' : 'processor';
+  }
+
   overallProgress(): number {
     const { stages } = this;
     let progress = 0;
@@ -235,7 +248,7 @@ export class Stages {
     switch (stage.phase) {
       case 'READING_INPUT':
         return (
-          (Stages.stageHasSort(stage) ? READING_INPUT_WITH_SORT_WEIGHT : 1) *
+          (this.stageHasSort(stage) ? READING_INPUT_WITH_SORT_WEIGHT : 1) *
           this.readingInputPhaseProgress(stage)
         );
 
@@ -370,7 +383,7 @@ export class Stages {
   }
 
   getTotalOutputForStage(stage: StageDefinition, field: 'frames' | 'rows' | 'bytes'): number {
-    return this.getTotalCounterForStage(stage, Stages.stageOutputCounterType(stage), field);
+    return this.getTotalCounterForStage(stage, this.stageOutputCounterType(stage), field);
   }
 
   getSortProgressForStage(stage: StageDefinition): number {
@@ -429,7 +442,7 @@ export class Stages {
     const { counters } = this;
     const { stageNumber } = stage;
     const counterType: CounterType =
-      type === 'input' ? 'inputStageChannel' : Stages.stageOutputCounterType(stage);
+      type === 'input' ? 'inputStageChannel' : this.stageOutputCounterType(stage);
 
     if (!this.hasCounterForStage(stage, counterType)) return;
 
