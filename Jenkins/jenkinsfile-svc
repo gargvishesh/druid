@@ -16,7 +16,7 @@ def mavenInstall() {
         ${MVN} clean install -q -ff -pl \' !distribution \' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
         ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
     ''',
-    label: 'mvn install'
+       label: 'mvn install'
 }
 
 def resetWs() {
@@ -32,7 +32,7 @@ pipeline {
     agent none
 
     triggers {
-        cron('0 */12 * * *')
+        cron('0 23 * * *') // Run at 11 PM every day.
     }
 
     environment {
@@ -47,12 +47,14 @@ pipeline {
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
         DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+        GIT=credentials('github-implydata-userpass')
     }
 
     stages {
         stage('Security Vulnerability check') {
 
             agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+
 
             steps {
                 mavenInstall()
@@ -62,8 +64,9 @@ pipeline {
                     dependency_check() {
                         rm -f /tmp/component-reports-failed
                         touch /tmp/component-reports-failed
-                        ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' 2>&1 | \
-                        tee >(grep -F 'Failed to request component-reports' >> /tmp/component-reports-failed)
+                        ${MVN} dependency-check:aggregate -pl '!integration-tests,!integration-tests-imply,!api-contract' 2>&1 | tee /tmp/svc-output
+                        grep -F 'Failed to request component-reports' /tmp/svc-output >> /tmp/component-reports-failed
+                        grep -q "BUILD SUCCESS" /tmp/svc-output
                     }
 
                     DEPENDENCY_CHECK_STATUS=0
@@ -96,7 +99,7 @@ pipeline {
 
                     [[ "${ALL_ATTEMPTS_FAILED}" = "0" ]] || false
                 ''',
-                label: 'dependency check'
+                   label: 'dependency check'
             }
 
             post {
@@ -104,7 +107,16 @@ pipeline {
                     archiveArtifacts "target/**/*"
                 }
                 failure {
-                    slackSend channel: 'espresso-machine', color: "#FF0000", message: "Dependency Check failed - (<${env.BUILD_URL}|Open>)"
+                    script {
+                        def svc_error = sh (script: '''
+                                                cat /tmp/svc-output | grep ERROR
+                                            ''',
+                                            label: 'Saving ERRORs',
+                                            returnStdout: true)
+                        ERRORS = svc_error.trim()
+                        slackMessage = "Dependency Check for ${env.BRANCH_NAME} branch failed - (<${env.BUILD_URL}|Open>) \n" + "```${ERRORS}```"
+                        slackSend channel: 'espresso-machine', message: slackMessage, color: "#FF0000"
+                    }
                 }
                 cleanup {
                     resetWs()
