@@ -45,7 +45,7 @@ The main driver of performance is parallelism. A secondary driver of performance
 
 The most relevant considerations are:
 
-- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `talariaNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
+- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 - The EXTERN operator cannot split large files across different worker tasks. If you have fewer
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
