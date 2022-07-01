@@ -22,18 +22,20 @@ public class BlockCompressedPayloadScribeTest extends BytesReadWriteTestBase
                 new OnHeapMemorySegmentWriteOutMedium()
             )
         ),
-        ByteWriterTestHelper.ValidationFunctionFactory.PAYLOAD_SCRIBE_VALIDATION_FUNCTION_FACTORY,
+        ByteWriterTestHelper.ValidationFunctionBuilder.PAYLOAD_SCRIBE_VALIDATION_FUNCTION_FACTORY,
         new BytesReadWriteTestCases()
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testSingleWriteBytes, 4115)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testSingleMultiBlockWriteBytes, 1049169)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testSingleMultiBlockWriteBytesWithPrelude, 1053238)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testEmptyByteArray, 12) // compression header is 12-bytes
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testNull, 12) // compression header is 12-bytes
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testSingleLong, 25)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testVariableSizedCompressablePayloads, 1180)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testOutliersInNormalDataUncompressablePayloads, 574302)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testOutliersInNormalDataCompressablePayloads, 5997)
-            .setReadWriteTestCaseValue(BytesReadWriteTest::testSingleWriteByteBufferZSTD, 796)
+            .setTestCaseValue(BytesReadWriteTest::testSingleWriteBytes, 4115)
+            .setTestCaseValue(BytesReadWriteTest::testSingleMultiBlockWriteBytes, 1049169)
+            .setTestCaseValue(BytesReadWriteTest::testSingleMultiBlockWriteBytesWithPrelude, 1053238)
+            .setTestCaseValue(BytesReadWriteTest::testEmptyByteArray, 12) // compression header is 12-bytes
+            .setTestCaseValue(BytesReadWriteTest::testNull, 12) // compression header is 12-bytes
+            .setTestCaseValue(BytesReadWriteTest::testSingleLong, 25)
+            .setTestCaseValue(BytesReadWriteTest::testVariableSizedCompressablePayloads, 1180)
+            .setTestCaseValue(BytesReadWriteTest::testOutliersInNormalDataUncompressablePayloads, 574302)
+            .setTestCaseValue(BytesReadWriteTest::testOutliersInNormalDataCompressablePayloads, 5997)
+            .setTestCaseValue(BytesReadWriteTest::testSingleUncompressableBlock, 65715)
+            .setTestCaseValue(BytesReadWriteTest::testSingleWriteByteBufferZSTD, 796)
+            .setTestCaseValue(BytesReadWriteTest::testRandomBlockAccess, 3124842)
     );
   }
 }

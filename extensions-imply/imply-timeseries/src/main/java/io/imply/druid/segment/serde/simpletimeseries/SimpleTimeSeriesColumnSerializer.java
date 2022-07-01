@@ -14,13 +14,17 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.GenericColumnSerializer;
+import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
 /**
  * <pre>
- *  serialized data is of the form:
+ * Data is buffered in order to scan the timestamps for optimal delta-encoding. Once serialized() calls are complete,
+ * the data will be block-compressed in the following format.
+ *
+ * serialized data is of the form:
  *
  *    <row index>
  *    <payload storage>
@@ -92,24 +96,26 @@ import java.nio.channels.WritableByteChannel;
 
 public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeries>
 {
-  private final SimpleTimeSeriesObjectStrategy objectStrategy;
+  private final NativeClearedByteBufferProvider byteBufferProvider;
+  private final SegmentWriteOutMedium segmentWriteOutMedium;
 
-  private RowWriter rowWriter;
   private State state = State.START;
-  private RowWriter.Builder rowWriterBuilder;
+  private SimpleTimeSeriesBufferStore buffer;
+  private SimpleTimeSeriesBufferStore.TransferredBuffer transferredBuffer;
 
   public SimpleTimeSeriesColumnSerializer(
-      RowWriter.Builder rowWriterBuilder,
-      SimpleTimeSeriesObjectStrategy objectStrategy
+      SegmentWriteOutMedium segmentWriteOutMedium,
+      NativeClearedByteBufferProvider byteBufferProvider
   )
   {
-    this.rowWriterBuilder = rowWriterBuilder;
-    this.objectStrategy = objectStrategy;
+    this.segmentWriteOutMedium = segmentWriteOutMedium;
+    this.byteBufferProvider = byteBufferProvider;
   }
 
-  public SimpleTimeSeriesColumnSerializer(RowWriter.Builder rowWriterBuilder)
+
+  public SimpleTimeSeriesColumnSerializer(SegmentWriteOutMedium writeOutMedium)
   {
-    this(rowWriterBuilder, SimpleTimeSeriesComplexMetricSerde.SIMPLE_TIME_SERIES_OBJECT_STRATEGY);
+    this(writeOutMedium, NativeClearedByteBufferProvider.DEFAULT);
   }
 
 
@@ -119,7 +125,7 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.START || state == State.OPEN, "open called in invalid state %s", state);
 
     if (state == State.START) {
-      rowWriter = rowWriterBuilder.build();
+      buffer = new SimpleTimeSeriesBufferStore(segmentWriteOutMedium.makeWriteOutBytes());
       state = State.OPEN;
     }
   }
@@ -130,9 +136,8 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.OPEN, "serialize called in invalid state %s", state);
 
     SimpleTimeSeries timeSeries = selector.getObject();
-    byte[] rowBytes = objectStrategy.toBytes(timeSeries);
 
-    rowWriter.write(rowBytes);
+    buffer.store(timeSeries);
   }
 
 
@@ -145,30 +150,26 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
         state
     );
 
-    if (state == State.OPEN) {
-      rowWriter.close();
-      state = State.INTERMEDIATE_CLOSED;
-    }
+    transferToRowWriterIfNecessary();
 
-    return rowWriter.getSerializedSize();
+    return transferredBuffer.getSerializedSize();
   }
-
 
   @Override
   public void writeTo(WritableByteChannel channel, FileSmoosher smoosher) throws IOException
   {
-    Preconditions.checkState(
-        state == State.OPEN || state == State.INTERMEDIATE_CLOSED || state == State.FINAL_CLOSED,
-        "writeTo called in invalid state %s",
-        state
-    );
-
-    if (state != State.INTERMEDIATE_CLOSED) {
-      rowWriter.close();
-    }
-
+    Preconditions.checkState(state != State.START, "writeTo called in invalid state %s", state);
+    transferToRowWriterIfNecessary();
     state = State.FINAL_CLOSED;
-    rowWriter.writeTo(channel, smoosher);
+    transferredBuffer.writeTo(channel, smoosher);
+  }
+
+  private void transferToRowWriterIfNecessary() throws IOException
+  {
+    if (state == State.OPEN) {
+      transferredBuffer = buffer.transferToRowWriter(byteBufferProvider, segmentWriteOutMedium);
+      state = State.INTERMEDIATE_CLOSED;
+    }
   }
 
   private enum State
@@ -176,28 +177,6 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     START,
     OPEN,
     INTERMEDIATE_CLOSED,
-    FINAL_CLOSED;
+    FINAL_CLOSED,
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

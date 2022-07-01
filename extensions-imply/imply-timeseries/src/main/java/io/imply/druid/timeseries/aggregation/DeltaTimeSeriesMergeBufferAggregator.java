@@ -23,7 +23,7 @@ public class DeltaTimeSeriesMergeBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector<DeltaTimeSeries> selector;
   private final DeltaByteBufferTimeSeries deltaByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public DeltaTimeSeriesMergeBufferAggregator(final BaseObjectColumnValueSelector<DeltaTimeSeries> selector,
                                              final DurationGranularity durationGranularity,
@@ -32,13 +32,13 @@ public class DeltaTimeSeriesMergeBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.deltaByteBufferTimeSeries = new DeltaByteBufferTimeSeries(durationGranularity, window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    deltaByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    deltaByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -48,14 +48,14 @@ public class DeltaTimeSeriesMergeBufferAggregator implements BufferAggregator
     if (mergeSeries == null) {
       return;
     }
-    deltaByteBufferTimeSeries.mergeSeriesBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, mergeSeries);
+    deltaByteBufferTimeSeries.mergeSeriesBuffered(bufferToWritableMemoryCache.getMemory(buf), position, mergeSeries);
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return deltaByteBufferTimeSeries.computeDeltaBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    return deltaByteBufferTimeSeries.computeDeltaBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override

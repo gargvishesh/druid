@@ -89,7 +89,7 @@ public class BlockCompressedPayloadReader
     currentUncompressedBlock.position(blockOffset);
 
     if (size <= currentUncompressedBlock.remaining()) {
-      ByteBuffer resultByteBuffer = currentUncompressedBlock.asReadOnlyBuffer().order(currentUncompressedBlock.order());
+      ByteBuffer resultByteBuffer = currentUncompressedBlock.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
 
       resultByteBuffer.limit(blockOffset + size);
 
@@ -126,7 +126,7 @@ public class BlockCompressedPayloadReader
   private ByteBuffer getUncompressedBlock(int blockNumber)
   {
     if (currentUncompressedBlockNumber != blockNumber) {
-      final IntIndexView.EntrySpan span = blockIndexView.getEntrySpan(blockNumber);
+      IntIndexView.EntrySpan span = blockIndexView.getEntrySpan(blockNumber);
       ByteBuffer compressedBlock = compressedBlocksByteBuffer.asReadOnlyBuffer()
                                                              .order(compressedBlocksByteBuffer.order());
       compressedBlock.position(compressedBlock.position() + span.getStart());
