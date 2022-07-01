@@ -847,15 +847,15 @@ public class AggregationTestHelper implements Closeable
     return results;
   }
 
+  public IndexIO getIndexIO()
+  {
+    return indexIO;
+  }
+
   @Override
   public void close() throws IOException
   {
     resourceCloser.close();
-  }
-
-  public IndexIO getIndexIO()
-  {
-    return indexIO;
   }
 }
 
