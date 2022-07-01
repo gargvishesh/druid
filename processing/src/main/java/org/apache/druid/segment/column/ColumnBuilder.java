@@ -42,6 +42,7 @@ public class ColumnBuilder
   @Nullable
   private SmooshedFileMapper fileMapper = null;
 
+  @SuppressWarnings("unused")
   public ColumnCapabilitiesImpl getCapabilitiesBuilder()
   {
     return capabilitiesBuilder;
