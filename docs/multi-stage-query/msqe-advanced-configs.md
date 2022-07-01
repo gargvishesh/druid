@@ -8,7 +8,10 @@ title: Advanced configs
 
 ## Durable storage for mesh shuffle
 
-To use durable storage for mesh shuffles, you need to include the following context variable when you submit a query:
+To use durable storage for mesh shuffles, 
+
+- [Enable durable storage for mesh shuffle](./msqe-setup.md)
+- Include the following context variable when you submit a query:
 
 **UI**
 
