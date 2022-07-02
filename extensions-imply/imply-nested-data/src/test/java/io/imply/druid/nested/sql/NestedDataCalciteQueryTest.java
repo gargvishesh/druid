@@ -1895,7 +1895,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                   .dataSource(DATA_SOURCE)
                   .intervals(querySegmentSpec(Filtration.eternity()))
                   .virtualColumns(
-                      new ExpressionVirtualColumn("v0", "struct('n',\"v1\",'x',\"v2\")", null, macroTable),
+                      new ExpressionVirtualColumn("v0", "json_object('n',\"v1\",'x',\"v2\")", NestedDataComplexTypeSerde.TYPE, macroTable),
                       new NestedFieldVirtualColumn("nester", ".n", "v1", NestedDataComplexTypeSerde.TYPE, true),
                       new NestedFieldVirtualColumn("nest", ".x", "v2", ColumnType.STRING)
                   )
