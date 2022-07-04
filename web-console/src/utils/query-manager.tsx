@@ -255,4 +255,8 @@ export class QueryManager<Q, R, I = never, E extends Error = Error> {
       this.currentRunCancelFn(QueryManager.TERMINATION_MESSAGE);
     }
   }
+
+  public isTerminated(): boolean {
+    return this.terminated;
+  }
 }
