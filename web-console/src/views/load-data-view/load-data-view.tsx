@@ -521,7 +521,32 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
 
   private readonly updateSpec = (newSpec: Partial<IngestionSpec>) => {
     newSpec = normalizeSpec(newSpec);
-    newSpec = upgradeSpec(newSpec);
+    try {
+      newSpec = upgradeSpec(newSpec);
+    } catch (e) {
+      newSpec = {};
+      AppToaster.show({
+        icon: IconNames.ERROR,
+        intent: Intent.DANGER,
+        timeout: 30000,
+        message: (
+          <>
+            <p>
+              This spec can not be used in the data loader because it can not be auto-converted to
+              the latest spec format:
+            </p>
+            <p>{e.message}</p>
+            <p>You can still submit it directly form the Ingestion view.</p>
+          </>
+        ),
+        action: {
+          text: 'Go to Ingestion view',
+          onClick: () => {
+            this.props.goToIngestion(undefined);
+          },
+        },
+      });
+    }
     const deltaState: Partial<LoadDataViewState> = { spec: newSpec };
     if (!deepGet(newSpec, 'spec.ioConfig.type')) {
       deltaState.cacheRows = undefined;
