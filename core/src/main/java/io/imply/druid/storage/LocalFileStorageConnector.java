@@ -9,7 +9,6 @@
 
 package io.imply.druid.storage;
 
-import com.google.common.base.Joiner;
 import org.apache.druid.java.util.common.FileUtils;
 
 import java.io.File;
