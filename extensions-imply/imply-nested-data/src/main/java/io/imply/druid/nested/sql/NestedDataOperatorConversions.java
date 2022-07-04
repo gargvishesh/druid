@@ -442,9 +442,9 @@ public class NestedDataOperatorConversions
     {
       final DruidExpression.DruidExpressionCreator expressionFunction = druidExpressions ->
           DruidExpression.ofExpression(
+              NestedDataComplexTypeSerde.TYPE,
               null,
-              null,
-              DruidExpression.functionCall("struct"),
+              DruidExpression.functionCall("json_object"),
               druidExpressions
           );
 

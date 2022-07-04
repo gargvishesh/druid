@@ -31,7 +31,7 @@ title: Release notes
  
  - Fixed an issue where the controller task would stall indefinitely when its worker tasks could not all start up. Now, the controller task exits with a TaskStartTimeout after ten minutes.
  - Fixed an issue where the controller task would exit with an UnknownError when canceled. Now, the controller task correctly exits with a Canceled error.
-- Fixed an issue where error message when `groupByEnableMultiValueUnnesting: false` is set in the context of a query that uses GROUP BY referring to the parameter `executingNestedQuery`. It now uses the correct parameter `groupByEnableMultiValueUnnesting`.
+ - Fixed an issue where error message when `groupByEnableMultiValueUnnesting: false` is set in the context of a query that uses GROUP BY referred to  the parameter `executingNestedQuery`. It now uses the correct parameter `groupByEnableMultiValueUnnesting`.
  - Fixed an issue where the true error would sometimes be shadowed by a WorkerFailed error. (20466)
  - Fixed an issue where tasks would not retry certain retryable Overlord API errors. Now, these errors are retried, improving reliability.
 
@@ -227,7 +227,7 @@ feature is not available. All columns and their types must be specified explicit
   on datasources ingested with the Multi-Stage Query Engine will return values for`timestampSpec` that are not usable
   for introspection.
   (15007)
-- Figuring out `rollup`, `query-granularity, and`aggregatorFactories` is on a best effort basis. In
+- Figuring out `rollup`, `query-granularity`, and `aggregatorFactories` is on a best effort basis. In
   particular, Pivot will not be able to automatically create data cubes that properly reflect the
   rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msqe-sql-syntax.md#group-by). Proper data cubes
   can still be created manually. (20879)

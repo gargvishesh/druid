@@ -108,7 +108,7 @@ A REPLACE query consists of the following parts:
 
 ```sql
 REPLACE INTO w000
-OVERWRITE ALL WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
+OVERWRITE ALL
 SELECT
   TIME_PARSE("timestamp") AS __time,
   *

@@ -27,7 +27,7 @@ import React, { useState } from 'react';
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { AppToaster } from '../../../singletons';
-import { downloadQueryProfile, formatDuration, queryDruidSql } from '../../../utils';
+import { downloadQueryDetailArchive, formatDuration, queryDruidSql } from '../../../utils';
 import { Execution, WorkbenchQuery } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 import { cancelTaskExecution, getTaskExecution } from '../execution-utils';
@@ -117,12 +117,14 @@ LIMIT 100`,
             const menu = (
               <Menu>
                 <MenuItem
+                  icon={IconNames.EYE_OPEN}
                   text="Show details"
                   onClick={() => {
                     onExecutionDetails(w.taskId);
                   }}
                 />
                 <MenuItem
+                  icon={IconNames.DOCUMENT_OPEN}
                   text="Attach in new tab"
                   onClick={async () => {
                     let execution: Execution;
@@ -156,6 +158,7 @@ LIMIT 100`,
                   }}
                 />
                 <MenuItem
+                  icon={IconNames.DUPLICATE}
                   text="Copy ID"
                   onClick={() => {
                     copy(w.taskId, { format: 'text/plain' });
@@ -168,6 +171,7 @@ LIMIT 100`,
                 {w.taskStatus === 'SUCCESS' &&
                   w.datasource !== WorkbenchQuery.INLINE_DATASOURCE_MARKER && (
                     <MenuItem
+                      icon={IconNames.APPLICATION}
                       text={`SELECT * FROM ${SqlTableRef.create(w.datasource)}`}
                       onClick={() =>
                         onRunQuery(`SELECT * FROM ${SqlTableRef.create(w.datasource)}`)
@@ -175,13 +179,15 @@ LIMIT 100`,
                     />
                   )}
                 <MenuItem
-                  text="Download query profile"
-                  onClick={() => downloadQueryProfile(w.taskId)}
+                  icon={IconNames.ARCHIVE}
+                  text="Download query detail archive"
+                  onClick={() => downloadQueryDetailArchive(w.taskId)}
                 />
                 {w.taskStatus === 'RUNNING' && (
                   <>
                     <MenuDivider />
                     <MenuItem
+                      icon={IconNames.CROSS}
                       text="Cancel query"
                       intent={Intent.DANGER}
                       onClick={() => setConfirmCancelId(w.taskId)}

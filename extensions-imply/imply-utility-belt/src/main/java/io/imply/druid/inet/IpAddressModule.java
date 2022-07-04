@@ -86,14 +86,18 @@ public class IpAddressModule implements DruidModule
       return;
     }
     registerHandlersAndSerde();
-    ExpressionModule.addExprMacro(binder, IpAddressExpressions.ParseExprMacro.class);
-    ExpressionModule.addExprMacro(binder, IpAddressExpressions.TryParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.AddressParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.AddressTryParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixTryParseExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.StringifyExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.MatchExprMacro.class);
 
-    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.ParseOperatorConversion.class);
-    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.TryParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.AddressParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixTryParseOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.StringifyOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.MatchOperatorConversion.class);

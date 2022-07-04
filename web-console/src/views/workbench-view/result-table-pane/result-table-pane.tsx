@@ -61,10 +61,21 @@ import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-e
 import { convertToGroupByExpression, timeFormatToSql } from '../sql-utils';
 import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item';
 
-import './query-output2.scss';
+import './result-table-pane.scss';
 
 function cast(ex: SqlExpression, as: string): SqlExpression {
   return SqlExpression.parse(`CAST(${ex} AS ${as})`);
+}
+
+function sqlLiteralForColumnValue(column: Column, value: unknown): SqlLiteral | undefined {
+  if (column.sqlType === 'TIMESTAMP') {
+    const asDate = new Date(value as any);
+    if (!isNaN(asDate.valueOf())) {
+      return SqlLiteral.create(asDate);
+    }
+  }
+
+  return SqlLiteral.maybe(value);
 }
 
 const CAST_TARGETS: string[] = ['VARCHAR', 'BIGINT', 'DOUBLE'];
@@ -78,7 +89,7 @@ function getJsonPaths(jsons: Record<string, any>[]): string[] {
 }
 
 function isComparable(x: unknown): boolean {
-  return x !== null && x !== '' && !isNaN(Number(x));
+  return x !== null && x !== '';
 }
 
 function getExpressionIfAlias(query: SqlQuery, selectIndex: number): string {
@@ -97,7 +108,7 @@ function getExpressionIfAlias(query: SqlQuery, selectIndex: number): string {
   }
 }
 
-export interface QueryOutput2Props {
+export interface ResultTablePaneProps {
   queryResult: QueryResult;
   onQueryAction(action: QueryAction): void;
   onExport?(): void;
@@ -105,7 +116,7 @@ export interface QueryOutput2Props {
   initPageSize?: number;
 }
 
-export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2Props) {
+export const ResultTablePane = React.memo(function ResultTablePane(props: ResultTablePaneProps) {
   const { queryResult, onQueryAction, onExport, runeMode, initPageSize } = props;
   const parsedQuery = queryResult.sqlQuery;
   const [pagination, setPagination] = useState<Pagination>({
@@ -557,7 +568,6 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
   }
 
   function getCellMenu(column: Column, headerIndex: number, value: unknown) {
-    const val = SqlLiteral.maybe(value);
     const showFullValueMenuItem = (
       <MenuItem
         icon={IconNames.EYE_OPEN}
@@ -567,6 +577,8 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
         }}
       />
     );
+
+    const val = sqlLiteralForColumnValue(column, value);
 
     if (parsedQuery) {
       let ex: SqlExpression | undefined;
@@ -591,14 +603,14 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
         <Menu>
           {ex && val && !jsonColumn && (
             <>
+              {filterOnMenuItem(IconNames.FILTER, ex.equal(val), having)}
+              {filterOnMenuItem(IconNames.FILTER, ex.unequal(val), having)}
               {isComparable(value) && (
                 <>
                   {filterOnMenuItem(IconNames.FILTER, ex.greaterThanOrEqual(val), having)}
                   {filterOnMenuItem(IconNames.FILTER, ex.lessThanOrEqual(val), having)}
                 </>
               )}
-              {filterOnMenuItem(IconNames.FILTER, ex.equal(val), having)}
-              {filterOnMenuItem(IconNames.FILTER, ex.unequal(val), having)}
             </>
           )}
           {showFullValueMenuItem}
@@ -656,7 +668,7 @@ export const QueryOutput2 = React.memo(function QueryOutput2(props: QueryOutput2
 
   const numericColumnBraces = getNumericColumnBraces(queryResult, pagination);
   return (
-    <div className={classNames('query-output2', { 'more-results': hasMoreResults })}>
+    <div className={classNames('result-table-pane', { 'more-results': hasMoreResults })}>
       {finalPage ? (
         <div className="dead-end">
           <p>This is the end of the inline results but there are more results in this query.</p>

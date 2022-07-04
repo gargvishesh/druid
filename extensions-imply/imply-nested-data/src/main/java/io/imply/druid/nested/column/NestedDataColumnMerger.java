@@ -133,7 +133,7 @@ public class NestedDataColumnMerger implements DimensionMergerV9
       serializer.serializeStringDictionary(() -> dictionaryMergeIterator);
       serializer.serializeLongDictionary(() -> longDictionaryMergeIterator);
       serializer.serializeDoubleDictionary(() -> doubleDictionaryMergeIterator);
-      cardinality = dictionaryMergeIterator.getCounter();
+      cardinality = dictionaryMergeIterator.getCardinality();
     } else if (numMergeIndex == 1) {
       serializer.serializeStringDictionary(sortedLookup.getSortedStrings());
       serializer.serializeLongDictionary(sortedLookup.getSortedLongs());

@@ -124,6 +124,9 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
 
   public boolean matches(String toMatch)
   {
+    if (toMatch == null) {
+      return false;
+    }
     IPAddress addr = new IPv6Address(bytes);
     IPAddressString stringAddr = new IPAddressString(toMatch);
     if (!stringAddr.isValid()) {

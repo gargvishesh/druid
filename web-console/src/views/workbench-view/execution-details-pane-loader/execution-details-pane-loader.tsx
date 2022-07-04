@@ -20,6 +20,7 @@ import React from 'react';
 
 import { Loader } from '../../../components';
 import { useInterval, useQueryManager } from '../../../hooks';
+import { QueryState } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 import {
   ExecutionDetailsPane,
@@ -30,25 +31,27 @@ import { getTaskExecution } from '../execution-utils';
 export interface ExecutionDetailsPaneLoaderProps {
   id: string;
   initTab?: ExecutionDetailsTab;
+  initExecution?: Execution;
 }
 
 export const ExecutionDetailsPaneLoader = React.memo(function ExecutionDetailsPaneLoader(
   props: ExecutionDetailsPaneLoaderProps,
 ) {
-  const { id, initTab } = props;
+  const { id, initTab, initExecution } = props;
 
   const [executionState, queryManager] = useQueryManager<string, Execution>({
     processQuery: (id: string) => {
       return getTaskExecution(id);
     },
-    initQuery: id,
+    initQuery: initExecution ? undefined : id,
+    initState: initExecution ? new QueryState({ data: initExecution }) : undefined,
   });
 
   useInterval(() => {
     const execution = executionState.data;
     if (!execution) return;
     if (execution.isWaitingForQuery()) {
-      queryManager.rerunLastQuery(true);
+      queryManager.runQuery(execution.id);
     }
   }, 1000);
 

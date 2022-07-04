@@ -30,12 +30,12 @@ import {
   ingestQueryPatternToQuery,
 } from '../../workbench-models';
 
+import { ExecutionProgressBarPane } from './execution-progress-bar-pane/execution-progress-bar-pane';
 import { ExecutionStagesPane } from './execution-stages-pane/execution-stages-pane';
 import { executionBackgroundStatusCheck, submitTaskQuery } from './execution-utils';
 import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
 import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
-import { StateProgressPane } from './state-progress-pane/state-progress-pane';
 import { TitleFrame } from './title-frame/title-frame';
 
 import './sqloader-view.scss';
@@ -119,7 +119,7 @@ export const SqloaderView = React.memo(function SqloaderView(props: SqloaderView
       )}
       {insertResultState.isLoading() && (
         <div className="loading-step">
-          <StateProgressPane
+          <ExecutionProgressBarPane
             execution={insertResultState.intermediate}
             onCancel={() => insertQueryManager.cancelCurrent()}
             onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
