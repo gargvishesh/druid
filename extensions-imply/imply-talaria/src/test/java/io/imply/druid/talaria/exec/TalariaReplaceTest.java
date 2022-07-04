@@ -43,6 +43,16 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
+                     .setExpectedSegment(
+                         ImmutableSet.of(
+                             SegmentId.of("foo", Interval.parse("2000-01-03T/P1D"), "test", 0),
+                             SegmentId.of("foo", Interval.parse("2001-01-03T/P1D"), "test", 0),
+                             SegmentId.of("foo", Interval.parse("2000-01-02T/P1D"), "test", 0),
+                             SegmentId.of("foo", Interval.parse("2001-01-02T/P1D"), "test", 0),
+                             SegmentId.of("foo", Interval.parse("2001-01-01T/P1D"), "test", 0),
+                             SegmentId.of("foo", Interval.parse("2000-01-01T/P1D"), "test", 0)
+                         )
+                     )
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{946684800000L, 1.0f},
@@ -72,6 +82,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedDestinationIntervals(ImmutableList.of(Intervals.of("2000-01-02T00:00:00.000Z/2000-01-03T00:00:00.000Z")))
                      .setExpectedRowSignature(rowSignature)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-02T/P1D"), "test", 0)))
                      .setExpectedResultRows(ImmutableList.of(new Object[]{946771200000L, 2.0f}))
                      .verifyResults();
   }
@@ -99,6 +110,11 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo1")
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
                      .setExpectedRowSignature(rowSignature)
+                     .setExpectedSegment(ImmutableSet.of(
+                         SegmentId.of("foo1", Interval.parse("2016-06-27T02:00:00.000Z/2016-06-27T03:00:00.000Z"), "test", 0),
+                         SegmentId.of("foo1", Interval.parse("2016-06-27T00:00:00.000Z/2016-06-27T01:00:00.000Z"), "test", 0),
+                         SegmentId.of("foo1", Interval.parse("2016-06-27T01:00:00.000Z/2016-06-27T02:00:00.000Z"), "test", 0))
+                     )
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{1466985600000L, 10L},
@@ -135,6 +151,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(ImmutableList.of(Intervals.of("2016-06-27T01:00:00.000Z/2016-06-27T02:00:00.000Z")))
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo1", Interval.parse("2016-06-27T01:00:00.000Z/2016-06-27T02:00:00.000Z"), "test", 0)))
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{1466989200000L, "2001:DA8:207:E132:94DC:BA03:DFDF:8F9F"},
@@ -177,6 +194,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{946684800000L, 1.0f},
@@ -207,6 +225,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{946684800000L, 1.0f},
@@ -241,6 +260,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(Collections.singletonList(Interval.parse("2000-01-01T/2000-03-01T")))
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{946684800000L, 1.0f},
@@ -268,6 +288,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDataSource("foo")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedDestinationIntervals(Collections.singletonList(Interval.parse("2000-01-01T/2002-01-01T")))
+                     .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Interval.parse("2000-01-01T/P1M"), "test", 0)))
                      .setExpectedResultRows(
                          ImmutableList.of(
                              new Object[]{946684800000L, 1.0f},
