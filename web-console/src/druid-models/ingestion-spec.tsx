@@ -370,6 +370,11 @@ export function upgradeSpec(spec: any): Partial<IngestionSpec> {
 
   // Decompose parser if exists
   if (deepGet(spec, 'spec.dataSchema.parser')) {
+    const parserType = deepGet(spec, 'spec.dataSchema.parser.type');
+    if (parserType !== 'string') {
+      throw new Error(`Can not rewrite parser of type '${parserType}', only 'string' is supported`);
+    }
+
     spec = deepMove(
       spec,
       'spec.dataSchema.parser.parseSpec.timestampSpec',
