@@ -313,6 +313,7 @@ export class Execution {
       id: result.sqlQueryId || result.queryId || 'direct_result',
       status: 'SUCCESS',
       result,
+      duration: result.queryDuration,
     });
   }
 

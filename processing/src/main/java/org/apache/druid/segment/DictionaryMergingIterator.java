@@ -124,7 +124,7 @@ public class DictionaryMergingIterator<T extends Comparable<T>> implements Close
     return value;
   }
 
-  public int getCounter()
+  public int getCardinality()
   {
     return counter;
   }

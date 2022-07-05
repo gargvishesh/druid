@@ -37,7 +37,7 @@ export function getUseCache(context: QueryContext): boolean {
   return typeof useCache === 'boolean' ? useCache : true;
 }
 
-export function setUseCache(context: QueryContext, useCache: boolean): QueryContext {
+export function changeUseCache(context: QueryContext, useCache: boolean): QueryContext {
   let newContext = context;
   if (useCache) {
     newContext = deepDelete(newContext, 'useCache');
@@ -56,7 +56,7 @@ export function getUseApproximateCountDistinct(context: QueryContext): boolean {
   return typeof useApproximateCountDistinct === 'boolean' ? useApproximateCountDistinct : true;
 }
 
-export function setUseApproximateCountDistinct(
+export function changeUseApproximateCountDistinct(
   context: QueryContext,
   useApproximateCountDistinct: boolean,
 ): QueryContext {
@@ -74,7 +74,7 @@ export function getUseApproximateTopN(context: QueryContext): boolean {
   return typeof useApproximateTopN === 'boolean' ? useApproximateTopN : true;
 }
 
-export function setUseApproximateTopN(
+export function changeUseApproximateTopN(
   context: QueryContext,
   useApproximateTopN: boolean,
 ): QueryContext {

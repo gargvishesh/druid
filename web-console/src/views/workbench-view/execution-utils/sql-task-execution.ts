@@ -162,7 +162,9 @@ export async function getTaskExecution(
       taskPayloadResp = await Api.instance.get(`/druid/indexer/v1/task/${encodedId}`, {
         cancelToken,
       });
-    } catch {}
+    } catch (e) {
+      if (Api.isNetworkError(e)) throw e;
+    }
   }
 
   let taskReportResp: AxiosResponse | undefined;
@@ -170,7 +172,9 @@ export async function getTaskExecution(
     taskReportResp = await Api.instance.get(`/druid/indexer/v1/task/${encodedId}/reports`, {
       cancelToken,
     });
-  } catch {}
+  } catch (e) {
+    if (Api.isNetworkError(e)) throw e;
+  }
 
   if ((taskPayloadResp || taskPayloadOverride) && taskReportResp) {
     try {

@@ -51,16 +51,16 @@ import java.util.stream.Collectors;
 public class IpAddressModuleTest
 {
   private static final Set<Class<? extends ExprMacroTable.ExprMacro>> IP_ADDRESS_EXPRESSIONS = ImmutableSet.of(
-      IpAddressExpressions.ParseExprMacro.class,
-      IpAddressExpressions.TryParseExprMacro.class,
+      IpAddressExpressions.AddressParseExprMacro.class,
+      IpAddressExpressions.AddressTryParseExprMacro.class,
       IpAddressExpressions.StringifyExprMacro.class,
       IpAddressExpressions.PrefixExprMacro.class,
       IpAddressExpressions.MatchExprMacro.class
   );
 
   private static final Set<Class<? extends SqlOperatorConversion>> IP_ADDRESS_SQL_OPERATORS = ImmutableSet.of(
-      IpAddressSqlOperatorConversions.ParseOperatorConversion.class,
-      IpAddressSqlOperatorConversions.TryParseOperatorConversion.class,
+      IpAddressSqlOperatorConversions.AddressParseOperatorConversion.class,
+      IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion.class,
       IpAddressSqlOperatorConversions.StringifyOperatorConversion.class,
       IpAddressSqlOperatorConversions.PrefixOperatorConversion.class,
       IpAddressSqlOperatorConversions.MatchOperatorConversion.class

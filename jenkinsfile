@@ -482,9 +482,7 @@ def hdfsDeepStorageTests(jvmRuntimeOpt) {
     writeFile   file:   "jenkins/hdfs-config",
                 text:   "druid_storage_type=hdfs\n" +
                         "druid_storage_storageDirectory=/druid/segments\n" +
-                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]\n" +
-                        "druid_indexer_logs_type=hdfs\n" +
-                        "druid_indexer_logs_directory=/druid/indexing-logs"
+                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
     script {
         retry(2) {
             try {

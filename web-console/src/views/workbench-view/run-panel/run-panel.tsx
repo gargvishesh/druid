@@ -36,13 +36,13 @@ import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-con
 import { getLink } from '../../../links';
 import { deepDelete, deepSet, formatInteger, pluralIfNeeded } from '../../../utils';
 import {
+  changeUseApproximateCountDistinct,
+  changeUseApproximateTopN,
+  changeUseCache,
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
   getUseCache,
   QueryContext,
-  setUseApproximateCountDistinct,
-  setUseApproximateTopN,
-  setUseCache,
 } from '../../../utils/query-context';
 import { DruidEngine, WorkbenchQuery } from '../../../workbench-models';
 import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
@@ -50,6 +50,8 @@ import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog
 import './run-panel.scss';
 
 const NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
+
+// msqNumTasks
 
 function getNumTasks(context: QueryContext): number {
   const { msqNumTasks } = context;
@@ -62,12 +64,14 @@ function changeNumTasks(context: QueryContext, numTasks: number | undefined): Qu
     : deepDelete(context, 'msqNumTasks');
 }
 
+// msqFinalizeAggregations
+
 function getFinalizeAggregations(context: QueryContext): boolean {
   const { msqFinalizeAggregations } = context;
   return typeof msqFinalizeAggregations === 'boolean' ? msqFinalizeAggregations : true;
 }
 
-function setFinalizeAggregations(
+function changeFinalizeAggregations(
   context: QueryContext,
   msqFinalizeAggregations: boolean,
 ): QueryContext {
@@ -75,6 +79,39 @@ function setFinalizeAggregations(
     return deepDelete(context, 'msqFinalizeAggregations');
   } else {
     return deepSet(context, 'msqFinalizeAggregations', false);
+  }
+}
+
+// msqDurableShuffleStorage
+
+function getDurableShuffleStorage(context: QueryContext): boolean {
+  const { msqDurableShuffleStorage } = context;
+  return Boolean(msqDurableShuffleStorage);
+}
+
+function changeDurableShuffleStorage(
+  context: QueryContext,
+  msqDurableShuffleStorage: boolean,
+): QueryContext {
+  if (msqDurableShuffleStorage) {
+    return deepSet(context, 'msqDurableShuffleStorage', true);
+  } else {
+    return deepDelete(context, 'msqDurableShuffleStorage');
+  }
+}
+
+// maxParseExceptions
+
+function getMaxParseExceptions(context: QueryContext): number {
+  const { maxParseExceptions } = context;
+  return Number(maxParseExceptions) || 0;
+}
+
+function changeMaxParseExceptions(context: QueryContext, maxParseExceptions: number): QueryContext {
+  if (maxParseExceptions !== 0) {
+    return deepSet(context, 'maxParseExceptions', maxParseExceptions);
+  } else {
+    return deepDelete(context, 'maxParseExceptions');
   }
 }
 
@@ -98,7 +135,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const queryContext = query.queryContext;
   const numContextKeys = Object.keys(queryContext).length;
 
+  const maxParseExceptions = getMaxParseExceptions(queryContext);
   const msqFinalizeAggregations = getFinalizeAggregations(queryContext);
+  const msqDurableShuffleStorage = getDurableShuffleStorage(queryContext);
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
   const useApproximateTopN = getUseApproximateTopN(queryContext);
   const useCache = getUseCache(queryContext);
@@ -207,17 +246,49 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
                 />
                 {effectiveEngine === 'sql-task' ? (
-                  <MenuCheckbox
-                    checked={msqFinalizeAggregations}
-                    text="Finalize aggregations"
-                    onChange={() => {
-                      onQueryChange(
-                        query.changeQueryContext(
-                          setFinalizeAggregations(queryContext, !msqFinalizeAggregations),
-                        ),
-                      );
-                    }}
-                  />
+                  <>
+                    <MenuItem
+                      icon={IconNames.ERROR}
+                      text="Max parse exceptions"
+                      label={String(maxParseExceptions)}
+                    >
+                      {[-1, 0, 1, 2, 4, 8, 16].map(v => (
+                        <MenuItem
+                          key={String(v)}
+                          icon={v === maxParseExceptions ? IconNames.TICK : IconNames.BLANK}
+                          text={v < 0 ? '-1 (∞)' : String(v)}
+                          onClick={() => {
+                            onQueryChange(
+                              query.changeQueryContext(changeMaxParseExceptions(queryContext, v)),
+                            );
+                          }}
+                          shouldDismissPopover={false}
+                        />
+                      ))}
+                    </MenuItem>
+                    <MenuCheckbox
+                      checked={msqDurableShuffleStorage}
+                      text="Durable shuffle storage"
+                      onChange={() => {
+                        onQueryChange(
+                          query.changeQueryContext(
+                            changeDurableShuffleStorage(queryContext, !msqDurableShuffleStorage),
+                          ),
+                        );
+                      }}
+                    />
+                    <MenuCheckbox
+                      checked={msqFinalizeAggregations}
+                      text="Finalize aggregations"
+                      onChange={() => {
+                        onQueryChange(
+                          query.changeQueryContext(
+                            changeFinalizeAggregations(queryContext, !msqFinalizeAggregations),
+                          ),
+                        );
+                      }}
+                    />
+                  </>
                 ) : (
                   <>
                     <MenuCheckbox
@@ -225,7 +296,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                       text="Use cache"
                       onChange={() => {
                         onQueryChange(
-                          query.changeQueryContext(setUseCache(queryContext, !useCache)),
+                          query.changeQueryContext(changeUseCache(queryContext, !useCache)),
                         );
                       }}
                     />
@@ -235,7 +306,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                       onChange={() => {
                         onQueryChange(
                           query.changeQueryContext(
-                            setUseApproximateTopN(queryContext, !useApproximateTopN),
+                            changeUseApproximateTopN(queryContext, !useApproximateTopN),
                           ),
                         );
                       }}
@@ -249,7 +320,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                     onChange={() => {
                       onQueryChange(
                         query.changeQueryContext(
-                          setUseApproximateCountDistinct(
+                          changeUseApproximateCountDistinct(
                             queryContext,
                             !useApproximateCountDistinct,
                           ),

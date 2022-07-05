@@ -24,6 +24,7 @@ import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.QueryMetrics;
 import org.apache.druid.query.filter.Filter;
+import org.apache.druid.segment.ColumnCache;
 import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.CursorFactory;
 import org.apache.druid.segment.QueryableIndexColumnSelectorFactory;
@@ -31,7 +32,6 @@ import org.apache.druid.segment.QueryableIndexCursorSequenceBuilder;
 import org.apache.druid.segment.SimpleAscendingOffset;
 import org.apache.druid.segment.SimpleDescendingOffset;
 import org.apache.druid.segment.VirtualColumns;
-import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.NumericColumn;
 import org.apache.druid.segment.column.RowSignature;
@@ -46,9 +46,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link CursorFactory} implementation based on a single columnar {@link Frame}.
@@ -93,11 +91,19 @@ public class FrameCursorFactory implements CursorFactory
         new FrameColumnSelector(frame, signature, columnReaders);
 
     if (Granularities.ALL.equals(gran)) {
-      final Cursor cursor = makeGranularityAllCursor(frameColumnSelector, filter, interval, virtualColumns, descending);
+      Closer closer = Closer.create();
+      final Cursor cursor = makeGranularityAllCursor(
+          closer,
+          frameColumnSelector,
+          filter,
+          interval,
+          virtualColumns,
+          descending
+      );
 
       // Note: if anything closeable is ever added to this Sequence, make sure to update FrameProcessors.makeCursor.
       // Currently, it assumes that closing the Sequence does nothing.
-      return Sequences.simple(Collections.singletonList(cursor));
+      return Sequences.withBaggage(Sequences.simple(Collections.singletonList(cursor)), closer);
     } else {
       // If gran != ALL, assume the frame is time-ordered. Callers shouldn't use gran != ALL on non-time-ordered data.
       // TODO(gianm): Validate the above, instead of assuming it.
@@ -113,9 +119,10 @@ public class FrameCursorFactory implements CursorFactory
         firstTime = 0;
         lastTime = 0;
       } else {
-        final NumericColumn timeColumn = (NumericColumn) timeColumnHolder.getColumn();
-        firstTime = timeColumn.getLongSingleValueRow(0);
-        lastTime = timeColumn.getLongSingleValueRow(frameColumnSelector.getNumRows() - 1);
+        try (final NumericColumn timeColumn = (NumericColumn) timeColumnHolder.getColumn()) {
+          firstTime = timeColumn.getLongSingleValueRow(0);
+          lastTime = timeColumn.getLongSingleValueRow(frameColumnSelector.getNumRows() - 1);
+        }
       }
 
       final Interval intervalToUse = interval.overlap(Intervals.utc(firstTime, lastTime + 1));
@@ -128,12 +135,11 @@ public class FrameCursorFactory implements CursorFactory
           frameColumnSelector,
           intervalToUse,
           virtualColumns,
-          null,
+          filter,
+          queryMetrics,
           firstTime,
           lastTime,
-          descending,
-          filter,
-          null
+          descending
       ).build(gran);
     }
   }
@@ -153,19 +159,18 @@ public class FrameCursorFactory implements CursorFactory
       throw new ISE("Cannot vectorize. Check 'canVectorize' before calling 'makeVectorCursor'.");
     }
 
-    final FrameColumnSelector frameColumnSelector =
+    final FrameColumnSelector columnSelector =
         new FrameColumnSelector(frame, signature, columnReaders);
 
     final Closer closer = Closer.create();
     final Filter filterToUse = FrameCursorUtils.buildFilter(filter, interval);
     final VectorOffset baseOffset = new NoFilterVectorOffset(vectorSize, 0, frame.numRows());
-    final Map<String, BaseColumn> columnCache = new HashMap<>();
+    final ColumnCache columnCache = new ColumnCache(columnSelector, closer);
 
     // baseColumnSelectorFactory using baseOffset is the column selector for filtering.
     final VectorColumnSelectorFactory baseColumnSelectorFactory = new QueryableIndexVectorColumnSelectorFactory(
-        frameColumnSelector,
+        columnSelector,
         baseOffset,
-        closer,
         columnCache,
         virtualColumns
     );
@@ -180,9 +185,8 @@ public class FrameCursorFactory implements CursorFactory
       );
 
       final VectorColumnSelectorFactory filteredColumnSelectorFactory = new QueryableIndexVectorColumnSelectorFactory(
-          frameColumnSelector,
+          columnSelector,
           filteredOffset,
-          closer,
           columnCache,
           virtualColumns
       );
@@ -192,6 +196,7 @@ public class FrameCursorFactory implements CursorFactory
   }
 
   private static Cursor makeGranularityAllCursor(
+      Closer closer,
       final FrameColumnSelector frameColumnSelector,
       @Nullable final Filter filter,
       final Interval interval,
@@ -209,12 +214,10 @@ public class FrameCursorFactory implements CursorFactory
 
     final QueryableIndexColumnSelectorFactory columnSelectorFactory =
         new QueryableIndexColumnSelectorFactory(
-            frameColumnSelector,
             virtualColumns,
             false,
-            Closer.create(),
             baseOffset,
-            new HashMap<>()
+            new ColumnCache(frameColumnSelector, closer)
         );
 
     if (filterToUse == null) {

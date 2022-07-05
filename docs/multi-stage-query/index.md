@@ -5,19 +5,21 @@ title: Overview
 
 > The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. MSQE has  the same query capabilities as the existing core Druid query engine but provides additional benefits. It supports larger, heavier-weight queries, querying external data, and ingestion through SQL INSERT and REPLACE queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine.
+The Multi-Stage Query Engine (MSQE) is a multi-stage distributed query engine for Apache Druid that extends Druid's query capabilities. Use MSQE to query [external data](./msqe-sql-syntax.md#extern) as well as perform ingestion with SQL [INSERT](./msqe-sql-syntax.md#insert) and [REPLACE](./msqe-sql-syntax.md#replace) queries. MSQE excels at executing queries that can get bottlenecked at the Broker when using Druid's core query engine. When you run a query using MSQE, MSQE splits the query into stages and automatically exchanges data between stages. Each stage is parallelized to run across multiple data servers at once, simplifying performance.
 
-MSQE splits queries into stages and automatically exchanges data between stages. Each stage is parallelized to run across multiple data servers at once, simplifying performance.
+In its current state, MSQE focuses on ingestion using INSERT and REPLACE to enable you to do the following with Druid:
 
-In its current, state, MSQE focuses on ingestion using INSERT and REPLACE to enable you to do the following with Druid:
-
-- Read external data at query time using [EXTERN](./msqe-sql-syntax.md#extern).
-- Execute batch ingestion jobs as SQL queries using [INSERT](./msqe-sql-syntax.md#insert) and [REPLACE](./msqe-sql-syntax.md#replace). You no longer need to generate a JSON-based ingestion spec.
+- Read external data at query time using EXTERN.
+- Execute batch ingestion jobs as SQL queries using INSERT and REPLACE. You no longer need to generate a JSON-based ingestion spec.
 - Transform and rewrite existing tables using SQL queries.
-- Execute heavy-weight queries that might run for a long time and return large numbers of rows.
-- Execute queries that exchange large amounts of data between servers, like exact count
-  distinct of high-cardinality fields.
 - Perform multi-dimension range partitioning reliably, leading to segment sizes being distributed more evenly and better performance.
+
+In addition, MSQE can do the following as part of a proof of concept or demo: 
+
+- Execute heavy-weight queries that might run for a long time and return large numbers of rows.
+- Execute queries that exchange large amounts of data between servers, like exact count distinct of high-cardinality fields.
+
+Do not use or rely upon these queries for any meaningful use cases, especially production ones.
 
 You can read more about the motivation for building MSQE in this [Imply blog post](https://imply.io/blog/a-new-shape-for-apache-druid/).
 

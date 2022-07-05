@@ -477,7 +477,6 @@ exports[`IngestionView matches snapshot 1`] = `
               "Cell": [Function],
               "Header": "Status",
               "accessor": [Function],
-              "className": "padded",
               "filterMethod": [Function],
               "id": "status",
               "show": true,

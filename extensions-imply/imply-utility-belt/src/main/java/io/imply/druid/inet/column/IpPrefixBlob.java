@@ -62,14 +62,14 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
     if (address == null) {
       return null;
     }
-    final Integer prefix = addressString.getNetworkPrefixLength();
-    if (prefix == null) {
-      return null;
-    }
     // always store as ipv6 for now...
-    byte[] addressBytes = address.toIPv6().getBytes();
+    IPv6Address addressInIpv6 = address.toIPv6();
+    Integer prefix = addressInIpv6.getNetworkPrefixLength();
+    if (prefix == null) {
+      prefix = 128;
+    }
     byte[] addressAndPrefixByte = new byte[17];
-    System.arraycopy(addressBytes, 0, addressAndPrefixByte, 0, addressBytes.length);
+    System.arraycopy(addressInIpv6.getBytes(), 0, addressAndPrefixByte, 0, addressInIpv6.getBytes().length);
     addressAndPrefixByte[addressAndPrefixByte.length - 1] = prefix.byteValue();
     return new IpPrefixBlob(addressAndPrefixByte);
   }
@@ -105,20 +105,46 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
     return bytes;
   }
 
-  public String asCompressedString()
+  public String stringify(boolean compact, boolean forceV6)
   {
-    IPAddress addr = new IPv6Address(Arrays.copyOfRange(bytes, 0, bytes.length - 1));
-    String addressString;
-    if (addr.isIPv4Convertible()) {
-      addressString = addr.toIPv4().toCompressedString();
-    } else {
-      addressString = addr.toCompressedString();
-    }
-    return addressString + "/" + prefixByteToString(bytes[bytes.length - 1]);
+    return addressByteToString(compact, forceV6);
   }
 
-  private String prefixByteToString(byte prefixByte) {
-    return String.valueOf(Byte.toUnsignedInt(prefixByte));
+  public boolean matches(String toMatch)
+  {
+    if (toMatch == null) {
+      return false;
+    }
+    IPAddress addr = new IPv6Address(bytes, 0, bytes.length - 1, prefixByteToLong(bytes[bytes.length - 1]));
+    IPAddressString stringAddr = new IPAddressString(toMatch);
+    if (!stringAddr.isValid()) {
+      throw new IAE("Cannot match [%s] with invalid address [%s]", addr.toCompressedString(), toMatch);
+    }
+    IPAddress matchAddr = stringAddr.getAddress().toIPv6();
+    return addr.toPrefixBlock().contains(matchAddr);
+  }
+
+  public String asCompressedString()
+  {
+    return addressByteToString(true, false);
+  }
+
+  private String addressByteToString(boolean compact, boolean forceV6) {
+    IPAddress addr = new IPv6Address(bytes, 0, bytes.length - 1, prefixByteToLong(bytes[bytes.length - 1]));
+    if (!forceV6 && addr.isIPv4Convertible()) {
+      if (compact) {
+        return addr.toIPv4().toCompressedString();
+      }
+      return addr.toIPv4().toNormalizedString();
+    }
+    if (compact) {
+      return addr.toCompressedString();
+    }
+    return addr.toFullString();
+  }
+
+  private int prefixByteToLong(byte prefixByte) {
+    return Byte.toUnsignedInt(prefixByte);
   }
 
   @Override

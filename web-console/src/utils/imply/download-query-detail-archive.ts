@@ -21,19 +21,19 @@ import * as JSONBig from 'json-bigint-native';
 import { Api } from '../../singletons';
 import { downloadFile } from '../download';
 
-interface QueryProfile {
+interface QueryDetailArchive {
   id: string;
-  profileVersion: number;
+  detailArchiveVersion: number;
   status?: any;
   reports?: any;
   payload?: any;
   serverStatus?: any;
 }
 
-export async function downloadQueryProfile(id: string) {
-  const profile: QueryProfile = {
+export async function downloadQueryDetailArchive(id: string) {
+  const profile: QueryDetailArchive = {
     id,
-    profileVersion: 1,
+    detailArchiveVersion: 1,
   };
 
   try {
@@ -56,5 +56,5 @@ export async function downloadQueryProfile(id: string) {
     profile.serverStatus = (await Api.instance.get(`/status`)).data;
   } catch {}
 
-  downloadFile(JSONBig.stringify(profile, undefined, 2), 'json', `query_profile_${id}.json`);
+  downloadFile(JSONBig.stringify(profile, undefined, 2), 'json', `query_detail_${id}.archive.json`);
 }
