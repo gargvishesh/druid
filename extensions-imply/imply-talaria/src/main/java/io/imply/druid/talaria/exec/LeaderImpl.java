@@ -422,7 +422,8 @@ public class LeaderImpl implements Leader
     try {
       // Delete all temporary files as a failsafe
       TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
       log.warn(e, "Error while cleaning up temporary files at path " + leaderDirName);
     }
