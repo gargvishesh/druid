@@ -16,17 +16,11 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { QueryManager, QueryManagerOptions, QueryState } from '../utils';
 
 import { usePermanentCallback } from './use-permanent-callback';
-
-const NULL_QUERY_MANAGER = new Proxy<QueryManager<any, any, any, any>>({} as any, {
-  get(_target, p, _receiver) {
-    throw new Error(`QueryManager.${String(p)} used before initialization.`);
-  },
-});
 
 export interface UseQueryManagerOptions<Q, R, I, E extends Error>
   extends Omit<QueryManagerOptions<Q, R, I, E>, 'onStateChange'> {
@@ -46,38 +40,46 @@ export function useQueryManager<Q, R, I = never, E extends Error = Error>(
 
   const [resultState, setResultState] = useState<QueryState<R, E, I>>(initState || QueryState.INIT);
 
-  const queryManager = useRef<QueryManager<Q, R, I, E>>(NULL_QUERY_MANAGER);
-
-  useEffect(() => {
-    // Initialize queryManager on mount to ensure that useQueryManager
-    // will be compatible with future React versions that may mount/unmount/remount
-    // the same component multiple times while.
-    //
-    // See https://reactjs.org/docs/strict-mode.html#ensuring-reusable-state
-    // and https://github.com/reactwg/react-18/discussions/18
-    queryManager.current = new QueryManager<Q, R, I, E>({
+  function makeQueryManager() {
+    return new QueryManager<Q, R, I, E>({
       ...options,
       initState,
       processQuery: concreteProcessQuery,
       backgroundStatusCheck: backgroundStatusCheck ? concreteBackgroundStatusCheck : undefined,
       onStateChange: setResultState,
     });
+  }
+
+  const [queryManager, setQueryManager] = useState<QueryManager<Q, R, I, E>>(makeQueryManager);
+
+  useEffect(() => {
+    // Initialize queryManager on mount if needed to ensure that useQueryManager
+    // will be compatible with future React versions that may mount/unmount/remount
+    // the same component multiple times while.
+    //
+    // See https://reactjs.org/docs/strict-mode.html#ensuring-reusable-state
+    // and https://github.com/reactwg/react-18/discussions/18
+    let myQueryManager = queryManager;
+    if (queryManager.isTerminated()) {
+      myQueryManager = makeQueryManager();
+      setQueryManager(myQueryManager);
+    }
 
     if (typeof initQuery !== 'undefined') {
-      queryManager.current.runQuery(initQuery);
+      myQueryManager.runQuery(initQuery);
     }
     return () => {
-      queryManager.current.terminate();
+      myQueryManager.terminate();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (typeof query !== 'undefined') {
-      queryManager.current.runQuery(query);
+      queryManager.runQuery(query);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  return [resultState, queryManager.current];
+  return [resultState, queryManager];
 }
