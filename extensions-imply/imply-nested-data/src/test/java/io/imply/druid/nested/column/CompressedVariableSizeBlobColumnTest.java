@@ -185,11 +185,12 @@ public class CompressedVariableSizeBlobColumnTest
 
     ByteBuffer base = fileMapper.mapFile(fileNameBase);
 
-    CompressedLongsReader reader = CompressedLongsReader.fromByteBuffer(base, ByteOrder.nativeOrder()).get();
-    for (int row = 0; row < numWritten; row++) {
-      for (int i = 0; i < 5; i++) {
-        long l = reader.get(row);
-        Assert.assertEquals("Row " + row, values.get(row).longValue(), l);
+    try (CompressedLongsReader reader = CompressedLongsReader.fromByteBuffer(base, ByteOrder.nativeOrder()).get()) {
+      for (int row = 0; row < numWritten; row++) {
+        for (int i = 0; i < 5; i++) {
+          long l = reader.get(row);
+          Assert.assertEquals("Row " + row, values.get(row).longValue(), l);
+        }
       }
     }
   }
