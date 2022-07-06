@@ -28,7 +28,6 @@ import org.apache.druid.timeline.SegmentId;
 import org.joda.time.Interval;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TalariaTestTaskActionClient implements TaskActionClient

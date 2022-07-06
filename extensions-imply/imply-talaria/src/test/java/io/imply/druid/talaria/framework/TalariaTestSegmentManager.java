@@ -19,7 +19,6 @@ import org.apache.druid.timeline.SegmentId;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
