@@ -36,7 +36,7 @@ public class TalariaTestTaskActionClient implements TaskActionClient
 
   private static final String VERSION = "test";
   private final ObjectMapper mapper;
-  private final ConcurrentMap<SegmentId, AtomicInteger> segmentIdPartitionIdMap = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<SegmentId, AtomicInteger> segmentIdPartitionIdMap = new ConcurrentHashMap<>();
 
   public TalariaTestTaskActionClient(ObjectMapper mapper)
   {

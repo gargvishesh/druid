@@ -653,10 +653,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       return (Builder) this;
     }
 
-    public Builder setExpectedSegment(Set<SegmentId> expectedRowSignature)
+    public Builder setExpectedSegment(Set<SegmentId> expectedSegments)
     {
-      Preconditions.checkArgument(!expectedRowSignature.equals(RowSignature.empty()), "Row signature cannot be empty");
-      this.expectedSegments = expectedRowSignature;
+      Preconditions.checkArgument(!expectedSegments.isEmpty(), "Segments cannot be empty");
+      this.expectedSegments = expectedSegments;
       return (Builder) this;
     }
 
