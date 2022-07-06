@@ -144,13 +144,12 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -812,7 +811,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
 
         String foundDataSource = null;
-        Map<SegmentId, Set<List<Object>>> segmentIdVsOutputRowsMap = new HashMap<>();
+        SortedMap<SegmentId, List<List<Object>>> segmentIdVsOutputRowsMap = new TreeMap<>();
         for (DataSegment dataSegment : segmentManager.getAllDataSegments()) {
 
           //Assert shard spec class
@@ -848,7 +847,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
           for (List<Object> row : FrameTestUtil.readRowsFromAdapter(storageAdapter, null, false).toList()) {
             // transforming rows for sketch assertions
-            List<Object> collect = row.stream()
+            List<Object> transformedRow = row.stream()
                                       .map(r -> {
                                         if (r instanceof HyperLogLogCollector) {
                                           return ((HyperLogLogCollector) r).estimateCardinalityRound();
@@ -857,17 +856,16 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                         }
                                       })
                                       .collect(Collectors.toList());
-            segmentIdVsOutputRowsMap.computeIfAbsent(dataSegment.getId(), r -> new HashSet<>()).add(collect);
+            segmentIdVsOutputRowsMap.computeIfAbsent(dataSegment.getId(), r -> new ArrayList<>()).add(transformedRow);
           }
         }
 
         log.info("Found spec: %s", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(foundSpec));
         List<Object[]> transformedOutputRows = segmentIdVsOutputRowsMap.values()
-                                                             .stream()
-                                                             .flatMap(Collection::stream)
-                                                             .map(List::toArray)
-                                                             .sorted(Comparator.comparing(Arrays::toString)) // Sorting rows as we are not controlling the order of segment generation in UT's.
-                                                             .collect(Collectors.toList());
+                                                                       .stream()
+                                                                       .flatMap(Collection::stream)
+                                                                       .map(List::toArray)
+                                                                       .collect(Collectors.toList());
 
         log.info(
             "Found rows which are sorted forcefully %s",
@@ -894,6 +892,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                                            .stream()
                                                            .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
                                                            .collect(MoreCollectors.onlyElement());
+            // Checking if the row belongs to the correct segment interval
             Assert.assertTrue(segmentIdVsOutputRowsMap.get(diskSegment).contains(Arrays.asList(row)));
           }
         }

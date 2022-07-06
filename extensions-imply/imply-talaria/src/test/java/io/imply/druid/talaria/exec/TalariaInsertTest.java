@@ -59,11 +59,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -112,11 +112,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedDataSource("foo1")
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -221,11 +221,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -250,11 +250,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -280,11 +280,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("cnt", "cnt", false, true))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRowsWithAggregatedComplexColumn())
                      .verifyResults();
@@ -310,11 +310,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .addExpectedAggregatorFactory(new HyperUniquesAggregatorFactory("cnt", "cnt", false, true))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRowsWithAggregatedComplexColumn())
                      .verifyResults();
@@ -408,12 +408,11 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .setExpectedShardSpec(DimensionRangeShardSpec.class)
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
+                         SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-03T/P1D"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2001-01-02T/P1D"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2000-01-02T/P1D"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2001-01-03T/P1D"), "test", 0))
                      )
                      .setExpectedResultRows(expectedFooRows())
                      .verifyResults();
@@ -682,6 +681,7 @@ public class TalariaInsertTest extends TalariaTestRunner
   private List<Object[]> expectedMultiValueFooRowsToArray()
   {
     List<Object[]> expectedRows = new ArrayList<>(ImmutableList.of(
+        new Object[]{0L, null},
         new Object[]{0L, ImmutableList.of("a", "b")},
         new Object[]{0L, ImmutableList.of("b", "c")}
     ));
@@ -689,8 +689,7 @@ public class TalariaInsertTest extends TalariaTestRunner
       expectedRows.add(new Object[]{0L, ""});
     }
     expectedRows.addAll(ImmutableList.of(
-        new Object[]{0L, "d"},
-        new Object[]{0L, null}
+        new Object[]{0L, "d"}
     ));
     return expectedRows;
   }

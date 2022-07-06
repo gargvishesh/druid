@@ -44,12 +44,12 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
                      .setExpectedSegment(
                          ImmutableSet.of(
-                             SegmentId.of("foo", Intervals.of("2000-01-03T/P1D"), "test", 0),
-                             SegmentId.of("foo", Intervals.of("2001-01-03T/P1D"), "test", 0),
+                             SegmentId.of("foo", Intervals.of("2000-01-01T/P1D"), "test", 0),
                              SegmentId.of("foo", Intervals.of("2000-01-02T/P1D"), "test", 0),
-                             SegmentId.of("foo", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                             SegmentId.of("foo", Intervals.of("2000-01-03T/P1D"), "test", 0),
                              SegmentId.of("foo", Intervals.of("2001-01-01T/P1D"), "test", 0),
-                             SegmentId.of("foo", Intervals.of("2000-01-01T/P1D"), "test", 0)
+                             SegmentId.of("foo", Intervals.of("2001-01-02T/P1D"), "test", 0),
+                             SegmentId.of("foo", Intervals.of("2001-01-03T/P1D"), "test", 0)
                          )
                      )
                      .setExpectedResultRows(
@@ -110,9 +110,9 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedDestinationIntervals(Intervals.ONLY_ETERNITY)
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedSegment(ImmutableSet.of(
-                         SegmentId.of("foo1", Intervals.of("2016-06-27T02:00:00.000Z/2016-06-27T03:00:00.000Z"), "test", 0),
                          SegmentId.of("foo1", Intervals.of("2016-06-27T00:00:00.000Z/2016-06-27T01:00:00.000Z"), "test", 0),
-                         SegmentId.of("foo1", Intervals.of("2016-06-27T01:00:00.000Z/2016-06-27T02:00:00.000Z"), "test", 0))
+                         SegmentId.of("foo1", Intervals.of("2016-06-27T01:00:00.000Z/2016-06-27T02:00:00.000Z"), "test", 0),
+                         SegmentId.of("foo1", Intervals.of("2016-06-27T02:00:00.000Z/2016-06-27T03:00:00.000Z"), "test", 0))
                      )
                      .setExpectedResultRows(
                          ImmutableList.of(
