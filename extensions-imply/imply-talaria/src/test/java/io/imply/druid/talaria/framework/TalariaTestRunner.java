@@ -46,6 +46,7 @@ import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.curator.shaded.com.google.common.collect.MoreCollectors;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
@@ -142,8 +143,10 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -809,7 +812,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
 
         String foundDataSource = null;
-        List<Object[]> foundResultRows = new ArrayList<>();
+        Map<SegmentId, Set<List<Object>>> segmentIdVsOutputRowsMap = new HashMap<>();
         for (DataSegment dataSegment : segmentManager.getAllDataSegments()) {
 
           //Assert shard spec class
@@ -834,7 +837,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           // assert rollup
           Assert.assertEquals(expectedRollUp, queryableIndex.getMetadata().isRollup());
 
-          // asset query granulariy
+          // asset query granularity
           Assert.assertEquals(expectedQueryGranularity, queryableIndex.getMetadata().getQueryGranularity());
 
           // assert aggregator factories
@@ -844,32 +847,34 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           );
 
           for (List<Object> row : FrameTestUtil.readRowsFromAdapter(storageAdapter, null, false).toList()) {
-            foundResultRows.add(row.toArray());
+            // transforming rows for sketch assertions
+            List<Object> collect = row.stream()
+                                      .map(r -> {
+                                        if (r instanceof HyperLogLogCollector) {
+                                          return ((HyperLogLogCollector) r).estimateCardinalityRound();
+                                        } else {
+                                          return r;
+                                        }
+                                      })
+                                      .collect(Collectors.toList());
+            segmentIdVsOutputRowsMap.computeIfAbsent(dataSegment.getId(), r -> new HashSet<>()).add(collect);
           }
         }
 
         log.info("Found spec: %s", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(foundSpec));
+        List<Object[]> transformedOutputRows = segmentIdVsOutputRowsMap.values()
+                                                             .stream()
+                                                             .flatMap(Collection::stream)
+                                                             .map(List::toArray)
+                                                             .sorted(Comparator.comparing(Arrays::toString)) // Sorting rows as we are not controlling the order of segment generation in UT's.
+                                                             .collect(Collectors.toList());
 
-        // Sorting rows as we are not controlling the order of segment generation in UT's.
-        Collections.sort(foundResultRows, Comparator.comparing(Arrays::toString));
         log.info(
             "Found rows which are sorted forcefully %s",
-            foundResultRows.stream().map(a -> Arrays.toString(a)).collect(Collectors.joining("\n"))
+            transformedOutputRows.stream().map(a -> Arrays.toString(a)).collect(Collectors.joining("\n"))
         );
 
 
-        // transforming rows for sketch assertions
-        List<Object[]> transformedOutputRows = foundResultRows.stream().map(row -> {
-          Object[] transformedRow = new Object[row.length];
-          for (int i = 0; i < row.length; i++) {
-            if (row[i] instanceof HyperLogLogCollector) {
-              transformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinalityRound();
-            } else {
-              transformedRow[i] = row[i];
-            }
-          }
-          return transformedRow;
-        }).collect(Collectors.toList());
 
         // assert data source name
         Assert.assertEquals(expectedDataSource, foundDataSource);
@@ -883,7 +888,14 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
         }
         if (expectedSegments != null) {
-          Assert.assertEquals(expectedSegments, segmentManager.getAllDataSegmentIds());
+          Assert.assertEquals(expectedSegments, segmentIdVsOutputRowsMap.keySet());
+          for (Object[] row : transformedOutputRows) {
+            SegmentId diskSegment = segmentIdVsOutputRowsMap.keySet()
+                                                           .stream()
+                                                           .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
+                                                           .collect(MoreCollectors.onlyElement());
+            Assert.assertTrue(segmentIdVsOutputRowsMap.get(diskSegment).contains(Arrays.asList(row)));
+          }
         }
         // assert results
         assertResultsEquals(sql, expectedResultRows, transformedOutputRows);

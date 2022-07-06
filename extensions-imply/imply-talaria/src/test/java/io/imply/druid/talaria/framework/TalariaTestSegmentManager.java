@@ -60,11 +60,6 @@ public class TalariaTestSegmentManager
     return dataSegments.values();
   }
 
-  public Collection<SegmentId> getAllDataSegmentIds()
-  {
-    return dataSegments.keySet();
-  }
-
   public void addSegment(Segment segment)
   {
     segments.put(segment.getId(), segment);

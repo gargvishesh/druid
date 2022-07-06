@@ -21,8 +21,14 @@ import org.apache.druid.indexing.common.actions.SegmentAllocateAction;
 import org.apache.druid.indexing.common.actions.TaskAction;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.java.util.common.granularity.PeriodGranularity;
 import org.apache.druid.segment.realtime.appenderator.SegmentIdWithShardSpec;
+import org.apache.druid.timeline.SegmentId;
+import org.joda.time.Interval;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TalariaTestTaskActionClient implements TaskActionClient
@@ -30,7 +36,7 @@ public class TalariaTestTaskActionClient implements TaskActionClient
 
   private static final String VERSION = "test";
   private final ObjectMapper mapper;
-  private AtomicInteger counter = new AtomicInteger(-1);
+  private final ConcurrentMap<SegmentId, AtomicInteger> segmentIdPartitionIdMap = new ConcurrentHashMap<>();
 
   public TalariaTestTaskActionClient(ObjectMapper mapper)
   {
@@ -43,13 +49,27 @@ public class TalariaTestTaskActionClient implements TaskActionClient
     if (taskAction instanceof SegmentAllocateAction) {
       SegmentAllocateAction segmentAllocateAction = (SegmentAllocateAction) taskAction;
       InsertLockPreemptedFaultTest.LockPreemptedHelper.throwIfPreempted();
+      Granularity granularity = segmentAllocateAction.getPreferredSegmentGranularity();
+      Interval interval;
 
-      // TODO: remove the hardcoded partition logic.
+      if (granularity instanceof PeriodGranularity) {
+        PeriodGranularity periodGranularity = (PeriodGranularity) granularity;
+        interval = new Interval(
+            segmentAllocateAction.getTimestamp().toInstant(),
+            periodGranularity.getPeriod()
+        );
+      } else {
+        interval = Intervals.ETERNITY;
+      }
+
+      SegmentId segmentId = SegmentId.of(segmentAllocateAction.getDataSource(), interval, VERSION, 0);
+      AtomicInteger newPartitionId = segmentIdPartitionIdMap.computeIfAbsent(segmentId, k -> new AtomicInteger(-1));
+
       return (RetType) new SegmentIdWithShardSpec(
           segmentAllocateAction.getDataSource(),
-          Intervals.ETERNITY,
+          interval,
           VERSION,
-          segmentAllocateAction.getPartialShardSpec().complete(mapper, counter.addAndGet(1), 100)
+          segmentAllocateAction.getPartialShardSpec().complete(mapper, newPartitionId.addAndGet(1), 100)
       );
     } else if (taskAction instanceof LockListAction) {
       return (RetType) ImmutableList.of(new TimeChunkLock(
