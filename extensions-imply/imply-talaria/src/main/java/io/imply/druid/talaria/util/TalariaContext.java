@@ -9,6 +9,9 @@
 
 package io.imply.druid.talaria.util;
 
+import org.apache.druid.java.util.common.Numbers;
+import org.apache.druid.query.QueryContext;
+
 import java.util.Map;
 
 /**
@@ -29,5 +32,20 @@ public class TalariaContext
   {
     return Boolean.parseBoolean(
         String.valueOf(propertyMap.getOrDefault(CTX_DURABLE_SHUFFLE_STORAGE, "false")));
+  }
+
+  public static boolean isFinalizeAggregations(final QueryContext queryContext)
+  {
+    return Numbers.parseBoolean(queryContext.getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
+  }
+
+  public static boolean areWorkerTasksAutoDetermined(int numTasks)
+  {
+    return numTasks == Integer.MAX_VALUE;
+  }
+
+  public static int enableWorkerTasksAutoDetermination()
+  {
+    return Integer.MAX_VALUE;
   }
 }

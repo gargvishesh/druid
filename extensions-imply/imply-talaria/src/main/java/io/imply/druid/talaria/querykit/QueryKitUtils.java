@@ -14,20 +14,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
+import io.imply.druid.talaria.exec.Limits;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactories;
 import io.imply.druid.talaria.kernel.SplitUtils;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.data.input.InputFileAttribute;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputSource;
+import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.SplitHintSpec;
+import org.apache.druid.data.input.impl.HttpInputSource;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
@@ -361,11 +366,19 @@ public class QueryKitUtils
 
     final Set<DataSegmentWithInterval> prunedSegmentSet =
         DimFilterUtils.filterShards(filter, () -> segmentIterator, segment -> segment.getSegment().getShardSpec());
-
+    int numWorkers = maxWorkerCount;
+    if (TalariaContext.areWorkerTasksAutoDetermined(maxWorkerCount)) {
+      long totalSizeInBytes = 0;
+      for (DataSegmentWithInterval segmentWithInterval : prunedSegmentSet) {
+        totalSizeInBytes += segmentWithInterval.getSegment().getSize();
+      }
+      numWorkers = new Double(Math.ceil((double) totalSizeInBytes / Limits.MAX_INPUT_BYTES_PER_WORKER)).intValue();
+      assert numWorkers > 0;
+    }
     final List<List<DataSegmentWithInterval>> assignments = SplitUtils.makeSplits(
         prunedSegmentSet.iterator(),
         segment -> segment.getSegment().getSize(),
-        maxWorkerCount
+        numWorkers
     );
 
     return assignments.stream().map(QueryWorkerInputSpec::forTable).collect(Collectors.toList());
@@ -380,6 +393,7 @@ public class QueryKitUtils
   {
     // Worker number -> input source for that worker.
     final List<List<InputSource>> workerInputSourcess;
+    int numWorkers;
 
     // Figure out input splits for each worker.
     if (inputSource.isSplittable()) {
@@ -387,20 +401,43 @@ public class QueryKitUtils
       final SplittableInputSource<Object> splittableInputSource = (SplittableInputSource<Object>) inputSource;
 
       try {
-        // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
-        //  from InputSource#createSplits to avoid materializing the list.
-        workerInputSourcess = SplitUtils.makeSplits(
-            splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
-                                 .map(splittableInputSource::withSplit)
-                                 .iterator(),
-            maxWorkerCount
-        );
+        if (TalariaContext.areWorkerTasksAutoDetermined(maxWorkerCount)) {
+
+          // TODO: fix http input source to returing size for each uri. Then we can remove this check.
+          if (inputSource instanceof HttpInputSource) {
+            throw new UOE(
+                "To use HTTP input source set %s query context property",
+                TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+            );
+          }
+          MaxSizeSplitHintSpec maxSizeSplitHintSpec = new MaxSizeSplitHintSpec(
+              new HumanReadableBytes(Limits.MAX_INPUT_BYTES_PER_WORKER),
+              Integer.MAX_VALUE
+          );
+          workerInputSourcess =
+              splittableInputSource.createSplits(inputFormat, maxSizeSplitHintSpec)
+                                   .map(splitInputSource -> Collections.singletonList(
+                                       splittableInputSource.withSplit(splitInputSource))).collect(
+                                       Collectors.toList());
+          numWorkers = workerInputSourcess.size();
+        } else {
+          // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
+          //  from InputSource#createSplits to avoid materializing the list.
+          workerInputSourcess = SplitUtils.makeSplits(
+              splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
+                                   .map(splittableInputSource::withSplit)
+                                   .iterator(),
+              maxWorkerCount
+          );
+          numWorkers = maxWorkerCount;
+        }
       }
       catch (IOException e) {
         throw new RuntimeException(e);
       }
     } else {
       workerInputSourcess = Collections.singletonList(Collections.singletonList(inputSource));
+      numWorkers = 1;
     }
 
     // Sanity check. It is a bug in this method if this exception is ever thrown.
@@ -412,7 +449,9 @@ public class QueryKitUtils
       );
     }
 
-    return IntStream.range(0, maxWorkerCount)
+    assert numWorkers > 0;
+
+    return IntStream.range(0, numWorkers)
                     .mapToObj(
                         workerNumber -> {
                           final List<InputSource> workerInputSources;
