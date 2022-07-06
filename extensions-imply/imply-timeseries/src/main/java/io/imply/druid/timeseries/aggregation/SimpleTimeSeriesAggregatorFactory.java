@@ -16,6 +16,7 @@ import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetr
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
@@ -79,14 +80,16 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     if (maxEntries != null) {
       finalMaxEntries = maxEntries;
     }
-    return new SimpleTimeSeriesAggregatorFactory(name,
-                                                 dataColumn,
-                                                 timeColumn,
-                                                 timeseriesColumn,
-                                                 postProcessing,
-                                                 null,
-                                                 window,
-                                                 finalMaxEntries);
+    return new SimpleTimeSeriesAggregatorFactory(
+        name,
+        dataColumn,
+        timeColumn,
+        timeseriesColumn,
+        postProcessing,
+        null,
+        window,
+        finalMaxEntries
+    );
   }
 
   @Override
@@ -116,7 +119,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     if (getTimeseriesColumn() != null) {
-      BaseObjectColumnValueSelector<SimpleTimeSeries> selector = metricFactory.makeColumnValueSelector(
+      BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector = metricFactory.makeColumnValueSelector(
           getTimeseriesColumn());
       return new SimpleTimeSeriesMergeBufferAggregator(
           selector,
@@ -135,31 +138,31 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     }
   }
 
+  @SuppressWarnings("ConstantConditions")
   @Nullable
   @Override
   public Object combine(@Nullable Object lhs, @Nullable Object rhs)
   {
-    SimpleTimeSeries leftSeries = (SimpleTimeSeries) lhs;
-    SimpleTimeSeries rightSeries = (SimpleTimeSeries) rhs;
-    if (rightSeries != null && leftSeries != null) {
-      leftSeries.addTimeSeries(rightSeries);
-    } else if (rightSeries != null) {
-      return rightSeries;
-    }
+    SimpleTimeSeriesContainer leftSeries = (SimpleTimeSeriesContainer) lhs;
+    SimpleTimeSeriesContainer rightSeries = (SimpleTimeSeriesContainer) rhs;
+    rightSeries.pushInto(leftSeries);
+
     return leftSeries;
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new SimpleTimeSeriesAggregatorFactory(getName(),
-                                                 null,
-                                                 null,
-                                                 getName(),
-                                                 getPostProcessing(),
-                                                 getTimeBucketMillis(),
-                                                 getwindow(),
-                                                 getMaxEntries());
+    return new SimpleTimeSeriesAggregatorFactory(
+        getName(),
+        null,
+        null,
+        getName(),
+        getPostProcessing(),
+        getTimeBucketMillis(),
+        getwindow(),
+        getMaxEntries()
+    );
   }
 
   @Override
@@ -172,7 +175,16 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     ImplyLongArrayList timestamps = new ImplyLongArrayList((List<Long>) timeseriesKeys.get("timestamps"));
     ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList((List<Double>) timeseriesKeys.get("dataPoints"));
     NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> bounds = SerdeUtils.getBounds(timeseriesKeys);
-    return new SimpleTimeSeries(timestamps, dataPoints, getwindow(), bounds.lhs, bounds.rhs, getMaxEntries());
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+        timestamps,
+        dataPoints,
+        getwindow(),
+        bounds.lhs,
+        bounds.rhs,
+        getMaxEntries()
+    );
+
+    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
   }
 
   @Nullable
@@ -183,9 +195,19 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       return null;
     }
 
-    SimpleTimeSeries finalResult = (SimpleTimeSeries) object;
-    finalResult.build();
-    return super.finalizeComputation(finalResult);
+    SimpleTimeSeries finalResult;
+
+    if (object instanceof SimpleTimeSeries) {
+      finalResult = (SimpleTimeSeries) object;
+    } else {
+      SimpleTimeSeriesContainer finalContainer = (SimpleTimeSeriesContainer) object;
+
+      finalResult = finalContainer.computeSimple();
+    }
+
+    SimpleTimeSeries finalSimpleTimeSeries = (SimpleTimeSeries) super.finalizeComputation(finalResult);
+
+    return finalSimpleTimeSeries;
   }
 
   @Override

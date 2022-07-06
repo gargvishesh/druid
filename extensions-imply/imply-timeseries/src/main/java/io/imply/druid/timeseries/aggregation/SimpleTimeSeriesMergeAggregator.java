@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.joda.time.Interval;
@@ -19,11 +20,13 @@ import javax.annotation.Nullable;
 public class SimpleTimeSeriesMergeAggregator implements Aggregator
 {
   private final SimpleTimeSeries timeSeries;
-  private final BaseObjectColumnValueSelector<SimpleTimeSeries> selector;
+  private final BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector;
 
-  public SimpleTimeSeriesMergeAggregator(final BaseObjectColumnValueSelector<SimpleTimeSeries> selector,
-                                         final Interval window,
-                                         final int maxEntries)
+  public SimpleTimeSeriesMergeAggregator(
+      BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector,
+      Interval window,
+      int maxEntries
+  )
   {
     this.selector = selector;
     this.timeSeries = new SimpleTimeSeries(window, maxEntries);
@@ -32,18 +35,20 @@ public class SimpleTimeSeriesMergeAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    SimpleTimeSeries mergeSeries = selector.getObject();
-    if (mergeSeries == null) {
+    SimpleTimeSeriesContainer timeSeriesContainer = selector.getObject();
+
+    if (timeSeriesContainer == null) {
       return;
     }
-    timeSeries.addTimeSeries(mergeSeries.withWindow(timeSeries.getwindow()));
+
+    timeSeriesContainer.pushInto(timeSeries);
   }
 
   @Nullable
   @Override
   public Object get()
   {
-    return timeSeries.computeSimple();
+    return SimpleTimeSeriesContainer.createFromInstance(timeSeries.computeSimple());
   }
 
   @Override

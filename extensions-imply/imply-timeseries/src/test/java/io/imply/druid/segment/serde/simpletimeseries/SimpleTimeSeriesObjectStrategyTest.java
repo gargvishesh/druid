@@ -20,11 +20,13 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Random;
 
 
 public class SimpleTimeSeriesObjectStrategyTest
 {
-
+  private final Random random = new Random(100);
+  private final int numEntries = 1000;
   private SimpleTimeSeries timeSeries;
   private final SimpleTimeSeriesObjectStrategy objectStrategy = new SimpleTimeSeriesObjectStrategy();
 
@@ -32,9 +34,9 @@ public class SimpleTimeSeriesObjectStrategyTest
   public void setup()
   {
     DateTime startDateTime = DateTimes.of("2020-01-01");
-    timeSeries = new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, 100);
+    timeSeries = new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
 
-    for (int i = 50; i >= 0; i--) {
+    for (int i = numEntries; i >= 0; i--) {
       timeSeries.addDataPoint(startDateTime.plusHours(i).getMillis(), i);
     }
   }
@@ -64,5 +66,26 @@ public class SimpleTimeSeriesObjectStrategyTest
   {
     byte[] bytes = objectStrategy.toBytes(null);
     Assert.assertEquals(bytes.length, 0);
+  }
+
+  @Test
+  public void testVariedSize()
+  {
+    int rowCount = 500;
+    int maxDataPointCount = 16 * 1024;
+    int totalCount = 0;
+
+    for (int i = 0; i < rowCount; i++) {
+      int dataPointCount = random.nextInt(maxDataPointCount);
+      SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeries(dataPointCount, totalCount);
+      totalCount += dataPointCount;
+      totalCount = Math.max(totalCount, 0);
+
+      byte[] bytes = objectStrategy.toBytes(simpleTimeSeries);
+      SimpleTimeSeries deserialized = objectStrategy.fromByteBuffer(
+          ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()), bytes.length
+      );
+      Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
+    }
   }
 }

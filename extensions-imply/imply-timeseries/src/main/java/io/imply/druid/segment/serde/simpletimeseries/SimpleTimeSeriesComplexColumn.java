@@ -9,20 +9,24 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.segment.column.ComplexColumn;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class SimpleTimeSeriesComplexColumn implements ComplexColumn
 {
+  public static final byte EXPECTED_VERSION = 0;
+
   private final SimpleTimeSeriesView simpleTimeSeriesView;
   private final Closer closer;
-  private int serializedSize;
+  private final int serializedSize;
 
   private SimpleTimeSeriesComplexColumn(SimpleTimeSeriesView simpleTimeSeriesView, Closer closer, int serializedSize)
   {
@@ -31,30 +35,10 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
     this.serializedSize = serializedSize;
   }
 
-  public static SimpleTimeSeriesComplexColumn create(
-      SimpleTimeSeriesView.Factory simpleTimeSeriesViewFactory,
-      NativeClearedByteBufferProvider byteBufferProvider,
-      int serializedSize
-  )
-  {
-    Closer closer = Closer.create();
-    ResourceHolder<ByteBuffer> rowIndexUncompressedBlockHolder = byteBufferProvider.get();
-    ResourceHolder<ByteBuffer> dataUncompressedBlockHolder = byteBufferProvider.get();
-
-    closer.register(rowIndexUncompressedBlockHolder);
-    closer.register(dataUncompressedBlockHolder);
-
-    SimpleTimeSeriesView simpleTimeSeriesView = simpleTimeSeriesViewFactory.create(
-        rowIndexUncompressedBlockHolder.get(), dataUncompressedBlockHolder.get()
-    );
-
-    return new SimpleTimeSeriesComplexColumn(simpleTimeSeriesView, closer, serializedSize);
-  }
-
   @Override
   public Class<?> getClazz()
   {
-    return SimpleTimeSeries.class;
+    return SimpleTimeSeriesContainer.class;
   }
 
   @Override
@@ -66,7 +50,7 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
   @Override
   public Object getRowValue(int rowNum)
   {
-    return simpleTimeSeriesView.getRow(rowNum);
+    return SimpleTimeSeriesContainer.createFromBuffer(simpleTimeSeriesView.getRow(rowNum));
   }
 
   @Override
@@ -83,6 +67,51 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
     }
     catch (IOException e) {
       Throwables.propagate(e);
+    }
+  }
+
+  public static class Factory
+  {
+    private final SimpleTimeSeriesView.Factory simpleTimeSeriesViewFactory;
+    private final int serializedSize;
+    private final NativeClearedByteBufferProvider byteBufferProvider;
+
+    public Factory(ByteBuffer buffer, NativeClearedByteBufferProvider byteBufferProvider)
+    {
+      this.byteBufferProvider = byteBufferProvider;
+
+      ByteBuffer masterByteBuffer = buffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
+
+      serializedSize = masterByteBuffer.remaining();
+      SerializedColumnHeader columnHeader = SerializedColumnHeader.fromBuffer(masterByteBuffer);
+
+      Preconditions.checkArgument(
+          columnHeader.getVersion() == EXPECTED_VERSION,
+          "version %s expected, got %s",
+          EXPECTED_VERSION,
+          columnHeader.getVersion()
+      );
+
+      simpleTimeSeriesViewFactory =
+          new SimpleTimeSeriesView.Factory(masterByteBuffer, columnHeader.createSimpleTimeSeriesSerde()
+      );
+    }
+
+    public SimpleTimeSeriesComplexColumn create()
+    {
+      Closer closer = Closer.create();
+      ResourceHolder<ByteBuffer> rowIndexUncompressedBlockHolder = byteBufferProvider.get();
+      ResourceHolder<ByteBuffer> dataUncompressedBlockHolder = byteBufferProvider.get();
+
+      closer.register(rowIndexUncompressedBlockHolder);
+      closer.register(dataUncompressedBlockHolder);
+
+      SimpleTimeSeriesView simpleTimeSeriesView = simpleTimeSeriesViewFactory.create(
+          rowIndexUncompressedBlockHolder.get(),
+          dataUncompressedBlockHolder.get()
+      );
+
+      return new SimpleTimeSeriesComplexColumn(simpleTimeSeriesView, closer, serializedSize);
     }
   }
 }

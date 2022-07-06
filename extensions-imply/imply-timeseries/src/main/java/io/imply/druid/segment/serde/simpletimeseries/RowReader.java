@@ -16,7 +16,6 @@ import java.nio.ByteOrder;
 
 public class RowReader
 {
-
   private final RowIndexReader rowIndexReader;
   private final BlockCompressedPayloadReader dataReader;
 
@@ -28,8 +27,8 @@ public class RowReader
 
   public ByteBuffer getRow(int rowNumber)
   {
-    RowIndexReader.EntrySpan entrySpan = rowIndexReader.getEntrySpan(rowNumber);
-    ByteBuffer payload = dataReader.read(entrySpan.getStart(), entrySpan.getSize());
+    PayloadEntrySpan payloadEntrySpan = rowIndexReader.getEntrySpan(rowNumber);
+    ByteBuffer payload = dataReader.read(payloadEntrySpan.getStart(), payloadEntrySpan.getSize());
 
     return payload;
   }

@@ -62,20 +62,16 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
 
   public SimpleTimeSeries withWindow(Interval newWindow)
   {
-    List<Long> filteredTimestampList = new ArrayList<>();
-    List<Double> filteredDataPointsList = new ArrayList<>();
+    SimpleTimeSeries newSimpleTimeSeries = new SimpleTimeSeries(newWindow, maxEntries);
 
     for (int i = 0; i < timestamps.size(); i++) {
       long timestamp = timestamps.getLong(i);
-      if (newWindow.contains(timestamp)) {
-        filteredTimestampList.add(timestamp);
-        filteredDataPointsList.add(dataPoints.getDouble(i));
-      }
-    }
-    ImplyLongArrayList filteredTimestamps = new ImplyLongArrayList(filteredTimestampList);
-    ImplyDoubleArrayList filteredDataPoints = new ImplyDoubleArrayList(filteredDataPointsList);
+      double datapoint = dataPoints.getDouble(i);
 
-    return new SimpleTimeSeries(filteredTimestamps, filteredDataPoints, newWindow, maxEntries);
+      newSimpleTimeSeries.addDataPoint(timestamp, datapoint);
+    }
+
+    return newSimpleTimeSeries;
   }
 
   @JsonProperty
@@ -180,8 +176,42 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   public SimpleTimeSeries computeSimple()
   {
     build();
+    cosort(timestamps, dataPoints);
     return this;
   }
+
+  private static void cosort(ImplyLongArrayList timestamps, ImplyDoubleArrayList dataPoints)
+  {
+    List<TimestampDataPointPair> sortedPairList = new ArrayList<>();
+
+    for (int i = 0; i < timestamps.size(); i++) {
+      sortedPairList.add(new TimestampDataPointPair(timestamps.getLong(i), dataPoints.getDouble(i)));
+    }
+
+    sortedPairList.sort(Comparator.comparingLong(a -> a.timestamp));
+
+    timestamps.clear();
+    dataPoints.clear();
+
+    sortedPairList.forEach(p -> {
+      timestamps.add(p.timestamp);
+      dataPoints.add(p.dataPoint);
+    });
+  }
+
+  private static class TimestampDataPointPair
+  {
+    private final long timestamp;
+    private final double dataPoint;
+
+    public TimestampDataPointPair(long timestamp, double dataPoint)
+    {
+      this.timestamp = timestamp;
+      this.dataPoint = dataPoint;
+    }
+  }
+
+
 
   @Override
   protected void internalCopy(SimpleTimeSeries copySeries)

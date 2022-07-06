@@ -41,8 +41,7 @@ public class BlockCompressedPayloadWriterFactory
 
     closer.register(currentBlockHolder);
 
-    ByteBuffer compressedBlockByteBuffer =
-        CompressionStrategy.LZ4.getCompressor().allocateOutBuffer(currentBlockHolder.get().capacity(), closer);
+    ByteBuffer compressedBlockByteBuffer = compressor.allocateOutBuffer(currentBlockHolder.get().capacity(), closer);
 
     return new BlockCompressedPayloadWriter(
         currentBlockHolder.get(),

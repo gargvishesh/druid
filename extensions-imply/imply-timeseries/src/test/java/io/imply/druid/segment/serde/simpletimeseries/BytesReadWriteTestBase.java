@@ -13,6 +13,7 @@ import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.segment.data.CompressionStrategy;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -23,27 +24,28 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+// base class used only for extension
 @SuppressWarnings({"UnconstructableJUnitTestCase", "NewClassNamingConvention"})
 @Ignore
 public class BytesReadWriteTestBase implements BytesReadWriteTest
 {
   protected final BytesWriterBuilder bytesWriterBuilder;
 
-  private final BytesReadWriteTestCases testCases;
-  private final ByteWriterTestHelper.ValidationFunctionFactory validationFunctionFactory;
+  private final TestCasesConfig<BytesReadWriteTest> testCases;
+  private final ByteWriterTestHelper.ValidationFunctionBuilder validationFunctionBuilder;
 
   private ByteWriterTestHelper testHelper;
   private Closer closer;
 
   protected BytesReadWriteTestBase(
       BytesWriterBuilder bytesWriterBuilder,
-      ByteWriterTestHelper.ValidationFunctionFactory validationFunctionFactory,
-      BytesReadWriteTestCases testCases
+      ByteWriterTestHelper.ValidationFunctionBuilder validationFunctionBuilder,
+      TestCasesConfig<BytesReadWriteTest> testCases
   )
   {
     this.testCases = testCases;
     this.bytesWriterBuilder = bytesWriterBuilder;
-    this.validationFunctionFactory = validationFunctionFactory;
+    this.validationFunctionBuilder = validationFunctionBuilder;
   }
 
   @Before
@@ -61,7 +63,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
         bytesWriterBuilder,
         uncompressedBlockHolder1.get(),
         uncompressedBlockHolder2.get(),
-        validationFunctionFactory
+        validationFunctionBuilder
     );
   }
 
@@ -75,7 +77,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testSingleWriteBytes() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload = testHelper.generateBufferWithLongs(1024);
     int expectedSize = testCases.currentTestValue();
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
@@ -85,7 +87,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testSingleMultiBlockWriteBytes() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload = testHelper.generateBufferWithLongs(256 * 1024); // 2mb
     int expectedSize = testCases.currentTestValue();
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
@@ -95,7 +97,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testSingleMultiBlockWriteBytesWithPrelude() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload1 = testHelper.generateBufferWithLongs(1024); // 8 kb
     ByteBuffer payload2 = testHelper.generateBufferWithLongs(256 * 1024); // 256kb * 8 = 2mb
     int expectedSize = testCases.currentTestValue();
@@ -106,7 +108,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testEmptyByteArray() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     // no-op
     ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
     // block index size: "8" : 4 bytes
@@ -117,12 +119,11 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
   }
 
-
   @Test
   @Override
   public void testNull() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     // no-op
     // block index size: "8" : 4 bytes
     // block index entry 0: "0": 4 bytes
@@ -136,7 +137,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testSingleLong() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload = testHelper.generateBufferWithLongs(1);
     // block index size: "8" : 4 bytes
     // block index entry 0: "0": 4 bytes
@@ -151,7 +152,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testVariableSizedCompressablePayloads() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 0, 0, 10);
     int expectedSize = testCases.currentTestValue();
     testHelper.validateReadAndSize(bufferList, expectedSize);
@@ -161,7 +162,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testOutliersInNormalDataUncompressablePayloads() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     // every integer within a payload is unique
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 64 * 1024, 2);
     int expectedSize = testCases.currentTestValue();
@@ -172,7 +173,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   @Override
   public void testOutliersInNormalDataCompressablePayloads() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     // same # of payloads and size of payloads as testOutliersInNormalDataUncompressablePayloads()
     // integer values range 0-9
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 64 * 1024, 2, 10);
@@ -182,12 +183,40 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
 
   @Test
   @Override
+  public void testSingleUncompressableBlock() throws Exception
+  {
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
+    // every integer within a payload is unique
+    ByteBuffer byteBuffer = testHelper.generateIntPayloads(16 * 1024);
+    Assert.assertEquals(64 * 1024, byteBuffer.limit());
+    // uncompressable 64k block size
+    int expectedSize = testCases.currentTestValue();
+    testHelper.validateReadAndSize(Collections.singletonList(byteBuffer), expectedSize);
+  }
+
+  @Test
+  @Override
   public void testSingleWriteByteBufferZSTD() throws Exception
   {
-    Assume.assumeTrue(testCases.currentTestEnabled());
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer sourcePayLoad = testHelper.generateBufferWithLongs(1024); // 8k
     testHelper.setCompressionStrategy(CompressionStrategy.ZSTD);
     int expectedSize = testCases.currentTestValue();
     testHelper.validateReadAndSize(Collections.singletonList(sourcePayLoad), expectedSize);
+  }
+
+  @Test
+  @Override
+  public void testRandomBlockAccess() throws Exception
+  {
+    Assume.assumeTrue(testCases.isCurrentTestEnabled());
+    //verified that blocks are accessed in random order and the same block is even returned to
+    List<ByteBuffer> byteBufferList = testHelper.generateRaggedPayloadBuffer(8192, 32 * 1024, 256, 256 * 1024, 3, 1024);
+
+    testHelper.setUseRandomReadOrder(true);
+
+    int expectedSize = testCases.currentTestValue();
+
+    testHelper.validateReadAndSize(byteBufferList, expectedSize);
   }
 }

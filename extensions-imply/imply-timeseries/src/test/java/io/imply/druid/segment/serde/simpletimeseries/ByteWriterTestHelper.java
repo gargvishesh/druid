@@ -22,6 +22,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 public class ByteWriterTestHelper
 {
@@ -30,20 +31,20 @@ public class ByteWriterTestHelper
   private final BytesWriterBuilder bytesWriterBuilder;
   private final ByteBuffer uncompressedBlock1;
   private final ByteBuffer uncompressedBlock2;
-  private final ValidationFunctionFactory validationFunctionFactory;
+  private final ValidationFunctionBuilder validationFunctionBuilder;
   private CompressionStrategy compressionStrategy = CompressionStrategy.LZ4;
 
   public ByteWriterTestHelper(
       BytesWriterBuilder bytesWriterBuilder,
       ByteBuffer uncompressedBlock1,
       ByteBuffer uncompressedBlock2,
-      ValidationFunctionFactory validationFunctionFactory
+      ValidationFunctionBuilder validationFunctionBuilder
   )
   {
     this.bytesWriterBuilder = bytesWriterBuilder;
     this.uncompressedBlock1 = uncompressedBlock1;
     this.uncompressedBlock2 = uncompressedBlock2;
-    this.validationFunctionFactory = validationFunctionFactory;
+    this.validationFunctionBuilder = validationFunctionBuilder;
   }
 
   public ByteWriterTestHelper setCompressionStrategy(CompressionStrategy compressionStrategy)
@@ -103,13 +104,13 @@ public class ByteWriterTestHelper
 
   public void validateRead(List<ByteBuffer> byteBufferList) throws Exception
   {
-    ValidationFunction validationFunction = validationFunctionFactory.create(this);
+    ValidationFunction validationFunction = validationFunctionBuilder.create(this);
     validationFunction.validateBufferList(byteBufferList);
   }
 
   public void validateReadAndSize(List<ByteBuffer> byteBufferList, int expectedSize) throws Exception
   {
-    ValidationFunction validationFunction = validationFunctionFactory.create(this);
+    ValidationFunction validationFunction = validationFunctionBuilder.create(this);
     ByteBuffer masterByteBuffer = validationFunction.validateBufferList(byteBufferList);
     int actualSize = masterByteBuffer.limit();
 
@@ -187,51 +188,90 @@ public class ByteWriterTestHelper
     return longPayload;
   }
 
-  public ByteBuffer validateBufferWriteAndReadBlockCompressedScribe(List<ByteBuffer> bufferList) throws IOException
+  public ByteBuffer validateBufferWriteAndReadBlockCompressedScribe(List<ByteBuffer> bufferList, boolean useRandom)
+      throws IOException
   {
+    long position = 0;
+    List<PayloadEntrySpan> payloadReadList = new ArrayList<>();
+
+    for (ByteBuffer byteBuffer : bufferList) {
+      int expectedSize = byteBuffer == null ? 0 : byteBuffer.limit();
+      payloadReadList.add(new PayloadEntrySpan(position, expectedSize));
+      position += expectedSize;
+    }
+
     ByteBuffer masterByteBuffer = writePayloadList(bufferList, new BufferWriterAsBytes());
     BlockCompressedPayloadReader payloadReader = BlockCompressedPayloadReader.create(
         masterByteBuffer,
         uncompressedBlock1,
         compressionStrategy.getDecompressor()
     );
-    int position = 0;
+    List<Integer> positions = new ArrayList<>(bufferList.size());
 
     for (int i = 0; i < bufferList.size(); i++) {
-      ByteBuffer expectedByteBuffer = bufferList.get(i);
-      int expectedSize = expectedByteBuffer == null ? 0 : expectedByteBuffer.limit();
+      positions.add(i);
+    }
 
-      ByteBuffer readByteBuffer = payloadReader.read(position, expectedSize);
-      position += expectedSize;
+    Random random = new Random(0);
+
+    if (useRandom) {
+      Collections.shuffle(positions, random);
+    }
+
+    for (int index : positions) {
+      ByteBuffer expectedByteBuffer = bufferList.get(index);
+      PayloadEntrySpan payloadEntrySpan = payloadReadList.get(index);
+      ByteBuffer readByteBuffer = payloadReader.read(payloadEntrySpan.getStart(), payloadEntrySpan.getSize());
+
       if (expectedByteBuffer == null) {
-        Assert.assertEquals(StringUtils.format("expected empty buffer %s", i), EMPTY_BYTE_BUFFER, readByteBuffer);
+        Assert.assertEquals(StringUtils.format("expected empty buffer %s", index), EMPTY_BYTE_BUFFER, readByteBuffer);
       } else {
-        Assert.assertEquals(StringUtils.format("failure on buffer %s", i), expectedByteBuffer, readByteBuffer);
+        Assert.assertEquals(StringUtils.format("failure on buffer %s", index), expectedByteBuffer, readByteBuffer);
       }
     }
 
     return masterByteBuffer;
   }
 
-  public ByteBuffer validateBufferWriteAndReadRow(List<ByteBuffer> bufferList) throws IOException
+  public ByteBuffer validateBufferWriteAndReadRow(List<ByteBuffer> bufferList, boolean useRandomRead) throws IOException
   {
     ByteBuffer masterByteBuffer = writePayloadList(bufferList, new BufferWriterAsBytes());
     RowReader rowReader = new RowReader.Builder(masterByteBuffer)
         .setCompressionStrategy(compressionStrategy)
         .build(uncompressedBlock1, uncompressedBlock2);
 
-    for (int i = 0; i < bufferList.size(); i++) {
-      ByteBuffer expectedByteBuffer = bufferList.get(i);
+    List<Integer> positions = new ArrayList<>(bufferList.size());
 
-      ByteBuffer readByteBuffer = rowReader.getRow(i);
+    for (int i = 0; i < bufferList.size(); i++) {
+      positions.add(i);
+    }
+
+    Random random = new Random(0);
+
+    if (useRandomRead) {
+      Collections.shuffle(positions, random);
+    }
+
+
+    for (int index : positions) {
+      ByteBuffer expectedByteBuffer = bufferList.get(index);
+
+      ByteBuffer readByteBuffer = rowReader.getRow(index);
       if (expectedByteBuffer == null) {
-        Assert.assertEquals(StringUtils.format("failure on buffer %s", i), 0L, readByteBuffer.remaining());
+        Assert.assertEquals(StringUtils.format("failure on buffer %s", index), 0L, readByteBuffer.remaining());
       } else {
-        Assert.assertEquals(StringUtils.format("failure on buffer %s", i), expectedByteBuffer, readByteBuffer);
+        Assert.assertEquals(StringUtils.format("failure on buffer %s", index), expectedByteBuffer, readByteBuffer);
       }
     }
 
     return masterByteBuffer;
+  }
+
+  public ByteWriterTestHelper setUseRandomReadOrder(boolean useReadRandom)
+  {
+    validationFunctionBuilder.setReadRandom(useReadRandom);
+
+    return this;
   }
 
   public interface BufferWriter
@@ -266,14 +306,50 @@ public class ByteWriterTestHelper
     ByteBuffer validateBufferList(List<ByteBuffer> byteBufferList) throws Exception;
   }
 
-  public interface ValidationFunctionFactory
+  public interface ValidationFunctionBuilder
   {
-    ValidationFunctionFactory PAYLOAD_SCRIBE_VALIDATION_FUNCTION_FACTORY =
-        testHelper -> testHelper::validateBufferWriteAndReadBlockCompressedScribe;
+    ValidationFunctionBuilder PAYLOAD_SCRIBE_VALIDATION_FUNCTION_FACTORY = new PayloadScribeValidationFunctionBuilder();
 
-    ValidationFunctionFactory ROW_READER_VALIDATION_FUNCTION_FACTORY =
-        testHelper -> testHelper::validateBufferWriteAndReadRow;
+    ValidationFunctionBuilder ROW_READER_VALIDATION_FUNCTION_FACTORY = new RowReaderValidationFunctionBuilder();
 
     ValidationFunction create(ByteWriterTestHelper testHelper);
+
+    ValidationFunctionBuilder setReadRandom(boolean useRandomRead);
+  }
+
+  public static class PayloadScribeValidationFunctionBuilder implements ValidationFunctionBuilder
+  {
+    private boolean useRandomRead;
+
+    @Override
+    public ValidationFunction create(ByteWriterTestHelper testHelper)
+    {
+      return bufferList -> testHelper.validateBufferWriteAndReadBlockCompressedScribe(bufferList, useRandomRead);
+    }
+
+    @Override
+    public ValidationFunctionBuilder setReadRandom(boolean useRandomRead)
+    {
+      this.useRandomRead = useRandomRead;
+      return this;
+    }
+  }
+
+  public static class RowReaderValidationFunctionBuilder implements ValidationFunctionBuilder
+  {
+    private boolean useRandomRead;
+
+    @Override
+    public ValidationFunction create(ByteWriterTestHelper testHelper)
+    {
+      return bufferList -> testHelper.validateBufferWriteAndReadRow(bufferList, useRandomRead);
+    }
+
+    @Override
+    public ValidationFunctionBuilder setReadRandom(boolean useRandomRead)
+    {
+      this.useRandomRead = useRandomRead;
+      return this;
+    }
   }
 }
