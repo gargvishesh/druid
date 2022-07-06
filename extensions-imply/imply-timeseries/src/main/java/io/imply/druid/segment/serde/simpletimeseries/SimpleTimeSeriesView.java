@@ -9,73 +9,46 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
-import io.imply.druid.timeseries.SimpleTimeSeries;
-import org.apache.druid.segment.data.ObjectStrategy;
+import io.imply.druid.timeseries.SimpleTimeSeriesBuffer;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
 public class SimpleTimeSeriesView
 {
-  static final ByteBuffer NULL_ROW = ByteBuffer.wrap(new byte[0]);
+  public static final ByteBuffer NULL_ROW = ByteBuffer.wrap(new byte[0]);
 
   private final RowReader rowReader;
-  private final ObjectStrategy<SimpleTimeSeries> objectStrategy;
+  private final SimpleTimeSeriesSerde timeSeriesSerde;
 
-  public SimpleTimeSeriesView(RowReader rowReader, SimpleTimeSeriesObjectStrategy objectStrategy)
+  public SimpleTimeSeriesView(RowReader rowReader, SimpleTimeSeriesSerde timeSeriesSerde)
   {
     this.rowReader = rowReader;
-    this.objectStrategy = objectStrategy;
+    this.timeSeriesSerde = timeSeriesSerde;
   }
 
-  public static SimpleTimeSeriesView create(
-      ByteBuffer originalByteBuffer,
-      ByteBuffer rowIndexUncompressedBlock,
-      ByteBuffer dataUncompressedBlock
-  )
+  public SimpleTimeSeriesBuffer getRow(int rowNumber)
   {
-    Factory factory = new Factory(originalByteBuffer);
-
-    return factory.create(rowIndexUncompressedBlock, dataUncompressedBlock);
-  }
-
-  @Nullable
-  public SimpleTimeSeries getRow(int rowNumber)
-  {
-    ByteBuffer payload = rowReader.getRow(rowNumber);
-
-    return objectStrategy.fromByteBuffer(payload, payload.limit());
+    return new SimpleTimeSeriesBuffer(timeSeriesSerde, () -> rowReader.getRow(rowNumber));
   }
 
   public static class Factory
   {
+    private final SimpleTimeSeriesSerde simpleTimeSeriesSerde;
     private final RowReader.Builder rowReaderBuilder;
 
-    public Factory(ByteBuffer originalByteBuffer)
+    public Factory(ByteBuffer originalByteBuffer, SimpleTimeSeriesSerde simpleTimeSeriesSerde)
     {
+      this.simpleTimeSeriesSerde = simpleTimeSeriesSerde;
       rowReaderBuilder = new RowReader.Builder(originalByteBuffer);
     }
 
-    public SimpleTimeSeriesView create(
-        ByteBuffer rowIndexUncompressedByteBuffer,
-        ByteBuffer dataUncompressedByteBuffer,
-        SimpleTimeSeriesObjectStrategy objectStrategy
-    )
+    public SimpleTimeSeriesView create(ByteBuffer rowIndexUncompressedByteBuffer, ByteBuffer dataUncompressedByteBuffer)
     {
       SimpleTimeSeriesView simpleTimeSeriesView = new SimpleTimeSeriesView(
-          rowReaderBuilder.build(rowIndexUncompressedByteBuffer, dataUncompressedByteBuffer), objectStrategy
+          rowReaderBuilder.build(rowIndexUncompressedByteBuffer, dataUncompressedByteBuffer), simpleTimeSeriesSerde
       );
 
       return simpleTimeSeriesView;
-    }
-
-    public SimpleTimeSeriesView create(ByteBuffer rowIndexUncompressedBlock, ByteBuffer dataUncompressedBlock)
-    {
-      return create(
-          rowIndexUncompressedBlock,
-          dataUncompressedBlock,
-          SimpleTimeSeriesComplexMetricSerde.SIMPLE_TIME_SERIES_OBJECT_STRATEGY
-      );
     }
   }
 }

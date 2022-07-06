@@ -29,5 +29,9 @@ public interface BytesReadWriteTest
 
   void testOutliersInNormalDataCompressablePayloads() throws Exception;
 
+  void testSingleUncompressableBlock() throws Exception;
+
   void testSingleWriteByteBufferZSTD() throws Exception;
+
+  void testRandomBlockAccess() throws Exception;
 }

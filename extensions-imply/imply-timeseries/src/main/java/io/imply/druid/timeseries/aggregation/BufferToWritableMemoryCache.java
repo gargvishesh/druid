@@ -15,13 +15,14 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.IdentityHashMap;
 
-public class TimeSeriesBufferAggregatorHelper
+public class BufferToWritableMemoryCache
 {
   private ByteBuffer lastAccessedBuffer;
   private WritableMemory lastAccessedMem;
   private final IdentityHashMap<ByteBuffer, WritableMemory> memCache = new IdentityHashMap<>();
 
-  public WritableMemory getMemory(final ByteBuffer buffer)
+  @SuppressWarnings("ObjectEquality")
+  public WritableMemory getMemory(ByteBuffer buffer)
   {
     if (buffer == lastAccessedBuffer) {
       return lastAccessedMem;

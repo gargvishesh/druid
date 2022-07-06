@@ -24,7 +24,7 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
   private final MeanByteBufferTimeSeries meanByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public MeanTimeSeriesBuildBufferAggregator(final BaseLongColumnValueSelector timeSelector,
                                              final BaseDoubleColumnValueSelector dataSelector,
@@ -35,13 +35,13 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
     this.meanByteBufferTimeSeries = new MeanByteBufferTimeSeries(durationGranularity, window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    meanByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    meanByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -50,14 +50,14 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    meanByteBufferTimeSeries.addDataPointBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
+    meanByteBufferTimeSeries.addDataPointBuffered(bufferToWritableMemoryCache.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return meanByteBufferTimeSeries.computeMeanBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    return meanByteBufferTimeSeries.computeMeanBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override

@@ -11,6 +11,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.primitives.Ints;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 
 public class RowIndexReader
@@ -30,35 +31,14 @@ public class RowIndexReader
     return payload.getLong();
   }
 
-  public EntrySpan getEntrySpan(int entryNumber)
+  @Nonnull
+  public PayloadEntrySpan getEntrySpan(int entryNumber)
   {
     int position = entryNumber * Long.BYTES;
     ByteBuffer payload = payloadReader.read(position, 2 * Long.BYTES);
     long payloadValue = payload.getLong();
     long nextPayloadValue = payload.getLong();
 
-    return new EntrySpan(payloadValue, Ints.checkedCast(nextPayloadValue - payloadValue));
-  }
-
-  public static class EntrySpan
-  {
-    private final long start;
-    private final int size;
-
-    public EntrySpan(long start, int size)
-    {
-      this.start = start;
-      this.size = size;
-    }
-
-    public long getStart()
-    {
-      return start;
-    }
-
-    public int getSize()
-    {
-      return size;
-    }
+    return new PayloadEntrySpan(payloadValue, Ints.checkedCast(nextPayloadValue - payloadValue));
   }
 }

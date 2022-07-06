@@ -14,13 +14,10 @@ import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.segment.data.ObjectStrategy;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTimeSeries>
 {
@@ -39,42 +36,35 @@ public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTime
       return null;
     }
 
-    int numElements = buffer.getInt();
-    ImplyLongArrayList timestamps = new ImplyLongArrayList(numElements);
+    int count = buffer.getInt();
+    long[] timestampValues = new long[count];
+    buffer.asLongBuffer().get(timestampValues);
+    buffer.position(buffer.position() + Long.BYTES * count);
 
-    for (int i = 0; i < numElements; i++) {
-      timestamps.add(buffer.getLong());
-    }
+    ImplyLongArrayList timestamps = new ImplyLongArrayList(timestampValues);
 
-    ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(numElements);
+    double[] doubleValues = new double[count];
+    buffer.asDoubleBuffer().get(doubleValues);
+    buffer.position(buffer.position() + Double.BYTES * count);
 
-    for (int i = 0; i < numElements; i++) {
-      dataPoints.add(buffer.getDouble());
-    }
+    ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(doubleValues);
 
-    return new SimpleTimeSeries(
-        timestamps,
-        dataPoints,
-        SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
-        numElements
-    );
+    return new SimpleTimeSeries(timestamps, dataPoints, SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, count);
   }
 
   @Override
-  @NotNull
+  @Nonnull
   public byte[] toBytes(@Nullable SimpleTimeSeries val)
   {
-    if (val == null) {
+    if (val == null || val.size() == 0) {
       return NULL_TIME_SERIES;
     }
+    // force flattening of recursive structures
+    val.computeSimple();
     ImplyLongArrayList timestamps = val.getTimestamps();
     ImplyDoubleArrayList dataPoints = val.getDataPoints();
-    cosort(timestamps, dataPoints);
 
-    int sizeBytes = (Integer.BYTES
-                     + timestamps.size() * Long.BYTES
-                     + dataPoints.size() * Double.BYTES
-                     + 2 * Long.BYTES);
+    int sizeBytes = (Integer.BYTES + timestamps.size() * Long.BYTES + dataPoints.size() * Double.BYTES);
     ByteBuffer byteBuffer = ByteBuffer.allocate(sizeBytes).order(ByteOrder.nativeOrder());
 
     byteBuffer.putInt(timestamps.size());
@@ -99,36 +89,5 @@ public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTime
     }
 
     return Integer.compare(o1.size(), o2.size());
-  }
-
-  private static void cosort(ImplyLongArrayList timestamps, ImplyDoubleArrayList dataPoints)
-  {
-    List<TimestampDataPointPair> sortedPairList = new ArrayList<>();
-
-    for (int i = 0; i < timestamps.size(); i++) {
-      sortedPairList.add(new TimestampDataPointPair(timestamps.getLong(i), dataPoints.getDouble(i)));
-    }
-
-    sortedPairList.sort(Comparator.comparingLong(a -> a.timestamp));
-
-    timestamps.clear();
-    dataPoints.clear();
-
-    sortedPairList.forEach(p -> {
-      timestamps.add(p.timestamp);
-      dataPoints.add(p.dataPoint);
-    });
-  }
-
-  private static class TimestampDataPointPair
-  {
-    private final long timestamp;
-    private final double dataPoint;
-
-    public TimestampDataPointPair(long timestamp, double dataPoint)
-    {
-      this.timestamp = timestamp;
-      this.dataPoint = dataPoint;
-    }
   }
 }
