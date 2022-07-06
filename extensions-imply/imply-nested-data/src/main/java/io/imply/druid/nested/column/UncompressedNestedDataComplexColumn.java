@@ -26,6 +26,7 @@ import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.ColumnarDoubles;
@@ -235,7 +236,8 @@ public class UncompressedNestedDataComplexColumn extends NestedDataComplexColumn
       } else {
         ints = VSizeColumnarInts.readFromByteBuffer(dataBuffer);
       }
-      columnBuilder.setType(ValueType.STRING);
+      ColumnType theType = types.getSingleType();
+      columnBuilder.setType(theType == null ? ValueType.STRING : theType.getType());
 
       GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(
           dataBuffer,

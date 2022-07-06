@@ -1722,6 +1722,29 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testCastAndSumPathStrings() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "SUM(CAST(JSON_GET_PATH(nest, '.z') as BIGINT)) "
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"z\"", "v0", ColumnType.LONG))
+                  .aggregators(aggregators(new LongSumAggregatorFactory("a0", "v0")))
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{700L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByRootKeys() throws Exception
   {
     cannotVectorize();
