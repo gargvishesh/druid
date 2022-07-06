@@ -87,6 +87,13 @@ public class CompressedVariableSizeBlobColumnTest
       value.get(bytes);
       Assert.assertArrayEquals("Row " + row, values.get(row), bytes);
     }
+    for (int rando = 0; rando < numWritten; rando++) {
+      int row = ThreadLocalRandom.current().nextInt(0, numWritten - 1);
+      ByteBuffer value = column.get(row);
+      byte[] bytes = new byte[value.remaining()];
+      value.get(bytes);
+      Assert.assertArrayEquals("Row " + row, values.get(row), bytes);
+    }
     column.close();
     fileMapper.close();
   }
@@ -137,7 +144,16 @@ public class CompressedVariableSizeBlobColumnTest
         ByteOrder.nativeOrder(),
         fileMapper
     ).get();
+
     for (int row = 0; row < numWritten; row++) {
+      ByteBuffer value = column.get(row);
+      byte[] bytes = new byte[value.remaining()];
+      value.get(bytes);
+      Assert.assertArrayEquals("Row " + row, values.get(row), bytes);
+    }
+
+    for (int rando = 0; rando < numWritten; rando++) {
+      int row = ThreadLocalRandom.current().nextInt(0, numWritten - 1);
       ByteBuffer value = column.get(row);
       byte[] bytes = new byte[value.remaining()];
       value.get(bytes);
@@ -170,7 +186,7 @@ public class CompressedVariableSizeBlobColumnTest
     final Random r = ThreadLocalRandom.current();
     int numWritten = 0;
     final List<Long> values = new ArrayList<>();
-    for (int i = 0; i < 1_000_000; i++) {
+    for (int i = 0; i < 5_000_000; i++) {
       long l = r.nextLong();
       values.add(l);
       serializer.add(l);
@@ -187,10 +203,23 @@ public class CompressedVariableSizeBlobColumnTest
 
     try (CompressedLongsReader reader = CompressedLongsReader.fromByteBuffer(base, ByteOrder.nativeOrder()).get()) {
       for (int row = 0; row < numWritten; row++) {
-        for (int i = 0; i < 5; i++) {
-          long l = reader.get(row);
-          Assert.assertEquals("Row " + row, values.get(row).longValue(), l);
-        }
+        long l = reader.get(row);
+        Assert.assertEquals("Row " + row, values.get(row).longValue(), l);
+      }
+
+      // test random access pt 1
+      int random = 0;
+      Assert.assertEquals("Row " + random, values.get(random).longValue(), reader.get(random));
+      random = 2_000_000;
+      Assert.assertEquals("Row " + random, values.get(random).longValue(), reader.get(random));
+      random = 1_000_000;
+      Assert.assertEquals("Row " + random, values.get(random).longValue(), reader.get(random));
+
+      // test random access pt 2
+      for (int rando = 0; rando < numWritten; rando++) {
+        int row = ThreadLocalRandom.current().nextInt(0, numWritten - 1);
+        long l = reader.get(row);
+        Assert.assertEquals("Row " + row, values.get(row).longValue(), l);
       }
     }
   }

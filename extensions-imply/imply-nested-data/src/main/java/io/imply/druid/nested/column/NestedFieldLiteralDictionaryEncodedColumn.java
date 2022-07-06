@@ -13,9 +13,9 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.common.config.NullHandling;
+import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -157,7 +157,7 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
     if (singleType != null) {
       switch (singleType.getType()) {
         case LONG:
-          return globalLongDictionary.indexOf(Longs.tryParse(val));
+          return globalLongDictionary.indexOf(GuavaUtils.tryParseLong(val));
         case DOUBLE:
           return globalDoubleDictionary.indexOf(Doubles.tryParse(val));
         default:
@@ -166,7 +166,7 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
     } else {
       int candidate = globalDictionary.indexOf(val);
       if (candidate < 0) {
-        candidate = globalLongDictionary.indexOf(Longs.tryParse(val));
+        candidate = globalLongDictionary.indexOf(GuavaUtils.tryParseLong(val));
       }
       if (candidate < 0) {
         candidate = globalDoubleDictionary.indexOf(Doubles.tryParse(val));
@@ -250,7 +250,7 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
           return 0L;
         } else if (globalId < adjustLongId) {
           // try to convert string to long
-          Long l = Longs.tryParse(globalDictionary.get(globalId));
+          Long l = GuavaUtils.tryParseLong(globalDictionary.get(globalId));
           return l == null ? 0L : l;
         } else if (globalId < adjustDoubleId) {
           return globalLongDictionary.get(globalId - adjustLongId);
@@ -736,8 +736,9 @@ public class NestedFieldLiteralDictionaryEncodedColumn implements DictionaryEnco
           }
         };
       }
+      throw new UOE("Cannot make vector value selector for [%s] typed nested field", types);
     }
-    throw new UOE("Cannot make vector value selector for variant typed nested field [%s]", types);
+    throw new UOE("Cannot make vector value selector for variant typed [%s] nested field", types);
   }
 
   @Override
