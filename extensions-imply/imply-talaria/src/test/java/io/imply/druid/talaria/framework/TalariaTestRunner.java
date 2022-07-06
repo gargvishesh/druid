@@ -198,6 +198,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                    .build();
 
   public final boolean useDefault = NullHandling.replaceWithDefault();
+
+  protected File localFileStorageDir;
   private static final Logger log = new Logger(TalariaTestRunner.class);
   private PlannerFactory plannerFactory;
   private ObjectMapper objectMapper;
@@ -297,8 +299,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                   StorageConnectorProvider.class,
                   Talaria.class
               );
+              localFileStorageDir = tmpFolder.newFolder("fault");
               binder.bind(Key.get(StorageConnector.class, Talaria.class))
-                    .toProvider(new LocalFileStorageConnectorProvider(tmpFolder.newFolder("fault").toURI().getPath()));
+                    .toProvider(new LocalFileStorageConnectorProvider(localFileStorageDir.toURI().getPath()));
             }
             catch (IOException e) {
               throw new ISE(e, "Unable to create setup storage connector");

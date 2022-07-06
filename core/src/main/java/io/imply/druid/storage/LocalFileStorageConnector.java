@@ -9,7 +9,6 @@
 
 package io.imply.druid.storage;
 
-import com.google.common.base.Joiner;
 import org.apache.druid.java.util.common.FileUtils;
 
 import java.io.File;
@@ -18,13 +17,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 
 public class LocalFileStorageConnector implements StorageConnector
 {
 
   public final String basePath;
-
-  public static final Joiner JOINER = Joiner.on("/");
 
   public LocalFileStorageConnector(String basePath) throws IOException
   {
@@ -58,9 +56,15 @@ public class LocalFileStorageConnector implements StorageConnector
     new File(objectPath(path)).delete();
   }
 
+  @Override
+  public void deleteRecursively(String dirName) throws IOException
+  {
+    FileUtils.deleteDirectory(new File(objectPath(dirName)));
+  }
+
   private String objectPath(String path)
   {
-    return JOINER.join(basePath, path);
+    return Paths.get(basePath, path).toString();
   }
 
 }
