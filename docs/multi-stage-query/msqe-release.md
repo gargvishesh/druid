@@ -152,7 +152,7 @@ title: Release notes
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
   available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). (16181)
 
-
+- For HttpInputSource `msqNumTasks` needs to be always set. In such a case, the query fails gracefully if the number of tasks is not set explicitly. (23163)
 
 ### Memory usage
 
