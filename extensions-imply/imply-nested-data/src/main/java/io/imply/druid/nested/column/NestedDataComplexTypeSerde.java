@@ -18,6 +18,7 @@ import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.segment.column.ColumnBuilder;
+import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.data.ObjectStrategy;
@@ -75,10 +76,11 @@ public class NestedDataComplexTypeSerde extends ComplexMetricSerde
   )
   {
     NestedDataColumnSupplier supplier = new NestedDataColumnSupplier(buffer, builder, columnConfig, OBJECT_MAPPER);
-    // this is a cheese fix to set some stuff in column capabilities (dictionary encoded, etc)
-    // calling setComplexColumnSupplier later will overwrite the column supplier of the builder with the correct
-    // column supplier
-    builder.setDictionaryEncodedColumnSupplier(() -> null);
+    // todo (clint): upstream
+    ColumnCapabilitiesImpl capabilitiesBuilder = builder.getCapabilitiesBuilder();
+    capabilitiesBuilder.setDictionaryEncoded(true);
+    capabilitiesBuilder.setDictionaryValuesSorted(true);
+    capabilitiesBuilder.setDictionaryValuesUnique(true);
     builder.setComplexTypeName(TYPE_NAME);
     builder.setComplexColumnSupplier(supplier);
   }

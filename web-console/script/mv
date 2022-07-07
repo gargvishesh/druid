@@ -29,12 +29,12 @@ const location = process.argv[2];
 const oldName = process.argv[3];
 const newName = process.argv[4];
 
-if (!/^([a-z-])+$/.test(oldName)) {
+if (!/^([a-z0-9-])+$/.test(oldName)) {
   console.log('must be a hyphen case old name');
   process.exit();
 }
 
-if (!/^([a-z-])+$/.test(newName)) {
+if (!/^([a-z0-9-])+$/.test(newName)) {
   console.log('must be a hyphen case new name');
   process.exit();
 }

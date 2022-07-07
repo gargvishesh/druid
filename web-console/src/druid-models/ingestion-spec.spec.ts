@@ -170,6 +170,39 @@ describe('ingestion-spec', () => {
     });
   });
 
+  it('does not mangle a custom parser', () => {
+    expect(() =>
+      upgradeSpec({
+        type: 'index_parallel',
+        spec: {
+          ioConfig: {
+            type: 'index_parallel',
+            firehose: {
+              type: 'http',
+              uris: ['https://website.com/wikipedia.json.gz'],
+            },
+          },
+          tuningConfig: {
+            type: 'index_parallel',
+          },
+          dataSchema: {
+            dataSource: 'wikipedia',
+            granularitySpec: {
+              segmentGranularity: 'day',
+              queryGranularity: 'hour',
+              rollup: true,
+            },
+            parser: {
+              type: 'super_cool_custom_parser',
+            },
+          },
+        },
+      }),
+    ).toThrow(
+      "Can not rewrite parser of type 'super_cool_custom_parser', only 'string' is supported",
+    );
+  });
+
   it('upgrades / downgrades task spec (without parser)', () => {
     const oldTaskSpec = {
       type: 'index_parallel',

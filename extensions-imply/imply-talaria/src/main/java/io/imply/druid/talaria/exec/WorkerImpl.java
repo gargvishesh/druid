@@ -633,18 +633,18 @@ public class WorkerImpl implements Worker
       // todo: push this down to the readableFrameChannel
       // todo: clean the stage output in case of a worker crash.
       if (durableStageStorageEnabled) {
+        final String fileName = DurableStorageOutputChannelFactory.getPartitionFileName(
+            task.getControllerTaskId(),
+            task.getId(),
+            stageId.getStageNumber(),
+            partition
+        );
         try {
-          final String fileName = DurableStorageOutputChannelFactory.getPartitionFileName(
-              task.getControllerTaskId(),
-              task.getId(),
-              stageId.getStageNumber(),
-              partition
-          );
-
           TalariaTasks.makeStorageConnector(context.injector()).delete(fileName);
         }
-        catch (IOException e) {
-          throw new RuntimeException(e);
+        catch (Exception e) {
+          // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
+          log.warn(e, "Error while cleaning up temporary files at path " + fileName);
         }
       }
     }

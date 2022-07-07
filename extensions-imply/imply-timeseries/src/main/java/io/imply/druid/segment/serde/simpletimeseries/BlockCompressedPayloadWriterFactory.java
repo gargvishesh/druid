@@ -21,14 +21,17 @@ public class BlockCompressedPayloadWriterFactory
 {
   private final NativeClearedByteBufferProvider byteBufferProvider;
   private final SegmentWriteOutMedium writeOutMedium;
+  private final CompressionStrategy.Compressor compressor;
 
   public BlockCompressedPayloadWriterFactory(
       NativeClearedByteBufferProvider byteBufferProvider,
-      SegmentWriteOutMedium writeOutMedium
+      SegmentWriteOutMedium writeOutMedium,
+      CompressionStrategy.Compressor compressor
   )
   {
     this.byteBufferProvider = byteBufferProvider;
     this.writeOutMedium = writeOutMedium;
+    this.compressor = compressor;
   }
 
   public BlockCompressedPayloadWriter create() throws IOException
@@ -38,15 +41,15 @@ public class BlockCompressedPayloadWriterFactory
 
     closer.register(currentBlockHolder);
 
-    ByteBuffer compressedBlockByteBuffer =
-        CompressionStrategy.LZ4.getCompressor().allocateOutBuffer(currentBlockHolder.get().capacity(), closer);
+    ByteBuffer compressedBlockByteBuffer = compressor.allocateOutBuffer(currentBlockHolder.get().capacity(), closer);
 
     return new BlockCompressedPayloadWriter(
         currentBlockHolder.get(),
         compressedBlockByteBuffer,
         new BlockIndexWriter(writeOutMedium.makeWriteOutBytes()),
         writeOutMedium.makeWriteOutBytes(),
-        closer
+        closer,
+        compressor
     );
   }
 }

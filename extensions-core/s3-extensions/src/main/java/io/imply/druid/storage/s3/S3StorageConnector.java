@@ -9,7 +9,11 @@
 
 package io.imply.druid.storage.s3;
 
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Joiner;
 import io.imply.druid.sql.async.result.RetriableS3OutputStream;
 import io.imply.druid.sql.async.result.S3OutputConfig;
@@ -22,6 +26,8 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class S3StorageConnector implements StorageConnector
 {
@@ -84,6 +90,32 @@ public class S3StorageConnector implements StorageConnector
     s3Client.deleteObject(config.getBucket(), objectPath(path));
   }
 
+  @Override
+  public void deleteRecursively(String dirName)
+  {
+    ListObjectsV2Request listObjectsRequest = new ListObjectsV2Request()
+        .withBucketName(config.getBucket())
+        .withPrefix(dirName);
+    ListObjectsV2Result objectListing = s3Client.listObjectsV2(listObjectsRequest);
+
+    while (true) {
+      List<DeleteObjectsRequest.KeyVersion> deleteObjectsRequestKeys = objectListing.getObjectSummaries()
+                                                                                    .stream()
+                                                                                    .map(S3ObjectSummary::getKey)
+                                                                                    .map(DeleteObjectsRequest.KeyVersion::new)
+                                                                                    .collect(Collectors.toList());
+      DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(config.getBucket()).withKeys(deleteObjectsRequestKeys);
+      s3Client.deleteObjects(deleteObjectsRequest);
+
+      // If the listing is truncated, all S3 objects have been deleted, otherwise, fetch more using the continuation token
+      if (objectListing.isTruncated()) {
+        listObjectsRequest.withContinuationToken(objectListing.getContinuationToken());
+        objectListing = s3Client.listObjectsV2(listObjectsRequest);
+      } else {
+        break;
+      }
+    }
+  }
 
   @Nonnull
   private String objectPath(String path)

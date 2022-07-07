@@ -25,12 +25,11 @@ import java.nio.ByteBuffer;
 
 public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
 {
+  public static final String TYPE_NAME = "imply-ts-simple";
   public static final Interval ALL_TIME_WINDOW = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
 
-  static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_OBJECT_STRATEGY =
+  static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_BASIC_SERDE =
       new SimpleTimeSeriesObjectStrategy();
-  static final String TYPE_NAME = "imply-ts-simple";
-
 
   @Override
   public String getTypeName()
@@ -64,27 +63,21 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
       String column
   )
   {
-    return new SimpleTimeSeriesColumnSerializer(segmentWriteOutMedium, SIMPLE_TIME_SERIES_OBJECT_STRATEGY);
+    return new SimpleTimeSeriesColumnSerializer(segmentWriteOutMedium);
   }
 
   @Override
   public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
-    int serializedSize = buffer.remaining();
-    SimpleTimeSeriesView.Factory simpleTimeSeriesViewFactory = new SimpleTimeSeriesView.Factory(buffer);
+    SimpleTimeSeriesComplexColumn.Factory complexColumnFactory =
+        new SimpleTimeSeriesComplexColumn.Factory(buffer, NativeClearedByteBufferProvider.DEFAULT);
 
-    builder.setComplexColumnSupplier(
-        () -> SimpleTimeSeriesComplexColumn.create(
-            simpleTimeSeriesViewFactory,
-            NativeClearedByteBufferProvider.DEFAULT,
-            serializedSize
-        )
-    );
+    builder.setComplexColumnSupplier(complexColumnFactory::create);
   }
 
   @Override
   public ObjectStrategy<SimpleTimeSeries> getObjectStrategy()
   {
-    return SIMPLE_TIME_SERIES_OBJECT_STRATEGY;
+    return SIMPLE_TIME_SERIES_BASIC_SERDE;
   }
 }

@@ -29,6 +29,7 @@ import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -598,6 +599,36 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .addExpectedAggregatorFactory(new LongSumAggregatorFactory("cnt", "cnt"))
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
+  }
+
+  @Test
+  public void testLeaderTemporaryFileCleanup() throws IOException
+  {
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled-unparsable.json");
+    final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
+
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("cnt", ColumnType.LONG)
+                                            .build();
+
+    testIngestQuery().setSql(" insert into foo1 SELECT\n"
+                             + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
+                             + "  count(*) as cnt\n"
+                             + "FROM TABLE(\n"
+                             + "  EXTERN(\n"
+                             + "    '{ \"files\": [" + toReadFileNameAsJson + "],\"type\":\"local\"}',\n"
+                             + "    '{\"type\": \"json\"}',\n"
+                             + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
+                             + "  )\n"
+                             + ") group by 1  PARTITIONED by day ")
+                     .setExpectedDataSource("foo1")
+                     .setExpectedRowSignature(rowSignature)
+                     .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
+                     .verifyResults();
+
+    // Temporary directory should not contain any leader folders
+    Assert.assertEquals(0, localFileStorageDir.listFiles().length);
   }
 
   @Test

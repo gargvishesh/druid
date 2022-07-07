@@ -3,17 +3,20 @@ id: msqe-advanced
 title: Advanced configs
 ---
 
-> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 
 ## Durable storage for mesh shuffle
 
-To use durable storage for mesh shuffles, you need to include the following context variable when you submit a query:
+To use durable storage for mesh shuffles, 
+
+- [Enable durable storage for mesh shuffle](./msqe-setup.md)
+- Include the following context variable when you submit a query:
 
 **UI**
 
    ```sql
-   --:context msqDurableShuffleStorage=true
+   --:context msqDurableShuffleStorage: true
    ```
 
 **API**
@@ -45,10 +48,7 @@ The main driver of performance is parallelism. A secondary driver of performance
 
 The most relevant considerations are:
 
-- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of worker tasks
-  your query will use. Generally, queries will perform better with more workers. The highest
-  possible value of `msqNumTasks` is one less than the number of free task slots in your
-  cluster.
+- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 - The EXTERN operator cannot split large files across different worker tasks. If you have fewer
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
@@ -113,7 +113,7 @@ Queries are subject to the following limits:
 
 This section describes what happens when you submit a query to MSQE. 
 
-The multi-stage query engine extends Druid's query stack to handle asynchronous queries that can exchange data between stages.
+The Multi-Stage Query Engine extends Druid's query stack to handle asynchronous queries that can exchange data between stages.
 
 Queries execute using indexing service tasks, specifically INSERT, REPLACE, and SELECT queries. Every query occupies at least two task slots while running. 
 
@@ -137,7 +137,7 @@ Key concepts for multi-stage query execution:
 - **Shuffle**: workers exchange data between themselves on a per-partition basis in a process called
   "shuffling". During a shuffle, each output partition is sorted by a clustering key.
 
-When you use the multi-stage query engine, the following happens:
+When you use the Multi-Stage Query Engine, the following happens:
 
 1.  The **Broker** plans your SQL query into a native query, as usual.
 

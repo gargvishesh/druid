@@ -111,6 +111,7 @@ import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.parser.DruidSqlParserUtils;
 import org.apache.druid.sql.calcite.parser.DruidSqlReplace;
+import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
@@ -198,6 +199,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                                    .build();
 
   public final boolean useDefault = NullHandling.replaceWithDefault();
+
+  protected File localFileStorageDir;
   private static final Logger log = new Logger(TalariaTestRunner.class);
   private PlannerFactory plannerFactory;
   private ObjectMapper objectMapper;
@@ -297,8 +300,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                   StorageConnectorProvider.class,
                   Talaria.class
               );
+              localFileStorageDir = tmpFolder.newFolder("fault");
               binder.bind(Key.get(StorageConnector.class, Talaria.class))
-                    .toProvider(new LocalFileStorageConnectorProvider(tmpFolder.newFolder("fault").toURI().getPath()));
+                    .toProvider(new LocalFileStorageConnectorProvider(localFileStorageDir.toURI().getPath()));
             }
             catch (IOException e) {
               throw new ISE(e, "Unable to create setup storage connector");
@@ -341,7 +345,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         PLANNER_CONFIG_DEFAULT,
         AuthTestUtils.TEST_AUTHORIZER_MAPPER,
         objectMapper,
-        CalciteTests.DRUID_SCHEMA_NAME
+        CalciteTests.DRUID_SCHEMA_NAME,
+        new CalciteRulesManager(ImmutableSet.of())
     );
 
     sqlLifeCycleFactory = CalciteTests.createSqlLifecycleFactory(plannerFactory);

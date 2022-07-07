@@ -9,12 +9,13 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
+import org.apache.druid.segment.data.CompressionStrategy;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class RowReader
 {
-
   private final RowIndexReader rowIndexReader;
   private final BlockCompressedPayloadReader dataReader;
 
@@ -26,18 +27,20 @@ public class RowReader
 
   public ByteBuffer getRow(int rowNumber)
   {
-    RowIndexReader.EntrySpan entrySpan = rowIndexReader.getEntrySpan(rowNumber);
-    ByteBuffer payload = dataReader.read(entrySpan.getStart(), entrySpan.getSize());
+    PayloadEntrySpan payloadEntrySpan = rowIndexReader.getEntrySpan(rowNumber);
+    ByteBuffer payload = dataReader.read(payloadEntrySpan.getStart(), payloadEntrySpan.getSize());
 
     return payload;
   }
 
-  public static class Factory
+  public static class Builder
   {
     private final ByteBuffer rowIndexBuffer;
     private final ByteBuffer dataStorageBuffer;
 
-    public Factory(ByteBuffer originalByteBuffer)
+    private CompressionStrategy compressionStrategy = CompressionStrategy.LZ4;
+
+    public Builder(ByteBuffer originalByteBuffer)
     {
       ByteBuffer masterByteBuffer = originalByteBuffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
 
@@ -52,15 +55,24 @@ public class RowReader
       dataStorageBuffer.limit(dataStorageBuffer.position() + dataStorageSize);
     }
 
-    public RowReader create(ByteBuffer rowIndexUncompressedByteBuffer, ByteBuffer dataUncompressedByteBuffer)
+    public Builder setCompressionStrategy(CompressionStrategy compressionStrategy)
+    {
+      this.compressionStrategy = compressionStrategy;
+
+      return this;
+    }
+
+    public RowReader build(ByteBuffer rowIndexUncompressedByteBuffer, ByteBuffer dataUncompressedByteBuffer)
     {
       RowIndexReader rowIndexReader = new RowIndexReader(BlockCompressedPayloadReader.create(
           rowIndexBuffer,
-          rowIndexUncompressedByteBuffer
+          rowIndexUncompressedByteBuffer,
+          compressionStrategy.getDecompressor()
       ));
       BlockCompressedPayloadReader dataReader = BlockCompressedPayloadReader.create(
           dataStorageBuffer,
-          dataUncompressedByteBuffer
+          dataUncompressedByteBuffer,
+          compressionStrategy.getDecompressor()
       );
       RowReader rowReader = new RowReader(rowIndexReader, dataReader);
 

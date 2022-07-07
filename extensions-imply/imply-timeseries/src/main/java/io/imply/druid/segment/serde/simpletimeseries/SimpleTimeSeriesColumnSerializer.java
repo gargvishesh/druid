@@ -21,7 +21,10 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  * <pre>
- *  serialized data is of the form:
+ * Data is buffered in order to scan the timestamps for optimal delta-encoding. Once serialized() calls are complete,
+ * the data will be block-compressed in the following format.
+ *
+ * serialized data is of the form:
  *
  *    <row index>
  *    <payload storage>
@@ -93,31 +96,28 @@ import java.nio.channels.WritableByteChannel;
 
 public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeries>
 {
-  private final SegmentWriteOutMedium segmentWriteOutMedium;
-  private final SimpleTimeSeriesObjectStrategy objectStrategy;
   private final NativeClearedByteBufferProvider byteBufferProvider;
+  private final SegmentWriteOutMedium segmentWriteOutMedium;
 
-  private RowWriter rowWriter;
   private State state = State.START;
+  private SimpleTimeSeriesBufferStore buffer;
+  private SimpleTimeSeriesBufferStore.TransferredBuffer transferredBuffer;
 
   public SimpleTimeSeriesColumnSerializer(
       SegmentWriteOutMedium segmentWriteOutMedium,
-      SimpleTimeSeriesObjectStrategy objectStrategy,
       NativeClearedByteBufferProvider byteBufferProvider
   )
   {
     this.segmentWriteOutMedium = segmentWriteOutMedium;
-    this.objectStrategy = objectStrategy;
     this.byteBufferProvider = byteBufferProvider;
   }
 
-  public SimpleTimeSeriesColumnSerializer(
-      SegmentWriteOutMedium segmentWriteOutMedium,
-      SimpleTimeSeriesObjectStrategy objectStrategy
-  )
+
+  public SimpleTimeSeriesColumnSerializer(SegmentWriteOutMedium writeOutMedium)
   {
-    this(segmentWriteOutMedium, objectStrategy, NativeClearedByteBufferProvider.DEFAULT);
+    this(writeOutMedium, NativeClearedByteBufferProvider.DEFAULT);
   }
+
 
   @Override
   public void open() throws IOException
@@ -125,7 +125,7 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.START || state == State.OPEN, "open called in invalid state %s", state);
 
     if (state == State.START) {
-      rowWriter = RowWriter.create(byteBufferProvider, segmentWriteOutMedium);
+      buffer = new SimpleTimeSeriesBufferStore(segmentWriteOutMedium.makeWriteOutBytes());
       state = State.OPEN;
     }
   }
@@ -136,9 +136,8 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.OPEN, "serialize called in invalid state %s", state);
 
     SimpleTimeSeries timeSeries = selector.getObject();
-    byte[] rowBytes = objectStrategy.toBytes(timeSeries);
 
-    rowWriter.appendIndexedRow(rowBytes);
+    buffer.store(timeSeries);
   }
 
 
@@ -151,30 +150,26 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
         state
     );
 
-    if (state == State.OPEN) {
-      rowWriter.close();
-      state = State.INTERMEDIATE_CLOSED;
-    }
+    transferToRowWriterIfNecessary();
 
-    return rowWriter.getSerializedSize();
+    return transferredBuffer.getSerializedSize();
   }
-
 
   @Override
   public void writeTo(WritableByteChannel channel, FileSmoosher smoosher) throws IOException
   {
-    Preconditions.checkState(
-        state == State.OPEN || state == State.INTERMEDIATE_CLOSED || state == State.FINAL_CLOSED,
-        "writeTo called in invalid state %s",
-        state
-    );
-
-    if (state != State.INTERMEDIATE_CLOSED) {
-      rowWriter.close();
-    }
-
+    Preconditions.checkState(state != State.START, "writeTo called in invalid state %s", state);
+    transferToRowWriterIfNecessary();
     state = State.FINAL_CLOSED;
-    rowWriter.transferTo(channel);
+    transferredBuffer.writeTo(channel, smoosher);
+  }
+
+  private void transferToRowWriterIfNecessary() throws IOException
+  {
+    if (state == State.OPEN) {
+      transferredBuffer = buffer.transferToRowWriter(byteBufferProvider, segmentWriteOutMedium);
+      state = State.INTERMEDIATE_CLOSED;
+    }
   }
 
   private enum State
@@ -182,28 +177,6 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     START,
     OPEN,
     INTERMEDIATE_CLOSED,
-    FINAL_CLOSED;
+    FINAL_CLOSED,
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

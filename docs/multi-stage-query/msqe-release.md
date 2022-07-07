@@ -3,15 +3,43 @@ id: msqe-release
 title: Release notes
 ---
 
-> The multi-stage query engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Release notes
 
+### 2022.06
+
+#### Changes and improvements
+
+- Property names have changed. Previously, properties used the `talaria` prefix. They now either use `msq` or `multiStageQuery` depending on the context. Note that the extension is still named `imply-talaria`.
+- You no longer need a license that has an explicit entitlement for MSQE.
+- MSQE now supports S3 as a storage medium when using mesh shuffles. For more information, see [Durable storage for mesh shuffles](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle).
+- Reports for MSQE queries now include warning sections that provide information about the type of warning and number of occurrences. 
+- You can now use REPLACE in MSQE queries. For more information, see [REPLACE](./msqe-sql-syntax.md#replace).
+- The default mode for MSQE is now `strict`. This means that a query fails if there is a single malformed record. You can change this behavior using the context variable [`msqMode`](./msqe-api.md#context-variables) (previously `talariaMode`).
+- The behavior of `msqNumTasks` (previously `talariaNumTasks`) has changed. It now accurately reflects the total number of slots required, including the controller. Previously, the controller was not accounted for. 
+- The EXTERN operator now requires READ access to the resource type EXTERNAL that is named EXTERNAL. This new permission must be added manually to API users who issue queries that access external data. In Imply Enterprise Hybrid and in Imply Enterprise, this permission is added automatically to users with the ManageDatasets permission. For Imply Enterprise, you must update Imply Manager to 2022.06 prior to updating your Imply version to 2022.06.
+- Queries that carry large amounts of data through multiple stages are sped up significantly due to performance enhancements in sorting and shuffling.
+- Queries that use GROUP BY followed by ORDER BY, PARTITIONED BY, or CLUSTERED BY execute with one less stage, improving performance.
+- Strings are no longer permitted to contain null bytes. Strings containing null bytes will result in an InvalidNullByte error.
+- INSERT or REPLACE queries with null values for `__time` now exit with an InsertTimeNull error.
+- INSERT or REPLACE queries that are aborted due to lock preemption now exit with an InsertLockPreempted error. Previously, they would exit with an UnknownError.
+- MSQE generated segments can now be used with Pivot datacubes and support auto-compaction if the query conforms to the conditions defined in [GROUP BY](./msqe-sql-syntax.md#group-by).
+- You an now download the results of a query as a CSV, TSV, JSON file. Click the download icon in the Query view after you run a query: ![Click the download icon and choose either CSV, TSV, or JSON](../assets/multi-stage-query/msq-ui-download-query-results.png).
+
+#### Fixes
+ 
+ - Fixed an issue where the controller task would stall indefinitely when its worker tasks could not all start up. Now, the controller task exits with a TaskStartTimeout after ten minutes.
+ - Fixed an issue where the controller task would exit with an UnknownError when canceled. Now, the controller task correctly exits with a Canceled error.
+ - Fixed an issue where error message when `groupByEnableMultiValueUnnesting: false` is set in the context of a query that uses GROUP BY referred to  the parameter `executingNestedQuery`. It now uses the correct parameter `groupByEnableMultiValueUnnesting`.
+ - Fixed an issue where the true error would sometimes be shadowed by a WorkerFailed error. (20466)
+ - Fixed an issue where tasks would not retry certain retryable Overlord API errors. Now, these errors are retried, improving reliability.
+
 ### 2022.05
 
-- You no longer need to load the `imply-sql-async` extension to use the multi-stage query engine. You only need to load the `imply-talaria` extension.
-- The API endpoints have changed. Earlier versions of the multi-stage query engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](./msqe-api.md).
-- You no longer need to set a context parameter for `talaria` when making API calls. API calls to the `task` endpoint use the multi-stage query engine automatically.
+- You no longer need to load the `imply-sql-async` extension to use the Multi-Stage Query Engine. You only need to load the `imply-talaria` extension.
+- The API endpoints have changed. Earlier versions of the Multi-Stage Query Engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](./msqe-api.md).
+- You no longer need to set a context parameter for `talaria` when making API calls. API calls to the `task` endpoint use the Multi-Stage Query Engine automatically.
 - Fixed an issue that caused an `IndexOutOfBoundsException` error to occur, which led to some ingestion jobs failing.
 
 ### 2022.04
@@ -147,6 +175,7 @@ title: Release notes
 ### SELECT queries
 
 - SELECT query results do not include realtime data until it has been published. (18092)
+
 <!-- 
 - SELECT query results are funneled through the controller task
   so they can be written to the query report.
@@ -159,6 +188,7 @@ title: Release notes
   using the query results API. Large result sets
   can cause the Broker to run out of memory. (15963)
 -->
+
 - TIMESTAMP types are formatted as numbers rather than ISO8601 timestamp
   strings, which differs from Druid's standard result format. (14995)
 
@@ -194,15 +224,15 @@ title: Release notes
 feature is not available. All columns and their types must be specified explicitly. (15004)
 
 - [Segment metadata queries](https://docs.imply.io/latest/druid/querying/segmentmetadataquery.html)
-  on datasources ingested with the multi-stage query engine will return values for`timestampSpec` that are not usable
+  on datasources ingested with the Multi-Stage Query Engine will return values for`timestampSpec` that are not usable
   for introspection.
   (15007)
-- Figuring out `rollup`, `query-granularity, and`aggregatorFactories` is on a best effort basis. In
+- Figuring out `rollup`, `query-granularity`, and `aggregatorFactories` is on a best effort basis. In
   particular, Pivot will not be able to automatically create data cubes that properly reflect the
-  rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msqe-sql-syntax.md#rollup). Proper data cubes
+  rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msqe-sql-syntax.md#group-by). Proper data cubes
   can still be created manually. (20879)
 
-- When INSERT with GROUP BY does the match the criteria mentioned in [Rollup](./msqe-sql-syntax.md#rollup),  the multi-stage engine generates segments that Druid's compaction
+- When INSERT with GROUP BY does the match the criteria mentioned in [GROUP BY](./msqe-sql-syntax.md#group-by),  the multi-stage engine generates segments that Druid's compaction
   functionality is not able to further roll up. This applies to autocompaction as well as manually
   issued `compact` tasks. Individual queries executed with the multi-stage engine always guarantee
   perfect rollup for their output, so this only matters if you are performing a sequence of INSERT
@@ -210,7 +240,7 @@ feature is not available. All columns and their types must be specified explicit
   using another SQL query instead of a `compact` task.   (17945)
 
 - When using INSERT with GROUP BY, not all aggregation functions are implemented. See the
-  [Rollup](./msqe-sql-syntax.md#rollup) section for a list of aggregation functions that are currently available in
+  [GROUP BY](./msqe-sql-syntax.md#group-by) section for a list of aggregation functions that are currently available in
   conjuction with INSERT. Note that all aggregations are supported for SELECT queries. (15010)
 
 - When using INSERT with GROUP BY, splitting of large partitions is not currently

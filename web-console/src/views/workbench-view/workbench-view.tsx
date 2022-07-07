@@ -40,7 +40,13 @@ import {
   QueryManager,
   QueryState,
 } from '../../utils';
-import { DruidEngine, generate8HexId, TabEntry, WorkbenchQuery } from '../../workbench-models';
+import {
+  DruidEngine,
+  Execution,
+  generate8HexId,
+  TabEntry,
+  WorkbenchQuery,
+} from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 import {
@@ -52,6 +58,7 @@ import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
 import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
 import { ExecutionStateCache } from './execution-state-cache';
+import { ExecutionSubmitDialog } from './execution-submit-dialog/execution-submit-dialog';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
@@ -85,7 +92,7 @@ export interface WorkbenchViewState {
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
   initExternalConfig: boolean;
-  details?: { id: string; initTab?: ExecutionDetailsTab };
+  details?: { id: string; initTab?: ExecutionDetailsTab; initExecution?: Execution };
 
   defaultSchema?: string;
   defaultTable?: string;
@@ -93,6 +100,7 @@ export interface WorkbenchViewState {
   explainDialogOpen: boolean;
   historyDialogOpen: boolean;
   specDialogOpen: boolean;
+  executionSubmitDialogOpen: boolean;
   renamingTab?: TabEntry;
 
   showWorkHistory: boolean;
@@ -148,6 +156,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       explainDialogOpen: false,
       historyDialogOpen: false,
       specDialogOpen: false,
+      executionSubmitDialogOpen: false,
 
       showWorkHistory,
     };
@@ -192,6 +201,10 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     this.setState({ specDialogOpen: true });
   };
 
+  private readonly openExecutionSubmitDialog = () => {
+    this.setState({ executionSubmitDialogOpen: true });
+  };
+
   private readonly handleWorkPanelClose = () => {
     this.setState({ showWorkHistory: false });
     localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, false);
@@ -228,7 +241,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return this.getCurrentTabEntry().query;
   }
 
-  private renderStatsDialog() {
+  private renderExecutionDetailsDialog() {
     const { details } = this.state;
     if (!details) return;
 
@@ -236,6 +249,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       <ExecutionDetailsDialog
         id={details.id}
         initTab={details.initTab}
+        initExecution={details.initExecution}
         onClose={() => this.setState({ details: undefined })}
       />
     );
@@ -367,6 +381,25 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
+  private renderExecutionSubmit() {
+    const { executionSubmitDialogOpen } = this.state;
+    if (!executionSubmitDialogOpen) return;
+
+    return (
+      <ExecutionSubmitDialog
+        onSubmit={execution => {
+          this.setState({
+            details: {
+              id: execution.id,
+              initExecution: execution,
+            },
+          });
+        }}
+        onClose={() => this.setState({ executionSubmitDialogOpen: false })}
+      />
+    );
+  }
+
   private renderToolbarMoreMenu() {
     const { queryEngines } = this.props;
     const query = this.getCurrentQuery();
@@ -390,6 +423,11 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
               icon={IconNames.TEXT_HIGHLIGHT}
               text="Convert ingestion spec to SQL"
               onClick={this.openSpecDialog}
+            />
+            <MenuItem
+              icon={IconNames.UNARCHIVE}
+              text="Open query detail archive"
+              onClick={this.openExecutionSubmitDialog}
             />
             <MenuDivider />
             <MenuItem
@@ -666,12 +704,13 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             onNewTab={this.handleNewTab}
           />
         )}
-        {this.renderStatsDialog()}
+        {this.renderExecutionDetailsDialog()}
         {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
         {this.renderExternalConfigDialog()}
         {this.renderTabRenameDialog()}
         {this.renderSpecDialog()}
+        {this.renderExecutionSubmit()}
         <MetadataChangeDetector onChange={() => this.metadataQueryManager?.runQuery(null)} />
       </div>
     );

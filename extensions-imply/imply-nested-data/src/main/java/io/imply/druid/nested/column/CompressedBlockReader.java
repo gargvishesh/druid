@@ -221,8 +221,8 @@ public final class CompressedBlockReader implements Closeable
       blockEndOffset = endOffsetsBuffer.get(block);
     }
     decompressedDataBuffer.clear();
-    compressedDataBuffer.position(blockStartOffset);
     compressedDataBuffer.limit(blockEndOffset);
+    compressedDataBuffer.position(blockStartOffset);
 
     decompressor.decompress(compressedDataBuffer, blockEndOffset - blockStartOffset, decompressedDataBuffer);
     decompressedDataBuffer.limit(decompressedDataBuffer.capacity());

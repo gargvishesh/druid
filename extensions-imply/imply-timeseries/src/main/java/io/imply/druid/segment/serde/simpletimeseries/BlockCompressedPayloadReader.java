@@ -18,20 +18,21 @@ import java.nio.ByteOrder;
 
 public class BlockCompressedPayloadReader
 {
-  private static final CompressionStrategy.Decompressor DECOMPRESSOR = CompressionStrategy.LZ4.getDecompressor();
 
   private final IntIndexView blockIndexView;
   private final ByteBuffer compressedBlocksByteBuffer;
   private final ByteBuffer uncompressedByteBuffer;
   private final int blockSize;
   private final long maxValidUncompressedOffset;
+  private final CompressionStrategy.Decompressor decompressor;
 
   private int currentUncompressedBlockNumber = -1;
 
-  public BlockCompressedPayloadReader(
+  private BlockCompressedPayloadReader(
       IntIndexView blockIndexView,
       ByteBuffer compressedBlocksByteBuffer,
-      ByteBuffer uncompressedByteBuffer
+      ByteBuffer uncompressedByteBuffer,
+      CompressionStrategy.Decompressor decompressor
   )
   {
     this.blockIndexView = blockIndexView;
@@ -40,9 +41,14 @@ public class BlockCompressedPayloadReader
     uncompressedByteBuffer.clear();
     blockSize = uncompressedByteBuffer.remaining();
     maxValidUncompressedOffset = Integer.MAX_VALUE * (long) blockSize;
+    this.decompressor = decompressor;
   }
 
-  public static BlockCompressedPayloadReader create(ByteBuffer originalByteBuffer, ByteBuffer uncompressedByteBuffer)
+  public static BlockCompressedPayloadReader create(
+      ByteBuffer originalByteBuffer,
+      ByteBuffer uncompressedByteBuffer,
+      CompressionStrategy.Decompressor decompressor
+  )
   {
     ByteBuffer masterByteBuffer = originalByteBuffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
 
@@ -59,9 +65,16 @@ public class BlockCompressedPayloadReader
     return new BlockCompressedPayloadReader(
         new IntIndexView(blockIndexBuffer),
         compressedBlockStreamByteBuffer,
-        uncompressedByteBuffer
+        uncompressedByteBuffer,
+        decompressor
     );
   }
+
+  public static BlockCompressedPayloadReader create(ByteBuffer originalByteBuffer, ByteBuffer uncompressedByteBuffer)
+  {
+    return create(originalByteBuffer, uncompressedByteBuffer, CompressionStrategy.LZ4.getDecompressor());
+  }
+
 
   public ByteBuffer read(long uncompressedStart, int size)
   {
@@ -76,7 +89,8 @@ public class BlockCompressedPayloadReader
     currentUncompressedBlock.position(blockOffset);
 
     if (size <= currentUncompressedBlock.remaining()) {
-      ByteBuffer resultByteBuffer = currentUncompressedBlock.asReadOnlyBuffer().order(currentUncompressedBlock.order());
+      ByteBuffer resultByteBuffer = currentUncompressedBlock.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
+
       resultByteBuffer.limit(blockOffset + size);
 
       return resultByteBuffer;
@@ -112,19 +126,14 @@ public class BlockCompressedPayloadReader
   private ByteBuffer getUncompressedBlock(int blockNumber)
   {
     if (currentUncompressedBlockNumber != blockNumber) {
-      // if blockNumber is the last valid block, there is always an extra entry which is the position of the next
-      // start for an additional block, ie length of total compressed block stream
-      int blockStart = blockIndexView.getStart(blockNumber);
-      int nextBlockStart = blockIndexView.getStart(blockNumber + 1);
-      int compressedBlockSize = nextBlockStart - blockStart;
-      int blockPosition = compressedBlocksByteBuffer.position() + blockStart;
+      IntIndexView.EntrySpan span = blockIndexView.getEntrySpan(blockNumber);
       ByteBuffer compressedBlock = compressedBlocksByteBuffer.asReadOnlyBuffer()
                                                              .order(compressedBlocksByteBuffer.order());
-      compressedBlock.position(blockPosition);
-      compressedBlock.limit(compressedBlock.position() + compressedBlockSize);
+      compressedBlock.position(compressedBlock.position() + span.getStart());
+      compressedBlock.limit(compressedBlock.position() + span.getSize());
       uncompressedByteBuffer.clear();
 
-      DECOMPRESSOR.decompress(compressedBlock, compressedBlockSize, uncompressedByteBuffer);
+      decompressor.decompress(compressedBlock, span.getSize(), uncompressedByteBuffer);
       currentUncompressedBlockNumber = blockNumber;
     }
 

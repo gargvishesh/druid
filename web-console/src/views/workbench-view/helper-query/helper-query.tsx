@@ -38,6 +38,7 @@ import {
 } from '../../../workbench-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
+import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionStateCache } from '../execution-state-cache';
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
@@ -53,9 +54,8 @@ import { ExportDialog } from '../export-dialog/export-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
-import { QueryOutput2 } from '../query-output2/query-output2';
+import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
-import { StateProgressPane } from '../state-progress-pane/state-progress-pane';
 import { useWorkStateStore } from '../work-state-store';
 
 import './helper-query.scss';
@@ -187,6 +187,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
       }
     },
     backgroundStatusCheck: executionBackgroundStatusCheck,
+    swallowBackgroundError: Api.isNetworkError,
   });
 
   useEffect(() => {
@@ -331,7 +332,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             <div className="output-pane">
               {execution &&
                 (execution.result ? (
-                  <QueryOutput2
+                  <ResultTablePane
                     runeMode={execution.engine === 'native'}
                     queryResult={execution.result}
                     onExport={handleExport}
@@ -345,7 +346,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                     onQueryChange={handleQueryStringChange}
                   />
                 ) : execution.error ? (
-                  <div className="stats-container">
+                  <div className="error-container">
                     <ExecutionErrorPane execution={execution} />
                     {execution.stages && (
                       <ExecutionStagesPane
@@ -370,14 +371,13 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               )}
               {executionState.isLoading() &&
                 (executionState.intermediate ? (
-                  <div className="stats-container">
-                    <StateProgressPane
-                      execution={executionState.intermediate}
-                      onCancel={() => {
-                        queryManager.cancelCurrent();
-                      }}
-                    />
-                  </div>
+                  <ExecutionProgressPane
+                    execution={executionState.intermediate}
+                    intermediateError={executionState.intermediateError}
+                    onCancel={() => {
+                      queryManager.cancelCurrent();
+                    }}
+                  />
                 ) : (
                   <Loader
                     cancelText="Cancel query"

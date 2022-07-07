@@ -20,13 +20,12 @@ import java.nio.ByteOrder;
 
 public class BlockCompressedPayloadWriter
 {
-  private static final CompressionStrategy.Compressor COMPRESSOR = CompressionStrategy.LZ4.getCompressor();
-
   private final ByteBuffer currentBlock;
   private final ByteBuffer compressedByteBuffer;
   private final BlockIndexWriter blockIndexWriter;
   private final WriteOutBytes dataOutBytes;
   private final Closer closer;
+  private final CompressionStrategy.Compressor compressor;
 
   private boolean open = true;
 
@@ -35,7 +34,8 @@ public class BlockCompressedPayloadWriter
       ByteBuffer compressedByteBuffer,
       BlockIndexWriter blockIndexWriter,
       WriteOutBytes dataOutBytes,
-      Closer closer
+      Closer closer,
+      CompressionStrategy.Compressor compressor
   )
   {
     currentBlock.clear();
@@ -45,6 +45,7 @@ public class BlockCompressedPayloadWriter
     this.closer = closer;
     this.blockIndexWriter = blockIndexWriter;
     this.dataOutBytes = dataOutBytes;
+    this.compressor = compressor;
   }
 
   public void write(byte[] payload) throws IOException
@@ -54,6 +55,10 @@ public class BlockCompressedPayloadWriter
 
   public void write(ByteBuffer masterPayload) throws IOException
   {
+    if (masterPayload == null) {
+      return;
+    }
+
     Preconditions.checkState(open, "cannot write to closed BlockCompressedPayloadWriter");
     ByteBuffer payload = masterPayload.asReadOnlyBuffer().order(masterPayload.order());
 
@@ -91,7 +96,7 @@ public class BlockCompressedPayloadWriter
     Preconditions.checkState(open, "flush() on closed BlockCompressedPayloadWriter");
     currentBlock.flip();
 
-    ByteBuffer actualCompressedByteBuffer = COMPRESSOR.compress(currentBlock, compressedByteBuffer);
+    ByteBuffer actualCompressedByteBuffer = compressor.compress(currentBlock, compressedByteBuffer);
     int compressedBlockSize = actualCompressedByteBuffer.limit();
 
     blockIndexWriter.persistAndIncrement(compressedBlockSize);

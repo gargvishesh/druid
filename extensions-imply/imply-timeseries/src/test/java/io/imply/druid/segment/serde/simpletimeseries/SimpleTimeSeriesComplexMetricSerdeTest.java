@@ -10,12 +10,15 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
-import io.imply.druid.timeseries.SimpleTimeSeriesData;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.CompressedPools;
+import org.apache.druid.segment.column.ColumnBuilder;
+import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.writeout.HeapByteBufferWriteOutBytes;
 import org.apache.druid.segment.writeout.OnHeapMemorySegmentWriteOutMedium;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
@@ -47,6 +50,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   private ResourceHolder<ByteBuffer> rowIndexUncompressedBlockHolder;
   private ResourceHolder<ByteBuffer> dataUncompressedBlockHolder;
   private SimpleTimeSeriesColumnSerializer columnSerializer;
+  private SimpleTimeSeriesComplexMetricSerde complexMetricSerde;
 
 
   @BeforeClass
@@ -60,9 +64,8 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   public void setup() throws Exception
   {
     SegmentWriteOutMedium writeOutMedium = new OnHeapMemorySegmentWriteOutMedium();
-    columnSerializer = new SimpleTimeSeriesColumnSerializer(writeOutMedium,
-                                                            SimpleTimeSeriesComplexMetricSerde.SIMPLE_TIME_SERIES_OBJECT_STRATEGY
-    );
+    complexMetricSerde = new SimpleTimeSeriesComplexMetricSerde();
+    columnSerializer = (SimpleTimeSeriesColumnSerializer) complexMetricSerde.getSerializer(writeOutMedium, "unused");
     columnSerializer.open();
     rowIndexUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();
     dataUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();
@@ -81,14 +84,14 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_1));
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_2));
     //update if size is intended to change
-    Assert.assertEquals(1684, columnSerializer.getSerializedSize());
+    Assert.assertEquals(901, columnSerializer.getSerializedSize());
 
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-
-    SimpleTimeSeries row1 = simpleTimeSeriesView.getRow(0);
-    SimpleTimeSeries row2 = simpleTimeSeriesView.getRow(1);
-    Assert.assertEquals(SIMPLE_TIME_SERIES_1.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
-    Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row2.asSimpleTimeSeriesData());
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      SimpleTimeSeries row1 = getSimpleTimeSeries(complexColumn, 0);
+      SimpleTimeSeries row2 = getSimpleTimeSeries(complexColumn, 1);
+      Assert.assertEquals(SIMPLE_TIME_SERIES_1.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
+      Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row2.asSimpleTimeSeriesData());
+    }
   }
 
   @Test
@@ -98,40 +101,40 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(null));
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_2));
     //update if size is intended to change
-    Assert.assertEquals(1684, columnSerializer.getSerializedSize());
+    Assert.assertEquals(901, columnSerializer.getSerializedSize());
 
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-
-    SimpleTimeSeries row1 = simpleTimeSeriesView.getRow(0);
-    SimpleTimeSeries row2 = simpleTimeSeriesView.getRow(1);
-    SimpleTimeSeries row3 = simpleTimeSeriesView.getRow(2);
-    Assert.assertEquals(SIMPLE_TIME_SERIES_1.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
-    Assert.assertNull(row2);
-    Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row3.asSimpleTimeSeriesData());
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      SimpleTimeSeries row1 = getSimpleTimeSeries(complexColumn, 0);
+      SimpleTimeSeries row2 = getSimpleTimeSeries(complexColumn, 1);
+      SimpleTimeSeries row3 = getSimpleTimeSeries(complexColumn, 2);
+      Assert.assertEquals(SIMPLE_TIME_SERIES_1.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
+      Assert.assertNull(row2);
+      Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row3.asSimpleTimeSeriesData());
+    }
   }
 
   @Test
   public void testEnd2EndMultiBlock() throws Exception
   {
     int numberOfRows = 5000;
-    int entriesPerSeries = 100;
-    List<SimpleTimeSeries> sourceRowsList = new ArrayList<>(numberOfRows);
-    for (int i = 0; i < numberOfRows; i++) {
-      SimpleTimeSeries simpleTimeSeries = buildTimeSeries(START_DATE_TIME, entriesPerSeries, entriesPerSeries * i);
-      sourceRowsList.add(simpleTimeSeries);
-      columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries));
-    }
+    int entriesPerRow = 10;
+    List<SimpleTimeSeries> sourceRowsList = SimpleTimeSeriesTestUtil.buildTimeSeriesList(
+        numberOfRows,
+        entriesPerRow,
+        simpleTimeSeries -> columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries))
+    );
     //update if size is intended to change (note: > 64k block size means we are testing cross-block reads
     long serializedSize = columnSerializer.getSerializedSize();
     Assert.assertTrue(serializedSize > 2 * CompressedPools.BUFFER_SIZE);
 
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-
-    for (int i = 0; i < numberOfRows; i++) {
-      SimpleTimeSeries row = simpleTimeSeriesView.getRow(i);
-      Assert.assertNotNull(row);
-      Assert.assertEquals(sourceRowsList.get(i).asSimpleTimeSeriesData(), row.asSimpleTimeSeriesData());
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      for (int i = 0; i < numberOfRows; i++) {
+        SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, i);
+        Assert.assertNotNull(row);
+        Assert.assertEquals(sourceRowsList.get(i).asSimpleTimeSeriesData(), row.asSimpleTimeSeriesData());
+      }
     }
+
   }
 
   @Test
@@ -139,12 +142,16 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   {
     SimpleTimeSeries simpleTimeSeries = buildTimeSeries(START_DATE_TIME, 256 * 1024, 0);
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries));
+
     long serializedSize = columnSerializer.getSerializedSize();
+
     Assert.assertTrue(serializedSize > 2 * CompressedPools.BUFFER_SIZE);
 
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-    SimpleTimeSeries row1 = simpleTimeSeriesView.getRow(0);
-    Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      SimpleTimeSeries row1 = getSimpleTimeSeries(complexColumn, 0);
+
+      Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
+    }
   }
 
   @Test
@@ -152,25 +159,29 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   {
     SimpleTimeSeries simpleTimeSeries = buildTimeSeries(START_DATE_TIME, 0, 0);
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries));
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-    SimpleTimeSeries row = simpleTimeSeriesView.getRow(0);
-    SimpleTimeSeriesData simpleTimeSeriesData = row.asSimpleTimeSeriesData();
-    Assert.assertEquals(0, simpleTimeSeriesData.getDataPoints().size());
-    Assert.assertEquals(0, simpleTimeSeriesData.getTimestamps().size());
+
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, 0);
+
+      Assert.assertNull(row);
+    }
   }
 
   @Test
   public void testEmptyTimeSeriesInterleaved() throws Exception
   {
     SimpleTimeSeries simpleTimeSeries = buildTimeSeries(START_DATE_TIME, 0, 0);
+
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_1));
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries));
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_2));
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-    SimpleTimeSeries row = simpleTimeSeriesView.getRow(1);
-    SimpleTimeSeriesData simpleTimeSeriesData = row.asSimpleTimeSeriesData();
-    Assert.assertEquals(0, simpleTimeSeriesData.getDataPoints().size());
-    Assert.assertEquals(0, simpleTimeSeriesData.getTimestamps().size());
+
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, 1);
+
+      // 0-element rows are encoded as null
+      Assert.assertNull(row);
+    }
   }
 
   @Test
@@ -190,11 +201,11 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
       columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(simpleTimeSeries));
     }
 
-    SimpleTimeSeriesView simpleTimeSeriesView = createSimpleTimeSeriesView();
-
-    for (int i = 0; i < rowCount; i++) {
-      SimpleTimeSeries row = simpleTimeSeriesView.getRow(i);
-      Assert.assertEquals(input.get(i).asSimpleTimeSeriesData(), row.asSimpleTimeSeriesData());
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn()) {
+      for (int i = 0; i < rowCount; i++) {
+        SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, i);
+        Assert.assertEquals(input.get(i).asSimpleTimeSeriesData(), row.asSimpleTimeSeriesData());
+      }
     }
   }
 
@@ -204,14 +215,13 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(null));
 
     ByteBuffer byteBuffer = serializeToByteBuffer(columnSerializer);
-    Assert.assertEquals(46, columnSerializer.getSerializedSize());
+    Assert.assertEquals(58, columnSerializer.getSerializedSize());
 
-    SimpleTimeSeriesView simpleTimeSeriesView = SimpleTimeSeriesView.create(byteBuffer,
-                                                                            rowIndexUncompressedBlockHolder.get(),
-                                                                            dataUncompressedBlockHolder.get()
-    );
-    SimpleTimeSeries row = simpleTimeSeriesView.getRow(0);
-    Assert.assertNull(row);
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn(byteBuffer)) {
+      SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, 0);
+
+      Assert.assertNull(row);
+    }
   }
 
   @Test
@@ -225,50 +235,96 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     }
 
     ByteBuffer byteBuffer = serializeToByteBuffer(columnSerializer);
-    Assert.assertEquals(374, columnSerializer.getSerializedSize());
+    Assert.assertEquals(386, columnSerializer.getSerializedSize());
 
-    SimpleTimeSeriesView simpleTimeSeriesView = SimpleTimeSeriesView.create(byteBuffer,
-                                                                            rowIndexUncompressedBlockHolder.get(),
-                                                                            dataUncompressedBlockHolder.get()
-    );
-    for (int i = 0; i < rowCount; i++) {
-      SimpleTimeSeries row = simpleTimeSeriesView.getRow(0);
-      Assert.assertNull(row);
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn(byteBuffer)) {
+      for (int i = 0; i < rowCount; i++) {
+        SimpleTimeSeries row = getSimpleTimeSeries(complexColumn, i);
+        Assert.assertNull(row);
+      }
     }
   }
 
-  private SimpleTimeSeriesView createSimpleTimeSeriesView() throws IOException
+  @Test
+  public void testWriteToWithoutGetSerializedSize() throws IOException
   {
-    ByteBuffer masterByteBuffer = serializeToByteBuffer(columnSerializer);
-    SimpleTimeSeriesView simpleTimeSeriesView = SimpleTimeSeriesView.create(
-        masterByteBuffer,
-        rowIndexUncompressedBlockHolder.get(),
-        dataUncompressedBlockHolder.get()
-    );
-    return simpleTimeSeriesView;
+    columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_1));
+    columnSerializer.serialize(new SimpleTimeSeriesColumnValueSelector(SIMPLE_TIME_SERIES_2));
+
+    try (SimpleTimeSeriesComplexColumn complexColumn = createSimpleTimeSeriesComplexColumn(false)) {
+      SimpleTimeSeries row1 = getSimpleTimeSeries(complexColumn, 0);
+      SimpleTimeSeries row2 = getSimpleTimeSeries(complexColumn, 1);
+      Assert.assertEquals(SIMPLE_TIME_SERIES_1.asSimpleTimeSeriesData(), row1.asSimpleTimeSeriesData());
+      Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row2.asSimpleTimeSeriesData());
+    }
+
+  }
+
+  private static SimpleTimeSeries getSimpleTimeSeries(SimpleTimeSeriesComplexColumn complexColumn, int rowNum)
+  {
+    return ((SimpleTimeSeriesContainer) complexColumn.getRowValue(rowNum)).getSimpleTimeSeries();
+  }
+
+  private SimpleTimeSeriesComplexColumn createSimpleTimeSeriesComplexColumn() throws IOException
+  {
+    return createSimpleTimeSeriesComplexColumn(true);
+  }
+
+  private SimpleTimeSeriesComplexColumn createSimpleTimeSeriesComplexColumn(boolean checkSize) throws IOException
+  {
+    ByteBuffer masterByteBuffer = serializeToByteBuffer(columnSerializer, checkSize);
+
+    return createSimpleTimeSeriesComplexColumn(masterByteBuffer);
+  }
+
+  private SimpleTimeSeriesComplexColumn createSimpleTimeSeriesComplexColumn(ByteBuffer byteBuffer)
+  {
+    ColumnBuilder builder = new ColumnBuilder();
+    complexMetricSerde.deserializeColumn(byteBuffer, builder);
+    // TODO: what all values of the builder must be set? (valueType IS needed, others don't seem to matter)
+    builder.setType(ValueType.COMPLEX);
+
+    ColumnHolder columnHolder = builder.build();
+
+    SimpleTimeSeriesComplexColumn column = (SimpleTimeSeriesComplexColumn) columnHolder.getColumn();
+
+    return column;
   }
 
   @Nonnull
   private static ByteBuffer serializeToByteBuffer(SimpleTimeSeriesColumnSerializer columnSerializer) throws IOException
   {
+    return serializeToByteBuffer(columnSerializer, true);
+  }
+
+  @Nonnull
+  private static ByteBuffer serializeToByteBuffer(SimpleTimeSeriesColumnSerializer columnSerializer, boolean checkSize)
+      throws IOException
+  {
     HeapByteBufferWriteOutBytes channel = new HeapByteBufferWriteOutBytes();
 
-    columnSerializer.getSerializedSize();
+    if (checkSize) {
+      columnSerializer.getSerializedSize();
+    }
+
     columnSerializer.writeTo(channel, null);
+
     ByteBuffer byteBuffer = ByteBuffer.allocate((int) channel.size()).order(ByteOrder.nativeOrder());
+
     channel.readFully(0, byteBuffer);
     byteBuffer.flip();
-    Assert.assertEquals(columnSerializer.getSerializedSize(), byteBuffer.limit());
+
+    if (checkSize) {
+      Assert.assertEquals(columnSerializer.getSerializedSize(), byteBuffer.limit());
+    }
 
     return byteBuffer;
   }
 
   private static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset)
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
-        Integer.MAX_VALUE
-    );
+    SimpleTimeSeries simpleTimeSeries =
+        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
 
     for (int i = offset; i < offset + numDataPoints; i++) {
       simpleTimeSeries.addDataPoint(start.plusMillis(i).getMillis(), i);

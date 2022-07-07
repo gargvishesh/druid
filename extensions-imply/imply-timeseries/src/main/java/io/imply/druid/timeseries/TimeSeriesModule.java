@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.multibindings.Multibinder;
 import io.imply.druid.license.ImplyLicenseManager;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
@@ -28,6 +29,7 @@ import io.imply.druid.timeseries.sql.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.TimeWeightedAverageOperatorConversion;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
 import org.apache.druid.sql.guice.SqlBindings;
 
@@ -90,6 +92,8 @@ public class TimeSeriesModule implements DruidModule
       return;
     }
 
+    registerSerde();
+
     // add aggregators
     SqlBindings.addAggregator(binder, SimpleTimeSeriesObjectSqlAggregator.class);
     Multibinder.newSetBinder(binder, SqlAggregator.class)
@@ -113,5 +117,13 @@ public class TimeSeriesModule implements DruidModule
         InterpolationOperatorConversion.BackfillInterpolationOperatorConversion.class
     );
     SqlBindings.addOperatorConversion(binder, TimeWeightedAverageOperatorConversion.class);
+  }
+
+  public static void registerSerde()
+  {
+    ComplexMetrics.registerSerde(
+        SimpleTimeSeriesComplexMetricSerde.TYPE_NAME,
+        new SimpleTimeSeriesComplexMetricSerde()
+    );
   }
 }

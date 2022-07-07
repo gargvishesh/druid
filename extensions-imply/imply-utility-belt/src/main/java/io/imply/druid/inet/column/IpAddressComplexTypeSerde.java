@@ -48,6 +48,9 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
     @Override
     public ByteBuffer fromByteBuffer(ByteBuffer buffer, int numBytes)
     {
+      if (numBytes == 0) {
+        return null;
+      }
       return GenericIndexed.BYTE_BUFFER_STRATEGY.fromByteBuffer(buffer, numBytes);
     }
 

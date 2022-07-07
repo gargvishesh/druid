@@ -3,9 +3,11 @@ id: msqe-syntax
 title: SQL syntax 
 ---
 
+> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+
 ## MSQE query statements
 
-Queries for MSQE involve 3 primary functions:
+Queries for the Multi-Stage Query Engine (MSQE) involve 3 primary functions:
 
 - EXTERN to query external data
 - INSERT INTO ... SELECT to insert data, such as data from an external source
@@ -51,7 +53,7 @@ All SELECT capabilities are available for INSERT queries. However, MSQE does not
 
 An INSERT query consists of the following parts:
 
-1. Optional [context parameters](./msqe-api.md#context-variables).
+1. Optional [context variables](./msqe-api.md#context-variables).
 2. An `INSERT INTO <dataSource>` clause at the start of your query, such as `INSERT INTO w000` in the example that follows.
 3. A clause for the data you want to insert, `SELECT...FROM TABLE...` in the example.
 4. A [PARTITIONED BY](#partitioned-by) clause for your INSERT statement. For example, use `PARTITIONED BY DAY` for daily partitioning or `PARTITIONED BY ALL TIME` to skip time partitioning completely.
@@ -88,9 +90,9 @@ When working with REPLACE queries, keep the following in mind:
 - Only the `__time` column is supported in OVERWRITE WHERE queries.
 
 
-An REPLACE query consists of the following parts:
+A REPLACE query consists of the following parts:
 
-1. Optional [context parameters](./msqe-api.md#context-variables).
+1. Optional [context variables](./msqe-api.md#context-variables).
 2. A `REPLACE INTO <dataSource>` clause at the start of your query, such as `REPLACE INTO w000` in the examples that follow.
 3. An OVERWRITE clause after the datasource, either OVERWRITE ALL or OVERWRITE WHERE ...:
 
@@ -106,7 +108,7 @@ An REPLACE query consists of the following parts:
 
 ```sql
 REPLACE INTO w000
-OVERWRITE ALL WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
+OVERWRITE ALL
 SELECT
   TIME_PARSE("timestamp") AS __time,
   *
@@ -145,8 +147,8 @@ You can control how your queries behave by changing the following:
 - Primary timestamp
 - PARTITIONED BY
 - CLUSTERED BY
-- Rollup
-- Context parameters
+- GROUP BY
+- Context variables
 
 ### Primary timestamp
 
@@ -162,7 +164,7 @@ For more information, see [Primary timestamp](../ingestion/data-model.md#primary
 
 ### PARTITIONED BY
 
-INSERT and REPLACE queries require the PARTITIONED BY clause, which determines how time-based partitioning is done. In Druid, data is split into segments, one per time chunk defined by the PARTITIONED BY granularity. A good general rule is to adjust the granularity so that each segment contains about five million rows. Choose a grain based on your ingestion rate. For example, if you ingest a million rows per day, PARTITION BY DAY is good. If you ingest a million rows an hour, choose PARTITION BY HOUR instead.
+INSERT and REPLACE queries require the PARTITIONED BY clause, which determines how time-based partitioning is done. In Druid, data is split into segments, one or more per time chunk defined by the PARTITIONED BY granularity. A good general rule is to adjust the granularity so that each segment contains about five million rows. Choose a granularity based on your ingestion rate. For example, if you ingest a million rows per day, PARTITION BY DAY is good. If you ingest a million rows an hour, choose PARTITION BY HOUR instead.
 
 Using the clause provides the following benefits:
 
@@ -210,7 +212,7 @@ Using CLUSTERED BY has the following benefits:
    consideration when they cannot possibly contain data matching a query's filter.
 
 For dimension-based segment pruning to be effective, all CLUSTERED BY columns must be single-valued
-string columns and the [`sqlReplaceTimeChunks`](./msqe-api.md#context-variables) parameter must be provided as part of
+string columns and the [`sqlReplaceTimeChunks`](./msqe-api.md#context-variables) context variable must be provided as part of
 the INSERT query. If the CLUSTERED BY list contains any numeric columns or multi-valued string
 columns or if `sqlReplaceTimeChunks` is not provided, Druid still clusters data during
 ingestion but won't perform dimension-based segment pruning at query time.
@@ -234,9 +236,9 @@ It is okay to mix time partitioning with secondary partitioning. For example, yo
 combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
 time partitioning by hour and secondary partitioning by channel within each hour.
 
-### Rollup
+### GROUP BY
 
-Rollup is determined by the query's GROUP BY clause. The expressions in the GROUP BY clause become
+A query's GROUP BY clause determines how data is rolled up. The expressions in the GROUP BY clause become
 dimensions, and aggregation functions become metrics.
 
 #### Ingest-time aggregations
@@ -256,7 +258,7 @@ across the segments. This information is stored inside the metadata of the segme
 aggregator information of a column in the segment metadata when:
 
 - The INSERT or REPLACE query has an outer GROUP BY clause.
-- The following parameters are set for the query context: `msqFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false`
+- The following context variables are set for the query context: `msqFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false`
 
 |Query-time aggregation|Notes|
 |----------------------|-----|

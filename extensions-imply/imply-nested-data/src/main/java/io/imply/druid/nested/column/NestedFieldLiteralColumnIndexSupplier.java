@@ -15,8 +15,11 @@ import com.google.common.primitives.Longs;
 import it.unimi.dsi.fastutil.doubles.DoubleArraySet;
 import it.unimi.dsi.fastutil.doubles.DoubleIterator;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.LongArraySet;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -27,15 +30,16 @@ import org.apache.druid.query.filter.DruidDoublePredicate;
 import org.apache.druid.query.filter.DruidLongPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.segment.column.BitmapColumnIndex;
-import org.apache.druid.segment.column.ColumnIndexCapabilities;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.DruidPredicateIndex;
 import org.apache.druid.segment.column.LexicographicalRangeIndex;
-import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
+import org.apache.druid.segment.column.NullValueIndex;
+import org.apache.druid.segment.column.SimpleBitmapColumnIndex;
+import org.apache.druid.segment.column.SimpleImmutableBitmapIndex;
+import org.apache.druid.segment.column.SimpleImmutableBitmapIterableIndex;
 import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.data.GenericIndexed;
-import org.apache.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;
@@ -84,6 +88,11 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
   @Override
   public <T> T as(Class<T> clazz)
   {
+    if (clazz.equals(NullValueIndex.class)) {
+      // null index is always 0 in the global dictionary, even if there are no null rows in any of the literal columns
+      return (T) (NullValueIndex) () -> new SimpleImmutableBitmapIndex(bitmaps.get(0));
+    }
+
     if (singleType != null) {
       switch (singleType.getType()) {
         case STRING:
@@ -174,38 +183,12 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     int indexOf(String value);
   }
 
-  private abstract static class NestedLiteralBitmapColumnIndex implements BitmapColumnIndex
-  {
-    @Override
-    public ColumnIndexCapabilities getIndexCapabilities()
-    {
-      return new SimpleColumnIndexCapabilities(true, true);
-    }
-  }
-
-  private abstract static class NestedLiteralBitmapIterableColumnIndex extends NestedLiteralBitmapColumnIndex
-  {
-    @Override
-    public double estimateSelectivity(int totalRows)
-    {
-      return Filters.estimateSelectivity(getBitmapIterable().iterator(), totalRows);
-    }
-
-    @Override
-    public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
-    {
-      return bitmapResultFactory.unionDimensionValueBitmaps(getBitmapIterable());
-    }
-
-    abstract Iterable<ImmutableBitmap> getBitmapIterable();
-  }
-
   private class NestedStringLiteralValueSetIndex implements StringValueSetIndex
   {
     @Override
     public BitmapColumnIndex forValue(@Nullable String value)
     {
-      return new NestedLiteralBitmapColumnIndex()
+      return new SimpleBitmapColumnIndex()
       {
         @Override
         public double estimateSelectivity(int totalRows)
@@ -224,10 +207,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           return () -> new Iterator<ImmutableBitmap>()
           {
@@ -281,10 +264,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
         boolean endStrict
     )
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           final IntIntPair range = getGlobalRange(
               startValue,
@@ -356,10 +339,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
         Predicate<String> matcher
     )
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           final IntIntPair stringsRange = getGlobalRange(
               startValue,
@@ -435,10 +418,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
 
           return () -> new Iterator<ImmutableBitmap>()
@@ -498,7 +481,7 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     public BitmapColumnIndex forValue(@Nullable String value)
     {
       final Long longValue = Longs.tryParse(value);
-      return new NestedLiteralBitmapColumnIndex()
+      return new SimpleBitmapColumnIndex()
       {
         @Override
         public double estimateSelectivity(int totalRows)
@@ -523,10 +506,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           LongSet longs = new LongArraySet(values.size());
           for (String value : values) {
@@ -581,10 +564,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           return () -> new Iterator<ImmutableBitmap>()
           {
@@ -647,7 +630,7 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     public BitmapColumnIndex forValue(@Nullable String value)
     {
       final Double doubleValue = Doubles.tryParse(value);
-      return new NestedLiteralBitmapColumnIndex()
+      return new SimpleBitmapColumnIndex()
       {
         @Override
         public double estimateSelectivity(int totalRows)
@@ -672,10 +655,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           DoubleSet doubles = new DoubleArraySet(values.size());
           for (String value : values) {
@@ -730,10 +713,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           return () -> new Iterator<ImmutableBitmap>()
           {
@@ -790,31 +773,38 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
 
   private abstract class NestedAnyLiteralIndex
   {
-    int getIndex(@Nullable String value)
+    IntList getIndexes(@Nullable String value)
     {
-
+      IntList intList = new IntArrayList();
       if (value == null) {
-        return dictionary.indexOf(0);
+        intList.add(dictionary.indexOf(0));
+        return intList;
       }
 
-      // multi-type, return first dictionary that matches
+      // multi-type, return all that match
       int globalId = globalDictionary.indexOf(value);
-      int adjust = 0;
-      if (globalId < 0) {
-        Long someLong = Longs.tryParse(value);
-        if (someLong != null) {
-          globalId = globalLongDictionary.indexOf(someLong);
-          adjust = adjustLongId;
+      int localId = dictionary.indexOf(globalId);
+      if (localId >= 0) {
+        intList.add(localId);
+      }
+      Long someLong = Longs.tryParse(value);
+      if (someLong != null) {
+        globalId = globalLongDictionary.indexOf(someLong);
+        localId = dictionary.indexOf(globalId + adjustLongId);
+        if (localId >= 0) {
+          intList.add(localId);
         }
       }
-      if (globalId < 0) {
-        Double someDouble = Doubles.tryParse(value);
-        if (someDouble != null) {
-          globalId = globalDoubleDictionary.indexOf(someDouble);
-          adjust = adjustDoubleId;
+
+      Double someDouble = Doubles.tryParse(value);
+      if (someDouble != null) {
+        globalId = globalDoubleDictionary.indexOf(someDouble);
+        localId = dictionary.indexOf(globalId + adjustDoubleId);
+        if (localId >= 0) {
+          intList.add(localId);
         }
       }
-      return globalId < 0 ? globalId : dictionary.indexOf(globalId + adjust);
+      return intList;
     }
   }
 
@@ -827,18 +817,26 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forValue(@Nullable String value)
     {
-      return new NestedLiteralBitmapColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        public double estimateSelectivity(int totalRows)
+        protected Iterable<ImmutableBitmap> getBitmapIterable()
         {
-          return (double) getBitmap(getIndex(value)).size() / totalRows;
-        }
+          final IntIterator iterator = getIndexes(value).iterator();
+          return () -> new Iterator<ImmutableBitmap>()
+          {
+            @Override
+            public boolean hasNext()
+            {
+              return iterator.hasNext();
+            }
 
-        @Override
-        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
-        {
-          return bitmapResultFactory.wrapDimensionValue(getBitmap(getIndex(value)));
+            @Override
+            public ImmutableBitmap next()
+            {
+              return getBitmap(iterator.nextInt());
+            }
+          };
         }
       };
     }
@@ -846,44 +844,42 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           return () -> new Iterator<ImmutableBitmap>()
           {
             final Iterator<String> iterator = values.iterator();
-            int next = -1;
+            IntIterator nextIterator = null;
 
             @Override
             public boolean hasNext()
             {
-              if (next < 0) {
+              if (nextIterator == null || !nextIterator.hasNext()) {
                 findNext();
               }
-              return next >= 0;
+              return nextIterator.hasNext();
             }
 
             @Override
             public ImmutableBitmap next()
             {
-              if (next < 0) {
+              if (nextIterator == null || !nextIterator.hasNext()) {
                 findNext();
-                if (next < 0) {
+                if (!nextIterator.hasNext()) {
                   throw new NoSuchElementException();
                 }
               }
-              final int swap = next;
-              next = -1;
-              return getBitmap(swap);
+              return getBitmap(nextIterator.nextInt());
             }
 
             private void findNext()
             {
-              while (next < 0 && iterator.hasNext()) {
+              while ((nextIterator == null || !nextIterator.hasNext()) && iterator.hasNext()) {
                 String nextValue = iterator.next();
-                next = getIndex(nextValue);
+                nextIterator = getIndexes(nextValue).iterator();
               }
             }
           };
@@ -901,10 +897,10 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
     @Override
     public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
     {
-      return new NestedLiteralBitmapIterableColumnIndex()
+      return new SimpleImmutableBitmapIterableIndex()
       {
         @Override
-        Iterable<ImmutableBitmap> getBitmapIterable()
+        public Iterable<ImmutableBitmap> getBitmapIterable()
         {
           return () -> new Iterator<ImmutableBitmap>()
           {
