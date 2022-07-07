@@ -143,12 +143,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -629,6 +630,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected Map<String, Object> queryContext = DEFAULT_TALARIA_CONTEXT;
     protected RowSignature expectedRowSignature = null;
     protected TalariaQuerySpec expectedTalariaQuerySpec = null;
+    protected Set<SegmentId> expectedSegments = null;
     protected List<Object[]> expectedResultRows = null;
     protected Matcher<Throwable> expectedValidationErrorMatcher = null;
     protected Matcher<Throwable> expectedExecutionErrorMatcher = null;
@@ -652,6 +654,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     {
       Preconditions.checkArgument(!expectedRowSignature.equals(RowSignature.empty()), "Row signature cannot be empty");
       this.expectedRowSignature = expectedRowSignature;
+      return (Builder) this;
+    }
+
+    public Builder setExpectedSegment(Set<SegmentId> expectedSegments)
+    {
+      Preconditions.checkArgument(!expectedSegments.isEmpty(), "Segments cannot be empty");
+      this.expectedSegments = expectedSegments;
       return (Builder) this;
     }
 
@@ -806,7 +815,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
 
 
         String foundDataSource = null;
-        List<Object[]> foundResultRows = new ArrayList<>();
+        SortedMap<SegmentId, List<List<Object>>> segmentIdVsOutputRowsMap = new TreeMap<>();
         for (DataSegment dataSegment : segmentManager.getAllDataSegments()) {
 
           //Assert shard spec class
@@ -831,7 +840,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           // assert rollup
           Assert.assertEquals(expectedRollUp, queryableIndex.getMetadata().isRollup());
 
-          // asset query granulariy
+          // asset query granularity
           Assert.assertEquals(expectedQueryGranularity, queryableIndex.getMetadata().getQueryGranularity());
 
           // assert aggregator factories
@@ -841,32 +850,33 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           );
 
           for (List<Object> row : FrameTestUtil.readRowsFromAdapter(storageAdapter, null, false).toList()) {
-            foundResultRows.add(row.toArray());
+            // transforming rows for sketch assertions
+            List<Object> transformedRow = row.stream()
+                                      .map(r -> {
+                                        if (r instanceof HyperLogLogCollector) {
+                                          return ((HyperLogLogCollector) r).estimateCardinalityRound();
+                                        } else {
+                                          return r;
+                                        }
+                                      })
+                                      .collect(Collectors.toList());
+            segmentIdVsOutputRowsMap.computeIfAbsent(dataSegment.getId(), r -> new ArrayList<>()).add(transformedRow);
           }
         }
 
         log.info("Found spec: %s", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(foundSpec));
+        List<Object[]> transformedOutputRows = segmentIdVsOutputRowsMap.values()
+                                                                       .stream()
+                                                                       .flatMap(Collection::stream)
+                                                                       .map(List::toArray)
+                                                                       .collect(Collectors.toList());
 
-        // Sorting rows as we are not controlling the order of segment generation in UT's.
-        Collections.sort(foundResultRows, Comparator.comparing(Arrays::toString));
         log.info(
             "Found rows which are sorted forcefully %s",
-            foundResultRows.stream().map(a -> Arrays.toString(a)).collect(Collectors.joining("\n"))
+            transformedOutputRows.stream().map(a -> Arrays.toString(a)).collect(Collectors.joining("\n"))
         );
 
 
-        // transforming rows for sketch assertions
-        List<Object[]> transformedOutputRows = foundResultRows.stream().map(row -> {
-          Object[] transformedRow = new Object[row.length];
-          for (int i = 0; i < row.length; i++) {
-            if (row[i] instanceof HyperLogLogCollector) {
-              transformedRow[i] = ((HyperLogLogCollector) row[i]).estimateCardinalityRound();
-            } else {
-              transformedRow[i] = row[i];
-            }
-          }
-          return transformedRow;
-        }).collect(Collectors.toList());
 
         // assert data source name
         Assert.assertEquals(expectedDataSource, foundDataSource);
@@ -878,6 +888,21 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertNotNull(foundSpec);
           DataSourceMSQDestination destination = (DataSourceMSQDestination) foundSpec.getDestination();
           Assert.assertEquals(expectedDestinationIntervals, destination.getReplaceTimeChunks());
+        }
+        if (expectedSegments != null) {
+          Assert.assertEquals(expectedSegments, segmentIdVsOutputRowsMap.keySet());
+          for (Object[] row : transformedOutputRows) {
+            List<SegmentId> diskSegmentList = segmentIdVsOutputRowsMap.keySet()
+                                                                  .stream()
+                                                                  .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
+                                                                  .collect(Collectors.toList());
+            if (diskSegmentList.size() != 1) {
+              throw new IllegalStateException("Single key in multiple partitions");
+            }
+            SegmentId diskSegment = diskSegmentList.get(0);
+            // Checking if the row belongs to the correct segment interval
+            Assert.assertTrue(segmentIdVsOutputRowsMap.get(diskSegment).contains(Arrays.asList(row)));
+          }
         }
         // assert results
         assertResultsEquals(sql, expectedResultRows, transformedOutputRows);
