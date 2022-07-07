@@ -458,7 +458,7 @@ public class LeaderImpl implements Leader
       for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
         workers = Math.max(stageDefinition.getMaxWorkerCount(), workers);
       }
-      log.info("MSQE figuring out the number of worker tasks to run automatically are %d", workers);
+      log.info("MSQE is starting [%d] tasks based on the inputs", workers);
       numWorkers = workers;
     }
 
