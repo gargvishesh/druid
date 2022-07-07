@@ -99,7 +99,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "aaa")
-                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "300", "mixed", 1L))
+                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "300", "mixed", 1L, "mixed2", "1"))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", "hello")))
                   .put("long", 5L)
                   .build(),
@@ -112,7 +112,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-01")
                   .put("string", "ccc")
-                  .put("nest", ImmutableMap.of("x", 200L, "y", 3.03, "z", "abcdef", "mixed", 1.1))
+                  .put("nest", ImmutableMap.of("x", 200L, "y", 3.03, "z", "abcdef", "mixed", 1.1, "mixed2", 1L))
                   .put("long", 3L)
                   .build(),
       ImmutableMap.<String, Object>builder()
@@ -129,7 +129,7 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
       ImmutableMap.<String, Object>builder()
                   .put("t", "2000-01-02")
                   .put("string", "aaa")
-                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "400"))
+                  .put("nest", ImmutableMap.of("x", 100L, "y", 2.02, "z", "400", "mixed2", 1.1))
                   .put("nester", ImmutableMap.of("array", ImmutableList.of("a", "b"), "n", ImmutableMap.of("x", 1L)))
                   .put("long", 5L)
                   .build(),
@@ -605,11 +605,74 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
+        ImmutableList.of(new Object[]{"100", 1L})
+    );
+  }
+
+  @Test
+  public void testGroupByPathSelectorFilterAny2() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "JSON_VALUE(nest, '$.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE JSON_VALUE(nest, '$.mixed2') = '1' GROUP BY 1",
         ImmutableList.of(
-            new Object[]{
-                "100",
-                1L
-            }
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".mixed2", "v0", ColumnType.STRING),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(selector("v0", "1", null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 1L},
+            new Object[]{"200", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByPathSelectorFilterAny3() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "JSON_VALUE(nest, '$.x'), "
+        + "SUM(cnt) "
+        + "FROM druid.nested WHERE JSON_VALUE(nest, '$.mixed2') in ('1', '1.1') GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new NestedFieldVirtualColumn("nest", ".mixed2", "v0", ColumnType.STRING),
+                            new NestedFieldVirtualColumn("nest", ".x", "v1", ColumnType.STRING)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v1", "d0")
+                            )
+                        )
+                        .setDimFilter(in("v0", ImmutableList.of("1", "1.1"), null))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"100", 2L},
+            new Object[]{"200", 1L}
         )
     );
   }
@@ -1659,6 +1722,29 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testCastAndSumPathStrings() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "SUM(CAST(JSON_GET_PATH(nest, '.z') as BIGINT)) "
+        + "FROM druid.nested",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(new NestedFieldVirtualColumn("nest", ".\"z\"", "v0", ColumnType.LONG))
+                  .aggregators(aggregators(new LongSumAggregatorFactory("a0", "v0")))
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{700L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByRootKeys() throws Exception
   {
     cannotVectorize();
@@ -1752,8 +1838,8 @@ public class NestedDataCalciteQueryTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{null, 4L},
-            new Object[]{"[\"x\",\"y\",\"z\"]", 1L},
-            new Object[]{"[\"x\",\"y\",\"z\",\"mixed\"]", 2L}
+            new Object[]{"[\"x\",\"y\",\"z\",\"mixed\",\"mixed2\"]", 2L},
+            new Object[]{"[\"x\",\"y\",\"z\",\"mixed2\"]", 1L}
         )
     );
   }

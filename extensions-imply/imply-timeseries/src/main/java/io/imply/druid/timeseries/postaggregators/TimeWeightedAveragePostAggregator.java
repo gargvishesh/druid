@@ -52,12 +52,14 @@ public class TimeWeightedAveragePostAggregator extends InterpolationPostAggregat
   @Override
   public Object compute(Map<String, Object> combinedAggregators)
   {
-    TimeSeries<?> timeSeries = ((TimeSeries<?>) getField().compute(combinedAggregators));
+    Object computedField = getField().compute(combinedAggregators);
+    TimeSeries<?> timeSeries = PostAggregatorsUtil.asTimeSeries(computedField);
+
     if (timeSeries == null) {
       return null;
     }
 
-    timeSeries.build();
+    timeSeries.computeSimple();
     SimpleTimeSeries simpleTimeSeries = timeSeries.computeSimple();
 
     TimeWeightedAvgTimeSeriesFn timeWeightedAvgTimeSeriesFn = new TimeWeightedAvgTimeSeriesFn(getTimeBucketMillis(), getInterpolator());

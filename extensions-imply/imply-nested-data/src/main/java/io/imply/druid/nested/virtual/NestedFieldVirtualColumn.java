@@ -12,9 +12,11 @@ package io.imply.druid.nested.virtual;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.primitives.Doubles;
 import io.imply.druid.nested.column.NestedDataComplexColumn;
 import io.imply.druid.nested.column.PathFinder;
 import io.imply.druid.nested.column.StructuredData;
+import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
@@ -30,8 +32,12 @@ import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.ReadableOffset;
+import org.apache.druid.segment.vector.BaseDoubleVectorValueSelector;
+import org.apache.druid.segment.vector.BaseLongVectorValueSelector;
 import org.apache.druid.segment.vector.NilVectorSelector;
+import org.apache.druid.segment.vector.ReadableVectorInspector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.VectorObjectSelector;
@@ -297,7 +303,139 @@ public class NestedFieldVirtualColumn implements VirtualColumn
     if (column == null) {
       return NilVectorSelector.create(offset);
     }
-    return column.makeVectorValueSelector(path, offset);
+
+    // if column is numeric, it has a vector value selector, so we can directly make a vector value selector
+    // if we are missing an expectedType, then we've got nothing else to work with so try it anyway
+    if (column.isNumeric(path) || expectedType == null) {
+      return column.makeVectorValueSelector(path, offset);
+    }
+
+    final VectorObjectSelector objectSelector = column.makeVectorObjectSelector(path, offset);
+    if (expectedType.is(ValueType.LONG)) {
+      return new BaseLongVectorValueSelector(offset)
+      {
+        private final long[] longVector = new long[offset.getMaxVectorSize()];
+
+        @Nullable
+        private boolean[] nullVector = null;
+        private int id = ReadableVectorInspector.NULL_ID;
+        @Override
+        public long[] getLongVector()
+        {
+          computeVectorsIfNeeded();
+          return longVector;
+        }
+
+        @Nullable
+        @Override
+        public boolean[] getNullVector()
+        {
+          computeVectorsIfNeeded();
+          return nullVector;
+        }
+
+        private void computeVectorsIfNeeded()
+        {
+          if (id == offset.getId()) {
+            return;
+          }
+          id = offset.getId();
+          final Object[] vals = objectSelector.getObjectVector();
+          for (int i = 0; i < objectSelector.getCurrentVectorSize(); i++) {
+            Object v = vals[i];
+            if (v == null) {
+              if (nullVector == null) {
+                nullVector = new boolean[objectSelector.getMaxVectorSize()];
+              }
+              longVector[i] = 0L;
+              nullVector[i] = true;
+            } else {
+              Long l;
+              if (v instanceof Number) {
+                l = ((Number) v).longValue();
+              } else {
+                l = GuavaUtils.tryParseLong(String.valueOf(v));
+              }
+              if (l != null) {
+                longVector[i] = l;
+                if (nullVector != null) {
+                  nullVector[i] = false;
+                }
+              } else {
+                if (nullVector == null) {
+                  nullVector = new boolean[objectSelector.getMaxVectorSize()];
+                }
+                longVector[i] = 0L;
+                nullVector[i] = true;
+              }
+            }
+          }
+        }
+      };
+    } else {
+      // treat anything else as double
+      return new BaseDoubleVectorValueSelector(offset)
+      {
+        private final double[] doubleVector = new double[offset.getMaxVectorSize()];
+
+        @Nullable
+        private boolean[] nullVector = null;
+        private int id = ReadableVectorInspector.NULL_ID;
+
+        @Override
+        public double[] getDoubleVector()
+        {
+          computeVectorsIfNeeded();
+          return doubleVector;
+        }
+
+        @Nullable
+        @Override
+        public boolean[] getNullVector()
+        {
+          computeVectorsIfNeeded();
+          return nullVector;
+        }
+
+        private void computeVectorsIfNeeded()
+        {
+          if (id == offset.getId()) {
+            return;
+          }
+          id = offset.getId();
+          final Object[] vals = objectSelector.getObjectVector();
+          for (int i = 0; i < objectSelector.getCurrentVectorSize(); i++) {
+            Object v = vals[i];
+            if (v == null) {
+              if (nullVector == null) {
+                nullVector = new boolean[objectSelector.getMaxVectorSize()];
+              }
+              doubleVector[i] = 0.0;
+              nullVector[i] = true;
+            } else {
+              Double d;
+              if (v instanceof Number) {
+                d = ((Number) v).doubleValue();
+              } else {
+                d = Doubles.tryParse(String.valueOf(v));
+              }
+              if (d != null) {
+                doubleVector[i] = d;
+                if (nullVector != null) {
+                  nullVector[i] = false;
+                }
+              } else {
+                if (nullVector == null) {
+                  nullVector = new boolean[objectSelector.getMaxVectorSize()];
+                }
+                doubleVector[i] = 0.0;
+                nullVector[i] = true;
+              }
+            }
+          }
+        }
+      };
+    }
   }
 
   @Nullable
@@ -325,6 +463,8 @@ public class NestedFieldVirtualColumn implements VirtualColumn
   @Override
   public ColumnCapabilities capabilities(ColumnInspector inspector, String columnName)
   {
+    // ColumnInspector isn't really enough... we need the ability to read the complex column itself to examine
+    // the nested fields type information to really be accurate here, so we rely on the expectedType to guide us
     final ColumnCapabilities complexCapabilites = inspector.getColumnCapabilities(this.columnName);
     if (complexCapabilites != null && complexCapabilites.isDictionaryEncoded().isTrue()) {
       return ColumnCapabilitiesImpl.createDefault()

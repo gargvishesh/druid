@@ -12,6 +12,7 @@ package io.imply.druid.sql.calcite.view.state.listener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
@@ -27,6 +28,7 @@ import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
@@ -90,7 +92,8 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
         PLANNER_CONFIG_DEFAULT,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME
+        CalciteTests.DRUID_SCHEMA_NAME,
+        new CalciteRulesManager(ImmutableSet.of())
     );
 
     this.druidLeaderClient = EasyMock.createMock(DruidLeaderClient.class);

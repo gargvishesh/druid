@@ -30,22 +30,6 @@ public class RowWriter implements Serializer
     this.payloadScribe = payloadScribe;
   }
 
-  public static RowWriter create(
-      NativeClearedByteBufferProvider byteBufferProvider,
-      SegmentWriteOutMedium segmentWriteOutMedium
-  )
-      throws IOException
-  {
-    BlockCompressedPayloadScribe.Builder blockCompressedPayloadScribeBuilder =
-        new BlockCompressedPayloadScribe.Builder(byteBufferProvider, segmentWriteOutMedium);
-    BlockCompressedPayloadScribe rowIndexScribe = blockCompressedPayloadScribeBuilder.build();
-    BlockCompressedPayloadScribe payloadScribe = blockCompressedPayloadScribeBuilder.build();
-    RowIndexWriter rowIndexWriter = new RowIndexWriter(rowIndexScribe);
-    RowWriter rowWriter = new RowWriter(rowIndexWriter, payloadScribe);
-
-    return rowWriter;
-  }
-
   public void write(byte[] rowBytes) throws IOException
   {
     payloadScribe.write(rowBytes);
