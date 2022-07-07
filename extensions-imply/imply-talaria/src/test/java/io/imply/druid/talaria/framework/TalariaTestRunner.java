@@ -46,7 +46,6 @@ import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.calcite.tools.RelConversionException;
-import org.apache.curator.shaded.com.google.common.collect.MoreCollectors;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
@@ -893,10 +892,14 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         if (expectedSegments != null) {
           Assert.assertEquals(expectedSegments, segmentIdVsOutputRowsMap.keySet());
           for (Object[] row : transformedOutputRows) {
-            SegmentId diskSegment = segmentIdVsOutputRowsMap.keySet()
-                                                           .stream()
-                                                           .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
-                                                           .collect(MoreCollectors.onlyElement());
+            List<SegmentId> diskSegmentList = segmentIdVsOutputRowsMap.keySet()
+                                                                  .stream()
+                                                                  .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
+                                                                  .collect(Collectors.toList());
+            if (diskSegmentList.size() != 1) {
+              throw new IllegalStateException("Single key in multiple partitions");
+            }
+            SegmentId diskSegment = diskSegmentList.get(0);
             // Checking if the row belongs to the correct segment interval
             Assert.assertTrue(segmentIdVsOutputRowsMap.get(diskSegment).contains(Arrays.asList(row)));
           }
