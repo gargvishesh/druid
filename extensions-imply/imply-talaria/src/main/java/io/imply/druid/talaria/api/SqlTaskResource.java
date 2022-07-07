@@ -11,6 +11,7 @@ package io.imply.druid.talaria.api;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.druid.common.exception.SanitizableException;
 import org.apache.druid.indexer.TaskState;
@@ -34,6 +35,7 @@ import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycle;
 import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.SqlPlanningException;
+import org.apache.druid.sql.calcite.run.QueryMakerFactory;
 import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
@@ -63,17 +65,20 @@ public class SqlTaskResource
   private static final Logger LOG = new Logger(SqlTaskResource.class);
 
   private final SqlLifecycleFactory sqlLifecycleFactory;
+  private final QueryMakerFactory queryMakerFactory;
   private final ServerConfig serverConfig;
   private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public SqlTaskResource(
       final SqlLifecycleFactory sqlLifecycleFactory,
+      final QueryMakerFactory queryMakerFactory,
       final ServerConfig serverConfig,
       final AuthorizerMapper authorizerMapper
   )
   {
     this.sqlLifecycleFactory = sqlLifecycleFactory;
+    this.queryMakerFactory = queryMakerFactory;
     this.serverConfig = serverConfig;
     this.authorizerMapper = authorizerMapper;
   }
@@ -98,7 +103,11 @@ public class SqlTaskResource
       throw new ForbiddenException(authResult.toString());
     }
 
-    return Response.ok(ImmutableMap.of("enabled", true)).build();
+    if (queryMakerFactory instanceof ImplyQueryMakerFactory) {
+      return Response.ok(ImmutableMap.of("enabled", true)).build();
+    } else {
+      return Response.status(Status.NOT_FOUND).entity(ImmutableMap.of("enabled", false)).build();
+    }
   }
 
   /**
