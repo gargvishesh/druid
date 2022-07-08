@@ -20,6 +20,8 @@ import java.util.Map;
 public class TalariaContext
 {
   public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "msqNumTasks";
+  public static final String AUTO_TASK_COUNT_MODE = "auto";
+  public static final Integer UNKOWN_TASK_COUNT = Integer.MAX_VALUE;
   public static final String CTX_FINALIZE_AGGREGATIONS = "msqFinalizeAggregations";
 
   public static final String CTX_DURABLE_SHUFFLE_STORAGE = "msqDurableShuffleStorage";
@@ -27,7 +29,6 @@ public class TalariaContext
   public static final String CTX_DESTINATION = "msqDestination";
   public static final String CTX_ROWS_PER_SEGMENT = "msqRowsPerSegment";
   public static final String CTX_ROWS_IN_MEMORY = "msqRowsInMemory";
-  public static final Integer UNKOWN_TASK_COUNT = Integer.MAX_VALUE;
 
   public static boolean isDurableStorageEnabled(Map<String, Object> propertyMap)
   {
@@ -43,5 +44,11 @@ public class TalariaContext
   public static boolean isTaskCountUnknown(int numTasks)
   {
     return numTasks == UNKOWN_TASK_COUNT;
+  }
+
+  public static boolean isTaskAutoModeEnabled(final QueryContext queryContext)
+  {
+    String mode = queryContext.getAsString(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS);
+    return mode != null && mode.equalsIgnoreCase(AUTO_TASK_COUNT_MODE);
   }
 }

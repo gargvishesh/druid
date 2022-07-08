@@ -157,23 +157,24 @@ public class TalariaQueryMaker implements QueryMaker
       throw new ISE("Unable to serialize default segment granularity.");
     }
 
-    Optional<Integer> maxNumTotalTasks =
-        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
-                .map(DimensionHandlerUtils::convertObjectToLong)
-                .map(Ints::checkedCast);
-
     final long maxNumConcurrentSubTasks;
+    if (TalariaContext.isTaskAutoModeEnabled(plannerContext.getQueryContext())) {
+      // this enables MSQE to figure out the number of tasks automatically.
+      maxNumConcurrentSubTasks = TalariaContext.UNKOWN_TASK_COUNT;
+    } else {
 
-    if (maxNumTotalTasks.isPresent()) {
-      if (maxNumTotalTasks.get() < 2) {
+      final long maxNumTotalTasks =
+          Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
+                  .map(DimensionHandlerUtils::convertObjectToLong)
+                  .map(Ints::checkedCast)
+                  .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
+
+      if (maxNumTotalTasks < 2) {
         throw new IAE(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
                       + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
       }
       // This parameter is used internally for the number of worker tasks only, so we subtract 1
-      maxNumConcurrentSubTasks = maxNumTotalTasks.get() - 1;
-    } else {
-      // this enables MSQE to figure out the number of tasks automatically.
-      maxNumConcurrentSubTasks = TalariaContext.UNKOWN_TASK_COUNT;
+      maxNumConcurrentSubTasks = maxNumTotalTasks - 1;
     }
 
 
