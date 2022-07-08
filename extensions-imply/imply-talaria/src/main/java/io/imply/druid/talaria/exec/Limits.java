@@ -38,4 +38,9 @@ public class Limits
    * Maximum number of warnings with their stack traces a worker can send to the leader
    */
   public static final long MAX_VERBOSE_WARNINGS = 10;
+
+  /**
+   * Maximum number of input bytes per worker in case number of tasks is determined automatically.
+   */
+  public static final long MAX_INPUT_BYTES_PER_WORKER = 10 * 1024 * 1024 * 1024L;
 }

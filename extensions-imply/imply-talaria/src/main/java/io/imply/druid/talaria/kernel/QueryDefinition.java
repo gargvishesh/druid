@@ -140,6 +140,19 @@ public class QueryDefinition
     return stageDefinitions.values().stream().mapToInt(StageDefinition::getStageNumber).max().orElse(-1) + 1;
   }
 
+  /**
+   * Returns the max number of workers required by the query
+   */
+  public int getMaxWorkerCount()
+  {
+    int workers = 0;
+    for (StageDefinition stageDefinition : getStageDefinitions()) {
+      workers = Math.max(stageDefinition.getMaxWorkerCount(), workers);
+    }
+    assert workers > 0;
+    return workers;
+  }
+
   @Override
   public boolean equals(Object o)
   {

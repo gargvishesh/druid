@@ -9,6 +9,9 @@
 
 package io.imply.druid.talaria.util;
 
+import org.apache.druid.java.util.common.Numbers;
+import org.apache.druid.query.QueryContext;
+
 import java.util.Map;
 
 /**
@@ -17,6 +20,8 @@ import java.util.Map;
 public class TalariaContext
 {
   public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "msqNumTasks";
+  public static final String AUTO_TASK_COUNT_MODE = "auto";
+  public static final Integer UNKOWN_TASK_COUNT = Integer.MAX_VALUE;
   public static final String CTX_FINALIZE_AGGREGATIONS = "msqFinalizeAggregations";
 
   public static final String CTX_DURABLE_SHUFFLE_STORAGE = "msqDurableShuffleStorage";
@@ -29,5 +34,21 @@ public class TalariaContext
   {
     return Boolean.parseBoolean(
         String.valueOf(propertyMap.getOrDefault(CTX_DURABLE_SHUFFLE_STORAGE, "false")));
+  }
+
+  public static boolean isFinalizeAggregations(final QueryContext queryContext)
+  {
+    return Numbers.parseBoolean(queryContext.getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
+  }
+
+  public static boolean isTaskCountUnknown(int numTasks)
+  {
+    return numTasks == UNKOWN_TASK_COUNT;
+  }
+
+  public static boolean isTaskAutoModeEnabled(final QueryContext queryContext)
+  {
+    Object mode = queryContext.get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS);
+    return mode != null && String.valueOf(mode).equalsIgnoreCase(AUTO_TASK_COUNT_MODE);
   }
 }

@@ -24,6 +24,7 @@ import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.scan.ScanQuery;
@@ -86,6 +87,11 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     final RowSignature signatureToUse;
     final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
 
+    int workerCount = TalariaContext.isTaskCountUnknown(maxWorkerCount)
+                       ? dataSourcePlan.getBaseInputSpecs()
+                                       .size()
+                       : maxWorkerCount;
+
     if (queryToRun.getOrderBys().isEmpty() && hasLimitOrOffset) {
       // No ordering, but there is a limit or an offset. These work by funneling everything through a single partition.
       // So there is no point in forcing any particular partitioning.
@@ -126,7 +132,7 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
                        .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
                        .shuffleSpec(shuffleSpec)
                        .signature(signatureToUse)
-                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : maxWorkerCount)
+                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : workerCount)
                        .processorFactory(
                            new ScanQueryFrameProcessorFactory(queryToRun, dataSourcePlan.getBaseInputSpecs())
                        )
