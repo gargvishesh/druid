@@ -413,8 +413,7 @@ public class QueryKitUtils
           // As currently httpInputSource does not support splitting on size we default to 1
           if (inputSource instanceof HttpInputSource) {
             numWorkers = 1;
-          }
-          else {
+          } else {
             MaxSizeSplitHintSpec maxSizeSplitHintSpec = new MaxSizeSplitHintSpec(
                 new HumanReadableBytes(Limits.MAX_INPUT_BYTES_PER_WORKER),
                 Integer.MAX_VALUE
@@ -426,15 +425,15 @@ public class QueryKitUtils
           }
         }
 
-          // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
-          //  from InputSource#createSplits to avoid materializing the list.
-          workerInputSourcess = SplitUtils.makeSplits(
-              splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
-                                   .map(splittableInputSource::withSplit)
-                                   .iterator(),
-              numWorkers
-          );
-        }
+        // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
+        //  from InputSource#createSplits to avoid materializing the list.
+        workerInputSourcess = SplitUtils.makeSplits(
+            splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
+                                 .map(splittableInputSource::withSplit)
+                                 .iterator(),
+            numWorkers
+        );
+      }
       catch (IOException e) {
         throw new RuntimeException(e);
       }
