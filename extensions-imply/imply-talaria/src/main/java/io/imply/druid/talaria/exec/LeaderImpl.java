@@ -464,11 +464,7 @@ public class LeaderImpl implements Leader
     queryDefRef.set(queryDef);
 
     if (TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())) {
-      int workers = 0;
-      for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
-        workers = Math.max(stageDefinition.getMaxWorkerCount(), workers);
-      }
-      numWorkers = workers;
+      numWorkers = queryDef.getMaxWorkerCount();
     }
 
     log.info(
@@ -1482,10 +1478,8 @@ public class LeaderImpl implements Leader
     final ClusterBy queryClusterBy = queryDef.getClusterByForStage(queryDef.getFinalStageDefinition().getStageNumber());
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
-    int maxWorkerCount = 1;
-    for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
-      maxWorkerCount = Math.max(maxWorkerCount, stageDefinition.getMaxWorkerCount());
-    }
+    int maxWorkerCount = queryDef.getMaxWorkerCount();
+
     if (MSQControllerTask.isIngestion(querySpec)) {
       // Find the stage that provides shuffled input to the final segment-generation stage.
       StageDefinition finalShuffleStageDef = queryDef.getFinalStageDefinition();
