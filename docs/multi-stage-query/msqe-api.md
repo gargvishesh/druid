@@ -12,7 +12,7 @@ During the preview phase, the enhanced Query view will provide the most stable e
 Queries for the Multi-Stage Query Engine (MSQE) run as tasks. The action you want to take determines the endpoint you use:
 
 - `/druid/v2/sql/task` endpoint: Submit a query for ingestion.
-- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or canceling it. 
+- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or canceling it.
 
 ## Submit a query
 
@@ -130,7 +130,7 @@ In addition to the Druid SQL [context parameters](../querying/sql-query-context.
 You provide context variables alongside your queries to customize the behavior of the query. The way you provide the variables depends on how you submit your query:
 
 - **Druid console**: Add your variables before your query like so:
-   
+
    ```sql
    --:context <key>: <value> 
    --:context msqFinalizeAggregations: false
@@ -151,16 +151,16 @@ You provide context variables alongside your queries to customize the behavior o
    ```
 
 
-|Parameter|Description| Default value    |
-|----|-----------|------------------|
-| msqNumTasks              | (SELECT, INSERT, or REPLACE)<br /><br />The Multi-Stage Query Engine executes queries using the indexing service, that is using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not launch and throw a `TaskStartTimeout` exception after about 10 minutes.  | WIP              |
-| msqFinalizeAggregations | (SELECT, INSERT, or REPLACE)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. For more information about aggregations, see [SQL aggregation functions](../querying/sql-aggregations.md). | true             |
-| msqRowsInMemory | (INSERT or REPLACE)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](./msqe-release.md#memory-usage)</a>. | 100,000          |
-| msqSegmentSortOrder | (INSERT or REPLACE)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](./msqe-sql-syntax.md#clustered-by) clause. When `msqSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `msqSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list       |
-| maxParseExceptions| (SELECT, INSERT, or REPLACE)<br /><br />Maximum number of parse exceptions that are ignored while executing the query before it stops with `TooManyWarningsFault`. To ignore all the parse exceptions, set the value to -1.<br /><br />| 0                |
+|Parameter|Description|Default value|
+|----|-----------|----|
+| msqNumTasks              | (SELECT, INSERT, or REPLACE)<br /><br />The Multi-Stage Query Engine executes queries using the indexing service, that is using the Overlord + MiddleManager. This property specifies the total number of tasks to launch.<br /><br />The minimum possible value is 2, as at least one controller and one worker is necessary.<br /><br />All tasks must be able to launch simultaneously. If they cannot, the query will not launch and throw a `TaskStartTimeout` exception after about 10 minutes.  | 2 |
+| msqFinalizeAggregations | (SELECT, INSERT, or REPLACE)<br /><br />Whether Druid will finalize the results of complex aggregations that directly appear in query results.<br /><br />If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. For more information about aggregations, see [SQL aggregation functions](../querying/sql-aggregations.md). | true |
+| msqRowsInMemory | (INSERT or REPLACE)<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries.<br /><br />In most cases, you should stick to the default. It may be necessary to override this if you run into one of the current [known issues around memory usage](./msqe-release.md#memory-usage)</a>. | 100,000 |
+| msqSegmentSortOrder | (INSERT or REPLACE)<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, then the [CLUSTERED BY](./msqe-sql-syntax.md#clustered-by) clause. When `msqSegmentSortOrder` is set, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />The column list can be provided as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`.<br /><br />For example: consider an INSERT query that uses `CLUSTERED BY country` and has `msqSegmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
+| maxParseExceptions| (SELECT, INSERT, or REPLACE)<br /><br />Maximum number of parse exceptions that are ignored while executing the query before it stops with `TooManyWarningsFault`. To ignore all the parse exceptions, set the value to -1.<br /><br />| 0 |
 | msqMode| (SELECT, INSERT, or REPLACE)<br /><br />Execute a query with a predefined set of parameters which are pretuned. It can be set to `strict` or `nonStrict`. Setting the mode to `strict` is equivalent to setting `maxParseExceptions: 0`: the query fails if there is a malformed record. Setting the mode to `nonStrict` is equivalent to setting `maxParseExceptions: -1`: the query won't fail regardless of the number of malformed records.  .<br /><br />| no default value |
-| msqRowsPerSegment        | (INSERT or REPLACE)<br /><br />Number of rows per segment to target. The actual number of rows per segment may be somewhat higher or lower than this number. In most cases, you should stick to the default. For general information about sizing rows per segment, see [Segment Size Optimization](../operations/segment-optimization.md). | 3,000,000        |
-| msqDurableShuffleStorage | (SELECT, INSERT, or REPLACE) <br /><br />Whether to use durable storage for shuffle mesh. To use this feature, durable storage must be configured at the server level using `druid.msq.intermediate.storage.enable=true` and its [associated properties](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). If these properties are not configured, any query with the context variable `msqDurableShuffleStorage=true` fails with a configuration error. <br /><br /> | false            |
+| msqRowsPerSegment        | (INSERT or REPLACE)<br /><br />Number of rows per segment to target. The actual number of rows per segment may be somewhat higher or lower than this number. In most cases, you should stick to the default. For general information about sizing rows per segment, see [Segment Size Optimization](../operations/segment-optimization.md). | 3,000,000 |
+| msqDurableShuffleStorage | (SELECT, INSERT, or REPLACE) <br /><br />Whether to use durable storage for shuffle mesh. To use this feature, durable storage must be configured at the server level using `druid.msq.intermediate.storage.enable=true` and its [associated properties](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). If these properties are not configured, any query with the context variable `msqDurableShuffleStorage=true` fails with a configuration error. <br /><br /> | false |
 
 ## Report response fields
 
