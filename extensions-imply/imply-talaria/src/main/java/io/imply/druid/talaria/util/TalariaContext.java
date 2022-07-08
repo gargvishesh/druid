@@ -48,7 +48,7 @@ public class TalariaContext
 
   public static boolean isTaskAutoModeEnabled(final QueryContext queryContext)
   {
-    String mode = queryContext.getAsString(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS);
-    return mode != null && mode.equalsIgnoreCase(AUTO_TASK_COUNT_MODE);
+    Object mode = queryContext.get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS);
+    return mode != null && String.valueOf(mode).equalsIgnoreCase(AUTO_TASK_COUNT_MODE);
   }
 }
