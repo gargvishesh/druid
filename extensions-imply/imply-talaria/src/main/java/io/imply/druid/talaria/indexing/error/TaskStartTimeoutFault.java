@@ -29,7 +29,7 @@ public class TaskStartTimeoutFault extends BaseTalariaFault
     super(
         CODE,
         "Unable to launch all the worker tasks in time. There might be insufficient available slots to start all the worker tasks simultaneously."
-        + " Try splitting up the query into smaller chunks with lesser %s[%d] tasks. Another option is to increase capacity.",
+        + " Try splitting up the query into smaller chunks by setting the query context with lesser %s[%d] tasks explicitly. Another option is to increase capacity.",
         TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS,
         numTasks
     );

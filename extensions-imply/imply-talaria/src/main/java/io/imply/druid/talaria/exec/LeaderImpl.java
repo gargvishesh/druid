@@ -449,11 +449,40 @@ public class LeaderImpl implements Leader
 
     log.info("Durable storage mode is set to %s", isDurableStorageEnabled);
 
+    int numWorkers = task.getTuningConfig().getMaxNumConcurrentSubTasks();
+
+
+    final QueryDefinition queryDef = makeQueryDefinition(
+        id(),
+        makeQueryControllerToolKit(),
+        makeDataSegmentTimelineView(),
+        task.getQuerySpec()
+    );
+
+
+    QueryDefinitionValidator.validateQueryDef(queryDef);
+    queryDefRef.set(queryDef);
+
+    if (TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())) {
+      numWorkers = queryDef.getMaxWorkerCount();
+    }
+
+    log.info(
+        "Query [%s] starting %d tasks%s.",
+        queryDef.getQueryId(),
+        numWorkers,
+        TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())
+        ? " (automatically determined)"
+        : ""
+    );
+
+
+
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(
         id(),
         task.getDataSource(),
         context,
-        task.getTuningConfig().getMaxNumConcurrentSubTasks(),
+        numWorkers,
         isDurableStorageEnabled,
         TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30)// 10 minutes +- 2 minutes jitter
     );
@@ -471,15 +500,6 @@ public class LeaderImpl implements Leader
         ImmutableMap.of(CannotParseExternalDataFault.CODE, maxParseExceptions)
     );
 
-    final QueryDefinition queryDef = makeQueryDefinition(
-        id(),
-        makeQueryControllerToolKit(),
-        makeDataSegmentTimelineView(),
-        task.getQuerySpec()
-    );
-
-    QueryDefinitionValidator.validateQueryDef(queryDef);
-    queryDefRef.set(queryDef);
     return queryDef;
   }
 
@@ -1458,6 +1478,8 @@ public class LeaderImpl implements Leader
     final ClusterBy queryClusterBy = queryDef.getClusterByForStage(queryDef.getFinalStageDefinition().getStageNumber());
     final ColumnMappings columnMappings = querySpec.getColumnMappings();
 
+    int maxWorkerCount = queryDef.getMaxWorkerCount();
+
     if (MSQControllerTask.isIngestion(querySpec)) {
       // Find the stage that provides shuffled input to the final segment-generation stage.
       StageDefinition finalShuffleStageDef = queryDef.getFinalStageDefinition();
@@ -1488,7 +1510,7 @@ public class LeaderImpl implements Leader
       builder.add(
           StageDefinition.builder(queryDef.getNextStageNumber())
                          .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
-                         .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
+                         .maxWorkerCount(maxWorkerCount)
                          .processorFactory(
                              new MSQSegmentGeneratorFrameProcessorFactory(
                                  dataSchema,
@@ -1505,7 +1527,7 @@ public class LeaderImpl implements Leader
           .add(
               StageDefinition.builder(queryDef.getNextStageNumber())
                              .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
-                             .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
+                             .maxWorkerCount(maxWorkerCount)
                              .processorFactory(new TalariaExternalSinkFrameProcessorFactory(columnMappings))
           )
           .build();

@@ -28,7 +28,6 @@ import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
-import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -158,17 +157,26 @@ public class TalariaQueryMaker implements QueryMaker
       throw new ISE("Unable to serialize default segment granularity.");
     }
 
-    final long maxNumTotalTasks =
-        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
-                .map(DimensionHandlerUtils::convertObjectToLong)
-                .map(Ints::checkedCast)
-                .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
-    if (maxNumTotalTasks < 2) {
-      throw new IAE(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
-                    + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
+    final long maxNumConcurrentSubTasks;
+    if (TalariaContext.isTaskAutoModeEnabled(plannerContext.getQueryContext())) {
+      // this enables MSQE to figure out the number of tasks automatically.
+      maxNumConcurrentSubTasks = TalariaContext.UNKOWN_TASK_COUNT;
+    } else {
+
+      final long maxNumTotalTasks =
+          Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
+                  .map(DimensionHandlerUtils::convertObjectToLong)
+                  .map(Ints::checkedCast)
+                  .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
+
+      if (maxNumTotalTasks < 2) {
+        throw new IAE(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+                      + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
+      }
+      // This parameter is used internally for the number of worker tasks only, so we subtract 1
+      maxNumConcurrentSubTasks = maxNumTotalTasks - 1;
     }
-    // This parameter is used internally for the number of worker tasks only, so we subtract 1
-    final long maxNumConcurrentSubTasks = maxNumTotalTasks - 1;
+
 
     final int rowsPerSegment =
         Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_ROWS_PER_SEGMENT))
@@ -182,7 +190,7 @@ public class TalariaQueryMaker implements QueryMaker
                 .map(Ints::checkedCast)
                 .orElse(DEFAULT_ROWS_IN_MEMORY);
 
-    final boolean finalizeAggregations = isFinalizeAggregations(plannerContext);
+    final boolean finalizeAggregations = TalariaContext.isFinalizeAggregations(plannerContext.getQueryContext());
 
     final List<Interval> replaceTimeChunks =
         Optional.ofNullable(plannerContext.getQueryContext().get(DruidSqlReplace.SQL_REPLACE_TIME_CHUNKS))
@@ -331,12 +339,6 @@ public class TalariaQueryMaker implements QueryMaker
 
     FutureUtils.getUnchecked(overlordClient.runTask(taskId, taskSpec), true);
     return Sequences.simple(Collections.singletonList(new Object[]{taskId}));
-  }
-
-  static boolean isFinalizeAggregations(final PlannerContext plannerContext)
-  {
-    return Numbers.parseBoolean(plannerContext.getQueryContext()
-                                              .getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
   }
 
   private static Map<String, ColumnType> buildAggregationIntermediateTypeMap(final DruidQuery druidQuery)
