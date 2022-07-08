@@ -113,7 +113,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
       shuffleSpecFactoryPostAggregation = null;
     }
 
-    int stageWorkers = TalariaContext.areWorkerTasksAutoDetermined(maxWorkerCount)
+    int workerCount = TalariaContext.isTaskCountUnknown(maxWorkerCount)
                        ? dataSourcePlan.getBaseInputSpecs()
                                        .size()
                        : maxWorkerCount;
@@ -124,7 +124,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
                        .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
                        .signature(intermediateSignature)
                        .shuffleSpec(shuffleSpecFactoryPreAggregation.build(intermediateClusterBy, true))
-                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : dataSourcePlan.getBaseInputSpecs().size())
+                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : workerCount)
                        .processorFactory(
                            new GroupByPreShuffleFrameProcessorFactory(
                                queryToRun,
@@ -137,7 +137,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
         StageDefinition.builder(firstStageNumber + 1)
                        .inputStages(firstStageNumber)
                        .signature(resultSignature)
-                       .maxWorkerCount(stageWorkers)
+                       .maxWorkerCount(workerCount)
                        .shuffleSpec(
                            shuffleSpecFactoryPostAggregation != null
                            ? shuffleSpecFactoryPostAggregation.build(resultClusterBy, false)

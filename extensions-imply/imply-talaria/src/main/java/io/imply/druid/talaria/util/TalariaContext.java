@@ -27,6 +27,7 @@ public class TalariaContext
   public static final String CTX_DESTINATION = "msqDestination";
   public static final String CTX_ROWS_PER_SEGMENT = "msqRowsPerSegment";
   public static final String CTX_ROWS_IN_MEMORY = "msqRowsInMemory";
+  public static final Integer UNKOWN_TASK_COUNT = Integer.MAX_VALUE;
 
   public static boolean isDurableStorageEnabled(Map<String, Object> propertyMap)
   {
@@ -39,13 +40,8 @@ public class TalariaContext
     return Numbers.parseBoolean(queryContext.getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
   }
 
-  public static boolean areWorkerTasksAutoDetermined(int numTasks)
+  public static boolean isTaskCountUnknown(int numTasks)
   {
-    return numTasks == Integer.MAX_VALUE;
-  }
-
-  public static int enableWorkerTasksAutoDetermination()
-  {
-    return Integer.MAX_VALUE;
+    return numTasks == UNKOWN_TASK_COUNT;
   }
 }

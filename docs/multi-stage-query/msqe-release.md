@@ -152,7 +152,10 @@ title: Release notes
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
   available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). (16181)
 
-- For HttpInputSource `msqNumTasks` needs to be always set. In such a case, the query fails gracefully if the number of tasks is not set explicitly. (23163)
+- For `http` input stage , if `msqNumTasks` is not set, we default to 1 worker for entire stage (23163)
+- If `msqNumTasks` is not set, there can be a scenario where the number of tasks generated is more than the total 
+  capacity of the cluster. This will lead to [TaskStartTimeout](./msqe-api.md#error-codes) error as there will never be
+  enough capacity to run the query. In such a case, set the `msqNumTasks` explicitly.
 
 ### Memory usage
 

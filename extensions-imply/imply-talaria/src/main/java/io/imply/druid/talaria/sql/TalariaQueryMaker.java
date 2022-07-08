@@ -173,7 +173,7 @@ public class TalariaQueryMaker implements QueryMaker
       maxNumConcurrentSubTasks = maxNumTotalTasks.get() - 1;
     } else {
       // this enables MSQE to figure out the number of tasks automatically.
-      maxNumConcurrentSubTasks = TalariaContext.enableWorkerTasksAutoDetermination();
+      maxNumConcurrentSubTasks = TalariaContext.UNKOWN_TASK_COUNT;
     }
 
 

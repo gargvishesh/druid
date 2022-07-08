@@ -463,14 +463,23 @@ public class LeaderImpl implements Leader
     QueryDefinitionValidator.validateQueryDef(queryDef);
     queryDefRef.set(queryDef);
 
-    if (TalariaContext.areWorkerTasksAutoDetermined(numWorkers)) {
+    if (TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())) {
       int workers = 0;
       for (StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
         workers = Math.max(stageDefinition.getMaxWorkerCount(), workers);
       }
-      log.info("MSQE is starting [%d] tasks based on the inputs", workers);
       numWorkers = workers;
     }
+
+    log.info(
+        "Query [%s] starting %d tasks%s.",
+        queryDef.getQueryId(),
+        numWorkers,
+        TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())
+        ? " (automatically determined)"
+        : ""
+    );
+
 
 
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(

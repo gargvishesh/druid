@@ -87,7 +87,7 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     final RowSignature signatureToUse;
     final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
 
-    int stageWorkers = TalariaContext.areWorkerTasksAutoDetermined(maxWorkerCount)
+    int workerCount = TalariaContext.isTaskCountUnknown(maxWorkerCount)
                        ? dataSourcePlan.getBaseInputSpecs()
                                        .size()
                        : maxWorkerCount;
@@ -132,7 +132,7 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
                        .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
                        .shuffleSpec(shuffleSpec)
                        .signature(signatureToUse)
-                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : stageWorkers)
+                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : workerCount)
                        .processorFactory(
                            new ScanQueryFrameProcessorFactory(queryToRun, dataSourcePlan.getBaseInputSpecs())
                        )
