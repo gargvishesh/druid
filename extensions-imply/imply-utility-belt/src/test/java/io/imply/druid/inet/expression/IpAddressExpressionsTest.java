@@ -263,10 +263,10 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   @Test
   public void testPrefix()
   {
-    final String sixPrefix16 = "2001::";
+    final String sixPrefix16 = "2001::/16";
     Expr expr = Parser.parse("ip_prefix(ipv6, 16)", MACRO_TABLE);
     ExprEval eval = expr.eval(inputBindings);
-    Assert.assertEquals(IpAddressBlob.ofString(sixPrefix16), eval.value());
+    Assert.assertEquals(IpPrefixBlob.ofString(sixPrefix16), eval.value());
 
     expr = Parser.parse("ip_stringify(ip_prefix(ipv6, 16))", MACRO_TABLE);
     eval = expr.eval(inputBindings);
@@ -275,12 +275,12 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
 
     expr = Parser.parse("ip_stringify(ip_prefix(ipv6, 16), 0)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
-    Assert.assertEquals("2001:0000:0000:0000:0000:0000:0000:0000", eval.value());
+    Assert.assertEquals("2001:0000:0000:0000:0000:0000:0000:0000/16", eval.value());
 
-    final String fourPrefix16 = "1.2.0.0";
+    final String fourPrefix16 = "1.2.0.0/16";
     expr = Parser.parse("ip_prefix(ipv4, 16)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
-    Assert.assertEquals(IpAddressBlob.ofString(fourPrefix16), eval.value());
+    Assert.assertEquals(IpPrefixBlob.ofString(fourPrefix16), eval.value());
 
     expr = Parser.parse("ip_stringify(ip_prefix(ipv4, 16), 0)", MACRO_TABLE);
     eval = expr.eval(inputBindings);

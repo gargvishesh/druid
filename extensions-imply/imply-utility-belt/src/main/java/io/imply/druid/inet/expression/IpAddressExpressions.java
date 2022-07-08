@@ -287,9 +287,9 @@ public class IpAddressExpressions
             }
             IpAddressBlob blob = (IpAddressBlob) input.value();
             if (blob == null) {
-              return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
+              return ExprEval.ofComplex(IP_PREFIX_TYPE, null);
             }
-            return ExprEval.ofComplex(IP_ADDRESS_TYPE, blob.toPrefix(prefixLength));
+            return ExprEval.ofComplex(IP_PREFIX_TYPE, blob.toPrefix(prefixLength));
           }
 
           @Override
@@ -303,7 +303,7 @@ public class IpAddressExpressions
           @Override
           public ExpressionType getOutputType(InputBindingInspector inspector)
           {
-            return IP_ADDRESS_TYPE;
+            return IP_PREFIX_TYPE;
           }
         }
         return new PrefixExpr(args, prefixLength);
@@ -326,10 +326,10 @@ public class IpAddressExpressions
           ExprEval prefixSize = args.get(1).eval(bindings);
           IpAddressBlob blob = (IpAddressBlob) input.value();
           if (blob == null) {
-            return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
+            return ExprEval.ofComplex(IP_PREFIX_TYPE, null);
           }
           int prefixLength = prefixSize.asInt();
-          return ExprEval.ofComplex(IP_ADDRESS_TYPE, blob.toPrefix(prefixLength));
+          return ExprEval.ofComplex(IP_PREFIX_TYPE, blob.toPrefix(prefixLength));
         }
 
         @Override
@@ -343,7 +343,7 @@ public class IpAddressExpressions
         @Override
         public ExpressionType getOutputType(InputBindingInspector inspector)
         {
-          return IP_ADDRESS_TYPE;
+          return IP_PREFIX_TYPE;
         }
       }
 

@@ -63,13 +63,16 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
       return null;
     }
     // always store as ipv6 for now...
-    IPv6Address addressInIpv6 = address.toIPv6();
-    Integer prefix = addressInIpv6.getNetworkPrefixLength();
+    return ofIpv6Address(address.toIPv6());
+  }
+
+  public static IpPrefixBlob ofIpv6Address(final IPv6Address iPv6Address) {
+    Integer prefix = iPv6Address.getNetworkPrefixLength();
     if (prefix == null) {
       prefix = 128;
     }
     byte[] addressAndPrefixByte = new byte[17];
-    System.arraycopy(addressInIpv6.getBytes(), 0, addressAndPrefixByte, 0, addressInIpv6.getBytes().length);
+    System.arraycopy(iPv6Address.getBytes(), 0, addressAndPrefixByte, 0, iPv6Address.getBytes().length);
     addressAndPrefixByte[addressAndPrefixByte.length - 1] = prefix.byteValue();
     return new IpPrefixBlob(addressAndPrefixByte);
   }

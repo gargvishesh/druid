@@ -295,7 +295,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.ADDRESS_TYPE,
+                    IpAddressModule.PREFIX_TYPE,
                     true
                 )
             )

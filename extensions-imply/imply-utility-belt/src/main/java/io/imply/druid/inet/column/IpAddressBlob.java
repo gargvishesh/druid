@@ -113,13 +113,16 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
     return addr.toFullString();
   }
 
-  public IpAddressBlob toPrefix(int length)
+  public IpPrefixBlob toPrefix(int length)
   {
     IPAddress addr = new IPv6Address(bytes);
+    IPv6Address iPv6Address;
     if (addr.isIPv4Convertible()) {
-      return new IpAddressBlob(addr.toIPv4().toPrefixBlock(length).toIPv6().getBytes());
+      iPv6Address = addr.toIPv4().toPrefixBlock(length).toIPv6();
+    } else {
+      iPv6Address = addr.toIPv6().toPrefixBlock(length);
     }
-    return new IpAddressBlob(addr.toPrefixBlock(length).getBytes());
+    return IpPrefixBlob.ofIpv6Address(iPv6Address);
   }
 
   public boolean matches(String toMatch)
