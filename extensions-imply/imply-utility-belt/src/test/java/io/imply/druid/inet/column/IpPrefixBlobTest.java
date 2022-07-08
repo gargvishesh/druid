@@ -97,6 +97,22 @@ public class IpPrefixBlobTest
   }
 
   @Test
+  public void testToHost()
+  {
+    String v6 = "1:2:3:0:0:6::/36";
+    IpPrefixBlob blobv6 = IpPrefixBlob.ofString(v6);
+    IpAddressBlob actualBlob = blobv6.toHost();
+    IpAddressBlob expectedBlob = IpAddressBlob.ofString("1:2:3:0:0:6::");
+    Assert.assertEquals(expectedBlob, actualBlob);
+
+    String v4 = "1.2.3.4/24";
+    IpPrefixBlob blobv4 = IpPrefixBlob.ofString(v4);
+    actualBlob = blobv4.toHost();
+    expectedBlob = IpAddressBlob.ofString("1.2.3.4");
+    Assert.assertEquals(expectedBlob, actualBlob);
+  }
+
+  @Test
   public void testParse()
   {
     String v4 = "1.2.3.4/32";

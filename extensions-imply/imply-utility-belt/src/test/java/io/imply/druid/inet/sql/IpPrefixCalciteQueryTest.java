@@ -74,7 +74,8 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
           new IpAddressSqlOperatorConversions.PrefixParseOperatorConversion(),
           new IpAddressSqlOperatorConversions.PrefixTryParseOperatorConversion(),
           new IpAddressSqlOperatorConversions.StringifyOperatorConversion(),
-          new IpAddressSqlOperatorConversions.MatchOperatorConversion()
+          new IpAddressSqlOperatorConversions.MatchOperatorConversion(),
+          new IpAddressSqlOperatorConversions.HostOperatorConversion()
       )
   );
 
@@ -242,6 +243,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
     exprMacros.add(new IpAddressExpressions.PrefixTryParseExprMacro());
     exprMacros.add(new IpAddressExpressions.StringifyExprMacro());
     exprMacros.add(new IpAddressExpressions.MatchExprMacro());
+    exprMacros.add(new IpAddressExpressions.HostExprMacro());
     return new ExprMacroTable(exprMacros);
   }
 
@@ -257,8 +259,11 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
         + "IP_STRINGIFY(ipv4, 0), "
         + "IP_STRINGIFY(ipv6, 0), "
         + "IP_STRINGIFY(ipvmix, 0), "
+        + "IP_STRINGIFY(IP_HOST(ipv4)), "
+        + "IP_STRINGIFY(IP_HOST(ipv6)), "
+        + "IP_STRINGIFY(IP_HOST(ipvmix)), "
         + "SUM(cnt) "
-        + "FROM druid.iptest GROUP BY 1,2,3,4,5,6",
+        + "FROM druid.iptest GROUP BY 1,2,3,4,5,6,7,8,9",
         ImmutableList.of(
             GroupByQuery.builder()
                         .setDataSource(DATA_SOURCE)
@@ -270,7 +275,10 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                             new ExpressionVirtualColumn("v2", "ip_stringify(\"ipvmix\")", ColumnType.STRING, macroTable),
                             new ExpressionVirtualColumn("v3", "ip_stringify(\"ipv4\",0)", ColumnType.STRING, macroTable),
                             new ExpressionVirtualColumn("v4", "ip_stringify(\"ipv6\",0)", ColumnType.STRING, macroTable),
-                            new ExpressionVirtualColumn("v5", "ip_stringify(\"ipvmix\",0)", ColumnType.STRING, macroTable)
+                            new ExpressionVirtualColumn("v5", "ip_stringify(\"ipvmix\",0)", ColumnType.STRING, macroTable),
+                            new ExpressionVirtualColumn("v6", "ip_stringify(ip_host(\"ipv4\"))", ColumnType.STRING, macroTable),
+                            new ExpressionVirtualColumn("v7", "ip_stringify(ip_host(\"ipv6\"))", ColumnType.STRING, macroTable),
+                            new ExpressionVirtualColumn("v8", "ip_stringify(ip_host(\"ipvmix\"))", ColumnType.STRING, macroTable)
                         )
                         .setDimensions(
                             dimensions(
@@ -279,7 +287,10 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                                 new DefaultDimensionSpec("v2", "d2"),
                                 new DefaultDimensionSpec("v3", "d3"),
                                 new DefaultDimensionSpec("v4", "d4"),
-                                new DefaultDimensionSpec("v5", "d5")
+                                new DefaultDimensionSpec("v5", "d5"),
+                                new DefaultDimensionSpec("v6", "d6"),
+                                new DefaultDimensionSpec("v7", "d7"),
+                                new DefaultDimensionSpec("v8", "d8")
                             )
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
@@ -294,6 +305,9 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                 "109.8.10.192/16",
                 "890d:941d:cc37:3229:2ece:5e9f:fd53:0073/64",
                 "77b7:23dc:0aca:5c74:5148:cc23:103e:af9b/64",
+                "109.8.10.192",
+                "890d:941d:cc37:3229:2ece:5e9f:fd53:73",
+                "77b7:23dc:aca:5c74:5148:cc23:103e:af9b",
                 2L
             },
             new Object[]{
@@ -303,6 +317,9 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.158.234/16",
                 "2001:0db8:0000:0000:0000:8a2e:0370:7334/64",
                 "6.5.4.3/16",
+                "172.14.158.234",
+                "2001:db8::8a2e:370:7334",
+                "6.5.4.3",
                 2L
             },
             new Object[]{
@@ -312,6 +329,9 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.158.239/16",
                 "3114:ae86:4484:0347:7d48:1452:55d2:405c/64",
                 "3556:7b75:d9b1:ed81:0bc3:cee1:9480:af90/64",
+                "172.14.158.239",
+                "3114:ae86:4484:347:7d48:1452:55d2:405c",
+                "3556:7b75:d9b1:ed81:bc3:cee1:9480:af90",
                 2L
             },
             new Object[]{
@@ -321,6 +341,9 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                 "172.14.164.200/16",
                 "0028:0007:0006:0005:0005:0006:0007:0008/64",
                 "0011:0022:0033:0044:0055:0066:0077:0088/64",
+                "172.14.164.200",
+                "28:7:6:5:5:6:7:8",
+                "11:22:33:44:55:66:77:88",
                 2L
             },
             new Object[]{
@@ -330,11 +353,15 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                 "215.235.105.56/16",
                 "c305:f175:393b:0c09:baed:a3fd:26d2:a0ba/64",
                 "100.200.123.12/16",
+                "215.235.105.56",
+                "c305:f175:393b:c09:baed:a3fd:26d2:a0ba",
+                "100.200.123.12",
                 2L
             }
         )
     );
   }
+
   @Test
   public void testGroupByFormatFilterMatch() throws Exception
   {

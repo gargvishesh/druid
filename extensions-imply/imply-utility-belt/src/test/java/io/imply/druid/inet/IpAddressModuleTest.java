@@ -55,7 +55,8 @@ public class IpAddressModuleTest
       IpAddressExpressions.AddressTryParseExprMacro.class,
       IpAddressExpressions.StringifyExprMacro.class,
       IpAddressExpressions.PrefixExprMacro.class,
-      IpAddressExpressions.MatchExprMacro.class
+      IpAddressExpressions.MatchExprMacro.class,
+      IpAddressExpressions.HostExprMacro.class
   );
 
   private static final Set<Class<? extends SqlOperatorConversion>> IP_ADDRESS_SQL_OPERATORS = ImmutableSet.of(
@@ -63,7 +64,8 @@ public class IpAddressModuleTest
       IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion.class,
       IpAddressSqlOperatorConversions.StringifyOperatorConversion.class,
       IpAddressSqlOperatorConversions.PrefixOperatorConversion.class,
-      IpAddressSqlOperatorConversions.MatchOperatorConversion.class
+      IpAddressSqlOperatorConversions.MatchOperatorConversion.class,
+      IpAddressSqlOperatorConversions.HostOperatorConversion.class
   );
 
   @Mock

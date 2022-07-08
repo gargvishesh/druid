@@ -351,6 +351,58 @@ public class IpAddressExpressions
     }
   }
 
+  public static class HostExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "ip_host";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(List<Expr> args)
+    {
+      class HostExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+      {
+        public HostExpr(Expr arg)
+        {
+          super(NAME, arg);
+        }
+
+        @Override
+        public ExprEval eval(ObjectBinding bindings)
+        {
+          ExprEval input = arg.eval(bindings);
+          if (!IP_PREFIX_TYPE.equals(input.type()) && input.value() != null) {
+            throw new IAE("Function[%s] must take [%s] as input", name, IP_PREFIX_TYPE.asTypeString());
+          }
+          IpPrefixBlob blob = (IpPrefixBlob) input.value();
+          if (blob == null) {
+            return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
+          }
+          return ExprEval.ofComplex(IP_ADDRESS_TYPE, blob.toHost());
+        }
+
+        @Override
+        public Expr visit(Shuttle shuttle)
+        {
+          Expr newArg = arg.visit(shuttle);
+          return shuttle.visit(new HostExpr(newArg));
+        }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return IP_ADDRESS_TYPE;
+        }
+      }
+      return new HostExpr(args.get(0));
+    }
+  }
+
   public static class MatchExprMacro implements ExprMacroTable.ExprMacro
   {
     public static final String NAME = "ip_match";

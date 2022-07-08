@@ -113,6 +113,12 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
     return addressByteToString(compact, forceV6);
   }
 
+  public IpAddressBlob toHost()
+  {
+    IPAddress addr = new IPv6Address(bytes, 0, bytes.length - 1, prefixByteToLong(bytes[bytes.length - 1]));
+    return new IpAddressBlob(addr.toIPv6().getBytes());
+  }
+
   public boolean matches(String toMatch)
   {
     if (toMatch == null) {
