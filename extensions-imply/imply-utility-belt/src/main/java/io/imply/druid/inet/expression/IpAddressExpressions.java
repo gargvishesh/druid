@@ -24,6 +24,7 @@ import org.apache.druid.math.expr.InputBindings;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class IpAddressExpressions
@@ -403,7 +404,7 @@ public class IpAddressExpressions
     }
   }
 
-  public static class MatchExprMacro implements ExprMacroTable.ExprMacro
+  public static class MatchExprMacro extends BaseMatchExprMacro
   {
     public static final String NAME = "ip_match";
 
@@ -412,6 +413,43 @@ public class IpAddressExpressions
     {
       return NAME;
     }
+
+    @Override
+    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob) {
+      return blob::matches;
+    }
+
+    @Override
+    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob) {
+      return blob::matches;
+    }
+  }
+
+  public static class SearchExprMacro extends BaseMatchExprMacro
+  {
+    public static final String NAME = "ip_search";
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob) {
+      return blob::searches;
+    }
+
+    @Override
+    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob) {
+      return blob::searches;
+    }
+  }
+
+  public static abstract class BaseMatchExprMacro implements ExprMacroTable.ExprMacro
+  {
+    abstract Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob);
+    abstract Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob);
 
     @Override
     public Expr apply(List<Expr> args)
@@ -424,7 +462,7 @@ public class IpAddressExpressions
         if (!literalEval.type().is(ExprType.STRING)) {
           throw new IAE(
               "Function[%s] second argument must be [%s] as input, got [%s]",
-              NAME,
+              name(),
               ExpressionType.STRING.asTypeString(),
               literalEval.type()
           );
@@ -435,7 +473,7 @@ public class IpAddressExpressions
         {
           public MatchExpr(List<Expr> args)
           {
-            super(NAME, args);
+            super(name(), args);
           }
 
           @Override
@@ -454,14 +492,14 @@ public class IpAddressExpressions
                     input.value()
                 );
               } else {
-                return ExprEval.ofLongBoolean(blob.matches(literal));
+                return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(literal));
               }
             } else if (IP_ADDRESS_TYPE.equals(input.type())) {
               IpAddressBlob blob = (IpAddressBlob) input.value();
               if (blob == null) {
                 return ExprEval.ofLongBoolean(literal == null);
               }
-              return ExprEval.ofLongBoolean(blob.matches(literal));
+              return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(literal));
             } else {
               throw new IAE(
                   "Function[%s] first argument is invalid type, got [%s]",
@@ -494,7 +532,7 @@ public class IpAddressExpressions
         if (!literalEval.type().is(ExprType.STRING)) {
           throw new IAE(
               "Function[%s] first argument must be [%s] as input, got [%s]",
-              NAME,
+              name(),
               ExpressionType.STRING.asTypeString(),
               literalEval.type()
           );
@@ -505,7 +543,7 @@ public class IpAddressExpressions
         {
           public MatchExpr(List<Expr> args)
           {
-            super(NAME, args);
+            super(name(), args);
           }
 
           @Override
@@ -524,14 +562,14 @@ public class IpAddressExpressions
                     input.value()
                 );
               } else {
-                return ExprEval.ofLongBoolean(blob.matches(literal));
+                return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(literal));
               }
             } else if (IP_PREFIX_TYPE.equals(input.type())) {
               IpPrefixBlob blob = (IpPrefixBlob) input.value();
               if (blob == null) {
                 return ExprEval.ofLongBoolean(literal == null);
               }
-              return ExprEval.ofLongBoolean(blob.matches(literal));
+              return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(literal));
             } else {
               throw new IAE(
                   "Function[%s] second argument is invalid type, got [%s]",
@@ -563,7 +601,7 @@ public class IpAddressExpressions
       {
         public DynamicMatchExpr(List<Expr> args)
         {
-          super(NAME, args);
+          super(name(), args);
         }
 
         @Override
@@ -578,14 +616,14 @@ public class IpAddressExpressions
             if (blob == null) {
               return ExprEval.ofLongBoolean(matchesInput.value() == null);
             }
-            return ExprEval.ofLongBoolean(blob.matches(matchesInput.asString()));
+            return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(matchesInput.asString()));
           } else if ((IP_PREFIX_TYPE.equals(matchesInput.type()) || matchesInput.value() == null) && (input.value() == null || input.type().is(ExprType.STRING))) {
             // Or, the first argument is String (or null) and the second argument is Ip Prefix Complex type (or null)
             IpPrefixBlob blob = (IpPrefixBlob) matchesInput.value();
             if (blob == null) {
               return ExprEval.ofLongBoolean(input.value() == null);
             }
-            return ExprEval.ofLongBoolean(blob.matches(input.asString()));
+            return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(input.asString()));
           } else {
             // TODO maybe write a better message
             throw new IAE(

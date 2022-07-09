@@ -137,4 +137,28 @@ public class IpPrefixBlobTest
   {
     Assert.assertNull(IpPrefixBlob.parse("not an ip", false));
   }
+
+  @Test
+  public void testSearches()
+  {
+    String v4 = "192.211.32.43/16";
+    IpPrefixBlob blobv4 = IpPrefixBlob.parse(v4, true);
+    Assert.assertTrue(blobv4.searches("1"));
+    Assert.assertTrue(blobv4.searches("192."));
+    Assert.assertTrue(blobv4.searches("192.2"));
+    Assert.assertTrue(blobv4.searches("192.211.4"));
+    Assert.assertTrue(blobv4.searches("192.211.40.0/8"));
+    Assert.assertTrue(blobv4.searches("192.211.32.43"));
+    Assert.assertTrue(blobv4.searches("192.211.32.43/"));
+    Assert.assertTrue(blobv4.searches("192.211.32.43/16"));
+    Assert.assertTrue(blobv4.searches("192.211.32.43/32"));
+
+    Assert.assertFalse(blobv4.searches("2"));
+    Assert.assertFalse(blobv4.searches("192.3"));
+    Assert.assertFalse(blobv4.searches("192.2."));
+    Assert.assertFalse(blobv4.searches("192.39.32.43"));
+    Assert.assertFalse(blobv4.searches("192.39.32.43/"));
+    Assert.assertFalse(blobv4.searches("192.39.32.43/16"));
+    Assert.assertFalse(blobv4.searches("192.39.32.43/32"));
+  }
 }
