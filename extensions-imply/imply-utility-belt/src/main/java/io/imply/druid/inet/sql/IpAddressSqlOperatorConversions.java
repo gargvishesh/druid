@@ -295,7 +295,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.ADDRESS_TYPE,
+                    IpAddressModule.PREFIX_TYPE,
                     true
                 )
             )
@@ -323,6 +323,48 @@ public class IpAddressSqlOperatorConversions
           rexNode,
           operands -> DruidExpression.fromExpression(
               DruidExpression.functionCall(IpAddressExpressions.PrefixExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
+
+  public static class HostOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.HostExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY)
+        .returnTypeInference(
+            ReturnTypes.explicit(
+                new RowSignatures.ComplexSqlType(
+                    SqlTypeName.OTHER,
+                    IpAddressModule.ADDRESS_TYPE,
+                    true
+                )
+            )
+        )
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.HostExprMacro.NAME, operands)
           )
       );
     }

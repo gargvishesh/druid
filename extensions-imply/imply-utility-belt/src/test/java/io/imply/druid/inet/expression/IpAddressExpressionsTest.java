@@ -41,7 +41,8 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
           new IpAddressExpressions.PrefixTryParseExprMacro(),
           new IpAddressExpressions.StringifyExprMacro(),
           new IpAddressExpressions.PrefixExprMacro(),
-          new IpAddressExpressions.MatchExprMacro()
+          new IpAddressExpressions.MatchExprMacro(),
+          new IpAddressExpressions.HostExprMacro()
       )
   );
   private static final String V4_STRING = "1.2.3.4";
@@ -263,10 +264,10 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   @Test
   public void testPrefix()
   {
-    final String sixPrefix16 = "2001::";
+    final String sixPrefix16 = "2001::/16";
     Expr expr = Parser.parse("ip_prefix(ipv6, 16)", MACRO_TABLE);
     ExprEval eval = expr.eval(inputBindings);
-    Assert.assertEquals(IpAddressBlob.ofString(sixPrefix16), eval.value());
+    Assert.assertEquals(IpPrefixBlob.ofString(sixPrefix16), eval.value());
 
     expr = Parser.parse("ip_stringify(ip_prefix(ipv6, 16))", MACRO_TABLE);
     eval = expr.eval(inputBindings);
@@ -275,14 +276,40 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
 
     expr = Parser.parse("ip_stringify(ip_prefix(ipv6, 16), 0)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
-    Assert.assertEquals("2001:0000:0000:0000:0000:0000:0000:0000", eval.value());
+    Assert.assertEquals("2001:0000:0000:0000:0000:0000:0000:0000/16", eval.value());
+
+    final String fourPrefix16 = "1.2.0.0/16";
+    expr = Parser.parse("ip_prefix(ipv4, 16)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(IpPrefixBlob.ofString(fourPrefix16), eval.value());
+
+    expr = Parser.parse("ip_stringify(ip_prefix(ipv4, 16), 0)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(fourPrefix16, eval.value());
+  }
+
+  @Test
+  public void testHost()
+  {
+    final String sixPrefix16 = "2001:db8::8a2e:370:7334";
+    Expr expr = Parser.parse("ip_host(cidr_v6)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertEquals(IpAddressBlob.ofString(sixPrefix16), eval.value());
+
+    expr = Parser.parse("ip_stringify(ip_host(cidr_v6))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(sixPrefix16, eval.value());
+
+    expr = Parser.parse("ip_stringify(ip_host(cidr_v6), 0)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals("2001:0db8:0000:0000:0000:8a2e:0370:7334", eval.value());
 
     final String fourPrefix16 = "1.2.0.0";
-    expr = Parser.parse("ip_prefix(ipv4, 16)", MACRO_TABLE);
+    expr = Parser.parse("ip_host(cidr_v4)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(IpAddressBlob.ofString(fourPrefix16), eval.value());
 
-    expr = Parser.parse("ip_stringify(ip_prefix(ipv4, 16), 0)", MACRO_TABLE);
+    expr = Parser.parse("ip_stringify(ip_host(cidr_v4), 0)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(fourPrefix16, eval.value());
   }
@@ -293,6 +320,15 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     expectedException.expect(IAE.class);
     expectedException.expectMessage("Function[ip_prefix] must take [COMPLEX<ipAddress>]");
     Expr expr = Parser.parse("ip_prefix(cidr_v4, 16)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testHostInvalid()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_host] must take [COMPLEX<ipPrefix>]");
+    Expr expr = Parser.parse("ip_host(ipv4)", MACRO_TABLE);
     expr.eval(inputBindings);
   }
 
@@ -525,6 +561,14 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     Assert.assertEquals(null, eval.value());
 
     expr = Parser.parse("ip_prefix(null,20)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_host(nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertEquals(null, eval.value());
+
+    expr = Parser.parse("ip_host(null)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
 
