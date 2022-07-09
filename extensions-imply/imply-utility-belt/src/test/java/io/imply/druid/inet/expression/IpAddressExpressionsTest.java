@@ -42,6 +42,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
           new IpAddressExpressions.StringifyExprMacro(),
           new IpAddressExpressions.PrefixExprMacro(),
           new IpAddressExpressions.MatchExprMacro(),
+          new IpAddressExpressions.SearchExprMacro(),
           new IpAddressExpressions.HostExprMacro()
       )
   );
@@ -78,6 +79,8 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
           .put("cidr_v4_string", new Pair<>(ExpressionType.STRING, () -> CIDR_v4_STRING))
           .put("cidr_v6_string", new Pair<>(ExpressionType.STRING, () -> CIDR_V6_STRING))
           .put("string", new Pair<>(ExpressionType.STRING, () -> "abcdef"))
+          .put("ipv4_incomplete_string", new Pair<>(ExpressionType.STRING, () -> "1.2."))
+          .put("ipv6_incomplete_string", new Pair<>(ExpressionType.STRING, () -> "2001:"))
           .put("long", new Pair<>(ExpressionType.LONG, () -> 1234L))
           .put("double", new Pair<>(ExpressionType.DOUBLE, () -> 1.234))
           .put("nullString", new Pair<>(ExpressionType.STRING, () -> null))
@@ -469,6 +472,207 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   }
 
   @Test
+  public void testSearch()
+  {
+    // Complex IP Address
+    Expr expr = Parser.parse("ip_search(ipv6, ipv6_string)", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6, '2001:')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6, '2001')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6, ipv6_incomplete_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6, '2002:')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4, ipv4_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4, '1.2')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4, '1')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4, ipv4_incomplete_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6, '1.2')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ip_parse('0.1.2.3'), '0.1.2.0/23')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ip_parse('0.1.2.3'), '0.1.2.0/22')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ip_parse('1:2:3:4:5:6:7:8'), '1:2:3:4:5::/80')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ip_parse('1:2:3:4:5:6:7:8'), '1:2:3:4:5::/70')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    // Complex IP Prefix
+    expr = Parser.parse("ip_search('1.2', cidr_v4)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('192', cidr_v4)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('2001:0db8:', cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('2001::', cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('200', cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('2211:', cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('2211', cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4_string, cidr_v4)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6_string, cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv4_incomplete_string, cidr_v4)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6_incomplete_string, cidr_v6)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('0.1', ip_prefix_parse('0.1.2.3/24'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('0.11', ip_prefix_parse('0.1.2.3/24'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('1:2:3:4:5', ip_prefix_parse('1:2:3:4:5:6:7:8/64'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('123:2:3:4:5', ip_prefix_parse('1:2:3:4:5:6:7:8/64'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    // Single match ipv4
+    expr = Parser.parse("ip_search('0.1.2.3', ip_prefix_parse('0.1.2.3'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('0.1.2.3', ip_prefix_parse('0.1.2.3/32'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('0.1.2.4', ip_prefix_parse('0.1.2.3'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('0.1.2.4', ip_prefix_parse('0.1.2.3/32'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    // Single match ipv6
+    expr = Parser.parse("ip_search('1:2:3:4:5:6:7:8', ip_prefix_parse('1:2:3:4:5:6:7:8'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('1:2:3:4:5:6:7:8', ip_prefix_parse('1:2:3:4:5:6:7:8/128'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertTrue(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('1:2:3:4:5:6:7:9', ip_prefix_parse('1:2:3:4:5:6:7:8'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search('1:2:3:4:5:6:7:9', ip_prefix_parse('1:2:3:4:5:6:7:8/128'))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+  }
+
+  @Test
+  public void testSearchInvalid()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] invalid arguments, got first argument [COMPLEX<ipAddress>] and second argument [COMPLEX<ipPrefix>]");
+    Expr expr = Parser.parse("ip_search(ipv6, cidr_v4)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testSearchInvalidFirstArgument()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] first argument is invalid type, got [COMPLEX<ipPrefix>]");
+    Expr expr = Parser.parse("ip_search(cidr_v4, '192.168.0.1')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testSearchInvalidSecondArgument()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] second argument is invalid type, got [COMPLEX<ipAddress>]");
+    Expr expr = Parser.parse("ip_search('192.168.0.1', ipv4)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testIpAddressSearchhBadRange()
+  {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Cannot expand invalid partial address [NOT AN IP]");
+    Expr expr = Parser.parse("ip_search(ipv6, 'NOT AN IP')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testIpPrefixSearchBadIp()
+  {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Cannot expand invalid partial address [NOT AN IP]");
+    Expr expr = Parser.parse("ip_search('NOT AN IP', cidr_v6)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
   public void testMatchInvalid()
   {
     expectedException.expect(IAE.class);
@@ -529,6 +733,22 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     Assert.assertFalse(eval.asBoolean());
 
     expr = Parser.parse("ip_match(ipv6_string, null)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(nullString, ipv6_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(null, ipv6_string)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6_string, nullString)", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    Assert.assertFalse(eval.asBoolean());
+
+    expr = Parser.parse("ip_search(ipv6_string, null)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertFalse(eval.asBoolean());
 

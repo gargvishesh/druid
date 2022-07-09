@@ -403,4 +403,38 @@ public class IpAddressSqlOperatorConversions
       );
     }
   }
+
+  public static class SearchOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.SearchExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY, SqlTypeFamily.ANY)
+        .returnTypeCascadeNullable(SqlTypeName.BOOLEAN)
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.SearchExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
 }

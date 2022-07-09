@@ -77,7 +77,8 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
           new IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion(),
           new IpAddressSqlOperatorConversions.StringifyOperatorConversion(),
           new IpAddressSqlOperatorConversions.PrefixOperatorConversion(),
-          new IpAddressSqlOperatorConversions.MatchOperatorConversion()
+          new IpAddressSqlOperatorConversions.MatchOperatorConversion(),
+          new IpAddressSqlOperatorConversions.SearchOperatorConversion()
       )
   );
 
@@ -251,6 +252,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
     exprMacros.add(new IpAddressExpressions.StringifyExprMacro());
     exprMacros.add(new IpAddressExpressions.PrefixExprMacro());
     exprMacros.add(new IpAddressExpressions.MatchExprMacro());
+    exprMacros.add(new IpAddressExpressions.SearchExprMacro());
     return new ExprMacroTable(exprMacros);
   }
 
@@ -436,6 +438,90 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                             )
                         )
                         .setDimFilter(expressionFilter("ip_match(\"ipv4\",'172.14.158.0/24')"))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "172.14.158.234",
+                2L
+            },
+            new Object[]{
+                "172.14.158.239",
+                2L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByFormatFilterSearchWithoutDot() throws Exception
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "IP_STRINGIFY(ipv4), "
+        + "SUM(cnt) "
+        + "FROM druid.iptest WHERE IP_SEARCH(ipv4, '17') GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(expressionFilter("ip_search(\"ipv4\",'17')"))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "172.14.158.234",
+                2L
+            },
+            new Object[]{
+                "172.14.158.239",
+                2L
+            },
+            new Object[]{
+                "172.14.164.200",
+                2L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByFormatFilterSearchWithDot() throws Exception
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "IP_STRINGIFY(ipv4), "
+        + "SUM(cnt) "
+        + "FROM druid.iptest WHERE IP_SEARCH(ipv4, '172.14.158.') GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                        )
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("v0", "d0")
+                            )
+                        )
+                        .setDimFilter(expressionFilter("ip_search(\"ipv4\",'172.14.158.')"))
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()

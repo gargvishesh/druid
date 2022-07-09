@@ -56,6 +56,7 @@ public class IpAddressModuleTest
       IpAddressExpressions.StringifyExprMacro.class,
       IpAddressExpressions.PrefixExprMacro.class,
       IpAddressExpressions.MatchExprMacro.class,
+      IpAddressExpressions.SearchExprMacro.class,
       IpAddressExpressions.HostExprMacro.class
   );
 
@@ -65,6 +66,7 @@ public class IpAddressModuleTest
       IpAddressSqlOperatorConversions.StringifyOperatorConversion.class,
       IpAddressSqlOperatorConversions.PrefixOperatorConversion.class,
       IpAddressSqlOperatorConversions.MatchOperatorConversion.class,
+      IpAddressSqlOperatorConversions.SearchOperatorConversion.class,
       IpAddressSqlOperatorConversions.HostOperatorConversion.class
   );
 
