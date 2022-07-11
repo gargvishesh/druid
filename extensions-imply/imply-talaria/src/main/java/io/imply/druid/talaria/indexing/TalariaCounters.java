@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.kernel.StagePartition;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
@@ -249,7 +250,8 @@ public class TalariaCounters
   /**
    * Like {@link StagePartition}, but only contains the stage number, not the stage ID.
    */
-  private static class StagePartitionNumber implements Comparable<StagePartitionNumber>
+  @VisibleForTesting
+  static class StagePartitionNumber implements Comparable<StagePartitionNumber>
   {
     private final int stageNumber;
     private final int partitionNumber;

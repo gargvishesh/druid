@@ -295,6 +295,10 @@
                                 <exclude>io/imply/druid/talaria/api/*</exclude>
                                 <exclude>io/imply/druid/talaria/guice/*</exclude>
                                 <exclude>io/imply/druid/talaria/indexing/externalsink/*</exclude>
+                                <exclude>io/imply/druid/talaria/indexing/IndexerWorkerContext*</exclude>
+                                <exclude>io/imply/druid/talaria/indexing/IndexerLeaderClient*</exclude>
+                                <exclude>io/imply/druid/talaria/indexing/IndexerWorkerClient*</exclude>
+                                <exclude>io/imply/druid/talaria/indexing/IndexerWorkerManagerClient*</exclude>
                             </excludes>
                             <rules>
                                 <rule>
@@ -303,12 +307,12 @@
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.35</minimum>
+                                            <minimum>0.68</minimum>
                                         </limit>
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.3</minimum>
+                                            <minimum>0.75</minimum>
                                         </limit>
                                         <limit>
                                             <counter>COMPLEXITY</counter>

@@ -94,6 +94,13 @@ public class DistinctKeyCollectorTest
     );
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void test_generateWithNegativeTargetWeight_throwsException()
+  {
+    DistinctKeyCollector distinctKeyCollector = DistinctKeyCollectorFactory.create(clusterBy).newKeyCollector();
+    distinctKeyCollector.generatePartitionsWithTargetWeight(-1);
+  }
+
   @Test
   public void test_uniformRandomKeys_unweighted_downSampledToOneKey()
   {

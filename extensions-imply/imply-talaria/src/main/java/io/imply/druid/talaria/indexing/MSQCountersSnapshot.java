@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot;
 
 import javax.annotation.Nullable;
 import java.util.EnumMap;
@@ -90,14 +91,14 @@ public class MSQCountersSnapshot
 
   public static class WarningCounters
   {
-    private final io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot warningCountersSnapshot;
+    private final WarningCountersSnapshot warningCountersSnapshot;
     private final int stageNumber;
 
     @JsonCreator
     public WarningCounters(
         @JsonProperty("stageNumber") int stageNumber,
         @JsonProperty("warningCounters")
-            io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot warningCountersSnapshot
+            WarningCountersSnapshot warningCountersSnapshot
     )
     {
       this.stageNumber = stageNumber;
@@ -105,7 +106,7 @@ public class MSQCountersSnapshot
     }
 
     @JsonProperty("warningCounters")
-    public io.imply.druid.talaria.indexing.WarningCounters.WarningCountersSnapshot getWarningCountersSnapshot()
+    public WarningCountersSnapshot getWarningCountersSnapshot()
     {
       return warningCountersSnapshot;
     }
