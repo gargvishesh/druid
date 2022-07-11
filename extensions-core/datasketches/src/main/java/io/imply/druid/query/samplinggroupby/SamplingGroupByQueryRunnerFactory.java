@@ -19,6 +19,7 @@ import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QueryRunner;
@@ -38,17 +39,20 @@ import java.util.List;
 public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<ResultRow, SamplingGroupByQuery>
 {
   private final SamplingGroupByQueryToolChest queryToolChest;
+  private final DruidProcessingConfig processingConfig;
   private final NonBlockingPool<ByteBuffer> bufferPool;
   private final QueryWatcher queryWatcher;
 
   @Inject
   public SamplingGroupByQueryRunnerFactory(
       SamplingGroupByQueryToolChest samplingGroupByQueryToolChest,
+      DruidProcessingConfig processingConfig,
       @Global NonBlockingPool<ByteBuffer> bufferPool,
       QueryWatcher queryWatcher
   )
   {
     this.queryToolChest = samplingGroupByQueryToolChest;
+    this.processingConfig = processingConfig;
     this.bufferPool = bufferPool;
     this.queryWatcher = queryWatcher;
   }
@@ -109,6 +113,7 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
         return SamplingGroupByTwoPassQueryEngine.process(
             query,
             storageAdapter,
+            processingConfig,
             bufferHolder,
             filter,
             interval,
@@ -118,6 +123,7 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
         return SamplingGroupByOnePassQueryEngine.process(
             query,
             storageAdapter,
+            processingConfig,
             bufferHolder,
             filter,
             interval,
