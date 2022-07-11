@@ -19,6 +19,7 @@ import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
+import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.ResultRow;
@@ -46,6 +47,7 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
   public SamplingHashAggregateIterator(
       SamplingGroupByQuery query,
       GroupByQueryConfig querySpecificConfig,
+      DruidProcessingConfig processingConfig,
       Cursor cursor,
       ByteBuffer buffer,
       GroupByColumnSelectorPlus[] dims,
@@ -53,7 +55,16 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
       int maxGroups
   )
   {
-    super(query.generateIntermediateGroupByQuery(), querySpecificConfig, cursor, buffer, null, dims, allSingleValueDims);
+    super(
+        query.generateIntermediateGroupByQuery(),
+        querySpecificConfig,
+        processingConfig,
+        cursor,
+        buffer,
+        null,
+        dims,
+        allSingleValueDims
+    );
     this.maxGroups = maxGroups;
     this.rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(Math.max(maxGroups, 16), Util.DEFAULT_UPDATE_SEED);
     this.currTheta = rawHashHeapQuickSelectSketch.compact().getThetaLong();

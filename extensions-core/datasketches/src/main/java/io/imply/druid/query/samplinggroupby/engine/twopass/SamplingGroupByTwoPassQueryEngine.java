@@ -26,6 +26,7 @@ import org.apache.druid.java.util.common.guava.ConcatSequence;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.math.expr.ExprEval;
+import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.filter.AndDimFilter;
@@ -67,6 +68,7 @@ public class SamplingGroupByTwoPassQueryEngine
   public static Sequence<ResultRow> process(
       SamplingGroupByQuery query,
       StorageAdapter storageAdapter,
+      DruidProcessingConfig processingConfig,
       ResourceHolder<ByteBuffer> bufferHolder,
       @Nullable Filter filter,
       Interval interval,
@@ -186,6 +188,7 @@ public class SamplingGroupByTwoPassQueryEngine
               memory,
               rawHashHeapQuickSelectSketch,
               currentInterval,
+              processingConfig,
               bufferHolder
           ));
         }
@@ -213,6 +216,7 @@ public class SamplingGroupByTwoPassQueryEngine
       WritableMemory memory,
       RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch,
       Interval groupingInterval,
+      DruidProcessingConfig processingConfig,
       ResourceHolder<ByteBuffer> bufferHolder
   )
   {
@@ -260,6 +264,7 @@ public class SamplingGroupByTwoPassQueryEngine
         groupingInterval,
         groupByQuery,
         new GroupByQueryConfig(),
+        processingConfig,
         groupByBuffer
     );
   }
@@ -270,6 +275,7 @@ public class SamplingGroupByTwoPassQueryEngine
       Interval interval,
       GroupByQuery query,
       GroupByQueryConfig querySpecificConfig,
+      DruidProcessingConfig processingConfig,
       ByteBuffer groupByBuffer
   )
   {
@@ -283,6 +289,7 @@ public class SamplingGroupByTwoPassQueryEngine
         filter,
         interval,
         querySpecificConfig,
+        processingConfig,
         null // this is bad
     );
     // sort the groups by time, groupHash, grouping dimensions

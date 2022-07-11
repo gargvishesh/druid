@@ -18,6 +18,7 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.query.ColumnSelectorPlus;
+import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
@@ -45,6 +46,7 @@ public class SamplingGroupByOnePassQueryEngine
   public static Sequence<ResultRow> process(
       SamplingGroupByQuery query,
       StorageAdapter storageAdapter,
+      DruidProcessingConfig processingConfig,
       ResourceHolder<ByteBuffer> bufferHolder,
       Filter filter,
       Interval interval,
@@ -98,6 +100,7 @@ public class SamplingGroupByOnePassQueryEngine
                     return new SamplingHashAggregateIterator(
                         query,
                         new GroupByQueryConfig(),
+                        processingConfig,
                         cursor,
                         bufferHolder.get(),
                         dims,
