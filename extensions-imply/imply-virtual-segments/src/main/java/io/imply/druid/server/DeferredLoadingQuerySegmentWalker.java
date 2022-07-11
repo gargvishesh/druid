@@ -63,9 +63,9 @@ import org.apache.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
 import javax.inject.Inject;
-
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -382,7 +382,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
               new SegmentAnalysis(
                   dataSegment.getId().toString(),
                   Collections.singletonList(dataSegment.getInterval()),
-                  Collections.emptyMap(),
+                  new LinkedHashMap<>(),
                   dataSegment.getSize(),
                   -1,
                   Collections.emptyMap(),
