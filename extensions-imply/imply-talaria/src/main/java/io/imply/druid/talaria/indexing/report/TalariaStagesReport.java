@@ -14,13 +14,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
-import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.kernel.QueryDefinition;
-import io.imply.druid.talaria.kernel.ShuffleSpec;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.controller.ControllerStagePhase;
-import org.apache.druid.query.Query;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -29,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class TalariaStagesReport
 {
@@ -45,7 +40,6 @@ public class TalariaStagesReport
       final QueryDefinition queryDef,
       final Map<Integer, ControllerStagePhase> stagePhaseMap,
       final Map<Integer, Interval> stageRuntimeMap,
-      final Map<Integer, Query<?>> stageQueryMap,
       final Map<Integer, Integer> stageWorkerCountMap,
       final Map<Integer, Integer> stagePartitionCountMap
   )
@@ -61,23 +55,18 @@ public class TalariaStagesReport
 
       final int workerCount = stageWorkerCountMap.getOrDefault(stageNumber, 0);
       final int partitionCount = stagePartitionCountMap.getOrDefault(stageNumber, 0);
-      final int inputFileCount = stageDef.getProcessorFactory().inputFileCount();
       final Interval stageRuntimeInterval = stageRuntimeMap.get(stageNumber);
       final DateTime stageStartTime = stageRuntimeInterval == null ? null : stageRuntimeInterval.getStart();
       final long stageDuration = stageRuntimeInterval == null ? 0 : stageRuntimeInterval.toDurationMillis();
 
       final Stage stage = new Stage(
           stageNumber,
-          stageDef.getInputStageIds().stream().map(StageId::getStageNumber).collect(Collectors.toList()),
-          stageDef.getProcessorFactory().getClass().getSimpleName(),
+          stageDef,
           stagePhaseMap.get(stageNumber),
           workerCount,
           partitionCount,
-          inputFileCount,
           stageStartTime,
-          stageDuration,
-          stageDef.getShuffleSpec().map(ShuffleSpec::getClusterBy).orElse(null),
-          stageQueryMap.get(stageNumber)
+          stageDuration
       );
       stages.add(stage);
     }
@@ -94,52 +83,32 @@ public class TalariaStagesReport
   public static class Stage
   {
     private final int stageNumber;
-    private final List<Integer> inputStages;
-    private final String processorType;
+    private final StageDefinition stageDef;
+    @Nullable
+    private final ControllerStagePhase phase;
     private final int workerCount;
     private final int partitionCount;
     private final DateTime startTime;
     private final long duration;
-    @Nullable
-    private final Integer inputFileCount;
-
-    @Nullable
-    private final ControllerStagePhase phase;
-
-    @Nullable
-    private final ClusterBy clusterBy;
-
-    // Note: the query is properly a QueryKit concept, not a core Talaria concept. But it's here so we can make
-    // the reports more informative. It can be null if the Talaria query did not come from QueryKit, and that's fine.
-    @Nullable
-    private final Query<?> query;
 
     @JsonCreator
     private Stage(
         @JsonProperty("stageNumber") final int stageNumber,
-        @JsonProperty("inputStages") final List<Integer> inputStages,
-        @JsonProperty("processorType") final String processorType,
+        @JsonProperty("definition") final StageDefinition stageDef,
         @JsonProperty("phase") @Nullable final ControllerStagePhase phase,
         @JsonProperty("workerCount") final int workerCount,
         @JsonProperty("partitionCount") final int partitionCount,
-        @JsonProperty("inputFileCount") @Nullable final Integer inputFileCount,
         @JsonProperty("startTime") @Nullable final DateTime startTime,
-        @JsonProperty("duration") final long duration,
-        @JsonProperty("clusterBy") @Nullable final ClusterBy clusterBy,
-        @JsonProperty("query") @Nullable final Query<?> query
+        @JsonProperty("duration") final long duration
     )
     {
       this.stageNumber = stageNumber;
-      this.inputStages = Preconditions.checkNotNull(inputStages, "inputStages");
-      this.processorType = Preconditions.checkNotNull(processorType, "processorType");
+      this.stageDef = stageDef;
+      this.phase = phase;
       this.workerCount = workerCount;
       this.partitionCount = partitionCount;
       this.startTime = startTime;
       this.duration = duration;
-      this.phase = phase;
-      this.clusterBy = clusterBy;
-      this.query = query;
-      this.inputFileCount = inputFileCount;
     }
 
     @JsonProperty
@@ -148,16 +117,10 @@ public class TalariaStagesReport
       return stageNumber;
     }
 
-    @JsonProperty
-    public List<Integer> getInputStages()
+    @JsonProperty("definition")
+    public StageDefinition getStageDefinition()
     {
-      return inputStages;
-    }
-
-    @JsonProperty
-    public String getProcessorType()
-    {
-      return processorType;
+      return stageDef;
     }
 
     @Nullable
@@ -183,12 +146,12 @@ public class TalariaStagesReport
       return partitionCount;
     }
 
-    @Nullable
-    @JsonProperty
+    @JsonProperty("sort")
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-    public Integer getInputFileCount()
+    public boolean isSorting()
     {
-      return inputFileCount;
+      // Field written out, but not read, because it is derived from "definition".
+      return stageDef.doesSortDuringShuffle();
     }
 
     @JsonProperty
@@ -203,22 +166,6 @@ public class TalariaStagesReport
     public long getDuration()
     {
       return duration;
-    }
-
-    @Nullable
-    @JsonProperty("clusterBy")
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public ClusterBy getClusterBy()
-    {
-      return clusterBy;
-    }
-
-    @Nullable
-    @JsonProperty
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public Query<?> getQuery()
-    {
-      return query;
     }
   }
 }

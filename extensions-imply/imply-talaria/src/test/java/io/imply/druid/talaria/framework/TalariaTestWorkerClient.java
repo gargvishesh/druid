@@ -11,11 +11,11 @@ package io.imply.druid.talaria.framework;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.java.util.common.ISE;
@@ -75,7 +75,7 @@ public class TalariaTestWorkerClient implements WorkerClient
   }
 
   @Override
-  public ListenableFuture<MSQCountersSnapshot> getCounters(String taskId)
+  public ListenableFuture<CounterSnapshotsTree> getCounters(String taskId)
   {
     return Futures.immediateFuture(inMemoryWorkers.get(taskId).getCounters());
   }

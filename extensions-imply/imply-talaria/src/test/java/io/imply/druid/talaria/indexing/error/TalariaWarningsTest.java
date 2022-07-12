@@ -73,8 +73,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -89,31 +89,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
@@ -148,8 +148,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -164,31 +164,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
   }
@@ -222,8 +222,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -238,31 +238,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .setExpectedTalariaFault(UnknownFault.forMessage(
                          "java.lang.IllegalArgumentException: "
@@ -300,8 +300,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -316,31 +316,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(4, CannotParseExternalDataFault.CODE))
                      .verifyResults();
@@ -376,8 +376,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -392,31 +392,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
   }
@@ -450,8 +450,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -466,31 +466,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
   }
@@ -525,8 +525,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -541,31 +541,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
@@ -661,8 +661,8 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -677,31 +677,31 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
   }

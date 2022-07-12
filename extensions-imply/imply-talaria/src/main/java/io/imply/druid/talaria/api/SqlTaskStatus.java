@@ -18,7 +18,6 @@ import org.apache.druid.indexer.TaskState;
 import org.apache.druid.query.QueryException;
 
 import javax.annotation.Nullable;
-
 import java.util.Objects;
 
 /**

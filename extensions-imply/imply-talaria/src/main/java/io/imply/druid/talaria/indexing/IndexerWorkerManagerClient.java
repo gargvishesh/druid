@@ -10,11 +10,11 @@
 package io.imply.druid.talaria.indexing;
 
 import io.imply.druid.talaria.exec.WorkerManagerClient;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import io.imply.druid.talaria.util.FutureUtils;
-import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.client.indexing.TaskStatusResponse;
+import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.indexer.TaskLocation;
+import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.rpc.indexing.OverlordClient;
 
 import java.util.Map;
 import java.util.Set;
@@ -25,9 +25,9 @@ import java.util.Set;
  */
 public class IndexerWorkerManagerClient implements WorkerManagerClient
 {
-  private final OverlordServiceClient overlordClient;
+  private final OverlordClient overlordClient;
 
-  public IndexerWorkerManagerClient(final OverlordServiceClient overlordClient)
+  public IndexerWorkerManagerClient(final OverlordClient overlordClient)
   {
     this.overlordClient = overlordClient;
   }
@@ -52,9 +52,9 @@ public class IndexerWorkerManagerClient implements WorkerManagerClient
   }
 
   @Override
-  public TaskLocation location(String id)
+  public TaskLocation location(String workerId)
   {
-    final TaskStatusResponse response = FutureUtils.getUnchecked(overlordClient.taskStatus(id), true);
+    final TaskStatusResponse response = FutureUtils.getUnchecked(overlordClient.taskStatus(workerId), true);
 
     if (response.getStatus() != null) {
       return response.getStatus().getLocation();

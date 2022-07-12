@@ -12,7 +12,6 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.processor.FrameContext;
-import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSink;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.IndexIO;
@@ -77,12 +76,6 @@ public class IndexerFrameContext implements FrameContext
   public ObjectMapper jsonMapper()
   {
     return context.jsonMapper();
-  }
-
-  @Override
-  public TalariaExternalSink externalSink()
-  {
-    return context.injector().getInstance(TalariaExternalSink.class);
   }
 
   @Override

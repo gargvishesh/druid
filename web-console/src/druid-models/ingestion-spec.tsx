@@ -692,7 +692,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
 
         {
           name: 'inputSource.properties.secretAccessKey.type',
-          label: 'Secret key type',
+          label: 'Secret access key type',
           type: 'string',
           suggestions: [undefined, 'environment', 'default'],
           placeholder: '(none)',
@@ -713,7 +713,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
         },
         {
           name: 'inputSource.properties.secretAccessKey.variable',
-          label: 'Secret key value',
+          label: 'Secret access key environment variable',
           type: 'string',
           placeholder: '(environment variable name)',
           defined: ioConfig =>
@@ -722,7 +722,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
         },
         {
           name: 'inputSource.properties.secretAccessKey.password',
-          label: 'Secret key value',
+          label: 'Secret access key value',
           type: 'string',
           placeholder: '(secret key)',
           defined: ioConfig =>

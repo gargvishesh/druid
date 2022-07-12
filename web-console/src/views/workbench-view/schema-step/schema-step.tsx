@@ -44,7 +44,7 @@ import {
 } from 'druid-query-toolkit';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { ClearableInput, Loader } from '../../../components';
+import { ClearableInput, LearnMore, Loader } from '../../../components';
 import { AsyncActionDialog } from '../../../dialogs';
 import { possibleDruidFormatForValues, TIME_COLUMN } from '../../../druid-models';
 import { useLastDefined, usePermanentCallback, useQueryManager } from '../../../hooks';
@@ -79,7 +79,6 @@ import {
   WorkbenchQuery,
   WorkbenchQueryPart,
 } from '../../../workbench-models';
-import { LearnMore } from '../../load-data-view/learn-more/learn-more';
 import { ColumnActions } from '../column-actions/column-actions';
 import { ColumnEditor } from '../column-editor/column-editor';
 import { DestinationDialog } from '../destination-dialog/destination-dialog';

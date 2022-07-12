@@ -12,19 +12,24 @@ package io.imply.druid.talaria.querykit.groupby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.imply.druid.talaria.frame.cluster.ClusterBy;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import io.imply.druid.talaria.counters.CounterTracker;
 import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
-import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.TalariaCounters;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
+import io.imply.druid.talaria.input.InputSlice;
+import io.imply.druid.talaria.input.InputSliceReader;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.StageInputSlice;
+import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.query.groupby.GroupByQuery;
@@ -32,9 +37,8 @@ import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.function.Consumer;
 
 @JsonTypeName("groupByPostShuffle")
 public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorFactory
@@ -57,50 +61,61 @@ public class GroupByPostShuffleFrameProcessorFactory extends BaseFrameProcessorF
 
   @Override
   public ProcessorsAndChannels<FrameProcessor<Long>, Long> makeProcessors(
-      int workerNumber,
-      @Nullable Object extra,
-      InputChannels inputChannels,
-      OutputChannelFactory outputChannelFactory,
       StageDefinition stageDefinition,
-      ClusterBy clusterBy,
-      FrameContext providerThingy,
+      int workerNumber,
+      List<InputSlice> inputSlices,
+      InputSliceReader inputSliceReader,
+      @Nullable Object extra,
+      OutputChannelFactory outputChannelFactory,
+      FrameContext frameContext,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters,
-      final TalariaWarningReportPublisher talariaWarningReportPublisher
-  ) throws IOException
+      CounterTracker counters,
+      Consumer<Throwable> warningPublisher
+  )
   {
-    final GroupByStrategySelector strategySelector = providerThingy.groupByStrategySelector();
+    // Expecting a single input slice from some prior stage.
+    final StageInputSlice slice = (StageInputSlice) Iterables.getOnlyElement(inputSlices);
+    final GroupByStrategySelector strategySelector = frameContext.groupByStrategySelector();
 
-    final List<OutputChannel> outputChannels = new ArrayList<>();
-    for (final StagePartition partition : inputChannels.getStagePartitions()) {
-      outputChannels.add(outputChannelFactory.openChannel(partition.getPartitionNumber()));
+    final Int2ObjectMap<OutputChannel> outputChannels = new Int2ObjectOpenHashMap<>();
+    for (final ReadablePartition partition : slice.getPartitions()) {
+      outputChannels.computeIfAbsent(
+          partition.getPartitionNumber(),
+          i -> {
+            try {
+              return outputChannelFactory.openChannel(i);
+            }
+            catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }
+      );
     }
 
-    final Sequence<Integer> inputSequence =
-        Sequences.simple(() -> IntStream.range(0, inputChannels.getStagePartitions().size()).iterator());
+    final Sequence<ReadableInput> readableInputs =
+        Sequences.simple(inputSliceReader.attach(0, slice, counters, warningPublisher));
 
-    final Sequence<FrameProcessor<Long>> processors = inputSequence.map(
-        i -> {
-          try {
-            final StagePartition stagePartition = inputChannels.getStagePartitions().get(i);
+    final Sequence<FrameProcessor<Long>> processors = readableInputs.map(
+        readableInput -> {
+          final OutputChannel outputChannel =
+              outputChannels.get(readableInput.getStagePartition().getPartitionNumber());
 
-            return new GroupByPostShuffleFrameProcessor(
-                query,
-                strategySelector,
-                inputChannels.openChannel(stagePartition),
-                outputChannels.get(i).getWritableChannel(),
-                inputChannels.getFrameReader(stagePartition),
-                stageDefinition.getSignature(),
-                clusterBy,
-                outputChannels.get(i).getFrameMemoryAllocator()
-            );
-          }
-          catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+          return new GroupByPostShuffleFrameProcessor(
+              query,
+              strategySelector,
+              readableInput.getChannel(),
+              outputChannel.getWritableChannel(),
+              readableInput.getChannelFrameReader(),
+              stageDefinition.getSignature(),
+              stageDefinition.getClusterBy(),
+              outputChannel.getFrameMemoryAllocator()
+          );
         }
     );
 
-    return new ProcessorsAndChannels<>(processors, OutputChannels.wrapReadOnly(outputChannels));
+    return new ProcessorsAndChannels<>(
+        processors,
+        OutputChannels.wrapReadOnly(ImmutableList.copyOf(outputChannels.values()))
+    );
   }
 }

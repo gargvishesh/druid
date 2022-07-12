@@ -17,12 +17,85 @@ exports[`HeaderBar matches snapshot 1`] = `
     <Blueprint4.AnchorButton
       active={true}
       disabled={false}
-      href="#load-data"
-      icon="cloud-upload"
-      intent="none"
+      href="#workbench"
+      icon="application"
       minimal={true}
-      text="Load data"
+      onClick={[Function]}
+      text="Query"
     />
+    <Blueprint4.Popover2
+      boundary="clippingParents"
+      captureDismiss={false}
+      content={
+        <Blueprint4.Menu>
+          <Blueprint4.MenuDivider
+            title="Streaming"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#streaming-data-loader"
+            icon="feed"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Streaming data loader"
+          />
+          <Blueprint4.MenuDivider
+            title="Batch"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#workbench/connect-external-data"
+            icon="clean"
+            label="(new)"
+            multiline={false}
+            onClick={[Function]}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="SQL-based batch ingestion"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#classic-batch-data-loader"
+            icon="thumbs-down"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Classic batch data loader"
+          />
+        </Blueprint4.Menu>
+      }
+      defaultIsOpen={false}
+      disabled={false}
+      fill={false}
+      hasBackdrop={false}
+      hoverCloseDelay={300}
+      hoverOpenDelay={150}
+      inheritDarkTheme={true}
+      interactionKind="click"
+      minimal={false}
+      openOnTargetFocus={true}
+      position="bottom-left"
+      positioningStrategy="absolute"
+      shouldReturnFocusOnClose={false}
+      targetTagName="span"
+      transitionDuration={300}
+      usePortal={true}
+    >
+      <Blueprint4.Button
+        active={false}
+        disabled={false}
+        icon="cloud-upload"
+        minimal={true}
+        text="Load data"
+      />
+    </Blueprint4.Popover2>
     <Blueprint4.NavbarDivider />
     <Blueprint4.AnchorButton
       active={false}
@@ -56,16 +129,58 @@ exports[`HeaderBar matches snapshot 1`] = `
       minimal={true}
       text="Services"
     />
-    <Blueprint4.NavbarDivider />
-    <Blueprint4.AnchorButton
-      active={false}
+    <Blueprint4.Popover2
+      boundary="clippingParents"
+      captureDismiss={false}
+      content={
+        <Blueprint4.Menu>
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#lookups"
+            icon="properties"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Lookups"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#user-management"
+            icon="people"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="User management"
+          />
+        </Blueprint4.Menu>
+      }
+      defaultIsOpen={false}
       disabled={false}
-      href="#workbench"
-      icon="application"
-      minimal={true}
-      onClick={[Function]}
-      text="Query"
-    />
+      fill={false}
+      hasBackdrop={false}
+      hoverCloseDelay={300}
+      hoverOpenDelay={150}
+      inheritDarkTheme={true}
+      interactionKind="click"
+      minimal={false}
+      openOnTargetFocus={true}
+      position="bottom-left"
+      positioningStrategy="absolute"
+      shouldReturnFocusOnClose={false}
+      targetTagName="span"
+      transitionDuration={300}
+      usePortal={true}
+    >
+      <Blueprint4.Button
+        active={false}
+        icon="more"
+        minimal={true}
+      />
+    </Blueprint4.Popover2>
   </Blueprint4.NavbarGroup>
   <Blueprint4.NavbarGroup
     align="right"
@@ -118,28 +233,6 @@ exports[`HeaderBar matches snapshot 1`] = `
             selected={false}
             shouldDismissPopover={true}
             text="Overlord dynamic config"
-          />
-          <Blueprint4.MenuItem
-            active={false}
-            disabled={false}
-            href="#lookups"
-            icon="properties"
-            multiline={false}
-            popoverProps={Object {}}
-            selected={false}
-            shouldDismissPopover={true}
-            text="Lookups"
-          />
-          <Blueprint4.MenuItem
-            active={false}
-            disabled={false}
-            href="#user-management"
-            icon="people"
-            multiline={false}
-            popoverProps={Object {}}
-            selected={false}
-            shouldDismissPopover={true}
-            text="User management"
           />
           <Blueprint4.MenuDivider />
           <Blueprint4.MenuItem

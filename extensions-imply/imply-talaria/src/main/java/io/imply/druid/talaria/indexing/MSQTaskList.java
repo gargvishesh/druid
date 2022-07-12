@@ -11,23 +11,21 @@ package io.imply.druid.talaria.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
 public class MSQTaskList
 {
-  @Nullable
   private final List<String> taskIds;
 
   @JsonCreator
-  public MSQTaskList(@Nullable @JsonProperty("taskIds") List<String> taskIds)
+  public MSQTaskList(@JsonProperty("taskIds") List<String> taskIds)
   {
-    this.taskIds = taskIds;
+    this.taskIds = Preconditions.checkNotNull(taskIds, "taskIds");
   }
 
-  @Nullable
   @JsonProperty
   public List<String> getTaskIds()
   {

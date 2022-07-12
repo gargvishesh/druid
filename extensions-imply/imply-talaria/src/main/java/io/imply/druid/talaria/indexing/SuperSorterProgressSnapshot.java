@@ -12,6 +12,8 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.imply.druid.talaria.counters.QueryCounterSnapshot;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
 
 import javax.annotation.Nullable;
@@ -20,9 +22,9 @@ import java.util.Map;
 /**
  * Like {@link SuperSorterProgressTracker}, but immutable
  */
-public class SuperSorterProgressSnapshot
+@JsonTypeName("sortProgress")
+public class SuperSorterProgressSnapshot implements QueryCounterSnapshot
 {
-
   private final int totalMergingLevels;
   private final Map<Integer, Long> levelToTotalBatches;
   private final Map<Integer, Long> levelToMergedBatches;

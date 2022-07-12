@@ -40,11 +40,10 @@ export const InsertSuccessPane = React.memo(function InsertSuccessPane(
 
   const { stages } = execution;
   const lastStage = stages?.getLastStage();
-  if (!lastStage) return null;
 
   const rows =
-    lastStage && stages
-      ? stages.getTotalCounterForStage(lastStage, 'inputStageChannel', 'rows')
+    stages && lastStage && lastStage.definition.processor.type === 'segmentGenerator'
+      ? stages.getTotalCounterForStage(lastStage, 'input0', 'rows') // Assume input0 since we know the segmentGenerator will only ever have one stage input
       : -1;
 
   const table = SqlTableRef.create(datasource);

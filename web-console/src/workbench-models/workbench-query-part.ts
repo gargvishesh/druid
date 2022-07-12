@@ -195,7 +195,9 @@ export class WorkbenchQueryPart {
       queryString,
     );
     if (m) {
-      const fragmentQuery = SqlQuery.maybeParse(m[0] + ' * FROM t');
+      const fragmentQuery = SqlQuery.maybeParse(
+        m[0].replace(/(?:SELECT|WITH)[\s\n]+$/im, '') + ' SELECT * FROM t',
+      );
       if (fragmentQuery) {
         return fragmentQuery.getIngestTable()?.getTable();
       }

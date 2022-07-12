@@ -105,7 +105,7 @@ describe('spec conversion', () => {
       } as any),
     ).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
-      --:context msqNumTasks: 5
+      --:context msqMaxNumTasks: 5
       --:context maxParseExceptions: 3
       --:context msqFinalizeAggregations: false
       --:context groupByEnableMultiValueUnnesting: false

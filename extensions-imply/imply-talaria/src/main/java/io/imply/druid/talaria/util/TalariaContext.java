@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.util;
 
+import io.imply.druid.talaria.kernel.WorkerAssignmentStrategy;
 import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.query.QueryContext;
 
@@ -19,9 +20,9 @@ import java.util.Map;
  */
 public class TalariaContext
 {
-  public static final String CTX_MAX_NUM_CONCURRENT_SUB_TASKS = "msqNumTasks";
-  public static final String AUTO_TASK_COUNT_MODE = "auto";
-  public static final Integer UNKOWN_TASK_COUNT = Integer.MAX_VALUE;
+  public static final String CTX_MAX_NUM_TASKS = "msqMaxNumTasks";
+  public static final String CTX_MAX_NUM_TASKS_OLD = "msqNumTasks";
+  public static final String CTX_TASK_ASSIGNMENT = "msqTaskAssignment";
   public static final String CTX_FINALIZE_AGGREGATIONS = "msqFinalizeAggregations";
 
   public static final String CTX_DURABLE_SHUFFLE_STORAGE = "msqDurableShuffleStorage";
@@ -29,6 +30,8 @@ public class TalariaContext
   public static final String CTX_DESTINATION = "msqDestination";
   public static final String CTX_ROWS_PER_SEGMENT = "msqRowsPerSegment";
   public static final String CTX_ROWS_IN_MEMORY = "msqRowsInMemory";
+
+  private static final int DEFAULT_MAX_NUM_TASKS = 2;
 
   public static boolean isDurableStorageEnabled(Map<String, Object> propertyMap)
   {
@@ -41,14 +44,25 @@ public class TalariaContext
     return Numbers.parseBoolean(queryContext.getOrDefault(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true));
   }
 
-  public static boolean isTaskCountUnknown(int numTasks)
+  public static WorkerAssignmentStrategy getAssignmentStrategy(final QueryContext queryContext)
   {
-    return numTasks == UNKOWN_TASK_COUNT;
+    final String assignmentStrategyString = queryContext.getAsString(CTX_TASK_ASSIGNMENT);
+
+    if (assignmentStrategyString == null) {
+      return WorkerAssignmentStrategy.MAX;
+    } else {
+      return WorkerAssignmentStrategy.fromString(assignmentStrategyString);
+    }
   }
 
-  public static boolean isTaskAutoModeEnabled(final QueryContext queryContext)
+  public static int getMaxNumTasks(final QueryContext queryContext)
   {
-    Object mode = queryContext.get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS);
-    return mode != null && String.valueOf(mode).equalsIgnoreCase(AUTO_TASK_COUNT_MODE);
+    return queryContext.getAsInt(
+        CTX_MAX_NUM_TASKS,
+        queryContext.getAsInt(
+            CTX_MAX_NUM_TASKS_OLD,
+            DEFAULT_MAX_NUM_TASKS
+        )
+    );
   }
 }

@@ -12,18 +12,17 @@ package io.imply.druid.talaria.querykit.groupby;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
+import io.imply.druid.talaria.input.StageInputSpec;
 import io.imply.druid.talaria.kernel.MaxCountShuffleSpec;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactories;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactory;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
-import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
@@ -52,7 +51,6 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
   public QueryDefinition makeQueryDefinition(
       final String queryId,
       final GroupByQuery originalQuery,
-      final DataSegmentTimelineView timelineView,
       final QueryKit<Query<?>> queryKit,
       final ShuffleSpecFactory resultShuffleSpecFactory,
       final int maxWorkerCount,
@@ -62,15 +60,15 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
     validateQuery(originalQuery);
 
     final QueryDefinitionBuilder queryDefBuilder = QueryDefinition.builder().queryId(queryId);
-    final DataSourcePlan dataSourcePlan = QueryKitUtils.makeDataSourcePlan(
+    final DataSourcePlan dataSourcePlan = DataSourcePlan.forDataSource(
         queryKit,
         queryId,
         originalQuery.getDataSource(),
         originalQuery.getQuerySegmentSpec(),
-        timelineView,
         originalQuery.getFilter(),
         maxWorkerCount,
-        minStageNumber
+        minStageNumber,
+        false
     );
 
     dataSourcePlan.getSubQueryDefBuilder().ifPresent(queryDefBuilder::addAll);
@@ -110,34 +108,26 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
       shuffleSpecFactoryPreAggregation = doLimitOrOffset
                                          ? ShuffleSpecFactories.singlePartition()
                                          : resultShuffleSpecFactory;
+
+      // null: retain partitions from input (i.e. from preAggregation).
       shuffleSpecFactoryPostAggregation = null;
     }
 
-    int workerCount = TalariaContext.isTaskCountUnknown(maxWorkerCount)
-                       ? dataSourcePlan.getBaseInputSpecs()
-                                       .size()
-                       : maxWorkerCount;
-
     queryDefBuilder.add(
         StageDefinition.builder(firstStageNumber)
-                       .inputStages(dataSourcePlan.getInputStageNumbers())
-                       .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
+                       .inputs(dataSourcePlan.getInputSpecs())
+                       .broadcastInputs(dataSourcePlan.getBroadcastInputs())
                        .signature(intermediateSignature)
                        .shuffleSpec(shuffleSpecFactoryPreAggregation.build(intermediateClusterBy, true))
-                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : workerCount)
-                       .processorFactory(
-                           new GroupByPreShuffleFrameProcessorFactory(
-                               queryToRun,
-                               dataSourcePlan.getBaseInputSpecs()
-                           )
-                       )
+                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : maxWorkerCount)
+                       .processorFactory(new GroupByPreShuffleFrameProcessorFactory(queryToRun))
     );
 
     queryDefBuilder.add(
         StageDefinition.builder(firstStageNumber + 1)
-                       .inputStages(firstStageNumber)
+                       .inputs(new StageInputSpec(firstStageNumber))
                        .signature(resultSignature)
-                       .maxWorkerCount(workerCount)
+                       .maxWorkerCount(maxWorkerCount)
                        .shuffleSpec(
                            shuffleSpecFactoryPostAggregation != null
                            ? shuffleSpecFactoryPostAggregation.build(resultClusterBy, false)
@@ -151,7 +141,7 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
 
       queryDefBuilder.add(
           StageDefinition.builder(firstStageNumber + 2)
-                         .inputStages(firstStageNumber + 1)
+                         .inputs(new StageInputSpec(firstStageNumber + 1))
                          .signature(resultSignature)
                          .maxWorkerCount(1)
                          .shuffleSpec(new MaxCountShuffleSpec(ClusterBy.none(), 1, false))

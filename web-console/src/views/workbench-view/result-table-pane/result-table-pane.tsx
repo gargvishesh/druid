@@ -672,15 +672,17 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
       {finalPage ? (
         <div className="dead-end">
           <p>This is the end of the inline results but there are more results in this query.</p>
-          <p>If you want to see the full list of results you should export them.</p>
           {onExport && (
-            <Button
-              icon={IconNames.DOWNLOAD}
-              text="Export results"
-              intent={Intent.PRIMARY}
-              fill
-              onClick={onExport}
-            />
+            <>
+              <p>If you want to see the full list of results you should export them.</p>
+              <Button
+                icon={IconNames.DOWNLOAD}
+                text="Export results"
+                intent={Intent.PRIMARY}
+                fill
+                onClick={onExport}
+              />
+            </>
           )}
           <Button
             icon={IconNames.ARROW_LEFT}

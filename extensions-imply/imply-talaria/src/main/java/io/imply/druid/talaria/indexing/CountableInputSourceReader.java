@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing;
 
+import io.imply.druid.talaria.counters.ChannelCounters;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.InputSourceReader;
@@ -19,22 +20,22 @@ import java.io.IOException;
 public class CountableInputSourceReader implements InputSourceReader
 {
   private final InputSourceReader inputSourceReader;
-  private final TalariaCounters.ChannelCounters counters;
+  private final ChannelCounters channelCounters;
 
   public CountableInputSourceReader(
       final InputSourceReader inputSourceReader,
-      final TalariaCounters.ChannelCounters counters
+      final ChannelCounters channelCounters
   )
   {
     this.inputSourceReader = inputSourceReader;
-    this.counters = counters;
+    this.channelCounters = channelCounters;
   }
 
   @Override
   public CloseableIterator<InputRow> read() throws IOException
   {
     return inputSourceReader.read().map(inputRow -> {
-      counters.incrementRowCount();
+      channelCounters.incrementRowCount();
       return inputRow;
     });
   }

@@ -19,6 +19,7 @@ import com.google.inject.Provides;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.NoopQueryMakerFactory;
 import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.guice.IndexingServiceTuningConfigModule;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
@@ -48,8 +49,9 @@ public class TalariaSqlModule implements DruidModule
         )
     );
 
-    // We want this module to bring InputSourceModule along for the ride.
+    // We want this module to bring input sources and tuning configs along for the ride.
     modules.addAll(new InputSourceModule().getJacksonModules());
+    modules.addAll(new IndexingServiceTuningConfigModule().getJacksonModules());
     return modules;
   }
 

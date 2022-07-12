@@ -35,7 +35,7 @@ import {
   QueryView,
   SegmentsView,
   ServicesView,
-  SqloaderView,
+  SqlDataLoaderView,
   UserManagementView,
   WorkbenchView,
 } from './views';
@@ -96,6 +96,13 @@ export class ConsoleApplication extends React.PureComponent<
         return capabilities || Capabilities.FULL;
       },
       onStateChange: ({ data, loading }) => {
+        if (data && data.hasWarnings()) {
+          AppToaster.show({
+            message: data.warnings.join('\n'),
+            intent: Intent.DANGER,
+            timeout: 40000,
+          });
+        }
         this.setState({
           capabilities: data || Capabilities.FULL,
           capabilitiesLoading: loading,
@@ -128,10 +135,15 @@ export class ConsoleApplication extends React.PureComponent<
     }, 50);
   }
 
-  private readonly goToLoadData = (supervisorId?: string, taskId?: string) => {
-    if (taskId) this.taskId = taskId;
+  private readonly goToStreamingDataLoader = (supervisorId?: string) => {
     if (supervisorId) this.supervisorId = supervisorId;
-    window.location.hash = 'load-data';
+    window.location.hash = 'streaming-data-loader';
+    this.resetInitialsWithDelay();
+  };
+
+  private readonly goToClassicBatchDataLoader = (taskId?: string) => {
+    if (taskId) this.taskId = taskId;
+    window.location.hash = 'classic-batch-data-loader';
     this.resetInitialsWithDelay();
   };
 
@@ -192,13 +204,25 @@ export class ConsoleApplication extends React.PureComponent<
     return this.wrapInViewContainer(null, <HomeView capabilities={capabilities} />);
   };
 
-  private readonly wrappedLoadDataView = () => {
+  private readonly wrappedStreamingDataLoaderView = () => {
+    return this.wrapInViewContainer(
+      'streaming-data-loader',
+      <LoadDataView
+        mode="streaming"
+        initSupervisorId={this.supervisorId}
+        goToIngestion={this.goToIngestionWithTaskGroupId}
+      />,
+      'narrow-pad',
+    );
+  };
+
+  private readonly wrappedClassicBatchDataLoaderView = () => {
     const { exampleManifestsUrl } = this.props;
 
     return this.wrapInViewContainer(
-      'load-data',
+      'classic-batch-data-loader',
       <LoadDataView
-        initSupervisorId={this.supervisorId}
+        mode="batch"
         initTaskId={this.taskId}
         exampleManifestsUrl={exampleManifestsUrl}
         goToIngestion={this.goToIngestionWithTaskGroupId}
@@ -231,7 +255,7 @@ export class ConsoleApplication extends React.PureComponent<
       queryEngines.push('sql');
     }
     if (capabilities.hasMsqe()) {
-      queryEngines.push('sql-async', 'sql-task');
+      queryEngines.push('sql-task');
     }
 
     return this.wrapInViewContainer(
@@ -251,8 +275,11 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
-  private readonly wrappedSqloaderView = () => {
-    return this.wrapInViewContainer('sqloader', <SqloaderView goToQuery={this.goToQuery} />);
+  private readonly wrappedSqlDataLoaderView = () => {
+    return this.wrapInViewContainer(
+      'sql-data-loader',
+      <SqlDataLoaderView goToQuery={this.goToQuery} />,
+    );
   };
   // END: Imply-modified code for MSQE execution
 
@@ -297,7 +324,8 @@ export class ConsoleApplication extends React.PureComponent<
         openDialog={this.openDialog}
         goToDatasource={this.goToDatasources}
         goToQuery={this.goToQuery}
-        goToLoadData={this.goToLoadData}
+        goToStreamingDataLoader={this.goToStreamingDataLoader}
+        goToClassicBatchDataLoader={this.goToClassicBatchDataLoader}
         capabilities={capabilities}
       />,
     );
@@ -335,7 +363,14 @@ export class ConsoleApplication extends React.PureComponent<
         <HashRouter hashType="noslash">
           <div className="console-application">
             <Switch>
-              <Route path="/load-data" component={this.wrappedLoadDataView} />
+              <Route
+                path="/classic-batch-data-loader"
+                component={this.wrappedClassicBatchDataLoaderView}
+              />
+              <Route
+                path="/streaming-data-loader"
+                component={this.wrappedStreamingDataLoaderView}
+              />
 
               <Route path="/ingestion" component={this.wrappedIngestionView} />
               <Route path="/datasources" component={this.wrappedDatasourcesView} />
@@ -349,7 +384,7 @@ export class ConsoleApplication extends React.PureComponent<
               />
 
               {/* BEGIN: Imply-added code for MSQE execution */}
-              <Route path="/sqloader" component={this.wrappedSqloaderView} />
+              <Route path="/sql-data-loader" component={this.wrappedSqlDataLoaderView} />
               {/* END: Imply-modified code for MSQE execution */}
 
               {/* BEGIN: Imply-added code for user management */}

@@ -10,35 +10,41 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TaskStartTimeoutFault;
-import io.imply.druid.talaria.util.FutureUtils;
+import io.imply.druid.talaria.indexing.error.UnknownFault;
+import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.util.TalariaContext;
-import org.apache.druid.client.indexing.TaskStatus;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
+import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.logger.Logger;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 
 /**
  * Like {@link org.apache.druid.indexing.common.task.batch.parallel.TaskMonitor}, but different.
@@ -49,29 +55,42 @@ public class TalariaWorkerTaskLauncher
   private static final long HIGH_FREQUENCY_CHECK_MILLIS = 100;
   private static final long LOW_FREQUENCY_CHECK_MILLIS = 2000;
   private static final long SWITCH_TO_LOW_FREQUENCY_CHECK_AFTER_MILLIS = 10000;
+  private static final long SHUTDOWN_TIMEOUT_MS = Duration.ofMinutes(1).toMillis();
+
+  // States for "state" variable.
+  private enum State
+  {
+    NEW,
+    STARTED,
+    STOPPED
+  }
 
   private final String controllerTaskId;
   private final String dataSource;
   private final LeaderContext context;
-  private final int numTasks;
   private final ExecutorService exec;
   private final long maxTaskStartDelayMillis;
   private final boolean durableStageStorageEnabled;
 
   // Mutable state meant to be accessible by threads outside the main loop.
-  // private final LinkedBlockingDeque<Runnable> mailbox = new LinkedBlockingDeque<>();
-  private final SettableFuture<MSQTaskList> startFuture = SettableFuture.create();
   private final SettableFuture<Map<String, TaskState>> stopFuture = SettableFuture.create();
-  private final AtomicBoolean started = new AtomicBoolean();
-  private final AtomicBoolean stopped = new AtomicBoolean();
-  private final CountDownLatch stopLatch = new CountDownLatch(1);
+  private final AtomicReference<State> state = new AtomicReference<>(State.NEW);
+  private final AtomicBoolean cancelTasksOnStop = new AtomicBoolean();
 
-  // Mutable state meant to be accessible only to the main loop. LinkedHashMap since order of key set matters.
-  private final Map<String, TaskState> tasks = new LinkedHashMap<>();
+  @GuardedBy("taskIds")
+  private int desiredTaskCount = 0;
 
-  // Map of task id to start time. Used to check if tasks take too long to start.
-  // Only used in the main loop.
-  private final Map<String, Long> startTimeMillis = new TreeMap<>();
+  // Worker number -> task ID.
+  @GuardedBy("taskIds")
+  private final List<String> taskIds = new ArrayList<>();
+
+  // Worker number -> whether the task has fully started up or not.
+  @GuardedBy("taskIds")
+  private final IntSet fullyStartedTasks = new IntOpenHashSet();
+
+  // Mutable state accessible only to the main loop. LinkedHashMap since order of key set matters. Tasks are added
+  // here once they are submitted for running, but before they are fully started up.
+  private final Map<String, TaskTracker> taskTrackers = new LinkedHashMap<>();
 
   // Set of tasks which are issued a cancel request by the leader.
   private final Set<String> canceledWorkerTasks = ConcurrentHashMap.newKeySet();
@@ -80,7 +99,6 @@ public class TalariaWorkerTaskLauncher
       final String controllerTaskId,
       final String dataSource,
       final LeaderContext context,
-      final int numTasks,
       final boolean durableStageStorageEnabled,
       final long maxTaskStartDelayMillis
   )
@@ -88,8 +106,9 @@ public class TalariaWorkerTaskLauncher
     this.controllerTaskId = controllerTaskId;
     this.dataSource = dataSource;
     this.context = context;
-    this.exec = Execs.singleThreaded("multi-stage-query-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s");
-    this.numTasks = numTasks;
+    this.exec = Execs.singleThreaded(
+        "multi-stage-query-task-launcher[" + StringUtils.encodeForFormat(controllerTaskId) + "]-%s"
+    );
     this.durableStageStorageEnabled = durableStageStorageEnabled;
     this.maxTaskStartDelayMillis = maxTaskStartDelayMillis;
   }
@@ -100,7 +119,7 @@ public class TalariaWorkerTaskLauncher
    */
   public ListenableFuture<Map<String, TaskState>> start()
   {
-    if (started.compareAndSet(false, true)) {
+    if (state.compareAndSet(State.NEW, State.STARTED)) {
       exec.submit(() -> {
         try {
           mainLoop();
@@ -111,8 +130,7 @@ public class TalariaWorkerTaskLauncher
       });
     }
 
-    // Block until started, then return an "everything is done" future.
-    FutureUtils.getUnchecked(startFuture, true);
+    // Return an "everything is done" future that callers can wait for.
     return stopFuture;
   }
 
@@ -120,255 +138,61 @@ public class TalariaWorkerTaskLauncher
    * Stops all tasks, blocking until they exit. Returns quietly if the tasks exit normally; throws an exception
    * if something else happens.
    */
-  public void stop()
+  public void stop(final boolean interrupt)
   {
-    if (!started.get()) {
-      throw new ISE("Not started");
-    }
+    if (state.compareAndSet(State.STARTED, State.STOPPED)) {
+      if (interrupt) {
+        cancelTasksOnStop.set(true);
+      }
 
-    if (stopped.compareAndSet(false, true)) {
-      stopLatch.countDown();
+      synchronized (taskIds) {
+        // Wake up sleeping mainLoop.
+        taskIds.notifyAll();
+      }
+
+      // Only shutdown the executor when transitioning from STARTED.
       exec.shutdown();
+    } else if (state.get() == State.STOPPED) {
+      // interrupt = true is sticky: don't reset on interrupt = false.
+      if (interrupt) {
+        cancelTasksOnStop.set(true);
+      }
+    } else {
+      throw new ISE("Cannot stop(%s) from state [%s]", interrupt, state.get());
     }
 
     // Block until stopped.
     FutureUtils.getUnchecked(stopFuture, true);
   }
 
-  public Optional<MSQTaskList> getTaskList()
+  /**
+   * Get the list of currently-active tasks.
+   */
+  public List<String> getTaskList()
   {
-    if (startFuture.isDone()) {
-      return Optional.of(FutureUtils.getUncheckedImmediately(startFuture));
-    } else {
-      return Optional.empty();
-    }
-  }
-
-  public boolean isFinished()
-  {
-    return stopFuture.isDone();
-  }
-
-  private void mainLoop()
-  {
-    try {
-      final boolean startedOk = doStart();
-
-      if (startedOk) {
-        waitForTasksToFinish(true);
-      }
-
-      shutdownRemainingTasks();
-      waitForTasksToFinish(false);
-
-      if (startedOk) {
-        stopFuture.set(ImmutableMap.copyOf(tasks));
-      } else {
-        // Doesn't really matter what we set stopFuture to here, because nobody will ever see it.
-        // (When startedOk = false, "start" would have thrown an exception rather than returning stopFuture.)
-        stopFuture.setException(new ISE("Error while starting"));
-      }
-    }
-    catch (Throwable e) {
-      if (!stopFuture.isDone()) {
-        stopFuture.setException(e);
-      }
-    }
-  }
-
-  private boolean doStart()
-  {
-    try {
-      if (startAllTasks() && waitForTasksToLaunch()) {
-        startFuture.set(new MSQTaskList(ImmutableList.copyOf(tasks.keySet())));
-        return true;
-      } else {
-        startFuture.setException(new ISE("stop() called before start() finished"));
-        return false;
-      }
-    }
-    catch (Throwable e) {
-      startFuture.setException(e);
-      return false;
+    synchronized (taskIds) {
+      return ImmutableList.copyOf(taskIds);
     }
   }
 
   /**
-   * Starts all tasks. Returns true once that happens, or false if {@link #stop()} is called while launching. Throws
-   * an error if tasks fail to launch.
-   * <p>
-   * As a side effect, updates {@link #tasks} with task IDs and null statuses.
+   * Launch additional tasks, if needed, to bring the size of {@link #taskIds} up to {@code taskCount}. If enough
+   * tasks are already running, this method does nothing.
    */
-  private boolean startAllTasks()
+  public void launchTasksIfNeeded(final int taskCount) throws InterruptedException
   {
-    if (!tasks.isEmpty()) {
-      throw new ISE("Tasks cannot be started twice.");
-    }
-
-    Map<String, Object> taskContext = new HashMap<>();
-    if (durableStageStorageEnabled) {
-      taskContext.put(TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE, durableStageStorageEnabled);
-    }
-
-    long taskStartTime = System.currentTimeMillis();
-    for (int i = 0; i < numTasks; i++) {
-      if (stopped.get()) {
-        return false;
+    synchronized (taskIds) {
+      if (taskCount > desiredTaskCount) {
+        desiredTaskCount = taskCount;
       }
 
-      final TalariaWorkerTask task = new TalariaWorkerTask(
-          controllerTaskId,
-          dataSource,
-          i,
-          taskContext
-      );
-
-      tasks.put(task.getId(), null);
-      startTimeMillis.put(task.getId(), taskStartTime);
-      context.workerManager().run(task.getId(), task);
-    }
-
-    return true;
-  }
-
-  /**
-   * Wait for all tasks to have a known location, or to finish. Returns true once that happens, or false if
-   * {@link #stop()} is called while waiting.
-   */
-  private boolean waitForTasksToLaunch() throws InterruptedException
-  {
-    WorkerManagerClient workerManager = context.workerManager();
-    final long waitStartTime = System.currentTimeMillis();
-
-    while (!stopped.get()) {
-      final long loopStartTime = System.currentTimeMillis();
-
-      final Map<String, TaskStatus> statuses = workerManager.statuses(tasks.keySet());
-      statuses.forEach((k, v) -> tasks.put(k, v.getStatusCode()));
-
-      if (statuses.values().stream().anyMatch(status -> status.getStatusCode().isFailure())) {
-        throw new ISE("Tasks failed to start up");
-      }
-
-      boolean allTasksAreRunningWithLocationOrFinished = true;
-      for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
-        if (stopped.get()) {
-          return false;
+      while (taskIds.size() < taskCount || !IntStream.range(0, taskCount).allMatch(fullyStartedTasks::contains)) {
+        if (stopFuture.isDone() || stopFuture.isCancelled()) {
+          FutureUtils.getUnchecked(stopFuture, false);
+          throw new ISE("Stopped");
         }
 
-        final String taskId = taskEntry.getKey();
-        final TaskState taskState = taskEntry.getValue();
-
-        final boolean taskIsRunningWithLocationOrFinished =
-            taskState != null
-            && !taskState.isComplete()
-            && !TaskLocation.unknown().equals(workerManager.location(taskId));
-
-        if (taskIsRunningWithLocationOrFinished) {
-          startTimeMillis.remove(taskId);
-        } else {
-          allTasksAreRunningWithLocationOrFinished = false;
-          break;
-        }
-      }
-
-      // If task has not finished or been assigned to a location to run for more than MAX_ACCEPTED_TASK_START_DELAY, fail the tasks.
-      startTimeMillis.forEach((taskId, startTime) -> {
-        long timeElapsedFromTaskStart = System.currentTimeMillis() - startTime;
-        if (timeElapsedFromTaskStart > maxTaskStartDelayMillis) {
-          // adding 1 to accomodate the controller
-          throw new TalariaException(new TaskStartTimeoutFault(numTasks + 1));
-        }
-      });
-
-      if (allTasksAreRunningWithLocationOrFinished) {
-        return true;
-      }
-
-      // Sleep for a bit, maybe.
-      final long loopDuration = System.currentTimeMillis() - loopStartTime;
-      final long sleepTime;
-
-      if (System.currentTimeMillis() - waitStartTime < SWITCH_TO_LOW_FREQUENCY_CHECK_AFTER_MILLIS) {
-        sleepTime = HIGH_FREQUENCY_CHECK_MILLIS - loopDuration;
-      } else {
-        sleepTime = LOW_FREQUENCY_CHECK_MILLIS - loopDuration;
-      }
-
-      sleep(sleepTime, false);
-    }
-
-    return false;
-  }
-
-  /**
-   * Wait for all tasks to enter state SUCCESS, or for one of them to enter state FAILURE, or for {@link #stop()} to
-   * be called (if "stoppable" is set to true). Returns quietly once any of these things happens. Throws an error
-   * if Overlord API calls fail while waiting for tasks to finish.
-   * <p>
-   * As a side effect, updates {@link #tasks} with task statuses.
-   */
-  private void waitForTasksToFinish(final boolean stoppable) throws InterruptedException
-  {
-    while (!(stoppable && stopped.get())) {
-      final long loopStartTime = System.currentTimeMillis();
-
-      final Set<String> taskStatusesNeeded = new HashSet<>();
-      for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
-        if (!taskEntry.getValue().isComplete()) {
-          taskStatusesNeeded.add(taskEntry.getKey());
-        }
-      }
-
-      if (!taskStatusesNeeded.isEmpty()) {
-        final Map<String, TaskStatus> statuses = context.workerManager().statuses(taskStatusesNeeded);
-        statuses.forEach((k, v) -> tasks.put(k, v.getStatusCode()));
-      }
-
-      boolean allTasksAreSuccessful = true;
-      for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
-        if (taskEntry.getValue() == TaskState.FAILED) {
-          // FAILURE encountered -> early return.
-          return;
-        } else if (taskEntry.getValue() != TaskState.SUCCESS) {
-          allTasksAreSuccessful = false;
-        }
-      }
-
-      if (allTasksAreSuccessful) {
-        // All tasks successful -> return.
-        return;
-      }
-
-      // Sleep for a bit, maybe.
-      final long loopDuration = System.currentTimeMillis() - loopStartTime;
-      sleep(LOW_FREQUENCY_CHECK_MILLIS - loopDuration, stoppable);
-    }
-  }
-
-  public void shutdownRemainingTasks()
-  {
-    for (final Map.Entry<String, TaskState> taskEntry : tasks.entrySet()) {
-      if (!taskEntry.getValue().isComplete()) {
-        canceledWorkerTasks.add(taskEntry.getKey());
-        context.workerManager().cancel(taskEntry.getKey());
-      }
-    }
-  }
-
-  private void sleep(final long sleepMillis, final boolean stoppable) throws InterruptedException
-  {
-    if (sleepMillis > 0) {
-      if (stoppable) {
-        //noinspection ResultOfMethodCallIgnored: the latch just helps us stop sleeping early
-        stopLatch.await(sleepMillis, TimeUnit.MILLISECONDS);
-      } else {
-        Thread.sleep(sleepMillis);
-      }
-    } else {
-      // No wait, but check interrupted status anyway.
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
+        taskIds.wait();
       }
     }
   }
@@ -383,5 +207,287 @@ public class TalariaWorkerTaskLauncher
   public boolean isTaskCanceledByLeader(String taskId)
   {
     return canceledWorkerTasks.contains(taskId);
+  }
+
+  private void mainLoop()
+  {
+    try {
+      Throwable caught = null;
+
+      while (state.get() == State.STARTED) {
+        final long loopStartTime = System.currentTimeMillis();
+
+        try {
+          runNewTasks();
+          updateTaskTrackersAndTaskIds();
+          checkForErroneousTasks();
+        }
+        catch (Throwable e) {
+          state.set(State.STOPPED);
+          cancelTasksOnStop.set(true);
+
+          if (!isWorkerFailedException(e)) {
+            caught = e;
+          }
+
+          break;
+        }
+
+        // Sleep for a bit, maybe.
+        sleep(computeSleepTime(System.currentTimeMillis() - loopStartTime), false);
+      }
+
+      // Only valid transition out of STARTED.
+      assert state.get() == State.STOPPED;
+
+      final long stopStartTime = System.currentTimeMillis();
+
+      while (taskTrackers.values().stream().anyMatch(tracker -> !tracker.status.getStatusCode().isComplete())) {
+        final long loopStartTime = System.currentTimeMillis();
+
+        if (cancelTasksOnStop.get()) {
+          shutDownTasks();
+        }
+
+        updateTaskTrackersAndTaskIds();
+
+        // Sleep for a bit, maybe.
+        final long now = System.currentTimeMillis();
+
+        if (now > stopStartTime + SHUTDOWN_TIMEOUT_MS) {
+          if (caught != null) {
+            throw caught;
+          } else {
+            throw new ISE("Task shutdown timed out (limit = %,dms)", SHUTDOWN_TIMEOUT_MS);
+          }
+        }
+
+        sleep(computeSleepTime(now - loopStartTime), true);
+      }
+
+      if (caught != null) {
+        throw caught;
+      }
+
+      stopFuture.set(computeStopReturnValue());
+    }
+    catch (Throwable e) {
+      if (!stopFuture.isDone()) {
+        stopFuture.setException(e);
+      }
+    }
+
+    synchronized (taskIds) {
+      // notify taskIds so launchWorkersIfNeeded can wake up, if it is sleeping, and notice stopFuture is done.
+      taskIds.notifyAll();
+    }
+  }
+
+  /**
+   * Used by the main loop to launch new tasks up to {@link #desiredTaskCount}. Adds trackers to {@link #taskTrackers}
+   * for newly launched tasks.
+   */
+  private void runNewTasks()
+  {
+    final Map<String, Object> taskContext = new HashMap<>();
+
+    if (durableStageStorageEnabled) {
+      taskContext.put(TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE, true);
+    }
+
+    final int firstTask;
+    final int taskCount;
+
+    synchronized (taskIds) {
+      firstTask = taskIds.size();
+      taskCount = desiredTaskCount;
+    }
+
+    for (int i = firstTask; i < taskCount; i++) {
+      final TalariaWorkerTask task = new TalariaWorkerTask(
+          controllerTaskId,
+          dataSource,
+          i,
+          taskContext
+      );
+
+      taskTrackers.put(task.getId(), new TaskTracker(i));
+      context.workerManager().run(task.getId(), task);
+
+      synchronized (taskIds) {
+        taskIds.add(task.getId());
+        taskIds.notifyAll();
+      }
+    }
+  }
+
+  /**
+   * Used by the main loop to update {@link #taskTrackers} and {@link #fullyStartedTasks}.
+   */
+  private void updateTaskTrackersAndTaskIds()
+  {
+    final Set<String> taskStatusesNeeded = new HashSet<>();
+    for (final Map.Entry<String, TaskTracker> taskEntry : taskTrackers.entrySet()) {
+      if (taskEntry.getValue().status == null || !taskEntry.getValue().status.getStatusCode().isComplete()) {
+        taskStatusesNeeded.add(taskEntry.getKey());
+      }
+    }
+
+    if (!taskStatusesNeeded.isEmpty()) {
+      final WorkerManagerClient workerManager = context.workerManager();
+      final Map<String, TaskStatus> statuses = workerManager.statuses(taskStatusesNeeded);
+
+      for (Map.Entry<String, TaskStatus> statusEntry : statuses.entrySet()) {
+        final String taskId = statusEntry.getKey();
+        final TaskTracker tracker = taskTrackers.get(taskId);
+        tracker.status = statusEntry.getValue();
+
+        if (!tracker.status.getStatusCode().isComplete() && tracker.unknownLocation()) {
+          // Look up location if not known. Note: this location is not used to actually contact the task. For that,
+          // we have SpecificTaskServiceLocator. This location is only used to determine if a task has started up.
+          tracker.initialLocation = workerManager.location(taskId);
+        }
+
+        if (tracker.status.getStatusCode() == TaskState.RUNNING && !tracker.unknownLocation()) {
+          synchronized (taskIds) {
+            fullyStartedTasks.add(tracker.workerNumber);
+            taskIds.notifyAll();
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Used by the main loop to generate exceptions if any tasks have failed, have taken too long to start up, or
+   * have gone inexplicably missing.
+   *
+   * Throws an exception if some task is erroneous.
+   */
+  private void checkForErroneousTasks()
+  {
+    final int numTasks = taskTrackers.size();
+
+    for (final Map.Entry<String, TaskTracker> taskEntry : taskTrackers.entrySet()) {
+      final String taskId = taskEntry.getKey();
+      final TaskTracker tracker = taskEntry.getValue();
+
+      if (tracker.status == null) {
+        throw new TalariaException(UnknownFault.forMessage(StringUtils.format("Task [%s] status missing", taskId)));
+      }
+
+      if (tracker.didRunTimeOut(maxTaskStartDelayMillis) && !canceledWorkerTasks.contains(taskId)) {
+        throw new TalariaException(new TaskStartTimeoutFault(numTasks + 1));
+      }
+
+      if (tracker.didFail() && !canceledWorkerTasks.contains(taskId)) {
+        throw new TalariaException(new WorkerFailedFault(taskId));
+      }
+    }
+  }
+
+  private void shutDownTasks()
+  {
+    for (final Map.Entry<String, TaskTracker> taskEntry : taskTrackers.entrySet()) {
+      final String taskId = taskEntry.getKey();
+      final TaskTracker tracker = taskEntry.getValue();
+      if (!canceledWorkerTasks.contains(taskId)
+          && (tracker.status == null || !tracker.status.getStatusCode().isComplete())) {
+        canceledWorkerTasks.add(taskId);
+        context.workerManager().cancel(taskId);
+      }
+    }
+  }
+
+  /**
+   * Used by the main loop to populate {@link #stopFuture}.
+   */
+  private Map<String, TaskState> computeStopReturnValue()
+  {
+    final Map<String, TaskState> retVal = new LinkedHashMap<>();
+
+    for (Map.Entry<String, TaskTracker> trackerEntry : taskTrackers.entrySet()) {
+      final String taskId = trackerEntry.getKey();
+      final TaskTracker tracker = trackerEntry.getValue();
+
+      // Return status if known, FAILED if not known.
+      retVal.put(taskId, tracker.status != null ? tracker.status.getStatusCode() : TaskState.FAILED);
+    }
+
+    return retVal;
+  }
+
+  /**
+   * Used by the main loop to decide how often to check task status.
+   */
+  private long computeSleepTime(final long loopDurationMs)
+  {
+    final OptionalLong maxTaskStartTime =
+        taskTrackers.values().stream().mapToLong(tracker -> tracker.startTimeMs).max();
+
+    if (maxTaskStartTime.isPresent() &&
+        System.currentTimeMillis() - maxTaskStartTime.getAsLong() < SWITCH_TO_LOW_FREQUENCY_CHECK_AFTER_MILLIS) {
+      return HIGH_FREQUENCY_CHECK_MILLIS - loopDurationMs;
+    } else {
+      return LOW_FREQUENCY_CHECK_MILLIS - loopDurationMs;
+    }
+  }
+
+  private void sleep(final long sleepMillis, final boolean shuttingDown) throws InterruptedException
+  {
+    if (sleepMillis > 0) {
+      if (shuttingDown) {
+        Thread.sleep(sleepMillis);
+      } else {
+        // wait on taskIds so we can wake up early if needed.
+        synchronized (taskIds) {
+          taskIds.wait(sleepMillis);
+        }
+      }
+    } else {
+      // No wait, but check interrupted status anyway.
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
+      }
+    }
+  }
+
+  private static boolean isWorkerFailedException(final Throwable e)
+  {
+    return e instanceof TalariaException
+           && WorkerFailedFault.CODE.equals(((TalariaException) e).getFault().getErrorCode());
+  }
+
+  /**
+   * Tracker for information about a worker. Mutable.
+   */
+  private static class TaskTracker
+  {
+    private final int workerNumber;
+    private final long startTimeMs = System.currentTimeMillis();
+    private TaskStatus status;
+    private TaskLocation initialLocation;
+
+    public TaskTracker(int workerNumber)
+    {
+      this.workerNumber = workerNumber;
+    }
+
+    public boolean unknownLocation()
+    {
+      return initialLocation == null || TaskLocation.unknown().equals(initialLocation);
+    }
+
+    public boolean didFail()
+    {
+      return status != null && status.getStatusCode().isFailure();
+    }
+
+    public boolean didRunTimeOut(final long maxTaskStartDelayMillis)
+    {
+      return (status == null || status.getStatusCode() == TaskState.RUNNING)
+             && unknownLocation()
+             && System.currentTimeMillis() - startTimeMs > maxTaskStartDelayMillis;
+    }
   }
 }

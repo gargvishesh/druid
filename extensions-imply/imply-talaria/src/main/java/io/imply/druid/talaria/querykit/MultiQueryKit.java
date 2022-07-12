@@ -31,7 +31,6 @@ public class MultiQueryKit implements QueryKit<Query<?>>
   public QueryDefinition makeQueryDefinition(
       String queryId,
       Query<?> query,
-      DataSegmentTimelineView timelineView,
       QueryKit<Query<?>> toolKitForSubQueries,
       ShuffleSpecFactory resultShuffleSpecFactory,
       int maxWorkerCount,
@@ -45,7 +44,6 @@ public class MultiQueryKit implements QueryKit<Query<?>>
       return specificToolKit.makeQueryDefinition(
           queryId,
           query,
-          timelineView,
           this,
           resultShuffleSpecFactory,
           maxWorkerCount,

@@ -9,13 +9,14 @@
 
 package io.imply.druid.talaria.indexing;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.frame.channel.ReadableByteChunksFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
@@ -23,26 +24,26 @@ import io.imply.druid.talaria.frame.file.FrameFileHttpResponseHandler;
 import io.imply.druid.talaria.frame.file.FrameFilePartialFetch;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
-import io.imply.druid.talaria.rpc.DruidServiceClient;
-import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
-import io.imply.druid.talaria.rpc.RequestBuilder;
-import io.imply.druid.talaria.rpc.RpcServerError;
-import io.imply.druid.talaria.rpc.handler.IgnoreHttpResponseHandler;
-import io.imply.druid.talaria.rpc.handler.JsonHttpResponseHandler;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import io.imply.druid.talaria.rpc.indexing.SpecificTaskRetryPolicy;
-import io.imply.druid.talaria.rpc.indexing.SpecificTaskServiceLocator;
-import org.apache.druid.java.util.common.Either;
+import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
+import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
+import org.apache.druid.rpc.IgnoreHttpResponseHandler;
+import org.apache.druid.rpc.RequestBuilder;
+import org.apache.druid.rpc.ServiceClient;
+import org.apache.druid.rpc.ServiceClientFactory;
+import org.apache.druid.rpc.StandardRetryPolicy;
+import org.apache.druid.rpc.indexing.OverlordClient;
+import org.apache.druid.rpc.indexing.SpecificTaskRetryPolicy;
+import org.apache.druid.rpc.indexing.SpecificTaskServiceLocator;
 import org.apache.druid.utils.CloseableUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nonnull;
 import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -52,16 +53,16 @@ import java.util.stream.Collectors;
 
 public class IndexerWorkerClient implements WorkerClient
 {
-  private final DruidServiceClientFactory clientFactory;
-  private final OverlordServiceClient overlordClient;
+  private final ServiceClientFactory clientFactory;
+  private final OverlordClient overlordClient;
   private final ObjectMapper jsonMapper;
 
   @GuardedBy("clientMap")
-  private final Map<String, Pair<DruidServiceClient, Closeable>> clientMap = new HashMap<>();
+  private final Map<String, Pair<ServiceClient, Closeable>> clientMap = new HashMap<>();
 
   public IndexerWorkerClient(
-      final DruidServiceClientFactory clientFactory,
-      final OverlordServiceClient overlordClient,
+      final ServiceClientFactory clientFactory,
+      final OverlordClient overlordClient,
       final ObjectMapper jsonMapper
   )
   {
@@ -85,13 +86,10 @@ public class IndexerWorkerClient implements WorkerClient
   @Override
   public ListenableFuture<Void> postWorkOrder(String workerTaskId, WorkOrder workOrder)
   {
-    return Futures.transform(
-        getClient(workerTaskId).asyncRequest(
-            new RequestBuilder(HttpMethod.POST, "/workOrder")
-                .content(MediaType.APPLICATION_JSON, jsonMapper, workOrder),
-            IgnoreHttpResponseHandler.INSTANCE
-        ),
-        (Function<Either<RpcServerError, Void>, Void>) Either::valueOrThrow
+    return getClient(workerTaskId).asyncRequest(
+        new RequestBuilder(HttpMethod.POST, "/workOrder")
+            .jsonContent(jsonMapper, workOrder),
+        IgnoreHttpResponseHandler.INSTANCE
     );
   }
 
@@ -108,13 +106,10 @@ public class IndexerWorkerClient implements WorkerClient
         stageId.getStageNumber()
     );
 
-    return Futures.transform(
-        getClient(workerTaskId).asyncRequest(
-            new RequestBuilder(HttpMethod.POST, path)
-                .content(MediaType.APPLICATION_JSON, jsonMapper, partitionBoundaries),
-            IgnoreHttpResponseHandler.INSTANCE
-        ),
-        (Function<Either<RpcServerError, Void>, Void>) Either::valueOrThrow
+    return getClient(workerTaskId).asyncRequest(
+        new RequestBuilder(HttpMethod.POST, path)
+            .jsonContent(jsonMapper, partitionBoundaries),
+        IgnoreHttpResponseHandler.INSTANCE
     );
   }
 
@@ -133,36 +128,30 @@ public class IndexerWorkerClient implements WorkerClient
         stageId.getStageNumber()
     );
 
-    return Futures.transform(
-        getClient(workerTaskId).asyncRequest(
-            new RequestBuilder(HttpMethod.POST, path),
-            IgnoreHttpResponseHandler.INSTANCE
-        ),
-        (Function<Either<RpcServerError, Void>, Void>) Either::valueOrThrow
+    return getClient(workerTaskId).asyncRequest(
+        new RequestBuilder(HttpMethod.POST, path),
+        IgnoreHttpResponseHandler.INSTANCE
     );
   }
 
   @Override
   public ListenableFuture<Void> postFinish(String workerTaskId)
   {
-    return Futures.transform(
-        getClient(workerTaskId).asyncRequest(
-            new RequestBuilder(HttpMethod.POST, "/finish"),
-            IgnoreHttpResponseHandler.INSTANCE
-        ),
-        (Function<Either<RpcServerError, Void>, Void>) Either::valueOrThrow
+    return getClient(workerTaskId).asyncRequest(
+        new RequestBuilder(HttpMethod.POST, "/finish"),
+        IgnoreHttpResponseHandler.INSTANCE
     );
   }
 
   @Override
-  public ListenableFuture<MSQCountersSnapshot> getCounters(String workerTaskId)
+  public ListenableFuture<CounterSnapshotsTree> getCounters(String workerTaskId)
   {
-    return Futures.transform(
+    return FutureUtils.transform(
         getClient(workerTaskId).asyncRequest(
             new RequestBuilder(HttpMethod.GET, "/counters"),
-            JsonHttpResponseHandler.create(jsonMapper, MSQCountersSnapshot.class)
+            new BytesFullResponseHandler()
         ),
-        (Function<Either<RpcServerError, MSQCountersSnapshot>, MSQCountersSnapshot>) Either::valueOrThrow
+        holder -> deserialize(holder, new TypeReference<CounterSnapshotsTree>() {})
     );
   }
 
@@ -177,11 +166,11 @@ public class IndexerWorkerClient implements WorkerClient
       ReadableByteChunksFrameChannel channel
   )
   {
-    final DruidServiceClient client = getClient(workerTaskId);
+    final ServiceClient client = getClient(workerTaskId);
     final String path = getStagePartitionPath(stageId, partitionNumber);
 
     final SettableFuture<Boolean> retVal = SettableFuture.create();
-    final ListenableFuture<Either<RpcServerError, FrameFilePartialFetch>> clientFuture =
+    final ListenableFuture<FrameFilePartialFetch> clientFuture =
         client.asyncRequest(
             new RequestBuilder(HttpMethod.GET, StringUtils.format("%s?offset=%d", path, offset))
                 .header(HttpHeaders.ACCEPT_ENCODING, "identity"), // Data is compressed at app level
@@ -190,32 +179,25 @@ public class IndexerWorkerClient implements WorkerClient
 
     Futures.addCallback(
         clientFuture,
-        new FutureCallback<Either<RpcServerError, FrameFilePartialFetch>>()
+        new FutureCallback<FrameFilePartialFetch>()
         {
           @Override
-          public void onSuccess(Either<RpcServerError, FrameFilePartialFetch> result)
+          public void onSuccess(FrameFilePartialFetch partialFetch)
           {
-            if (result.isError()) {
-              // RpcServerError is nonrecoverable.
-              retVal.setException(new RuntimeException(result.error().toString()));
-            } else {
-              final FrameFilePartialFetch partialFetch = result.valueOrThrow();
-
-              if (partialFetch.isExceptionCaught()) {
-                // Exception while reading channel. Recoverable.
-                log.noStackTrace().info(
-                    partialFetch.getExceptionCaught(),
-                    "Encountered exception while reading channel [%s]",
-                    channel.getId()
-                );
-              }
-
-              // Empty fetch means this is the last fetch for the channel.
-              partialFetch.backpressureFuture().addListener(
-                  () -> retVal.set(partialFetch.isEmptyFetch()),
-                  Execs.directExecutor()
+            if (partialFetch.isExceptionCaught()) {
+              // Exception while reading channel. Recoverable.
+              log.noStackTrace().info(
+                  partialFetch.getExceptionCaught(),
+                  "Encountered exception while reading channel [%s]",
+                  channel.getId()
               );
             }
+
+            // Empty fetch means this is the last fetch for the channel.
+            partialFetch.backpressureFuture().addListener(
+                () -> retVal.set(partialFetch.isEmptyFetch()),
+                Execs.directExecutor()
+            );
           }
 
           @Override
@@ -244,21 +226,36 @@ public class IndexerWorkerClient implements WorkerClient
     }
   }
 
-  private DruidServiceClient getClient(final String workerTaskId)
+  private ServiceClient getClient(final String workerTaskId)
   {
     synchronized (clientMap) {
       return clientMap.computeIfAbsent(
           workerTaskId,
           id -> {
             final SpecificTaskServiceLocator locator = new SpecificTaskServiceLocator(id, overlordClient);
-            final DruidServiceClient client = clientFactory.makeClient(
+            final ServiceClient client = clientFactory.makeClient(
                 id,
                 locator,
-                new SpecificTaskRetryPolicy(workerTaskId)
+                new SpecificTaskRetryPolicy(workerTaskId, StandardRetryPolicy.unlimited())
             );
             return Pair.of(client, locator);
           }
       ).lhs;
+    }
+  }
+
+  /**
+   * Deserialize a {@link BytesFullResponseHolder} as JSON.
+   *
+   * It would be reasonable to move this to {@link BytesFullResponseHolder} itself, or some shared utility class.
+   */
+  private <T> T deserialize(final BytesFullResponseHolder bytesHolder, final TypeReference<T> typeReference)
+  {
+    try {
+      return jsonMapper.readValue(bytesHolder.getContent(), typeReference);
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 }

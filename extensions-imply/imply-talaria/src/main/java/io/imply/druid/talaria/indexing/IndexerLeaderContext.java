@@ -16,20 +16,18 @@ import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
-import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.java.util.common.io.Closer;
+import org.apache.druid.rpc.ServiceClientFactory;
+import org.apache.druid.rpc.indexing.OverlordClient;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.server.DruidNode;
 
-import javax.annotation.Nullable;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Indexer implementation of the Talaria leader context.
@@ -38,21 +36,15 @@ public class IndexerLeaderContext implements LeaderContext
 {
   private final TaskToolbox toolbox;
   private final Injector injector;
-  private final DruidServiceClientFactory clientFactory;
-  private final OverlordServiceClient overlordClient;
+  private final ServiceClientFactory clientFactory;
+  private final OverlordClient overlordClient;
   private final WorkerManagerClient workerManager;
-
-  private final boolean faultToleranceEnabled;
-  @Nullable
-  private final ExecutorService remoteFetchExecutorService;
 
   public IndexerLeaderContext(
       final TaskToolbox toolbox,
       final Injector injector,
-      final DruidServiceClientFactory clientFactory,
-      final OverlordServiceClient overlordClient,
-      final boolean faultToleranceEnabled,
-      @Nullable final ExecutorService remoteFetchExecutorService
+      final ServiceClientFactory clientFactory,
+      final OverlordClient overlordClient
   )
   {
     this.toolbox = toolbox;
@@ -60,8 +52,6 @@ public class IndexerLeaderContext implements LeaderContext
     this.clientFactory = clientFactory;
     this.overlordClient = overlordClient;
     this.workerManager = new IndexerWorkerManagerClient(overlordClient);
-    this.faultToleranceEnabled = faultToleranceEnabled;
-    this.remoteFetchExecutorService = remoteFetchExecutorService;
   }
 
   @Override

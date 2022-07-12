@@ -11,17 +11,18 @@ package io.imply.druid.talaria.exec;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.imply.druid.talaria.counters.CounterSnapshots;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
+import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskReport;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Interface for the leader executor. At present, Talaria can run in both the
@@ -102,7 +103,7 @@ public interface Leader
   void workerWarning(List<MSQErrorReport> errorReports);
 
   /**
-   * Periodic update of {@link MSQCountersSnapshot} for a specific worker task.
+   * Periodic update of {@link CounterSnapshots} for a specific worker task.
    * Indicates a hard failure of the worker: fatal exception, the worker's
    * host dropped out of ZK, etc. The worker should be presumed dead. Restart
    * a new one if possible. If, due to a split network, the worker does
@@ -117,12 +118,12 @@ public interface Leader
    * Till the fault tolerance is properly figured out for Talaria, if a worker encounters an error, all the worker nodes
    * and the stages that they are executing are marked as failed.
    */
-  void workerFailed(String workerId);
+  void workerFailed(WorkerFailedFault workerId);
 
   /**
-   * Periodic update of {@link MSQCountersSnapshot} from subtasks.
+   * Periodic update of {@link CounterSnapshots} from subtasks.
    */
-  void updateCounters(String workerTaskId, MSQCountersSnapshot.WorkerCounters workerSnapshot);
+  void updateCounters(CounterSnapshotsTree snapshotsTree);
 
   /**
    * Reports that results are ready for a subtask.
@@ -134,11 +135,9 @@ public interface Leader
       Object resultObject);
 
   /**
-   * Returns a complete list of task ids, ordered by worker number. The Nth task has worker number N.
-   *
-   * If the currently-running set of tasks is incomplete, returns an absent Optional.
+   * Returns the current list of task ids, ordered by worker number. The Nth task has worker number N.
    */
-  Optional<List<String>> getTaskIds();
+  List<String> getTaskIds();
 
   @Nullable
   Map<String, TaskReport> liveReports();

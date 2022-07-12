@@ -22,7 +22,6 @@ import { QueryResult } from 'druid-query-toolkit';
 import { IntermediateQueryState } from '../../../utils';
 import { Execution } from '../../../workbench-models';
 
-import { updateExecutionWithAsyncIfNeeded } from './sql-async-execution';
 import {
   updateExecutionWithDatasourceExistsIfNeeded,
   updateExecutionWithTaskIfNeeded,
@@ -36,7 +35,9 @@ export function extractQueryResults(
   if (execution.result) {
     return execution.result;
   } else {
-    throw new Error(execution.getErrorMessage() || 'unexpected destination');
+    const error = new Error(execution.getErrorMessage() || 'unexpected destination');
+    if (execution.error) (error as any).executionError = execution.error;
+    throw error;
   }
 }
 
@@ -46,10 +47,6 @@ export async function executionBackgroundStatusCheck(
   cancelToken: CancelToken,
 ): Promise<Execution | IntermediateQueryState<Execution>> {
   switch (execution.engine) {
-    case 'sql-async':
-      execution = await updateExecutionWithAsyncIfNeeded(execution, cancelToken);
-      break;
-
     case 'sql-task':
       execution = await updateExecutionWithTaskIfNeeded(execution, cancelToken);
       execution = await updateExecutionWithDatasourceExistsIfNeeded(execution, cancelToken);

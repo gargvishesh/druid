@@ -18,7 +18,7 @@
 
 import { TabEntry, WorkbenchQuery } from '../../workbench-models';
 
-const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ msqNumTasks: 3 });
+const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ msqMaxNumTasks: 3 });
 
 export function getDemoQueries(): TabEntry[] {
   return [

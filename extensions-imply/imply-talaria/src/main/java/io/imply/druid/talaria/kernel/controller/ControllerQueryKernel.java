@@ -12,19 +12,26 @@ package io.imply.druid.talaria.kernel.controller;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.imply.druid.talaria.exec.QueryValidator;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
+import io.imply.druid.talaria.input.InputSpecSlicer;
+import io.imply.druid.talaria.input.InputSpecSlicerFactory;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
+import io.imply.druid.talaria.kernel.WorkerAssignmentStrategy;
+import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,7 +72,6 @@ public class ControllerQueryKernel
   // and not tracked anymore in this Set
   private final Set<StageId> effectivelyFinishedStages = new HashSet<>(); // Modifiable map
 
-
   public ControllerQueryKernel(final QueryDefinition queryDef)
   {
     this.queryDef = queryDef;
@@ -76,9 +82,24 @@ public class ControllerQueryKernel
   /**
    * Creates new kernels, if they can be initialized, and returns the tracked kernels which are in NEW phase
    */
-  public List<StageId> createAndGetNewStageIds()
+  public List<StageId> createAndGetNewStageIds(
+      final InputSpecSlicerFactory slicerFactory,
+      final WorkerAssignmentStrategy assignmentStrategy
+  )
   {
-    createNewKernels();
+    final Int2IntMap stageWorkerCountMap = new Int2IntAVLTreeMap();
+    final Int2ObjectMap<ReadablePartitions> stagePartitionsMap = new Int2ObjectAVLTreeMap<>();
+
+    for (final ControllerStageKernel stageKernel : stageTrackers.values()) {
+      final int stageNumber = stageKernel.getStageDefinition().getStageNumber();
+      stageWorkerCountMap.put(stageNumber, stageKernel.getWorkerInputs().workerCount());
+
+      if (stageKernel.hasResultPartitions()) {
+        stagePartitionsMap.put(stageNumber, stageKernel.getResultPartitions());
+      }
+    }
+
+    createNewKernels(stageWorkerCountMap, slicerFactory.makeSlicer(stagePartitionsMap), assignmentStrategy);
     return stageTrackers.values()
                         .stream()
                         .filter(controllerStageKernel -> controllerStageKernel.getPhase() == ControllerStagePhase.NEW)
@@ -159,50 +180,57 @@ public class ControllerQueryKernel
   /**
    * Creates a list of work orders, corresponding to each worker, for a particular stageNumber
    */
-  public List<WorkOrder> createWorkOrders(
+  public Int2ObjectMap<WorkOrder> createWorkOrders(
       final int stageNumber,
-      @Nullable final List<Object> extraInfos
+      @Nullable final Int2ObjectMap<Object> extraInfos
   )
   {
-    final List<WorkOrder> retVal = new ArrayList<>();
+    final Int2ObjectMap<WorkOrder> retVal = new Int2ObjectAVLTreeMap<>();
     final ControllerStageKernel stageKernel = getStageKernelOrThrow(getStageId(stageNumber));
 
-    List<ReadablePartitions> workerInputs = stageKernel.getWorkerInputs();
-    for (int workerNumber = 0; workerNumber < workerInputs.size(); workerNumber++) {
+    final WorkerInputs workerInputs = stageKernel.getWorkerInputs();
+    for (int workerNumber : workerInputs.workers()) {
       final Object extraInfo = extraInfos != null ? extraInfos.get(workerNumber) : null;
 
       //noinspection unchecked
       final ExtraInfoHolder<?> extraInfoHolder =
           stageKernel.getStageDefinition().getProcessorFactory().makeExtraInfoHolder(extraInfo);
 
-      retVal.add(
-          new WorkOrder(
-              queryDef,
-              stageNumber,
-              workerNumber,
-              stageKernel.getWorkerInputs().get(workerNumber),
-              extraInfoHolder
-          )
+      final WorkOrder workOrder = new WorkOrder(
+          queryDef,
+          stageNumber,
+          workerNumber,
+          workerInputs.inputsForWorker(workerNumber),
+          extraInfoHolder
       );
+
+      QueryValidator.validateWorkOrder(workOrder);
+      retVal.put(workerNumber, workOrder);
     }
 
     return retVal;
   }
 
-  private void createNewKernels()
+  private void createNewKernels(
+      final Int2IntMap stageWorkerCountMap,
+      final InputSpecSlicer slicer,
+      final WorkerAssignmentStrategy assignmentStrategy
+  )
   {
     for (final StageId nextStage : readyToRunStages) {
       // Create a tracker.
       final StageDefinition stageDef = queryDef.getStageDefinition(nextStage);
       final ControllerStageKernel stageKernel = ControllerStageKernel.create(
           stageDef,
-          stageDef.getInputStageIds().stream().map(stageTrackers::get).collect(Collectors.toList())
+          stageWorkerCountMap,
+          slicer,
+          assignmentStrategy
       );
       stageTrackers.put(nextStage, stageKernel);
     }
+
     readyToRunStages.clear();
   }
-
 
   /**
    * Populates the inflowMap, outflowMap and pending inflow/outflow maps corresponding to the query definition
@@ -225,7 +253,8 @@ public class ControllerQueryKernel
       final StageId stageId = stageDef.getId();
       retVal.computeIfAbsent(stageId, ignored -> new HashSet<>());
       this.pendingOutflowMap.computeIfAbsent(stageId, ignored -> new HashSet<>());
-      for (final StageId inputStageId : queryDefinition.getStageDefinition(stageId).getInputStageIds()) {
+      for (final int inputStageNumber : queryDefinition.getStageDefinition(stageId).getInputStageNumbers()) {
+        final StageId inputStageId = new StageId(queryDef.getQueryId(), inputStageNumber);
         retVal.computeIfAbsent(inputStageId, ignored -> new HashSet<>()).add(stageId);
         this.pendingOutflowMap.computeIfAbsent(inputStageId, ignored -> new HashSet<>()).add(stageId);
       }
@@ -244,7 +273,8 @@ public class ControllerQueryKernel
       final StageId stageId = stageDef.getId();
       retVal.computeIfAbsent(stageId, ignored -> new HashSet<>());
       this.pendingInflowMap.computeIfAbsent(stageId, ignored -> new HashSet<>());
-      for (final StageId inputStageId : queryDefinition.getStageDefinition(stageId).getInputStageIds()) {
+      for (final int inputStageNumber : queryDefinition.getStageDefinition(stageId).getInputStageNumbers()) {
+        final StageId inputStageId = new StageId(queryDef.getQueryId(), inputStageNumber);
         retVal.computeIfAbsent(stageId, ignored -> new HashSet<>()).add(inputStageId);
         this.pendingInflowMap.computeIfAbsent(stageId, ignored -> new HashSet<>()).add(inputStageId);
       }
@@ -367,7 +397,7 @@ public class ControllerQueryKernel
   /**
    * Delegates call to {@link ControllerStageKernel#getWorkerInputs()}
    */
-  public List<ReadablePartitions> getWorkerInputsForStage(final StageId stageId)
+  public WorkerInputs getWorkerInputsForStage(final StageId stageId)
   {
     return getStageKernelOrThrow(stageId).getWorkerInputs();
   }

@@ -15,11 +15,11 @@ import com.google.common.collect.Iterators;
 import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class StripedReadablePartitions implements ReadablePartitions
 {
@@ -56,13 +56,15 @@ public class StripedReadablePartitions implements ReadablePartitions
   @Override
   public List<ReadablePartitions> split(final int maxNumSplits)
   {
-    return SplitUtils.makeSplits(partitionNumbers.iterator(), maxNumSplits)
-                     .stream()
-                     .map(
-                         entries ->
-                             new StripedReadablePartitions(stageNumber, numWorkers, new IntAVLTreeSet(entries))
-                     )
-                     .collect(Collectors.toList());
+    final List<ReadablePartitions> retVal = new ArrayList<>();
+
+    for (List<Integer> entries : SplitUtils.makeSplits(partitionNumbers.iterator(), maxNumSplits)) {
+      if (!entries.isEmpty()) {
+        retVal.add(new StripedReadablePartitions(stageNumber, numWorkers, new IntAVLTreeSet(entries)));
+      }
+    }
+
+    return retVal;
   }
 
   @JsonProperty
@@ -105,8 +107,9 @@ public class StripedReadablePartitions implements ReadablePartitions
   @Override
   public String toString()
   {
-    return "PreShuffleStripes{" +
-           "numWorkers=" + numWorkers +
+    return "StripedReadablePartitions{" +
+           "stageNumber=" + stageNumber +
+           ", numWorkers=" + numWorkers +
            ", partitionNumbers=" + partitionNumbers +
            '}';
   }

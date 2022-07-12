@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.imply.druid.talaria.frame.FrameType;
 import io.imply.druid.talaria.frame.MemoryAllocator;
@@ -26,6 +27,8 @@ import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.StagePartition;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2IntRBTreeMap;
 import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 import org.apache.druid.java.util.common.IAE;
@@ -33,9 +36,7 @@ import org.apache.druid.java.util.common.IAE;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 public class InputChannels
@@ -47,17 +48,17 @@ public class InputChannels
 
   // One of each of the following per StagePartition; use stagePartitionIndex to find the appropriate index.
   private final List<ChannelSupplier> channelSuppliers;
-  private final List<FrameReader> channelFrameReaders;
+  private final Int2ObjectMap<FrameReader> stageFrameReaders;
 
   private InputChannels(
       final Object2IntSortedMap<StagePartition> stagePartitionIndex,
       final List<ChannelSupplier> channelSuppliers,
-      final List<FrameReader> channelFrameReaders
+      final Int2ObjectMap<FrameReader> stageFrameReaders
   )
   {
     this.stagePartitionIndex = stagePartitionIndex;
     this.channelSuppliers = channelSuppliers;
-    this.channelFrameReaders = channelFrameReaders;
+    this.stageFrameReaders = stageFrameReaders;
 
     stagePartitionList = new ArrayList<>(stagePartitionIndex.size());
     stagePartitionList.addAll(stagePartitionIndex.keySet());
@@ -65,7 +66,6 @@ public class InputChannels
 
   public static InputChannels create(
       final QueryDefinition queryDefinition,
-      final int[] inputStageNumbers,
       final ReadablePartitions inputPartitions,
       final InputChannelFactory channelFactory,
       final Supplier<MemoryAllocator> allocatorMaker,
@@ -73,22 +73,15 @@ public class InputChannels
       final String cancellationId
   )
   {
-    final Map<Integer, StageDefinition> stageDefinitionMap = new HashMap<>();
-
-    for (int stageNumber : inputStageNumbers) {
-      stageDefinitionMap.put(stageNumber, queryDefinition.getStageDefinition(stageNumber));
-    }
-
     final Object2IntSortedMap<StagePartition> stagePartitionIndex = new Object2IntRBTreeMap<>();
     stagePartitionIndex.defaultReturnValue(NO_STAGE_PARTITION);
 
     final List<ChannelSupplier> channelSuppliers = new ArrayList<>();
-    final List<FrameReader> channelFrameReaders = new ArrayList<>();
-    final Map<StageId, FrameReader> stageFrameReaderMap = new HashMap<>();
+    final Int2ObjectMap<FrameReader> stageFrameReaders = new Int2ObjectAVLTreeMap<>();
 
     for (final ReadablePartition inputPartition : inputPartitions) {
-      final StageDefinition inputStageDefinition = stageDefinitionMap.get(inputPartition.getStageNumber());
-      final ClusterBy inputClusterBy = queryDefinition.getClusterByForStage(inputStageDefinition.getStageNumber());
+      final StageDefinition inputStageDefinition = queryDefinition.getStageDefinition(inputPartition.getStageNumber());
+      final ClusterBy inputClusterBy = inputStageDefinition.getClusterBy();
       final StagePartition inputStagePartition = new StagePartition(
           inputStageDefinition.getId(),
           inputPartition.getPartitionNumber()
@@ -129,15 +122,13 @@ public class InputChannels
         );
       }
 
-      channelFrameReaders.add(
-          stageFrameReaderMap.computeIfAbsent(
-              inputStageDefinition.getId(),
-              ignored -> FrameReader.create(inputStageDefinition.getSignature())
-          )
+      stageFrameReaders.putIfAbsent(
+          inputStageDefinition.getId().getStageNumber(),
+          inputStageDefinition.getFrameReader()
       );
     }
 
-    return new InputChannels(stagePartitionIndex, channelSuppliers, channelFrameReaders);
+    return new InputChannels(stagePartitionIndex, channelSuppliers, stageFrameReaders);
   }
 
   public List<StagePartition> getStagePartitions()
@@ -151,10 +142,9 @@ public class InputChannels
     return channelSuppliers.get(idx).open();
   }
 
-  public FrameReader getFrameReader(final StagePartition stagePartition)
+  public FrameReader getFrameReaderForStage(final int stageNumber)
   {
-    final int idx = getStagePartitionIndexOrThrow(stagePartition);
-    return channelFrameReaders.get(idx);
+    return Preconditions.checkNotNull(stageFrameReaders.get(stageNumber), "No reader for stage [%s]", stageNumber);
   }
 
   private int getStagePartitionIndexOrThrow(final StagePartition stagePartition)

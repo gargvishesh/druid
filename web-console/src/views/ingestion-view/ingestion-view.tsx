@@ -111,9 +111,10 @@ export interface IngestionViewProps {
   taskGroupId: string | undefined;
   datasourceId: string | undefined;
   openDialog: string | undefined;
-  goToDatasource: (datasource: string) => void;
-  goToQuery: (initSql: string) => void;
-  goToLoadData: (supervisorId?: string, taskId?: string) => void;
+  goToDatasource(datasource: string): void;
+  goToQuery(initSql: string): void;
+  goToStreamingDataLoader(supervisorId?: string): void;
+  goToClassicBatchDataLoader(taskId?: string): void;
   capabilities: Capabilities;
 }
 
@@ -388,7 +389,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
     supervisorSuspended: boolean,
     type: string,
   ): BasicAction[] {
-    const { goToDatasource, goToLoadData } = this.props;
+    const { goToDatasource, goToStreamingDataLoader } = this.props;
 
     const actions: BasicAction[] = [];
     if (oneOf(type, 'kafka', 'kinesis')) {
@@ -401,7 +402,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
         {
           icon: IconNames.CLOUD_UPLOAD,
           title: 'Open in data loader',
-          onAction: () => goToLoadData(id),
+          onAction: () => goToStreamingDataLoader(id),
         },
       );
     }
@@ -688,7 +689,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
     status: string,
     type: string,
   ): BasicAction[] {
-    const { goToDatasource, goToLoadData } = this.props;
+    const { goToDatasource, goToClassicBatchDataLoader } = this.props;
 
     const actions: BasicAction[] = [];
     if (datasource && status === 'SUCCESS') {
@@ -702,7 +703,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
       actions.push({
         icon: IconNames.CLOUD_UPLOAD,
         title: 'Open in data loader',
-        onAction: () => goToLoadData(undefined, id),
+        onAction: () => goToClassicBatchDataLoader(id),
       });
     }
     if (oneOf(status, 'RUNNING', 'WAITING', 'PENDING')) {

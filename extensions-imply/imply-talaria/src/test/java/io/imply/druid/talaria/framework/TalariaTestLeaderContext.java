@@ -44,19 +44,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 public class TalariaTestLeaderContext implements LeaderContext
 {
   private static final Logger log = new Logger(TalariaTestLeaderContext.class);
   private final TaskActionClient taskActionClient;
-  private Map<String, Worker> inMemoryWorkers = new HashMap<>();
-  private ConcurrentMap<String, TaskStatus> statusMap = new ConcurrentHashMap<>();
-  private ListeningExecutorService executor = MoreExecutors.listeningDecorator(Execs.singleThreaded(
+  private final Map<String, Worker> inMemoryWorkers = new HashMap<>();
+  private final ConcurrentMap<String, TaskStatus> statusMap = new ConcurrentHashMap<>();
+  private final ListeningExecutorService executor = MoreExecutors.listeningDecorator(Execs.singleThreaded(
       "Talaria-test-leader-client"));
-  private CoordinatorClient coordinatorClient;
-  private DruidNode node = new DruidNode(
+  private final CoordinatorClient coordinatorClient;
+  private final DruidNode node = new DruidNode(
       "leader",
       "localhost",
       true,
@@ -65,13 +64,11 @@ public class TalariaTestLeaderContext implements LeaderContext
       true,
       false
   );
+  private final Injector injector;
+  private final ObjectMapper mapper;
+
   private Leader leader;
-  private Injector injector;
-  private ObjectMapper mapper;
-
   private Map<String, TaskReport> report = null;
-
-  private final ExecutorService remoteExecutorService = Execs.multiThreaded(30, "Remote storage fetcher");
 
   public TalariaTestLeaderContext(ObjectMapper mapper, Injector injector, TaskActionClient taskActionClient)
   {
@@ -103,14 +100,12 @@ public class TalariaTestLeaderContext implements LeaderContext
       }
       Worker worker = new WorkerImpl(
           task,
-          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector, remoteExecutorService)
+          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector)
       );
       inMemoryWorkers.put(task.getId(), worker);
       statusMap.put(task.getId(), TaskStatus.running(task.getId()));
 
-      ListenableFuture<TaskStatus> future = executor.submit(() -> (
-          worker.run()
-      ));
+      ListenableFuture<TaskStatus> future = executor.submit(worker::run);
 
       Futures.addCallback(future, new FutureCallback<TaskStatus>()
       {
@@ -132,34 +127,41 @@ public class TalariaTestLeaderContext implements LeaderContext
     }
 
     @Override
-    public TaskLocation location(String workerId)
+    public Map<String, TaskStatus> statuses(Set<String> taskIds)
     {
-      return new TaskLocation("123", 123, 123);
-    }
-
-    @Override
-    public Map<String, org.apache.druid.client.indexing.TaskStatus> statuses(Set<String> taskIds)
-    {
-      Map<String, org.apache.druid.client.indexing.TaskStatus> result = new HashMap<>();
+      Map<String, TaskStatus> result = new HashMap<>();
       for (String taskId : taskIds) {
         TaskStatus taskStatus = statusMap.get(taskId);
         if (taskStatus != null) {
 
           if (taskStatus.getStatusCode().equals(TaskState.RUNNING) && !inMemoryWorkers.containsKey(taskId)) {
-            result.put(taskId, new org.apache.druid.client.indexing.TaskStatus(taskId, TaskState.FAILED, 0));
+            result.put(taskId, new TaskStatus(taskId, TaskState.FAILED, 0, null, null));
           } else {
             result.put(
                 taskId,
-                new org.apache.druid.client.indexing.TaskStatus(
+                new TaskStatus(
                     taskStatus.getId(),
                     taskStatus.getStatusCode(),
-                    taskStatus.getDuration()
+                    taskStatus.getDuration(),
+                    null,
+                    null
                 )
             );
           }
         }
       }
       return result;
+    }
+
+    @Override
+    public TaskLocation location(String workerId)
+    {
+      final TaskStatus status = statusMap.get(workerId);
+      if (status != null && status.getStatusCode().equals(TaskState.RUNNING) && inMemoryWorkers.containsKey(workerId)) {
+        return TaskLocation.create("host-" + workerId, 1, -1);
+      } else {
+        return TaskLocation.unknown();
+      }
     }
 
     @Override
