@@ -100,7 +100,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       Cache cache,
       CacheConfig cacheConfig,
       SegmentManager segmentManager,
-      JoinableFactory joinableFactory,
+      JoinableFactoryWrapper joinableFactoryWrapper,
       ServerConfig serverConfig,
       VirtualSegmentLoader virtualSegmentLoader
   )
@@ -114,7 +114,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
         cache,
         cacheConfig,
         segmentManager,
-        joinableFactory,
+        joinableFactoryWrapper,
         serverConfig
     );
     this.conglomerate = conglomerate;
@@ -122,7 +122,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
     this.queryProcessingPool = queryProcessingPool;
     this.virtualSegmentLoader = virtualSegmentLoader;
     this.segmentManager = segmentManager;
-    this.joinableFactoryWrapper = new JoinableFactoryWrapper(joinableFactory);
+    this.joinableFactoryWrapper = joinableFactoryWrapper;
   }
 
   @Override
