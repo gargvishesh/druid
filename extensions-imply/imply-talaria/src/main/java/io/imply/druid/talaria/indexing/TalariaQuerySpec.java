@@ -12,6 +12,7 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.imply.druid.talaria.kernel.WorkerAssignmentStrategy;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.query.Query;
 
@@ -23,6 +24,7 @@ public class TalariaQuerySpec
   private final Query<?> query;
   private final ColumnMappings columnMappings;
   private final MSQDestination destination;
+  private final WorkerAssignmentStrategy assignmentStrategy;
   private final ParallelIndexTuningConfig tuningConfig;
 
   @JsonCreator
@@ -30,21 +32,21 @@ public class TalariaQuerySpec
       @JsonProperty("query") Query<?> query,
       @JsonProperty("columnMappings") @Nullable ColumnMappings columnMappings,
       @JsonProperty("destination") MSQDestination destination,
+      @JsonProperty("assignmentStrategy") WorkerAssignmentStrategy assignmentStrategy,
       @JsonProperty("tuningConfig") ParallelIndexTuningConfig tuningConfig
   )
   {
     this.query = Preconditions.checkNotNull(query, "query");
     this.columnMappings = Preconditions.checkNotNull(columnMappings, "columnMappings");
     this.destination = Preconditions.checkNotNull(destination, "destination");
+    this.assignmentStrategy = Preconditions.checkNotNull(assignmentStrategy, "assignmentStrategy");
     this.tuningConfig = Preconditions.checkNotNull(tuningConfig, "tuningConfig");
   }
-
 
   public static Builder builder()
   {
     return new Builder();
   }
-
 
   @JsonProperty
   public Query<?> getQuery()
@@ -62,6 +64,12 @@ public class TalariaQuerySpec
   public MSQDestination getDestination()
   {
     return destination;
+  }
+
+  @JsonProperty
+  public WorkerAssignmentStrategy getAssignmentStrategy()
+  {
+    return assignmentStrategy;
   }
 
   @JsonProperty
@@ -83,58 +91,49 @@ public class TalariaQuerySpec
     return Objects.equals(query, that.query)
            && Objects.equals(columnMappings, that.columnMappings)
            && Objects.equals(destination, that.destination)
+           && Objects.equals(assignmentStrategy, that.assignmentStrategy)
            && Objects.equals(tuningConfig, that.tuningConfig);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(
-        query,
-        columnMappings,
-        destination,
-        tuningConfig
-    );
-  }
-
-  @Override
-  public String toString()
-  {
-    return "TalariaQuerySpec{" +
-           "query=" + query +
-           ", columnMappings=" + columnMappings +
-           ", destination=" + destination +
-           ", tuningConfig=" + tuningConfig +
-           '}';
+    return Objects.hash(query, columnMappings, destination, assignmentStrategy, tuningConfig);
   }
 
   public static class Builder
   {
     private Query<?> query;
     private ColumnMappings columnMappings;
-    private MSQDestination destination;
+    private MSQDestination destination = TaskReportMSQDestination.instance();
+    private WorkerAssignmentStrategy assignmentStrategy = WorkerAssignmentStrategy.MAX;
     private ParallelIndexTuningConfig tuningConfig;
 
-
-    public Builder setQuery(Query<?> query)
+    public Builder query(Query<?> query)
     {
       this.query = query;
       return this;
     }
 
-    public Builder setColumnMappings(ColumnMappings columnMappings)
+    public Builder columnMappings(final ColumnMappings columnMappings)
     {
       this.columnMappings = columnMappings;
       return this;
     }
 
-    public Builder setTalariaDestination(MSQDestination MSQDestination)
+    public Builder destination(final MSQDestination destination)
     {
-      this.destination = MSQDestination;
+      this.destination = destination;
       return this;
     }
 
-    public Builder setTuningConfig(ParallelIndexTuningConfig tuningConfig)
+    public Builder assignmentStrategy(final WorkerAssignmentStrategy assignmentStrategy)
+    {
+      this.assignmentStrategy = assignmentStrategy;
+      return this;
+    }
+
+    public Builder tuningConfig(final ParallelIndexTuningConfig tuningConfig)
     {
       this.tuningConfig = tuningConfig;
       return this;
@@ -145,9 +144,8 @@ public class TalariaQuerySpec
       if (destination == null) {
         destination = TaskReportMSQDestination.instance();
       }
-      return new TalariaQuerySpec(query, columnMappings, destination, tuningConfig);
+
+      return new TalariaQuerySpec(query, columnMappings, destination, assignmentStrategy, tuningConfig);
     }
-
-
   }
 }

@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 
-export type DruidEngine = 'native' | 'sql' | 'sql-async' | 'sql-task';
+export type DruidEngine = 'native' | 'sql' | 'sql-task';
 
-export const DRUID_ENGINES: DruidEngine[] = ['native', 'sql', 'sql-async', 'sql-task'];
+export const DRUID_ENGINES: DruidEngine[] = ['native', 'sql', 'sql-task'];

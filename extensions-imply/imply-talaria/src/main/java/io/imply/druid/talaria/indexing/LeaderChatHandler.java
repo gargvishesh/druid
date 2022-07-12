@@ -9,6 +9,8 @@
 
 package io.imply.druid.talaria.indexing;
 
+import io.imply.druid.talaria.counters.CounterSnapshots;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
@@ -109,22 +111,21 @@ public class LeaderChatHandler implements ChatHandler
 
 
   /**
-   * Used by subtasks to post {@link MSQCountersSnapshot} periodically.
+   * Used by subtasks to post {@link CounterSnapshots} periodically.
    *
    * See {@link io.imply.druid.talaria.exec.LeaderClient#postCounters} for the client-side code that calls this API.
    */
   @POST
-  @Path("/counters/{taskId}")
+  @Path("/counters")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response httpPostCounters(
-      final MSQCountersSnapshot.WorkerCounters workerSnapshot,
-      @PathParam("taskId") final String taskId,
+      final CounterSnapshotsTree snapshotsTree,
       @Context final HttpServletRequest req
   )
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
-    leader.updateCounters(taskId, workerSnapshot);
+    leader.updateCounters(snapshotsTree);
     return Response.status(Response.Status.OK).build();
   }
 
@@ -160,7 +161,7 @@ public class LeaderChatHandler implements ChatHandler
   {
     ChatHandlers.authorizationCheck(req, Action.WRITE, task.getDataSource(), toolbox.getAuthorizerMapper());
 
-    return Response.ok(new MSQTaskList(leader.getTaskIds().orElse(null))).build();
+    return Response.ok(new MSQTaskList(leader.getTaskIds())).build();
   }
 
   /**

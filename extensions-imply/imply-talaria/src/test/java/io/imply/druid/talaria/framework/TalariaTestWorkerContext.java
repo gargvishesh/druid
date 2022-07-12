@@ -40,7 +40,6 @@ import org.apache.druid.server.security.AuthTestUtils;
 
 import java.io.File;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 public class TalariaTestWorkerContext implements WorkerContext
 {
@@ -49,21 +48,18 @@ public class TalariaTestWorkerContext implements WorkerContext
   private final Injector injector;
   private final Map<String, Worker> inMemoryWorkers;
   private final File file = FileUtils.createTempDir();
-  private final ExecutorService remoteExecutorService;
 
   public TalariaTestWorkerContext(
       Map<String, Worker> inMemoryWorkers,
       Leader leader,
       ObjectMapper mapper,
-      Injector injector,
-      ExecutorService remoteExecutorService
+      Injector injector
   )
   {
     this.inMemoryWorkers = inMemoryWorkers;
     this.leader = leader;
     this.mapper = mapper;
     this.injector = injector;
-    this.remoteExecutorService = remoteExecutorService;
   }
 
   @Override
@@ -143,7 +139,10 @@ public class TalariaTestWorkerContext implements WorkerContext
                 .chatHandlerProvider(new NoopChatHandlerProvider())
                 .rowIngestionMetersFactory(NoopRowIngestionMeters::new)
                 .build(),
-            injector
+            injector,
+            indexIO,
+            null,
+            null
         ),
         indexIO,
         injector.getInstance(DataSegmentProvider.class),

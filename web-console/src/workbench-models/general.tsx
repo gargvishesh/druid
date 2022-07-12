@@ -249,7 +249,7 @@ export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
   },
   {
     name: 'properties.secretAccessKey.type',
-    label: 'Secret key type',
+    label: 'Secret access key type',
     type: 'string',
     suggestions: [undefined, 'environment', 'default'],
     placeholder: '(none)',
@@ -271,7 +271,7 @@ export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
   },
   {
     name: 'properties.secretAccessKey.variable',
-    label: 'Secret key value',
+    label: 'Secret access key environment variable',
     type: 'string',
     placeholder: '(environment variable name)',
     defined: inputSource =>
@@ -280,7 +280,7 @@ export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
   },
   {
     name: 'properties.secretAccessKey.password',
-    label: 'Secret key value',
+    label: 'Secret access key value',
     type: 'string',
     placeholder: '(secret key)',
     defined: inputSource => deepGet(inputSource, 'properties.secretAccessKey.type') === 'default',

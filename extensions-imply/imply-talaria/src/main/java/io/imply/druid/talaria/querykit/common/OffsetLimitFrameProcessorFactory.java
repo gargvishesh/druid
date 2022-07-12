@@ -13,19 +13,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import io.imply.druid.talaria.counters.CounterTracker;
 import io.imply.druid.talaria.frame.channel.ReadableConcatFrameChannel;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
-import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
-import io.imply.druid.talaria.frame.read.FrameReader;
-import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.TalariaCounters;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
+import io.imply.druid.talaria.input.InputSlice;
+import io.imply.druid.talaria.input.InputSliceReader;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.ReadableInputs;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.querykit.BaseFrameProcessorFactory;
 import io.imply.druid.talaria.util.SupplierIterator;
@@ -36,9 +37,9 @@ import org.apache.druid.java.util.common.guava.Sequences;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 @JsonTypeName("limit")
 public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
@@ -75,54 +76,45 @@ public class OffsetLimitFrameProcessorFactory extends BaseFrameProcessorFactory
 
   @Override
   public ProcessorsAndChannels<FrameProcessor<Long>, Long> makeProcessors(
-      int workerNumber,
-      @Nullable Object extra,
-      InputChannels inputChannels,
-      OutputChannelFactory outputChannelFactory,
       StageDefinition stageDefinition,
-      ClusterBy clusterBy,
-      FrameContext providerThingy,
+      int workerNumber,
+      List<InputSlice> inputSlices,
+      InputSliceReader inputSliceReader,
+      @Nullable Object extra,
+      OutputChannelFactory outputChannelFactory,
+      FrameContext frameContext,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters,
-      final TalariaWarningReportPublisher talariaWarningReportPublisher
+      CounterTracker counters,
+      Consumer<Throwable> warningPublisher
   ) throws IOException
   {
     if (workerNumber > 0) {
-      // We use a simplistic limiting approach: funnel all data through a single worker and write it to a
+      // We use a simplistic limiting approach: funnel all data through a single worker, single processor, and
       // single output partition. So limiting stages must have a single worker.
       throw new ISE("%s must be configured with maxWorkerCount = 1", getClass().getSimpleName());
     }
 
-    final int numInputChannels = inputChannels.getStagePartitions().size();
+    // Expect a single input slice.
+    final InputSlice slice = Iterables.getOnlyElement(inputSlices);
 
-    if (numInputChannels == 0) {
+    if (inputSliceReader.numReadableInputs(slice) == 0) {
       return new ProcessorsAndChannels<>(Sequences.empty(), OutputChannels.none());
     }
 
     final OutputChannel outputChannel = outputChannelFactory.openChannel(0);
 
     final Supplier<FrameProcessor<Long>> workerSupplier = () -> {
-      // TODO(gianm): assumes all input channels have the same frame signature. validate?
-      final FrameReader frameReader =
-          inputChannels.getFrameReader(inputChannels.getStagePartitions().iterator().next());
+      final ReadableInputs readableInputs = inputSliceReader.attach(0, slice, counters, warningPublisher);
 
-      final Iterator<ReadableFrameChannel> channelIterator =
-          IntStream.range(0, numInputChannels).mapToObj(
-              i -> {
-                try {
-                  return inputChannels.openChannel(inputChannels.getStagePartitions().get(i));
-                }
-                catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-          ).iterator();
+      if (!readableInputs.hasChannels()) {
+        throw new ISE("Processor inputs must be channels");
+      }
 
       // Note: OffsetLimitFrameProcessor does not use allocator from the outputChannel; it uses unlimited instead.
       return new OffsetLimitFrameProcessor(
-          ReadableConcatFrameChannel.open(channelIterator),
+          ReadableConcatFrameChannel.open(Iterators.transform(readableInputs.iterator(), ReadableInput::getChannel)),
           outputChannel.getWritableChannel(),
-          frameReader,
+          readableInputs.frameReader(),
           offset,
           // Limit processor will add limit + offset at various points; must avoid overflow
           limit == null ? Long.MAX_VALUE - offset : limit

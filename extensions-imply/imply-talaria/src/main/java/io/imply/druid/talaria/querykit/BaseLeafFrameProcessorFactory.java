@@ -9,10 +9,9 @@
 
 package io.imply.druid.talaria.querykit;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import io.imply.druid.talaria.counters.CounterTracker;
 import io.imply.druid.talaria.frame.MemoryAllocator;
-import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.ReadableConcatFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
@@ -23,17 +22,18 @@ import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
-import io.imply.druid.talaria.frame.read.FrameReader;
-import io.imply.druid.talaria.indexing.InputChannels;
-import io.imply.druid.talaria.indexing.TalariaCounters;
-import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
+import io.imply.druid.talaria.input.ExternalInputSlice;
+import io.imply.druid.talaria.input.InputSlice;
+import io.imply.druid.talaria.input.InputSliceReader;
+import io.imply.druid.talaria.input.InputSlices;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.ReadableInputs;
+import io.imply.druid.talaria.input.StageInputSlice;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.kernel.StagePartition;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.collections.ResourceHolder;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
@@ -41,13 +41,11 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -55,30 +53,30 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
 {
   private static final Logger log = new Logger(BaseLeafFrameProcessorFactory.class);
 
-  // Input specs for the base datasource.
-  private final List<QueryWorkerInputSpec> baseInputSpecs;
-
-  protected BaseLeafFrameProcessorFactory(final List<QueryWorkerInputSpec> baseInputSpecs)
-  {
-    this.baseInputSpecs = Preconditions.checkNotNull(baseInputSpecs, "baseInputSpecs");
-  }
-
   @Override
   public ProcessorsAndChannels<FrameProcessor<Long>, Long> makeProcessors(
-      int workerNumber,
-      @Nullable Object extra,
-      InputChannels inputChannels,
-      OutputChannelFactory outputChannelFactory,
       StageDefinition stageDefinition,
-      ClusterBy clusterBy,
+      int workerNumber,
+      List<InputSlice> inputSlices,
+      InputSliceReader inputSliceReader,
+      @Nullable Object extra,
+      OutputChannelFactory outputChannelFactory,
       FrameContext frameContext,
       int maxOutstandingProcessors,
-      TalariaCounters talariaCounters,
-      final TalariaWarningReportPublisher talariaWarningReportPublisher
+      CounterTracker counters,
+      Consumer<Throwable> warningPublisher
   ) throws IOException
   {
-    final QueryWorkerInputSpec inputSpec = baseInputSpecs.get(workerNumber);
-    final int totalProcessors = QueryWorkerUtils.numProcessors(inputSpec, inputChannels);
+    // BaseLeafFrameProcessorFactory is used for native Druid queries, where the following input cases can happen:
+    //   1) Union datasources: N nonbroadcast inputs, which are are treated as one big input
+    //   2) Join datasources: one nonbroadcast input, N broadcast inputs
+    //   3) All other datasources: single input
+
+    final int totalProcessors = InputSlices.getNumNonBroadcastReadableInputs(
+        inputSlices,
+        inputSliceReader,
+        stageDefinition.getBroadcastInputNumbers()
+    );
 
     if (totalProcessors == 0) {
       return new ProcessorsAndChannels<>(Sequences.empty(), OutputChannels.none());
@@ -86,9 +84,11 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
 
     final int outstandingProcessors;
 
-    if (inputSpec.type() == QueryWorkerInputType.EXTERNAL
-        && inputSpec.getInputFormat().getClass().getName().contains("Parquet")) {
-      // Hack alert: workaround for memory use in ParquetFileReader: https://implydata.atlassian.net/browse/IMPLY-17932
+    if (hasParquet(inputSlices)) {
+      // Hack alert: workaround for memory use in ParquetFileReader, which loads up an entire row group into memory as
+      // part of its normal operation. Row groups can be quite large (like, 1GB large) so this is a major source of
+      // unaccounted-for memory use during ingestion and query of external data. Work around this by only running
+      // a single processor at once.
       outstandingProcessors = 1;
     } else {
       outstandingProcessors = Math.min(totalProcessors, maxOutstandingProcessors);
@@ -101,40 +101,30 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     final List<OutputChannel> outputChannels = new ArrayList<>(outstandingProcessors);
 
     for (int i = 0; i < outstandingProcessors; i++) {
-      final OutputChannel outputChannel = outputChannelFactory.openChannel(FrameWithPartition.NO_PARTITION);
+      final OutputChannel outputChannel = outputChannelFactory.openChannel(0 /* Partition number doesn't matter */);
       outputChannels.add(outputChannel);
       channelQueueRef.get().add(outputChannel.getWritableChannel());
       allocatorQueueRef.get().add(outputChannel.getFrameMemoryAllocator());
     }
 
-    final DataSegmentProvider dataSegmentProvider = frameContext.dataSegmentProvider();
-    final File temporaryDirectory = new File(frameContext.tempDir(), "input-source-" + UUID.randomUUID());
-
-    final Sequence<QueryWorkerInput> processorBaseInputs =
-        Sequences.simple(
-            () ->
-                QueryWorkerUtils.inputIterator(
-                    workerNumber,
-                    inputSpec,
-                    stageDefinition,
-                    inputChannels,
-                    dataSegmentProvider,
-                    temporaryDirectory,
-                    talariaCounters,
-                    talariaWarningReportPublisher
-                )
-        );
+    // Read all base inputs in separate processors, one per processor.
+    final Sequence<ReadableInput> processorBaseInputs = readBaseInputs(
+        stageDefinition,
+        inputSlices,
+        inputSliceReader,
+        counters,
+        warningPublisher
+    );
 
     final Sequence<FrameProcessor<Long>> processors = processorBaseInputs.map(
         processorBaseInput -> {
           // TODO(gianm): this is wasteful: we're opening channels and rebuilding broadcast tables for _every processor_
-          final Pair<Int2ObjectMap<ReadableFrameChannel>, Int2ObjectMap<FrameReader>> sideChannels =
-              openSideChannels(inputChannels, inputSpec);
+          final Int2ObjectMap<ReadableInput> sideChannels =
+              readBroadcastInputs(stageDefinition, inputSlices, inputSliceReader, counters, warningPublisher);
 
           return makeProcessor(
               processorBaseInput,
-              sideChannels.lhs,
-              sideChannels.rhs,
+              sideChannels,
               makeLazyResourceHolder(
                   channelQueueRef,
                   channel -> {
@@ -149,7 +139,7 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
               makeLazyResourceHolder(allocatorQueueRef, ignored -> {
               }),
               stageDefinition.getSignature(),
-              clusterBy,
+              stageDefinition.getClusterBy(),
               frameContext
           );
         }
@@ -176,54 +166,86 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     return new ProcessorsAndChannels<>(processors, OutputChannels.wrapReadOnly(outputChannels));
   }
 
-  private static Pair<Int2ObjectMap<ReadableFrameChannel>, Int2ObjectMap<FrameReader>> openSideChannels(
-      final InputChannels inputChannels,
-      final QueryWorkerInputSpec baseInputSpec
+  /**
+   * Read base inputs, where "base" is meant in the same sense as in
+   * {@link org.apache.druid.query.planning.DataSourceAnalysis}: the primary datasource that drives query processing.
+   */
+  private static Sequence<ReadableInput> readBaseInputs(
+      final StageDefinition stageDef,
+      final List<InputSlice> inputSlices,
+      final InputSliceReader inputSliceReader,
+      final CounterTracker counters,
+      final Consumer<Throwable> warningPublisher
   )
   {
-    final IntSet sideStageNumbers = new IntOpenHashSet();
-    final Int2ObjectMap<FrameReader> sideChannelReaders = new Int2ObjectOpenHashMap<>();
+    final List<Sequence<ReadableInput>> sequences = new ArrayList<>();
 
-    for (final StagePartition stagePartition : inputChannels.getStagePartitions()) {
-      final int stageNumber = stagePartition.getStageId().getStageNumber();
-
-      if (baseInputSpec.type() != QueryWorkerInputType.SUBQUERY || baseInputSpec.getStageNumber() != stageNumber) {
-        sideStageNumbers.add(stageNumber);
-        sideChannelReaders.put(stageNumber, inputChannels.getFrameReader(stagePartition));
+    for (int inputNumber = 0; inputNumber < inputSlices.size(); inputNumber++) {
+      if (!stageDef.getBroadcastInputNumbers().contains(inputNumber)) {
+        final int i = inputNumber;
+        final Sequence<ReadableInput> sequence =
+            Sequences.simple(inputSliceReader.attach(i, inputSlices.get(i), counters, warningPublisher));
+        sequences.add(sequence);
       }
     }
 
-    final Int2ObjectMap<ReadableFrameChannel> sideChannels = new Int2ObjectOpenHashMap<>();
+    return Sequences.concat(sequences);
+  }
 
-    for (final int stageNumber : sideStageNumbers) {
-      sideChannels.put(
-          stageNumber,
-          ReadableConcatFrameChannel.open(
-              Iterators.transform(
-                  Iterators.filter(
-                      inputChannels.getStagePartitions().iterator(),
-                      stagePartition -> stagePartition.getStageId().getStageNumber() == stageNumber
-                  ),
-                  stagePartition -> {
-                    try {
-                      return inputChannels.openChannel(stagePartition);
-                    }
-                    catch (IOException e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-              )
-          )
-      );
+  /**
+   * Reads all broadcast inputs, which must be {@link StageInputSlice}. The execution framework supports broadcasting
+   * other types of inputs, but QueryKit does not use them at this time.
+   *
+   * Returns a map of input number -> channel containing all data for that input number.
+   */
+  private static Int2ObjectMap<ReadableInput> readBroadcastInputs(
+      final StageDefinition stageDef,
+      final List<InputSlice> inputSlices,
+      final InputSliceReader inputSliceReader,
+      final CounterTracker counterTracker,
+      final Consumer<Throwable> warningPublisher
+  )
+  {
+    final Int2ObjectMap<ReadableInput> broadcastInputs = new Int2ObjectAVLTreeMap<>();
+
+    try {
+      for (int inputNumber = 0; inputNumber < inputSlices.size(); inputNumber++) {
+        if (stageDef.getBroadcastInputNumbers().contains(inputNumber)) {
+          // QueryKit only uses StageInputSlice at this time.
+          final StageInputSlice slice = (StageInputSlice) inputSlices.get(inputNumber);
+          final ReadableInputs readableInputs =
+              inputSliceReader.attach(inputNumber, slice, counterTracker, warningPublisher);
+
+          if (!readableInputs.hasChannels()) {
+            // QueryKit limitation: broadcast inputs must be channels.
+            throw new ISE("Broadcast inputs must be channels");
+          }
+
+          final ReadableFrameChannel channel = ReadableConcatFrameChannel.open(
+              Iterators.transform(readableInputs.iterator(), ReadableInput::getChannel)
+          );
+          broadcastInputs.put(inputNumber, ReadableInput.channel(channel, readableInputs.frameReader(), null));
+        }
+      }
+
+      return broadcastInputs;
     }
+    catch (Throwable e) {
+      // Close any already-opened channels.
+      try {
+        broadcastInputs.values().forEach(input -> input.getChannel().doneReading());
+      }
+      catch (Throwable e2) {
+        e.addSuppressed(e2);
+      }
 
-    return Pair.of(sideChannels, sideChannelReaders);
+      throw e;
+    }
   }
 
   protected abstract FrameProcessor<Long> makeProcessor(
-      QueryWorkerInput baseInput,
-      Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      Int2ObjectMap<FrameReader> sideChannelReaders,
+      ReadableInput baseInput,
+      Int2ObjectMap<ReadableInput> sideChannels,
       ResourceHolder<WritableFrameChannel> outputChannelSupplier,
       ResourceHolder<MemoryAllocator> allocatorSupplier,
       RowSignature signature,
@@ -263,17 +285,12 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     );
   }
 
-  @Override
-  public int inputFileCount()
+  private static boolean hasParquet(final List<InputSlice> slices)
   {
-    int inputFiles = 0;
-    for (QueryWorkerInputSpec inputSpec : baseInputSpecs) {
-      if (inputSpec.getInputSources() != null && inputSpec.type().equals(QueryWorkerInputType.EXTERNAL)) {
-        inputFiles += inputSpec.getInputSources().stream().filter(QueryWorkerUtils::isFileBasedInputSource).count();
-      } else if (inputSpec.type().equals(QueryWorkerInputType.TABLE)) {
-        inputFiles += inputSpec.getSegments().size();
-      }
-    }
-    return inputFiles;
+    return slices.stream().anyMatch(
+        slice ->
+            slice instanceof ExternalInputSlice
+            && ((ExternalInputSlice) slice).getInputFormat().getClass().getName().contains("Parquet")
+    );
   }
 }

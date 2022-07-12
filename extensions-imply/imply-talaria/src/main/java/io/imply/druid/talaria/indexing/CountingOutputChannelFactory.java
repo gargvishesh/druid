@@ -10,44 +10,45 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.base.Preconditions;
+import io.imply.druid.talaria.counters.ChannelCounters;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 
 import java.io.IOException;
-import java.util.function.IntFunction;
 
 public class CountingOutputChannelFactory implements OutputChannelFactory
 {
   private final OutputChannelFactory baseFactory;
-  private final IntFunction<TalariaCounters.ChannelCounters> channelCountersFn;
+  private final ChannelCounters channelCounters;
 
   public CountingOutputChannelFactory(
       final OutputChannelFactory baseFactory,
-      final IntFunction<TalariaCounters.ChannelCounters> channelCountersFn
+      final ChannelCounters channelCounters
   )
   {
     this.baseFactory = Preconditions.checkNotNull(baseFactory, "baseFactory");
-    this.channelCountersFn = Preconditions.checkNotNull(channelCountersFn, "channelCountersFn");
+    this.channelCounters = Preconditions.checkNotNull(channelCounters, "channelCounter");
   }
 
   @Override
   public OutputChannel openChannel(int partitionNumber) throws IOException
   {
-    return wrap(baseFactory.openChannel(partitionNumber));
+    final OutputChannel baseChannel = baseFactory.openChannel(partitionNumber);
+
+    return baseChannel.mapWritableChannel(
+        baseWritableChannel ->
+            new CountingWritableFrameChannel(
+                baseChannel.getWritableChannel(),
+                channelCounters,
+                baseChannel.getPartitionNumber()
+            )
+    );
   }
 
   @Override
   public OutputChannel openNilChannel(final int partitionNumber)
   {
-    return wrap(baseFactory.openNilChannel(partitionNumber));
-  }
-
-  private OutputChannel wrap(final OutputChannel baseChannel)
-  {
-    final TalariaCounters.ChannelCounters channelCounters = channelCountersFn.apply(baseChannel.getPartitionNumber());
-    return baseChannel.mapWritableChannel(
-        baseWritableChannel ->
-            new CountingWritableFrameChannel(baseWritableChannel, channelCounters)
-    );
+    // No need for counters on nil channels: they never receive input.
+    return baseFactory.openNilChannel(partitionNumber);
   }
 }

@@ -14,7 +14,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.imply.druid.sql.TalariaParserUtils;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.Project;
@@ -27,6 +26,7 @@ import org.apache.calcite.util.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.rpc.indexing.OverlordClient;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.server.QueryLifecycleFactory;
 import org.apache.druid.sql.calcite.parser.DruidSqlInsert;
@@ -48,13 +48,13 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
   public static final String TYPE = "imply";
 
   private final QueryLifecycleFactory queryLifecycleFactory;
-  private final OverlordServiceClient overlordClient;
+  private final OverlordClient overlordClient;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public ImplyQueryMakerFactory(
       final QueryLifecycleFactory queryLifecycleFactory,
-      final OverlordServiceClient overlordClient,
+      final OverlordClient overlordClient,
       final ObjectMapper jsonMapper
   )
   {

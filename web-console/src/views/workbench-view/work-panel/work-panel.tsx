@@ -132,7 +132,7 @@ LIMIT 100`,
                       execution = await getTaskExecution(w.taskId);
                     } catch {
                       AppToaster.show({
-                        message: 'Could not get payload',
+                        message: 'Could not get task report or payload',
                         intent: Intent.DANGER,
                       });
                       return;
@@ -150,9 +150,7 @@ LIMIT 100`,
                       WorkbenchQuery.fromEffectiveQueryAndContext(
                         execution.sqlQuery,
                         execution.queryContext,
-                      )
-                        .extractCteHelpers()
-                        .changeLastExecution({ engine: 'sql-task', id: w.taskId }),
+                      ).changeLastExecution({ engine: 'sql-task', id: w.taskId }),
                       'Attached',
                     );
                   }}

@@ -21,7 +21,7 @@ import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 
 import { Loader, QueryErrorPane } from '../../../components';
@@ -48,12 +48,9 @@ import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summ
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import {
   executionBackgroundStatusCheck,
-  reattachAsyncExecution,
   reattachTaskExecution,
-  submitAsyncQuery,
   submitTaskQuery,
 } from '../execution-utils';
-import { ExportDialog } from '../export-dialog/export-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
@@ -74,7 +71,8 @@ export interface QueryTabProps {
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
-  onExplain: (() => void) | undefined;
+  onExplain?(): void;
+  onHistory?(): void;
   queryEngines: DruidEngine[];
 }
 
@@ -86,14 +84,9 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     onQueryChange,
     onDetails,
     onExplain,
+    onHistory,
     queryEngines,
   } = props;
-  const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
-
-  const handleExport = usePermanentCallback(() => {
-    setExportDialogQuery(query);
-  });
-
   const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
     onQueryChange(query.changeQueryString(queryString));
   });
@@ -125,17 +118,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
         const { engine, query, sqlPrefixLines, cancelQueryId } = q.getApiQuery();
 
         switch (engine) {
-          case 'sql-async':
-            return await submitAsyncQuery({
-              query,
-              prefixLines: sqlPrefixLines,
-              cancelToken,
-              preserveOnTermination: true,
-              onSubmitted: id => {
-                onQueryChange(props.query.changeLastExecution({ engine, id }));
-              },
-            });
-
           case 'sql-task':
             return await submitTaskQuery({
               query,
@@ -185,11 +167,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             });
 
           default:
-            return await reattachAsyncExecution({
-              id: q.id,
-              cancelToken,
-              preserveOnTermination: true,
-            });
+            throw new Error(`Can not reattach on ${q.engine}`);
         }
       }
     },
@@ -316,6 +294,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               loading={executionState.loading}
               queryEngines={queryEngines}
               onExplain={onExplain}
+              onHistory={onHistory}
             />
             {executionState.isLoading() && (
               <ExecutionTimerPanel
@@ -355,7 +334,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               <ResultTablePane
                 runeMode={execution.engine === 'native'}
                 queryResult={execution.result}
-                onExport={handleExport}
                 onQueryAction={handleQueryAction}
               />
             ) : execution.isSuccessfulInsert() ? (
@@ -408,14 +386,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             ))}
         </div>
       </SplitterLayout>
-      {exportDialogQuery && (
-        <ExportDialog
-          query={exportDialogQuery}
-          onClose={() => {
-            setExportDialogQuery(undefined);
-          }}
-        />
-      )}
     </div>
   );
 });

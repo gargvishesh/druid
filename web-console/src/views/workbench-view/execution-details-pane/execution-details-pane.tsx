@@ -19,7 +19,7 @@ import { IconNames } from '@blueprintjs/icons';
 import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
 
-import { FancyTabPane } from '../../../components/fancy-tab-pane/fancy-tab-pane';
+import { FancyTabPane } from '../../../components';
 import { Execution } from '../../../workbench-models';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';

@@ -58,6 +58,8 @@ $work-panel-width: 250px;
       overflow: hidden;
 
       .tab-button {
+        display: inline-block;
+
         &.active {
           @include card-like;
           border-bottom-left-radius: 0;
@@ -66,13 +68,15 @@ $work-panel-width: 250px;
         }
 
         .tab-name .#{$bp-ns}-button-text {
-          max-width: 240px;
+          max-width: 220px;
           overflow: hidden;
           text-overflow: ellipsis;
+          line-height: 150%;
         }
 
         .tab-close {
           opacity: 0;
+          margin: 0 3px;
         }
 
         &.active,

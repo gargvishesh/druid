@@ -25,5 +25,5 @@ export * from './query-view/query-view';
 export * from './segments-view/segments-view';
 export * from './services-view/services-view';
 export * from './user-management-view/user-management-view';
-export * from './workbench-view/sqloader-view';
+export * from './workbench-view/sql-data-loader-view';
 export * from './workbench-view/workbench-view';

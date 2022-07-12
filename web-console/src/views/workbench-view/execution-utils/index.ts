@@ -17,5 +17,4 @@
  */
 
 export * from './general';
-export * from './sql-async-execution';
 export * from './sql-task-execution';

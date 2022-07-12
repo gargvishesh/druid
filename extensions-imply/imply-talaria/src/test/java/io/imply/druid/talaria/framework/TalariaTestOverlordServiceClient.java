@@ -17,10 +17,7 @@ import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
-import io.imply.druid.talaria.rpc.RetryPolicy;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import org.apache.druid.client.indexing.TaskStatusResponse;
-import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.client.indexing.NoopOverlordClient;
 import org.apache.druid.indexing.common.TaskReport;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.java.util.common.ISE;
@@ -28,9 +25,8 @@ import org.apache.druid.java.util.common.ISE;
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
-public class TalariaTestOverlordServiceClient implements OverlordServiceClient
+public class TalariaTestOverlordServiceClient extends NoopOverlordClient
 {
   private final Injector injector;
   private final ObjectMapper objectMapper;
@@ -53,7 +49,6 @@ public class TalariaTestOverlordServiceClient implements OverlordServiceClient
   @Override
   public ListenableFuture<Void> runTask(String taskId, Object taskObject)
   {
-    TaskStatus status;
     LeaderImpl leader = null;
     TalariaTestLeaderContext talariaTestLeaderContext = null;
     try {
@@ -72,8 +67,8 @@ public class TalariaTestOverlordServiceClient implements OverlordServiceClient
       leader.run();
       return Futures.immediateFuture(null);
     }
-    catch (Exception exception) {
-      throw new ISE(exception.getCause(), "Unable to run");
+    catch (Exception e) {
+      throw new ISE(e, "Unable to run");
     }
     finally {
       if (leader != null && talariaTestLeaderContext != null) {
@@ -87,24 +82,6 @@ public class TalariaTestOverlordServiceClient implements OverlordServiceClient
   {
     inMemoryLeaders.get(taskId).stopGracefully();
     return Futures.immediateFuture(null);
-  }
-
-  @Override
-  public ListenableFuture<Map<String, org.apache.druid.client.indexing.TaskStatus>> taskStatuses(Set<String> taskIds)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ListenableFuture<TaskStatusResponse> taskStatus(String taskId)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public OverlordServiceClient withRetryPolicy(RetryPolicy retryPolicy)
-  {
-    return this;
   }
 
   // hooks to pull stuff out for testing

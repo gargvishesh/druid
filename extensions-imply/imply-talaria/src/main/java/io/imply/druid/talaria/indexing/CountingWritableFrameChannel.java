@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.counters.ChannelCounters;
 import io.imply.druid.talaria.frame.channel.FrameWithPartition;
 import io.imply.druid.talaria.frame.channel.Try;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
@@ -19,15 +20,18 @@ import java.io.IOException;
 public class CountingWritableFrameChannel implements WritableFrameChannel
 {
   private final WritableFrameChannel baseChannel;
-  private final TalariaCounters.ChannelCounters counters;
+  private final ChannelCounters channelCounters;
+  private final int partitionNumber;
 
   public CountingWritableFrameChannel(
       final WritableFrameChannel baseChannel,
-      final TalariaCounters.ChannelCounters counters
+      final ChannelCounters channelCounters,
+      final int partitionNumber
   )
   {
     this.baseChannel = baseChannel;
-    this.counters = counters;
+    this.channelCounters = channelCounters;
+    this.partitionNumber = partitionNumber;
   }
 
   @Override
@@ -36,7 +40,7 @@ public class CountingWritableFrameChannel implements WritableFrameChannel
     baseChannel.write(frameTry);
 
     if (frameTry.isValue()) {
-      counters.addFrame(frameTry.getOrThrow().frame());
+      channelCounters.addFrame(partitionNumber, frameTry.getOrThrow().frame());
     }
   }
 

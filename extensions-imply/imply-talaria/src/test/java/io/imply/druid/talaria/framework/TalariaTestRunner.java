@@ -41,7 +41,6 @@ import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
 import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import io.imply.druid.talaria.querykit.LazyResourceHolder;
-import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
 import io.imply.druid.talaria.sql.ImplyQueryMakerFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.TalariaContext;
@@ -86,6 +85,7 @@ import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.TestGroupByBuffers;
 import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
+import org.apache.druid.rpc.ServiceClientFactory;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.QueryableIndex;
@@ -267,8 +267,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             binder.bind(QueryProcessingPool.class)
                   .toInstance(new ForwardingQueryProcessingPool(Execs.singleThreaded("Test-runner-processing-pool")));
             binder.bind(DataSegmentProvider.class)
-                  .toInstance((dataSegment, channelCounters) -> new LazyResourceHolder<Segment>(getSupplierForSegment(
-                      dataSegment)));
+                  .toInstance((dataSegment, channelCounters) ->
+                                  new LazyResourceHolder<>(getSupplierForSegment(dataSegment)));
             binder.bind(IndexIO.class).toInstance(indexIO);
             binder.bind(JoinableFactory.class).toInstance(NoopJoinableFactory.INSTANCE);
             binder.bind(SpecificSegmentsQuerySegmentWalker.class).toInstance(walker);
@@ -291,7 +291,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
             binder.bind(DataSegmentAnnouncer.class).toInstance(new NoopDataSegmentAnnouncer());
             binder.bindConstant().annotatedWith(PruneLoadSpec.class).to(false);
             // Client is not used in tests
-            binder.bind(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class))
+            binder.bind(Key.get(ServiceClientFactory.class, EscalatedGlobal.class))
                   .toProvider(Providers.of(null));
             // fault tolerance module
             try {
@@ -339,7 +339,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         new ImplyQueryMakerFactory(
             CalciteTests.createMockQueryLifecycleFactory(walker, conglomerate),
             indexingServiceClient,
-            queryJsonMapper
+            queryJsonMapper.copy().registerModules(new TalariaSqlModule().getJacksonModules())
         ),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
@@ -371,9 +371,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   }
 
   @Nonnull
-  private Supplier<Pair<Segment, Closeable>> getSupplierForSegment(DataSegment dataSegment)
+  private Supplier<Pair<Segment, Closeable>> getSupplierForSegment(SegmentId segmentId)
   {
-    if (segmentManager.getSegment(dataSegment.getId()) == null) {
+    if (segmentManager.getSegment(segmentId) == null) {
       final QueryableIndex index;
       TemporaryFolder temporaryFolder = new TemporaryFolder();
       try {
@@ -383,7 +383,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         throw new ISE(e, "Unable to create temporary folder for tests");
       }
       try {
-        switch (dataSegment.getDataSource()) {
+        switch (segmentId.getDataSource()) {
           case DATASOURCE1:
             IncrementalIndexSchema foo1Schema = new IncrementalIndexSchema.Builder()
                 .withMetrics(
@@ -430,25 +430,25 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
                 .buildMMappedIndex();
             break;
           default:
-            throw new ISE("Cannot query segment %s in test runner", dataSegment.getId());
+            throw new ISE("Cannot query segment %s in test runner", segmentId);
 
         }
       }
       catch (IOException e) {
-        throw new ISE(e, "Unable to load index for segment %s", dataSegment.getId());
+        throw new ISE(e, "Unable to load index for segment %s", segmentId);
       }
       Segment segment = new Segment()
       {
         @Override
         public SegmentId getId()
         {
-          return dataSegment.getId();
+          return segmentId;
         }
 
         @Override
         public Interval getDataInterval()
         {
-          return dataSegment.getInterval();
+          return segmentId.getInterval();
         }
 
         @Nullable
@@ -476,7 +476,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       @Override
       public Pair<Segment, Closeable> get()
       {
-        return new Pair<>(segmentManager.getSegment(dataSegment.getId()), Closer.create());
+        return new Pair<>(segmentManager.getSegment(segmentId), Closer.create());
       }
     };
   }
@@ -852,14 +852,14 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           for (List<Object> row : FrameTestUtil.readRowsFromAdapter(storageAdapter, null, false).toList()) {
             // transforming rows for sketch assertions
             List<Object> transformedRow = row.stream()
-                                      .map(r -> {
-                                        if (r instanceof HyperLogLogCollector) {
-                                          return ((HyperLogLogCollector) r).estimateCardinalityRound();
-                                        } else {
-                                          return r;
-                                        }
-                                      })
-                                      .collect(Collectors.toList());
+                                             .map(r -> {
+                                               if (r instanceof HyperLogLogCollector) {
+                                                 return ((HyperLogLogCollector) r).estimateCardinalityRound();
+                                               } else {
+                                                 return r;
+                                               }
+                                             })
+                                             .collect(Collectors.toList());
             segmentIdVsOutputRowsMap.computeIfAbsent(dataSegment.getId(), r -> new ArrayList<>()).add(transformedRow);
           }
         }
@@ -877,7 +877,6 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         );
 
 
-
         // assert data source name
         Assert.assertEquals(expectedDataSource, foundDataSource);
         // assert spec
@@ -893,9 +892,10 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
           Assert.assertEquals(expectedSegments, segmentIdVsOutputRowsMap.keySet());
           for (Object[] row : transformedOutputRows) {
             List<SegmentId> diskSegmentList = segmentIdVsOutputRowsMap.keySet()
-                                                                  .stream()
-                                                                  .filter(segmentId -> segmentId.getInterval().contains((Long) row[0]))
-                                                                  .collect(Collectors.toList());
+                                                                      .stream()
+                                                                      .filter(segmentId -> segmentId.getInterval()
+                                                                                                    .contains((Long) row[0]))
+                                                                      .collect(Collectors.toList());
             if (diskSegmentList.size() != 1) {
               throw new IllegalStateException("Single key in multiple partitions");
             }
@@ -921,12 +921,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
       try {
         String controllerId = runTalariaQuery(sql, queryContext);
         getPayloadOrThrow(controllerId);
-        Assert.fail(StringUtils.format("Query %s did not throw an exception", sql));
+        Assert.fail(StringUtils.format("Query did not throw an exception (sql = [%s])", sql));
       }
       catch (Exception e) {
-        Assert.assertTrue(
-            StringUtils.format("Query %s generated error of type %s which wasn't expected", sql, e.getClass()),
-            expectedExecutionErrorMatcher.matches(e)
+        MatcherAssert.assertThat(
+            StringUtils.format("Query error did not match expectations (sql = [%s])", sql),
+            e,
+            expectedExecutionErrorMatcher
         );
       }
     }

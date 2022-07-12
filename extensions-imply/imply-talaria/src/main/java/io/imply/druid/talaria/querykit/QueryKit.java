@@ -18,7 +18,6 @@ public interface QueryKit<QueryType extends Query<?>>
   QueryDefinition makeQueryDefinition(
       String queryId,
       QueryType query,
-      DataSegmentTimelineView timelineView,
       QueryKit<Query<?>> toolKitForSubQueries,
       ShuffleSpecFactory resultShuffleSpecFactory,
       int maxWorkerCount,

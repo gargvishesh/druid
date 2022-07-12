@@ -88,8 +88,12 @@
       position: relative;
 
       .execution-error-pane {
-        height: 160px;
-        padding: 20px 22px;
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        height: 150px;
+        width: auto;
       }
     }
   }

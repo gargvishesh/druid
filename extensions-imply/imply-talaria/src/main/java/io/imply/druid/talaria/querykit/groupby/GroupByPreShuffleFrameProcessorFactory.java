@@ -14,37 +14,27 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.MemoryAllocator;
-import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.processor.FrameContext;
-import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.frame.processor.FrameProcessor;
+import io.imply.druid.talaria.input.ReadableInput;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessorFactory;
-import io.imply.druid.talaria.querykit.QueryWorkerInput;
-import io.imply.druid.talaria.querykit.QueryWorkerInputSpec;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 
-import java.util.List;
-
 @JsonTypeName("groupByPreShuffle")
 public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcessorFactory
 {
   private final GroupByQuery query;
-  private final List<QueryWorkerInputSpec> inputSpecs;
 
   @JsonCreator
-  public GroupByPreShuffleFrameProcessorFactory(
-      @JsonProperty("query") GroupByQuery query,
-      @JsonProperty("inputs") List<QueryWorkerInputSpec> inputSpecs
-  )
+  public GroupByPreShuffleFrameProcessorFactory(@JsonProperty("query") GroupByQuery query)
   {
-    super(inputSpecs);
     this.query = Preconditions.checkNotNull(query, "query");
-    this.inputSpecs = Preconditions.checkNotNull(inputSpecs, "inputSpecs");
   }
 
   @JsonProperty
@@ -53,19 +43,12 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
     return query;
   }
 
-  @JsonProperty("inputs")
-  public List<QueryWorkerInputSpec> getInputSpecs()
-  {
-    return inputSpecs;
-  }
-
   @Override
-  protected GroupByPreShuffleFrameProcessor makeProcessor(
-      final QueryWorkerInput baseInput,
-      final Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      final Int2ObjectMap<FrameReader> sideChannelReaders,
-      final ResourceHolder<WritableFrameChannel> outputChannel,
-      final ResourceHolder<MemoryAllocator> allocator,
+  protected FrameProcessor<Long> makeProcessor(
+      final ReadableInput baseInput,
+      final Int2ObjectMap<ReadableInput> sideChannels,
+      final ResourceHolder<WritableFrameChannel> outputChannelSupplier,
+      final ResourceHolder<MemoryAllocator> allocatorSupplier,
       final RowSignature signature,
       final ClusterBy clusterBy,
       final FrameContext frameContext
@@ -75,13 +58,12 @@ public class GroupByPreShuffleFrameProcessorFactory extends BaseLeafFrameProcess
         query,
         baseInput,
         sideChannels,
-        sideChannelReaders,
         frameContext.groupByStrategySelector(),
         new JoinableFactoryWrapper(frameContext.joinableFactory()),
         signature,
         clusterBy,
-        outputChannel,
-        allocator,
+        outputChannelSupplier,
+        allocatorSupplier,
         frameContext.memoryParameters().getBroadcastJoinMemory()
     );
   }

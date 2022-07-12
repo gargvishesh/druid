@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.talaria.exec.LeaderClient;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 
 /**
  * Publishes the warning report to the leader client as is without any buffering/batching
@@ -43,8 +44,14 @@ public class TalariaWarningReportSimplePublisher implements TalariaWarningReport
   @Override
   public void publishException(int stageNumber, Throwable e)
   {
-    MSQErrorReport warningReport = MSQErrorReport.fromException(taskId, host, stageNumber, e);
-    leaderClient.postWorkerWarning(workerId, ImmutableList.of(warningReport));
+    final MSQErrorReport warningReport = MSQErrorReport.fromException(taskId, host, stageNumber, e);
+
+    try {
+      leaderClient.postWorkerWarning(workerId, ImmutableList.of(warningReport));
+    }
+    catch (IOException e2) {
+      throw new RuntimeException(e2);
+    }
   }
 
   @Override

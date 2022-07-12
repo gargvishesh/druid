@@ -10,8 +10,8 @@
 package io.imply.druid.talaria.exec;
 
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
-import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
+import org.apache.druid.indexer.TaskStatus;
 
 import java.io.Closeable;
 import java.util.Map;

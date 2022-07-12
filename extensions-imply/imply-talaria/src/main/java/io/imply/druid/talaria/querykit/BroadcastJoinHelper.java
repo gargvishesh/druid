@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  */
 public class BroadcastJoinHelper
 {
-  private final Int2IntMap sideStageChannelNumberMap;
+  private final Int2IntMap inputNumberToProcessorChannelMap;
   private final List<ReadableFrameChannel> channels;
   private final List<FrameReader> channelReaders;
   private final JoinableFactoryWrapper joinableFactory;
@@ -54,28 +54,28 @@ public class BroadcastJoinHelper
   /**
    * Create a new broadcast join helper.
    *
-   * @param sideStageChannelNumberMap      map of input stage number -> channel position in the "channels" list
-   * @param channels                       list of input channels
-   * @param channelReaders                 list of input channel readers; corresponds one-to-one with "channels"
-   * @param joinableFactory                joinable factory for this server
-   * @param memoryReservedForBroadcastJoin total bytes of frames we are permitted to use; derived from
-   *                                       {@link io.imply.druid.talaria.exec.WorkerMemoryParameters#broadcastJoinMemory}
+   * @param inputNumberToProcessorChannelMap map of input slice number -> channel position in the "channels" list
+   * @param channels                         list of input channels
+   * @param channelReaders                   list of input channel readers; corresponds one-to-one with "channels"
+   * @param joinableFactory                  joinable factory for this server
+   * @param memoryReservedForBroadcastJoin   total bytes of frames we are permitted to use; derived from
+   *                                         {@link io.imply.druid.talaria.exec.WorkerMemoryParameters#broadcastJoinMemory}
    */
   public BroadcastJoinHelper(
-      final Int2IntMap sideStageChannelNumberMap,
+      final Int2IntMap inputNumberToProcessorChannelMap,
       final List<ReadableFrameChannel> channels,
       final List<FrameReader> channelReaders,
       final JoinableFactoryWrapper joinableFactory,
       final long memoryReservedForBroadcastJoin
   )
   {
-    this.sideStageChannelNumberMap = sideStageChannelNumberMap;
+    this.inputNumberToProcessorChannelMap = inputNumberToProcessorChannelMap;
     this.channels = channels;
     this.channelReaders = channelReaders;
     this.joinableFactory = joinableFactory;
     this.channelData = new ArrayList<>();
     this.sideChannelNumbers = new IntOpenHashSet();
-    this.sideChannelNumbers.addAll(sideStageChannelNumberMap.values());
+    this.sideChannelNumbers.addAll(inputNumberToProcessorChannelMap.values());
     this.memoryReservedForBroadcastJoin = memoryReservedForBroadcastJoin;
 
     for (int i = 0; i < channels.size(); i++) {
@@ -145,10 +145,10 @@ public class BroadcastJoinHelper
   @VisibleForTesting
   DataSource inlineChannelData(final DataSource originalDataSource)
   {
-    if (originalDataSource instanceof InputStageDataSource) {
-      final int stageNumber = ((InputStageDataSource) originalDataSource).getStageNumber();
-      if (sideStageChannelNumberMap.containsKey(stageNumber)) {
-        final int channelNumber = sideStageChannelNumberMap.get(stageNumber);
+    if (originalDataSource instanceof InputNumberDataSource) {
+      final int inputNumber = ((InputNumberDataSource) originalDataSource).getInputNumber();
+      if (inputNumberToProcessorChannelMap.containsKey(inputNumber)) {
+        final int channelNumber = inputNumberToProcessorChannelMap.get(inputNumber);
 
         if (sideChannelNumbers.contains(channelNumber)) {
           return InlineDataSource.fromIterable(

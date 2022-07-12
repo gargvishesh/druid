@@ -41,7 +41,7 @@ public class TooManyInputFilesFault extends BaseTalariaFault
         numInputFiles,
         maxInputFiles,
         minNumWorkers,
-        TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
+        TalariaContext.CTX_MAX_NUM_TASKS
     );
     this.numInputFiles = numInputFiles;
     this.maxInputFiles = maxInputFiles;

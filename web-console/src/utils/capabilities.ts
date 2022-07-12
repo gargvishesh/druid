@@ -19,6 +19,7 @@
 import { Api } from '../singletons';
 
 import { localStorageGetJson, LocalStorageKeys } from './local-storage-keys';
+import { deepGet } from './object-change';
 
 export type CapabilitiesMode = 'full' | 'no-sql' | 'no-proxy';
 
@@ -38,6 +39,8 @@ export interface CapabilitiesOptions {
   msqe: boolean;
   coordinator: boolean;
   overlord: boolean;
+
+  warnings?: string[];
 }
 
 export class Capabilities {
@@ -53,6 +56,8 @@ export class Capabilities {
   private readonly msqe: boolean;
   private readonly coordinator: boolean;
   private readonly overlord: boolean;
+
+  public readonly warnings: string[];
 
   static async detectQueryType(): Promise<QueryType | undefined> {
     // Check SQL endpoint
@@ -125,12 +130,24 @@ export class Capabilities {
     return true;
   }
 
-  static async detectMsqe(): Promise<boolean> {
+  static async detectMsqe(): Promise<{ enabled: boolean; warning?: string }> {
     try {
-      await Api.instance.get(`/druid/v2/sql/task/enabled?capabilities`);
-      return true;
-    } catch {
-      return false;
+      const resp = await Api.instance.get(`/druid/v2/sql/task/enabled?capabilities`);
+      if (resp.data.enabled === true) {
+        return { enabled: true };
+      } else {
+        return { enabled: false, warning: 'Unexpected response from /druid/v2/sql/task/enabled' };
+      }
+    } catch (e) {
+      if (deepGet(e, 'response.status') === 404 && deepGet(e, 'response.data.enabled') === false) {
+        return {
+          enabled: false,
+          warning:
+            'The multi stage query engine extension is detected but is not properly configured. Please double check that you have set all the required server properties.',
+        };
+      } else {
+        return { enabled: false };
+      }
     }
   }
 
@@ -152,13 +169,14 @@ export class Capabilities {
       coordinator = overlord = await Capabilities.detectManagementProxy();
     }
 
-    const msqe = await Capabilities.detectMsqe();
+    const msqeStatus = await Capabilities.detectMsqe();
 
     return new Capabilities({
       queryType,
-      msqe,
+      msqe: msqeStatus.enabled,
       coordinator,
       overlord,
+      warnings: msqeStatus.warning ? [msqeStatus.warning] : [],
     });
   }
 
@@ -167,6 +185,11 @@ export class Capabilities {
     this.msqe = options.msqe;
     this.coordinator = options.coordinator;
     this.overlord = options.overlord;
+    this.warnings = Array.isArray(options.warnings) ? options.warnings : [];
+  }
+
+  public hasWarnings(): boolean {
+    return Boolean(this.warnings.length);
   }
 
   public getMode(): CapabilitiesMode {

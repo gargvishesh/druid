@@ -29,8 +29,8 @@ public class TaskStartTimeoutFault extends BaseTalariaFault
     super(
         CODE,
         "Unable to launch all the worker tasks in time. There might be insufficient available slots to start all the worker tasks simultaneously."
-        + " Try splitting up the query into smaller chunks by setting the query context with lesser %s[%d] tasks explicitly. Another option is to increase capacity.",
-        TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS,
+        + " Try lowering '%s' in your query context to lower than [%d] tasks, or increasing capacity.",
+        TalariaContext.CTX_MAX_NUM_TASKS,
         numTasks
     );
     this.numTasks = numTasks;

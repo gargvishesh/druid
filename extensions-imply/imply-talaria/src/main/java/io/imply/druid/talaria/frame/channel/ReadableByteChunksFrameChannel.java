@@ -111,11 +111,12 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
 
       try {
         if (chunk.length > 0) {
+          bytesAdded += chunk.length;
+
           if (streamPart != StreamPart.FOOTER) {
             // TODO(gianm): Validate footer instead of throwing it away
             chunks.add(Try.value(chunk));
             bytesBuffered += chunk.length;
-            bytesAdded += chunk.length;
           }
 
           updateStreamState();

@@ -24,7 +24,7 @@ import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.write.FrameWriter;
 import io.imply.druid.talaria.frame.write.FrameWriterFactory;
 import io.imply.druid.talaria.frame.write.FrameWriters;
-import io.imply.druid.talaria.querykit.QueryWorkerUtils;
+import io.imply.druid.talaria.querykit.QueryKitUtils;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
@@ -306,7 +306,7 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
    */
   private static VirtualColumns makeVirtualColumnsForFrameWriter(final GroupByQuery query)
   {
-    final VirtualColumn segmentGranularityVirtualColumn = QueryWorkerUtils.makeSegmentGranularityVirtualColumn(query);
+    final VirtualColumn segmentGranularityVirtualColumn = QueryKitUtils.makeSegmentGranularityVirtualColumn(query);
 
     if (segmentGranularityVirtualColumn == null) {
       return VirtualColumns.EMPTY;

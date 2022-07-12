@@ -15,21 +15,17 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import io.imply.druid.talaria.exec.LeaderClient;
-import io.imply.druid.talaria.exec.TalariaDataSegmentProvider;
+import io.imply.druid.talaria.exec.TaskDataSegmentProvider;
 import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerContext;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.frame.processor.FrameContext;
+import io.imply.druid.talaria.input.InputSpecs;
 import io.imply.druid.talaria.kernel.QueryDefinition;
-import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
-import io.imply.druid.talaria.rpc.ServiceLocations;
-import io.imply.druid.talaria.rpc.ServiceLocator;
-import io.imply.druid.talaria.rpc.StandardRetryPolicy;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import io.imply.druid.talaria.rpc.indexing.SpecificTaskRetryPolicy;
-import io.imply.druid.talaria.rpc.indexing.SpecificTaskServiceLocator;
+import io.imply.druid.talaria.rpc.CoordinatorServiceClient;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
@@ -38,6 +34,13 @@ import org.apache.druid.indexing.worker.config.WorkerConfig;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.rpc.ServiceClientFactory;
+import org.apache.druid.rpc.ServiceLocations;
+import org.apache.druid.rpc.ServiceLocator;
+import org.apache.druid.rpc.StandardRetryPolicy;
+import org.apache.druid.rpc.indexing.OverlordClient;
+import org.apache.druid.rpc.indexing.SpecificTaskRetryPolicy;
+import org.apache.druid.rpc.indexing.SpecificTaskServiceLocator;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.realtime.appenderator.UnifiedIndexerAppenderatorsManager;
@@ -56,26 +59,48 @@ public class IndexerWorkerContext implements WorkerContext
   private final TaskToolbox toolbox;
   private final Injector injector;
   private final IndexIO indexIO;
-  private final TalariaDataSegmentProvider dataSegmentProvider;
-  private final DruidServiceClientFactory clientFactory;
+  private final TaskDataSegmentProvider dataSegmentProvider;
+  private final ServiceClientFactory clientFactory;
 
   @GuardedBy("this")
-  private OverlordServiceClient overlordClient;
+  private OverlordClient overlordClient;
 
   @GuardedBy("this")
   private ServiceLocator leaderLocator;
 
-  public IndexerWorkerContext(TaskToolbox toolbox, Injector injector)
+  public IndexerWorkerContext(
+      final TaskToolbox toolbox,
+      final Injector injector,
+      final IndexIO indexIO,
+      final TaskDataSegmentProvider dataSegmentProvider,
+      final ServiceClientFactory clientFactory
+  )
   {
     this.toolbox = toolbox;
     this.injector = injector;
+    this.indexIO = indexIO;
+    this.dataSegmentProvider = dataSegmentProvider;
+    this.clientFactory = clientFactory;
+  }
 
+  public static IndexerWorkerContext createProductionInstance(final TaskToolbox toolbox, final Injector injector)
+  {
+    final IndexIO indexIO = injector.getInstance(IndexIO.class);
+    final CoordinatorServiceClient coordinatorServiceClient =
+        injector.getInstance(CoordinatorServiceClient.class).withRetryPolicy(StandardRetryPolicy.unlimited());
     final SegmentCacheManager segmentCacheManager =
         injector.getInstance(SegmentCacheManagerFactory.class)
                 .manufacturate(new File(toolbox.getIndexingTmpDir(), "segment-fetch"));
-    this.indexIO = injector.getInstance(IndexIO.class);
-    this.dataSegmentProvider = new TalariaDataSegmentProvider(segmentCacheManager, this.indexIO);
-    this.clientFactory = injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
+    final ServiceClientFactory serviceClientFactory =
+        injector.getInstance(Key.get(ServiceClientFactory.class, EscalatedGlobal.class));
+
+    return new IndexerWorkerContext(
+        toolbox,
+        injector,
+        indexIO,
+        new TaskDataSegmentProvider(coordinatorServiceClient, segmentCacheManager, indexIO),
+        serviceClientFactory
+    );
   }
 
   // Note: NOT part of the interface! Not available in the Talaria server.
@@ -173,7 +198,11 @@ public class IndexerWorkerContext implements WorkerContext
     final ServiceLocator locator = makeLeaderLocator(leaderId);
 
     return new IndexerLeaderClient(
-        clientFactory.makeClient(leaderId, locator, new SpecificTaskRetryPolicy(leaderId)),
+        clientFactory.makeClient(
+            leaderId,
+            locator,
+            new SpecificTaskRetryPolicy(leaderId, StandardRetryPolicy.unlimited())
+        ),
         jsonMapper(),
         locator
     );
@@ -200,6 +229,13 @@ public class IndexerWorkerContext implements WorkerContext
       numWorkersInJvm = 1;
     }
 
+    final IntSet inputStageNumbers =
+        InputSpecs.getStageNumbers(queryDef.getStageDefinition(stageNumber).getInputSpecs());
+    final int numInputWorkers =
+        inputStageNumbers.intStream()
+                         .map(inputStageNumber -> queryDef.getStageDefinition(inputStageNumber).getMaxWorkerCount())
+                         .sum();
+
     return new IndexerFrameContext(
         this,
         indexIO,
@@ -208,11 +244,7 @@ public class IndexerWorkerContext implements WorkerContext
             Runtime.getRuntime().maxMemory(),
             numWorkersInJvm,
             processorBouncer().getMaxCount(),
-            queryDef.getStageDefinition(stageNumber)
-                    .getInputStageIds()
-                    .stream()
-                    .mapToInt(stageId -> queryDef.getStageDefinition(stageId).getMaxWorkerCount())
-                    .sum()
+            numInputWorkers
         )
     );
   }
@@ -235,10 +267,10 @@ public class IndexerWorkerContext implements WorkerContext
     return injector.getInstance(Bouncer.class);
   }
 
-  private synchronized OverlordServiceClient makeOverlordClient()
+  private synchronized OverlordClient makeOverlordClient()
   {
     if (overlordClient == null) {
-      overlordClient = injector.getInstance(OverlordServiceClient.class)
+      overlordClient = injector.getInstance(OverlordClient.class)
                                .withRetryPolicy(StandardRetryPolicy.unlimited());
     }
     return overlordClient;

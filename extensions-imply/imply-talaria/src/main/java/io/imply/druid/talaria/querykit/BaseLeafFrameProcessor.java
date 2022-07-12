@@ -16,6 +16,8 @@ import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.processor.ReturnOrAwait;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.SegmentWithDescriptor;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -35,13 +37,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
 {
   private final Query<?> query;
-  private final QueryWorkerInput baseInput;
+  private final ReadableInput baseInput;
   private final List<ReadableFrameChannel> inputChannels;
   private final ResourceHolder<WritableFrameChannel> outputChannel;
   private final ResourceHolder<MemoryAllocator> allocator;
@@ -51,9 +52,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
 
   protected BaseLeafFrameProcessor(
       final Query<?> query,
-      final QueryWorkerInput baseInput,
-      final Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      final Int2ObjectMap<FrameReader> sideChannelReaders,
+      final ReadableInput baseInput,
+      final Int2ObjectMap<ReadableInput> sideChannels,
       final JoinableFactoryWrapper joinableFactory,
       final ResourceHolder<WritableFrameChannel> outputChannel,
       final ResourceHolder<MemoryAllocator> allocator,
@@ -70,7 +70,6 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
             query.getDataSource(),
             baseInput,
             sideChannels,
-            sideChannelReaders,
             joinableFactory,
             memoryReservedForBroadcastJoin
         );
@@ -101,7 +100,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
     } else if (baseInput.hasSegment()) {
       return runWithSegment(baseInput.getSegment());
     } else {
-      return runWithInputChannel(baseInput.getInputChannel(), baseInput.getInputFrameReader());
+      assert baseInput.hasChannel();
+      return runWithInputChannel(baseInput.getChannel(), baseInput.getChannelFrameReader());
     }
   }
 
@@ -118,7 +118,7 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
     return allocator.get();
   }
 
-  protected abstract ReturnOrAwait<Long> runWithSegment(SegmentWithInterval segment) throws IOException;
+  protected abstract ReturnOrAwait<Long> runWithSegment(SegmentWithDescriptor segment) throws IOException;
 
   protected abstract ReturnOrAwait<Long> runWithInputChannel(
       ReadableFrameChannel inputChannel,
@@ -157,9 +157,8 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
    */
   private static Pair<List<ReadableFrameChannel>, BroadcastJoinHelper> makeInputChannelsAndBroadcastJoinHelper(
       final DataSource dataSource,
-      final QueryWorkerInput baseInput,
-      final Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      final Int2ObjectMap<FrameReader> sideChannelReaders,
+      final ReadableInput baseInput,
+      final Int2ObjectMap<ReadableInput> sideChannels,
       final JoinableFactoryWrapper joinableFactory,
       final long memoryReservedForBroadcastJoin
   )
@@ -171,28 +170,28 @@ public abstract class BaseLeafFrameProcessor implements FrameProcessor<Long>
     final List<ReadableFrameChannel> inputChannels = new ArrayList<>();
     final BroadcastJoinHelper broadcastJoinHelper;
 
-    if (baseInput.hasInputChannel()) {
-      inputChannels.add(baseInput.getInputChannel());
+    if (baseInput.hasChannel()) {
+      inputChannels.add(baseInput.getChannel());
     }
 
     if (dataSource instanceof JoinDataSource) {
-      final Int2IntMap sideStageChannelNumberMap = new Int2IntOpenHashMap();
+      final Int2IntMap inputNumberToProcessorChannelMap = new Int2IntOpenHashMap();
       final List<FrameReader> channelReaders = new ArrayList<>();
 
-      if (baseInput.hasInputChannel()) {
+      if (baseInput.hasChannel()) {
         // BroadcastJoinHelper doesn't need to read the base channel, so stub in a null reader.
         channelReaders.add(null);
       }
 
-      for (Map.Entry<Integer, ReadableFrameChannel> sideChannelEntry : sideChannels.entrySet()) {
-        final int stageNumber = sideChannelEntry.getKey();
-        sideStageChannelNumberMap.put(stageNumber, inputChannels.size());
-        inputChannels.add(sideChannelEntry.getValue());
-        channelReaders.add(sideChannelReaders.get(stageNumber));
+      for (Int2ObjectMap.Entry<ReadableInput> sideChannelEntry : sideChannels.int2ObjectEntrySet()) {
+        final int inputNumber = sideChannelEntry.getIntKey();
+        inputNumberToProcessorChannelMap.put(inputNumber, inputChannels.size());
+        inputChannels.add(sideChannelEntry.getValue().getChannel());
+        channelReaders.add(sideChannelEntry.getValue().getChannelFrameReader());
       }
 
       broadcastJoinHelper = new BroadcastJoinHelper(
-          sideStageChannelNumberMap,
+          inputNumberToProcessorChannelMap,
           inputChannels,
           channelReaders,
           joinableFactory,

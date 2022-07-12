@@ -34,7 +34,7 @@ import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.write.FrameWriters;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
-import io.imply.druid.talaria.util.FutureUtils;
+import io.imply.druid.talaria.util.TalariaFutureUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -210,7 +210,7 @@ public class SuperSorter
         );
       }
 
-      return FutureUtils.futureWithBaggage(
+      return TalariaFutureUtils.futureWithBaggage(
           allDone,
           () -> {
             synchronized (runWorkersLock) {
@@ -771,7 +771,7 @@ public class SuperSorter
              + " frames-buffered=" + inputBuffer.size()
              + " lvls=" + totalMergingLevels
              + " parts=" +
-             (outputPartitionsFuture.isDone() ? FutureUtils.getUncheckedImmediately(outputPartitionsFuture).size() : -1)
+             (outputPartitionsFuture.isDone() ? TalariaFutureUtils.getUncheckedImmediately(outputPartitionsFuture).size() : -1)
              + " p=" + activeProcessors + "/" + maxActiveProcessors
              + " ch-pending=" + inputChannelsToRead
              + " to-merge=" + outputsReadyByLevel

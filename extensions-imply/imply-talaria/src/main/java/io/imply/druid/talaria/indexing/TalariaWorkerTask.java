@@ -90,7 +90,7 @@ public class TalariaWorkerTask extends AbstractTask
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    final WorkerContext context = new IndexerWorkerContext(toolbox, injector);
+    final WorkerContext context = IndexerWorkerContext.createProductionInstance(toolbox, injector);
     worker = new WorkerImpl(this, context);
     return worker.run();
   }

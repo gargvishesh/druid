@@ -49,11 +49,11 @@ import {
   CenterMessage,
   ClearableInput,
   ExternalLink,
+  FormGroupWithInfo,
   JsonInput,
   Loader,
   PopoverText,
 } from '../../components';
-import { FormGroupWithInfo } from '../../components/form-group-with-info/form-group-with-info';
 import { AsyncActionDialog } from '../../dialogs';
 import {
   addTimestampTransform,
@@ -311,6 +311,7 @@ const VIEW_TITLE: Record<Step, string> = {
 };
 
 export interface LoadDataViewProps {
+  mode: 'streaming' | 'batch';
   initSupervisorId?: string;
   initTaskId?: string;
   exampleManifestsUrl?: string;
@@ -809,7 +810,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
   }
 
   renderWelcomeStep() {
-    const { exampleManifestsUrl } = this.props;
+    const { mode, exampleManifestsUrl } = this.props;
     const { spec, exampleManifests } = this.state;
     const noExamples = Boolean(!exampleManifests || !exampleManifests.length);
 
@@ -818,19 +819,28 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       <>
         <div className="main">
           <div className="ingestion-cards">
-            {this.renderIngestionCard('kafka')}
-            {this.renderIngestionCard('kinesis')}
-            {this.renderIngestionCard('azure-event-hubs')}
-            {this.renderIngestionCard('index_parallel:s3')}
-            {this.renderIngestionCard('index_parallel:azure')}
-            {this.renderIngestionCard('index_parallel:google')}
-            {this.renderIngestionCard('index_parallel:hdfs')}
-            {this.renderIngestionCard('index_parallel:druid')}
-            {this.renderIngestionCard('index_parallel:http')}
-            {this.renderIngestionCard('index_parallel:local')}
-            {this.renderIngestionCard('index_parallel:inline')}
-            {exampleManifestsUrl && this.renderIngestionCard('example', noExamples)}
-            {this.renderIngestionCard('other')}
+            {mode === 'streaming' && (
+              <>
+                {this.renderIngestionCard('kafka')}
+                {this.renderIngestionCard('kinesis')}
+                {this.renderIngestionCard('azure-event-hubs')}
+                {this.renderIngestionCard('other')}
+              </>
+            )}
+            {mode === 'batch' && (
+              <>
+                {this.renderIngestionCard('index_parallel:s3')}
+                {this.renderIngestionCard('index_parallel:azure')}
+                {this.renderIngestionCard('index_parallel:google')}
+                {this.renderIngestionCard('index_parallel:hdfs')}
+                {this.renderIngestionCard('index_parallel:druid')}
+                {this.renderIngestionCard('index_parallel:http')}
+                {this.renderIngestionCard('index_parallel:local')}
+                {this.renderIngestionCard('index_parallel:inline')}
+                {exampleManifestsUrl && this.renderIngestionCard('example', noExamples)}
+                {this.renderIngestionCard('other')}
+              </>
+            )}
           </div>
         </div>
         <div className="control">
