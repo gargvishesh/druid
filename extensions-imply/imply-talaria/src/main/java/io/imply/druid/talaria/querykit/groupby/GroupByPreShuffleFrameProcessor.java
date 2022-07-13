@@ -25,9 +25,9 @@ import io.imply.druid.talaria.frame.segment.FrameSegment;
 import io.imply.druid.talaria.frame.write.FrameWriter;
 import io.imply.druid.talaria.frame.write.FrameWriterFactory;
 import io.imply.druid.talaria.frame.write.FrameWriters;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.SegmentWithDescriptor;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessor;
-import io.imply.druid.talaria.querykit.QueryWorkerInput;
-import io.imply.druid.talaria.querykit.SegmentWithInterval;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.Intervals;
@@ -68,9 +68,8 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
 
   public GroupByPreShuffleFrameProcessor(
       final GroupByQuery query,
-      final QueryWorkerInput baseInput,
-      final Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      final Int2ObjectMap<FrameReader> sideChannelReaders,
+      final ReadableInput baseInput,
+      final Int2ObjectMap<ReadableInput> sideChannels,
       final GroupByStrategySelector strategySelector,
       final JoinableFactoryWrapper joinableFactory,
       final RowSignature aggregationSignature,
@@ -84,7 +83,6 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
         query,
         baseInput,
         sideChannels,
-        sideChannelReaders,
         joinableFactory,
         outputChannel,
         allocator,
@@ -102,7 +100,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
   }
 
   @Override
-  protected ReturnOrAwait<Long> runWithSegment(final SegmentWithInterval segment) throws IOException
+  protected ReturnOrAwait<Long> runWithSegment(final SegmentWithDescriptor segment) throws IOException
   {
     if (resultYielder == null) {
       closer.register(segment);
@@ -110,7 +108,7 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
       final Sequence<ResultRow> rowSequence =
           strategySelector.strategize(query)
                           .process(
-                              query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.toDescriptor())),
+                              query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.getDescriptor())),
                               mapSegment(segment.getOrLoadSegment()).asStorageAdapter(),
                               null
                           );

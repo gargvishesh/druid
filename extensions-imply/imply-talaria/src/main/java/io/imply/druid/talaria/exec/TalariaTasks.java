@@ -24,6 +24,7 @@ import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
+import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnHolder;
@@ -124,11 +125,11 @@ public class TalariaTasks
    * in cases where we choose the controller error over the worker error, we'll log the worker error too, even though
    * it doesn't appear in the report.
    *
-   * Logic: we prefer the controller exception unless it's {@link WorkerRpcFailedFault} or {@link CanceledFault}, in
-   * which case we prefer the worker error report. This ensures we get the best, most useful exception even when the
-   * controller cancels worker tasks after a failure. (As tasks are canceled one by one, worker -> worker and controller -> worker
-   * RPCs to the canceled tasks will fail. We want to ignore these failed RPCs and get to the "true" error that
-   * started it all.)
+   * Logic: we prefer the controller exception unless it's {@link WorkerFailedFault}, {@link WorkerRpcFailedFault},
+   * or {@link CanceledFault}. In these cases we prefer the worker error report. This ensures we get the best, most
+   * useful exception even when the controller cancels worker tasks after a failure. (As tasks are canceled one by
+   * one, worker -> worker and controller -> worker RPCs to the canceled tasks will fail. We want to ignore these
+   * failed RPCs and get to the "true" error that started it all.)
    */
   static MSQErrorReport makeErrorReport(
       final String controllerTaskId,
@@ -154,7 +155,8 @@ public class TalariaTasks
       // Pick the "best" error if both are set. See the javadoc for the logic we use. In these situations, we
       // expect the caller to also log the other one. (There is no logging in _this_ method, because it's a helper
       // function, and it's best if helper functions run quietly.)
-      if (workerErrorReport != null && (controllerErrorReport.getFault() instanceof WorkerRpcFailedFault
+      if (workerErrorReport != null && (controllerErrorReport.getFault() instanceof WorkerFailedFault
+                                        || controllerErrorReport.getFault() instanceof WorkerRpcFailedFault
                                         || controllerErrorReport.getFault() instanceof CanceledFault)) {
         return workerErrorReport;
       } else {

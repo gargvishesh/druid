@@ -41,14 +41,14 @@ export const LocalStorageKeys = {
   LIVE_QUERY_MODE: 'live-query-mode' as const,
 
   // BEGIN: Imply-added code for the multi-stage query engine
-  SQLOADER_SHOW: 'sqloader-show' as const,
   WORKBENCH_QUERIES: 'workbench-queries' as const,
   WORKBENCH_LAST_TAB: 'workbench-last-tab' as const,
   WORKBENCH_PANE_SIZE: 'workbench-pane-size' as const,
   WORKBENCH_HISTORY: 'workbench-history' as const,
-  WORKBENCH_LIVE_MODE: 'workbench-live-mode' as const,
   WORKBENCH_WORK_PANEL: 'workbench-work-panel' as const,
-  SQLOADER_QUERY: 'sqloader-query' as const,
+
+  SQL_DATA_LOADER_SHOW: 'sql-data-loader-show' as const,
+  SQL_DATA_LOADER_QUERY: 'sql-data-loader-query' as const,
   // END: Imply-modified code for MSQE execution
 
   USERS_REFRESH_RATE: 'users-refresh-rate' as const,

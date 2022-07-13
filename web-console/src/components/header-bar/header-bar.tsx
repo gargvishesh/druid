@@ -28,6 +28,7 @@ import {
   NavbarDivider,
   NavbarGroup,
   Position,
+  Tag,
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
@@ -48,6 +49,7 @@ import {
   LocalStorageKeys,
   localStorageRemove,
   localStorageSetJson,
+  oneOf,
 } from '../../utils';
 import { ExternalLink } from '../external-link/external-link';
 import { PopoverText } from '../popover-text/popover-text';
@@ -58,14 +60,15 @@ const capabilitiesOverride = localStorageGetJson(LocalStorageKeys.CAPABILITIES_O
 
 export type HeaderActiveTab =
   | null
-  | 'load-data'
+  | 'streaming-data-loader'
+  | 'classic-batch-data-loader'
   | 'ingestion'
   | 'datasources'
   | 'segments'
   | 'services'
   | 'query'
   | 'workbench'
-  | 'sqloader'
+  | 'sql-data-loader'
   | 'user-management'
   | 'lookups';
 
@@ -238,14 +241,72 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const [coordinatorDynamicConfigDialogOpen, setCoordinatorDynamicConfigDialogOpen] =
     useState(false);
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
-  const loadDataPrimary = false;
 
   // BEGIN: Imply-added code for MSQE loader
-  const [showSqloader, setShowSqloader] = useLocalStorageState(
-    LocalStorageKeys.SQLOADER_SHOW,
+  const [showSqlDataLoader, setShowSqlDataLoader] = useLocalStorageState(
+    LocalStorageKeys.SQL_DATA_LOADER_SHOW,
     false,
   );
   // END: Imply-added code for MSQE loader
+
+  const loadDataViewsMenuActive = oneOf(
+    active,
+    'classic-batch-data-loader',
+    'streaming-data-loader',
+    'sql-data-loader',
+  );
+  const loadDataViewsMenu = (
+    <Menu>
+      <MenuItem
+        icon={IconNames.FEED}
+        text="Streaming"
+        active={active === 'streaming-data-loader'}
+        href="#streaming-data-loader"
+      />
+
+      {/* BEGIN: Imply-added code for MSQE SQL based data loader */}
+      {showSqlDataLoader && capabilities.hasMsqe() && (
+        <MenuItem
+          active={active === 'sql-data-loader'}
+          icon={IconNames.CLEAN}
+          text="Batch - SQL"
+          href="#sql-data-loader"
+          labelElement={<Tag minimal>new</Tag>}
+        />
+      )}
+      {/* END: Imply-modified code for MSQE execution */}
+
+      <MenuItem
+        icon={IconNames.LIST}
+        text="Batch - classic"
+        active={active === 'classic-batch-data-loader'}
+        href="#classic-batch-data-loader"
+      />
+    </Menu>
+  );
+
+  const moreViewsMenuActive = oneOf(active, 'lookups', 'user-management');
+  const moreViewsMenu = (
+    <Menu>
+      <MenuItem
+        icon={IconNames.PROPERTIES}
+        active={active === 'lookups'}
+        text="Lookups"
+        href="#lookups"
+        disabled={!capabilities.hasCoordinatorAccess()}
+      />
+
+      {/* BEGIN: Imply-modified code for user management */}
+      <MenuItem
+        icon={IconNames.PEOPLE}
+        active={active === 'user-management'}
+        text="User management"
+        href="#user-management"
+        disabled={!capabilities.hasCoordinatorAccess()}
+      />
+      {/* END: Imply-modified code for user management */}
+    </Menu>
+  );
 
   const helpMenu = (
     <Menu>
@@ -302,23 +363,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         onClick={() => setOverlordDynamicConfigDialogOpen(true)}
         disabled={!capabilities.hasOverlordAccess()}
       />
-      <MenuItem
-        icon={IconNames.PROPERTIES}
-        active={active === 'lookups'}
-        text="Lookups"
-        href="#lookups"
-        disabled={!capabilities.hasCoordinatorAccess()}
-      />
-
-      {/* BEGIN: Imply-modified code for user management */}
-      <MenuItem
-        icon={IconNames.PEOPLE}
-        active={active === 'user-management'}
-        text="User management"
-        href="#user-management"
-        disabled={!capabilities.hasCoordinatorAccess()}
-      />
-      {/* END: Imply-modified code for user management */}
 
       <MenuDivider />
       <MenuItem icon={IconNames.COG} text="Console options">
@@ -360,16 +404,16 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const handleLogoClick = usePermanentCallback((e: MouseEvent) => {
     if (!e.altKey || !e.shiftKey) return;
     e.preventDefault();
-    const nextShowSqloader = !showSqloader;
-    setShowSqloader(nextShowSqloader);
+    const nextShowSqlDataLoader = !showSqlDataLoader;
+    setShowSqlDataLoader(nextShowSqlDataLoader);
     AppToaster.show({
-      message: nextShowSqloader
+      message: nextShowSqlDataLoader
         ? 'You have enabled the new and experimental SQL based data loader.'
         : 'You have disabled the SQL based data loader.',
       intent: Intent.SUCCESS,
       timeout: 5000,
     });
-    location.hash = nextShowSqloader ? '#sqloader' : '#home';
+    location.hash = nextShowSqlDataLoader ? '#sql-data-loader' : '#home';
   });
   // END: Imply-modified code for MSQE execution
 
@@ -379,19 +423,36 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         <a href="#" onClick={handleLogoClick}>
           <DruidLogo />
         </a>
-
         <NavbarDivider />
+
         <AnchorButton
-          icon={IconNames.CLOUD_UPLOAD}
-          text="Load data"
-          active={active === 'load-data'}
-          href="#load-data"
-          minimal={!loadDataPrimary}
-          intent={loadDataPrimary ? Intent.PRIMARY : Intent.NONE}
-          disabled={!capabilities.hasEverything()}
+          minimal
+          active={active === 'workbench'}
+          icon={IconNames.APPLICATION}
+          text="Query"
+          href="#workbench"
+          disabled={!capabilities.hasQuerying()}
+          onClick={e => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            location.hash = '#query';
+          }}
         />
-
+        <Popover2
+          content={loadDataViewsMenu}
+          disabled={!capabilities.hasEverything()}
+          position={Position.BOTTOM_LEFT}
+        >
+          <Button
+            icon={IconNames.CLOUD_UPLOAD}
+            text="Load data"
+            minimal
+            active={loadDataViewsMenuActive}
+            disabled={!capabilities.hasEverything()}
+          />
+        </Popover2>
         <NavbarDivider />
+
         <AnchorButton
           minimal
           active={active === 'ingestion'}
@@ -424,34 +485,9 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           href="#services"
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
-
-        <NavbarDivider />
-        <AnchorButton
-          minimal
-          active={active === 'workbench'}
-          icon={IconNames.APPLICATION}
-          text="Query"
-          href="#workbench"
-          disabled={!capabilities.hasQuerying()}
-          onClick={e => {
-            if (!e.altKey) return;
-            e.preventDefault();
-            location.hash = '#query';
-          }}
-        />
-
-        {/* BEGIN: Imply-added code for MSQE SQL based data loader */}
-        {showSqloader && (
-          <AnchorButton
-            minimal
-            active={active === 'sqloader'}
-            icon={IconNames.CLOUD_UPLOAD}
-            text="SQLoader"
-            href="#sqloader"
-            disabled={!capabilities.hasQuerying()}
-          />
-        )}
-        {/* END: Imply-modified code for MSQE execution */}
+        <Popover2 content={moreViewsMenu} position={Position.BOTTOM_LEFT}>
+          <Button minimal icon={IconNames.MORE} active={moreViewsMenuActive} />
+        </Popover2>
       </NavbarGroup>
       <NavbarGroup align={Alignment.RIGHT}>
         <RestrictedMode capabilities={capabilities} onUnrestrict={onUnrestrict} />

@@ -19,24 +19,8 @@
 import { sum } from 'd3-array';
 import hasOwnProp from 'has-own-prop';
 
-import { InputFormat } from '../druid-models/input-format';
-import { InputSource } from '../druid-models/input-source';
-import { filterMap, oneOf } from '../utils';
-
-const PALETTE = [
-  '#8dd3c7',
-  '#ffffb3',
-  '#bebada',
-  '#fb8072',
-  '#80b1d3',
-  '#fdb462',
-  '#b3de69',
-  '#fccde5',
-  '#d9d9d9',
-  '#bc80bd',
-  '#ccebc5',
-  '#ffed6f',
-];
+import { InputFormat, InputSource } from '../druid-models';
+import { deleteKeys, filterMap, oneOf } from '../utils';
 
 const SORT_WEIGHT = 0.5;
 const READING_INPUT_WITH_SORT_WEIGHT = 1 - SORT_WEIGHT;
@@ -46,32 +30,49 @@ function zeroDivide(a: number, b: number): number {
   return a / b;
 }
 
+export type StageInput =
+  | {
+      type: 'stage';
+      stage: number;
+    }
+  | {
+      type: 'table';
+      dataSource: string;
+    }
+  | {
+      type: 'external';
+      inputSource: InputSource;
+      inputFormat: InputFormat;
+      signature: any[];
+    };
+
 export interface StageDefinition {
   stageNumber: number;
-  inputStages: number[];
-  inputFileCount?: number;
-  processorType: string;
-  query?: {
-    queryType: string;
-    dataSource: DataSource;
-    [k: string]: any;
+  definition: {
+    id: string;
+    input: StageInput[];
+    broadcast?: number[];
+    processor: {
+      type: string;
+      [k: string]: any;
+    };
+    signature: any;
+    shuffleSpec?: {
+      type: string;
+      clusterBy?: ClusterBy;
+      targetSize?: number;
+      partitions?: number;
+      aggregate?: boolean;
+    };
+    maxWorkerCount: number;
+    shuffleCheckHasMultipleValues?: boolean;
   };
+  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_READY' | 'FINISHED' | 'FAILED';
+  workerCount?: number;
+  partitionCount?: number;
   startTime?: string;
   duration?: number;
-  phase?: 'NEW' | 'READING_INPUT' | 'POST_READING' | 'RESULTS_READY' | 'FINISHED' | 'FAILED';
-  workerCount: number;
-  partitionCount: number;
-  clusterBy?: ClusterBy;
-}
-
-export interface DataSource {
-  type: 'external' | 'stage' | 'table' | 'join';
-  name?: string;
-  inputSource: InputSource;
-  inputFormat: InputFormat;
-  left?: DataSource;
-  right?: DataSource;
-  signature?: { name: string; type: string }[];
+  sort?: boolean;
 }
 
 export interface ClusterBy {
@@ -100,38 +101,20 @@ export function formatClusterBy(
   return columns.map(part => part.columnName + (part.descending ? ' DESC' : '')).join(', ');
 }
 
-export type CounterType =
-  | 'inputExternal'
-  | 'inputDruid'
-  | 'inputStageChannel'
-  | 'processor'
-  | 'sort';
-
-export const INPUT_COUNTERS: CounterType[] = ['inputExternal', 'inputDruid', 'inputStageChannel'];
-
-export const COUNTER_TYPE_TITLE: Record<CounterType, string> = {
-  inputExternal: 'Input external',
-  inputDruid: 'Input druid',
-  inputStageChannel: 'Input stage',
-  processor: 'Processor output',
-  sort: 'Sort output',
-};
-
-export interface WorkerCounter {
-  workerNumber: number;
-  counters: Partial<Record<CounterType, StageCounter[]>>;
-  sortProgress: {
-    stageNumber: number;
-    sortProgress: SortProgress;
-  }[];
-  warningCounters: {
-    stageNumber: number;
-    warningCounters: { warningCount: Record<string, number> };
-  }[];
+export interface StageWorkerCounter {
+  [k: `input${number}`]: ChannelCounter | undefined;
+  output?: ChannelCounter;
+  sort?: ChannelCounter;
+  sortProgress?: SortProgressCounter;
+  warnings?: WarningCounter;
 }
 
-function tallyWarningCount(warningCount: Record<string, number>): number {
-  return sum(Object.values(warningCount));
+export type ChannelCounterName = `input${number}` | 'output' | 'sort';
+
+export type CounterName = keyof StageWorkerCounter;
+
+function tallyWarningCount(warningCounter: WarningCounter): number {
+  return sum(Object.values(warningCounter), v => (typeof v === 'number' ? v : 0));
 }
 
 function sumByKey(objs: Record<string, number>[]): Record<string, number> {
@@ -146,23 +129,19 @@ function sumByKey(objs: Record<string, number>[]): Record<string, number> {
   return res;
 }
 
-export interface StageCounter {
-  stageNumber: number;
-  partitionNumber: number;
-  rows: number;
-  bytes: number;
-  frames: number;
-  files?: number; // only present on inputExternal
+export interface ChannelCounter {
+  type: 'channel';
+  rows?: number[];
+  bytes?: number[];
+  frames?: number[];
+  files?: number[];
+  totalFiles?: number[];
 }
 
-export interface SimpleCounter {
-  index: number;
-  rows: number;
-  bytes: number;
-  frames: number;
-}
+export type ChannelFields = 'rows' | 'bytes' | 'frames' | 'files' | 'totalFiles';
 
-export interface SortProgress {
+export interface SortProgressCounter {
+  type: 'sortProgress';
   totalMergingLevels: number;
   levelToTotalBatches: Record<number, number>;
   levelToMergedBatches: Record<number, number>;
@@ -171,30 +150,51 @@ export interface SortProgress {
   triviallyComplete?: boolean;
 }
 
-export function compareDetailEntries(a: SimpleCounter, b: SimpleCounter): number {
-  const diff = b.rows - a.rows;
-  if (diff) return diff;
-  return a.index - b.index;
+export interface WarningCounter {
+  type: 'warning';
+  CannotParseExternalData?: number;
+  // More types of warnings might be added later
+}
+
+export interface SimpleNarrowCounter {
+  index: number;
+  rows: number;
+  bytes: number;
+  frames: number;
+}
+
+export interface SimpleWideCounter {
+  index: number;
+  [k: `input${number}`]: Record<ChannelFields, number> | undefined;
+  output?: Record<ChannelFields, number>;
+  sort?: Record<ChannelFields, number>;
+}
+
+function zeroChannelFields(): Record<ChannelFields, number> {
+  return {
+    rows: 0,
+    bytes: 0,
+    frames: 0,
+    files: 0,
+    totalFiles: 0,
+  };
 }
 
 export class Stages {
   static readonly QUERY_START_FACTOR = 0.05;
   static readonly QUERY_END_FACTOR = 0.05;
 
-  static getCleanProcessorType(stage: StageDefinition): string {
-    return String(stage.processorType)
-      .replace(/^MSQ/, '')
-      .replace(/FrameProcessorFactory$/, '');
-  }
-
   static stageWeight(stage: StageDefinition): number {
-    return stage.processorType === 'OffsetLimitFrameProcessorFactory' ? 0.1 : 1;
+    return stage.definition.processor.type === 'limit' ? 0.1 : 1;
   }
 
   public readonly stages: StageDefinition[];
-  private readonly counters?: WorkerCounter[];
+  private readonly counters?: Record<string, Record<string, StageWorkerCounter>>;
 
-  constructor(stages: StageDefinition[], counters?: WorkerCounter[]) {
+  constructor(
+    stages: StageDefinition[],
+    counters?: Record<string, Record<string, StageWorkerCounter>>,
+  ) {
     this.stages = stages;
     this.counters = counters;
   }
@@ -211,25 +211,46 @@ export class Stages {
     return this.stages[this.stages.length - 1];
   }
 
-  stageHasSort(stage: StageDefinition): boolean {
+  getAllCounters(): StageWorkerCounter[] {
     const { counters } = this;
-    const { stageNumber } = stage;
-
-    // A stage has sort if it has a defined clustered by, or some 'processor' counter is writing to partition -1 or some 'sort' counter exists
-    // ToDo: lobby to have a stage.hasSort property to avoid all of this logic
-    return Boolean(
-      (stage.clusterBy?.columns?.length || 0) > 0 ||
-        counters?.some(w =>
-          w.counters.processor?.some(
-            c => c.stageNumber === stageNumber && c.partitionNumber === -1,
-          ),
-        ) ||
-        counters?.some(w => w.counters.sort?.some(c => c.stageNumber === stageNumber)),
-    );
+    if (!counters) return [];
+    return Object.values(counters).flatMap(wc => Object.values(wc));
   }
 
-  stageOutputCounterType(stage: StageDefinition): CounterType {
-    return this.stageHasSort(stage) ? 'sort' : 'processor';
+  getStageCounterTitle(stage: StageDefinition, counterName: CounterName): string {
+    switch (counterName) {
+      case 'output':
+        return 'Processor output';
+
+      case 'sort':
+        return 'Sort output';
+
+      default:
+        if (counterName.startsWith('input')) {
+          const inputIndex = Number(counterName.replace('input', ''));
+          return `Input${inputIndex} (${stage.definition.input[inputIndex].type})`;
+        }
+        return '';
+    }
+  }
+
+  getCountersForStage(stage: StageDefinition): StageWorkerCounter[] {
+    const { counters } = this;
+    const c = counters?.[stage.stageNumber];
+    return c ? Object.values(c) : [];
+  }
+
+  stageHasOutput(stage: StageDefinition): boolean {
+    return stage.definition.processor.type !== 'segmentGenerator';
+  }
+
+  stageHasSort(stage: StageDefinition): boolean {
+    if (!this.stageHasOutput(stage)) return false;
+    return Boolean(stage.sort);
+  }
+
+  stageOutputCounterName(stage: StageDefinition): ChannelCounterName {
+    return this.stageHasSort(stage) ? 'sort' : 'output';
   }
 
   overallProgress(): number {
@@ -266,19 +287,29 @@ export class Stages {
 
   readingInputPhaseProgress(stage: StageDefinition): number {
     const { stages } = this;
+    const { input, broadcast } = stage.definition;
 
-    if (stage.inputFileCount) {
+    const inputFileCount = this.getTotalInputForStage(stage, 'totalFiles');
+    if (inputFileCount) {
       // If we know how many files there are base the progress on how many files were read
-      return this.getTotalCounterForStage(stage, 'inputExternal', 'files') / stage.inputFileCount;
-    } else {
-      // Otherwise, base it on the stage input divided by the output of all input stages
-      const expectedInputStageRows = sum(stage.inputStages, i =>
-        this.getTotalOutputForStage(stages[i], 'rows'),
+      return (
+        sum(input, (input, i) =>
+          input.type === 'external' ? this.getTotalCounterForStage(stage, `input${i}`, 'files') : 0,
+        ) / inputFileCount
       );
-
+    } else {
+      // Otherwise, base it on the stage input divided by the output of all non-broadcast input stages
       return zeroDivide(
-        this.getTotalCounterForStage(stage, 'inputStageChannel', 'rows'),
-        expectedInputStageRows,
+        sum(input, (inputSource, i) =>
+          inputSource.type === 'stage' && !broadcast?.includes(i)
+            ? this.getTotalCounterForStage(stage, `input${i}`, 'rows')
+            : 0,
+        ),
+        sum(input, (inputSource, i) =>
+          inputSource.type === 'stage' && !broadcast?.includes(i)
+            ? this.getTotalOutputForStage(stages[inputSource.stage], 'rows')
+            : 0,
+        ),
       );
     }
   }
@@ -291,195 +322,195 @@ export class Stages {
     return this.stages.findIndex(({ phase }) => oneOf(phase, 'READING_INPUT', 'POST_READING'));
   }
 
-  hasCounterForStage(stage: StageDefinition, counterType: CounterType): boolean {
-    const { counters } = this;
-    if (!counters) return false;
-    const { stageNumber } = stage;
-    return counters.some(w =>
-      Boolean(w.counters[counterType]?.some(c => c.stageNumber === stageNumber)),
-    );
-  }
-
-  hasInputCounterForStage(stage: StageDefinition): boolean {
-    return (
-      this.hasCounterForStage(stage, 'inputExternal') ||
-      this.hasCounterForStage(stage, 'inputDruid') ||
-      this.hasCounterForStage(stage, 'inputStageChannel')
-    );
+  hasCounterForStage(stage: StageDefinition, counterName: CounterName): boolean {
+    return this.getCountersForStage(stage).some(c => Boolean(c[counterName]));
   }
 
   hasSortProgressForStage(stage: StageDefinition): boolean {
     const { counters } = this;
     if (!counters) return false;
-    const { stageNumber, phase } = stage;
+    const { phase } = stage;
     if (phase === 'READING_INPUT') return false;
 
-    return counters.some(w =>
-      Boolean(
-        w.sortProgress.some(
-          s =>
-            s.stageNumber === stageNumber &&
-            s.sortProgress.progressDigest &&
-            !s.sortProgress.triviallyComplete,
-        ),
-      ),
-    );
+    return this.getCountersForStage(stage).some(c => {
+      const sortProgress = c.sortProgress;
+      return Boolean(sortProgress?.progressDigest && !sortProgress.triviallyComplete);
+    });
   }
 
   getWarningCount(): number {
     const { counters } = this;
     if (!counters) return 0;
-    return sum(counters, w =>
-      sum(w.warningCounters || [], o => tallyWarningCount(o.warningCounters.warningCount)),
-    );
+    return sum(this.getAllCounters(), c => {
+      const warningCounter = c.warnings;
+      if (!warningCounter) return 0;
+      return tallyWarningCount(warningCounter);
+    });
   }
 
   getWarningCountForStage(stage: StageDefinition): number {
     const { counters } = this;
     if (!counters) return 0;
-    const { stageNumber } = stage;
-    return sum(counters, w =>
-      sum(w.warningCounters || [], o =>
-        o.stageNumber === stageNumber ? tallyWarningCount(o.warningCounters.warningCount) : 0,
-      ),
-    );
+    return sum(this.getCountersForStage(stage), c => {
+      const warningCounter = c.warnings;
+      if (!warningCounter) return 0;
+      return tallyWarningCount(warningCounter);
+    });
   }
 
   getWarningBreakdownForStage(stage: StageDefinition): Record<string, number> {
     const { counters } = this;
     if (!counters) return {};
-    const { stageNumber } = stage;
     return sumByKey(
-      counters.flatMap(w =>
-        filterMap(w.warningCounters || [], o =>
-          o.stageNumber === stageNumber ? o.warningCounters.warningCount : undefined,
-        ),
-      ),
+      filterMap(this.getCountersForStage(stage), c => {
+        const warningCounter = c.warnings;
+        if (!warningCounter) return;
+        return deleteKeys(warningCounter, ['type']);
+      }),
     );
   }
 
   getTotalCounterForStage(
     stage: StageDefinition,
-    counterType: CounterType,
-    field: 'frames' | 'rows' | 'bytes' | 'files',
+    counterName: CounterName,
+    field: ChannelFields,
   ): number {
     const { counters } = this;
     if (!counters) return 0;
-    const { stageNumber } = stage;
-    return sum(counters, w =>
-      sum(w.counters[counterType] || [], o => (o.stageNumber === stageNumber ? o[field] : 0)),
+    return sum(this.getCountersForStage(stage), c => {
+      const counter = c[counterName];
+      if (counter?.type !== 'channel') return 0;
+      return sum(counter[field] || []);
+    });
+  }
+
+  getInputCountersForStage(stage: StageDefinition, field: ChannelFields): number[] {
+    return stage.definition.input.map((_, i) =>
+      this.getTotalCounterForStage(stage, `input${i}`, field),
     );
   }
 
-  getTotalInputForStage(
-    stage: StageDefinition,
-    field: 'frames' | 'rows' | 'bytes' | 'files',
-  ): number {
-    return (
-      this.getTotalCounterForStage(stage, 'inputExternal', field) +
-      this.getTotalCounterForStage(stage, 'inputDruid', field) +
-      this.getTotalCounterForStage(stage, 'inputStageChannel', field)
-    );
+  getTotalInputForStage(stage: StageDefinition, field: ChannelFields): number {
+    return sum(this.getInputCountersForStage(stage, field));
   }
 
   getTotalOutputForStage(stage: StageDefinition, field: 'frames' | 'rows' | 'bytes'): number {
-    return this.getTotalCounterForStage(stage, this.stageOutputCounterType(stage), field);
+    return this.getTotalCounterForStage(stage, this.stageOutputCounterName(stage), field);
   }
 
   getSortProgressForStage(stage: StageDefinition): number {
     const { counters } = this;
     if (!counters) return 0;
-    const { stageNumber } = stage;
     return zeroDivide(
-      sum(counters, w => {
-        const sortInputRows = sum(w.counters.processor || [], o =>
-          o.stageNumber === stageNumber ? o.rows : 0,
-        );
-        const progressDigest =
-          w.sortProgress.find(sp => sp.stageNumber === stageNumber)?.sortProgress?.progressDigest ||
-          0;
-        return Math.floor(sortInputRows * progressDigest);
+      sum(this.getCountersForStage(stage), c => {
+        const rowsToSort = c.output ? sum(c.output.rows || []) : 0;
+        const progressDigest = c.sortProgress?.progressDigest || 0;
+        return Math.floor(rowsToSort * progressDigest);
       }),
-      this.getTotalCounterForStage(stage, 'processor', 'rows'),
+      this.getTotalCounterForStage(stage, 'output', 'rows'),
     );
   }
 
-  getByWorkerCountForStage(stage: StageDefinition, counterType: CounterType): SimpleCounter[] {
-    const { counters } = this;
-    const { workerCount, stageNumber } = stage;
+  getChannelCounterNamesForStage(stage: StageDefinition): ChannelCounterName[] {
+    const { definition } = stage;
 
-    const simpleCounters = [];
-    for (let i = 0; i < workerCount; i++) {
-      let simpleCounter: SimpleCounter;
-
-      const specificCounters = counters?.[i]?.counters?.[counterType];
-      if (specificCounters) {
-        simpleCounter = {
-          index: i,
-          rows: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.rows : 0)),
-          bytes: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.bytes : 0)),
-          frames: sum(specificCounters, c => (c.stageNumber === stageNumber ? c.frames : 0)),
-        };
-      } else {
-        simpleCounter = {
-          index: i,
-          rows: 0,
-          bytes: 0,
-          frames: 0,
-        };
-      }
-
-      simpleCounters.push(simpleCounter);
-    }
-
-    return simpleCounters;
+    const channelCounters = definition.input.map((_, i) => `input${i}` as ChannelCounterName);
+    if (this.stageHasOutput(stage)) channelCounters.push('output');
+    if (this.stageHasSort(stage)) channelCounters.push('sort');
+    return channelCounters;
   }
 
-  getByPartitionCountForStage(
-    stage: StageDefinition,
-    type: 'input' | 'output',
-  ): SimpleCounter[] | undefined {
+  getByWorkerCountersForStage(stage: StageDefinition): SimpleWideCounter[] {
     const { counters } = this;
     const { stageNumber } = stage;
-    const counterType: CounterType =
-      type === 'input' ? 'inputStageChannel' : this.stageOutputCounterType(stage);
 
-    if (!this.hasCounterForStage(stage, counterType)) return;
+    const channelCounters = this.getChannelCounterNamesForStage(stage);
 
-    const simpleCounters: SimpleCounter[] = [];
-    if (type === 'output') {
+    const forStageCounters = counters?.[stageNumber] || {};
+    return Object.keys(forStageCounters).map(key => {
+      const stageCounters = forStageCounters[key];
+      const newWideCounter: SimpleWideCounter = {
+        index: Number(key),
+      };
+      for (const channel of channelCounters) {
+        const c = stageCounters[channel];
+        newWideCounter[channel] = c
+          ? {
+              rows: sum(c.rows || []),
+              bytes: sum(c.bytes || []),
+              frames: sum(c.frames || []),
+              files: sum(c.files || []),
+              totalFiles: sum(c.totalFiles || []),
+            }
+          : zeroChannelFields();
+      }
+      return newWideCounter;
+    });
+  }
+
+  getPartitionChannelCounterNamesForStage(
+    stage: StageDefinition,
+    type: 'input' | 'output',
+  ): ChannelCounterName[] {
+    if (type === 'input') {
+      const { input, broadcast } = stage.definition;
+      return filterMap(input, (input, i) =>
+        input.type === 'stage' && !broadcast?.includes(i)
+          ? (`input${i}` as ChannelCounterName)
+          : undefined,
+      );
+    } else {
+      return [this.stageOutputCounterName(stage)];
+    }
+  }
+
+  getByPartitionCountersForStage(
+    stage: StageDefinition,
+    type: 'input' | 'output',
+  ): SimpleWideCounter[] {
+    const counterNames = this.getPartitionChannelCounterNamesForStage(stage, type);
+    if (!counterNames.length) return [];
+
+    if (!this.hasCounterForStage(stage, counterNames[0])) return [];
+
+    const { partitionCount } = stage;
+    const simpleCounters: SimpleWideCounter[] = [];
+    if (type === 'output' && partitionCount) {
       // If we are in output mode then we clearly know how many partitions to expect to initialize their counters with 0s
-      for (let i = 0; i < stage.partitionCount; i++) {
+      for (let i = 0; i < partitionCount; i++) {
         simpleCounters.push({
           index: i,
-          rows: 0,
-          bytes: 0,
-          frames: 0,
-        });
+          [counterNames[0]]: zeroChannelFields(),
+        } as SimpleWideCounter);
       }
     }
 
-    if (counters) {
-      for (const counter of counters) {
-        const specificCounters = counter.counters[counterType];
-        if (specificCounters) {
-          for (const c of specificCounters) {
-            if (c.stageNumber === stageNumber) {
-              let mySimpleCounter = simpleCounters[c.partitionNumber];
-              if (!mySimpleCounter) {
-                simpleCounters[c.partitionNumber] = mySimpleCounter = {
-                  index: c.partitionNumber,
-                  rows: c.rows,
-                  bytes: c.bytes,
-                  frames: c.frames,
-                };
-              } else {
-                mySimpleCounter.rows += c.rows;
-                mySimpleCounter.bytes += c.bytes;
-                mySimpleCounter.frames += c.frames;
-              }
-            }
+    const stageCounters = this.getCountersForStage(stage);
+    for (const stageCounter of stageCounters) {
+      for (const counterName of counterNames) {
+        const channelCounter = stageCounter[counterName];
+        if (channelCounter?.type !== 'channel') continue;
+        const n = channelCounter.rows?.length || 0;
+        if (!n) continue;
+
+        for (let partitionNumber = 0; partitionNumber < n; partitionNumber++) {
+          let mySimpleCounter = simpleCounters[partitionNumber];
+          if (!mySimpleCounter) {
+            simpleCounters[partitionNumber] = mySimpleCounter = {
+              index: partitionNumber,
+            };
           }
+
+          let c = mySimpleCounter[counterName];
+          if (!c) {
+            mySimpleCounter[counterName] = c = zeroChannelFields();
+          }
+
+          c.rows += channelCounter.rows?.[partitionNumber] || 0;
+          c.bytes += channelCounter.bytes?.[partitionNumber] || 0;
+          c.frames += channelCounter.frames?.[partitionNumber] || 0;
+          c.files += channelCounter.files?.[partitionNumber] || 0;
+          c.totalFiles += channelCounter.totalFiles?.[partitionNumber] || 0;
         }
       }
     }
@@ -493,38 +524,9 @@ export class Stages {
   }
 
   getByteRateFromStage(stage: StageDefinition): number | undefined {
-    if (
-      !stage.duration ||
-      this.hasCounterForStage(stage, 'inputExternal') ||
-      this.hasCounterForStage(stage, 'inputDruid')
-    ) {
-      return; // If re have inputs that do not report bytes, don't show a rate
+    if (!stage.duration || stage.definition.input.some(input => input.type !== 'stage')) {
+      return; // If we have inputs that do not report bytes, don't show a rate
     }
-    return (
-      this.getTotalCounterForStage(stage, 'inputStageChannel', 'bytes') / (stage.duration / 1000)
-    );
-  }
-
-  stagesToColorMap(): Record<number, string> {
-    let paletteIndex = 0;
-    const colorMap: Record<number, string> = {};
-    for (let i = this.stages.length - 1; i >= 0; i--) {
-      const { stageNumber, inputStages } = this.stages[i];
-      if (!colorMap[stageNumber]) {
-        colorMap[stageNumber] = PALETTE[paletteIndex];
-        paletteIndex = (paletteIndex + 1) % PALETTE.length;
-      }
-      if (inputStages.length > 1) {
-        inputStages.forEach(inputStage => {
-          colorMap[inputStage] = PALETTE[paletteIndex];
-          paletteIndex = (paletteIndex + 1) % PALETTE.length;
-        });
-      } else {
-        inputStages.forEach(inputStage => {
-          colorMap[inputStage] = colorMap[stageNumber];
-        });
-      }
-    }
-    return colorMap;
+    return this.getTotalInputForStage(stage, 'bytes') / (stage.duration / 1000);
   }
 }

@@ -10,12 +10,14 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
+import io.imply.druid.talaria.counters.CounterNames;
+import io.imply.druid.talaria.counters.CounterSnapshots;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
+import io.imply.druid.talaria.counters.WarningCounters;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,23 +43,28 @@ public class FaultsExceededChecker
   }
 
   /**
-   * @param taskCounters WorkerCounters have the count of the warnings generated per worker
+   * @param snapshotsTree WorkerCounters have the count of the warnings generated per worker
+   *
    * @return An optional which is empty if the faults count in the present in the task counters donot exceed their
    * prescribed limit, else it contains the errorCode and the maximum allowed faults for that errorCode
    */
-  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(final Map<String, MSQCountersSnapshot.WorkerCounters> taskCounters)
+  public Optional<Pair<String, Long>> addFaultsAndCheckIfExceeded(CounterSnapshotsTree snapshotsTree)
   {
+    final Map<Integer, Map<Integer, CounterSnapshots>> snapshotsMap = snapshotsTree.copyMap();
+
     Map<String, Long> allWarnings = new HashMap<>();
-    for (Map.Entry<String, MSQCountersSnapshot.WorkerCounters> workerCountersEntry : taskCounters.entrySet()) {
-      List<MSQCountersSnapshot.WarningCounters> warningCountersList = workerCountersEntry.getValue()
-                                                                                         .getWarningCounters();
-      for (MSQCountersSnapshot.WarningCounters warningCounters : warningCountersList) {
-        Map<String, Long> warningCount = warningCounters.getWarningCountersSnapshot().getWarningCount();
-        for (Map.Entry<String, Long> entry : warningCount.entrySet()) {
-          allWarnings.compute(
-              entry.getKey(),
-              (ignored, value) -> value == null ? entry.getValue() : value + entry.getValue()
-          );
+    for (Map.Entry<Integer, Map<Integer, CounterSnapshots>> stageEntry : snapshotsMap.entrySet()) {
+      for (Map.Entry<Integer, CounterSnapshots> workerEntry : stageEntry.getValue().entrySet()) {
+        final WarningCounters.Snapshot warningsSnapshot =
+            (WarningCounters.Snapshot) workerEntry.getValue().getMap().get(CounterNames.warnings());
+
+        if (warningsSnapshot != null) {
+          for (Map.Entry<String, Long> entry : warningsSnapshot.getWarningCountMap().entrySet()) {
+            allWarnings.compute(
+                entry.getKey(),
+                (ignored, value) -> value == null ? entry.getValue() : value + entry.getValue()
+            );
+          }
         }
       }
     }

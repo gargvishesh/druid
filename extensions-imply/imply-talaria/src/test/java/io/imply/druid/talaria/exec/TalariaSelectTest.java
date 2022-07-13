@@ -63,14 +63,14 @@ public class TalariaSelectTest extends TalariaTestRunner
     testSelectQuery()
         .setSql("select cnt,dim1 from foo")
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(newScanQueryBuilder()
+                                                     .query(newScanQueryBuilder()
                                                                    .dataSource(CalciteTests.DATASOURCE1)
                                                                    .intervals(querySegmentSpec(Filtration.eternity()))
                                                                    .columns("cnt", "dim1")
                                                                    .context(DEFAULT_TALARIA_CONTEXT)
                                                                    .build())
-                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(resultSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(resultSignature)
         .setExpectedResultRows(ImmutableList.of(
@@ -96,14 +96,14 @@ public class TalariaSelectTest extends TalariaTestRunner
     testSelectQuery()
         .setSql("select m1,dim2 from foo2")
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(newScanQueryBuilder()
+                                                     .query(newScanQueryBuilder()
                                                                    .dataSource(CalciteTests.DATASOURCE2)
                                                                    .intervals(querySegmentSpec(Filtration.eternity()))
                                                                    .columns("dim2", "m1")
                                                                    .context(DEFAULT_TALARIA_CONTEXT)
                                                                    .build())
-                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(resultSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(resultSignature)
         .setExpectedResultRows(ImmutableList.of(
@@ -124,24 +124,24 @@ public class TalariaSelectTest extends TalariaTestRunner
     testSelectQuery()
         .setSql("select cnt,count(*) as cnt1 from foo group by cnt")
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(GroupByQuery.builder()
-                                                                           .setDataSource(CalciteTests.DATASOURCE1)
-                                                                           .setInterval(querySegmentSpec(Filtration
+                                                     .query(GroupByQuery.builder()
+                                                                        .setDataSource(CalciteTests.DATASOURCE1)
+                                                                        .setInterval(querySegmentSpec(Filtration
                                                                                                              .eternity()))
-                                                                           .setGranularity(Granularities.ALL)
-                                                                           .setDimensions(dimensions(
+                                                                        .setGranularity(Granularities.ALL)
+                                                                        .setDimensions(dimensions(
                                                                                new DefaultDimensionSpec(
                                                                                    "cnt",
                                                                                    "d0",
                                                                                    ColumnType.LONG
                                                                                )
                                                                            ))
-                                                                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
+                                                                        .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
                                                                                "a0")))
-                                                                           .setContext(DEFAULT_TALARIA_CONTEXT)
-                                                                           .build())
-                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                                        .setContext(DEFAULT_TALARIA_CONTEXT)
+                                                                        .build())
+                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
         .setExpectedResultRows(
@@ -184,9 +184,9 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("select m1, count(*) as cnt from foo group by m1 order by m1 desc")
         .setExpectedTalariaQuerySpec(
             TalariaQuerySpec.builder()
-                            .setQuery(query)
-                            .setColumnMappings(ColumnMappings.identity(rowSignature))
-                            .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                            .query(query)
+                            .columnMappings(ColumnMappings.identity(rowSignature))
+                            .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                             .build())
         .setExpectedRowSignature(rowSignature)
         .setExpectedResultRows(
@@ -236,9 +236,9 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("select m1, sum(m1) as sum_m1 from foo group by m1 order by sum_m1 desc")
         .setExpectedTalariaQuerySpec(
             TalariaQuerySpec.builder()
-                            .setQuery(query)
-                            .setColumnMappings(ColumnMappings.identity(rowSignature))
-                            .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                            .query(query)
+                            .columnMappings(ColumnMappings.identity(rowSignature))
+                            .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                             .build()
         )
         .setExpectedRowSignature(rowSignature)
@@ -280,8 +280,8 @@ public class TalariaSelectTest extends TalariaTestRunner
                      .setExpectedTalariaQuerySpec(
                          TalariaQuerySpec
                              .builder()
-                             .setQuery(GroupByQuery.builder()
-                                                   .setDataSource(new ExternalDataSource(
+                             .query(GroupByQuery.builder()
+                                                .setDataSource(new ExternalDataSource(
                                                        new LocalInputSource(
                                                            null,
                                                            null,
@@ -296,31 +296,31 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                    .add("user", ColumnType.STRING)
                                                                    .build()
                                                    ))
-                                                   .setInterval(querySegmentSpec(
+                                                .setInterval(querySegmentSpec(
                                                        Filtration
                                                            .eternity()))
-                                                   .setGranularity(Granularities.ALL)
-                                                   .setVirtualColumns(new ExpressionVirtualColumn(
+                                                .setGranularity(Granularities.ALL)
+                                                .setVirtualColumns(new ExpressionVirtualColumn(
                                                        "v0",
                                                        "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
                                                        ColumnType.LONG,
                                                        CalciteTests.createExprMacroTable()
                                                    ))
-                                                   .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                .setDimensions(dimensions(new DefaultDimensionSpec(
                                                                                  "v0",
                                                                                  "d0",
                                                                                  ColumnType.LONG
                                                                              )
                                                    ))
-                                                   .setAggregatorSpecs(aggregators(
+                                                .setAggregatorSpecs(aggregators(
                                                        new CountAggregatorFactory(
                                                            "a0")))
-                                                   .setContext(
+                                                .setContext(
                                                        ImmutableMap.of())
-                                                   .build())
-                             .setColumnMappings(ColumnMappings.identity(
+                                                .build())
+                             .columnMappings(ColumnMappings.identity(
                                  rowSignature))
-                             .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
   }
@@ -399,14 +399,14 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("with sys as (SELECT * FROM foo2) "
                 + "select m1, dim2 from sys")
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(newScanQueryBuilder()
+                                                     .query(newScanQueryBuilder()
                                                                    .dataSource(CalciteTests.DATASOURCE2)
                                                                    .intervals(querySegmentSpec(Filtration.eternity()))
                                                                    .columns("dim2", "m1")
                                                                    .context(DEFAULT_TALARIA_CONTEXT)
                                                                    .build())
-                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(resultSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(resultSignature)
         .setExpectedResultRows(ImmutableList.of(
@@ -427,14 +427,14 @@ public class TalariaSelectTest extends TalariaTestRunner
     testSelectQuery()
         .setSql("select dim3 from foo")
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(newScanQueryBuilder()
+                                                     .query(newScanQueryBuilder()
                                                                    .dataSource(CalciteTests.DATASOURCE1)
                                                                    .intervals(querySegmentSpec(Filtration.eternity()))
                                                                    .columns("dim3")
                                                                    .context(DEFAULT_TALARIA_CONTEXT)
                                                                    .build())
-                                                     .setColumnMappings(ColumnMappings.identity(resultSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(resultSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(resultSignature)
         .setExpectedResultRows(ImmutableList.of(
@@ -463,11 +463,11 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("select dim3, count(*) as cnt1 from foo group by dim3")
         .setQueryContext(context)
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(GroupByQuery.builder()
-                                                                           .setDataSource(CalciteTests.DATASOURCE1)
-                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
-                                                                           .setGranularity(Granularities.ALL)
-                                                                           .setDimensions(
+                                                     .query(GroupByQuery.builder()
+                                                                        .setDataSource(CalciteTests.DATASOURCE1)
+                                                                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                        .setGranularity(Granularities.ALL)
+                                                                        .setDimensions(
                                                                                dimensions(
                                                                                    new DefaultDimensionSpec(
                                                                                        "dim3",
@@ -475,13 +475,13 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                                    )
                                                                                )
                                                                            )
-                                                                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
+                                                                        .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
                                                                                "a0")))
-                                                                           .setContext(context)
-                                                                           .build()
+                                                                        .setContext(context)
+                                                                        .build()
                                                      )
-                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
         .setExpectedResultRows(
@@ -527,11 +527,11 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("select MV_TO_ARRAY(dim3), count(*) as cnt1 from foo group by dim3")
         .setQueryContext(context)
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(GroupByQuery.builder()
-                                                                           .setDataSource(CalciteTests.DATASOURCE1)
-                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
-                                                                           .setGranularity(Granularities.ALL)
-                                                                           .setDimensions(
+                                                     .query(GroupByQuery.builder()
+                                                                        .setDataSource(CalciteTests.DATASOURCE1)
+                                                                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                        .setGranularity(Granularities.ALL)
+                                                                        .setDimensions(
                                                                                dimensions(
                                                                                    new DefaultDimensionSpec(
                                                                                        "dim3",
@@ -539,20 +539,20 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                                    )
                                                                                )
                                                                            )
-                                                                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
+                                                                        .setAggregatorSpecs(aggregators(new CountAggregatorFactory(
                                                                                "a0")))
-                                                                           .setPostAggregatorSpecs(
+                                                                        .setPostAggregatorSpecs(
                                                                                ImmutableList.of(new ExpressionPostAggregator(
                                                                                    "p0",
                                                                                    "mv_to_array(\"d0\")",
                                                                                    null, ExprMacroTable.nil())
                                                                                )
                                                                            )
-                                                                           .setContext(context)
-                                                                           .build()
+                                                                        .setContext(context)
+                                                                        .build()
                                                      )
-                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
         .setExpectedResultRows(
@@ -592,11 +592,11 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setSql("select __time, count(dim3) as cnt1 from foo group by __time")
         .setQueryContext(DEFAULT_TALARIA_CONTEXT)
         .setExpectedTalariaQuerySpec(TalariaQuerySpec.builder()
-                                                     .setQuery(GroupByQuery.builder()
-                                                                           .setDataSource(CalciteTests.DATASOURCE1)
-                                                                           .setInterval(querySegmentSpec(Filtration.eternity()))
-                                                                           .setGranularity(Granularities.ALL)
-                                                                           .setDimensions(
+                                                     .query(GroupByQuery.builder()
+                                                                        .setDataSource(CalciteTests.DATASOURCE1)
+                                                                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                                                                        .setGranularity(Granularities.ALL)
+                                                                        .setDimensions(
                                                                                dimensions(
                                                                                    new DefaultDimensionSpec(
                                                                                        "__time",
@@ -605,18 +605,18 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                                    )
                                                                                )
                                                                            )
-                                                                           .setAggregatorSpecs(
+                                                                        .setAggregatorSpecs(
                                                                                aggregators(
                                                                                    new FilteredAggregatorFactory(
                                                                                        new CountAggregatorFactory("a0"),
                                                                                        new NotDimFilter(new SelectorDimFilter("dim3", null, null)),
                                                                                        "a0"
                                                                                    )))
-                                                                           .setContext(DEFAULT_TALARIA_CONTEXT)
-                                                                           .build()
+                                                                        .setContext(DEFAULT_TALARIA_CONTEXT)
+                                                                        .build()
                                                      )
-                                                     .setColumnMappings(ColumnMappings.identity(rowSignature))
-                                                     .setTuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
         .setExpectedResultRows(

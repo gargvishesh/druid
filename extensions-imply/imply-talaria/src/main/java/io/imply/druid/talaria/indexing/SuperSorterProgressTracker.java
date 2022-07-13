@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.collect.Ordering;
+import io.imply.druid.talaria.counters.QueryCounter;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
 import org.apache.druid.java.util.common.ISE;
 
@@ -37,7 +38,7 @@ import java.util.Map;
  * snapshot function does the housekeeping to hide this operational complexity away from classes other than {@link SuperSorter}
  * and {@link SuperSorterProgressTracker}
  */
-public class SuperSorterProgressTracker
+public class SuperSorterProgressTracker implements QueryCounter
 {
   private int totalMergingLevels = SuperSorter.UNKNOWN_LEVEL;
 
@@ -168,10 +169,11 @@ public class SuperSorterProgressTracker
     this.isTriviallyComplete = true;
   }
 
-   /**
+  /**
    * @return Aggregates the information present in the tracker object and returns a
    * {@link SuperSorterProgressSnapshot} representing the same information
    */
+  @Override
   public synchronized SuperSorterProgressSnapshot snapshot()
   {
     if (isTriviallyComplete) {

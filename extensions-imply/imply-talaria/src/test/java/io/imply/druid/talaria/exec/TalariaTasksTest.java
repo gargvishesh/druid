@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.exec;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
@@ -18,16 +19,17 @@ import io.imply.druid.talaria.indexing.error.TooManyColumnsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
-import org.apache.druid.client.indexing.TaskStatus;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskState;
+import org.apache.druid.indexer.TaskStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -138,19 +140,19 @@ public class TalariaTasksTest
         CONTROLLER_ID,
         "foo",
         leaderContext,
-        numTasks,
         false,
         TimeUnit.SECONDS.toMillis(5)
     );
 
     try {
       talariaWorkerTaskLauncher.start();
+      talariaWorkerTaskLauncher.launchTasksIfNeeded(numTasks);
       fail();
     }
     catch (Exception e) {
       Assert.assertEquals(
-          ((TalariaException) e.getCause().getCause()).getFault().getCodeWithMessage(),
-          new TaskStartTimeoutFault(numTasks + 1).getCodeWithMessage()
+          new TaskStartTimeoutFault(numTasks + 1).getCodeWithMessage(),
+          ((TalariaException) e.getCause()).getFault().getCodeWithMessage()
       );
     }
   }
@@ -160,52 +162,70 @@ public class TalariaTasksTest
     // Num of slots available for tasks
     final int numSlots;
 
-    public TasksTestWorkerManagerClient(int numSlots)
+    @GuardedBy("this")
+    final Set<String> allTasks = new HashSet<>();
+
+    @GuardedBy("this")
+    final Set<String> runningTasks = new HashSet<>();
+
+    @GuardedBy("this")
+    final Set<String> canceledTasks = new HashSet<>();
+
+    public TasksTestWorkerManagerClient(final int numSlots)
     {
       this.numSlots = numSlots;
     }
 
-    Set<String> taskSlots;
+    @Override
+    public synchronized Map<String, TaskStatus> statuses(final Set<String> taskIds)
+    {
+      final Map<String, TaskStatus> retVal = new HashMap<>();
+
+      for (final String taskId : taskIds) {
+        if (allTasks.contains(taskId)) {
+          retVal.put(
+              taskId,
+              new TaskStatus(
+                  taskId,
+                  canceledTasks.contains(taskId) ? TaskState.FAILED : TaskState.RUNNING,
+                  2,
+                  null,
+                  null
+              )
+          );
+        }
+      }
+
+      return retVal;
+    }
 
     @Override
-    public TaskLocation location(String workerId)
+    public synchronized TaskLocation location(String workerId)
     {
-      if (taskSlots.contains(workerId)) {
-        return TaskLocation.create("host", 80, 23);
+      if (runningTasks.contains(workerId)) {
+        return TaskLocation.create("host-" + workerId, 1, -1);
       } else {
         return TaskLocation.unknown();
       }
     }
 
     @Override
-    public Map<String, TaskStatus> statuses(Set<String> taskIds)
+    public synchronized String run(String leaderId, TalariaWorkerTask task)
     {
-      // Choose numSlots taskIds from the set and add it to taskSlots
-      if (taskSlots == null) {
-        taskSlots = taskIds.stream()
-                           .limit(numSlots)
-                           .collect(Collectors.toSet());
+      allTasks.add(task.getId());
+
+      if (runningTasks.size() < numSlots) {
+        runningTasks.add(task.getId());
       }
 
-      return taskSlots.stream()
-                      .collect(
-                          Collectors.toMap(
-                              taskId -> taskId,
-                              taskId -> new TaskStatus(taskId, TaskState.RUNNING, 2)
-                          )
-                      );
+      return task.getId();
     }
 
     @Override
-    public String run(String leaderId, TalariaWorkerTask task)
+    public synchronized void cancel(String workerId)
     {
-      return null;
-    }
-
-    @Override
-    public void cancel(String workerId)
-    {
-      // do nothing
+      runningTasks.remove(workerId);
+      canceledTasks.add(workerId);
     }
 
     @Override

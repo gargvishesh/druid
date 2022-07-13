@@ -13,11 +13,14 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Key;
 import com.google.inject.Provides;
+import io.imply.druid.talaria.counters.ChannelCounters;
+import io.imply.druid.talaria.counters.CounterSnapshotsSerializer;
+import io.imply.druid.talaria.counters.WarningCounters;
 import io.imply.druid.talaria.frame.processor.Bouncer;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
-import io.imply.druid.talaria.indexing.MSQSegmentGeneratorFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.SegmentGeneratorFrameProcessorFactory;
+import io.imply.druid.talaria.indexing.SuperSorterProgressSnapshot;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
@@ -46,24 +49,24 @@ import io.imply.druid.talaria.indexing.error.TooManyWorkersFault;
 import io.imply.druid.talaria.indexing.error.UnknownFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
 import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
-import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSink;
-import io.imply.druid.talaria.indexing.externalsink.LocalTalariaExternalSinkConfig;
-import io.imply.druid.talaria.indexing.externalsink.NilTalariaExternalSink;
-import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSink;
-import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReport;
+import io.imply.druid.talaria.input.ExternalInputSlice;
+import io.imply.druid.talaria.input.ExternalInputSpec;
+import io.imply.druid.talaria.input.NilInputSlice;
+import io.imply.druid.talaria.input.NilInputSource;
+import io.imply.druid.talaria.input.SegmentsInputSlice;
+import io.imply.druid.talaria.input.StageInputSlice;
+import io.imply.druid.talaria.input.StageInputSpec;
+import io.imply.druid.talaria.input.TableInputSpec;
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
-import io.imply.druid.talaria.querykit.InputStageDataSource;
-import io.imply.druid.talaria.querykit.NilInputSource;
+import io.imply.druid.talaria.querykit.InputNumberDataSource;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPostShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
 import io.imply.druid.talaria.util.PassthroughAggregatorFactory;
 import org.apache.druid.discovery.NodeRole;
-import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
-import org.apache.druid.guice.PolyBind;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.query.DruidProcessingConfig;
@@ -75,10 +78,7 @@ import java.util.Set;
 public class TalariaIndexingModule implements DruidModule
 {
   private static final String BASE_TALARIA_KEY = "druid.msq";
-  public static final String TALARIA_EXTERNAL_SINK = String.join(".", BASE_TALARIA_KEY, "externalsink");
-  public static final String TALARIA_EXTERNAL_SINK_TYPE = String.join(".", TALARIA_EXTERNAL_SINK, "type");
   public static final String TALARIA_INTERMEDIATE_STORAGE = String.join(".", BASE_TALARIA_KEY, "intermediate.storage");
-  public static final String TALARIA_INTERMEDIATE_STORAGE_TYPE = String.join(".", TALARIA_INTERMEDIATE_STORAGE, "type");
 
   public static final String TALARIA_INTERMEDIATE_STORAGE_ENABLED = String.join(
       ".",
@@ -126,9 +126,8 @@ public class TalariaIndexingModule implements DruidModule
         TalariaWorkerTask.class,
 
         // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
-        MSQSegmentGeneratorFrameProcessorFactory.class,
-        MSQSegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
-        TalariaExternalSinkFrameProcessorFactory.class,
+        SegmentGeneratorFrameProcessorFactory.class,
+        SegmentGeneratorFrameProcessorFactory.SegmentGeneratorExtraInfoHolder.class,
         ScanQueryFrameProcessorFactory.class,
         GroupByPreShuffleFrameProcessorFactory.class,
         GroupByPostShuffleFrameProcessorFactory.class,
@@ -136,7 +135,6 @@ public class TalariaIndexingModule implements DruidModule
         NilExtraInfoHolder.class,
 
         // FrameChannelWorkerFactory and FrameChannelWorkerFactoryExtraInfoHolder classes
-        TalariaExternalSinkFrameProcessorFactory.class,
         ScanQueryFrameProcessorFactory.class,
         GroupByPreShuffleFrameProcessorFactory.class,
         GroupByPostShuffleFrameProcessorFactory.class,
@@ -144,10 +142,26 @@ public class TalariaIndexingModule implements DruidModule
         NilExtraInfoHolder.class,
 
         // DataSource classes (note: ExternalDataSource is in TalariaSqlModule)
-        InputStageDataSource.class,
+        InputNumberDataSource.class,
 
         // TaskReport classes
         TalariaTaskReport.class,
+
+        // QueryCounter.Snapshot classes
+        ChannelCounters.Snapshot.class,
+        SuperSorterProgressSnapshot.class,
+        WarningCounters.Snapshot.class,
+
+        // InputSpec classes
+        ExternalInputSpec.class,
+        StageInputSpec.class,
+        TableInputSpec.class,
+
+        // InputSlice classes
+        ExternalInputSlice.class,
+        NilInputSlice.class,
+        SegmentsInputSlice.class,
+        StageInputSlice.class,
 
         // Other
         PassthroughAggregatorFactory.class,
@@ -156,30 +170,14 @@ public class TalariaIndexingModule implements DruidModule
 
     FAULT_CLASSES.forEach(module::registerSubtypes);
 
+    module.addSerializer(new CounterSnapshotsSerializer());
+
     return Collections.singletonList(module);
   }
 
   @Override
   public void configure(Binder binder)
   {
-    PolyBind.createChoice(
-        binder,
-        TALARIA_EXTERNAL_SINK_TYPE,
-        Key.get(TalariaExternalSink.class),
-        Key.get(NilTalariaExternalSink.class)
-    );
-
-    PolyBind.optionBinder(binder, Key.get(TalariaExternalSink.class))
-            .addBinding(NilTalariaExternalSink.TYPE)
-            .to(NilTalariaExternalSink.class)
-            .in(LazySingleton.class);
-
-    PolyBind.optionBinder(binder, Key.get(TalariaExternalSink.class))
-            .addBinding(LocalTalariaExternalSink.TYPE)
-            .to(LocalTalariaExternalSink.class)
-            .in(LazySingleton.class);
-
-    JsonConfigProvider.bind(binder, TALARIA_EXTERNAL_SINK, LocalTalariaExternalSinkConfig.class);
   }
 
   @Provides

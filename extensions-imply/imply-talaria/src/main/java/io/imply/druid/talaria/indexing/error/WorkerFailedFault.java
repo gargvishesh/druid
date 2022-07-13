@@ -18,7 +18,7 @@ import java.util.Objects;
 @JsonTypeName(WorkerFailedFault.CODE)
 public class WorkerFailedFault extends BaseTalariaFault
 {
-  static final String CODE = "WorkerFailed";
+  public static final String CODE = "WorkerFailed";
 
   private final String workerTaskId;
 

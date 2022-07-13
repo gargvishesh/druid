@@ -33,7 +33,7 @@ interface QueryDetailArchive {
 export async function downloadQueryDetailArchive(id: string) {
   const profile: QueryDetailArchive = {
     id,
-    detailArchiveVersion: 1,
+    detailArchiveVersion: 2,
   };
 
   try {

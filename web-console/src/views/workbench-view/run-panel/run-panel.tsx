@@ -32,7 +32,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
-import { EditContextDialog } from '../../../dialogs/edit-context-dialog/edit-context-dialog';
+import { EditContextDialog } from '../../../dialogs';
 import { getLink } from '../../../links';
 import { deepDelete, deepSet, formatInteger, pluralIfNeeded } from '../../../utils';
 import {
@@ -49,19 +49,19 @@ import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog
 
 import './run-panel.scss';
 
-const NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
+const MAX_NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
 
-// msqNumTasks
+// msqMaxNumTasks
 
-function getNumTasks(context: QueryContext): number {
-  const { msqNumTasks } = context;
-  return Math.max(typeof msqNumTasks === 'number' ? msqNumTasks : 0, 2);
+function getMaxNumTasks(context: QueryContext): number {
+  const { msqMaxNumTasks } = context;
+  return Math.max(typeof msqMaxNumTasks === 'number' ? msqMaxNumTasks : 0, 2);
 }
 
-function changeNumTasks(context: QueryContext, numTasks: number | undefined): QueryContext {
+function changeMaxNumTasks(context: QueryContext, numTasks: number | undefined): QueryContext {
   return typeof numTasks === 'number'
-    ? deepSet(context, 'msqNumTasks', numTasks)
-    : deepDelete(context, 'msqNumTasks');
+    ? deepSet(context, 'msqMaxNumTasks', numTasks)
+    : deepDelete(context, 'msqMaxNumTasks');
 }
 
 // msqFinalizeAggregations
@@ -121,12 +121,13 @@ export interface RunPanelProps {
   loading: boolean;
   small?: boolean;
   onRun(preview: boolean): void;
-  onExplain: (() => void) | undefined;
+  onExplain?(): void;
+  onHistory?(): void;
   queryEngines: DruidEngine[];
 }
 
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
-  const { query, onQueryChange, onRun, onExplain, loading, small, queryEngines } = props;
+  const { query, onQueryChange, onRun, onExplain, onHistory, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customNumTasksDialogOpen, setCustomNumTasksDialogOpen] = useState(false);
 
@@ -187,7 +188,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
 
   useHotkeys(hotkeys);
 
-  const numTasks = getNumTasks(queryContext);
+  const maxNumTasks = getMaxNumTasks(queryContext);
   const queryEngine = query.engine;
   function renderQueryEngineMenuItem(e: DruidEngine | undefined) {
     return (
@@ -252,11 +253,11 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                       text="Max parse exceptions"
                       label={String(maxParseExceptions)}
                     >
-                      {[-1, 0, 1, 2, 4, 8, 16].map(v => (
+                      {[0, 1, 5, 10, 1000, 10000, -1].map(v => (
                         <MenuItem
                           key={String(v)}
                           icon={v === maxParseExceptions ? IconNames.TICK : IconNames.BLANK}
-                          text={v < 0 ? '-1 (∞)' : String(v)}
+                          text={v === -1 ? '∞ (-1)' : String(v)}
                           onClick={() => {
                             onQueryChange(
                               query.changeQueryContext(changeMaxParseExceptions(queryContext, v)),
@@ -346,6 +347,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
             <Button
               text={`Engine: ${queryEngine || `auto (${effectiveEngine})`}`}
               rightIcon={IconNames.CARET_DOWN}
+              intent={query.unlimited ? Intent.WARNING : undefined}
             />
           </Popover2>
           {effectiveEngine === 'sql-task' && (
@@ -354,26 +356,28 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
               content={
                 <Menu>
                   <MenuDivider title="Number of tasks to launch" />
-                  {NUM_TASK_OPTIONS.map(p => (
+                  {MAX_NUM_TASK_OPTIONS.map(m => (
                     <MenuItem
-                      key={String(p)}
-                      icon={p === numTasks ? IconNames.TICK : IconNames.BLANK}
-                      text={formatInteger(p)}
-                      label={`(1 controller + ${pluralIfNeeded(p - 1, 'worker')})`}
+                      key={String(m)}
+                      icon={m === maxNumTasks ? IconNames.TICK : IconNames.BLANK}
+                      text={formatInteger(m)}
+                      label={`(1 controller + ${m === 2 ? '1 worker' : `max ${m - 1} workers`})`}
                       onClick={() =>
-                        onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)))
+                        onQueryChange(query.changeQueryContext(changeMaxNumTasks(queryContext, m)))
                       }
                     />
                   ))}
                   <MenuItem
-                    icon={NUM_TASK_OPTIONS.includes(numTasks) ? IconNames.BLANK : IconNames.TICK}
+                    icon={
+                      MAX_NUM_TASK_OPTIONS.includes(maxNumTasks) ? IconNames.BLANK : IconNames.TICK
+                    }
                     text="Custom"
                     onClick={() => setCustomNumTasksDialogOpen(true)}
                   />
                 </Menu>
               }
             >
-              <Button text={`Tasks: ${numTasks}`} rightIcon={IconNames.CARET_DOWN} />
+              <Button text={`Max tasks: ${maxNumTasks}`} rightIcon={IconNames.CARET_DOWN} />
             </Popover2>
           )}
         </ButtonGroup>
@@ -384,6 +388,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           <Menu>
             {onExplain && (
               <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
+            )}
+            {onHistory && (
+              <MenuItem icon={IconNames.HISTORY} text="Query history" onClick={onHistory} />
             )}
             <MenuItem
               icon={IconNames.HELP}
@@ -421,9 +428,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
             </>
           }
           minValue={2}
-          initValue={numTasks}
+          initValue={maxNumTasks}
           onSave={p => {
-            onQueryChange(query.changeQueryContext(changeNumTasks(queryContext, p)));
+            onQueryChange(query.changeQueryContext(changeMaxNumTasks(queryContext, p)));
           }}
           onClose={() => setCustomNumTasksDialogOpen(false)}
         />

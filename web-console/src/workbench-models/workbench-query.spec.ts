@@ -81,7 +81,7 @@ describe('WorkbenchQuery', () => {
   });
 
   describe('#getInsertDatasource', () => {
-    it('works', () => {
+    it('works with INSERT', () => {
       const sql = sane`
         --:context some_key: some_value
         INSERT INTO trips2
@@ -96,6 +96,53 @@ describe('WorkbenchQuery', () => {
             )
           )
         CLUSTERED BY trip_id
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
+      expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
+      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+    });
+
+    it('works with INSERT (unparsable)', () => {
+      const sql = sane`
+        --:context some_key: some_value
+        INSERT INTO trips2
+        SELECT
+          TIME_PARSE(pickup_datetime) AS __time,
+          *
+        FROM TABLE(
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
+      expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
+      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+    });
+
+    it('works with REPLACE', () => {
+      const sql = sane`
+        REPLACE INTO trips2 OVERWRITE ALL
+        SELECT
+          TIME_PARSE(pickup_datetime) AS __time,
+          *
+        FROM TABLE(
+            EXTERN(
+              '{"type": "local", ...}',
+              '{"type":"csv", ...}',
+              '[{ "name": "cab_type", "type": "string" }, ...]'
+            )
+          )
+        CLUSTERED BY trip_id
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
+      expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
+      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+    });
+
+    it('works with REPLACE (unparsable)', () => {
+      const sql = sane`
+        REPLACE INTO trips2 OVERWRITE ALL
+        WITH kttm_data AS (SELECT *
       `;
 
       const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);

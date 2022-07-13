@@ -141,22 +141,22 @@ public class BroadcastJoinHelperTest extends InitializedNullHandlingTest
     Assert.assertTrue(channels.get(2).isFinished());
 
     Assert.assertEquals(
-        new InputStageDataSource(0),
-        broadcastJoinHelper.inlineChannelData(new InputStageDataSource(0))
+        new InputNumberDataSource(0),
+        broadcastJoinHelper.inlineChannelData(new InputNumberDataSource(0))
     );
 
     Assert.assertEquals(
-        new InputStageDataSource(1),
-        broadcastJoinHelper.inlineChannelData(new InputStageDataSource(1))
+        new InputNumberDataSource(1),
+        broadcastJoinHelper.inlineChannelData(new InputNumberDataSource(1))
     );
 
     Assert.assertEquals(
-        new InputStageDataSource(2),
-        broadcastJoinHelper.inlineChannelData(new InputStageDataSource(2))
+        new InputNumberDataSource(2),
+        broadcastJoinHelper.inlineChannelData(new InputNumberDataSource(2))
     );
 
     final List<Object[]> rowsFromStage3 =
-        ((InlineDataSource) broadcastJoinHelper.inlineChannelData(new InputStageDataSource(3))).getRowsAsList();
+        ((InlineDataSource) broadcastJoinHelper.inlineChannelData(new InputNumberDataSource(3))).getRowsAsList();
     Assert.assertEquals(1209, rowsFromStage3.size());
 
     FrameTestUtil.assertRowsEqual(
@@ -165,7 +165,7 @@ public class BroadcastJoinHelperTest extends InitializedNullHandlingTest
     );
 
     final List<Object[]> rowsFromStage4 =
-        ((InlineDataSource) broadcastJoinHelper.inlineChannelData(new InputStageDataSource(4))).getRowsAsList();
+        ((InlineDataSource) broadcastJoinHelper.inlineChannelData(new InputNumberDataSource(4))).getRowsAsList();
     Assert.assertEquals(2, rowsFromStage4.size());
 
     FrameTestUtil.assertRowsEqual(
@@ -175,8 +175,8 @@ public class BroadcastJoinHelperTest extends InitializedNullHandlingTest
 
     final DataSource inlinedJoinDataSource = broadcastJoinHelper.inlineChannelData(
         JoinDataSource.create(
-            new InputStageDataSource(0),
-            new InputStageDataSource(4),
+            new InputNumberDataSource(0),
+            new InputNumberDataSource(4),
             "j.",
             JoinConditionAnalysis.forExpression("x == \"j.x\"", "j.", ExprMacroTable.nil()),
             JoinType.INNER,

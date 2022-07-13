@@ -31,7 +31,7 @@ export interface InputFormat {
   readonly skipHeaderRows?: number;
   readonly columns?: string[];
   readonly delimiter?: string;
-  readonly listDelimiter?: string;
+  readonly listDelimiter?: string | null;
   readonly pattern?: string;
   readonly function?: string;
   readonly flattenSpec?: FlattenSpec | null;

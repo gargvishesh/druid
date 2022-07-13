@@ -27,11 +27,10 @@ import io.imply.druid.talaria.frame.segment.FrameSegment;
 import io.imply.druid.talaria.frame.write.FrameWriter;
 import io.imply.druid.talaria.frame.write.FrameWriterFactory;
 import io.imply.druid.talaria.frame.write.FrameWriters;
+import io.imply.druid.talaria.input.ReadableInput;
+import io.imply.druid.talaria.input.SegmentWithDescriptor;
 import io.imply.druid.talaria.querykit.BaseLeafFrameProcessor;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.querykit.QueryWorkerInput;
-import io.imply.druid.talaria.querykit.QueryWorkerUtils;
-import io.imply.druid.talaria.querykit.SegmentWithInterval;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.collections.ResourceHolder;
@@ -80,16 +79,14 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
   private long rowsOutput = 0;
   private Cursor cursor;
   private FrameWriter frameWriter;
-  private ColumnSelectorFactory frameWriterColumnSelectorFactory;
   private long currentAllocatorCapacity; // Used for generating FrameRowTooLargeException if needed
 
   public ScanQueryFrameProcessor(
       final ScanQuery query,
       final RowSignature signature,
       final ClusterBy clusterBy,
-      final QueryWorkerInput baseInput,
-      final Int2ObjectMap<ReadableFrameChannel> sideChannels,
-      final Int2ObjectMap<FrameReader> sideChannelReaders,
+      final ReadableInput baseInput,
+      final Int2ObjectMap<ReadableInput> sideChannels,
       final JoinableFactoryWrapper joinableFactory,
       final ResourceHolder<WritableFrameChannel> outputChannel,
       final ResourceHolder<MemoryAllocator> allocator,
@@ -101,7 +98,6 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
         query,
         baseInput,
         sideChannels,
-        sideChannelReaders,
         joinableFactory,
         outputChannel,
         allocator,
@@ -116,8 +112,7 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
     final List<VirtualColumn> frameWriterVirtualColumns = new ArrayList<>();
     frameWriterVirtualColumns.add(partitionBoostVirtualColumn);
 
-    final VirtualColumn segmentGranularityVirtualColumn =
-        QueryWorkerUtils.makeSegmentGranularityVirtualColumn(query);
+    final VirtualColumn segmentGranularityVirtualColumn = QueryKitUtils.makeSegmentGranularityVirtualColumn(query);
 
     if (segmentGranularityVirtualColumn != null) {
       frameWriterVirtualColumns.add(segmentGranularityVirtualColumn);
@@ -129,7 +124,6 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
   @Override
   public ReturnOrAwait<Long> runIncrementally(final IntSet readableInputs) throws IOException
   {
-    // "legacy" should be non-null due to toolChest.mergeResults
     final boolean legacy = Preconditions.checkNotNull(query.isLegacy(), "Expected non-null 'legacy' parameter");
 
     if (legacy) {
@@ -153,14 +147,14 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
   }
 
   @Override
-  protected ReturnOrAwait<Long> runWithSegment(final SegmentWithInterval segment) throws IOException
+  protected ReturnOrAwait<Long> runWithSegment(final SegmentWithDescriptor segment) throws IOException
   {
     if (cursor == null) {
       closer.register(segment);
 
       final Yielder<Cursor> cursorYielder = Yielders.each(
           makeCursors(
-              query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.toDescriptor())),
+              query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.getDescriptor())),
               mapSegment(segment.getOrLoadSegment()).asStorageAdapter()
           )
       );
@@ -255,7 +249,8 @@ public class ScanQueryFrameProcessor extends BaseLeafFrameProcessor
       final MemoryAllocator allocator = getAllocator();
       final FrameWriterFactory frameWriterFactory =
           FrameWriters.makeFrameWriterFactory(FrameType.ROW_BASED, allocator, signature, clusterBy.getColumns());
-      frameWriterColumnSelectorFactory = frameWriterVirtualColumns.wrap(cursor.getColumnSelectorFactory());
+      final ColumnSelectorFactory frameWriterColumnSelectorFactory =
+          frameWriterVirtualColumns.wrap(cursor.getColumnSelectorFactory());
       frameWriter = frameWriterFactory.newFrameWriter(frameWriterColumnSelectorFactory);
       currentAllocatorCapacity = allocator.capacity();
     }

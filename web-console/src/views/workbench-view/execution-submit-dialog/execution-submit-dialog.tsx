@@ -54,7 +54,7 @@ export const ExecutionSubmitDialog = React.memo(function ExecutionSubmitDialog(
     const detailArchiveVersion = parsed.detailArchiveVersion ?? parsed.profileVersion;
     if (typeof detailArchiveVersion === 'number') {
       try {
-        if (detailArchiveVersion === 1) {
+        if (detailArchiveVersion === 2) {
           execution = Execution.fromTaskPayloadAndReport(parsed.payload, parsed.reports);
         } else {
           AppToaster.show({

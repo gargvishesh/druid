@@ -23,7 +23,7 @@ import classNames from 'classnames';
 import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
-import { SpecDialog } from '../../dialogs';
+import { SpecDialog, StringSubmitDialog } from '../../dialogs';
 import { guessDataSourceNameFromInputSource } from '../../druid-models';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
@@ -35,7 +35,6 @@ import {
   LocalStorageKeys,
   localStorageSet,
   localStorageSetJson,
-  oneOf,
   queryDruidSql,
   QueryManager,
   QueryState,
@@ -49,16 +48,13 @@ import {
 } from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
-import {
-  LIVE_QUERY_MODES,
-  LiveQueryMode,
-} from '../query-view/live-query-mode-selector/live-query-mode-selector';
 
 import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
 import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
 import { ExecutionStateCache } from './execution-state-cache';
 import { ExecutionSubmitDialog } from './execution-submit-dialog/execution-submit-dialog';
+import { getTaskExecution } from './execution-utils';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
@@ -75,6 +71,10 @@ function cleanupTabEntry(tabEntry: TabEntry): void {
   AceEditorStateCache.deleteStates(discardedIds);
 }
 
+function externalDataTabId(tabId: string | undefined): boolean {
+  return String(tabId).startsWith('connect-external-data');
+}
+
 export interface WorkbenchViewProps {
   tabId: string | undefined;
   onTabChange(newTabId: string): void;
@@ -87,20 +87,20 @@ export interface WorkbenchViewProps {
 
 export interface WorkbenchViewState {
   tabEntries: TabEntry[];
-  liveQueryMode: LiveQueryMode;
 
   columnMetadataState: QueryState<readonly ColumnMetadata[]>;
 
-  initExternalConfig: boolean;
   details?: { id: string; initTab?: ExecutionDetailsTab; initExecution?: Execution };
 
   defaultSchema?: string;
   defaultTable?: string;
 
+  externalConfigDialogOpen: boolean;
   explainDialogOpen: boolean;
   historyDialogOpen: boolean;
   specDialogOpen: boolean;
   executionSubmitDialogOpen: boolean;
+  taskIdSubmitDialogOpen: boolean;
   renamingTab?: TabEntry;
 
   showWorkHistory: boolean;
@@ -111,16 +111,13 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   constructor(props: WorkbenchViewProps) {
     super(props);
+    const { queryEngines, initQuery } = props;
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
-    const possibleLiveQueryMode = localStorageGetJson(LocalStorageKeys.WORKBENCH_LIVE_MODE);
-    const liveQueryMode = LIVE_QUERY_MODES.includes(possibleLiveQueryMode)
-      ? possibleLiveQueryMode
-      : 'auto';
 
-    WorkbenchQuery.setQueryEngines(props.queryEngines);
+    WorkbenchQuery.setQueryEngines(queryEngines);
 
-    const hasSqlTask = props.queryEngines.includes('sql-task');
+    const hasSqlTask = queryEngines.includes('sql-task');
     const showWorkHistory = Boolean(
       hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
     );
@@ -130,7 +127,6 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         ? possibleTabEntries.map(q => ({ ...q, query: new WorkbenchQuery(q.query) }))
         : [];
 
-    const { initQuery } = props;
     if (initQuery) {
       // Put it in the front so that it is the opened tab
       tabEntries.unshift({
@@ -148,15 +144,14 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
     this.state = {
       tabEntries,
-      liveQueryMode,
-      initExternalConfig: false,
-
       columnMetadataState: QueryState.INIT,
 
+      externalConfigDialogOpen: externalDataTabId(props.tabId) && hasSqlTask,
       explainDialogOpen: false,
       historyDialogOpen: false,
       specDialogOpen: false,
       executionSubmitDialogOpen: false,
+      taskIdSubmitDialogOpen: false,
 
       showWorkHistory,
     };
@@ -189,6 +184,17 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     this.metadataQueryManager?.terminate();
   }
 
+  componentDidUpdate(prevProps: Readonly<WorkbenchViewProps>) {
+    const tabId = this.props.tabId;
+    if (
+      prevProps.tabId !== tabId &&
+      externalDataTabId(tabId) &&
+      WorkbenchQuery.getQueryEngines().includes('sql-task')
+    ) {
+      this.setState({ externalConfigDialogOpen: true });
+    }
+  }
+
   private readonly openExplainDialog = () => {
     this.setState({ explainDialogOpen: true });
   };
@@ -203,6 +209,10 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   private readonly openExecutionSubmitDialog = () => {
     this.setState({ executionSubmitDialogOpen: true });
+  };
+
+  private readonly openTaskIdSubmitDialog = () => {
+    this.setState({ taskIdSubmitDialogOpen: true });
   };
 
   private readonly handleWorkPanelClose = () => {
@@ -282,9 +292,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           this.setState({ explainDialogOpen: false });
         }}
         openQueryLabel={
-          oneOf(engine, 'sql', 'sql-async') && queryEngines.includes('native')
-            ? 'Open in new tab'
-            : undefined
+          engine === 'sql' && queryEngines.includes('native') ? 'Open in new tab' : undefined
         }
         onOpenQuery={queryString => {
           this.handleNewTab(
@@ -309,19 +317,19 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderExternalConfigDialog() {
-    const { initExternalConfig } = this.state;
-    if (!initExternalConfig) return;
+    const { externalConfigDialogOpen } = this.state;
+    if (!externalConfigDialogOpen) return;
 
     return (
       <ExternalConfigDialog
         onSetExternalConfig={(externalConfig, isArrays) => {
           this.handleNewTab(
-            WorkbenchQuery.blank().insertExternalPanel(externalConfig, isArrays),
+            WorkbenchQuery.fromInitExternalConfig(externalConfig, isArrays),
             'Ext ' + guessDataSourceNameFromInputSource(externalConfig.inputSource),
           );
         }}
         onClose={() => {
-          this.setState({ initExternalConfig: false });
+          this.setState({ externalConfigDialogOpen: false });
         }}
       />
     );
@@ -400,6 +408,47 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
+  private renderTaskIdSubmit() {
+    const { taskIdSubmitDialogOpen } = this.state;
+    if (!taskIdSubmitDialogOpen) return;
+
+    return (
+      <StringSubmitDialog
+        title="Enter task ID"
+        placeholder="taskId"
+        onSubmit={async taskId => {
+          let execution: Execution;
+          try {
+            execution = await getTaskExecution(taskId);
+          } catch {
+            AppToaster.show({
+              message: 'Could not get task report or payload',
+              intent: Intent.DANGER,
+            });
+            return;
+          }
+
+          if (!execution.sqlQuery || !execution.queryContext) {
+            AppToaster.show({
+              message: 'Could not get query',
+              intent: Intent.DANGER,
+            });
+            return;
+          }
+
+          this.handleNewTab(
+            WorkbenchQuery.fromEffectiveQueryAndContext(
+              execution.sqlQuery,
+              execution.queryContext,
+            ).changeLastExecution({ engine: 'sql-task', id: taskId }),
+            taskId,
+          );
+        }}
+        onClose={() => this.setState({ taskIdSubmitDialogOpen: false })}
+      />
+    );
+  }
+
   private renderToolbarMoreMenu() {
     const { queryEngines } = this.props;
     const query = this.getCurrentQuery();
@@ -416,13 +465,17 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           text="Materialize helper queries"
           onClick={() => this.handleQueryChange(query.materializeHelpers())}
         />
-        <MenuItem icon={IconNames.HISTORY} text="Query history" onClick={this.openHistoryDialog} />
         {queryEngines.includes('sql-task') && (
           <>
             <MenuItem
               icon={IconNames.TEXT_HIGHLIGHT}
               text="Convert ingestion spec to SQL"
               onClick={this.openSpecDialog}
+            />
+            <MenuItem
+              icon={IconNames.DOCUMENT_OPEN}
+              text="Attach tab from task ID"
+              onClick={this.openTaskIdSubmitDialog}
             />
             <MenuItem
               icon={IconNames.UNARCHIVE}
@@ -455,7 +508,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             text="Connect external data"
             onClick={() => {
               this.setState({
-                initExternalConfig: true,
+                externalConfigDialogOpen: true,
               });
             }}
             minimal
@@ -466,7 +519,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         </Popover2>
         {hasSqlTask && !showWorkHistory && (
           <Button
-            icon={IconNames.ONE_COLUMN}
+            icon={IconNames.DRAWER_RIGHT}
             minimal
             title="Show work history"
             onClick={() => {
@@ -491,7 +544,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             const currentId = tabEntry.id;
             const active = currentTabEntry === tabEntry;
             return (
-              <ButtonGroup key={i} minimal className={classNames('tab-button', { active })}>
+              <div key={i} className={classNames('tab-button', { active })}>
                 {active ? (
                   <Popover2
                     position="bottom"
@@ -560,6 +613,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                       className="tab-name"
                       text={tabEntry.tabName}
                       title={tabEntry.tabName}
+                      minimal
                       onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
                     />
                   </Popover2>
@@ -568,6 +622,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                     className="tab-name"
                     text={tabEntry.tabName}
                     title={tabEntry.tabName}
+                    minimal
                     onClick={() => {
                       localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
                       onTabChange(currentId);
@@ -578,6 +633,8 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                   className="tab-close"
                   icon={IconNames.CROSS}
                   title={`Close tab '${tabEntry.tabName}`}
+                  small
+                  minimal
                   onClick={() => {
                     cleanupTabEntry(tabEntry);
                     this.handleQueriesChange(
@@ -589,7 +646,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                     );
                   }}
                 />
-              </ButtonGroup>
+              </div>
             );
           })}
           <Button
@@ -610,6 +667,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           onQueryChange={this.handleQueryChange}
           onDetails={this.handleDetails}
           onExplain={allowExplain ? this.openExplainDialog : undefined}
+          onHistory={this.openHistoryDialog}
           queryEngines={queryEngines}
         />
       </div>
@@ -711,6 +769,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         {this.renderTabRenameDialog()}
         {this.renderSpecDialog()}
         {this.renderExecutionSubmit()}
+        {this.renderTaskIdSubmit()}
         <MetadataChangeDetector onChange={() => this.metadataQueryManager?.runQuery(null)} />
       </div>
     );

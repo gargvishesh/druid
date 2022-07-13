@@ -12,11 +12,11 @@ package io.imply.druid.talaria.indexing;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.exec.Worker;
-import io.imply.druid.talaria.rpc.ServiceLocation;
-import io.imply.druid.talaria.rpc.ServiceLocations;
-import io.imply.druid.talaria.rpc.ServiceLocator;
 import org.apache.druid.indexing.common.SegmentCacheManagerFactory;
 import org.apache.druid.indexing.common.TaskToolbox;
+import org.apache.druid.rpc.ServiceLocation;
+import org.apache.druid.rpc.ServiceLocations;
+import org.apache.druid.rpc.ServiceLocator;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -37,7 +37,10 @@ public class IndexerWorkerContextTest
 
     indexerWorkerContext = new IndexerWorkerContext(
         Mockito.mock(TaskToolbox.class),
-        injectorMock
+        injectorMock,
+        null,
+        null,
+        null
     );
   }
 

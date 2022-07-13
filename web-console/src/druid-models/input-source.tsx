@@ -38,12 +38,71 @@ export interface InputSource {
   data?: string;
 
   // hdfs
-  paths?: string;
+  paths?: string | string[];
 
   // http
   httpAuthenticationUsername?: any;
   httpAuthenticationPassword?: any;
 }
+
+export type InputSourceDesc =
+  | {
+      type: 'inline';
+      data: string;
+    }
+  | {
+      type: 'local';
+      filter?: any;
+      baseDir?: string;
+      files?: string[];
+    }
+  | {
+      type: 'druid';
+      dataSource: string;
+      interval: string;
+      filter?: any;
+      dimensions?: string[]; // ToDo: these are not in the docs https://druid.apache.org/docs/latest/ingestion/native-batch-input-sources.html
+      metrics?: string[];
+      maxInputSegmentBytesPerTask?: number;
+    }
+  | {
+      type: 'http';
+      uris: string[];
+      httpAuthenticationUsername?: any;
+      httpAuthenticationPassword?: any;
+    }
+  | {
+      type: 's3';
+      uris?: string[];
+      prefixes?: string[];
+      objects?: { bucket: string; path: string }[];
+      properties?: {
+        accessKeyId?: any;
+        secretAccessKey?: any;
+        assumeRoleArn?: any;
+        assumeRoleExternalId?: any;
+      };
+    }
+  | {
+      type: 'google' | 'azure';
+      uris?: string[];
+      prefixes?: string[];
+      objects?: { bucket: string; path: string }[];
+    }
+  | {
+      type: 'hdfs';
+      paths?: string | string[];
+    }
+  | {
+      type: 'sql';
+      database: any;
+      foldCase?: boolean;
+      sqls: string[];
+    }
+  | {
+      type: 'combining';
+      delegates: InputSource[];
+    };
 
 export function issueWithInputSource(inputSource: InputSource | undefined): string | undefined {
   if (!inputSource) return 'does not exist';
@@ -52,22 +111,22 @@ export function issueWithInputSource(inputSource: InputSource | undefined): stri
     case 'local':
       if (!inputSource.baseDir) return `must have a 'baseDir'`;
       if (!inputSource.filter) return `must have a 'filter'`;
-      break;
+      return;
 
     case 'http':
       if (!nonEmptyArray(inputSource.uris)) {
         return 'must have at least one uri';
       }
-      break;
+      return;
 
     case 'druid':
       if (!inputSource.dataSource) return `must have a 'dataSource'`;
       if (!inputSource.interval) return `must have an 'interval'`;
-      break;
+      return;
 
     case 'inline':
       if (!inputSource.data) return `must have 'data'`;
-      break;
+      return;
 
     case 's3':
     case 'azure':
@@ -79,13 +138,15 @@ export function issueWithInputSource(inputSource: InputSource | undefined): stri
       ) {
         return 'must have at least one uri or prefix or object';
       }
-      break;
+      return;
 
     case 'hdfs':
       if (!inputSource.paths) {
         return 'must have paths';
       }
-      break;
+      return;
+
+    default:
+      return;
   }
-  return;
 }

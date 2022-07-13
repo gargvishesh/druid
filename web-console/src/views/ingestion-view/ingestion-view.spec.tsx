@@ -32,7 +32,8 @@ describe('IngestionView', () => {
         datasourceId="datasource"
         goToDatasource={() => {}}
         goToQuery={() => {}}
-        goToLoadData={() => {}}
+        goToStreamingDataLoader={() => {}}
+        goToClassicBatchDataLoader={() => {}}
         capabilities={Capabilities.FULL}
       />,
     );

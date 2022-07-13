@@ -20,8 +20,6 @@ import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderContext;
 import io.imply.druid.talaria.exec.LeaderImpl;
 import io.imply.druid.talaria.exec.TalariaTasks;
-import io.imply.druid.talaria.rpc.DruidServiceClientFactory;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.indexer.TaskStatus;
@@ -37,6 +35,8 @@ import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningC
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
+import org.apache.druid.rpc.ServiceClientFactory;
+import org.apache.druid.rpc.indexing.OverlordClient;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -165,16 +165,14 @@ public class MSQControllerTask extends AbstractTask
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    final DruidServiceClientFactory clientFactory =
-        injector.getInstance(Key.get(DruidServiceClientFactory.class, EscalatedGlobal.class));
-    final OverlordServiceClient overlordClient = injector.getInstance(OverlordServiceClient.class);
+    final ServiceClientFactory clientFactory =
+        injector.getInstance(Key.get(ServiceClientFactory.class, EscalatedGlobal.class));
+    final OverlordClient overlordClient = injector.getInstance(OverlordClient.class);
     final LeaderContext context = new IndexerLeaderContext(
         toolbox,
         injector,
         clientFactory,
-        overlordClient,
-        TalariaContext.isDurableStorageEnabled(querySpec.getQuery().getContext()),
-        remoteFetchExecutorService
+        overlordClient
     );
     leader = new LeaderImpl(this, context);
     return leader.run();

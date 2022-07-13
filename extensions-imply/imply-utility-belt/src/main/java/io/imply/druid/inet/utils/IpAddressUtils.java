@@ -51,6 +51,12 @@ public class IpAddressUtils
           if (numberOfOctet > 3) {
             throw new IAE("Cannot expand invalid partial address [%s]", incompleteIp);
           }
+          String[] ipComponents = incompleteIp.split("\\" + IPV4_CHARACTER);
+          for (String component : ipComponents) {
+            if (NumberUtils.isDigits(component) && Integer.valueOf(component).toString().length() != component.length()) {
+              throw new IAE("Cannot expand invalid partial address [%s]", incompleteIp);
+            }
+          }
           if (IPV4_CHARACTER == incompleteIp.charAt(incompleteIp.length() - 1)) {
             // The incomplete ip ends in '.'
             ranges.add(new IPAddressString(incompleteIp + WILDCARD).getAddress().toIPv6().toPrefixBlock().toSequentialRange());
@@ -77,7 +83,9 @@ public class IpAddressUtils
           }
         } else {
           // This can be both ipv4 and ipv6
-          if (NumberUtils.isDigits(incompleteIp) && Integer.valueOf(incompleteIp) <= 255 && incompleteIp.length() <= 3) {
+          if (NumberUtils.isDigits(incompleteIp)
+              && Integer.valueOf(incompleteIp) <= 255 && incompleteIp.length() <= 3
+              && (Integer.valueOf(incompleteIp).toString().length() == incompleteIp.length())) {
             // This can be ipv4
             ranges.addAll(generatePossibleRangeForIpv4NotEndingInDot(false, "", incompleteIp));
           }
@@ -97,6 +105,10 @@ public class IpAddressUtils
       ranges.add(new IPAddressString(ipExceptLastPart + ipLastPart + IPV4_CHARACTER + WILDCARD).getAddress().toIPv6().toPrefixBlock().toSequentialRange());
     } else {
       ranges.add(new IPAddressString(ipExceptLastPart + ipLastPart).getAddress().toIPv6().toPrefixBlock().toSequentialRange());
+    }
+    if (Integer.valueOf(ipLastPart) == 0) {
+      // We do not expand as the last component is zero and IPv4 cannot have leading zero
+      return ranges;
     }
     for (int i = 0; i < 3 - ipLastPart.length(); i++) {
       String ipLastPartLower = ipLastPart + StringUtils.repeat("0", i + 1);

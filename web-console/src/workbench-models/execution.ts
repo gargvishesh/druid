@@ -30,6 +30,7 @@ const IGNORE_CONTEXT_KEYS = [
   'sqlQueryId',
   'sqlInsertSegmentGranularity',
   'msqSignature',
+  'sqlReplaceTimeChunks',
 ];
 
 // Hack around the concept that we might get back a SqlWithQuery and will need to unpack it
@@ -58,7 +59,6 @@ type ExecutionDestination =
       type: 'taskReport';
     }
   | { type: 'dataSource'; dataSource: string; exists?: boolean }
-  | { type: 'external' }
   | { type: 'download' };
 
 export type ExecutionStatus = 'RUNNING' | 'FAILED' | 'SUCCESS';
@@ -141,32 +141,6 @@ export class Execution {
       default:
         return 'RUNNING';
     }
-  }
-
-  static fromAsyncStatus(
-    asyncResult: any,
-    sqlQuery?: string,
-    queryContext?: QueryContext,
-  ): Execution {
-    const status = Execution.normalizeAsyncStatus(asyncResult.state);
-    return new Execution({
-      engine: 'sql-async',
-      id: asyncResult.asyncResultId,
-      status: asyncResult.error ? 'FAILED' : status,
-      sqlQuery,
-      queryContext,
-      error: asyncResult.error
-        ? { error: { errorCode: 'AsyncError', errorMessage: JSON.stringify(asyncResult.error) } }
-        : status === 'FAILED'
-        ? {
-            error: {
-              errorCode: 'UnknownError',
-              errorMessage:
-                'Execution failed, there is no detail information, and there is no error in the status response',
-            },
-          }
-        : undefined,
-    });
   }
 
   static fromTaskSubmit(

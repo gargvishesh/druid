@@ -15,7 +15,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.IAE;
@@ -55,7 +54,10 @@ public class QueryDefinition
       }
 
       stageMap.put(stage.getId(), stage);
-      nonFinalStages.addAll(stage.getInputStageIds());
+
+      for (int stageNumber : stage.getInputStageNumbers()) {
+        nonFinalStages.add(new StageId(stage.getId().getQueryId(), stageNumber));
+      }
     }
 
     for (final StageId nonFinalStageId : nonFinalStages) {
@@ -112,45 +114,12 @@ public class QueryDefinition
     return Preconditions.checkNotNull(stageDefinitions.get(stageId), "No stageId [%s]", stageId);
   }
 
-  public ClusterBy getClusterByForStage(final int stageNumber)
-  {
-    // TODO(gianm): This logic assumes that non-shuffling stages with one input will retain the clustering of their inputs
-    //    This is not always true! But I'm not sure if anything bad happens as a result. Need to double-check.
-    StageDefinition stageDefPtr = getStageDefinition(stageNumber);
-
-    while (!stageDefPtr.doesShuffle()) {
-      final List<StageId> inputStageIds = stageDefPtr.getInputStageIds();
-
-      if (inputStageIds.size() == 1) {
-        stageDefPtr = getStageDefinition(Iterables.getOnlyElement(inputStageIds).getStageNumber());
-      } else {
-        // Zero, or more than one input: don't retain input clustering; just say there's nothing.
-        return ClusterBy.none();
-      }
-    }
-
-    return stageDefPtr.getShuffleSpec().get().getClusterBy();
-  }
-
   /**
    * Returns a number that is higher than all current stage numbers.
    */
   public int getNextStageNumber()
   {
     return stageDefinitions.values().stream().mapToInt(StageDefinition::getStageNumber).max().orElse(-1) + 1;
-  }
-
-  /**
-   * Returns the max number of workers required by the query
-   */
-  public int getMaxWorkerCount()
-  {
-    int workers = 0;
-    for (StageDefinition stageDefinition : getStageDefinitions()) {
-      workers = Math.max(stageDefinition.getMaxWorkerCount(), workers);
-    }
-    assert workers > 0;
-    return workers;
   }
 
   @Override

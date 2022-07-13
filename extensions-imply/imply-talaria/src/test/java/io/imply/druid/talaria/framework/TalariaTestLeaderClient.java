@@ -9,21 +9,20 @@
 
 package io.imply.druid.talaria.framework;
 
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderClient;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.kernel.StageId;
 import org.apache.druid.java.util.common.ISE;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Optional;
 
 public class TalariaTestLeaderClient implements LeaderClient
 {
-  private Leader leader;
+  private final Leader leader;
 
   public TalariaTestLeaderClient(Leader leader)
   {
@@ -46,10 +45,10 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public void postCounters(String workerId, MSQCountersSnapshot.WorkerCounters snapshot)
+  public void postCounters(CounterSnapshotsTree snapshotsTree)
   {
-    if (snapshot != null) {
-      leader.updateCounters(workerId, snapshot);
+    if (snapshotsTree != null) {
+      leader.updateCounters(snapshotsTree);
     }
   }
 
@@ -72,7 +71,7 @@ public class TalariaTestLeaderClient implements LeaderClient
   }
 
   @Override
-  public Optional<List<String>> getTaskList()
+  public List<String> getTaskList()
   {
     return leader.getTaskIds();
   }
@@ -80,6 +79,6 @@ public class TalariaTestLeaderClient implements LeaderClient
   @Override
   public void close()
   {
-    leader.stopGracefully();
+    // Nothing to do.
   }
 }

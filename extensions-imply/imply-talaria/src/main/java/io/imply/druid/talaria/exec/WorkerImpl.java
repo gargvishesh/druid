@@ -12,11 +12,15 @@ package io.imply.druid.talaria.exec;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
+import io.imply.druid.talaria.counters.CounterNames;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
+import io.imply.druid.talaria.counters.CounterTracker;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.BlockingQueueFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableFileFrameChannel;
@@ -42,28 +46,37 @@ import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import io.imply.druid.talaria.frame.processor.OutputChannels;
 import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.frame.processor.SuperSorter;
-import io.imply.druid.talaria.indexing.CountingInputChannelFactory;
 import io.imply.druid.talaria.indexing.CountingOutputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.KeyStatisticsCollectionProcessor;
-import io.imply.druid.talaria.indexing.MSQCounterType;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
-import io.imply.druid.talaria.indexing.TalariaCounters;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
+import io.imply.druid.talaria.input.ExternalInputSlice;
+import io.imply.druid.talaria.input.ExternalInputSliceReader;
+import io.imply.druid.talaria.input.InputSlice;
+import io.imply.druid.talaria.input.InputSliceReader;
+import io.imply.druid.talaria.input.InputSlices;
+import io.imply.druid.talaria.input.MapInputSliceReader;
+import io.imply.druid.talaria.input.NilInputSlice;
+import io.imply.druid.talaria.input.NilInputSliceReader;
+import io.imply.druid.talaria.input.SegmentsInputSlice;
+import io.imply.druid.talaria.input.SegmentsInputSliceReader;
+import io.imply.druid.talaria.input.StageInputSlice;
+import io.imply.druid.talaria.input.StageInputSliceReader;
+import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
-import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.StagePartition;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.kernel.worker.WorkerStageKernel;
 import io.imply.druid.talaria.kernel.worker.WorkerStagePhase;
+import io.imply.druid.talaria.querykit.DataSegmentProvider;
 import io.imply.druid.talaria.shuffle.DurableStorageInputChannelFactory;
 import io.imply.druid.talaria.shuffle.DurableStorageOutputChannelFactory;
 import io.imply.druid.talaria.shuffle.WorkerInputChannelFactory;
@@ -124,7 +137,7 @@ public class WorkerImpl implements Worker
 
   private final BlockingQueue<Consumer<KernelHolder>> kernelManipulationQueue = new LinkedBlockingDeque<>();
   private final ConcurrentHashMap<StageId, ConcurrentHashMap<Integer, ReadableFrameChannel>> stageOutputs = new ConcurrentHashMap<>();
-  private final TalariaCounters talariaCounters = new TalariaCounters();
+  private final ConcurrentHashMap<StageId, CounterTracker> stageCounters = new ConcurrentHashMap<>();
   private final boolean durableStageStorageEnabled;
 
   private volatile DruidNode selfDruidNode;
@@ -225,7 +238,6 @@ public class WorkerImpl implements Worker
 
     closer.register(talariaWarningReportPublisher);
 
-    InputChannelFactory inputChannelFactory = null; // Defer creation to ensure errors are reported properly.
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
 
     // TODO(gianm): push this into kernel
@@ -242,14 +254,12 @@ public class WorkerImpl implements Worker
         if (kernel.getPhase() == WorkerStagePhase.NEW) {
           log.debug("New work order: %s", context.jsonMapper().writeValueAsString(kernel.getWorkOrder()));
 
-          // Create inputChannelFactory and stageFrameContexts *now*, instead of before the work order, to ensure
-          // that any errors can propagate back up to the controller. Also, compute memory parameters for all stages,
-          // even ones that haven't been assigned yet, so we can fail-fast if some won't work. (We expect
-          // that all stages will get assigned to the same pool of workers.)
-          if (inputChannelFactory == null) {
-            inputChannelFactory = makeBaseInputChannelFactory(closer);
-          }
+          // Create separate inputChannelFactory per stage, because the list of tasks can grow between stages, and
+          // so we need to avoid the memoization in baseInputChannelFactory.
+          final InputChannelFactory inputChannelFactory = makeBaseInputChannelFactory(closer);
 
+          // Compute memory parameters for all stages, even ones that haven't been assigned yet, so we can fail-fast
+          // if some won't work. (We expect that all stages will get assigned to the same pool of workers.)
           for (final StageDefinition stageDef : kernel.getWorkOrder().getQueryDefinition().getStageDefinitions()) {
             stageFrameContexts.computeIfAbsent(
                 stageDef.getId(),
@@ -266,7 +276,7 @@ public class WorkerImpl implements Worker
               startWorkOrder(
                   kernel,
                   inputChannelFactory,
-                  talariaCounters,
+                  stageCounters.computeIfAbsent(stageDefinition.getId(), ignored -> new CounterTracker()),
                   workerExec,
                   cancellationId,
                   context.threadCount(),
@@ -334,18 +344,8 @@ public class WorkerImpl implements Worker
 
       if (!didSomething && !kernelHolder.isDone()) {
         Consumer<KernelHolder> nextCommand;
-        String countersString = null;
 
         do {
-          if (log.isDebugEnabled()) {
-            // Log counters, but only if they've changed.
-            final String nextCountersString = talariaCounters.stateString();
-            if (!nextCountersString.equals(countersString)) {
-              log.debug("Counters: %s", nextCountersString);
-              countersString = nextCountersString;
-            }
-          }
-
           postCountersToController();
         } while ((nextCommand = kernelManipulationQueue.poll(5, TimeUnit.SECONDS)) == null);
 
@@ -405,15 +405,18 @@ public class WorkerImpl implements Worker
 
       return in;
     } else if (channel instanceof ReadableFileFrameChannel) {
-      final FrameFile frameFile = ((ReadableFileFrameChannel) channel).getFrameFileReference();
-      final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r");
+      // Close frameFile once we've returned an input stream: no need to retain a reference to the mmap after that,
+      // since we aren't using it.
+      try (final FrameFile frameFile = ((ReadableFileFrameChannel) channel).newFrameFileReference()) {
+        final RandomAccessFile randomAccessFile = new RandomAccessFile(frameFile.file(), "r");
 
-      if (offset >= randomAccessFile.length()) {
-        randomAccessFile.close();
-        return new ByteArrayInputStream(ByteArrays.EMPTY_ARRAY);
-      } else {
-        randomAccessFile.seek(offset);
-        return Channels.newInputStream(randomAccessFile.getChannel());
+        if (offset >= randomAccessFile.length()) {
+          randomAccessFile.close();
+          return new ByteArrayInputStream(ByteArrays.EMPTY_ARRAY);
+        } else {
+          randomAccessFile.seek(offset);
+          return Channels.newInputStream(randomAccessFile.getChannel());
+        }
       }
     } else {
       String errorMsg = StringUtils.format(
@@ -487,15 +490,28 @@ public class WorkerImpl implements Worker
   }
 
   @Override
-  public MSQCountersSnapshot getCounters()
+  public CounterSnapshotsTree getCounters()
   {
-    return talariaCounters.snapshot();
+    final CounterSnapshotsTree retVal = new CounterSnapshotsTree();
+
+    for (final Map.Entry<StageId, CounterTracker> entry : stageCounters.entrySet()) {
+      retVal.put(entry.getKey().getStageNumber(), task().getWorkerNumber(), entry.getValue().snapshot());
+    }
+
+    return retVal;
   }
 
   private InputChannelFactory makeBaseInputChannelFactory(final Closer closer)
   {
     final Supplier<List<String>> workerTaskList = Suppliers.memoize(
-        () -> leaderClient.getTaskList().orElseThrow(() -> new ISE("Really expected tasks to be available by now"))
+        () -> {
+          try {
+            return leaderClient.getTaskList();
+          }
+          catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
     )::get;
 
     if (durableStageStorageEnabled) {
@@ -585,28 +601,12 @@ public class WorkerImpl implements Worker
   /**
    * Posts all counters for this worker to the controller.
    */
-  private void postCountersToController()
+  private void postCountersToController() throws IOException
   {
-    // We expect to have a consistent workerNumber, so there will only be one WorkerCounters snapshot.
-    // If the workerCounter size > 1, it is a failure because we were assigned multiple worker numbers for
-    // different work orders, which is not expected.
+    final CounterSnapshotsTree snapshotsTree = getCounters();
 
-    List<MSQCountersSnapshot.WorkerCounters> workerCounters =
-        talariaCounters.snapshot().getWorkerCounters();
-
-    if (workerCounters != null && workerCounters.size() != 0) {
-      if (workerCounters.size() > 1) {
-        throw new ISE(
-            "Multiple worker numbers [%s] for different work orders were assigned, which is not expected.",
-            workerCounters.stream()
-                          .map(MSQCountersSnapshot.WorkerCounters::getWorkerNumber)
-                          .collect(Collectors.toList())
-        );
-      } else {
-        if (leaderAlive) {
-          leaderClient.postCounters(id(), workerCounters.get(0));
-        }
-      }
+    if (leaderAlive && !snapshotsTree.isEmpty()) {
+      leaderClient.postCounters(snapshotsTree);
     }
   }
 
@@ -655,7 +655,7 @@ public class WorkerImpl implements Worker
   private SettableFuture<ClusterByPartitions> startWorkOrder(
       final WorkerStageKernel kernel,
       final InputChannelFactory inputChannelFactory,
-      final TalariaCounters counters,
+      final CounterTracker counters,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
@@ -666,28 +666,23 @@ public class WorkerImpl implements Worker
     final WorkOrder workOrder = kernel.getWorkOrder();
     final int workerNumber = workOrder.getWorkerNumber();
     final StageDefinition stageDef = workOrder.getStageDefinition();
-    final ClusterBy clusterBy = workOrder.getQueryDefinition().getClusterByForStage(workOrder.getStageNumber());
-    final ReadablePartitions inputPartitions = workOrder.getInputPartitions();
 
     final InputChannels inputChannels =
         InputChannels.create(
             workOrder.getQueryDefinition(),
-            stageDef.getInputStageIds().stream().mapToInt(StageId::getStageNumber).toArray(),
-            inputPartitions,
-            new CountingInputChannelFactory(
-                inputChannelFactory,
-                partitionNumber ->
-                    counters.getOrCreateChannelCounters(
-                        MSQCounterType.INPUT_STAGE,
-                        workerNumber,
-                        stageDef.getStageNumber(),
-                        partitionNumber
-                    )
-            ),
+            InputSlices.allReadablePartitions(workOrder.getInputs()),
+            inputChannelFactory,
             () -> ArenaMemoryAllocator.createOnHeap(frameContext.memoryParameters().getStandardFrameSize()),
             exec,
             cancellationId
         );
+
+    final InputSliceReader inputSliceReader = makeInputSliceReader(
+        workOrder.getQueryDefinition(),
+        inputChannels,
+        frameContext.tempDir(),
+        frameContext.dataSegmentProvider()
+    );
 
     final OutputChannelFactory workerOutputChannelFactory;
 
@@ -707,20 +702,14 @@ public class WorkerImpl implements Worker
         makeAndRunWorkers(
             workerNumber,
             workOrder.getStageDefinition().getProcessorFactory(),
-            workOrder.getExtraInfoHolder().getExtraInfo(),
-            inputChannels,
+            workOrder.getExtraInfo(),
             new CountingOutputChannelFactory(
                 workerOutputChannelFactory,
-                partitionNumber ->
-                    counters.getOrCreateChannelCounters(
-                        MSQCounterType.PROCESSOR,
-                        workerNumber,
-                        stageDef.getStageNumber(),
-                        partitionNumber
-                    )
+                counters.channel(CounterNames.outputChannel())
             ),
             stageDef,
-            workOrder.getQueryDefinition().getClusterByForStage(stageDef.getStageNumber()),
+            workOrder.getInputs(),
+            inputSliceReader,
             frameContext,
             exec,
             cancellationId,
@@ -734,21 +723,35 @@ public class WorkerImpl implements Worker
     final ListenableFuture<OutputChannels> outputChannelsFuture;
 
     if (stageDef.doesShuffle()) {
+      final ClusterBy clusterBy = workOrder.getStageDefinition().getShuffleSpec().get().getClusterBy();
+
       final CountingOutputChannelFactory shuffleOutputChannelFactory =
           new CountingOutputChannelFactory(
               makeStageOutputChannelFactory(frameContext, stageDef.getStageNumber()),
-              partitionNumber ->
-                  counters.getOrCreateChannelCounters(
-                      MSQCounterType.SORT,
-                      workerNumber,
-                      stageDef.getStageNumber(),
-                      partitionNumber
-                  )
+              counters.channel(CounterNames.sortChannel())
           );
 
-      if (clusterBy.getColumns().isEmpty()
-          && kernel.hasResultPartitionBoundaries()
-          && kernel.getResultPartitionBoundaries().size() == 1) {
+      if (stageDef.doesSortDuringShuffle()) {
+        if (stageDef.mustGatherResultKeyStatistics()) {
+          stagePartitionBoundariesFuture = SettableFuture.create();
+        } else {
+          stagePartitionBoundariesFuture = Futures.immediateFuture(kernel.getResultPartitionBoundaries());
+        }
+
+        outputChannelsFuture = superSortOutputChannels(
+            workOrder.getStageDefinition(),
+            clusterBy,
+            workerResultAndOutputChannels.getOutputChannels(),
+            stagePartitionBoundariesFuture,
+            shuffleOutputChannelFactory,
+            exec,
+            cancellationId,
+            frameContext.memoryParameters(),
+            context,
+            kernelManipulationQueue,
+            counters.sortProgress()
+        );
+      } else {
         // No sorting, just combining all outputs into one big partition. Use a muxer to get everything into one file.
         // Note: even if there is only one output channel, we'll run it through the muxer anyway, to ensure the data
         // gets written to a file. (httpGetChannelData requires files.)
@@ -771,26 +774,6 @@ public class WorkerImpl implements Worker
         );
 
         stagePartitionBoundariesFuture = null;
-      } else {
-        if (stageDef.mustGatherResultKeyStatistics()) {
-          stagePartitionBoundariesFuture = SettableFuture.create();
-        } else {
-          stagePartitionBoundariesFuture = Futures.immediateFuture(kernel.getResultPartitionBoundaries());
-        }
-
-        outputChannelsFuture = superSortOutputChannels(
-            workOrder.getStageDefinition(),
-            clusterBy,
-            workerResultAndOutputChannels.getOutputChannels(),
-            stagePartitionBoundariesFuture,
-            shuffleOutputChannelFactory,
-            exec,
-            cancellationId,
-            frameContext.memoryParameters(),
-            context,
-            kernelManipulationQueue,
-            counters.getOrCreateSortProgressTracker(workerNumber, workOrder.getStageNumber())
-        );
       }
     } else {
       stagePartitionBoundariesFuture = null;
@@ -856,31 +839,31 @@ public class WorkerImpl implements Worker
       final int workerNumber,
       final FactoryType processorFactory,
       final I processorFactoryExtraInfo,
-      final InputChannels inputChannels,
       final OutputChannelFactory outputChannelFactory,
       final StageDefinition stageDefinition,
-      final ClusterBy clusterBy,
+      final List<InputSlice> inputSlices,
+      final InputSliceReader inputSliceReader,
       final FrameContext frameContext,
       final FrameProcessorExecutor exec,
       final String cancellationId,
       final int parallelism,
       final Bouncer processorBouncer,
-      final TalariaCounters counters,
-      final TalariaWarningReportPublisher talariaWarningReportPublisher
+      final CounterTracker counters,
+      final TalariaWarningReportPublisher warningPublisher
   ) throws IOException
   {
     final ProcessorsAndChannels<WorkerClass, T> processors =
         processorFactory.makeProcessors(
-            workerNumber,
-            processorFactoryExtraInfo,
-            inputChannels,
-            outputChannelFactory,
             stageDefinition,
-            clusterBy,
+            workerNumber,
+            inputSlices,
+            inputSliceReader,
+            processorFactoryExtraInfo,
+            outputChannelFactory,
             frameContext,
             parallelism,
             counters,
-            talariaWarningReportPublisher
+            e -> warningPublisher.publishException(stageDefinition.getStageNumber(), e)
         );
 
     final Sequence<WorkerClass> processorSequence = processors.processors();
@@ -907,6 +890,23 @@ public class WorkerImpl implements Worker
     );
 
     return new ResultAndChannels<>(workResultFuture, processors.getOutputChannels());
+  }
+
+  private static InputSliceReader makeInputSliceReader(
+      final QueryDefinition queryDef,
+      final InputChannels inputChannels,
+      final File temporaryDirectory,
+      final DataSegmentProvider segmentProvider
+  )
+  {
+    return new MapInputSliceReader(
+        ImmutableMap.<Class<? extends InputSlice>, InputSliceReader>builder()
+                    .put(NilInputSlice.class, NilInputSliceReader.INSTANCE)
+                    .put(StageInputSlice.class, new StageInputSliceReader(queryDef.getQueryId(), inputChannels))
+                    .put(ExternalInputSlice.class, new ExternalInputSliceReader(temporaryDirectory))
+                    .put(SegmentsInputSlice.class, new SegmentsInputSliceReader(segmentProvider))
+                    .build()
+    );
   }
 
   private static ListenableFuture<OutputChannels> superSortOutputChannels(
@@ -1093,7 +1093,7 @@ public class WorkerImpl implements Worker
   private static String makeKernelStageStatusString(final WorkerStageKernel kernel)
   {
     final String inputPartitionNumbers =
-        StreamSupport.stream(kernel.getWorkOrder().getInputPartitions().spliterator(), false)
+        StreamSupport.stream(InputSlices.allReadablePartitions(kernel.getWorkOrder().getInputs()).spliterator(), false)
                      .map(ReadablePartition::getPartitionNumber)
                      .sorted()
                      .map(String::valueOf)
@@ -1145,7 +1145,7 @@ public class WorkerImpl implements Worker
 
         if (myChannel instanceof ReadableFileFrameChannel) {
           // Must duplicate the channel to avoid double-closure upon task cleanup.
-          final FrameFile frameFile = ((ReadableFileFrameChannel) myChannel).getFrameFileReference();
+          final FrameFile frameFile = ((ReadableFileFrameChannel) myChannel).newFrameFileReference();
           return new ReadableFileFrameChannel(frameFile);
         } else if (myChannel instanceof ReadableNilFrameChannel) {
           return myChannel;

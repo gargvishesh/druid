@@ -10,19 +10,29 @@
 package io.imply.druid.talaria.kernel.controller;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import io.imply.druid.talaria.frame.cluster.ClusterByKey;
+import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
+import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollector;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
+import io.imply.druid.talaria.input.InputSpecSlicerFactory;
+import io.imply.druid.talaria.input.MapInputSpecSlicer;
+import io.imply.druid.talaria.input.StageInputSpec;
+import io.imply.druid.talaria.input.StageInputSpecSlicer;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.StageId;
+import io.imply.druid.talaria.kernel.WorkerAssignmentStrategy;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class BaseControllerQueryKernelTest
+public class BaseControllerQueryKernelTest extends InitializedNullHandlingTest
 {
 
   public ControllerQueryKernelTester testControllerQueryKernel(int numWorkers)
@@ -41,6 +51,14 @@ public class BaseControllerQueryKernelTest
     private boolean initialized = false;
     private QueryDefinition queryDefinition = null;
     private ControllerQueryKernel controllerQueryKernel = null;
+    private InputSpecSlicerFactory inputSlicerFactory =
+        stagePartitionsMap ->
+            new MapInputSpecSlicer(
+                ImmutableMap.of(
+                    StageInputSpec.class, new StageInputSpecSlicer(stagePartitionsMap),
+                    ControllerTestInputSpec.class, new ControllerTestInputSpecSlicer()
+                )
+            );
     private final int numWorkers;
     Set<Integer> setupStages = new HashSet<>();
 
@@ -160,7 +178,12 @@ public class BaseControllerQueryKernelTest
       if (checkInitialized) {
         Preconditions.checkArgument(initialized);
       }
-      return mapStageIdsToStageNumbers(controllerQueryKernel.createAndGetNewStageIds());
+      return mapStageIdsToStageNumbers(
+          controllerQueryKernel.createAndGetNewStageIds(
+              inputSlicerFactory,
+              WorkerAssignmentStrategy.MAX
+          )
+      );
     }
 
     public Set<Integer> getEffectivelyFinishedStageNumbers()
@@ -220,13 +243,25 @@ public class BaseControllerQueryKernelTest
     public void addResultKeyStatisticsForStageAndWorker(int stageNumber, int workerNumber)
     {
       Preconditions.checkArgument(initialized);
+
+      // Simulate 1000 keys being encountered in the data, so the kernel can generate some partitions.
+      final ClusterByStatisticsCollector keyStatsCollector =
+          queryDefinition.getStageDefinition(stageNumber).createResultKeyStatisticsCollector();
+      for (int i = 0; i < 1000; i++) {
+        final ClusterByKey key = ClusterByTestUtils.createKey(
+            MockQueryDefinitionBuilder.STAGE_SIGNATURE,
+            String.valueOf(i)
+        );
+
+        keyStatsCollector.add(key, 1);
+      }
+
       controllerQueryKernel.addResultKeyStatisticsForStageAndWorker(
           new StageId(queryDefinition.getQueryId(), stageNumber),
           workerNumber,
-          ClusterByStatisticsSnapshot.empty()
+          keyStatsCollector.snapshot()
       );
     }
-
 
     public void setResultsCompleteForStageAndWorker(int stageNumber, int workerNumber)
     {

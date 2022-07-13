@@ -10,64 +10,76 @@
 package io.imply.druid.talaria.kernel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.imply.druid.talaria.input.InputSlice;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Objects;
 
 public class WorkOrder
 {
   private final QueryDefinition queryDefinition;
   private final int stageNumber;
-  private final ReadablePartitions inputPartitions;
   private final int workerNumber;
+  private final List<InputSlice> workerInputs;
   private final ExtraInfoHolder<?> extraInfoHolder;
 
   @JsonCreator
   @SuppressWarnings("rawtypes")
   public WorkOrder(
-      @JsonProperty("queryDefinition") final QueryDefinition queryDefinition,
-      @JsonProperty("stageNumber") final int stageNumber,
-      @JsonProperty("workerNumber") final int workerNumber,
-      @JsonProperty("inputPartitions") final ReadablePartitions inputPartitions,
-      @JsonProperty("extraInfo") final ExtraInfoHolder extraInfoHolder
+      @JsonProperty("query") final QueryDefinition queryDefinition,
+      @JsonProperty("stage") final int stageNumber,
+      @JsonProperty("worker") final int workerNumber,
+      @JsonProperty("input") final List<InputSlice> workerInputs,
+      @JsonProperty("extra") @Nullable final ExtraInfoHolder extraInfoHolder
   )
   {
     this.queryDefinition = Preconditions.checkNotNull(queryDefinition, "queryDefinition");
     this.stageNumber = stageNumber;
-    this.inputPartitions = Preconditions.checkNotNull(inputPartitions, "inputPartitions");
     this.workerNumber = workerNumber;
-    this.extraInfoHolder = Preconditions.checkNotNull(extraInfoHolder, "extraInfo");
+    this.workerInputs = Preconditions.checkNotNull(workerInputs, "workerInputs");
+    this.extraInfoHolder = extraInfoHolder;
   }
 
-  @JsonProperty
+  @JsonProperty("query")
   public QueryDefinition getQueryDefinition()
   {
     return queryDefinition;
   }
 
-  @JsonProperty
+  @JsonProperty("stage")
   public int getStageNumber()
   {
     return stageNumber;
   }
 
-  @JsonProperty
-  public ReadablePartitions getInputPartitions()
-  {
-    return inputPartitions;
-  }
-
-  @JsonProperty
+  @JsonProperty("worker")
   public int getWorkerNumber()
   {
     return workerNumber;
   }
 
-  @JsonProperty("extraInfo")
-  public ExtraInfoHolder<?> getExtraInfoHolder()
+  @JsonProperty("input")
+  public List<InputSlice> getInputs()
+  {
+    return workerInputs;
+  }
+
+  @Nullable
+  @JsonProperty("extra")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  ExtraInfoHolder<?> getExtraInfoHolder()
   {
     return extraInfoHolder;
+  }
+
+  @Nullable
+  public Object getExtraInfo()
+  {
+    return extraInfoHolder != null ? extraInfoHolder.getExtraInfo() : null;
   }
 
   public StageDefinition getStageDefinition()
@@ -88,14 +100,14 @@ public class WorkOrder
     return stageNumber == workOrder.stageNumber
            && workerNumber == workOrder.workerNumber
            && Objects.equals(queryDefinition, workOrder.queryDefinition)
-           && Objects.equals(inputPartitions, workOrder.inputPartitions)
+           && Objects.equals(workerInputs, workOrder.workerInputs)
            && Objects.equals(extraInfoHolder, workOrder.extraInfoHolder);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(queryDefinition, stageNumber, inputPartitions, workerNumber, extraInfoHolder);
+    return Objects.hash(queryDefinition, stageNumber, workerInputs, workerNumber, extraInfoHolder);
   }
 
   @Override
@@ -104,8 +116,8 @@ public class WorkOrder
     return "WorkOrder{" +
            "queryDefinition=" + queryDefinition +
            ", stageNumber=" + stageNumber +
-           ", inputPartitions=" + inputPartitions +
            ", workerNumber=" + workerNumber +
+           ", workerInputs=" + workerInputs +
            ", extraInfoHolder=" + extraInfoHolder +
            '}';
   }

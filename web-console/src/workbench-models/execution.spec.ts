@@ -19,47 +19,6 @@
 import { Execution } from './execution';
 
 describe('Execution', () => {
-  describe('.fromAsyncStatus', () => {
-    it('works', () => {
-      expect(
-        Execution.fromAsyncStatus({
-          error: {
-            error: 'SQL parse failed',
-            errorMessage:
-              'Encountered "ALL LIMIT" at line 10, column 16.\nWas expecting one of:\n    "HOUR" ...\n    "DAY" ...\n    "MONTH" ...\n    "YEAR" ...\n    "ALL" "TIME" ...\n    "+" ...\n    "-" ...\n    "NOT" ...\n    "EXISTS" ...\n    <UNSIGNED_INTEGER_LITERAL> ...\n    <DECIMAL_NUMERIC_LITERAL> ...\n    <APPROX_NUMERIC_LITERAL> ...\n    <BINARY_STRING_LITERAL> ...\n    <PREFIXED_STRING_LITERAL> ...\n    <QUOTED_STRING> ...\n    <UNICODE_STRING_LITERAL> ...\n    "TRUE" ...\n    "FALSE" ...\n    "UNKNOWN" ...\n    "NULL" ...\n    <LBRACE_D> ...\n    <LBRACE_T> ...\n    <LBRACE_TS> ...\n    "DATE" ...\n    "TIME" ...\n    "TIMESTAMP" ...\n    "INTERVAL" ...\n    "?" ...\n    "CAST" ...\n    "EXTRACT" ...\n    "POSITION" ...\n    "CONVERT" ...\n    "TRANSLATE" ...\n    "OVERLAY" ...\n    "FLOOR" ...\n    "CEIL" ...\n    "CEILING" ...\n    "SUBSTRING" ...\n    "TRIM" ...\n    "CLASSIFIER" ...\n    "MATCH_NUMBER" ...\n    "RUNNING" ...\n    "PREV" ...\n    "NEXT" ...\n    "JSON_EXISTS" ...\n    "JSON_VALUE" ...\n    "JSON_QUERY" ...\n    "JSON_OBJECT" ...\n    "JSON_OBJECTAGG" ...\n    "JSON_ARRAY" ...\n    "JSON_ARRAYAGG" ...\n    <LBRACE_FN> ...\n    "MULTISET" ...\n    "ARRAY" ...\n    "PERIOD" ...\n    "SPECIFIC" ...\n    <IDENTIFIER> ...\n    <QUOTED_IDENTIFIER> ...\n    <BACK_QUOTED_IDENTIFIER> ...\n    <BRACKET_QUOTED_IDENTIFIER> ...\n    <UNICODE_QUOTED_IDENTIFIER> ...\n    "ABS" ...\n    "AVG" ...\n    "CARDINALITY" ...\n    "CHAR_LENGTH" ...\n    "CHARACTER_LENGTH" ...\n    "COALESCE" ...\n    "COLLECT" ...\n    "COVAR_POP" ...\n    "COVAR_SAMP" ...\n    "CUME_DIST" ...\n    "COUNT" ...\n    "CURRENT_DATE" ...\n    "CURRENT_TIME" ...\n    "CURRENT_TIMESTAMP" ...\n    "DENSE_RANK" ...\n    "ELEMENT" ...\n    "EXP" ...\n    "FIRST_VALUE" ...\n    "FUSION" ...\n    "GROUPING" ...\n    "LAG" ...\n    "LEAD" ...\n    "LEFT" ...\n    "LAST_VALUE" ...\n    "LN" ...\n    "LOCALTIME" ...\n    "LOCALTIMESTAMP" ...\n    "LOWER" ...\n    "MAX" ...\n    "MIN" ...\n    "MINUTE" ...\n    "MOD" ...\n    "NTH_VALUE" ...\n    "NTILE" ...\n    "NULLIF" ...\n    "OCTET_LENGTH" ...\n    "PERCENT_RANK" ...\n    "POWER" ...\n    "RANK" ...\n    "REGR_COUNT" ...\n    "REGR_SXX" ...\n    "REGR_SYY" ...\n    "RIGHT" ...\n    "ROW_NUMBER" ...\n    "SECOND" ...\n    "SQRT" ...\n    "STDDEV_POP" ...\n    "STDDEV_SAMP" ...\n    "SUM" ...\n    "UPPER" ...\n    "TRUNCATE" ...\n    "USER" ...\n    "VAR_POP" ...\n    "VAR_SAMP" ...\n    "CURRENT_CATALOG" ...\n    "CURRENT_DEFAULT_TRANSFORM_GROUP" ...\n    "CURRENT_PATH" ...\n    "CURRENT_ROLE" ...\n    "CURRENT_SCHEMA" ...\n    "CURRENT_USER" ...\n    "SESSION_USER" ...\n    "SYSTEM_USER" ...\n    "NEW" ...\n    "CASE" ...\n    "CURRENT" ...\n    "CURSOR" ...\n    "ROW" ...\n    "(" ...\n    ',
-            errorClass: 'org.apache.calcite.sql.parser.SqlParseException',
-            host: null,
-          },
-
-          asyncResultId: '8c50267b-ca15-4001-8b69-3d3b5c0db932',
-          state: 'UNDETERMINED',
-        }),
-      ).toMatchInlineSnapshot(`
-        Execution {
-          "_payload": undefined,
-          "destination": undefined,
-          "duration": undefined,
-          "engine": "sql-async",
-          "error": Object {
-            "error": Object {
-              "errorCode": "AsyncError",
-              "errorMessage": "{\\"error\\":\\"SQL parse failed\\",\\"errorMessage\\":\\"Encountered \\\\\\"ALL LIMIT\\\\\\" at line 10, column 16.\\\\nWas expecting one of:\\\\n    \\\\\\"HOUR\\\\\\" ...\\\\n    \\\\\\"DAY\\\\\\" ...\\\\n    \\\\\\"MONTH\\\\\\" ...\\\\n    \\\\\\"YEAR\\\\\\" ...\\\\n    \\\\\\"ALL\\\\\\" \\\\\\"TIME\\\\\\" ...\\\\n    \\\\\\"+\\\\\\" ...\\\\n    \\\\\\"-\\\\\\" ...\\\\n    \\\\\\"NOT\\\\\\" ...\\\\n    \\\\\\"EXISTS\\\\\\" ...\\\\n    <UNSIGNED_INTEGER_LITERAL> ...\\\\n    <DECIMAL_NUMERIC_LITERAL> ...\\\\n    <APPROX_NUMERIC_LITERAL> ...\\\\n    <BINARY_STRING_LITERAL> ...\\\\n    <PREFIXED_STRING_LITERAL> ...\\\\n    <QUOTED_STRING> ...\\\\n    <UNICODE_STRING_LITERAL> ...\\\\n    \\\\\\"TRUE\\\\\\" ...\\\\n    \\\\\\"FALSE\\\\\\" ...\\\\n    \\\\\\"UNKNOWN\\\\\\" ...\\\\n    \\\\\\"NULL\\\\\\" ...\\\\n    <LBRACE_D> ...\\\\n    <LBRACE_T> ...\\\\n    <LBRACE_TS> ...\\\\n    \\\\\\"DATE\\\\\\" ...\\\\n    \\\\\\"TIME\\\\\\" ...\\\\n    \\\\\\"TIMESTAMP\\\\\\" ...\\\\n    \\\\\\"INTERVAL\\\\\\" ...\\\\n    \\\\\\"?\\\\\\" ...\\\\n    \\\\\\"CAST\\\\\\" ...\\\\n    \\\\\\"EXTRACT\\\\\\" ...\\\\n    \\\\\\"POSITION\\\\\\" ...\\\\n    \\\\\\"CONVERT\\\\\\" ...\\\\n    \\\\\\"TRANSLATE\\\\\\" ...\\\\n    \\\\\\"OVERLAY\\\\\\" ...\\\\n    \\\\\\"FLOOR\\\\\\" ...\\\\n    \\\\\\"CEIL\\\\\\" ...\\\\n    \\\\\\"CEILING\\\\\\" ...\\\\n    \\\\\\"SUBSTRING\\\\\\" ...\\\\n    \\\\\\"TRIM\\\\\\" ...\\\\n    \\\\\\"CLASSIFIER\\\\\\" ...\\\\n    \\\\\\"MATCH_NUMBER\\\\\\" ...\\\\n    \\\\\\"RUNNING\\\\\\" ...\\\\n    \\\\\\"PREV\\\\\\" ...\\\\n    \\\\\\"NEXT\\\\\\" ...\\\\n    \\\\\\"JSON_EXISTS\\\\\\" ...\\\\n    \\\\\\"JSON_VALUE\\\\\\" ...\\\\n    \\\\\\"JSON_QUERY\\\\\\" ...\\\\n    \\\\\\"JSON_OBJECT\\\\\\" ...\\\\n    \\\\\\"JSON_OBJECTAGG\\\\\\" ...\\\\n    \\\\\\"JSON_ARRAY\\\\\\" ...\\\\n    \\\\\\"JSON_ARRAYAGG\\\\\\" ...\\\\n    <LBRACE_FN> ...\\\\n    \\\\\\"MULTISET\\\\\\" ...\\\\n    \\\\\\"ARRAY\\\\\\" ...\\\\n    \\\\\\"PERIOD\\\\\\" ...\\\\n    \\\\\\"SPECIFIC\\\\\\" ...\\\\n    <IDENTIFIER> ...\\\\n    <QUOTED_IDENTIFIER> ...\\\\n    <BACK_QUOTED_IDENTIFIER> ...\\\\n    <BRACKET_QUOTED_IDENTIFIER> ...\\\\n    <UNICODE_QUOTED_IDENTIFIER> ...\\\\n    \\\\\\"ABS\\\\\\" ...\\\\n    \\\\\\"AVG\\\\\\" ...\\\\n    \\\\\\"CARDINALITY\\\\\\" ...\\\\n    \\\\\\"CHAR_LENGTH\\\\\\" ...\\\\n    \\\\\\"CHARACTER_LENGTH\\\\\\" ...\\\\n    \\\\\\"COALESCE\\\\\\" ...\\\\n    \\\\\\"COLLECT\\\\\\" ...\\\\n    \\\\\\"COVAR_POP\\\\\\" ...\\\\n    \\\\\\"COVAR_SAMP\\\\\\" ...\\\\n    \\\\\\"CUME_DIST\\\\\\" ...\\\\n    \\\\\\"COUNT\\\\\\" ...\\\\n    \\\\\\"CURRENT_DATE\\\\\\" ...\\\\n    \\\\\\"CURRENT_TIME\\\\\\" ...\\\\n    \\\\\\"CURRENT_TIMESTAMP\\\\\\" ...\\\\n    \\\\\\"DENSE_RANK\\\\\\" ...\\\\n    \\\\\\"ELEMENT\\\\\\" ...\\\\n    \\\\\\"EXP\\\\\\" ...\\\\n    \\\\\\"FIRST_VALUE\\\\\\" ...\\\\n    \\\\\\"FUSION\\\\\\" ...\\\\n    \\\\\\"GROUPING\\\\\\" ...\\\\n    \\\\\\"LAG\\\\\\" ...\\\\n    \\\\\\"LEAD\\\\\\" ...\\\\n    \\\\\\"LEFT\\\\\\" ...\\\\n    \\\\\\"LAST_VALUE\\\\\\" ...\\\\n    \\\\\\"LN\\\\\\" ...\\\\n    \\\\\\"LOCALTIME\\\\\\" ...\\\\n    \\\\\\"LOCALTIMESTAMP\\\\\\" ...\\\\n    \\\\\\"LOWER\\\\\\" ...\\\\n    \\\\\\"MAX\\\\\\" ...\\\\n    \\\\\\"MIN\\\\\\" ...\\\\n    \\\\\\"MINUTE\\\\\\" ...\\\\n    \\\\\\"MOD\\\\\\" ...\\\\n    \\\\\\"NTH_VALUE\\\\\\" ...\\\\n    \\\\\\"NTILE\\\\\\" ...\\\\n    \\\\\\"NULLIF\\\\\\" ...\\\\n    \\\\\\"OCTET_LENGTH\\\\\\" ...\\\\n    \\\\\\"PERCENT_RANK\\\\\\" ...\\\\n    \\\\\\"POWER\\\\\\" ...\\\\n    \\\\\\"RANK\\\\\\" ...\\\\n    \\\\\\"REGR_COUNT\\\\\\" ...\\\\n    \\\\\\"REGR_SXX\\\\\\" ...\\\\n    \\\\\\"REGR_SYY\\\\\\" ...\\\\n    \\\\\\"RIGHT\\\\\\" ...\\\\n    \\\\\\"ROW_NUMBER\\\\\\" ...\\\\n    \\\\\\"SECOND\\\\\\" ...\\\\n    \\\\\\"SQRT\\\\\\" ...\\\\n    \\\\\\"STDDEV_POP\\\\\\" ...\\\\n    \\\\\\"STDDEV_SAMP\\\\\\" ...\\\\n    \\\\\\"SUM\\\\\\" ...\\\\n    \\\\\\"UPPER\\\\\\" ...\\\\n    \\\\\\"TRUNCATE\\\\\\" ...\\\\n    \\\\\\"USER\\\\\\" ...\\\\n    \\\\\\"VAR_POP\\\\\\" ...\\\\n    \\\\\\"VAR_SAMP\\\\\\" ...\\\\n    \\\\\\"CURRENT_CATALOG\\\\\\" ...\\\\n    \\\\\\"CURRENT_DEFAULT_TRANSFORM_GROUP\\\\\\" ...\\\\n    \\\\\\"CURRENT_PATH\\\\\\" ...\\\\n    \\\\\\"CURRENT_ROLE\\\\\\" ...\\\\n    \\\\\\"CURRENT_SCHEMA\\\\\\" ...\\\\n    \\\\\\"CURRENT_USER\\\\\\" ...\\\\n    \\\\\\"SESSION_USER\\\\\\" ...\\\\n    \\\\\\"SYSTEM_USER\\\\\\" ...\\\\n    \\\\\\"NEW\\\\\\" ...\\\\n    \\\\\\"CASE\\\\\\" ...\\\\n    \\\\\\"CURRENT\\\\\\" ...\\\\n    \\\\\\"CURSOR\\\\\\" ...\\\\n    \\\\\\"ROW\\\\\\" ...\\\\n    \\\\\\"(\\\\\\" ...\\\\n    \\",\\"errorClass\\":\\"org.apache.calcite.sql.parser.SqlParseException\\",\\"host\\":null}",
-            },
-          },
-          "id": "8c50267b-ca15-4001-8b69-3d3b5c0db932",
-          "nativeQuery": undefined,
-          "queryContext": undefined,
-          "result": undefined,
-          "sqlQuery": undefined,
-          "stages": undefined,
-          "startTime": undefined,
-          "status": "FAILED",
-          "warnings": undefined,
-        }
-      `);
-    });
-  });
-
   describe('.fromTaskDetail', () => {
     it('fails for bad status (error: null)', () => {
       expect(() =>
@@ -125,7 +84,7 @@ describe('Execution', () => {
                     sqlOuterLimit: 1001,
                     sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
                     multiStageQuery: true,
-                    msqNumTasks: 2,
+                    msqMaxNumTasks: 2,
                     msqSignature:
                       '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
                   },
@@ -202,7 +161,7 @@ describe('Execution', () => {
                 sqlOuterLimit: 1001,
                 sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
                 multiStageQuery: true,
-                msqNumTasks: 2,
+                msqMaxNumTasks: 2,
                 msqSignature:
                   '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
               },
@@ -283,7 +242,7 @@ describe('Execution', () => {
                         sqlOuterLimit: 1001,
                         sqlQueryId: 'b275662f-6d9e-4275-b437-533dd9fe9ed9',
                         multiStageQuery: true,
-                        msqNumTasks: 2,
+                        msqMaxNumTasks: 2,
                         msqSignature:
                           '[{"name":"agent_category","type":"STRING"},{"name":"timestamp","type":"STRING"}]',
                       },
@@ -426,7 +385,7 @@ describe('Execution', () => {
                   "context": Object {
                     "__userIdentity__": "allowAll",
                     "finalize": true,
-                    "msqNumTasks": 2,
+                    "msqMaxNumTasks": 2,
                     "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
                     "multiStageQuery": true,
                     "queryId": "hello",
@@ -547,7 +506,7 @@ describe('Execution', () => {
         LIMIT 5",
               "sqlQueryContext": Object {
                 "__userIdentity__": "allowAll",
-                "msqNumTasks": 2,
+                "msqMaxNumTasks": 2,
                 "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
                 "multiStageQuery": true,
                 "queryId": "hello",
@@ -578,7 +537,7 @@ describe('Execution', () => {
             "context": Object {
               "__userIdentity__": "allowAll",
               "finalize": true,
-              "msqNumTasks": 2,
+              "msqMaxNumTasks": 2,
               "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
               "multiStageQuery": true,
               "queryId": "hello",
@@ -631,7 +590,7 @@ describe('Execution', () => {
           },
           "queryContext": Object {
             "__userIdentity__": "allowAll",
-            "msqNumTasks": 2,
+            "msqMaxNumTasks": 2,
             "multiStageQuery": true,
             "sqlOuterLimit": 1001,
           },
@@ -651,7 +610,7 @@ describe('Execution', () => {
             "query": Object {
               "context": Object {
                 "__userIdentity__": "allowAll",
-                "msqNumTasks": 2,
+                "msqMaxNumTasks": 2,
                 "multiStageQuery": true,
                 "sqlOuterLimit": 1001,
               },
@@ -934,7 +893,7 @@ describe('Execution', () => {
                   "context": Object {
                     "__userIdentity__": "allowAll",
                     "finalize": true,
-                    "msqNumTasks": 2,
+                    "msqMaxNumTasks": 2,
                     "msqSignature": "[{\\"name\\":\\"agent_category\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"timestamp\\",\\"type\\":\\"STRING\\"}]",
                     "multiStageQuery": true,
                     "queryId": "hello",

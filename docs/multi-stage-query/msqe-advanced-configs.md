@@ -48,7 +48,7 @@ The main driver of performance is parallelism. A secondary driver of performance
 
 The most relevant considerations are:
 
-- The [`msqNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
+- The [`msqMaxNumTasks`](./msqe-api.md#context-variables) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqMaxNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 - The EXTERN operator cannot split large files across different worker tasks. If you have fewer
   input files than worker tasks, you can increase query parallelism by splitting up your input
   files such that you have at least one input file per worker task.
@@ -74,7 +74,10 @@ On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up
 equally-sized bundles: one processor bundle and one worker bundle. Each one comprises 37.5% of the
 available JVM heap.
 
-The processor memory bundle is used for query processing and segment generation. Each processor bundle must also provides space to buffer I/O between stages: each "downstream" stage requires 1MB of buffer space for each "upstream" stage. For example, if you have 100 input stages (msqNumTasks = 100, and you have at least 100 input files), then each second-stage worker will require 1M * 100 = 100MB of memory for frame buggers.
+The processor memory bundle is used for query processing and segment generation. Each processor bundle must
+also provides space to buffer I/O between stages: each downstream stage requires 1MB of buffer space for
+each upstream worker. For example, if you have 100 workers running in stage 0, and stage 1 reads from stage 0,
+then each worker in stage 1 requires 1M * 100 = 100MB of memory for frame buffers.
 
 The worker memory bundle is used for sorting stage output data prior to shuffle. Workers can sort
 more data than fits in memory; in this case, they will switch to using disk.
@@ -145,7 +148,8 @@ When you use the Multi-Stage Query Engine, the following happens:
     and submits it to the indexing service. The Broker returns the task
     ID to you and exits.
 
-3.  The **controller task** launches `msqNumTasks -1` **worker tasks**. 
+3.  The **controller task** launches some number of **worker tasks** determined by
+    the `msqMaxNumTasks` and `msqTaskAssignment` settings.
 
 4.  The worker tasks execute the query.
 

@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.talaria.counters.ChannelCounters;
 import io.imply.druid.talaria.frame.Frame;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.Try;
@@ -17,15 +18,18 @@ import io.imply.druid.talaria.frame.channel.Try;
 public class CountingReadableFrameChannel implements ReadableFrameChannel
 {
   private final ReadableFrameChannel baseChannel;
-  private final TalariaCounters.ChannelCounters counters;
+  private final ChannelCounters channelCounters;
+  private final int partitionNumber;
 
   public CountingReadableFrameChannel(
       ReadableFrameChannel baseChannel,
-      TalariaCounters.ChannelCounters counters
+      ChannelCounters channelCounters,
+      int partitionNumber
   )
   {
     this.baseChannel = baseChannel;
-    this.counters = counters;
+    this.channelCounters = channelCounters;
+    this.partitionNumber = partitionNumber;
   }
 
   @Override
@@ -46,7 +50,7 @@ public class CountingReadableFrameChannel implements ReadableFrameChannel
     final Try<Frame> frameTry = baseChannel.read();
 
     if (frameTry.isValue()) {
-      counters.addFrame(frameTry.getOrThrow());
+      channelCounters.addFrame(partitionNumber, frameTry.getOrThrow());
     }
 
     return frameTry;

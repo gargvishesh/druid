@@ -19,6 +19,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.imply.druid.talaria.counters.CounterSnapshots;
+import io.imply.druid.talaria.counters.CounterSnapshotsTree;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.FrameChannelSequence;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
@@ -29,18 +31,14 @@ import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.frame.processor.FrameProcessorExecutor;
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
-import io.imply.druid.talaria.indexing.ExternalMSQDestination;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
 import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
-import io.imply.druid.talaria.indexing.MSQCountersSnapshot;
-import io.imply.druid.talaria.indexing.MSQSegmentGeneratorFrameProcessorFactory;
-import io.imply.druid.talaria.indexing.MSQTaskList;
+import io.imply.druid.talaria.indexing.SegmentGeneratorFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.indexing.TalariaWorkerTaskLauncher;
 import io.imply.druid.talaria.indexing.TaskReportMSQDestination;
@@ -60,16 +58,26 @@ import io.imply.druid.talaria.indexing.error.TalariaWarnings;
 import io.imply.druid.talaria.indexing.error.TooManyPartitionsFault;
 import io.imply.druid.talaria.indexing.error.TooManyWarningsFault;
 import io.imply.druid.talaria.indexing.error.WorkerFailedFault;
-import io.imply.druid.talaria.indexing.externalsink.TalariaExternalSinkFrameProcessorFactory;
 import io.imply.druid.talaria.indexing.report.TalariaResultsReport;
 import io.imply.druid.talaria.indexing.report.TalariaStagesReport;
 import io.imply.druid.talaria.indexing.report.TalariaStatusReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReport;
 import io.imply.druid.talaria.indexing.report.TalariaTaskReportPayload;
+import io.imply.druid.talaria.input.ExternalInputSpec;
+import io.imply.druid.talaria.input.ExternalInputSpecSlicer;
+import io.imply.druid.talaria.input.InputSpec;
+import io.imply.druid.talaria.input.InputSpecSlicer;
+import io.imply.druid.talaria.input.InputSpecSlicerFactory;
+import io.imply.druid.talaria.input.InputSpecs;
+import io.imply.druid.talaria.input.MapInputSpecSlicer;
+import io.imply.druid.talaria.input.StageInputSlice;
+import io.imply.druid.talaria.input.StageInputSpec;
+import io.imply.druid.talaria.input.StageInputSpecSlicer;
+import io.imply.druid.talaria.input.TableInputSpec;
+import io.imply.druid.talaria.input.TableInputSpecSlicer;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ReadablePartition;
-import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactories;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactory;
 import io.imply.druid.talaria.kernel.StageDefinition;
@@ -79,24 +87,26 @@ import io.imply.druid.talaria.kernel.TargetSizeShuffleSpec;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import io.imply.druid.talaria.kernel.controller.ControllerQueryKernel;
 import io.imply.druid.talaria.kernel.controller.ControllerStagePhase;
+import io.imply.druid.talaria.kernel.controller.WorkerInputs;
 import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.MultiQueryKit;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.querykit.groupby.GroupByPreShuffleFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.groupby.GroupByQueryKit;
-import io.imply.druid.talaria.querykit.scan.ScanQueryFrameProcessorFactory;
 import io.imply.druid.talaria.querykit.scan.ScanQueryKit;
 import io.imply.druid.talaria.shuffle.DurableStorageInputChannelFactory;
 import io.imply.druid.talaria.shuffle.WorkerInputChannelFactory;
 import io.imply.druid.talaria.sql.TalariaQueryMaker;
 import io.imply.druid.talaria.util.DimensionSchemaUtils;
-import io.imply.druid.talaria.util.FutureUtils;
 import io.imply.druid.talaria.util.IntervalUtils;
 import io.imply.druid.talaria.util.PassthroughAggregatorFactory;
 import io.imply.druid.talaria.util.TalariaContext;
+import io.imply.druid.talaria.util.TalariaFutureUtils;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.data.input.StringTuple;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -205,8 +215,8 @@ public class LeaderImpl implements Leader
   // For live reports.
   private final AtomicReference<QueryDefinition> queryDefRef = new AtomicReference<>();
 
-  // For live reports. task ID -> last reported counters snapshot
-  private final ConcurrentHashMap<String, MSQCountersSnapshot.WorkerCounters> taskCountersForLiveReports = new ConcurrentHashMap<>();
+  // For live reports. Last reported CounterSnapshots per stage per worker
+  private final CounterSnapshotsTree taskCountersForLiveReports = new CounterSnapshotsTree();
 
   // For live reports. stage number -> stage phase
   private final ConcurrentHashMap<Integer, ControllerStagePhase> stagePhasesForLiveReports = new ConcurrentHashMap<>();
@@ -291,7 +301,7 @@ public class LeaderImpl implements Leader
     QueryDefinition queryDef = null;
     ControllerQueryKernel queryKernel = null;
     ListenableFuture<Map<String, TaskState>> workerTaskRunnerFuture = null;
-    MSQCountersSnapshot countersSnapshot = null;
+    CounterSnapshotsTree countersSnapshot = null;
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
 
@@ -300,19 +310,31 @@ public class LeaderImpl implements Leader
 
     try {
       this.queryStartTime = DateTimes.nowUtc();
-      queryDef = initializeState(closer);
+      queryDef = initializeQueryDefAndState(closer);
 
+      final InputSpecSlicerFactory inputSpecSlicerFactory = makeInputSpecSlicerFactory(makeDataSegmentTimelineView());
       final Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> queryRunResult =
-          runQueryUntilDone(queryDef, closer);
+          runQueryUntilDone(queryDef, inputSpecSlicerFactory, closer);
 
       queryKernel = Preconditions.checkNotNull(queryRunResult.lhs);
       workerTaskRunnerFuture = Preconditions.checkNotNull(queryRunResult.rhs);
-      countersSnapshot = getFinalCountersSnapshot(queryKernel);
       resultsYielder = getFinalResultsYielder(queryDef, queryKernel);
       publishSegmentsIfNeeded(queryDef, queryKernel);
     }
     catch (Throwable e) {
       exceptionEncountered = e;
+    }
+
+    // Fetch final counters in separate try, in case runQueryUntilDone threw an exception.
+    try {
+      countersSnapshot = getFinalCountersSnapshot(queryKernel);
+    }
+    catch (Throwable e) {
+      if (exceptionEncountered != null) {
+        exceptionEncountered.addSuppressed(e);
+      } else {
+        exceptionEncountered = e;
+      }
     }
 
     if (queryKernel != null && queryKernel.isSuccess() && exceptionEncountered == null) {
@@ -406,10 +428,12 @@ public class LeaderImpl implements Leader
     }
 
     if (queryKernel != null && queryKernel.isSuccess()) {
-      // If successful, encourage the tasks to exit. Only do this if the query kernel exists and is successful. We
-      // assume that if the query kernel is *not* successful, it's because some worker task failed. In that case, the
-      // workerTaskRunner will handle canceling all the other worker tasks.
+      // If successful, encourage the tasks to exit successfully.
       postFinishToAllTasks();
+      workerTaskLauncher.stop(false);
+    } else {
+      // If not successful, cancel running tasks.
+      workerTaskLauncher.stop(true);
     }
 
     // Wait for worker tasks to exit. Ignore their return status. At this point, we've done everything we need to do,
@@ -418,15 +442,7 @@ public class LeaderImpl implements Leader
       workerTaskRunnerFuture.get();
     }
 
-    final String leaderDirName = StringUtils.format("controller_%s", task.getId());
-    try {
-      // Delete all temporary files as a failsafe
-      TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
-    }
-    catch (Exception e) {
-      // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
-      log.warn(e, "Error while cleaning up temporary files at path " + leaderDirName);
-    }
+    cleanUpDurableStorageIfNeeded();
 
     if (taskStateForReport == TaskState.SUCCESS) {
       return TaskStatus.success(id());
@@ -436,7 +452,7 @@ public class LeaderImpl implements Leader
     }
   }
 
-  private QueryDefinition initializeState(final Closer closer)
+  private QueryDefinition initializeQueryDefAndState(final Closer closer)
   {
     this.selfDruidNode = context.selfNode();
     context.registerLeader(this, closer);
@@ -447,44 +463,25 @@ public class LeaderImpl implements Leader
     final boolean isDurableStorageEnabled =
         TalariaContext.isDurableStorageEnabled(task.getQuerySpec().getQuery().getContext());
 
-    log.info("Durable storage mode is set to %s", isDurableStorageEnabled);
-
-    int numWorkers = task.getTuningConfig().getMaxNumConcurrentSubTasks();
-
+    log.debug("Query [%s] durable storage mode is set to %s.", id(), isDurableStorageEnabled);
 
     final QueryDefinition queryDef = makeQueryDefinition(
         id(),
         makeQueryControllerToolKit(),
-        makeDataSegmentTimelineView(),
         task.getQuerySpec()
     );
 
-
-    QueryDefinitionValidator.validateQueryDef(queryDef);
+    QueryValidator.validateQueryDef(queryDef);
     queryDefRef.set(queryDef);
-
-    if (TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())) {
-      numWorkers = queryDef.getMaxWorkerCount();
-    }
-
-    log.info(
-        "Query [%s] starting %d tasks%s.",
-        queryDef.getQueryId(),
-        numWorkers,
-        TalariaContext.isTaskCountUnknown(task.getTuningConfig().getMaxNumConcurrentSubTasks())
-        ? " (automatically determined)"
-        : ""
-    );
-
-
 
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(
         id(),
         task.getDataSource(),
         context,
-        numWorkers,
         isDurableStorageEnabled,
-        TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30)// 10 minutes +- 2 minutes jitter
+
+        // 10 minutes +- 2 minutes jitter
+        TimeUnit.SECONDS.toMillis(600 + ThreadLocalRandom.current().nextInt(-4, 5) * 30L)
     );
 
     long maxParseExceptions = -1;
@@ -505,6 +502,7 @@ public class LeaderImpl implements Leader
 
   private Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> runQueryUntilDone(
       final QueryDefinition queryDef,
+      final InputSpecSlicerFactory inputSpecSlicerFactory,
       final Closer closer
   ) throws Exception
   {
@@ -512,20 +510,20 @@ public class LeaderImpl implements Leader
     log.debug("Query [%s] starting tasks.", queryDef.getQueryId());
 
     final ListenableFuture<Map<String, TaskState>> workerTaskLauncherFuture = workerTaskLauncher.start();
-    closer.register(workerTaskLauncher::stop);
+    closer.register(() -> workerTaskLauncher.stop(true));
 
     workerTaskLauncherFuture.addListener(
         () ->
             kernelManipulationQueue.add(queryKernel -> {
               final Map<String, TaskState> workerTaskStates =
-                  FutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
+                  TalariaFutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
 
               for (final Map.Entry<String, TaskState> entry : workerTaskStates.entrySet()) {
                 if (entry.getValue() != TaskState.SUCCESS) {
                   // Some worker task failed. Add its failure to workerErrorRef so that specific task shows up in
                   // the report.
                   // Also, we fail each of the stages that are currently active
-                  workerFailed(entry.getKey());
+                  workerFailed(new WorkerFailedFault(entry.getKey()));
 
                   // Halt the query kernel
                   queryKernel.getActiveStages().forEach(queryKernel::failStage);
@@ -548,7 +546,12 @@ public class LeaderImpl implements Leader
     while (!queryKernel.isDone()) {
       // Start stages that need to be started.
       logKernelStatus(queryDef.getQueryId(), queryKernel);
-      for (final StageId stageId : queryKernel.createAndGetNewStageIds()) {
+      final List<StageId> newStageIds = queryKernel.createAndGetNewStageIds(
+          inputSpecSlicerFactory,
+          task.getQuerySpec().getAssignmentStrategy()
+      );
+
+      for (final StageId stageId : newStageIds) {
         queryKernel.startStage(stageId);
 
         // Allocate segments, if this is the final stage of an ingestion.
@@ -556,18 +559,19 @@ public class LeaderImpl implements Leader
             && stageId.getStageNumber() == queryDef.getFinalStageDefinition().getStageNumber()) {
           // We need to find the shuffle details (like partition ranges) to generate segments. Generally this is
           // going to correspond to the stage immediately prior to the final segment-generator stage.
-          StageId shuffleStageId = Iterables.getOnlyElement(queryDef.getFinalStageDefinition().getInputStageIds());
+          int shuffleStageNumber = Iterables.getOnlyElement(queryDef.getFinalStageDefinition().getInputStageNumbers());
 
           // TODO(gianm): But sometimes it won't! for example, queries that end in GROUP BY with no ORDER BY
           //    (the final stage is not a shuffle.) The below logic supports this, but it isn't necessarily
           //    always OK! It assumes that stages without shuffling will retain the partition boundaries and
           //    signature of the prior stages, which isn't necessarily guaranteed. (although I think it's true
           //    for QueryKit-generated queries.)
-          while (!queryKernel.getStageDefinition(shuffleStageId).doesShuffle()) {
-            shuffleStageId = Iterables.getOnlyElement(queryKernel.getStageDefinition(shuffleStageId)
-                                                                 .getInputStageIds());
+          while (!queryDef.getStageDefinition(shuffleStageNumber).doesShuffle()) {
+            shuffleStageNumber =
+                Iterables.getOnlyElement(queryDef.getStageDefinition(shuffleStageNumber).getInputStageNumbers());
           }
 
+          final StageId shuffleStageId = new StageId(queryDef.getQueryId(), shuffleStageNumber);
           final boolean isTimeBucketed = isTimeBucketedIngestion(task.getQuerySpec());
           final ClusterByPartitions partitionBoundaries =
               queryKernel.getResultPartitionBoundariesForStage(shuffleStageId);
@@ -594,13 +598,15 @@ public class LeaderImpl implements Leader
           );
         }
 
+        final int workerCount = queryKernel.getWorkerInputsForStage(stageId).workerCount();
         log.info(
             "Query [%s] starting %d workers for stage %d.",
             stageId.getQueryId(),
-            queryKernel.getWorkerInputsForStage(stageId).size(),
+            workerCount,
             stageId.getStageNumber()
         );
 
+        workerTaskLauncher.launchTasksIfNeeded(workerCount);
         stageRuntimesForLiveReports.put(stageId.getStageNumber(), new Interval(DateTimes.nowUtc(), DateTimes.MAX));
         startWorkForStage(queryDef, queryKernel, stageId.getStageNumber(), segmentsToGenerate);
       }
@@ -634,7 +640,7 @@ public class LeaderImpl implements Leader
               queryDef,
               stageId.getStageNumber(),
               queryKernel.getResultPartitionBoundariesForStage(stageId),
-              queryKernel.getWorkerInputsForStage(stageId).size()
+              queryKernel.getWorkerInputsForStage(stageId).workers()
           );
         }
       }
@@ -653,7 +659,10 @@ public class LeaderImpl implements Leader
           );
         }
 
-        stageWorkerCountsForLiveReports.putIfAbsent(stageNumber, queryKernel.getWorkerInputsForStage(stageId).size());
+        stageWorkerCountsForLiveReports.putIfAbsent(
+            stageNumber,
+            queryKernel.getWorkerInputsForStage(stageId).workerCount()
+        );
       }
 
       // Live reports: update stage end times for any stages that just ended.
@@ -674,10 +683,10 @@ public class LeaderImpl implements Leader
 
       // Notify the workers to clean up the stages which can be marked as finished.
       for (final StageId stageId : queryKernel.getEffectivelyFinishedStageIds()) {
-        log.info("Issued cleanup order for stage [%s]", stageId);
+        log.info("Query [%s] issuing cleanup order for stage %d.", queryDef.getQueryId(), stageId.getStageNumber());
         contactWorkersForStage(
             (netClient, taskId, workerNumber) -> netClient.postCleanupStage(taskId, stageId),
-            queryKernel.getWorkerInputsForStage(stageId).size()
+            queryKernel.getWorkerInputsForStage(stageId).workers()
         );
         queryKernel.finishStage(stageId, true);
       }
@@ -772,30 +781,21 @@ public class LeaderImpl implements Leader
   }
 
   @Override
-  public void workerFailed(String workerId)
+  public void workerFailed(WorkerFailedFault fault)
   {
-    if (!workerTaskLauncher.isTaskCanceledByLeader(workerId)) {
-      workerErrorRef.compareAndSet(
-          null,
-          MSQErrorReport.fromFault(
-              workerId,
-              null,
-              null,
-              new WorkerFailedFault(workerId)
-          )
-      );
-    }
+    workerError(MSQErrorReport.fromFault(id(), selfDruidNode.getHost(), null, fault));
   }
 
   /**
-   * Periodic update of {@link MSQCountersSnapshot} from subtasks.
+   * Periodic update of {@link CounterSnapshots} from subtasks.
    */
   @Override
-  public void updateCounters(String workerTaskId, MSQCountersSnapshot.WorkerCounters workerSnapshot)
+  public void updateCounters(CounterSnapshotsTree snapshotsTree)
   {
-    taskCountersForLiveReports.put(workerTaskId, workerSnapshot);
-    Optional<Pair<String, Long>> warningsExceeded = faultsExceededChecker.addFaultsAndCheckIfExceeded(
-        taskCountersForLiveReports);
+    taskCountersForLiveReports.putAll(snapshotsTree);
+    Optional<Pair<String, Long>> warningsExceeded =
+        faultsExceededChecker.addFaultsAndCheckIfExceeded(taskCountersForLiveReports);
+
     if (warningsExceeded.isPresent()) {
       String errorCode = warningsExceeded.get().lhs;
       Long limit = warningsExceeded.get().rhs;
@@ -806,10 +806,8 @@ public class LeaderImpl implements Leader
           new TooManyWarningsFault(limit.intValue(), errorCode)
       ));
       kernelManipulationQueue.add(
-          queryKernel -> {
-            workerTaskLauncher.shutdownRemainingTasks();
-            queryKernel.getActiveStages().forEach(queryKernel::failStage);
-          }
+          queryKernel ->
+              queryKernel.getActiveStages().forEach(queryKernel::failStage)
       );
     }
   }
@@ -1052,28 +1050,28 @@ public class LeaderImpl implements Leader
    * If the currently-running set of tasks is incomplete, returns an absent Optional.
    */
   @Override
-  public Optional<List<String>> getTaskIds()
+  public List<String> getTaskIds()
   {
     if (workerTaskLauncher == null) {
-      return Optional.empty();
+      return Collections.emptyList();
     }
 
-    return workerTaskLauncher.getTaskList().map(MSQTaskList::getTaskIds);
+    return workerTaskLauncher.getTaskList();
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Nullable
-  private List<Object> makeWorkerFactoryInfosForStage(
+  private Int2ObjectMap<Object> makeWorkerFactoryInfosForStage(
       final QueryDefinition queryDef,
       final int stageNumber,
-      final List<ReadablePartitions> workerInputs,
+      final WorkerInputs workerInputs,
       @Nullable final List<SegmentIdWithShardSpec> segmentsToGenerate
   )
   {
     if (MSQControllerTask.isIngestion(task.getQuerySpec()) &&
         stageNumber == queryDef.getFinalStageDefinition().getStageNumber()) {
       // noinspection unchecked,rawtypes
-      return (List) makeSegmentGeneratorWorkerFactoryInfos(workerInputs, segmentsToGenerate);
+      return (Int2ObjectMap) makeSegmentGeneratorWorkerFactoryInfos(workerInputs, segmentsToGenerate);
     } else {
       return null;
     }
@@ -1105,30 +1103,40 @@ public class LeaderImpl implements Leader
     };
   }
 
-  private List<List<SegmentIdWithShardSpec>> makeSegmentGeneratorWorkerFactoryInfos(
-      final List<ReadablePartitions> workerInputs,
+  private Int2ObjectMap<List<SegmentIdWithShardSpec>> makeSegmentGeneratorWorkerFactoryInfos(
+      final WorkerInputs workerInputs,
       final List<SegmentIdWithShardSpec> segmentsToGenerate
   )
   {
-    return workerInputs.stream().map(
-        readablePartitions ->
-            StreamSupport.stream(readablePartitions.spliterator(), false)
-                         .map(rp -> segmentsToGenerate.get(rp.getPartitionNumber()))
-                         .collect(Collectors.toList())
-    ).collect(Collectors.toList());
+    final Int2ObjectMap<List<SegmentIdWithShardSpec>> retVal = new Int2ObjectAVLTreeMap<>();
+
+    for (final int workerNumber : workerInputs.workers()) {
+      // SegmentGenerator stage has a single input from another stage.
+      final StageInputSlice stageInputSlice =
+          (StageInputSlice) Iterables.getOnlyElement(workerInputs.inputsForWorker(workerNumber));
+
+      final List<SegmentIdWithShardSpec> workerSegments = new ArrayList<>();
+      retVal.put(workerNumber, workerSegments);
+
+      for (final ReadablePartition partition : stageInputSlice.getPartitions()) {
+        workerSegments.add(segmentsToGenerate.get(partition.getPartitionNumber()));
+      }
+    }
+
+    return retVal;
   }
 
-  private void contactWorkersForStage(final TaskContactFn contactFn, final int numWorkers)
+  private void contactWorkersForStage(final TaskContactFn contactFn, final IntSet workers)
   {
-    final List<String> taskIds = getTaskIds().orElseThrow(() -> new ISE("Tasks went away!"));
-    final List<ListenableFuture<Void>> taskFutures = new ArrayList<>(numWorkers);
+    final List<String> taskIds = getTaskIds();
+    final List<ListenableFuture<Void>> taskFutures = new ArrayList<>(workers.size());
 
-    for (int workerNumber = 0; workerNumber < numWorkers; workerNumber++) {
+    for (int workerNumber : workers) {
       final String taskId = taskIds.get(workerNumber);
       taskFutures.add(contactFn.contactTask(netClient, taskId, workerNumber));
     }
 
-    FutureUtils.getUnchecked(FutureUtils.allAsList(taskFutures, true), true);
+    FutureUtils.getUnchecked(TalariaFutureUtils.allAsList(taskFutures, true), true);
   }
 
   private void startWorkForStage(
@@ -1138,18 +1146,18 @@ public class LeaderImpl implements Leader
       @Nullable final List<SegmentIdWithShardSpec> segmentsToGenerate
   )
   {
-    final List<Object> extraInfos = makeWorkerFactoryInfosForStage(
+    final Int2ObjectMap<Object> extraInfos = makeWorkerFactoryInfosForStage(
         queryDef,
         stageNumber,
         queryKernel.getWorkerInputsForStage(queryKernel.getStageId(stageNumber)),
         segmentsToGenerate
     );
 
-    final List<WorkOrder> workOrders = queryKernel.createWorkOrders(stageNumber, extraInfos);
+    final Int2ObjectMap<WorkOrder> workOrders = queryKernel.createWorkOrders(stageNumber, extraInfos);
 
     contactWorkersForStage(
         (netClient, taskId, workerNumber) -> netClient.postWorkOrder(taskId, workOrders.get(workerNumber)),
-        workOrders.size()
+        workOrders.keySet()
     );
   }
 
@@ -1157,7 +1165,7 @@ public class LeaderImpl implements Leader
       final QueryDefinition queryDef,
       final int stageNumber,
       final ClusterByPartitions resultPartitionBoundaries,
-      final int numWorkers
+      final IntSet workers
   )
   {
     contactWorkersForStage(
@@ -1167,7 +1175,7 @@ public class LeaderImpl implements Leader
                 new StageId(queryDef.getQueryId(), stageNumber),
                 resultPartitionBoundaries
             ),
-        numWorkers
+        workers
     );
   }
 
@@ -1265,53 +1273,49 @@ public class LeaderImpl implements Leader
     return IntervalUtils.difference(replaceIntervals, publishIntervals);
   }
 
-  private MSQCountersSnapshot getCountersFromAllTasks()
+  private CounterSnapshotsTree getCountersFromAllTasks()
   {
-    final Optional<MSQTaskList> taskList = workerTaskLauncher.getTaskList();
+    final CounterSnapshotsTree retVal = new CounterSnapshotsTree();
+    final List<String> taskList = workerTaskLauncher.getTaskList();
 
-    if (taskList.isPresent()) {
-      final List<ListenableFuture<MSQCountersSnapshot.WorkerCounters>> futures = new ArrayList<>();
+    final List<ListenableFuture<CounterSnapshotsTree>> futures = new ArrayList<>();
 
-      for (String taskId : taskList.get().getTaskIds()) {
-        futures.add(
-            FutureUtils.transform(
-                netClient.getCounters(taskId),
-
-                // Each task has a unique workerNumber, so it's OK to do getOnlyElement.
-                snapshot -> Iterables.getOnlyElement(snapshot.getWorkerCounters())
-            )
-        );
-      }
-
-      return new MSQCountersSnapshot(FutureUtils.getUnchecked(FutureUtils.allAsList(futures, true), true));
-    } else {
-      return new MSQCountersSnapshot(Collections.emptyList());
+    for (String taskId : taskList) {
+      futures.add(netClient.getCounters(taskId));
     }
+
+    final List<CounterSnapshotsTree> snapshotsTrees =
+        FutureUtils.getUnchecked(TalariaFutureUtils.allAsList(futures, true), true);
+
+    for (CounterSnapshotsTree snapshotsTree : snapshotsTrees) {
+      retVal.putAll(snapshotsTree);
+    }
+
+    return retVal;
   }
 
   private void postFinishToAllTasks()
   {
-    final Optional<MSQTaskList> taskList = workerTaskLauncher.getTaskList();
+    final List<String> taskList = workerTaskLauncher.getTaskList();
 
-    if (taskList.isPresent()) {
-      final List<ListenableFuture<Void>> futures = new ArrayList<>();
+    final List<ListenableFuture<Void>> futures = new ArrayList<>();
 
-      for (String taskId : taskList.get().getTaskIds()) {
-        futures.add(netClient.postFinish(taskId));
-      }
-
-      FutureUtils.getUnchecked(FutureUtils.allAsList(futures, true), true);
+    for (String taskId : taskList) {
+      futures.add(netClient.postFinish(taskId));
     }
+
+    FutureUtils.getUnchecked(TalariaFutureUtils.allAsList(futures, true), true);
   }
 
-  private MSQCountersSnapshot makeCountersSnapshotForLiveReports()
+  private CounterSnapshotsTree makeCountersSnapshotForLiveReports()
   {
-    return new MSQCountersSnapshot(new ArrayList<>(taskCountersForLiveReports.values()));
+    // taskCountersForLiveReports is mutable: Copy so we get a point-in-time snapshot.
+    return CounterSnapshotsTree.fromMap(taskCountersForLiveReports.copyMap());
   }
 
-  private MSQCountersSnapshot getFinalCountersSnapshot(final ControllerQueryKernel queryKernel)
+  private CounterSnapshotsTree getFinalCountersSnapshot(@Nullable final ControllerQueryKernel queryKernel)
   {
-    if (queryKernel.isSuccess()) {
+    if (queryKernel != null && queryKernel.isSuccess()) {
       return getCountersFromAllTasks();
     } else {
       return makeCountersSnapshotForLiveReports();
@@ -1326,7 +1330,7 @@ public class LeaderImpl implements Leader
   {
     if (queryKernel.isSuccess() && isInlineResults(task.getQuerySpec())) {
       final StageId finalStageId = queryKernel.getStageId(queryDef.getFinalStageDefinition().getStageNumber());
-      final List<String> taskIds = getTaskIds().get();
+      final List<String> taskIds = getTaskIds();
       final Closer closer = Closer.create();
 
       final ListeningExecutorService resultReaderExec =
@@ -1348,7 +1352,6 @@ public class LeaderImpl implements Leader
 
       final InputChannels inputChannels = InputChannels.create(
           queryDef,
-          new int[]{queryKernel.getStageDefinition(finalStageId).getStageNumber()},
           queryKernel.getResultPartitionsForStage(finalStageId),
           inputChannelFactory,
           () -> ArenaMemoryAllocator.createOnHeap(5_000_000),
@@ -1430,11 +1433,25 @@ public class LeaderImpl implements Leader
     }
   }
 
+  private void cleanUpDurableStorageIfNeeded()
+  {
+    if (TalariaContext.isDurableStorageEnabled(task.getQuerySpec().getQuery().getContext())) {
+      final String leaderDirName = StringUtils.format("controller_%s", task.getId());
+      try {
+        // Delete all temporary files as a failsafe
+        TalariaTasks.makeStorageConnector(context.injector()).deleteRecursively(leaderDirName);
+      }
+      catch (Exception e) {
+        // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup
+        log.warn(e, "Error while cleaning up temporary files at path %s", leaderDirName);
+      }
+    }
+  }
+
   @SuppressWarnings("unchecked")
   private static QueryDefinition makeQueryDefinition(
       final String queryId,
       @SuppressWarnings("rawtypes") final QueryKit toolKit,
-      final DataSegmentTimelineView timelineView,
       final TalariaQuerySpec querySpec
   )
   {
@@ -1450,8 +1467,6 @@ public class LeaderImpl implements Leader
           );
     } else if (querySpec.getDestination() instanceof TaskReportMSQDestination) {
       shuffleSpecFactory = ShuffleSpecFactories.singlePartition();
-    } else if (querySpec.getDestination() instanceof ExternalMSQDestination) {
-      shuffleSpecFactory = ShuffleSpecFactories.subQueryWithMaxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks());
     } else {
       throw new ISE("Unsupported destination [%s]", querySpec.getDestination());
     }
@@ -1463,7 +1478,6 @@ public class LeaderImpl implements Leader
       queryDef = toolKit.makeQueryDefinition(
           queryId,
           querySpec.getQuery(),
-          timelineView,
           toolKit,
           shuffleSpecFactory,
           tuningConfig.getMaxNumConcurrentSubTasks(),
@@ -1474,19 +1488,19 @@ public class LeaderImpl implements Leader
       throw new TalariaException(e, QueryNotSupportedFault.INSTANCE);
     }
 
-    final RowSignature querySignature = queryDef.getFinalStageDefinition().getSignature();
-    final ClusterBy queryClusterBy = queryDef.getClusterByForStage(queryDef.getFinalStageDefinition().getStageNumber());
-    final ColumnMappings columnMappings = querySpec.getColumnMappings();
-
-    int maxWorkerCount = queryDef.getMaxWorkerCount();
-
     if (MSQControllerTask.isIngestion(querySpec)) {
+      final RowSignature querySignature = queryDef.getFinalStageDefinition().getSignature();
+      final ClusterBy queryClusterBy = queryDef.getFinalStageDefinition().getClusterBy();
+      final ColumnMappings columnMappings = querySpec.getColumnMappings();
+
       // Find the stage that provides shuffled input to the final segment-generation stage.
       StageDefinition finalShuffleStageDef = queryDef.getFinalStageDefinition();
 
-      while (!finalShuffleStageDef.doesShuffle() && finalShuffleStageDef.getInputStageIds().size() == 1) {
-        finalShuffleStageDef =
-            queryDef.getStageDefinition(Iterables.getOnlyElement(finalShuffleStageDef.getInputStageIds()));
+      while (!finalShuffleStageDef.doesShuffle()
+             && InputSpecs.getStageNumbers(finalShuffleStageDef.getInputSpecs()).size() == 1) {
+        finalShuffleStageDef = queryDef.getStageDefinition(
+            Iterables.getOnlyElement(InputSpecs.getStageNumbers(finalShuffleStageDef.getInputSpecs()))
+        );
       }
 
       if (!finalShuffleStageDef.doesShuffle()) {
@@ -1509,10 +1523,10 @@ public class LeaderImpl implements Leader
       final DataSchema dataSchema = generateDataSchema(querySpec, querySignature, queryClusterBy, columnMappings);
       builder.add(
           StageDefinition.builder(queryDef.getNextStageNumber())
-                         .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
-                         .maxWorkerCount(maxWorkerCount)
+                         .inputs(new StageInputSpec(queryDef.getFinalStageDefinition().getStageNumber()))
+                         .maxWorkerCount(tuningConfig.getMaxNumConcurrentSubTasks())
                          .processorFactory(
-                             new MSQSegmentGeneratorFrameProcessorFactory(
+                             new SegmentGeneratorFrameProcessorFactory(
                                  dataSchema,
                                  columnMappings,
                                  tuningConfig
@@ -1521,16 +1535,6 @@ public class LeaderImpl implements Leader
       );
 
       return builder.build();
-    } else if (querySpec.getDestination() instanceof ExternalMSQDestination) {
-      return QueryDefinition
-          .builder(queryDef)
-          .add(
-              StageDefinition.builder(queryDef.getNextStageNumber())
-                             .inputStages(queryDef.getFinalStageDefinition().getStageNumber())
-                             .maxWorkerCount(maxWorkerCount)
-                             .processorFactory(new TalariaExternalSinkFrameProcessorFactory(columnMappings))
-          )
-          .build();
     } else if (querySpec.getDestination() instanceof TaskReportMSQDestination) {
       return queryDef;
     } else {
@@ -1593,6 +1597,7 @@ public class LeaderImpl implements Leader
    * {@link TalariaQueryMaker#runQuery(DruidQuery)}
    *
    * @param groupByQuery
+   *
    * @return true if both groupByQuery context values are present and equal else returns false.
    */
   private static boolean checkIfTimeColumnsAreEqual(GroupByQuery groupByQuery)
@@ -1608,6 +1613,7 @@ public class LeaderImpl implements Leader
    * Checks if segments generated by the insert query can be rolled up futher.
    *
    * @param query
+   *
    * @return
    */
   private static boolean isRollupQuery(Query<?> query)
@@ -1862,31 +1868,10 @@ public class LeaderImpl implements Leader
       final Map<Integer, Integer> stagePartitionCountMap
   )
   {
-    // TODO(gianm): the setup for stageQueryMap is totally a hack; clean up somehow.
-    final Map<Integer, Query<?>> stageQueryMap = new HashMap<>();
-
-    for (final StageDefinition stageDefinition : queryDef.getStageDefinitions()) {
-      @SuppressWarnings("rawtypes")
-      final FrameProcessorFactory processorFactory = stageDefinition.getProcessorFactory();
-
-      if (processorFactory instanceof ScanQueryFrameProcessorFactory) {
-        stageQueryMap.put(
-            stageDefinition.getStageNumber(),
-            ((ScanQueryFrameProcessorFactory) processorFactory).getQuery()
-        );
-      } else if (processorFactory instanceof GroupByPreShuffleFrameProcessorFactory) {
-        stageQueryMap.put(
-            stageDefinition.getStageNumber(),
-            ((GroupByPreShuffleFrameProcessorFactory) processorFactory).getQuery()
-        );
-      }
-    }
-
     return TalariaStagesReport.create(
         queryDef,
         ImmutableMap.copyOf(stagePhaseMap),
         copyOfStageRuntimesEndingAtCurrentTime(stageRuntimeMap),
-        stageQueryMap,
         stageWorkerCountMap,
         stagePartitionCountMap
     );
@@ -1923,6 +1908,17 @@ public class LeaderImpl implements Leader
     return new TalariaStatusReport(taskState, errorReport, errorReports, queryStartTime, queryDuration);
   }
 
+  private static InputSpecSlicerFactory makeInputSpecSlicerFactory(final DataSegmentTimelineView timelineView)
+  {
+    return stagePartitionsMap -> new MapInputSpecSlicer(
+        ImmutableMap.<Class<? extends InputSpec>, InputSpecSlicer>builder()
+                    .put(StageInputSpec.class, new StageInputSpecSlicer(stagePartitionsMap))
+                    .put(ExternalInputSpec.class, new ExternalInputSpecSlicer())
+                    .put(TableInputSpec.class, new TableInputSpecSlicer(timelineView))
+                    .build()
+    );
+  }
+
   private static Map<Integer, Interval> copyOfStageRuntimesEndingAtCurrentTime(
       final Map<Integer, Interval> stageRuntimesMap
   )
@@ -1953,20 +1949,14 @@ public class LeaderImpl implements Leader
                      .stream()
                      .sorted(Comparator.comparing(id -> queryKernel.getStageDefinition(id).getStageNumber()))
                      .map(id -> StringUtils.format(
-                              "%d:%d[%s:%s]:%d>%d",
+                              "%d:%d[%s:%s]>%s",
                               queryKernel.getStageDefinition(id).getStageNumber(),
-                              queryKernel.getWorkerInputsForStage(id).size(),
+                              queryKernel.getWorkerInputsForStage(id).workerCount(),
                               queryKernel.getStageDefinition(id).doesShuffle() ? "SHUFFLE" : "RETAIN",
                               queryKernel.getStagePhase(id),
-                              queryKernel.getWorkerInputsForStage(id)
-                                         .stream()
-                                         .flatMap(rp -> StreamSupport.stream(rp.spliterator(), false))
-                                         .mapToInt(ReadablePartition::getPartitionNumber)
-                                         .distinct()
-                                         .count(),
                               queryKernel.doesStageHaveResultPartitions(id)
                               ? Iterators.size(queryKernel.getResultPartitionsForStage(id).iterator())
-                              : -1
+                              : "?"
                           )
                      )
                      .collect(Collectors.joining("; "))

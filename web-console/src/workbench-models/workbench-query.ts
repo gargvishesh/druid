@@ -20,17 +20,12 @@ import { SqlQuery, SqlTableRef } from 'druid-query-toolkit';
 import Hjson from 'hjson';
 import { v4 as uuidv4 } from 'uuid';
 
-import { guessDataSourceNameFromInputSource } from '../druid-models';
 import { ColumnMetadata, deepDelete, getContextFromSqlQuery } from '../utils';
 import { QueryContext } from '../utils/query-context';
 
 import { DRUID_ENGINES, DruidEngine } from './druid-engine';
 import { LastExecution } from './execution';
-import {
-  ExternalConfig,
-  externalConfigToInitQuery,
-  externalConfigToTableExpression,
-} from './external-config';
+import { ExternalConfig, externalConfigToInitQuery } from './external-config';
 import { WorkbenchQueryPart } from './workbench-query-part';
 
 export interface InsertIntoConfig {
@@ -64,6 +59,20 @@ export class WorkbenchQuery {
     return new WorkbenchQuery({
       queryContext: {},
       queryParts: [WorkbenchQueryPart.blank()],
+    });
+  }
+
+  static fromInitExternalConfig(
+    externalConfig: ExternalConfig,
+    isArrays: boolean[],
+  ): WorkbenchQuery {
+    return new WorkbenchQuery({
+      queryContext: {},
+      queryParts: [
+        WorkbenchQueryPart.fromQueryString(
+          externalConfigToInitQuery(externalConfig, isArrays).toString(),
+        ),
+      ],
     });
   }
 
@@ -122,7 +131,7 @@ export class WorkbenchQuery {
   }
 
   static commentOutNumTasks(sqlString: string): string {
-    return sqlString.replace(/--:(context\s+msqNumTasks\s*:)/g, '--$1');
+    return sqlString.replace(/--:(context\s+msqMaxNumTasks\s*:)/g, '--$1');
   }
 
   public readonly queryParts: WorkbenchQueryPart[];
@@ -316,9 +325,9 @@ export class WorkbenchQuery {
       }
     }
 
-    // Remove msqNumTasks from the context if it exists
-    if (typeof this.queryContext.msqNumTasks !== 'undefined') {
-      ret = ret.changeQueryContext(deepDelete(this.queryContext, 'msqNumTasks'));
+    // Remove msqMaxNumTasks from the context if it exists
+    if (typeof this.queryContext.msqMaxNumTasks !== 'undefined') {
+      ret = ret.changeQueryContext(deepDelete(this.queryContext, 'msqMaxNumTasks'));
     }
 
     // Remove everything pertaining to INSERT INTO / REPLACE INTO from the query string
@@ -331,7 +340,7 @@ export class WorkbenchQuery {
           .toString()
       : WorkbenchQuery.commentOutIngestParts(this.getQueryString());
 
-    // Remove msqNumTasks from the query string if it exists
+    // Remove msqMaxNumTasks from the query string if it exists
     return ret.changeQueryString(WorkbenchQuery.commentOutNumTasks(newQueryString));
   }
 
@@ -363,7 +372,7 @@ export class WorkbenchQuery {
       };
     }
 
-    const insertQuery = this.isIngestQuery();
+    const ingestQuery = this.isIngestQuery();
 
     const prefixParts = queryParts
       .slice(0, queryParts.length - 1)
@@ -402,7 +411,7 @@ export class WorkbenchQuery {
 
     const inlineContext = getContextFromSqlQuery(sqlQuery);
     const context: QueryContext = {
-      sqlOuterLimit: unlimited || insertQuery ? undefined : 1001,
+      sqlOuterLimit: unlimited || ingestQuery ? undefined : 1001,
       ...queryContext,
       ...inlineContext,
     };
@@ -476,29 +485,5 @@ export class WorkbenchQuery {
   public remove(index: number): WorkbenchQuery {
     const { queryParts } = this;
     return this.changeQueryParts(queryParts.filter((_, i) => i !== index));
-  }
-
-  public insertExternalPanel(externalConfig: ExternalConfig, isArrays: boolean[]): WorkbenchQuery {
-    const { queryParts } = this;
-
-    const newQueryPart = WorkbenchQueryPart.fromQueryString(
-      'SELECT * FROM\n' + externalConfigToTableExpression(externalConfig),
-      guessDataSourceNameFromInputSource(externalConfig.inputSource),
-    ).changeCollapsed(true);
-
-    let last = this.getLastPart();
-    if (last.isEmptyQuery()) {
-      last = last.changeQueryString(
-        externalConfigToInitQuery(
-          String(newQueryPart.queryName),
-          externalConfig,
-          isArrays,
-        ).toString(),
-      );
-    }
-
-    return this.changeQueryParts(
-      queryParts.slice(0, queryParts.length - 1).concat(newQueryPart, last),
-    );
   }
 }

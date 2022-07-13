@@ -16,24 +16,55 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .execution-stages-pane {
   .rt-td {
     cursor: default;
   }
 
-  .stage-description {
-    white-space: normal;
-    word-break: break-all;
+  .stage {
+    color: #8dd3c7;
+  }
 
-    .datasource {
-      font-style: italic;
+  .datasource {
+    color: #ffffb3;
+  }
+
+  .external {
+    color: #80b1d3;
+  }
+
+  .broadcast-tag {
+    margin-left: 3px;
+    margin-right: 1px;
+    opacity: 0.6;
+  }
+
+  .counter-spacer {
+    position: relative;
+    height: 5px;
+
+    &:after {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      content: '';
+      border-top: 1px solid white;
+      opacity: 0.2;
+    }
+
+    &.extend-right:after {
+      right: -5px;
+    }
+
+    &.extend-left:after {
+      left: -5px;
     }
   }
 
   .data-transfer {
-    display: block;
-    cursor: pointer;
-
     .counter-type-label {
       display: inline-block;
       width: 125px;
@@ -47,11 +78,27 @@
     }
   }
 
-  .execution-stage-detail-pane-container {
-    padding: 10px 40px 20px 40px;
+  .execution-stage-detail-pane {
+    padding: 0 10px 10px 0;
+    background: $dark-gray2;
+    min-height: 100px;
+    position: relative;
 
-    .execution-stage-detail-pane {
-      margin-right: 25px;
+    &:empty:after {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      content: 'Detailed counters are not available';
+    }
+
+    .detail-counters-for-partitions,
+    .detail-counters-for-workers {
+      display: inline-block;
+      margin-left: 10px;
+      margin-top: 10px;
+      vertical-align: top;
+      background: $dark-gray3;
     }
   }
 }

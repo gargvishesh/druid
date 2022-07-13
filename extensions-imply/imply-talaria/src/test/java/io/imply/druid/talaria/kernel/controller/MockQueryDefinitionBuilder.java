@@ -14,13 +14,14 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
+import io.imply.druid.talaria.input.InputSpec;
+import io.imply.druid.talaria.input.StageInputSpec;
 import io.imply.druid.talaria.kernel.MaxCountShuffleSpec;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ShuffleSpec;
 import io.imply.druid.talaria.kernel.StageDefinition;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -31,9 +32,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class MockQueryDefinitionBuilder
 {
+  static final String SHUFFLE_KEY_COLUMN = "shuffleKey";
+  static final RowSignature STAGE_SIGNATURE = RowSignature.builder().add(SHUFFLE_KEY_COLUMN, ColumnType.STRING).build();
+
+  private static final int MAX_NUM_PARTITIONS = 32;
+
   private final int numStages;
 
   // Maps a stage to all the other stages on which it has dependency, i.e. for an edge like A -> B, the adjacency list
@@ -78,17 +85,11 @@ public class MockQueryDefinitionBuilder
     return this;
   }
 
-  public MockQueryDefinitionBuilder addVertices(final List<Pair<Integer, Integer>> vertices)
-  {
-    for (Pair<Integer, Integer> vertex : vertices) {
-      Preconditions.checkNotNull(vertex.lhs);
-      Preconditions.checkNotNull(vertex.rhs);
-      addVertex(vertex.lhs, vertex.rhs);
-    }
-    return this;
-  }
-
-  public MockQueryDefinitionBuilder defineStage(int stageNumber, boolean shuffling, int maxWorkers)
+  public MockQueryDefinitionBuilder defineStage(
+      int stageNumber,
+      boolean shuffling,
+      int maxWorkers
+  )
   {
     Preconditions.checkArgument(
         stageNumber < numStages,
@@ -106,26 +107,32 @@ public class MockQueryDefinitionBuilder
       shuffleSpec = new MaxCountShuffleSpec(
           new ClusterBy(
               ImmutableList.of(
-                  new ClusterByColumn("dummy", false)
+                  new ClusterByColumn(SHUFFLE_KEY_COLUMN, false)
               ),
-              1
+              0
           ),
-          2,
+          MAX_NUM_PARTITIONS,
           false
       );
     } else {
-      shuffleSpec = new MaxCountShuffleSpec(ClusterBy.none(), 1, false);
+      shuffleSpec = null;
+    }
+
+    final List<InputSpec> inputSpecs =
+        adjacencyList.getOrDefault(stageNumber, new HashSet<>())
+                     .stream()
+                     .map(StageInputSpec::new).collect(Collectors.toList());
+
+    if (inputSpecs.isEmpty()) {
+      inputSpecs.add(new ControllerTestInputSpec());
     }
 
     queryDefinitionBuilder.add(
         StageDefinition.builder(stageNumber)
-                       .inputStages(adjacencyList.getOrDefault(stageNumber, new HashSet<>())
-                                                 .stream()
-                                                 .mapToInt(Integer::intValue)
-                                                 .toArray())
+                       .inputs(inputSpecs)
                        .processorFactory(Mockito.mock(FrameProcessorFactory.class))
                        .shuffleSpec(shuffleSpec)
-                       .signature(RowSignature.builder().add("dummy", ColumnType.STRING).build())
+                       .signature(RowSignature.builder().add(SHUFFLE_KEY_COLUMN, ColumnType.STRING).build())
                        .maxWorkerCount(maxWorkers)
     );
 

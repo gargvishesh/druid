@@ -45,6 +45,7 @@ import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.filter.OrDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
+import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.groupby.having.GreaterThanHavingSpec;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -216,6 +217,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
 
     samplingGroupByFactory = new SamplingGroupByQueryRunnerFactory(
         new SamplingGroupByQueryToolChest(DefaultSamplingGroupByQueryMetricsFactory.instance()),
+        GroupByQueryRunnerTest.DEFAULT_PROCESSING_CONFIG,
         bufferPool,
         NOOP_QUERYWATCHER
     );

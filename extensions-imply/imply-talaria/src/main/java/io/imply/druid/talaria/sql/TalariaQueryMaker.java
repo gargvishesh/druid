@@ -15,16 +15,22 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.imply.druid.talaria.exec.TalariaTasks;
+import io.imply.druid.talaria.indexing.ColumnMapping;
+import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.DataSourceMSQDestination;
+import io.imply.druid.talaria.indexing.MSQControllerTask;
+import io.imply.druid.talaria.indexing.MSQDestination;
 import io.imply.druid.talaria.indexing.TalariaInsertContextKeys;
+import io.imply.druid.talaria.indexing.TalariaQuerySpec;
+import io.imply.druid.talaria.indexing.TaskReportMSQDestination;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
-import io.imply.druid.talaria.rpc.indexing.OverlordServiceClient;
-import io.imply.druid.talaria.util.FutureUtils;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
+import org.apache.druid.common.guava.FutureUtils;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
+import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
@@ -33,9 +39,9 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
-import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.rpc.indexing.OverlordClient;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
@@ -66,10 +72,8 @@ public class TalariaQueryMaker implements QueryMaker
 
   private static final String DESTINATION_DATASOURCE = "dataSource";
   private static final String DESTINATION_REPORT = "taskReport";
-  private static final String DESTINATION_EXTERNAL = "external";
 
   private static final Granularity DEFAULT_SEGMENT_GRANULARITY = Granularities.ALL;
-  private static final int DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS = 2;
   private static final int DEFAULT_ROWS_PER_SEGMENT = 3000000;
 
   // Lower than the default to minimize the impact of per-row overheads that are not accounted for by
@@ -77,7 +81,7 @@ public class TalariaQueryMaker implements QueryMaker
   private static final int DEFAULT_ROWS_IN_MEMORY = 100000;
 
   private final String targetDataSource;
-  private final OverlordServiceClient overlordClient;
+  private final OverlordClient overlordClient;
   private final PlannerContext plannerContext;
   private final ObjectMapper jsonMapper;
   private final List<Pair<Integer, String>> fieldMapping;
@@ -85,7 +89,7 @@ public class TalariaQueryMaker implements QueryMaker
 
   TalariaQueryMaker(
       @Nullable final String targetDataSource,
-      final OverlordServiceClient overlordClient,
+      final OverlordClient overlordClient,
       final PlannerContext plannerContext,
       final ObjectMapper jsonMapper,
       final List<Pair<Integer, String>> fieldMapping,
@@ -157,38 +161,21 @@ public class TalariaQueryMaker implements QueryMaker
       throw new ISE("Unable to serialize default segment granularity.");
     }
 
-    final long maxNumConcurrentSubTasks;
-    if (TalariaContext.isTaskAutoModeEnabled(plannerContext.getQueryContext())) {
-      // this enables MSQE to figure out the number of tasks automatically.
-      maxNumConcurrentSubTasks = TalariaContext.UNKOWN_TASK_COUNT;
-    } else {
+    final int maxNumTasks = TalariaContext.getMaxNumTasks(plannerContext.getQueryContext());
 
-      final long maxNumTotalTasks =
-          Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS))
-                  .map(DimensionHandlerUtils::convertObjectToLong)
-                  .map(Ints::checkedCast)
-                  .orElse(DEFAULT_MAX_NUM_CONCURRENT_SUB_TASKS);
-
-      if (maxNumTotalTasks < 2) {
-        throw new IAE(TalariaContext.CTX_MAX_NUM_CONCURRENT_SUB_TASKS
-                      + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
-      }
-      // This parameter is used internally for the number of worker tasks only, so we subtract 1
-      maxNumConcurrentSubTasks = maxNumTotalTasks - 1;
+    if (maxNumTasks < 2) {
+      throw new IAE(TalariaContext.CTX_MAX_NUM_TASKS
+                    + " cannot be less than 2 since at least 1 controller and 1 worker is necessary.");
     }
 
+    // This parameter is used internally for the number of worker tasks only, so we subtract 1
+    final int maxNumWorkers = maxNumTasks - 1;
 
-    final int rowsPerSegment =
-        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_ROWS_PER_SEGMENT))
-                .map(DimensionHandlerUtils::convertObjectToLong)
-                .map(Ints::checkedCast)
-                .orElse(DEFAULT_ROWS_PER_SEGMENT);
+    final int rowsPerSegment = plannerContext.getQueryContext()
+                                             .getAsInt(TalariaContext.CTX_ROWS_PER_SEGMENT, DEFAULT_ROWS_PER_SEGMENT);
 
-    final int rowsInMemory =
-        Optional.ofNullable(plannerContext.getQueryContext().get(TalariaContext.CTX_ROWS_IN_MEMORY))
-                .map(DimensionHandlerUtils::convertObjectToLong)
-                .map(Ints::checkedCast)
-                .orElse(DEFAULT_ROWS_IN_MEMORY);
+    final int rowsInMemory = plannerContext.getQueryContext()
+                                           .getAsInt(TalariaContext.CTX_ROWS_IN_MEMORY, DEFAULT_ROWS_IN_MEMORY);
 
     final boolean finalizeAggregations = TalariaContext.isFinalizeAggregations(plannerContext.getQueryContext());
 
@@ -219,7 +206,7 @@ public class TalariaQueryMaker implements QueryMaker
     final DynamicPartitionsSpec partitionsSpec = new DynamicPartitionsSpec(Ints.checkedCast(rowsPerSegment), null);
 
     final List<String> sqlTypeNames = new ArrayList<>();
-    final List<Map<String, Object>> columnMappings = new ArrayList<>();
+    final List<ColumnMapping> columnMappings = new ArrayList<>();
 
     String timeColumnName = null; // For later.
 
@@ -244,19 +231,22 @@ public class TalariaQueryMaker implements QueryMaker
       }
 
       sqlTypeNames.add(sqlTypeName.getName());
-      columnMappings.add(ImmutableMap.of("queryColumn", queryColumn, "outputColumn", outputColumns));
+      columnMappings.add(new ColumnMapping(queryColumn, outputColumns));
     }
 
-    final Map<String, Object> tuningConfig =
-        ImmutableMap.<String, Object>builder()
-                    .put("type", "index_parallel")
-                    .put("partitionsSpec", jsonMapper.convertValue(partitionsSpec, Object.class))
-                    .put("maxNumConcurrentSubTasks", maxNumConcurrentSubTasks)
-                    .put("maxRetry", 1) // Retries are not yet handled properly
-                    .put("maxRowsInMemory", rowsInMemory)
-                    .build();
+    final ParallelIndexTuningConfig tuningConfig =
+        jsonMapper.convertValue(
+            ImmutableMap.<String, Object>builder()
+                        .put("type", "index_parallel")
+                        .put("partitionsSpec", jsonMapper.convertValue(partitionsSpec, Object.class))
+                        .put("maxNumConcurrentSubTasks", maxNumWorkers)
+                        .put("maxRetry", 1) // Retries are not yet handled properly
+                        .put("maxRowsInMemory", rowsInMemory)
+                        .build(),
+            ParallelIndexTuningConfig.class
+        );
 
-    final Map<String, Object> destinationSpec;
+    final MSQDestination destination;
 
     if (targetDataSource != null) {
       if (ctxDestination != null && !DESTINATION_DATASOURCE.equals(ctxDestination)) {
@@ -280,26 +270,18 @@ public class TalariaQueryMaker implements QueryMaker
           fieldMapping.stream().map(f -> f.right).collect(Collectors.toList())
       );
 
-      destinationSpec = jsonMapper.convertValue(
-          new DataSourceMSQDestination(
-              targetDataSource,
-              segmentGranularityObject,
-              segmentSortOrder,
-              replaceTimeChunks
-          ),
-          JacksonUtils.TYPE_REFERENCE_MAP_STRING_OBJECT
+      destination = new DataSourceMSQDestination(
+          targetDataSource,
+          segmentGranularityObject,
+          segmentSortOrder,
+          replaceTimeChunks
       );
     } else {
-      if (ctxDestination != null
-          && !DESTINATION_EXTERNAL.equals(ctxDestination)
-          && !DESTINATION_REPORT.equals(ctxDestination)) {
+      if (ctxDestination != null && !DESTINATION_REPORT.equals(ctxDestination)) {
         throw new IAE("Cannot SELECT with destination [%s]", ctxDestination);
       }
 
-      destinationSpec =
-          ImmutableMap.<String, Object>builder()
-                      .put("type", ctxDestination != null ? ctxDestination : DESTINATION_REPORT)
-                      .build();
+      destination = TaskReportMSQDestination.instance();
     }
 
     final Map<String, Object> nativeQueryContextOverrides = new HashMap<>();
@@ -312,32 +294,25 @@ public class TalariaQueryMaker implements QueryMaker
     // Add appropriate finalization to native query context.
     nativeQueryContextOverrides.put(QueryContexts.FINALIZE_KEY, finalizeAggregations);
 
-    //noinspection unchecked
-    final Map<String, Object> querySpec =
-        ImmutableMap.<String, Object>builder()
-                    .put(
-                        "query",
-                        jsonMapper.convertValue(
-                            druidQuery.getQuery().withOverriddenContext(nativeQueryContextOverrides),
-                            Object.class
-                        )
-                    )
-                    .put("columnMappings", columnMappings)
-                    .put("destination", destinationSpec)
-                    .put("tuningConfig", tuningConfig)
-                    .build();
+    final TalariaQuerySpec querySpec =
+        TalariaQuerySpec.builder()
+                        .query(druidQuery.getQuery().withOverriddenContext(nativeQueryContextOverrides))
+                        .columnMappings(new ColumnMappings(columnMappings))
+                        .destination(destination)
+                        .assignmentStrategy(TalariaContext.getAssignmentStrategy(plannerContext.getQueryContext()))
+                        .tuningConfig(tuningConfig)
+                        .build();
 
-    final Map<String, Object> taskSpec =
-        ImmutableMap.<String, Object>builder()
-                    .put("type", "query_controller")
-                    .put("id", taskId)
-                    .put("spec", querySpec)
-                    .put("sqlQuery", plannerContext.getSql())
-                    .put("sqlQueryContext", plannerContext.getQueryContext().getMergedParams())
-                    .put("sqlTypeNames", sqlTypeNames)
-                    .build();
+    final MSQControllerTask controllerTask = new MSQControllerTask(
+        taskId,
+        querySpec,
+        plannerContext.getSql(),
+        plannerContext.getQueryContext().getMergedParams(),
+        sqlTypeNames,
+        null
+    );
 
-    FutureUtils.getUnchecked(overlordClient.runTask(taskId, taskSpec), true);
+    FutureUtils.getUnchecked(overlordClient.runTask(taskId, controllerTask), true);
     return Sequences.simple(Collections.singletonList(new Object[]{taskId}));
   }
 

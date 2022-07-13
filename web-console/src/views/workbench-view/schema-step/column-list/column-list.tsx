@@ -22,10 +22,9 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { QueryResult, SqlExpression } from 'druid-query-toolkit';
 import React, { useMemo } from 'react';
 
-import { PopoverText } from '../../../../components';
+import { LearnMore, PopoverText } from '../../../../components';
 import { getLink } from '../../../../links';
 import { filterMap } from '../../../../utils';
-import { LearnMore } from '../../../load-data-view/learn-more/learn-more';
 
 import { ExpressionEntry } from './expression-entry/expression-entry';
 

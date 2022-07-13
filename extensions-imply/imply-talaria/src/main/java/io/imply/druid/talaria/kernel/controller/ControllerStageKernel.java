@@ -12,11 +12,15 @@ package io.imply.druid.talaria.kernel.controller;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollector;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
+import io.imply.druid.talaria.input.InputSlice;
+import io.imply.druid.talaria.input.InputSpecSlicer;
+import io.imply.druid.talaria.input.StageInputSlice;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.ReadablePartitions;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.kernel.StageId;
+import io.imply.druid.talaria.kernel.WorkerAssignmentStrategy;
 import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntSortedMap;
 import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -25,9 +29,7 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Kernel for each stage. This is a package-private class because a stage kernel must be owned by a
@@ -41,8 +43,7 @@ class ControllerStageKernel
   private final StageDefinition stageDef;
   private final int workerCount;
 
-  // worker number -> inputs for that worker
-  private final List<ReadablePartitions> workerInputs;
+  private final WorkerInputs workerInputs;
   private final IntSet workersWithResultKeyStatistics = new IntAVLTreeSet();
   private final IntSet workersWithResultsComplete = new IntAVLTreeSet();
 
@@ -67,11 +68,11 @@ class ControllerStageKernel
 
   private ControllerStageKernel(
       final StageDefinition stageDef,
-      final List<ReadablePartitions> workerInputs
+      final WorkerInputs workerInputs
   )
   {
     this.stageDef = stageDef;
-    this.workerCount = workerInputs.size();
+    this.workerCount = workerInputs.workerCount();
     this.workerInputs = workerInputs;
 
     if (stageDef.mustGatherResultKeyStatistics()) {
@@ -87,99 +88,12 @@ class ControllerStageKernel
    */
   static ControllerStageKernel create(
       final StageDefinition stageDef,
-      final List<ControllerStageKernel> inputTrackers
+      final Int2IntMap stageWorkerCountMap,
+      final InputSpecSlicer slicer,
+      final WorkerAssignmentStrategy assignmentStrategy
   )
   {
-    // Sanity check.
-    if (stageDef.getInputStageIds().size() != inputTrackers.size()) {
-      throw new IAE(
-          "Expected [%d] input stage trackers, but got [%d]",
-          stageDef.getInputStageIds().size(),
-          inputTrackers.size()
-      );
-    }
-
-    // Sanity check.
-    for (int i = 0; i < inputTrackers.size(); i++) {
-      final StageId expectedStage = stageDef.getInputStageIds().get(i);
-      final StageId gotStage = inputTrackers.get(i).getStageDefinition().getId();
-
-      if (!gotStage.equals(expectedStage)) {
-        throw new IAE(
-            "Expected stage [%s] at position [%d], but got [%d]",
-            expectedStage.getStageNumber(),
-            i,
-            gotStage.getStageNumber()
-        );
-      }
-    }
-
-    // Decide how many workers to use, and assign inputs.
-    final List<ReadablePartitions> workerInputs;
-
-    if (inputTrackers.size() == 0) {
-      workerInputs = new ArrayList<>(stageDef.getMaxWorkerCount());
-
-      for (int i = 0; i < stageDef.getMaxWorkerCount(); i++) {
-        workerInputs.add(ReadablePartitions.empty());
-      }
-    } else {
-      // Input stage index (not stage number!) -> splits for that input stage.
-      final List<List<ReadablePartitions>> splits = new ArrayList<>();
-
-      // Populate "splits" with nulls.
-      for (@SuppressWarnings("unused") final ControllerStageKernel ignored : inputTrackers) {
-        splits.add(null);
-      }
-
-      // Populate "splits" with all non-broadcast inputs.
-      for (int i = 0; i < inputTrackers.size(); i++) {
-        final ControllerStageKernel tracker = inputTrackers.get(i);
-
-        if (!stageDef.getBroadcastInputStageIds().contains(tracker.getStageDefinition().getId())) {
-          splits.set(i, tracker.getResultPartitions().split(stageDef.getMaxWorkerCount()));
-        }
-      }
-
-      // Decide how many workers there will be, based on the number of non-broadcast splits.
-      // If there is no non-broadcast data, then run the maximum number of workers.
-      // TODO(gianm): Of course, this is not a good idea if the *only* inputs are broadcast (like joining a query with
-      //   a query). But it's important when there are "phantom" inputs like external data or Druid tables.
-      final int actualNumWorkers =
-          splits.stream().filter(Objects::nonNull).mapToInt(List::size).max().orElse(stageDef.getMaxWorkerCount());
-
-      // Populate "splits" with all broadcast inputs.
-      for (int i = 0; i < inputTrackers.size(); i++) {
-        final ControllerStageKernel tracker = inputTrackers.get(i);
-
-        if (stageDef.getBroadcastInputStageIds().contains(tracker.getStageDefinition().getId())) {
-          final List<ReadablePartitions> trackerSplits = new ArrayList<>();
-          final ReadablePartitions resultPartitions = tracker.getResultPartitions();
-
-          for (int workerNumber = 0; workerNumber < actualNumWorkers; workerNumber++) {
-            trackerSplits.add(resultPartitions);
-          }
-
-          splits.set(i, trackerSplits);
-        }
-      }
-
-      // Flip the splits, so it's worker number -> splits for that worker.
-      workerInputs = new ArrayList<>();
-
-      for (int workerNumber = 0; workerNumber < actualNumWorkers; workerNumber++) {
-        final List<ReadablePartitions> workerStageInputs = new ArrayList<>();
-
-        for (final List<ReadablePartitions> split : splits) {
-          if (split.size() > workerNumber) {
-            workerStageInputs.add(split.get(workerNumber));
-          }
-        }
-
-        workerInputs.add(ReadablePartitions.combine(workerStageInputs));
-      }
-    }
-
+    final WorkerInputs workerInputs = WorkerInputs.create(stageDef, stageWorkerCountMap, slicer, assignmentStrategy);
     return new ControllerStageKernel(stageDef, workerInputs);
   }
 
@@ -301,10 +215,9 @@ class ControllerStageKernel
   }
 
   /**
-   * @return Inputs to each worker for this particular stage, represented as ReadablePartitions. As a convention,
-   * i-th readable partition represents the input to i-th worker.
+   * Inputs to each worker for this particular stage.
    */
-  List<ReadablePartitions> getWorkerInputs()
+  WorkerInputs getWorkerInputs()
   {
     return workerInputs;
   }
@@ -441,12 +354,19 @@ class ControllerStageKernel
           resultPartitionBoundaries.size()
       );
     } else {
+      // No reshuffling: retain partitioning from nonbroadcast inputs.
       final Int2IntSortedMap partitionToWorkerMap = new Int2IntAVLTreeMap();
-      for (int workerNumber = 0; workerNumber < workerInputs.size(); workerNumber++) {
-        final ReadablePartitions workerInput = workerInputs.get(workerNumber);
+      for (int workerNumber : workerInputs.workers()) {
+        final List<InputSlice> slices = workerInputs.inputsForWorker(workerNumber);
+        for (int inputNumber = 0; inputNumber < slices.size(); inputNumber++) {
+          final InputSlice slice = slices.get(inputNumber);
 
-        for (ReadablePartition partition : workerInput) {
-          partitionToWorkerMap.put(partition.getPartitionNumber(), workerNumber);
+          if (slice instanceof StageInputSlice && !stageDef.getBroadcastInputNumbers().contains(inputNumber)) {
+            final StageInputSlice stageInputSlice = (StageInputSlice) slice;
+            for (final ReadablePartition partition : stageInputSlice.getPartitions()) {
+              partitionToWorkerMap.put(partition.getPartitionNumber(), workerNumber);
+            }
+          }
         }
       }
 

@@ -26,13 +26,22 @@ import {
   SqlReplaceClause,
   SqlStar,
   SqlTableRef,
+  SqlWithPart,
 } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 
-import { InputFormat, InputSource } from '../druid-models';
+import { guessDataSourceNameFromInputSource, InputFormat, InputSource } from '../druid-models';
 import { nonEmptyArray } from '../utils';
 
 export const MULTI_STAGE_QUERY_MAX_COLUMNS = 2000;
+const MAX_LINES = 10;
+
+function joinLinesMax(lines: string[], max: number) {
+  if (lines.length > max) {
+    lines = lines.slice(0, max).concat(`(and ${lines.length - max} more)`);
+  }
+  return lines.join('\n');
+}
 
 export interface ExternalConfig {
   inputSource: InputSource;
@@ -45,30 +54,58 @@ export interface ExternalConfigColumn {
   type: string;
 }
 
-export function summarizeInputSource(inputSource: InputSource): string {
+export function summarizeInputSource(inputSource: InputSource, multiline: boolean): string {
   switch (inputSource.type) {
     case 'inline':
-      return `inline(...)`;
+      return `inline data`;
 
     case 'local':
       // ToDo: make this official
       if (nonEmptyArray((inputSource as any).files)) {
-        return (inputSource as any).files[0];
+        let lines: string[] = (inputSource as any).files;
+        if (!multiline) lines = lines.slice(0, 1);
+        return joinLinesMax(lines, MAX_LINES);
       }
       return `${inputSource.baseDir || '?'}{${inputSource.filter || '?'}}`;
 
     case 'http':
-      return inputSource.uris?.[0] || '?';
+      if (nonEmptyArray(inputSource.uris)) {
+        let lines: string[] = inputSource.uris;
+        if (!multiline) lines = lines.slice(0, 1);
+        return joinLinesMax(lines, MAX_LINES);
+      }
+      return '?';
 
     case 's3':
     case 'google':
-      return (inputSource.uris || inputSource.prefixes)?.[0] || '?';
+    case 'azure': {
+      const possibleLines = inputSource.uris || inputSource.prefixes;
+      if (nonEmptyArray(possibleLines)) {
+        let lines: string[] = possibleLines;
+        if (!multiline) lines = lines.slice(0, 1);
+        return joinLinesMax(lines, MAX_LINES);
+      }
+      if (nonEmptyArray(inputSource.objects)) {
+        let lines: string[] = inputSource.objects.map(({ bucket, path }) => `${bucket}:${path}`);
+        if (!multiline) lines = lines.slice(0, 1);
+        return joinLinesMax(lines, MAX_LINES);
+      }
+      return '?';
+    }
 
-    case 'hdfs':
-      return inputSource.paths?.[0] || '?';
+    case 'hdfs': {
+      const paths =
+        typeof inputSource.paths === 'string' ? inputSource.paths.split(',') : inputSource.paths;
+      if (nonEmptyArray(paths)) {
+        let lines: string[] = paths;
+        if (!multiline) lines = lines.slice(0, 1);
+        return joinLinesMax(lines, MAX_LINES);
+      }
+      return '?';
+    }
 
     default:
-      return inputSource.type + '(...)';
+      return String(inputSource.type);
   }
 }
 
@@ -77,7 +114,7 @@ export function summarizeInputFormat(inputFormat: InputFormat): string {
 }
 
 export function summarizeExternalConfig(externalConfig: ExternalConfig): string {
-  return `${summarizeInputSource(externalConfig.inputSource)} [${summarizeInputFormat(
+  return `${summarizeInputSource(externalConfig.inputSource, false)} [${summarizeInputFormat(
     externalConfig.inputFormat,
   )}]`;
 }
@@ -97,12 +134,16 @@ const INITIAL_CONTEXT_LINES = [
   `--:context groupByEnableMultiValueUnnesting: false`,
 ];
 
-export function externalConfigToInitQuery(
-  externalConfigName: string,
-  config: ExternalConfig,
-  isArrays: boolean[],
-): SqlQuery {
-  return SqlQuery.create(SqlTableRef.create(externalConfigName))
+const INIT_CONFIG_EXTERNAL_CTE_NAME = 'input_data';
+
+export function externalConfigToInitQuery(config: ExternalConfig, isArrays: boolean[]): SqlQuery {
+  return SqlQuery.create(SqlTableRef.create(INIT_CONFIG_EXTERNAL_CTE_NAME))
+    .changeWithParts([
+      SqlWithPart.simple(
+        INIT_CONFIG_EXTERNAL_CTE_NAME,
+        SqlQuery.create(externalConfigToTableExpression(config)),
+      ),
+    ])
     .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
       config.columns
@@ -114,7 +155,9 @@ export function externalConfigToInitQuery(
           ),
         ),
     )
-    .changeReplaceClause(SqlReplaceClause.create(externalConfigName))
+    .changeReplaceClause(
+      SqlReplaceClause.create(guessDataSourceNameFromInputSource(config.inputSource) || 'new_data'),
+    )
     .changePartitionedByClause(SqlPartitionedByClause.create(undefined));
 }
 

@@ -125,7 +125,7 @@ export function convertSpecToSql(spec: IngestionSpec): string {
 
   const maxNumConcurrentSubTasks = deepGet(spec, 'spec.tuningConfig.maxNumConcurrentSubTasks');
   if (maxNumConcurrentSubTasks > 1) {
-    lines.push(`--:context msqNumTasks: ${maxNumConcurrentSubTasks + 1}`);
+    lines.push(`--:context msqMaxNumTasks: ${maxNumConcurrentSubTasks + 1}`);
   }
 
   const maxParseExceptions = deepGet(spec, 'spec.tuningConfig.maxParseExceptions');

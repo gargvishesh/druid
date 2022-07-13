@@ -10,16 +10,21 @@
 package io.imply.druid.talaria.kernel;
 
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
+import io.imply.druid.talaria.input.InputSpec;
+import io.imply.druid.talaria.input.InputSpecs;
+import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.segment.column.RowSignature;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.List;
 
 public class StageDefinitionBuilder
 {
   private final int stageNumber;
-  private int[] inputStageNumbers = new int[]{};
-  private int[] broadcastInputStageNumbers = new int[]{};
+  private final List<InputSpec> inputSpecs = new ArrayList<>();
+  private final IntSet broadcastInputNumbers = new IntRBTreeSet();
   @SuppressWarnings("rawtypes")
   private FrameProcessorFactory processorFactory;
   private RowSignature signature = RowSignature.empty();
@@ -35,15 +40,26 @@ public class StageDefinitionBuilder
     this.stageNumber = stageNumber;
   }
 
-  public StageDefinitionBuilder inputStages(final int... inputStageNumbers)
+  public StageDefinitionBuilder inputs(final List<InputSpec> inputSpecs)
   {
-    this.inputStageNumbers = inputStageNumbers;
+    this.inputSpecs.clear();
+    this.inputSpecs.addAll(inputSpecs);
     return this;
   }
 
-  public StageDefinitionBuilder broadcastInputStages(final int... broadcastInputStageNumbers)
+  public StageDefinitionBuilder inputs(final InputSpec... inputSpecs)
   {
-    this.broadcastInputStageNumbers = broadcastInputStageNumbers;
+    return inputs(Arrays.asList(inputSpecs));
+  }
+
+  public StageDefinitionBuilder broadcastInputs(final IntSet broadcastInputNumbers)
+  {
+    this.broadcastInputNumbers.clear();
+
+    for (int broadcastInputNumber : broadcastInputNumbers) {
+      this.broadcastInputNumbers.add(broadcastInputNumber);
+    }
+
     return this;
   }
 
@@ -83,21 +99,17 @@ public class StageDefinitionBuilder
     return stageNumber;
   }
 
-  int[] getInputStageNumbers()
+  IntSet getInputStageNumbers()
   {
-    return inputStageNumbers;
+    return InputSpecs.getStageNumbers(inputSpecs);
   }
 
   public StageDefinition build(final String queryId)
   {
     return new StageDefinition(
         new StageId(queryId, stageNumber),
-        Arrays.stream(inputStageNumbers)
-              .mapToObj(stageNumber -> new StageId(queryId, stageNumber))
-              .collect(Collectors.toList()),
-        Arrays.stream(broadcastInputStageNumbers)
-              .mapToObj(stageNumber -> new StageId(queryId, stageNumber))
-              .collect(Collectors.toSet()),
+        inputSpecs,
+        broadcastInputNumbers,
         processorFactory,
         signature,
         shuffleSpec,

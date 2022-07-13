@@ -14,25 +14,43 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableSet;
+import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollector;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl;
 import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.read.FrameReader;
+import io.imply.druid.talaria.input.InputSpec;
+import io.imply.druid.talaria.input.InputSpecs;
+import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import org.apache.druid.java.util.common.Either;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
+/**
+ * Definition of a stage in a multi-stage {@link QueryDefinition}.
+ *
+ * Each stage has a list of {@link InputSpec} describing its inputs. The position of each spec within the list is
+ * its "input number". Some inputs are broadcast to all workers (see {@link #getBroadcastInputNumbers()}); others
+ * are split up across workers.
+ *
+ * Each stage has a {@link FrameProcessorFactory} describing the work it is going to do. Output frames written by
+ * these processors must have a particular signature, given by {@link #getSignature()}.
+ *
+ * Each stage has a {@link ShuffleSpec} describing a shuffle that is requested for the output of the stage.
+ * The execution system performs this shuffle and produces the appropriate output partitions. The shuffle spec
+ * is optional: if none is provided, then the {@link FrameProcessorFactory} directly writes to output partitions.
+ */
 public class StageDefinition
 {
   private static final int PARTITION_STATS_MAX_KEYS = 2 << 15; // Avoid immediate downsample of single-bucket collectors
@@ -41,8 +59,8 @@ public class StageDefinition
 
   // If adding any fields here, add them to builder(StageDefinition) below too.
   private final StageId id;
-  private final List<StageId> inputStages;
-  private final Set<StageId> broadcastInputStages;
+  private final List<InputSpec> inputSpecs;
+  private final IntSet broadcastInputNumbers;
   @SuppressWarnings("rawtypes")
   private final FrameProcessorFactory processorFactory;
   private final RowSignature signature;
@@ -53,15 +71,14 @@ public class StageDefinition
   private final ShuffleSpec shuffleSpec;
 
   // Set here to encourage sharing, rather than re-creation.
-  // TODO(gianm): maybe not the greatest place to put this, but it's expedient. evaluate moving this somewhere else.
   private final Supplier<FrameReader> frameReader;
 
   @JsonCreator
   StageDefinition(
       @JsonProperty("id") final StageId id,
-      @JsonProperty("inputStages") final List<StageId> inputStages,
-      @JsonProperty("broadcastInputStages") final Set<StageId> broadcastInputStages,
-      @SuppressWarnings("rawtypes") @JsonProperty("processorFactory") final FrameProcessorFactory processorFactory,
+      @JsonProperty("input") final List<InputSpec> inputSpecs,
+      @JsonProperty("broadcast") final Set<Integer> broadcastInputNumbers,
+      @SuppressWarnings("rawtypes") @JsonProperty("processor") final FrameProcessorFactory processorFactory,
       @JsonProperty("signature") final RowSignature signature,
       @Nullable @JsonProperty("shuffleSpec") final ShuffleSpec shuffleSpec,
       @JsonProperty("maxWorkerCount") final int maxWorkerCount,
@@ -69,22 +86,22 @@ public class StageDefinition
   )
   {
     this.id = Preconditions.checkNotNull(id, "id");
-    this.inputStages = Preconditions.checkNotNull(inputStages, "inputStages");
-    this.broadcastInputStages = broadcastInputStages != null ? broadcastInputStages : Collections.emptySet();
+    this.inputSpecs = Preconditions.checkNotNull(inputSpecs, "inputSpecs");
+
+    if (broadcastInputNumbers == null) {
+      this.broadcastInputNumbers = IntSets.emptySet();
+    } else if (broadcastInputNumbers instanceof IntSet) {
+      this.broadcastInputNumbers = (IntSet) broadcastInputNumbers;
+    } else {
+      this.broadcastInputNumbers = new IntAVLTreeSet(broadcastInputNumbers);
+    }
+
     this.processorFactory = Preconditions.checkNotNull(processorFactory, "processorFactory");
     this.signature = Preconditions.checkNotNull(signature, "signature");
     this.shuffleSpec = shuffleSpec;
     this.maxWorkerCount = maxWorkerCount;
     this.shuffleCheckHasMultipleValues = shuffleCheckHasMultipleValues;
     this.frameReader = Suppliers.memoize(() -> FrameReader.create(signature))::get;
-
-    if (ImmutableSet.copyOf(inputStages).size() != inputStages.size()) {
-      throw new IAE("Cannot accept duplicate input stages");
-    }
-
-    if (!inputStages.stream().map(StageId::getQueryId).allMatch(queryId -> queryId.equals(id.getQueryId()))) {
-      throw new IAE("Cannot accept stages with query ids that do not match our own");
-    }
 
     if (shuffleSpec != null && shuffleSpec.needsStatistics() && shuffleSpec.getClusterBy().getColumns().isEmpty()) {
       throw new IAE("Cannot shuffle with spec [%s] and nil clusterBy", shuffleSpec);
@@ -96,9 +113,9 @@ public class StageDefinition
       }
     }
 
-    for (final StageId broadcastInputStage : this.broadcastInputStages) {
-      if (!inputStages.contains(broadcastInputStage)) {
-        throw new ISE("Cannot accept broadcast data from non-input stage [%s]", broadcastInputStage);
+    for (final int broadcastInputNumber : this.broadcastInputNumbers) {
+      if (broadcastInputNumber < 0 || broadcastInputNumber >= inputSpecs.size()) {
+        throw new ISE("Broadcast input number out of range [%s]", broadcastInputNumber);
       }
     }
   }
@@ -111,8 +128,8 @@ public class StageDefinition
   public static StageDefinitionBuilder builder(final StageDefinition stageDef)
   {
     return new StageDefinitionBuilder(stageDef.getStageNumber())
-        .inputStages(stageDef.getInputStageIds().stream().mapToInt(StageId::getStageNumber).toArray())
-        .broadcastInputStages(stageDef.getBroadcastInputStageIds().stream().mapToInt(StageId::getStageNumber).toArray())
+        .inputs(stageDef.getInputSpecs())
+        .broadcastInputs(stageDef.getBroadcastInputNumbers())
         .processorFactory(stageDef.getProcessorFactory())
         .signature(stageDef.getSignature())
         .shuffleSpec(stageDef.getShuffleSpec().orElse(null))
@@ -120,26 +137,37 @@ public class StageDefinition
         .shuffleCheckHasMultipleValues(stageDef.getShuffleCheckHasMultipleValues());
   }
 
+  /**
+   * Returns a unique stage identifier.
+   */
   @JsonProperty
   public StageId getId()
   {
     return id;
   }
 
-  @JsonProperty("inputStages")
-  public List<StageId> getInputStageIds()
+  /**
+   * Returns input specs for this stage. Positions in this spec list are called "input numbers".
+   */
+  @JsonProperty("input")
+  public List<InputSpec> getInputSpecs()
   {
-    return inputStages;
+    return inputSpecs;
   }
 
-  @JsonProperty("broadcastInputStages")
+  public IntSet getInputStageNumbers()
+  {
+    return InputSpecs.getStageNumbers(inputSpecs);
+  }
+
+  @JsonProperty("broadcast")
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public Set<StageId> getBroadcastInputStageIds()
+  public IntSet getBroadcastInputNumbers()
   {
-    return broadcastInputStages;
+    return broadcastInputNumbers;
   }
 
-  @JsonProperty
+  @JsonProperty("processor")
   @SuppressWarnings("rawtypes")
   public FrameProcessorFactory getProcessorFactory()
   {
@@ -157,15 +185,32 @@ public class StageDefinition
     return shuffleSpec != null;
   }
 
+  public boolean doesSortDuringShuffle()
+  {
+    if (shuffleSpec == null) {
+      return false;
+    } else {
+      return !shuffleSpec.getClusterBy().getColumns().isEmpty() || shuffleSpec.needsStatistics();
+    }
+  }
+
   public Optional<ShuffleSpec> getShuffleSpec()
   {
     return Optional.ofNullable(shuffleSpec);
   }
 
+  /**
+   * Returns the {@link ClusterBy} of the {@link ShuffleSpec} if set, otherwise {@link ClusterBy#none()}.
+   */
+  public ClusterBy getClusterBy()
+  {
+    return shuffleSpec != null ? shuffleSpec.getClusterBy() : ClusterBy.none();
+  }
+
   @Nullable
   @JsonProperty("shuffleSpec")
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public ShuffleSpec getShuffleSpecForSerialization()
+  ShuffleSpec getShuffleSpecForSerialization()
   {
     return shuffleSpec;
   }
@@ -248,8 +293,8 @@ public class StageDefinition
     return maxWorkerCount == that.maxWorkerCount
            && shuffleCheckHasMultipleValues == that.shuffleCheckHasMultipleValues
            && Objects.equals(id, that.id)
-           && Objects.equals(inputStages, that.inputStages)
-           && Objects.equals(broadcastInputStages, that.broadcastInputStages)
+           && Objects.equals(inputSpecs, that.inputSpecs)
+           && Objects.equals(broadcastInputNumbers, that.broadcastInputNumbers)
            && Objects.equals(processorFactory, that.processorFactory)
            && Objects.equals(signature, that.signature)
            && Objects.equals(shuffleSpec, that.shuffleSpec);
@@ -260,8 +305,8 @@ public class StageDefinition
   {
     return Objects.hash(
         id,
-        inputStages,
-        broadcastInputStages,
+        inputSpecs,
+        broadcastInputNumbers,
         processorFactory,
         signature,
         maxWorkerCount,
@@ -275,8 +320,8 @@ public class StageDefinition
   {
     return "StageDefinition{" +
            "id=" + id +
-           ", inputStages=" + inputStages +
-           (!broadcastInputStages.isEmpty() ? ", broadcastInputStages=" + broadcastInputStages : "") +
+           ", inputSpecs=" + inputSpecs +
+           (!broadcastInputNumbers.isEmpty() ? ", broadcastInputStages=" + broadcastInputNumbers : "") +
            ", processorFactory=" + processorFactory +
            ", signature=" + signature +
            ", maxWorkerCount=" + maxWorkerCount +

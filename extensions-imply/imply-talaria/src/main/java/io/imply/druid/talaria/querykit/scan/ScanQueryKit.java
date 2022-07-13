@@ -13,18 +13,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
+import io.imply.druid.talaria.input.StageInputSpec;
 import io.imply.druid.talaria.kernel.MaxCountShuffleSpec;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.QueryDefinitionBuilder;
 import io.imply.druid.talaria.kernel.ShuffleSpec;
 import io.imply.druid.talaria.kernel.ShuffleSpecFactory;
 import io.imply.druid.talaria.kernel.StageDefinition;
-import io.imply.druid.talaria.querykit.DataSegmentTimelineView;
 import io.imply.druid.talaria.querykit.DataSourcePlan;
 import io.imply.druid.talaria.querykit.QueryKit;
 import io.imply.druid.talaria.querykit.QueryKitUtils;
 import io.imply.druid.talaria.querykit.common.OffsetLimitFrameProcessorFactory;
-import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.scan.ScanQuery;
@@ -59,7 +58,6 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
   public QueryDefinition makeQueryDefinition(
       final String queryId,
       final ScanQuery originalQuery,
-      final DataSegmentTimelineView timelineView,
       final QueryKit<Query<?>> queryKit,
       final ShuffleSpecFactory resultShuffleSpecFactory,
       final int maxWorkerCount,
@@ -67,15 +65,15 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
   )
   {
     final QueryDefinitionBuilder queryDefBuilder = QueryDefinition.builder().queryId(queryId);
-    final DataSourcePlan dataSourcePlan = QueryKitUtils.makeDataSourcePlan(
+    final DataSourcePlan dataSourcePlan = DataSourcePlan.forDataSource(
         queryKit,
         queryId,
         originalQuery.getDataSource(),
         originalQuery.getQuerySegmentSpec(),
-        timelineView,
         originalQuery.getFilter(),
         maxWorkerCount,
-        minStageNumber
+        minStageNumber,
+        false
     );
 
     dataSourcePlan.getSubQueryDefBuilder().ifPresent(queryDefBuilder::addAll);
@@ -86,11 +84,6 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     final ShuffleSpec shuffleSpec;
     final RowSignature signatureToUse;
     final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
-
-    int workerCount = TalariaContext.isTaskCountUnknown(maxWorkerCount)
-                       ? dataSourcePlan.getBaseInputSpecs()
-                                       .size()
-                       : maxWorkerCount;
 
     if (queryToRun.getOrderBys().isEmpty() && hasLimitOrOffset) {
       // No ordering, but there is a limit or an offset. These work by funneling everything through a single partition.
@@ -128,20 +121,18 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
 
     queryDefBuilder.add(
         StageDefinition.builder(Math.max(minStageNumber, queryDefBuilder.getNextStageNumber()))
-                       .inputStages(dataSourcePlan.getInputStageNumbers())
-                       .broadcastInputStages(dataSourcePlan.getBroadcastInputStageNumbers())
+                       .inputs(dataSourcePlan.getInputSpecs())
+                       .broadcastInputs(dataSourcePlan.getBroadcastInputs())
                        .shuffleSpec(shuffleSpec)
                        .signature(signatureToUse)
-                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : workerCount)
-                       .processorFactory(
-                           new ScanQueryFrameProcessorFactory(queryToRun, dataSourcePlan.getBaseInputSpecs())
-                       )
+                       .maxWorkerCount(dataSourcePlan.isSingleWorker() ? 1 : maxWorkerCount)
+                       .processorFactory(new ScanQueryFrameProcessorFactory(queryToRun))
     );
 
     if (hasLimitOrOffset) {
       queryDefBuilder.add(
           StageDefinition.builder(firstStageNumber + 1)
-                         .inputStages(firstStageNumber)
+                         .inputs(new StageInputSpec(firstStageNumber))
                          .signature(signatureToUse)
                          .maxWorkerCount(1)
                          .shuffleSpec(new MaxCountShuffleSpec(ClusterBy.none(), 1, false))

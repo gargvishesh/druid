@@ -20,7 +20,7 @@ import { Button, ButtonGroup, InputGroup, Menu, MenuItem } from '@blueprintjs/co
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import { Loader, QueryErrorPane } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
@@ -45,12 +45,9 @@ import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summ
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import {
   executionBackgroundStatusCheck,
-  reattachAsyncExecution,
   reattachTaskExecution,
-  submitAsyncQuery,
   submitTaskQuery,
 } from '../execution-utils';
-import { ExportDialog } from '../export-dialog/export-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
@@ -84,12 +81,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     onDetails,
     queryEngines,
   } = props;
-  const [exportDialogQuery, setExportDialogQuery] = useState<WorkbenchQuery | undefined>();
-
-  const handleExport = usePermanentCallback(() => {
-    setExportDialogQuery(query);
-  });
-
   const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
     onQueryChange(query.changeQueryString(queryString));
   });
@@ -118,17 +109,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
         const { engine, query, sqlPrefixLines, cancelQueryId } = q.getApiQuery();
 
         switch (engine) {
-          case 'sql-async':
-            return await submitAsyncQuery({
-              query,
-              prefixLines: sqlPrefixLines,
-              cancelToken,
-              preserveOnTermination: true,
-              onSubmitted: id => {
-                onQueryChange(props.query.changeLastExecution({ engine, id }));
-              },
-            });
-
           case 'sql-task':
             return await submitTaskQuery({
               query,
@@ -178,11 +158,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             });
 
           default:
-            return await reattachAsyncExecution({
-              id: q.id,
-              cancelToken,
-              preserveOnTermination: true,
-            });
+            throw new Error(`Can not reattach on ${q.engine}`);
         }
       }
     },
@@ -335,7 +311,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   <ResultTablePane
                     runeMode={execution.engine === 'native'}
                     queryResult={execution.result}
-                    onExport={handleExport}
                     onQueryAction={handleQueryAction}
                     initPageSize={5}
                   />
@@ -389,14 +364,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             </div>
           )}
         </>
-      )}
-      {exportDialogQuery && (
-        <ExportDialog
-          query={exportDialogQuery}
-          onClose={() => {
-            setExportDialogQuery(undefined);
-          }}
-        />
       )}
     </div>
   );

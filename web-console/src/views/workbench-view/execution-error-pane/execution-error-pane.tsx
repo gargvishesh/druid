@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import { Intent } from '@blueprintjs/core';
+import { Callout, Intent } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
 import copy from 'copy-to-clipboard';
 import React, { useState } from 'react';
 
@@ -60,7 +61,7 @@ export const ExecutionErrorPane = React.memo(function ExecutionErrorPane(
   const { error, exceptionStackTrace, taskId, host } = execution.error;
 
   return (
-    <div className="execution-error-pane">
+    <Callout className="execution-error-pane" icon={IconNames.ERROR}>
       <p className="error-message-text">
         {error.errorCode && <>{`${error.errorCode}: `}</>}
         {error.errorMessage || (exceptionStackTrace || '').split('\n')[0]}
@@ -108,6 +109,6 @@ export const ExecutionErrorPane = React.memo(function ExecutionErrorPane(
           str={stackToShow}
         />
       )}
-    </div>
+    </Callout>
   );
 });

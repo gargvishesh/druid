@@ -20,7 +20,7 @@ import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.frame.segment.FrameStorageAdapter;
-import io.imply.druid.talaria.util.FutureUtils;
+import io.imply.druid.talaria.util.TalariaFutureUtils;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.concurrent.Execs;
@@ -272,13 +272,13 @@ public class FrameProcessors
                   exec.registerCancelableFuture(bouncer.ticket(), cancellationId);
 
               if (ticketFuture.isDone() && !ticketFuture.isCancelled()) {
-                nextTicket = FutureUtils.getUncheckedImmediately(ticketFuture);
+                nextTicket = TalariaFutureUtils.getUncheckedImmediately(ticketFuture);
               } else {
                 ticketFuture.addListener(
                     () -> {
                       if (!ticketFuture.isCancelled()) {
                         // No need to check for exception; bouncer tickets cannot have exceptions.
-                        final Bouncer.Ticket ticket = FutureUtils.getUncheckedImmediately(ticketFuture);
+                        final Bouncer.Ticket ticket = TalariaFutureUtils.getUncheckedImmediately(ticketFuture);
 
                         synchronized (runAllFullyLock) {
                           if (finished.isDone()) {

@@ -152,11 +152,14 @@ title: Release notes
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
   available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). (16181)
 
-- If `msqNumTasks` is set to `auto`, we default to 1 worker for the entire `http` input stage as we do not have a reliable way to figure out the size of the inputs. (23163)
-- If `msqNumTasks` is set to `auto`, there can be a scenario where the number of tasks generated is more than the total
-  capacity of the cluster. This will lead to [TaskStartTimeout](./msqe-api.md#error-codes) error as there will never be
-  enough capacity to run the query. In such a case, set the `msqNumTasks` explicitly. (23242)
-- If `msqNumTasks` is set to `auto`, we can run into [TooManyInputFiles](./msqe-api.md#error-codes) error. In such a case, set the `msqNumTasks` explicitly. (23243) 
+- When `msqMaxNumTasks` (formerly `msqNumTasks`, formerly `talariaNumTasks`) is higher than the total
+  capacity of the cluster, more tasks may be launched than can run at once. This leads to a
+  [TaskStartTimeout](./msqe-api.md#error-codes) error code, as there is never enough capacity to run the query.
+  To avoid this, set `msqMaxNumTasks` to a number of tasks that can run simultaneously on your cluster. (23242)
+
+- When `msqTaskAssignment` is set to `auto`, the system generates one task per input file for certain splittable
+  input sources where file sizes are not known ahead of time. This includes the `http` input source, where the system
+  generates one task per URI. (23163)
 
 ### Memory usage
 

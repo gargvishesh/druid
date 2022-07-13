@@ -31,6 +31,7 @@ import { QueryResult } from 'druid-query-toolkit';
 import React, { useEffect, useState } from 'react';
 
 import { AutoForm } from '../../../../components';
+import { ShowValueDialog } from '../../../../dialogs/show-value-dialog/show-value-dialog';
 import {
   getIngestionImage,
   getIngestionTitle,
@@ -42,6 +43,7 @@ import { useQueryManager } from '../../../../hooks';
 import { UrlBaser } from '../../../../singletons';
 import {
   Execution,
+  ExecutionError,
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
 } from '../../../../workbench-models';
@@ -88,6 +90,7 @@ export interface InputSourceStepProps {
 export const InputSourceStep = React.memo(function InputSourceStep(props: InputSourceStepProps) {
   const { initInputSource, onSet } = props;
 
+  const [stackToShow, setStackToShow] = useState<string | undefined>();
   const [inputSource, setInputSource] = useState<Partial<InputSource> | string | undefined>(
     initInputSource,
   );
@@ -160,6 +163,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
     );
   }
 
+  const connectResultError = connectResultState.error;
   return (
     <div className="input-source-step">
       <div className="main">
@@ -239,12 +243,36 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
             <ProgressBar intent={Intent.PRIMARY} />
           </FormGroup>
         )}
-        {connectResultState.error && (
+        {connectResultError && (
           <FormGroup>
-            <Callout intent={Intent.DANGER}>{connectResultState.getErrorMessage()}</Callout>
+            <Callout intent={Intent.DANGER}>
+              <p>{connectResultState.getErrorMessage()}</p>
+              {(connectResultError as any).executionError && (
+                <p>
+                  <a
+                    onClick={() => {
+                      setStackToShow(
+                        ((connectResultError as any).executionError as ExecutionError)
+                          .exceptionStackTrace,
+                      );
+                    }}
+                  >
+                    Stack trace
+                  </a>
+                </p>
+              )}
+            </Callout>
           </FormGroup>
         )}
       </div>
+      {stackToShow && (
+        <ShowValueDialog
+          size="large"
+          title="Full stack trace"
+          onClose={() => setStackToShow(undefined)}
+          str={stackToShow}
+        />
+      )}
     </div>
   );
 });

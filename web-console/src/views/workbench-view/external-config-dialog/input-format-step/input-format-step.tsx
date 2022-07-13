@@ -20,7 +20,7 @@ import { Button, Callout, FormGroup, Icon, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
-import { AutoForm, CenterMessage, Loader } from '../../../../components';
+import { AutoForm, CenterMessage, LearnMore, Loader } from '../../../../components';
 import {
   guessColumnTypeFromHeaderAndRows,
   guessIsArrayFromHeaderAndRows,
@@ -40,7 +40,6 @@ import {
   SampleSpec,
 } from '../../../../utils/sampler';
 import { ExternalConfigColumn } from '../../../../workbench-models';
-import { LearnMore } from '../../../load-data-view/learn-more/learn-more';
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
 
 import './input-format-step.scss';
