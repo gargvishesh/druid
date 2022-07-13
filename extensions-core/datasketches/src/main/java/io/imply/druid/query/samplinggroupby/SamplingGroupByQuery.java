@@ -10,11 +10,13 @@
 package io.imply.druid.query.samplinggroupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
@@ -28,6 +30,7 @@ import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
@@ -38,16 +41,21 @@ import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.groupby.having.HavingSpec;
 import org.apache.druid.query.spec.QuerySegmentSpec;
 import org.apache.druid.segment.DimensionHandlerUtils;
+import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -73,6 +81,7 @@ import java.util.stream.Collectors;
 public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<ResultRow>
 {
   private final List<DimensionSpec> dimensions;
+  private final VirtualColumns virtualColumns;
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
   private final @Nullable DimFilter dimFilter;
@@ -93,12 +102,13 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("dimensions") @Nullable List<DimensionSpec> dimensions,
+      @JsonProperty("virtualColumns") @Nullable VirtualColumns virtualColumns,
       @JsonProperty("aggregations") @Nullable List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") @Nullable List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("filter") @Nullable DimFilter dimFilter,
       @JsonProperty("having") @Nullable HavingSpec havingSpec,
       @JsonProperty("granularity") Granularity granularity,
-      @JsonProperty("context") Map<String, Object> context,
+      @JsonProperty("context") @Nullable Map<String, Object> context,
       @JsonProperty("maxGroups") @Nullable Integer maxGroups
   )
   {
@@ -106,6 +116,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         dataSource,
         querySegmentSpec,
         dimensions,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         dimFilter,
@@ -121,18 +132,20 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
       @Nullable List<DimensionSpec> dimensions,
+      @Nullable VirtualColumns virtualColumns,
       @Nullable List<AggregatorFactory> aggregatorSpecs,
       @Nullable List<PostAggregator> postAggregatorSpecs,
       @Nullable DimFilter dimFilter,
       @Nullable HavingSpec havingSpec,
       Granularity granularity,
-      Map<String, Object> context,
+      @Nullable Map<String, Object> context,
       @Nullable Integer maxGroups,
       @Nullable Ordering<ResultRow> resultOrdering
   )
   {
     super(dataSource, querySegmentSpec, false, context, granularity);
     this.dimensions = dimensions == null ? ImmutableList.of() : dimensions;
+    this.virtualColumns = VirtualColumns.nullToEmpty(virtualColumns);
     this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.of() : aggregatorSpecs;
     List<String> resultDimensionOutputNames = this.dimensions.stream()
                                                              .map(DimensionSpec::getOutputName)
@@ -154,6 +167,11 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         this.aggregatorSpecs,
         this.postAggregatorSpecs
     );
+  }
+
+  public static Builder builder()
+  {
+    return new Builder();
   }
 
   @Override
@@ -184,6 +202,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         getDataSource(),
         getQuerySegmentSpec(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getDimFilter(),
@@ -201,6 +220,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         getDataSource(),
         spec,
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getDimFilter(),
@@ -218,6 +238,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         dataSource,
         getQuerySegmentSpec(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getDimFilter(),
@@ -234,6 +255,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
         getDataSource(),
         getQuerySegmentSpec(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getDimFilter(),
@@ -255,6 +277,14 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
+  }
+
+  @JsonProperty
+  @Override
+  @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = VirtualColumns.JsonIncludeFilter.class)
+  public VirtualColumns getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("aggregations")
@@ -354,12 +384,26 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
     return postProcessingFn;
   }
 
+  @Nullable
+  @Override
+  public Set<String> getRequiredColumns()
+  {
+    return Queries.computeRequiredColumns(
+        virtualColumns,
+        dimFilter,
+        dimensions,
+        aggregatorSpecs,
+        Collections.emptyList()
+    );
+  }
+
   public SamplingGroupByQuery generateQueryWithoutHavingSpec()
   {
     return new SamplingGroupByQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getDimFilter(),
@@ -403,8 +447,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
    */
   public int getResultRowAggregatorStart()
   {
-    // adding 1 accomodates for samplingRate column
-    return getResultRowDimensionStart() + getDimensions().size() + 1;
+    return getResultRowDimensionStart() + getDimensions().size();
   }
 
   /**
@@ -412,7 +455,8 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
    */
   public int getResultRowPostAggregatorStart()
   {
-    return getResultRowAggregatorStart() + aggregatorSpecs.size();
+    // adding 1 accomodates for samplingRate column
+    return getResultRowAggregatorStart() + aggregatorSpecs.size() + 1;
   }
 
   /**
@@ -420,7 +464,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
    */
   public int getResultRowSamplingRateColumnIndex()
   {
-    return getResultRowAggregatorStart() - 1;
+    return getResultRowAggregatorStart();
   }
 
   public RowSignature getResultRowSignature()
@@ -526,8 +570,8 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
    */
   public GroupByQuery generateIntermediateGroupByQuery()
   {
-    ImmutableList.Builder<DimensionSpec> dimesionsWithHashAndTheta = ImmutableList.builder();
-    dimesionsWithHashAndTheta
+    ImmutableList.Builder<DimensionSpec> dimensionsWithHashAndTheta = ImmutableList.builder();
+    dimensionsWithHashAndTheta
         .add(
             new DefaultDimensionSpec(
                 INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
@@ -545,12 +589,199 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
     return GroupByQuery.builder()
                        .setDataSource(getDataSource())
                        .setInterval(getQuerySegmentSpec())
-                       .setDimensions(dimesionsWithHashAndTheta.build())
+                       .setDimensions(dimensionsWithHashAndTheta.build())
+                       .setVirtualColumns(getVirtualColumns())
                        .setAggregatorSpecs(getAggregatorSpecs())
                        .setDimFilter(getDimFilter())
                        .setHavingSpec(getHavingSpec())
                        .setGranularity(getGranularity())
                        .setContext(getContext())
                        .build();
+  }
+
+  public static class Builder
+  {
+    private DataSource dataSource;
+    private QuerySegmentSpec querySegmentSpec;
+    @Nullable
+    private DimFilter dimFilter;
+    private Granularity granularity;
+    @Nullable
+    private List<DimensionSpec> dimensions;
+    @Nullable
+    VirtualColumns virtualColumns;
+    @Nullable
+    private List<AggregatorFactory> aggregatorSpecs;
+    @Nullable
+    private List<PostAggregator> postAggregatorSpecs;
+    @Nullable
+    private HavingSpec havingSpec;
+    @Nullable
+    private Map<String, Object> context;
+    @Nullable
+    private Integer maxGroups;
+
+    public Builder()
+    {
+    }
+
+    public Builder(SamplingGroupByQuery query)
+    {
+      dataSource = query.getDataSource();
+      querySegmentSpec = query.getQuerySegmentSpec();
+      dimFilter = query.getDimFilter();
+      granularity = query.getGranularity();
+      dimensions = query.getDimensions();
+      virtualColumns = query.getVirtualColumns();
+      aggregatorSpecs = query.getAggregatorSpecs();
+      postAggregatorSpecs = query.getPostAggregatorSpecs();
+      havingSpec = query.getHavingSpec();
+      context = query.getContext();
+    }
+
+    public Builder(SamplingGroupByQuery.Builder builder)
+    {
+      dataSource = builder.dataSource;
+      querySegmentSpec = builder.querySegmentSpec;
+      dimFilter = builder.dimFilter;
+      granularity = builder.granularity;
+      dimensions = builder.dimensions;
+      virtualColumns = builder.virtualColumns;
+      aggregatorSpecs = builder.aggregatorSpecs;
+      postAggregatorSpecs = builder.postAggregatorSpecs;
+      havingSpec = builder.havingSpec;
+      context = builder.context;
+      maxGroups = builder.maxGroups;
+    }
+
+    public SamplingGroupByQuery.Builder setDataSource(String dataSource)
+    {
+      this.dataSource = new TableDataSource(dataSource);
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setInterval(QuerySegmentSpec interval)
+    {
+      return setQuerySegmentSpec(interval);
+    }
+
+    public SamplingGroupByQuery.Builder setQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
+    {
+      this.querySegmentSpec = querySegmentSpec;
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setGranularity(Granularity granularity)
+    {
+      this.granularity = granularity;
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setDimensions(DimensionSpec... dimensions)
+    {
+      this.dimensions = new ArrayList<>(Arrays.asList(dimensions));
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setVirtualColumns(VirtualColumns virtualColumns)
+    {
+      this.virtualColumns = VirtualColumns.nullToEmpty(virtualColumns);
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
+    {
+      this.aggregatorSpecs = Lists.newArrayList(aggregatorSpecs);
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setPostAggregatorSpecs(List<PostAggregator> postAggregatorSpecs)
+    {
+      this.postAggregatorSpecs = Lists.newArrayList(postAggregatorSpecs);
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder setMaxGroups(@Nullable Integer maxGroups)
+    {
+      this.maxGroups = maxGroups;
+      return this;
+    }
+
+    public SamplingGroupByQuery.Builder copy()
+    {
+      return new SamplingGroupByQuery.Builder(this);
+    }
+
+    public SamplingGroupByQuery build()
+    {
+      return new SamplingGroupByQuery(
+          dataSource,
+          querySegmentSpec,
+          dimensions,
+          virtualColumns,
+          aggregatorSpecs,
+          postAggregatorSpecs,
+          dimFilter,
+          havingSpec,
+          granularity,
+          context,
+          maxGroups
+      );
+    }
+  }
+
+  @Override
+  public String toString()
+  {
+    return "SamplingGroupByQuery{" +
+           "dataSource='" + getDataSource() + '\'' +
+           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", dimensions=" + getDimensions() +
+           ", virtualColumns=" + getVirtualColumns() +
+           ", aggregatorSpecs=" + getAggregatorSpecs() +
+           ", postAggregatorSpecs=" + getPostAggregatorSpecs() +
+           ", dimFilter=" + getDimFilter() +
+           ", granularity=" + getGranularity() +
+           ", havingSpec=" + getHavingSpec() +
+           ", context=" + getContext() +
+           ", maxGroups=" + getMaxGroups() +
+           '}';
+  }
+
+  @Override
+  public boolean equals(final Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    final SamplingGroupByQuery that = (SamplingGroupByQuery) o;
+    return Objects.equals(getDimensions(), that.getDimensions()) &&
+           Objects.equals(getVirtualColumns(), that.getVirtualColumns()) &&
+           Objects.equals(getAggregatorSpecs(), that.getAggregatorSpecs()) &&
+           Objects.equals(getPostAggregatorSpecs(), that.getPostAggregatorSpecs()) &&
+           Objects.equals(getDimFilter(), that.getDimFilter()) &&
+           Objects.equals(getHavingSpec(), that.getHavingSpec()) &&
+           Objects.equals(getMaxGroups(), that.getMaxGroups());
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(
+        super.hashCode(),
+        getDimensions(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getDimFilter(),
+        getHavingSpec(),
+        getMaxGroups()
+    );
   }
 }

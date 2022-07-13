@@ -192,7 +192,7 @@ public class SamplingGroupByTwoPassQueryEngine
               bufferHolder
           ));
         }
-        return new ConcatSequence<>(Sequences.simple(grainResultSequences.build()));
+        return new ConcatSequence<>(Sequences.simple(grainResultSequences.build())).withBaggage(bufferHolder);
       }
       catch (Throwable e) {
         try {
@@ -202,6 +202,9 @@ public class SamplingGroupByTwoPassQueryEngine
           e.addSuppressed(e2);
         }
         throw e;
+      }
+      finally {
+        cursor.close();
       }
     }
     catch (Throwable e) {
@@ -250,14 +253,14 @@ public class SamplingGroupByTwoPassQueryEngine
 
     // construct the group by query for 2nd pass
     AndDimFilter andDimFilter = new AndDimFilter(query.getFilter(), boundDimFilter);
+    ImmutableList.Builder<VirtualColumn> virtualColumns = ImmutableList.builder();
+    virtualColumns.addAll(Arrays.asList(query.getVirtualColumns().getVirtualColumns()));
+    virtualColumns.addAll(ImmutableList.of(dimensionHashVirtualColumn, thetaVirtualColumn));
     GroupByQuery groupByQuery = query
         .generateIntermediateGroupByQuery()
         .withDimFilter(andDimFilter)
-        .withVirtualColumns(VirtualColumns.create(ImmutableList.of(dimensionHashVirtualColumn, thetaVirtualColumn)));
+        .withVirtualColumns(VirtualColumns.create(virtualColumns.build()));
 
-    ByteBuffer groupByBuffer = bufferHolder.get().duplicate();
-    groupByBuffer.position(getMaxHashBytes(storageAdapter));
-    groupByBuffer = groupByBuffer.slice().order(ByteOrder.nativeOrder());
     return vectorizedSecondPass(
         storageAdapter,
         groupByQuery.getFilter() == null ? null : groupByQuery.getFilter().toFilter(),
@@ -265,7 +268,7 @@ public class SamplingGroupByTwoPassQueryEngine
         groupByQuery,
         new GroupByQueryConfig(),
         processingConfig,
-        groupByBuffer
+        bufferHolder
     );
   }
 
@@ -276,9 +279,14 @@ public class SamplingGroupByTwoPassQueryEngine
       GroupByQuery query,
       GroupByQueryConfig querySpecificConfig,
       DruidProcessingConfig processingConfig,
-      ByteBuffer groupByBuffer
+      ResourceHolder<ByteBuffer> bufferHolder
   )
   {
+    // get byte buffer from buffer holder
+    ByteBuffer groupByBuffer = bufferHolder.get().duplicate();
+    groupByBuffer.position(getMaxHashBytes(storageAdapter));
+    groupByBuffer = groupByBuffer.slice().order(ByteOrder.nativeOrder());
+
     Map<String, Object> context = new HashMap<>(query.getContext());
     context.put(QueryContexts.VECTORIZE_VIRTUAL_COLUMNS_KEY, QueryContexts.Vectorize.TRUE.toString());
     Sequence<ResultRow> resultRowSequence = VectorGroupByEngine.process(

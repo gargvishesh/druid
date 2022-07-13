@@ -23,6 +23,8 @@ import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.VectorObjectSelector;
 import org.apache.druid.segment.vector.VectorValueSelector;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * This factory provides a vectorized interface to hash the values of a column of any type. For string columns, it is
  * also tried to cache the hashes to avoid recomputation.
@@ -140,6 +142,11 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
       VectorObjectSelector selector
   )
   {
+    if (!capabilities.is(ValueType.STRING)) {
+      throw new UnsupportedOperationException("Grouping on dimensions with complex columns or expressions which are " +
+                                              "not STRING type is unsupported");
+    }
+    // TODO : adding caching
     return (startOffset, endOffset) -> {
       Object[] vector = selector.getObjectVector();
       int vSize = selector.getCurrentVectorSize();
@@ -148,7 +155,9 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
         if (vector[i] == null) {
           resultHashes[i] = HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         } else {
-          resultHashes[i - startOffset] = MurmurHash3.hash(vector[i].hashCode(), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+          resultHashes[i - startOffset] = MurmurHash3.hash(
+              vector[i].toString().getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED
+          )[0] >>> 1;
         }
       }
       return resultHashes;

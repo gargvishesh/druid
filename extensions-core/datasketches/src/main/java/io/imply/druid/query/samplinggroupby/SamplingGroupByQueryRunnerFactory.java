@@ -15,7 +15,6 @@ import io.imply.druid.query.samplinggroupby.engine.onepass.SamplingGroupByOnePas
 import io.imply.druid.query.samplinggroupby.engine.twopass.SamplingGroupByTwoPassQueryEngine;
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetrics;
 import org.apache.druid.collections.NonBlockingPool;
-import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
@@ -100,8 +99,6 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
         throw new IAE("Should only have one interval, got[%s]", intervals);
       }
 
-      ResourceHolder<ByteBuffer> bufferHolder = bufferPool.take();
-
       Filter filter = Filters.convertToCNFFromQueryContext(query, Filters.toFilter(query.getFilter()));
       Interval interval = Iterables.getOnlyElement(query.getIntervals());
 
@@ -114,7 +111,7 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
             query,
             storageAdapter,
             processingConfig,
-            bufferHolder,
+            bufferPool.take(),
             filter,
             interval,
             (SamplingGroupByQueryMetrics) queryPlus.getQueryMetrics()
@@ -124,7 +121,7 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
             query,
             storageAdapter,
             processingConfig,
-            bufferHolder,
+            bufferPool.take(),
             filter,
             interval,
             (SamplingGroupByQueryMetrics) queryPlus.getQueryMetrics()
