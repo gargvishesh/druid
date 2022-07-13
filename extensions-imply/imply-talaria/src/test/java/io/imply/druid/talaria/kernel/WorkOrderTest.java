@@ -19,7 +19,7 @@ public class WorkOrderTest
   public void testEquals()
   {
     EqualsVerifier.forClass(WorkOrder.class)
-                  .withNonnullFields("queryDefinition", "inputPartitions", "extraInfoHolder")
+                  .withNonnullFields("queryDefinition", "stageNumber", "workerNumber", "workerInputs")
                   .usingGetClass()
                   .verify();
   }

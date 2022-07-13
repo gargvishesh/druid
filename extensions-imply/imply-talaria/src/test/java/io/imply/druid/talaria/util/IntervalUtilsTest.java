@@ -23,7 +23,20 @@ public class IntervalUtilsTest
   @Test
   public void test_difference()
   {
-    // TODO(gianm): poor coverage; need to test more scenarios
+    Assert.assertEquals(
+        intervals(),
+        IntervalUtils.difference(intervals(), intervals("2000/P1D"))
+    );
+
+    Assert.assertEquals(
+        intervals("2000/P1D"),
+        IntervalUtils.difference(intervals("2000/P1D"), intervals())
+    );
+
+    Assert.assertEquals(
+        intervals("2000/2001"),
+        IntervalUtils.difference(intervals("2000/2001"), intervals("2003/2004"))
+    );
 
     Assert.assertEquals(
         intervals("2000-01-02/2001"),
@@ -43,6 +56,21 @@ public class IntervalUtilsTest
     Assert.assertEquals(
         intervals("2000-01-14/2000-02-01", "2000-02-02/2001"),
         IntervalUtils.difference(intervals("2000/P1D", "2000-01-14/2001"), intervals("2000/P1D", "2000-02-01/P1D"))
+    );
+
+    Assert.assertEquals(
+        intervals("2000-01-01/2000-07-01", "2000-07-02/2001-01-01", "2002-01-01/2002-07-01", "2002-07-02/2003-01-01"),
+        IntervalUtils.difference(intervals("2000/P1Y", "2002/P1Y"), intervals("2000-07-01/P1D", "2002-07-01/P1D"))
+    );
+
+    Assert.assertEquals(
+        intervals(),
+        IntervalUtils.difference(intervals("2000-01-12/2000-01-15"), intervals("2000-01-12/2000-01-13", "2000-01-13/2000-01-16"))
+    );
+
+    Assert.assertEquals(
+        intervals("2000-07-14/2000-07-15"),
+        IntervalUtils.difference(intervals("2000/2001"), intervals("2000-01-01/2000-07-14", "2000-07-15/2001"))
     );
   }
 
