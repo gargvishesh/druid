@@ -96,7 +96,7 @@ public class NestedDataExpressions
   public static class JsonObjectExprMacro extends StructExprMacro
   {
     public static final String NAME = "json_object";
-    
+
     @Override
     public String name()
     {
@@ -291,7 +291,6 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
           return ExprEval.bestEffortOf(
               PathFinder.findLiteral(maybeUnwrapStructuredData(input), parts)
           );
@@ -341,7 +340,6 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
           return ExprEval.ofComplex(
               TYPE,
               PathFinder.find(maybeUnwrapStructuredData(input), parts)
@@ -392,7 +390,6 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
           return ExprEval.bestEffortOf(
               PathFinder.findLiteral(maybeUnwrapStructuredData(input), parts)
           );
@@ -451,7 +448,6 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
           StructuredDataProcessor.ProcessResults info = processor.processFields(maybeUnwrapStructuredData(input));
           return ExprEval.ofType(
               ExpressionType.STRING_ARRAY,
@@ -511,13 +507,12 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
-          // todo (clint): in the future ProcessResults should deal in PathFinder.PathPart instead of strings for fields
+          // maybe in the future ProcessResults should deal in PathFinder.PathPart instead of strings for fields
           StructuredDataProcessor.ProcessResults info = processor.processFields(maybeUnwrapStructuredData(input));
           List<String> transformed = info.getLiteralFields()
-                                        .stream()
-                                        .map(p -> PathFinder.toNormalizedJsonPath(PathFinder.parseJqPath(p)))
-                                        .collect(Collectors.toList());
+                                         .stream()
+                                         .map(p -> PathFinder.toNormalizedJsonPath(PathFinder.parseJqPath(p)))
+                                         .collect(Collectors.toList());
           return ExprEval.ofType(
               ExpressionType.STRING_ARRAY,
               transformed
@@ -567,7 +562,6 @@ public class NestedDataExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          checkArg0NestedType(name, args, input);
           return ExprEval.ofType(
               ExpressionType.STRING_ARRAY,
               PathFinder.findKeys(maybeUnwrapStructuredData(input), parts)
@@ -603,29 +597,11 @@ public class NestedDataExpressions
     return input.value();
   }
 
-  static void checkArg0NestedType(String fnName, List<Expr> args, ExprEval input)
-  {
-    if (!TYPE.equals(input.type()) && input.value() != null) {
-      // give unknown complex a try, sometimes ingestion needs a little help because input format isn't mapped to a
-      // druid schema
-      if (ExpressionType.UNKNOWN_COMPLEX.equals(input.type())) {
-        return;
-      }
-      throw new IAE(
-          "Function[%s] first argument [%s] must be type [%s] as input, got [%s]",
-          fnName,
-          args.get(0).stringify(),
-          TYPE.asTypeString(),
-          input.type().asTypeString()
-      );
-    }
-  }
-
   static List<PathFinder.PathPart> getArg1PathPartsFromLiteral(String fnName, List<Expr> args)
   {
     if (!(args.get(1).isLiteral() && args.get(1).getLiteralValue() instanceof String)) {
       throw new IAE(
-          "Function[%s] second argument [%s] must be a literal [%s] value, got [%s] instead",
+          "Function[%s] second argument [%s] must be a literal [%s] value",
           fnName,
           args.get(1).stringify(),
           ExpressionType.STRING
@@ -646,13 +622,15 @@ public class NestedDataExpressions
   {
     if (!(args.get(1).isLiteral() && args.get(1).getLiteralValue() instanceof String)) {
       throw new IAE(
-          "Function[%s] second argument [%s] must be a literal [%s] value, got [%s] instead",
+          "Function[%s] second argument [%s] must be a literal [%s] value",
           fnName,
           args.get(1).stringify(),
           ExpressionType.STRING
       );
     }
-    final List<PathFinder.PathPart> parts = PathFinder.parseJsonPath((String) args.get(1).getLiteralValue());
+    final List<PathFinder.PathPart> parts = PathFinder.parseJsonPath(
+        (String) args.get(1).getLiteralValue()
+    );
     return parts;
   }
 }
