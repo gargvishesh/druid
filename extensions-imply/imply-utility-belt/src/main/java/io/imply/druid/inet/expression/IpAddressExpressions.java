@@ -457,6 +457,14 @@ public class IpAddressExpressions
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
+      if (args.get(0).isLiteral() && args.get(1).isLiteral()) {
+        throw new IAE(
+            "Function[%s] must have exactly one of the two arguments be a Complex IP type: either a [%s] for the first argument, or a [%s] for the second argument.",
+            name(),
+            IP_ADDRESS_TYPE.asTypeString(),
+            IP_PREFIX_TYPE.asTypeString()
+        );
+      }
       if (args.get(1).isLiteral()) {
         final ExprEval literalEval = args.get(1).eval(InputBindings.nilBindings());
         if (!literalEval.type().is(ExprType.STRING)) {
@@ -482,29 +490,21 @@ public class IpAddressExpressions
             ExprEval input = args.get(0).eval(bindings);
             if (input.value() == null) {
               return ExprEval.ofLongBoolean(literal == null);
-            } else if (input.type().is(ExprType.STRING)) {
-              String ip = (String) input.value();
-              IpAddressBlob blob = IpAddressBlob.ofString(ip);
-              if (blob == null) {
-                throw new IAE(
-                    "Function[%s] first argument [%s] is invalid",
-                    name,
-                    input.value()
-                );
-              } else {
-                return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(literal));
-              }
+            } else if (literal == null) {
+              return ExprEval.ofLongBoolean(input.value() == null);
             } else if (IP_ADDRESS_TYPE.equals(input.type())) {
               IpAddressBlob blob = (IpAddressBlob) input.value();
               if (blob == null) {
-                return ExprEval.ofLongBoolean(literal == null);
+                return ExprEval.ofLongBoolean(false);
               }
               return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(literal));
             } else {
               throw new IAE(
-                  "Function[%s] first argument is invalid type, got [%s]",
+                  "Function[%s] first argument is invalid type, got [%s] but expect [%s] since second argument is [%s]",
                   name,
-                  input.type()
+                  input.type(),
+                  IP_ADDRESS_TYPE.asTypeString(),
+                  ExpressionType.STRING.asTypeString()
               );
             }
           }
@@ -552,29 +552,21 @@ public class IpAddressExpressions
             ExprEval input = args.get(1).eval(bindings);
             if (input.value() == null) {
               return ExprEval.ofLongBoolean(literal == null);
-            } else if (input.type().is(ExprType.STRING)) {
-              String ip = (String) input.value();
-              IpPrefixBlob blob = IpPrefixBlob.ofString(ip);
-              if (blob == null) {
-                throw new IAE(
-                    "Function[%s] second argument [%s] is invalid",
-                    name,
-                    input.value()
-                );
-              } else {
-                return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(literal));
-              }
+            } else if (literal == null) {
+              return ExprEval.ofLongBoolean(input.value() == null);
             } else if (IP_PREFIX_TYPE.equals(input.type())) {
               IpPrefixBlob blob = (IpPrefixBlob) input.value();
               if (blob == null) {
-                return ExprEval.ofLongBoolean(literal == null);
+                return ExprEval.ofLongBoolean(false);
               }
               return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(literal));
             } else {
               throw new IAE(
-                  "Function[%s] second argument is invalid type, got [%s]",
+                  "Function[%s] second argument is invalid type, got [%s] but expect [%s] since first argument is [%s]",
                   name,
-                  input.type()
+                  input.type(),
+                  IP_PREFIX_TYPE.asTypeString(),
+                  ExpressionType.STRING.asTypeString()
               );
             }
           }
@@ -625,12 +617,13 @@ public class IpAddressExpressions
             }
             return ExprEval.ofLongBoolean(getIpPrefixMatchFunction(blob).apply(input.asString()));
           } else {
-            // TODO maybe write a better message
             throw new IAE(
-                "Function[%s] invalid arguments, got first argument [%s] and second argument [%s]",
-                name,
+                "Function[%s] invalid arguments, got first argument [%s] and second argument [%s]. Must have exactly one of the two arguments be a Complex IP type: either a [%s] for the first argument, or a [%s] for the second argument.",
+                name(),
                 input.type(),
-                matchesInput.type()
+                matchesInput.type(),
+                IP_ADDRESS_TYPE.asTypeString(),
+                IP_PREFIX_TYPE.asTypeString()
             );
           }
         }

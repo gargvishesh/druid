@@ -14,13 +14,19 @@ package io.imply.druid.inet.utils;
 
 import inet.ipaddr.IPAddressSeqRange;
 import inet.ipaddr.IPAddressString;
+import org.apache.druid.java.util.common.IAE;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.List;
 
 public class IpAddressUtilsTest
 {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   @Test
   public void testGetPossibleRangesFromIncompleteIpForBothIpv4AndIpv6() {
     List<IPAddressSeqRange> ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("2");
@@ -58,6 +64,11 @@ public class IpAddressUtilsTest
     Assert.assertTrue(ranges.contains(new IPAddressString("e0::").getAddress().toIPv6().spanWithRange(new IPAddressString("ef:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
     Assert.assertTrue(ranges.contains(new IPAddressString("e00::").getAddress().toIPv6().spanWithRange(new IPAddressString("eff:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
     Assert.assertTrue(ranges.contains(new IPAddressString("e000::").getAddress().toIPv6().spanWithRange(new IPAddressString("efff:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+
+    ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("001");
+    Assert.assertEquals(2, ranges.size());
+    Assert.assertTrue(ranges.contains(new IPAddressString("001::").getAddress().toIPv6().spanWithRange(new IPAddressString("001:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("0010::").getAddress().toIPv6().spanWithRange(new IPAddressString("001f:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
   }
 
   @Test
@@ -130,6 +141,31 @@ public class IpAddressUtilsTest
   }
 
   @Test
+  public void testGetPossibleRangesFromIncompleteIpForIpv4EndingInZero() {
+    List<IPAddressSeqRange> ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("192.0");
+    Assert.assertEquals(1, ranges.size());
+    Assert.assertTrue(ranges.contains(new IPAddressString("192.0.0.0").getAddress().toIPv6().spanWithRange(new IPAddressString("192.0.255.255").getAddress().toIPv6())));
+
+    ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("192.168.2.0");
+    Assert.assertEquals(1, ranges.size());
+    Assert.assertTrue(ranges.contains(new IPAddressString("192.168.2.0").getAddress().toIPv6().spanWithRange(new IPAddressString("192.168.2.0").getAddress().toIPv6())));
+
+    ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("0");
+    Assert.assertEquals(5, ranges.size());
+    Assert.assertTrue(ranges.contains(new IPAddressString("0.0.0.0").getAddress().toIPv6().spanWithRange(new IPAddressString("0.255.255.255").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("0:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("f:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("ff:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("fff:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+
+    ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("00");
+    Assert.assertEquals(3, ranges.size());
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("0:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("00f:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+    Assert.assertTrue(ranges.contains(new IPAddressString("::").getAddress().toIPv6().spanWithRange(new IPAddressString("00ff:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
+  }
+
+  @Test
   public void testGetPossibleRangesFromIncompleteIpForIpv4NotOverRange() {
     List<IPAddressSeqRange> ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp("192.90");
     Assert.assertEquals(1, ranges.size());
@@ -184,5 +220,19 @@ public class IpAddressUtilsTest
     Assert.assertTrue(ranges.contains(new IPAddressString("255::").getAddress().toIPv6().spanWithRange(new IPAddressString("255:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
     Assert.assertTrue(ranges.contains(new IPAddressString("2550::").getAddress().toIPv6().spanWithRange(new IPAddressString("255f:ffff:ffff:ffff:ffff:ffff:ffff:ffff").getAddress().toIPv6())));
     Assert.assertTrue(ranges.contains(new IPAddressString("255.0.0.0").getAddress().toIPv6().spanWithRange(new IPAddressString("255.255.255.255").getAddress().toIPv6())));
+  }
+
+  @Test
+  public void testGetPossibleRangesFromIncompleteIpFailedForIncompleteIpv4WithLeadingZero() {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Cannot expand invalid partial address [192.00]");
+    IpAddressUtils.getPossibleRangesFromIncompleteIp("192.00");
+  }
+
+  @Test
+  public void testGetPossibleRangesFromIncompleteIpFailedForCompleteIpv4WithLeadingZero() {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Cannot expand invalid partial address [192.168.001.1]");
+    IpAddressUtils.getPossibleRangesFromIncompleteIp("192.168.001.1");
   }
 }

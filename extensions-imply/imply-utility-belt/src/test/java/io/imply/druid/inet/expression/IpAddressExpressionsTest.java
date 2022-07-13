@@ -628,6 +628,78 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   }
 
   @Test
+  public void testSearchInvalidBothStringLiterals()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] must have exactly one of the two arguments be a Complex IP type: either a [COMPLEX<ipAddress>] for the first argument, or a [COMPLEX<ipPrefix>] for the second argument.");
+    Expr expr = Parser.parse("ip_search('1:2:3:4:5:6:7:9', '1:2:3:4:5:6:7:9')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testMatchInvalidBothStringLiterals()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_match] must have exactly one of the two arguments be a Complex IP type: either a [COMPLEX<ipAddress>] for the first argument, or a [COMPLEX<ipPrefix>] for the second argument.");
+    Expr expr = Parser.parse("ip_match('1:2:3:4:5:6:7:9', '1:2:3:4:5:6:7:9')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testSearchInvalidBothStringColumn()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] invalid arguments, got first argument [STRING] and second argument [STRING]. Must have exactly one of the two arguments be a Complex IP type: either a [COMPLEX<ipAddress>] for the first argument, or a [COMPLEX<ipPrefix>] for the second argument.");
+    Expr expr = Parser.parse("ip_search(ipv4_string, ipv4_string)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testMatchInvalidBothStringColumn()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_match] invalid arguments, got first argument [STRING] and second argument [STRING]. Must have exactly one of the two arguments be a Complex IP type: either a [COMPLEX<ipAddress>] for the first argument, or a [COMPLEX<ipPrefix>] for the second argument.");
+    Expr expr = Parser.parse("ip_match(ipv4_string, ipv4_string)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testSearchInvalidStringColumnAndStringLiteral()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] first argument is invalid type, got [STRING] but expect [COMPLEX<ipAddress>] since second argument is [STRING]");
+    Expr expr = Parser.parse("ip_search(ipv4_string, '192.168.1.1/16')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testMatchInvalidStringColumnAndStringLiteral()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_match] first argument is invalid type, got [STRING] but expect [COMPLEX<ipAddress>] since second argument is [STRING]");
+    Expr expr = Parser.parse("ip_match(ipv4_string, '192.168.1.1/16')", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testSearchInvalidStringLiteralAndStringColumn()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_search] second argument is invalid type, got [STRING] but expect [COMPLEX<ipPrefix>] since first argument is [STRING]");
+    Expr expr = Parser.parse("ip_search('192.168.1.1', ipv4_string)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testMatchInvalidStringLiteralAndStringColumn()
+  {
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("Function[ip_match] second argument is invalid type, got [STRING] but expect [COMPLEX<ipPrefix>] since first argument is [STRING]");
+    Expr expr = Parser.parse("ip_match('192.168.1.1', ipv4_string)", MACRO_TABLE);
+    expr.eval(inputBindings);
+  }
+
+  @Test
   public void testSearchInvalid()
   {
     expectedException.expect(IAE.class);
