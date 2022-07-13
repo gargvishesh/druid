@@ -289,6 +289,11 @@ public class LeaderImpl implements Leader
   @Override
   public void stopGracefully()
   {
+    final QueryDefinition queryDef = queryDefRef.get();
+
+    // stopGracefully() is called when the containing process is terminated, or when the task is canceled.
+    log.info("Query [%s] canceled.", queryDef != null ? queryDef.getQueryId() : "<no id yet>");
+
     kernelManipulationQueue.add(
         kernel -> {
           throw new TalariaException(CanceledFault.INSTANCE);
@@ -296,11 +301,11 @@ public class LeaderImpl implements Leader
     );
   }
 
-  public TaskStatus runTask(final Closer closer) throws Exception
+  public TaskStatus runTask(final Closer closer)
   {
     QueryDefinition queryDef = null;
     ControllerQueryKernel queryKernel = null;
-    ListenableFuture<Map<String, TaskState>> workerTaskRunnerFuture = null;
+    ListenableFuture<?> workerTaskRunnerFuture = null;
     CounterSnapshotsTree countersSnapshot = null;
     Yielder<Object[]> resultsYielder = null;
     Throwable exceptionEncountered = null;
@@ -313,7 +318,7 @@ public class LeaderImpl implements Leader
       queryDef = initializeQueryDefAndState(closer);
 
       final InputSpecSlicerFactory inputSpecSlicerFactory = makeInputSpecSlicerFactory(makeDataSegmentTimelineView());
-      final Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> queryRunResult =
+      final Pair<ControllerQueryKernel, ListenableFuture<?>> queryRunResult =
           runQueryUntilDone(queryDef, inputSpecSlicerFactory, closer);
 
       queryKernel = Preconditions.checkNotNull(queryRunResult.lhs);
@@ -437,9 +442,14 @@ public class LeaderImpl implements Leader
     }
 
     // Wait for worker tasks to exit. Ignore their return status. At this point, we've done everything we need to do,
-    // so we don't care anymore.
+    // so we don't care about the task exit status.
     if (workerTaskRunnerFuture != null) {
-      workerTaskRunnerFuture.get();
+      try {
+        workerTaskRunnerFuture.get();
+      }
+      catch (Exception ignored) {
+        // Suppress.
+      }
     }
 
     cleanUpDurableStorageIfNeeded();
@@ -463,8 +473,6 @@ public class LeaderImpl implements Leader
     final boolean isDurableStorageEnabled =
         TalariaContext.isDurableStorageEnabled(task.getQuerySpec().getQuery().getContext());
 
-    log.debug("Query [%s] durable storage mode is set to %s.", id(), isDurableStorageEnabled);
-
     final QueryDefinition queryDef = makeQueryDefinition(
         id(),
         makeQueryControllerToolKit(),
@@ -473,6 +481,8 @@ public class LeaderImpl implements Leader
 
     QueryValidator.validateQueryDef(queryDef);
     queryDefRef.set(queryDef);
+
+    log.debug("Query [%s] durable storage mode is set to %s.", queryDef.getQueryId(), isDurableStorageEnabled);
 
     this.workerTaskLauncher = new TalariaWorkerTaskLauncher(
         id(),
@@ -500,7 +510,7 @@ public class LeaderImpl implements Leader
     return queryDef;
   }
 
-  private Pair<ControllerQueryKernel, ListenableFuture<Map<String, TaskState>>> runQueryUntilDone(
+  private Pair<ControllerQueryKernel, ListenableFuture<?>> runQueryUntilDone(
       final QueryDefinition queryDef,
       final InputSpecSlicerFactory inputSpecSlicerFactory,
       final Closer closer
@@ -509,26 +519,14 @@ public class LeaderImpl implements Leader
     // Start tasks.
     log.debug("Query [%s] starting tasks.", queryDef.getQueryId());
 
-    final ListenableFuture<Map<String, TaskState>> workerTaskLauncherFuture = workerTaskLauncher.start();
+    final ListenableFuture<?> workerTaskLauncherFuture = workerTaskLauncher.start();
     closer.register(() -> workerTaskLauncher.stop(true));
 
     workerTaskLauncherFuture.addListener(
         () ->
             kernelManipulationQueue.add(queryKernel -> {
-              final Map<String, TaskState> workerTaskStates =
-                  TalariaFutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
-
-              for (final Map.Entry<String, TaskState> entry : workerTaskStates.entrySet()) {
-                if (entry.getValue() != TaskState.SUCCESS) {
-                  // Some worker task failed. Add its failure to workerErrorRef so that specific task shows up in
-                  // the report.
-                  // Also, we fail each of the stages that are currently active
-                  workerFailed(new WorkerFailedFault(entry.getKey()));
-
-                  // Halt the query kernel
-                  queryKernel.getActiveStages().forEach(queryKernel::failStage);
-                }
-              }
+              // Throw an exception in the main loop, if anything went wrong.
+              TalariaFutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
             }),
         Execs.directExecutor()
     );
@@ -781,7 +779,7 @@ public class LeaderImpl implements Leader
   }
 
   @Override
-  public void workerFailed(WorkerFailedFault fault)
+  public void workerFailed(final WorkerFailedFault fault)
   {
     workerError(MSQErrorReport.fromFault(id(), selfDruidNode.getHost(), null, fault));
   }

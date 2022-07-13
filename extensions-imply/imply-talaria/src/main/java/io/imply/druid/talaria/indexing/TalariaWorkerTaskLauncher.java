@@ -73,7 +73,7 @@ public class TalariaWorkerTaskLauncher
   private final boolean durableStageStorageEnabled;
 
   // Mutable state meant to be accessible by threads outside the main loop.
-  private final SettableFuture<Map<String, TaskState>> stopFuture = SettableFuture.create();
+  private final SettableFuture<?> stopFuture = SettableFuture.create();
   private final AtomicReference<State> state = new AtomicReference<>(State.NEW);
   private final AtomicBoolean cancelTasksOnStop = new AtomicBoolean();
 
@@ -114,10 +114,11 @@ public class TalariaWorkerTaskLauncher
   }
 
   /**
-   * Launches tasks, blocking until they are all in RUNNING state. Returns a future that resolves to the collective
-   * and final state of the tasks once they are all done.
+   * Launches tasks, blocking until they are all in RUNNING state. Returns a future that resolves successfully when
+   * all tasks end successfully or are canceled. The returned future resolves to an exception if one of the tasks fails
+   * without being explicitly canceled, or if something else goes wrong.
    */
-  public ListenableFuture<Map<String, TaskState>> start()
+  public ListenableFuture<?> start()
   {
     if (state.compareAndSet(State.NEW, State.STARTED)) {
       exec.submit(() -> {
@@ -135,8 +136,8 @@ public class TalariaWorkerTaskLauncher
   }
 
   /**
-   * Stops all tasks, blocking until they exit. Returns quietly if the tasks exit normally; throws an exception
-   * if something else happens.
+   * Stops all tasks, blocking until they exit. Returns quietly, no matter whether there was an exception
+   * associated with the future from {@link #start()} or not.
    */
   public void stop(final boolean interrupt)
   {
@@ -162,7 +163,12 @@ public class TalariaWorkerTaskLauncher
     }
 
     // Block until stopped.
-    FutureUtils.getUnchecked(stopFuture, true);
+    try {
+      FutureUtils.getUnchecked(stopFuture, false);
+    }
+    catch (Throwable ignored) {
+      // Suppress.
+    }
   }
 
   /**
@@ -225,11 +231,7 @@ public class TalariaWorkerTaskLauncher
         catch (Throwable e) {
           state.set(State.STOPPED);
           cancelTasksOnStop.set(true);
-
-          if (!isWorkerFailedException(e)) {
-            caught = e;
-          }
-
+          caught = e;
           break;
         }
 
@@ -269,7 +271,7 @@ public class TalariaWorkerTaskLauncher
         throw caught;
       }
 
-      stopFuture.set(computeStopReturnValue());
+      stopFuture.set(null);
     }
     catch (Throwable e) {
       if (!stopFuture.isDone()) {
@@ -381,7 +383,7 @@ public class TalariaWorkerTaskLauncher
       }
 
       if (tracker.didFail() && !canceledWorkerTasks.contains(taskId)) {
-        throw new TalariaException(new WorkerFailedFault(taskId));
+        throw new TalariaException(new WorkerFailedFault(taskId, tracker.status.getErrorMsg()));
       }
     }
   }
@@ -397,24 +399,6 @@ public class TalariaWorkerTaskLauncher
         context.workerManager().cancel(taskId);
       }
     }
-  }
-
-  /**
-   * Used by the main loop to populate {@link #stopFuture}.
-   */
-  private Map<String, TaskState> computeStopReturnValue()
-  {
-    final Map<String, TaskState> retVal = new LinkedHashMap<>();
-
-    for (Map.Entry<String, TaskTracker> trackerEntry : taskTrackers.entrySet()) {
-      final String taskId = trackerEntry.getKey();
-      final TaskTracker tracker = trackerEntry.getValue();
-
-      // Return status if known, FAILED if not known.
-      retVal.put(taskId, tracker.status != null ? tracker.status.getStatusCode() : TaskState.FAILED);
-    }
-
-    return retVal;
   }
 
   /**
@@ -450,12 +434,6 @@ public class TalariaWorkerTaskLauncher
         throw new InterruptedException();
       }
     }
-  }
-
-  private static boolean isWorkerFailedException(final Throwable e)
-  {
-    return e instanceof TalariaException
-           && WorkerFailedFault.CODE.equals(((TalariaException) e).getFault().getErrorCode());
   }
 
   /**
