@@ -30,6 +30,7 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.Query;
@@ -43,6 +44,7 @@ import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.filter.OrDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
@@ -57,10 +59,13 @@ import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnConfig;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
+import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.After;
@@ -139,6 +144,7 @@ public class SamplingGroupByMultiSegmentTest
   @Before
   public void setup() throws Exception
   {
+    ExpressionProcessing.initializeForTests(true);
     tmpDir = FileUtils.createTempDir();
 
     InputRow row;
@@ -249,6 +255,7 @@ public class SamplingGroupByMultiSegmentTest
         new TableDataSource("blah"),
         intervalSpec,
         ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        VirtualColumns.EMPTY,
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(new FieldAccessPostAggregator("fieldAccessPostAgg", "_samplingRate")),
         new OrDimFilter(
@@ -297,7 +304,75 @@ public class SamplingGroupByMultiSegmentTest
     SamplingGroupByQuery query = new SamplingGroupByQuery(
         new TableDataSource("blah"),
         intervalSpec,
-        ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        ImmutableList.of(new DefaultDimensionSpec("v0", null)),
+        VirtualColumns.create(ImmutableList.of(new ExpressionVirtualColumn(
+            "v0",
+            "\"dimA\"",
+            ColumnType.STRING,
+            TestExprMacroTable.INSTANCE
+        ))),
+        ImmutableList.of(new CountAggregatorFactory("count")),
+        ImmutableList.of(),
+        null,
+        null,
+        new AllGranularity(),
+        new HashMap<>(),
+        10
+    );
+
+    Sequence<ResultRow> queryResult = theRunner.run(QueryPlus.wrap(query), ResponseContext.createEmpty());
+    List<ResultRow> results = queryResult.toList();
+
+    ResultRow[] expectedRows = new ResultRow[]{
+        ResultRow.of(
+            "hello",
+            1.0D,
+            1L
+        ),
+        ResultRow.of(
+            "world",
+            1.0D,
+            2L
+        ),
+        ResultRow.of(
+            "foo",
+            1.0D,
+            1L
+        )
+    };
+
+    Assert.assertEquals(3, results.size());
+    Assert.assertArrayEquals(expectedRows, results.toArray(new ResultRow[0]));
+  }
+
+  @Test
+  public void testMultipleSegmentsWithOneQueryableIndexAndOneIncementalIndexAndArrayVirtualColumn()
+  {
+    // both segments (queryable and incremental) run non-vectorized due to expression being on arrays
+    QueryToolChest<ResultRow, SamplingGroupByQuery> toolChest = samplingGroupByFactory.getToolchest();
+    QueryRunner<ResultRow> theRunner = new FinalizeResultsQueryRunner<>(
+        toolChest.mergeResults(
+            samplingGroupByFactory.mergeRunners(executorService, makeGroupByMultiRunners(
+                ImmutableList.of(samplingGroupByIndices.get(1)),
+                ImmutableList.of(incrementalIndices.get(0))
+            ))
+        ),
+        (QueryToolChest) toolChest
+    );
+    QuerySegmentSpec intervalSpec = new MultipleIntervalSegmentSpec(
+        Collections.singletonList(Intervals.utc(0, 1000000))
+    );
+
+    SamplingGroupByQuery query = new SamplingGroupByQuery(
+        new TableDataSource("blah"),
+        intervalSpec,
+        ImmutableList.of(new DefaultDimensionSpec("v0", null)),
+        VirtualColumns.create(ImmutableList.of(new ExpressionVirtualColumn(
+            "v0",
+            "cast(cast(\"dimA\",'STRING_ARRAY'),'STRING')",
+            ColumnType.STRING,
+            TestExprMacroTable.INSTANCE
+        ))),
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(),
         null,
@@ -353,6 +428,7 @@ public class SamplingGroupByMultiSegmentTest
         new TableDataSource("blah"),
         intervalSpec,
         ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        VirtualColumns.EMPTY,
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(),
         null,

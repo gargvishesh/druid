@@ -177,8 +177,7 @@ public class SamplingGroupByQueryToolChest extends QueryToolChest<ResultRow, Sam
   @Override
   public RowSignature resultArraySignature(SamplingGroupByQuery query)
   {
-    // currently intermediate row is the final row too
-    return query.generateIntermediateGroupByQuery().getResultRowSignature();
+    return query.getResultRowSignature();
   }
 
   @Override

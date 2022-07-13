@@ -17,10 +17,13 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
+import com.google.inject.multibindings.Multibinder;
 import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetricsFactory;
+import io.imply.druid.query.samplinggroupby.sql.SamplingRateSqlAggregator;
+import io.imply.druid.query.samplinggroupby.sql.calcite.rule.DruidSamplingGroupByQueryRule;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.DruidBinders;
 import org.apache.druid.guice.LazySingleton;
@@ -30,6 +33,8 @@ import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryRunnerFactory;
 import org.apache.druid.query.QueryToolChest;
+import org.apache.druid.sql.calcite.rule.ExtensionCalciteRuleProvider;
+import org.apache.druid.sql.guice.SqlBindings;
 
 import java.util.List;
 
@@ -73,6 +78,13 @@ public class SamplingGroupByQueryModule implements DruidModule
         .optionBinder(binder, Key.get(SamplingGroupByQueryMetricsFactory.class))
         .addBinding("default")
         .to(DefaultSamplingGroupByQueryMetricsFactory.class);
+
+    SqlBindings.addAggregator(binder, SamplingRateSqlAggregator.class);
+
+    // bind the SamplingGroupBy planning rule
+    Multibinder.newSetBinder(binder, ExtensionCalciteRuleProvider.class)
+               .addBinding()
+               .to(DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider.class);
   }
 
   @Override
@@ -84,7 +96,8 @@ public class SamplingGroupByQueryModule implements DruidModule
 
     return ImmutableList.of(
         new SimpleModule("SamplingGroupBy").registerSubtypes(
-            new NamedType(SamplingGroupByQuery.class, SamplingGroupByQuery.QUERY_TYPE)
+            new NamedType(SamplingGroupByQuery.class, SamplingGroupByQuery.QUERY_TYPE),
+            new NamedType(SamplingRateAggregatorFactory.class, SamplingRateSqlAggregator.NAME)
         )
     );
   }

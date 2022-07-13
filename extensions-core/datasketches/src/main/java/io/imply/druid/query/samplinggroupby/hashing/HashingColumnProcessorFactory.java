@@ -87,11 +87,7 @@ public class HashingColumnProcessorFactory implements ColumnProcessorFactory<Has
   @Override
   public HashSupplier makeComplexProcessor(BaseObjectColumnValueSelector<?> selector)
   {
-    return () -> {
-      if (selector.getObject() == null) {
-        return HashingVectorColumnProcessors.NULL_EMPTY_HASH;
-      }
-      return MurmurHash3.hash(selector.getObject().hashCode(), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
-    };
+    throw new UnsupportedOperationException("Grouping on dimensions with complex columns or expressions which are " +
+                                              "not STRING type is unsupported");
   }
 }

@@ -359,6 +359,40 @@
         </executions>
       </plugin>
 
+      <!-- This plugin is used to replace the production rule for FROM clause in the calcite grammar.
+           It is done by a search and replace since calcite doesn't allow to override production rules generally
+           in its grammar (override is possible only if there's a hook for it in the grammar). And the FROM clause
+           doesn't contain any hook for extension. This can be removed once either
+           https://issues.apache.org/jira/browse/CALCITE-5074 or https://issues.apache.org/jira/browse/CALCITE-5084
+           are resolved and the calcite version in druid is bumped to use it. For the custom changes done in
+           extension, please check from.ftl file in sql module
+      -->
+      <plugin>
+        <groupId>com.google.code.maven-replacer-plugin</groupId>
+        <artifactId>replacer</artifactId>
+        <version>1.5.3</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>replace</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <basedir>${project.build.directory}/generated-sources/annotations/org/apache/druid/sql/calcite/parser</basedir>
+          <includes>
+            <include>**/DruidSqlParserImpl.java</include>
+          </includes>
+          <replacements>
+            <replacement>
+              <token>fromClause = FromClause</token>
+              <value>fromClause = ImplyFromClause</value>
+            </replacement>
+          </replacements>
+        </configuration>
+      </plugin>
+
       <!-- Adds the path of the generated parser to the classpath -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

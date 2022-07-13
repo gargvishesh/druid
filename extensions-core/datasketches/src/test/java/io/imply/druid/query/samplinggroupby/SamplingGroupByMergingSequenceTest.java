@@ -22,6 +22,7 @@ import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
+import org.apache.druid.segment.VirtualColumns;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,6 +40,7 @@ public class SamplingGroupByMergingSequenceTest
                 TableDataSource.create("dummy"),
                 new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY),
                 ImmutableList.of(DefaultDimensionSpec.of("dummyCol")),
+                VirtualColumns.EMPTY,
                 null,
                 null,
                 null,
@@ -68,6 +70,7 @@ public class SamplingGroupByMergingSequenceTest
                 TableDataSource.create("dummy"),
                 new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY),
                 ImmutableList.of(DefaultDimensionSpec.of("dummyCol")),
+                VirtualColumns.EMPTY,
                 null,
                 null,
                 null,
@@ -96,6 +99,7 @@ public class SamplingGroupByMergingSequenceTest
                 TableDataSource.create("dummy"),
                 new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY),
                 ImmutableList.of(DefaultDimensionSpec.of("dummyCol")),
+                VirtualColumns.EMPTY,
                 null,
                 null,
                 null,
@@ -126,6 +130,7 @@ public class SamplingGroupByMergingSequenceTest
                 TableDataSource.create("dummy"),
                 new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY),
                 ImmutableList.of(DefaultDimensionSpec.of("dummyCol")),
+                VirtualColumns.EMPTY,
                 null,
                 null,
                 null,

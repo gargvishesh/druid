@@ -441,6 +441,7 @@ data: {
       "insert.ftl"
       "explain.ftl"
       "replace.ftl"
+      "from.ftl"
     ]
 
     includePosixOperators: false

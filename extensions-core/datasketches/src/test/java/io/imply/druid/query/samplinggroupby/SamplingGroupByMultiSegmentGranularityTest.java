@@ -57,6 +57,7 @@ import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
@@ -259,6 +260,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
         new TableDataSource("blah"),
         intervalSpec,
         ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        VirtualColumns.EMPTY,
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(new FieldAccessPostAggregator("fieldAccessPostAgg", "_samplingRate")),
         new OrDimFilter(
@@ -316,6 +318,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
         new TableDataSource("blah"),
         intervalSpec,
         ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        VirtualColumns.EMPTY,
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(),
         null,
@@ -392,6 +395,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
         new TableDataSource("blah"),
         intervalSpec,
         ImmutableList.of(new DefaultDimensionSpec("dimA", null)),
+        VirtualColumns.EMPTY,
         ImmutableList.of(new CountAggregatorFactory("count")),
         ImmutableList.of(),
         null,

@@ -53,73 +53,78 @@ public class SamplingGroupByOnePassQueryEngine
       @Nullable SamplingGroupByQueryMetrics samplingGroupByQueryMetrics
   )
   {
-    GroupByQuery groupByQuery = query.generateIntermediateGroupByQuery();
-    // create constant VCs for hash and theta and add that in the cursor
-    VirtualColumn hashVirtualColumn = new ExpressionVirtualColumn(
-        SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
-        ExprEval.ofLong(0).toExpr(),
-        ColumnType.LONG
-    );
-    VirtualColumn thetaVirtualColumn = new ExpressionVirtualColumn(
-        SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
-        ExprEval.ofLong(0).toExpr(),
-        ColumnType.LONG
-    );
-    ImmutableList.Builder<VirtualColumn> virtualColumns = ImmutableList.builder();
-    virtualColumns.add(hashVirtualColumn, thetaVirtualColumn);
-    virtualColumns.addAll(Arrays.asList(groupByQuery.getVirtualColumns().getVirtualColumns()));
-    Sequence<Cursor> cursors = storageAdapter.makeCursors(
-        filter,
-        interval,
-        VirtualColumns.create(virtualColumns.build()),
-        groupByQuery.getGranularity(),
-        false,
-        samplingGroupByQueryMetrics
-    );
-    Sequence<ResultRow> resultRowSequence =
-        cursors.flatMap(
-            cursor -> new BaseSequence<>(
-                new BaseSequence.IteratorMaker<ResultRow, GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer>>()
-                {
-                  @Override
-                  public GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> make()
+    try {
+      GroupByQuery groupByQuery = query.generateIntermediateGroupByQuery();
+      // create constant VCs for hash and theta and add that in the cursor
+      VirtualColumn hashVirtualColumn = new ExpressionVirtualColumn(
+          SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
+          ExprEval.ofLong(0).toExpr(),
+          ColumnType.LONG
+      );
+      VirtualColumn thetaVirtualColumn = new ExpressionVirtualColumn(
+          SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
+          ExprEval.ofLong(0).toExpr(),
+          ColumnType.LONG
+      );
+      ImmutableList.Builder<VirtualColumn> virtualColumns = ImmutableList.builder();
+      virtualColumns.add(hashVirtualColumn, thetaVirtualColumn);
+      virtualColumns.addAll(Arrays.asList(groupByQuery.getVirtualColumns().getVirtualColumns()));
+      Sequence<Cursor> cursors = storageAdapter.makeCursors(
+          filter,
+          interval,
+          VirtualColumns.create(virtualColumns.build()),
+          groupByQuery.getGranularity(),
+          false,
+          samplingGroupByQueryMetrics
+      );
+      Sequence<ResultRow> resultRowSequence =
+          cursors.flatMap(
+              cursor -> new BaseSequence<>(
+                  new BaseSequence.IteratorMaker<ResultRow, GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer>>()
                   {
-                    ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
+                    @Override
+                    public GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> make()
+                    {
+                      ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
 
-                    ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] selectorPlus = DimensionHandlerUtils
-                        .createColumnSelectorPluses(
-                            GroupByQueryEngineV2.STRATEGY_FACTORY,
-                            groupByQuery.getDimensions(),
-                            columnSelectorFactory
-                        );
-                    GroupByColumnSelectorPlus[] dims = GroupByQueryEngineV2.createGroupBySelectorPlus(
-                        selectorPlus,
-                        groupByQuery.getResultRowDimensionStart()
-                    );
+                      ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] selectorPlus = DimensionHandlerUtils
+                          .createColumnSelectorPluses(
+                              GroupByQueryEngineV2.STRATEGY_FACTORY,
+                              groupByQuery.getDimensions(),
+                              columnSelectorFactory
+                          );
+                      GroupByColumnSelectorPlus[] dims = GroupByQueryEngineV2.createGroupBySelectorPlus(
+                          selectorPlus,
+                          groupByQuery.getResultRowDimensionStart()
+                      );
 
-                    return new SamplingHashAggregateIterator(
-                        query,
-                        new GroupByQueryConfig(),
-                        processingConfig,
-                        cursor,
-                        bufferHolder.get(),
-                        dims,
-                        true, // TODO : multi-value handling
-                        query.getMaxGroups()
-                    );
+                      return new SamplingHashAggregateIterator(
+                          query,
+                          new GroupByQueryConfig(),
+                          processingConfig,
+                          cursor,
+                          bufferHolder.get(),
+                          dims,
+                          true, // TODO : multi-value handling
+                          query.getMaxGroups()
+                      );
+                    }
+
+                    @Override
+                    public void cleanup(GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> iterFromMake)
+                    {
+                      iterFromMake.close();
+                    }
                   }
-
-                  @Override
-                  public void cleanup(GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> iterFromMake)
-                  {
-                    iterFromMake.close();
-                  }
-                }
-            )
-        );
-    // sort the groups by time, groupHash, grouping dimensions
-    List<ResultRow> resultGroups = resultRowSequence.toList();
-    resultGroups.sort(query.generateIntermediateGroupByQuery().getResultOrdering());
-    return Sequences.simple(resultGroups);
+              )
+          ).withBaggage(bufferHolder);
+      // sort the groups by time, groupHash, grouping dimensions
+      List<ResultRow> resultGroups = resultRowSequence.toList();
+      resultGroups.sort(query.generateIntermediateGroupByQuery().getResultOrdering());
+      return Sequences.simple(resultGroups);
+    }
+    finally {
+      bufferHolder.close();
+    }
   }
 }
