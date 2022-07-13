@@ -86,6 +86,10 @@ public abstract class NestedDataComplexColumn implements ComplexColumn
 
   public boolean isNumeric(String field)
   {
-    return columns.computeIfAbsent(field, this::readNestedFieldColumn).getCapabilities().isNumeric();
+    final ColumnHolder holder = getColumnHolder(field);
+    if (holder != null) {
+      return holder.getCapabilities().isNumeric();
+    }
+    return true;
   }
 }
