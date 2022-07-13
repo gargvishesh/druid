@@ -11,6 +11,7 @@ title: Advanced configs
 To use durable storage for mesh shuffles, 
 
 - [Enable durable storage for mesh shuffle](./msqe-setup.md)
+- Use the appropriate [security settings for S3](./msqe-security.md#s3)
 - Include the following context variable when you submit a query:
 
 **UI**

@@ -25,27 +25,9 @@ For Imply Hybrid, you enable MSQE by selecting the feature flag for it in Imply 
 1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable MSQE on each individual cluster.
 2. Go to **Setup** and expand the **Advanced config** options.
 3. Edit the enabled **Feature flags** by clicking the pencil icon.
-4. Select **Multi-Stage Query Engine (MSQE) - Beta** from the list and click **OK**.
-5. Optionally, you can load the `druid-s3-extensions` that MSQE uses for durable storage based shuffles. Using this feature can improve the reliability of queries that use more than 20 workers. Note that only S3 is supported for the storage type.
-   1. Add the following custom extension:
-      - **Name**: `druid-s3-extensions` 
-      - **S3 path or url**: Leave this blank. This extension is bundled with the Imply distribution.
-   2. Add the following **Common** service properties: 
-     
-        ```bash
-        # Required for using durable storage for mesh shuffle
-        druid.msq.intermediate.storage.enable=true
-        druid.msq.intermediate.storage.type=s3
-        druid.msq.intermediate.storage.bucket=your_bucket>
-        druid.msq.intermediate.storage.prefix=<your_prefix<>
-        druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
-        # Optional for using durable storage for mesh shuffle
-        druid.msq.intermediate.storage.maxResultsSize=5GiB
-        ```
-   
-      For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-security.md#s3).
-
-6. Apply the changes to your cluster. The cluster state changes to **UPDATING**, and MSQE will be available when the updates complete.
+  - Select **Multi-Stage Query Engine (MSQE) - Beta**.
+  - Clear **Use Indexers instead of Middle Managers**. This is not supported.
+4. Apply the changes to your cluster. The cluster state changes to **UPDATING**, and MSQE will be available when the updates complete.
 
 ### Enable MSQE in Imply Enterprise
 
@@ -64,29 +46,11 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
    - **Name**: `druid-s3-extensions`
    - **S3 path or url**: Leave this blank. This extension is bundled with the Imply distribution.
 
-4. Change the following feature flags by clicking the pencil icon:
+4. Edit the enabled **Feature flags** and clear **Use Indexers instead of Middle Managers**. This is not supported.
 
-   - Select **HTTP-based task management**. Turning feature is not required but can improve performance.
-   - Clear **Use Indexers instead of Middle Managers**. Turning off this feature is not required but can improve performance.
-
-5. Add the following **Service properties**:
-
-   **Common** service properties are configurations that are shared across all Druid services. The following properties are used if you want to enable durable storage for shuffles with MSQE queries. If you are not using it, skip to the **Middle Manager** properties.
-
-   ```bash
-   # Required for using durable storage for mesh shuffle
-   druid.msq.intermediate.storage.enable=true
-   druid.msq.intermediate.storage.type=s3
-   druid.msq.intermediate.storage.bucket=your_bucket>
-   druid.msq.intermediate.storage.prefix=<your_prefix<>
-   druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
-   # Optional for using durable storage for mesh shuffle
-   druid.msq.intermediate.storage.maxResultsSize=5GiB
-   ```
+5. Add the following service properties:
    
-   For more information about these settings, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). Additionally, certain permissions are required for [S3](./msqe-security.md#s3).
-
-   **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided in this quickstart to match your usage.
+   **Middle Manager** service properties configure how Middle Managers execute tasks. You can change the sample values provided to match your usage.
 
    ```bash
    # Set this property to the maximum number of tasks per job plus 25.
@@ -109,7 +73,41 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
    druid.sql.executor.type=imply
    ```
 
-6. Apply the changes to your deployment. The deployment restarts and MSQE will be available after the restart.
+6. Apply the changes. The cluster restarts and MSQE will be available after the restart.
+
+## Enable durable storage
+
+Optionally, you can enable durable storage for mesh shuffles. Using this feature can improve the reliability of queries that use more than 20 workers. Note that only S3 is supported for the storage type. For more information about this feature, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle).
+
+To enable the feature with Imply Manager:
+
+1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable this on each individual cluster.
+2. Go to **Setup** and expand the **Advanced config** options.
+3. If you use Imply Hybrid, skip this step. If you use Imply Enterprise, load the `druid-s3-extensions` extension:
+   - **Name**: `druid-s3-extensions` 
+   - **S3 path or url**: Leave this blank. This extension is bundled with the Imply distribution.
+4. Add the following **Common** service properties: 
+     
+   ```bash
+   # Required for using durable storage for mesh shuffle
+   druid.msq.intermediate.storage.enable=true
+   druid.msq.intermediate.storage.type=s3
+   druid.msq.intermediate.storage.bucket=<your_bucket>
+   druid.msq.intermediate.storage.prefix=<your_prefix<>
+   druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
+   # Optional for using durable storage for mesh shuffle
+   druid.msq.intermediate.storage.maxResultsSize=5GiB
+   ```
+5. In S3, verify that you have the correct permissions set:
+   
+- `s3:GetObject`
+- `s3:PutObject`
+- `s3:AbortMultipartUpload`
+- `s3:DeleteObject`
+
+   For information about what the permissions are used for, see [S3](./msqe-security.md#s3).
+
+6. Apply the changes to your cluster.
 
 ## Next steps
 

@@ -63,7 +63,7 @@ public class TalariaFaultSerdeTest
     assertFaultSerde(new TooManyWorkersFault(10, 5));
     assertFaultSerde(UnknownFault.forMessage(null));
     assertFaultSerde(UnknownFault.forMessage("the message"));
-    assertFaultSerde(new WorkerFailedFault("the worker task"));
+    assertFaultSerde(new WorkerFailedFault("the worker task", "the error msg"));
     assertFaultSerde(new WorkerRpcFailedFault("the worker task"));
   }
 

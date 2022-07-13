@@ -52,7 +52,9 @@ import io.imply.druid.talaria.indexing.InputChannels;
 import io.imply.druid.talaria.indexing.KeyStatisticsCollectionProcessor;
 import io.imply.druid.talaria.indexing.SuperSorterProgressTracker;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
+import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.MSQErrorReport;
+import io.imply.druid.talaria.indexing.error.TalariaException;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportLimiterPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportPublisher;
 import io.imply.druid.talaria.indexing.error.TalariaWarningReportSimplePublisher;
@@ -361,8 +363,12 @@ public class WorkerImpl implements Worker
   @Override
   public void stopGracefully()
   {
-    // TODO(gianm): Do something else, since this doesn't seem right
-    kernelManipulationQueue.add(KernelHolder::setDone);
+    kernelManipulationQueue.add(
+        kernel -> {
+          // stopGracefully() is called when the containing process is terminated, or when the task is canceled.
+          throw new TalariaException(CanceledFault.INSTANCE);
+        }
+    );
   }
 
   @Override

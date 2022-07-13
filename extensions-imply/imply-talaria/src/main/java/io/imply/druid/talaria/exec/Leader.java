@@ -118,7 +118,7 @@ public interface Leader
    * Till the fault tolerance is properly figured out for Talaria, if a worker encounters an error, all the worker nodes
    * and the stages that they are executing are marked as failed.
    */
-  void workerFailed(WorkerFailedFault workerId);
+  void workerFailed(WorkerFailedFault fault);
 
   /**
    * Periodic update of {@link CounterSnapshots} from subtasks.

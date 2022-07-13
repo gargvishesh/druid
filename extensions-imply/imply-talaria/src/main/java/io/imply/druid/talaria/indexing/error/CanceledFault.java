@@ -20,7 +20,7 @@ public class CanceledFault extends BaseTalariaFault
 
   CanceledFault()
   {
-    super(CODE, "Query canceled by user or by controller task shutdown.");
+    super(CODE, "Query canceled by user or by task shutdown.");
   }
 
   @JsonCreator
