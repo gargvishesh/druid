@@ -31,11 +31,11 @@ import org.apache.druid.indexing.common.actions.TimeChunkLockTryAcquireAction;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
 import org.apache.druid.indexing.common.task.Tasks;
-import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.rpc.ServiceClientFactory;
+import org.apache.druid.rpc.StandardRetryPolicy;
 import org.apache.druid.rpc.indexing.OverlordClient;
 import org.joda.time.Interval;
 
@@ -167,7 +167,8 @@ public class MSQControllerTask extends AbstractTask
   {
     final ServiceClientFactory clientFactory =
         injector.getInstance(Key.get(ServiceClientFactory.class, EscalatedGlobal.class));
-    final OverlordClient overlordClient = injector.getInstance(OverlordClient.class);
+    final OverlordClient overlordClient = injector.getInstance(OverlordClient.class)
+                                                  .withRetryPolicy(StandardRetryPolicy.unlimited());
     final LeaderContext context = new IndexerLeaderContext(
         toolbox,
         injector,
@@ -188,11 +189,6 @@ public class MSQControllerTask extends AbstractTask
       // This is to make sure we donot leak connections.
       remoteFetchExecutorService.shutdownNow();
     }
-  }
-
-  public ParallelIndexTuningConfig getTuningConfig()
-  {
-    return querySpec.getTuningConfig();
   }
 
   /**
