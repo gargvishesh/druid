@@ -39,7 +39,7 @@ import {
   SampleHeaderAndRows,
   SampleSpec,
 } from '../../../../utils/sampler';
-import { ExternalConfigColumn } from '../../../../workbench-models';
+import { SignatureColumn } from '../../../../workbench-models';
 import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
 
 import './input-format-step.scss';
@@ -50,7 +50,7 @@ export interface InputFormatStepProps {
   inputSource: InputSource;
   initInputFormat: Partial<InputFormat>;
   doneButton: boolean;
-  onSet(inputFormat: InputFormat, columns: ExternalConfigColumn[], isArrays: boolean[]): void;
+  onSet(inputFormat: InputFormat, signature: SignatureColumn[], isArrays: boolean[]): void;
   onBack(): void;
 }
 

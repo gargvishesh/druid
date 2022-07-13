@@ -17,16 +17,22 @@
  */
 
 import {
+  QueryResult,
+  RefName,
+  SqlAlias,
   SqlExpression,
   SqlFunction,
   SqlLiteral,
   SqlPartitionedByClause,
   SqlQuery,
+  SqlRecord,
   SqlRef,
   SqlReplaceClause,
   SqlTableRef,
+  SqlValues,
   SqlWithPart,
 } from 'druid-query-toolkit';
+import { SqlColumnList } from 'druid-query-toolkit/build/sql/sql-column-list/sql-column-list';
 
 import { guessDataSourceNameFromInputSource } from '../druid-models';
 import { filterMap, oneOf } from '../utils';
@@ -42,6 +48,14 @@ const MULTI_STAGE_QUERY_FINALIZE_AGGREGATIONS = 'msqFinalizeAggregations';
 const GROUP_BY_ENABLE_MULTI_VALUE_UNNESTING = 'groupByEnableMultiValueUnnesting';
 
 export type IngestMode = 'insert' | 'replace';
+
+function removeMvToArray(dimension: SqlExpression): SqlExpression {
+  return dimension.walk(ex =>
+    ex instanceof SqlFunction && ex.getEffectiveFunctionName() === 'MV_TO_ARRAY'
+      ? ex.getArg(0)
+      : ex,
+  ) as SqlExpression;
+}
 
 export interface IngestQueryPattern {
   destinationTableName: string;
@@ -67,7 +81,7 @@ export function externalConfigToIngestQueryPattern(
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
-    dimensions: config.columns
+    dimensions: config.signature
       .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
       .map(({ name }, i) =>
         SqlRef.column(name).applyIf(
@@ -168,13 +182,16 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
     throw new Error(`Must have exactly one with part`);
   }
 
-  const withPart = withParts[0];
-  if (withPart.columns) {
+  const { table: withTable, columns: withColumns, query: withQuery } = withParts[0];
+  if (withColumns) {
     throw new Error(`Can not have columns in the WITH expression`);
   }
+  if (!(withQuery instanceof SqlQuery)) {
+    throw new Error(`The body of the WITH expression must be a query`);
+  }
 
-  const mainExternalName = withPart.table.name;
-  const mainExternalConfig = fitExternalConfigPattern(withPart.query);
+  const mainExternalName = withTable.name;
+  const mainExternalConfig = fitExternalConfigPattern(withQuery);
 
   const filters = query.getWhereExpression()?.decomposeViaAnd() || [];
 
@@ -235,10 +252,46 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   };
 }
 
+const SAMPLE_ARRAY_SEPARATOR = '-3432-d401-';
+
+function sampleDataToQuery(sample: QueryResult): SqlQuery {
+  const arrayIndexes: Record<number, boolean> = {};
+  return SqlQuery.create(
+    new SqlAlias({
+      expression: SqlValues.create(
+        sample.rows.map(row =>
+          SqlRecord.create(
+            row.map((r, i) => {
+              if (Array.isArray(r)) {
+                arrayIndexes[i] = true;
+                return SqlLiteral.create(r.join(SAMPLE_ARRAY_SEPARATOR));
+              } else {
+                return SqlLiteral.create(r);
+              }
+            }),
+          ),
+        ),
+      ),
+      alias: RefName.alias('t'),
+      columns: SqlColumnList.create(sample.header.map((_, i) => RefName.create(`c${i}`, true))),
+    }),
+  ).changeSelectExpressions(
+    sample.header.map((h, i) => {
+      let ex: SqlExpression = SqlRef.column(`c${i}`);
+      if (arrayIndexes[i]) {
+        ex = SqlFunction.simple('STRING_TO_MV', [ex, SqlLiteral.create(SAMPLE_ARRAY_SEPARATOR)]);
+      } else if (h.sqlType) {
+        ex = ex.cast(h.sqlType);
+      }
+      return ex.as(h.name, true);
+    }),
+  );
+}
+
 export function ingestQueryPatternToQuery(
   ingestQueryPattern: IngestQueryPattern,
   preview?: boolean,
-  sampleDatasource?: string,
+  sample?: QueryResult,
 ): SqlQuery {
   const {
     destinationTableName,
@@ -272,8 +325,8 @@ export function ingestQueryPatternToQuery(
     .changeWithParts([
       SqlWithPart.simple(
         mainExternalName,
-        sampleDatasource
-          ? SqlQuery.create(SqlTableRef.create(sampleDatasource))
+        sample
+          ? sampleDataToQuery(sample)
           : SqlQuery.create(externalConfigToTableExpression(mainExternalConfig)).applyIf(
               preview,
               q => q.changeLimitValue(10000),
@@ -281,7 +334,7 @@ export function ingestQueryPatternToQuery(
       ),
     ])
     .applyForEach(dimensions, (query, ex) =>
-      query.addSelect(ex, metrics ? { addToGroupBy: 'end' } : {}),
+      query.addSelect(preview ? removeMvToArray(ex) : ex, metrics ? { addToGroupBy: 'end' } : {}),
     )
     .applyForEach(metrics || [], (query, ex) => query.addSelect(ex))
     .applyIf(filters.length, query => query.changeWhereExpression(SqlExpression.and(...filters)))
@@ -299,18 +352,6 @@ export function ingestQueryPatternToQuery(
         )
         .changeClusteredByExpressions(clusteredBy.map(p => SqlLiteral.index(p))),
     );
-}
-
-export function ingestQueryPatternToSampleQuery(
-  ingestQueryPattern: IngestQueryPattern,
-  sampleName: string,
-): SqlQuery {
-  const { mainExternalConfig } = ingestQueryPattern;
-
-  return SqlQuery.create(externalConfigToTableExpression(mainExternalConfig))
-    .changeInsertIntoTable(sampleName)
-    .changePartitionedByClause(SqlPartitionedByClause.create(undefined))
-    .changeLimitValue(10000);
 }
 
 export type DestinationMode = 'new' | 'replace' | 'insert';

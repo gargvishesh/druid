@@ -12,6 +12,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
         "msqe": false,
         "overlord": false,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />
@@ -22,6 +23,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
         "msqe": false,
         "overlord": false,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />
@@ -32,6 +34,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
         "msqe": false,
         "overlord": false,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />
@@ -42,6 +45,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
         "msqe": false,
         "overlord": false,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />
@@ -60,6 +64,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -70,6 +75,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -80,6 +86,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -90,6 +97,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -100,6 +108,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -110,6 +119,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
         "msqe": true,
         "overlord": true,
         "queryType": "nativeAndSql",
+        "warnings": Array [],
       }
     }
   />
@@ -128,6 +138,7 @@ exports[`HomeView matches snapshot (overlord) 1`] = `
         "msqe": false,
         "overlord": true,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />
@@ -138,6 +149,7 @@ exports[`HomeView matches snapshot (overlord) 1`] = `
         "msqe": false,
         "overlord": true,
         "queryType": "none",
+        "warnings": Array [],
       }
     }
   />

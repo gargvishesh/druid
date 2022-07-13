@@ -27,7 +27,12 @@ import SplitterLayout from 'react-splitter-layout';
 import { Loader, QueryErrorPane } from '../../../components';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
+import { ExecutionStateCache } from '../../../singletons/execution-state-cache';
 import { WorkbenchHistory } from '../../../singletons/workbench-history';
+import {
+  WorkbenchRunningPromise,
+  WorkbenchRunningPromises,
+} from '../../../singletons/workbench-running-promises';
 import {
   ColumnMetadata,
   DruidError,
@@ -35,6 +40,7 @@ import {
   LocalStorageKeys,
   localStorageSet,
   QueryAction,
+  QueryManager,
   RowColumn,
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
@@ -43,7 +49,6 @@ import { ExecutionDetailsTab } from '../execution-details-pane/execution-details
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
-import { ExecutionStateCache } from '../execution-state-cache';
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import {
@@ -105,12 +110,14 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
 
   const id = query.getId();
   const [executionState, queryManager] = useQueryManager<
-    WorkbenchQuery | LastExecution,
+    WorkbenchQuery | WorkbenchRunningPromise | LastExecution,
     Execution,
     Execution,
     DruidError
   >({
-    initQuery: ExecutionStateCache.getState(id) ? undefined : query.getLastExecution(),
+    initQuery: ExecutionStateCache.getState(id)
+      ? undefined
+      : WorkbenchRunningPromises.getPromise(id) || query.getLastExecution(),
     initState: ExecutionStateCache.getState(id),
     processQuery: async (q, cancelToken) => {
       if (q instanceof WorkbenchQuery) {
@@ -133,7 +140,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
           case 'sql': {
             if (cancelQueryId) {
               void cancelToken.promise
-                .then(() => {
+                .then(cancel => {
+                  if (cancel.message === QueryManager.TERMINATION_MESSAGE) return;
                   return Api.instance.delete(
                     `/druid/v2${engine === 'sql' ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
                   );
@@ -141,22 +149,35 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 .catch(() => {});
             }
 
+            onQueryChange(props.query.changeLastExecution(undefined));
+
             let result: QueryResult;
             try {
-              result = await queryRunner.runQuery({
+              const resultPromise = queryRunner.runQuery({
                 query,
                 extraQueryContext: mandatoryQueryContext,
-                cancelToken,
               });
+              WorkbenchRunningPromises.storePromise(id, { promise: resultPromise, sqlPrefixLines });
+
+              result = await resultPromise;
             } catch (e) {
-              onQueryChange(props.query.changeLastExecution(undefined));
               throw new DruidError(e, sqlPrefixLines);
             }
 
-            onQueryChange(props.query.changeLastExecution(undefined));
             return Execution.fromResult(engine, result);
           }
         }
+      } else if (WorkbenchRunningPromises.isWorkbenchRunningPromise(q)) {
+        let result: QueryResult;
+        try {
+          result = await q.promise;
+        } catch (e) {
+          WorkbenchRunningPromises.deletePromise(id);
+          throw new DruidError(e, q.sqlPrefixLines);
+        }
+
+        WorkbenchRunningPromises.deletePromise(id);
+        return Execution.fromResult('sql', result);
       } else {
         switch (q.engine) {
           case 'sql-task':

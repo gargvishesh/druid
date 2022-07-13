@@ -204,6 +204,19 @@ export class ConsoleApplication extends React.PureComponent<
     return this.wrapInViewContainer(null, <HomeView capabilities={capabilities} />);
   };
 
+  private readonly wrappedDataLoaderView = () => {
+    return this.wrapInViewContainer(
+      'data-loader',
+      <LoadDataView
+        mode="all"
+        initTaskId={this.taskId}
+        initSupervisorId={this.supervisorId}
+        goToIngestion={this.goToIngestionWithTaskGroupId}
+      />,
+      'narrow-pad',
+    );
+  };
+
   private readonly wrappedStreamingDataLoaderView = () => {
     return this.wrapInViewContainer(
       'streaming-data-loader',
@@ -335,11 +348,7 @@ export class ConsoleApplication extends React.PureComponent<
     const { capabilities } = this.state;
     return this.wrapInViewContainer(
       'services',
-      <ServicesView
-        goToQuery={this.goToQuery}
-        goToTask={this.goToIngestionWithTaskGroupId}
-        capabilities={capabilities}
-      />,
+      <ServicesView goToQuery={this.goToQuery} capabilities={capabilities} />,
     );
   };
 
@@ -363,13 +372,14 @@ export class ConsoleApplication extends React.PureComponent<
         <HashRouter hashType="noslash">
           <div className="console-application">
             <Switch>
-              <Route
-                path="/classic-batch-data-loader"
-                component={this.wrappedClassicBatchDataLoaderView}
-              />
+              <Route path="/data-loader" component={this.wrappedDataLoaderView} />
               <Route
                 path="/streaming-data-loader"
                 component={this.wrappedStreamingDataLoaderView}
+              />
+              <Route
+                path="/classic-batch-data-loader"
+                component={this.wrappedClassicBatchDataLoaderView}
               />
 
               <Route path="/ingestion" component={this.wrappedIngestionView} />

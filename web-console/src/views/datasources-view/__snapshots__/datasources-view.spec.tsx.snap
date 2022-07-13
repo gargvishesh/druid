@@ -18,12 +18,13 @@ exports[`DatasourcesView matches snapshot 1`] = `
           disabled={false}
           icon="compressed"
           intent="danger"
+          label="(debug)"
           multiline={false}
           onClick={[Function]}
           popoverProps={Object {}}
           selected={false}
           shouldDismissPopover={true}
-          text="Force compaction run (debug)"
+          text="Force compaction run"
         />
       }
     >

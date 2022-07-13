@@ -102,7 +102,6 @@ function formatQueues(
 
 export interface ServicesViewProps {
   goToQuery: (initSql: string) => void;
-  goToTask: (taskId: string) => void;
   capabilities: Capabilities;
 }
 

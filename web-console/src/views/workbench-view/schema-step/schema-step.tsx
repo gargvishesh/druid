@@ -30,7 +30,6 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
-import { CancelToken } from 'axios';
 import classNames from 'classnames';
 import { select, selectAll } from 'd3-selection';
 import {
@@ -38,7 +37,6 @@ import {
   QueryRunner,
   SqlExpression,
   SqlFunction,
-  SqlLiteral,
   SqlQuery,
   SqlRef,
 } from 'druid-query-toolkit';
@@ -57,8 +55,6 @@ import {
   DruidError,
   filterMap,
   getContextFromSqlQuery,
-  IntermediateQueryState,
-  objectHash,
   oneOf,
   QueryAction,
   queryDruidSql,
@@ -69,14 +65,13 @@ import {
   changeQueryPatternExpression,
   DestinationMode,
   Execution,
+  externalConfigToTableExpression,
   fitIngestQueryPattern,
   getDestinationMode,
   getQueryPatternExpression,
   getQueryPatternExpressionType,
   IngestQueryPattern,
   ingestQueryPatternToQuery,
-  ingestQueryPatternToSampleQuery,
-  WorkbenchQuery,
   WorkbenchQueryPart,
 } from '../../../workbench-models';
 import { ColumnActions } from '../column-actions/column-actions';
@@ -84,7 +79,6 @@ import { ColumnEditor } from '../column-editor/column-editor';
 import { DestinationDialog } from '../destination-dialog/destination-dialog';
 import {
   executionBackgroundResultStatusCheck,
-  executionBackgroundStatusCheck,
   extractQueryResults,
   submitTaskQuery,
 } from '../execution-utils';
@@ -378,7 +372,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     processQuery: async (_: string, _cancelToken) => {
       // Check if datasource already exists
       const tables = await queryDruidSql({
-        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME NOT LIKE '${WorkbenchQuery.TMP_PREFIX}%' ORDER BY TABLE_NAME ASC`,
+        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'druid' ORDER BY TABLE_NAME ASC`,
         resultFormat: 'array',
       });
 
@@ -386,61 +380,39 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     },
   });
 
-  const sampleDatasourceName = useLastDefined(
+  const sampleQueryString = useLastDefined(
     ingestQueryPattern && mode !== 'sql' // Only sample the data if we are not in the SQL tab live editing the SQL
-      ? `${WorkbenchQuery.TMP_PREFIX}${objectHash(ingestQueryPattern.mainExternalConfig)}`
+      ? SqlQuery.create(
+          externalConfigToTableExpression(ingestQueryPattern.mainExternalConfig),
+        ).toString()
       : undefined,
   );
 
-  const [sampleState] = useQueryManager<string, string, Execution>({
-    query: sampleDatasourceName,
-    processQuery: async (sampleDatasourceName: string, cancelToken) => {
-      // Check if datasource already exists
-      const currentSampleDatasource = await queryDruidSql({
-        query: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ${SqlLiteral.create(
-          sampleDatasourceName,
-        )}`,
-      });
-      if (currentSampleDatasource.length) return sampleDatasourceName;
-
-      if (!ingestQueryPattern) throw new Error('must have ingest pattern');
-
-      // Do ingest
-      const res = await submitTaskQuery({
-        query: ingestQueryPatternToSampleQuery(ingestQueryPattern, sampleDatasourceName).toString(),
-        context: {},
-        cancelToken,
-      });
-
-      if (res instanceof IntermediateQueryState) return res;
-
-      return sampleDatasourceName;
-    },
-    backgroundStatusCheck: async (
-      execution: Execution,
-      sampleDatasourceName: string,
-      cancelToken: CancelToken,
-    ) => {
-      const res = await executionBackgroundStatusCheck(
-        execution,
-        sampleDatasourceName,
-        cancelToken,
+  const [sampleState] = useQueryManager<string, QueryResult, Execution>({
+    query: sampleQueryString,
+    processQuery: async (sampleQueryString, cancelToken) => {
+      return extractQueryResults(
+        await submitTaskQuery({
+          query: sampleQueryString,
+          context: {
+            sqlOuterLimit: 50,
+          },
+          cancelToken,
+        }),
       );
-      if (res instanceof IntermediateQueryState) return res;
-
-      return sampleDatasourceName;
     },
+    backgroundStatusCheck: executionBackgroundResultStatusCheck,
   });
 
   const previewQueryString = useLastDefined(
-    ingestQueryPattern && mode !== 'sql'
+    ingestQueryPattern && mode !== 'sql' && sampleState.data
       ? ingestQueryPatternToQuery(ingestQueryPattern, true, sampleState.data).toString()
       : undefined,
   );
 
   const [previewResultState] = useQueryManager<string, QueryResult, Execution>({
     query: previewQueryString,
-    processQuery: async (previewQueryString: string, cancelToken) => {
+    processQuery: async (previewQueryString, cancelToken) => {
       const taskEngine = WorkbenchQueryPart.isTaskEngineNeeded(previewQueryString);
       if (taskEngine) {
         return extractQueryResults(
@@ -465,7 +437,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           throw new DruidError(e);
         }
 
-        return result;
+        return result.attachQuery({}, SqlQuery.maybeParse(previewQueryString));
       }
     },
     backgroundStatusCheck: executionBackgroundResultStatusCheck,
@@ -477,7 +449,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   }, [previewResultState]);
 
   const unusedColumns = ingestQueryPattern
-    ? ingestQueryPattern.mainExternalConfig.columns.filter(
+    ? ingestQueryPattern.mainExternalConfig.signature.filter(
         ({ name }) =>
           !ingestQueryPattern.dimensions.some(d => d.containsColumn(name)) &&
           !ingestQueryPattern.metrics?.some(m => m.containsColumn(name)),
@@ -793,6 +765,9 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                 )
               )}
               {previewResultState.isLoading() && <Loader />}
+              {previewResultState.isInit() && sampleState.isLoading() && (
+                <Loader loadingText="Loading data sample..." />
+              )}
             </>
           )}
           {effectiveMode === 'list' &&

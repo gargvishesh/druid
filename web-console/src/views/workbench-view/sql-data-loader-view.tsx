@@ -92,11 +92,11 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
                 inputSource={inputSource}
                 initInputFormat={inputFormat}
                 doneButton={false}
-                onSet={(inputFormat, columns, isArrays) => {
+                onSet={(inputFormat, signature, isArrays) => {
                   setQueryString(
                     ingestQueryPatternToQuery(
                       externalConfigToIngestQueryPattern(
-                        { inputSource, inputFormat, columns },
+                        { inputSource, inputFormat, signature },
                         isArrays,
                       ),
                     ).toString(),

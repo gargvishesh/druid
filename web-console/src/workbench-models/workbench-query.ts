@@ -50,7 +50,6 @@ export interface WorkbenchQueryValue {
 
 export class WorkbenchQuery {
   static PREVIEW_LIMIT = 10000;
-  static TMP_PREFIX = '_tmp_';
   static INLINE_DATASOURCE_MARKER = '__query_select';
 
   private static enabledQueryEngines: DruidEngine[] = ['native', 'sql'];

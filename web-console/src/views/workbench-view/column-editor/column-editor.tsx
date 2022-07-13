@@ -28,10 +28,6 @@ import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input
 
 import './column-editor.scss';
 
-function cast(ex: SqlExpression, as: string): SqlExpression {
-  return SqlExpression.parse(`CAST(${ex} AS ${as})`);
-}
-
 const CAST_TARGETS: string[] = ['VARCHAR', 'BIGINT', 'DOUBLE'];
 
 interface ColumnEditorProps {
@@ -93,20 +89,21 @@ export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEd
         }
 
         castMenuItems.push(
-          ...filterMap(CAST_TARGETS, as => {
-            if (as === column.sqlType) return;
+          ...filterMap(CAST_TARGETS, asType => {
+            if (asType === column.sqlType) return;
             return (
               <MenuItem
-                key={as}
-                text={as}
+                key={asType}
+                text={asType}
                 onClick={() => {
                   if (!selectExpression) return;
                   onQueryAction(q =>
                     q.changeSelect(
                       headerIndex,
-                      cast(selectExpression.getUnderlyingExpression(), as).as(
-                        selectExpression.getOutputName(),
-                      ),
+                      selectExpression
+                        .getUnderlyingExpression()
+                        .cast(asType)
+                        .as(selectExpression.getOutputName()),
                     ),
                   );
                 }}

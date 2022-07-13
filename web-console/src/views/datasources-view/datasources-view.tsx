@@ -673,7 +673,8 @@ ORDER BY 1`;
         altExtra={
           <MenuItem
             icon={IconNames.COMPRESSED}
-            text="Force compaction run (debug)"
+            text="Force compaction run"
+            label="(debug)"
             intent={Intent.DANGER}
             onClick={() => {
               this.setState({ showForceCompact: true });

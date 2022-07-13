@@ -16,27 +16,35 @@
  * limitations under the License.
  */
 
-import { DruidError, QueryState } from '../../utils';
-import { Execution } from '../../workbench-models';
+import { QueryResult } from 'druid-query-toolkit';
 
-export class ExecutionStateCache {
-  private static readonly cache: Record<string, QueryState<Execution, DruidError, Execution>> = {};
+export interface WorkbenchRunningPromise {
+  promise: Promise<QueryResult>;
+  sqlPrefixLines: number | undefined;
+}
 
-  static storeState(id: string, report: QueryState<Execution, DruidError, Execution>): void {
-    ExecutionStateCache.cache[id] = report;
+export class WorkbenchRunningPromises {
+  private static readonly promises: Record<string, WorkbenchRunningPromise> = {};
+
+  static isWorkbenchRunningPromise(x: any): x is WorkbenchRunningPromise {
+    return Boolean(x.promise);
   }
 
-  static getState(id: string): QueryState<Execution, DruidError, Execution> | undefined {
-    return ExecutionStateCache.cache[id];
+  static storePromise(id: string, promise: WorkbenchRunningPromise): void {
+    WorkbenchRunningPromises.promises[id] = promise;
   }
 
-  static deleteState(id: string): void {
-    delete ExecutionStateCache.cache[id];
+  static getPromise(id: string): WorkbenchRunningPromise | undefined {
+    return WorkbenchRunningPromises.promises[id];
   }
 
-  static deleteStates(ids: string[]): void {
+  static deletePromise(id: string): void {
+    delete WorkbenchRunningPromises.promises[id];
+  }
+
+  static deletePromises(ids: string[]): void {
     for (const id of ids) {
-      delete ExecutionStateCache.cache[id];
+      delete WorkbenchRunningPromises.promises[id];
     }
   }
 }

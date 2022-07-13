@@ -23,79 +23,14 @@ exports[`HeaderBar matches snapshot 1`] = `
       onClick={[Function]}
       text="Query"
     />
-    <Blueprint4.Popover2
-      boundary="clippingParents"
-      captureDismiss={false}
-      content={
-        <Blueprint4.Menu>
-          <Blueprint4.MenuDivider
-            title="Streaming"
-          />
-          <Blueprint4.MenuItem
-            active={false}
-            disabled={false}
-            href="#streaming-data-loader"
-            icon="feed"
-            multiline={false}
-            popoverProps={Object {}}
-            selected={false}
-            shouldDismissPopover={true}
-            text="Streaming data loader"
-          />
-          <Blueprint4.MenuDivider
-            title="Batch"
-          />
-          <Blueprint4.MenuItem
-            active={false}
-            disabled={false}
-            href="#workbench/connect-external-data"
-            icon="clean"
-            label="(new)"
-            multiline={false}
-            onClick={[Function]}
-            popoverProps={Object {}}
-            selected={false}
-            shouldDismissPopover={true}
-            text="SQL-based batch ingestion"
-          />
-          <Blueprint4.MenuItem
-            active={false}
-            disabled={false}
-            href="#classic-batch-data-loader"
-            icon="thumbs-down"
-            multiline={false}
-            popoverProps={Object {}}
-            selected={false}
-            shouldDismissPopover={true}
-            text="Classic batch data loader"
-          />
-        </Blueprint4.Menu>
-      }
-      defaultIsOpen={false}
+    <Blueprint4.AnchorButton
+      active={false}
       disabled={false}
-      fill={false}
-      hasBackdrop={false}
-      hoverCloseDelay={300}
-      hoverOpenDelay={150}
-      inheritDarkTheme={true}
-      interactionKind="click"
-      minimal={false}
-      openOnTargetFocus={true}
-      position="bottom-left"
-      positioningStrategy="absolute"
-      shouldReturnFocusOnClose={false}
-      targetTagName="span"
-      transitionDuration={300}
-      usePortal={true}
-    >
-      <Blueprint4.Button
-        active={false}
-        disabled={false}
-        icon="cloud-upload"
-        minimal={true}
-        text="Load data"
-      />
-    </Blueprint4.Popover2>
+      href="#data-loader"
+      icon="cloud-upload"
+      minimal={true}
+      text="Load data"
+    />
     <Blueprint4.NavbarDivider />
     <Blueprint4.AnchorButton
       active={false}
@@ -192,6 +127,7 @@ exports[`HeaderBar matches snapshot 1`] = `
           "msqe": true,
           "overlord": true,
           "queryType": "nativeAndSql",
+          "warnings": Array [],
         }
       }
       onUnrestrict={[Function]}

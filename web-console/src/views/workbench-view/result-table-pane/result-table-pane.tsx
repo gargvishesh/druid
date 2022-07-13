@@ -63,10 +63,6 @@ import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item'
 
 import './result-table-pane.scss';
 
-function cast(ex: SqlExpression, as: string): SqlExpression {
-  return SqlExpression.parse(`CAST(${ex} AS ${as})`);
-}
-
 function sqlLiteralForColumnValue(column: Column, value: unknown): SqlLiteral | undefined {
   if (column.sqlType === 'TIMESTAMP') {
     const asDate = new Date(value as any);
@@ -221,20 +217,21 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
 
         menuItems.push(
           <MenuItem key="cast" icon={IconNames.EXCHANGE} text="Cast to...">
-            {filterMap(CAST_TARGETS, as => {
-              if (as === column.sqlType) return;
+            {filterMap(CAST_TARGETS, asType => {
+              if (asType === column.sqlType) return;
               return (
                 <MenuItem
-                  key={as}
-                  text={as}
+                  key={asType}
+                  text={asType}
                   onClick={() => {
                     if (!selectExpression) return;
                     onQueryAction(q =>
                       q.changeSelect(
                         headerIndex,
-                        cast(selectExpression.getUnderlyingExpression(), as).as(
-                          selectExpression.getOutputName(),
-                        ),
+                        selectExpression
+                          .getUnderlyingExpression()
+                          .cast(asType)
+                          .as(selectExpression.getOutputName()),
                       ),
                     );
                   }}
