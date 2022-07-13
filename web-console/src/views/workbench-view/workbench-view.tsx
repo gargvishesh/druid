@@ -27,6 +27,8 @@ import { SpecDialog, StringSubmitDialog } from '../../dialogs';
 import { guessDataSourceNameFromInputSource } from '../../druid-models';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
+import { ExecutionStateCache } from '../../singletons/execution-state-cache';
+import { WorkbenchRunningPromises } from '../../singletons/workbench-running-promises';
 import {
   ColumnMetadata,
   deepSet,
@@ -52,7 +54,6 @@ import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
 import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
-import { ExecutionStateCache } from './execution-state-cache';
 import { ExecutionSubmitDialog } from './execution-submit-dialog/execution-submit-dialog';
 import { getTaskExecution } from './execution-utils';
 import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
@@ -67,6 +68,7 @@ import './workbench-view.scss';
 
 function cleanupTabEntry(tabEntry: TabEntry): void {
   const discardedIds = tabEntry.query.getIds();
+  WorkbenchRunningPromises.deletePromises(discardedIds);
   ExecutionStateCache.deleteStates(discardedIds);
   AceEditorStateCache.deleteStates(discardedIds);
 }

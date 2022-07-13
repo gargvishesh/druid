@@ -311,11 +311,11 @@ const VIEW_TITLE: Record<Step, string> = {
 };
 
 export interface LoadDataViewProps {
-  mode: 'streaming' | 'batch';
+  mode: 'all' | 'streaming' | 'batch';
   initSupervisorId?: string;
   initTaskId?: string;
   exampleManifestsUrl?: string;
-  goToIngestion: (taskGroupId: string | undefined, supervisor?: string) => void;
+  goToIngestion: (taskGroupId: string | undefined, openDialog?: string) => void;
 }
 
 interface SelectedIndex<T> {
@@ -819,15 +819,14 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       <>
         <div className="main">
           <div className="ingestion-cards">
-            {mode === 'streaming' && (
+            {mode !== 'batch' && (
               <>
                 {this.renderIngestionCard('kafka')}
                 {this.renderIngestionCard('kinesis')}
                 {this.renderIngestionCard('azure-event-hubs')}
-                {this.renderIngestionCard('other')}
               </>
             )}
-            {mode === 'batch' && (
+            {mode !== 'streaming' && (
               <>
                 {this.renderIngestionCard('index_parallel:s3')}
                 {this.renderIngestionCard('index_parallel:azure')}
@@ -838,9 +837,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
                 {this.renderIngestionCard('index_parallel:local')}
                 {this.renderIngestionCard('index_parallel:inline')}
                 {exampleManifestsUrl && this.renderIngestionCard('example', noExamples)}
-                {this.renderIngestionCard('other')}
               </>
             )}
+            {this.renderIngestionCard('other')}
           </div>
         </div>
         <div className="control">

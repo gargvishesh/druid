@@ -94,9 +94,11 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
   const stages = execution.stages || new Stages([]);
   const error = execution.error;
 
-  const rowRateValues = stages.stages.map(s => formatRowRate(stages.getRowRateFromStage(s) || 0));
+  const rowRateValues = stages.stages.map(s =>
+    formatRowRate(stages.getRateFromStage(s, 'rows') || 0),
+  );
   const byteRateValues = stages.stages.map(s =>
-    formatByteRate(stages.getByteRateFromStage(s) || 0),
+    formatByteRate(stages.getRateFromStage(s, 'bytes') || 0),
   );
 
   const rowsValues = stages.stages.flatMap(stage => [
@@ -537,18 +539,17 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
         {
           Header: twoLines('Data processing rate', <i>rows/s &nbsp; (data rate)</i>),
           id: 'data_processing_rate',
-          accessor: s => stages.getRowRateFromStage(s),
+          accessor: s => stages.getRateFromStage(s, 'rows'),
           className: 'padded',
           width: 200,
-          Cell({ original }) {
+          Cell({ value, original }) {
             const stage = original as StageDefinition;
-            const rowRate = stages.getRowRateFromStage(stage);
-            if (typeof rowRate !== 'number') return null;
+            if (typeof value !== 'number') return null;
 
-            const byteRate = stages.getByteRateFromStage(stage);
+            const byteRate = stages.getRateFromStage(stage, 'bytes');
             return (
               <>
-                <BracedText text={formatRowRate(rowRate)} braces={rowRateValues} />
+                <BracedText text={formatRowRate(value)} braces={rowRateValues} />
                 {byteRate ? (
                   <>
                     {' '}

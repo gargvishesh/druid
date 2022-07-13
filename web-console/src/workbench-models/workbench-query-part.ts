@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { SqlExpression, SqlQuery, SqlTableRef, SqlWithQuery } from 'druid-query-toolkit';
+import { SqlExpression, SqlQuery, SqlTableRef, SqlValues, SqlWithQuery } from 'druid-query-toolkit';
 import Hjson from 'hjson';
 import * as JSONBig from 'json-bigint-native';
 
@@ -62,7 +62,7 @@ export class WorkbenchQueryPart {
     });
   }
 
-  static fromQuery(query: SqlQuery, queryName?: string, collapsed?: boolean) {
+  static fromQuery(query: SqlQuery | SqlValues, queryName?: string, collapsed?: boolean) {
     return this.fromQueryString(query.changeParens([]).toString(), queryName, collapsed);
   }
 
@@ -210,7 +210,7 @@ export class WorkbenchQueryPart {
     const { queryName, parsedQuery } = this;
     if (queryName && parsedQuery) {
       try {
-        return fitExternalConfigPattern(parsedQuery).columns.map(({ name, type }) => ({
+        return fitExternalConfigPattern(parsedQuery).signature.map(({ name, type }) => ({
           COLUMN_NAME: name,
           DATA_TYPE: sqlTypeFromDruid(type),
           TABLE_NAME: queryName,

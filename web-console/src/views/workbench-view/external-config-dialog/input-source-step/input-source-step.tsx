@@ -110,7 +110,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
           listDelimiter: '56616469-6de2-9da4-efb8-8f416e6e6965', // Just a UUID to disable the list delimiter, let's hope we do not see this UUID in the data
           columns: ['raw'],
         },
-        columns: [{ name: 'raw', type: 'string' }],
+        signature: [{ name: 'raw', type: 'string' }],
       });
 
       return extractQueryResults(

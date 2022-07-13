@@ -518,15 +518,18 @@ export class Stages {
     return simpleCounters;
   }
 
-  getRowRateFromStage(stage: StageDefinition): number | undefined {
+  getRateFromStage(stage: StageDefinition, field: ChannelFields): number | undefined {
     if (!stage.duration) return;
-    return Math.round(this.getTotalInputForStage(stage, 'rows') / (stage.duration / 1000));
-  }
-
-  getByteRateFromStage(stage: StageDefinition): number | undefined {
-    if (!stage.duration || stage.definition.input.some(input => input.type !== 'stage')) {
-      return; // If we have inputs that do not report bytes, don't show a rate
+    if (field === 'bytes' && stage.definition.input.some(input => input.type !== 'stage')) {
+      // If we have inputs that do not report bytes, don't show a rate
+      return;
     }
-    return this.getTotalInputForStage(stage, 'bytes') / (stage.duration / 1000);
+    return Math.round(
+      Math.max(
+        this.getTotalInputForStage(stage, field),
+        this.getTotalCounterForStage(stage, 'output', field),
+      ) /
+        (stage.duration / 1000),
+    );
   }
 }

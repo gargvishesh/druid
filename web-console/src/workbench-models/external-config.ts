@@ -46,10 +46,10 @@ function joinLinesMax(lines: string[], max: number) {
 export interface ExternalConfig {
   inputSource: InputSource;
   inputFormat: InputFormat;
-  columns: ExternalConfigColumn[];
+  signature: SignatureColumn[];
 }
 
-export interface ExternalConfigColumn {
+export interface SignatureColumn {
   name: string;
   type: string;
 }
@@ -124,7 +124,7 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
   EXTERN(
     ${SqlLiteral.create(JSONBig.stringify(config.inputSource))},
     ${SqlLiteral.create(JSONBig.stringify(config.inputFormat))},
-    ${SqlLiteral.create(JSONBig.stringify(config.columns))}
+    ${SqlLiteral.create(JSONBig.stringify(config.signature))}
   )
 )`);
 }
@@ -146,7 +146,7 @@ export function externalConfigToInitQuery(config: ExternalConfig, isArrays: bool
     ])
     .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
     .changeSelectExpressions(
-      config.columns
+      config.signature
         .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
         .map(({ name }, i) =>
           SqlRef.column(name).applyIf(
@@ -192,10 +192,10 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
     throw new Error(`The second argument to the extern function must be a string embedding JSON`);
   }
 
-  let columns: any;
+  let signature: any;
   try {
     const arg2 = externFn.getArg(2);
-    columns = JSONBig.parse(arg2 instanceof SqlLiteral ? String(arg2.value) : '#');
+    signature = JSONBig.parse(arg2 instanceof SqlLiteral ? String(arg2.value) : '#');
   } catch {
     throw new Error(`The third argument to the extern function must be a string embedding JSON`);
   }
@@ -203,6 +203,6 @@ export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {
   return {
     inputSource,
     inputFormat,
-    columns,
+    signature,
   };
 }

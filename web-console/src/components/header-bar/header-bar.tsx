@@ -60,6 +60,7 @@ const capabilitiesOverride = localStorageGetJson(LocalStorageKeys.CAPABILITIES_O
 
 export type HeaderActiveTab =
   | null
+  | 'data-loader'
   | 'streaming-data-loader'
   | 'classic-batch-data-loader'
   | 'ingestion'
@@ -249,10 +250,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   );
   // END: Imply-added code for MSQE loader
 
+  const showSplitDataLoaderMenu = showSqlDataLoader && capabilities.hasMsqe();
+
   const loadDataViewsMenuActive = oneOf(
     active,
-    'classic-batch-data-loader',
+    'data-loader',
     'streaming-data-loader',
+    'classic-batch-data-loader',
     'sql-data-loader',
   );
   const loadDataViewsMenu = (
@@ -263,19 +267,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         active={active === 'streaming-data-loader'}
         href="#streaming-data-loader"
       />
-
-      {/* BEGIN: Imply-added code for MSQE SQL based data loader */}
-      {showSqlDataLoader && capabilities.hasMsqe() && (
-        <MenuItem
-          active={active === 'sql-data-loader'}
-          icon={IconNames.CLEAN}
-          text="Batch - SQL"
-          href="#sql-data-loader"
-          labelElement={<Tag minimal>new</Tag>}
-        />
-      )}
-      {/* END: Imply-modified code for MSQE execution */}
-
+      <MenuItem
+        active={active === 'sql-data-loader'}
+        icon={IconNames.CLEAN}
+        text="Batch - SQL"
+        href="#sql-data-loader"
+        labelElement={<Tag minimal>new</Tag>}
+      />
       <MenuItem
         icon={IconNames.LIST}
         text="Batch - classic"
@@ -438,19 +436,30 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
             location.hash = '#query';
           }}
         />
-        <Popover2
-          content={loadDataViewsMenu}
-          disabled={!capabilities.hasEverything()}
-          position={Position.BOTTOM_LEFT}
-        >
-          <Button
+        {showSplitDataLoaderMenu ? (
+          <Popover2
+            content={loadDataViewsMenu}
+            disabled={!capabilities.hasEverything()}
+            position={Position.BOTTOM_LEFT}
+          >
+            <Button
+              icon={IconNames.CLOUD_UPLOAD}
+              text="Load data"
+              minimal
+              active={loadDataViewsMenuActive}
+              disabled={!capabilities.hasEverything()}
+            />
+          </Popover2>
+        ) : (
+          <AnchorButton
             icon={IconNames.CLOUD_UPLOAD}
             text="Load data"
+            href="#data-loader"
             minimal
             active={loadDataViewsMenuActive}
             disabled={!capabilities.hasEverything()}
           />
-        </Popover2>
+        )}
         <NavbarDivider />
 
         <AnchorButton

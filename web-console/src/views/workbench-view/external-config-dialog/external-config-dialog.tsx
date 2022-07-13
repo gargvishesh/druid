@@ -56,8 +56,8 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
             inputSource={inputSource}
             initInputFormat={inputFormat}
             doneButton
-            onSet={(inputFormat, columns, isArrays) => {
-              onSetExternalConfig({ inputSource, inputFormat, columns }, isArrays);
+            onSet={(inputFormat, signature, isArrays) => {
+              onSetExternalConfig({ inputSource, inputFormat, signature }, isArrays);
               onClose();
             }}
             onBack={() => {
