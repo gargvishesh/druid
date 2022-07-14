@@ -105,7 +105,6 @@ public class IncrementalIndexAdapter implements IndexableAdapter
     }
   }
 
-  @SuppressWarnings("unused")
   public IncrementalIndex getIncrementalIndex()
   {
     return index;
