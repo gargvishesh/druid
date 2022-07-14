@@ -41,6 +41,7 @@ export * from './more-button/more-button';
 export * from './plural-pair-if-needed/plural-pair-if-needed';
 export * from './popover-text/popover-text';
 export * from './query-error-pane/query-error-pane';
+export * from './record-table-pane/record-table-pane';
 export * from './refresh-button/refresh-button';
 export * from './rule-editor/rule-editor';
 export * from './segment-timeline/segment-timeline';

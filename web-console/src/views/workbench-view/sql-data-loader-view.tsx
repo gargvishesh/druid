@@ -33,8 +33,8 @@ import {
 import { ExecutionProgressBarPane } from './execution-progress-bar-pane/execution-progress-bar-pane';
 import { ExecutionStagesPane } from './execution-stages-pane/execution-stages-pane';
 import { executionBackgroundStatusCheck, submitTaskQuery } from './execution-utils';
-import { InputFormatStep } from './external-config-dialog/input-format-step/input-format-step';
-import { InputSourceStep } from './external-config-dialog/input-source-step/input-source-step';
+import { InputFormatStep } from './input-format-step/input-format-step';
+import { InputSourceStep } from './input-source-step/input-source-step';
 import { SchemaStep } from './schema-step/schema-step';
 import { TitleFrame } from './title-frame/title-frame';
 
@@ -92,12 +92,13 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
                 inputSource={inputSource}
                 initInputFormat={inputFormat}
                 doneButton={false}
-                onSet={(inputFormat, signature, isArrays) => {
+                onSet={({ inputFormat, signature, isArrays, timeExpression }) => {
                   setQueryString(
                     ingestQueryPatternToQuery(
                       externalConfigToIngestQueryPattern(
                         { inputSource, inputFormat, signature },
                         isArrays,
+                        timeExpression,
                       ),
                     ).toString(),
                   );

@@ -81,6 +81,12 @@ const formatFrames = formatInteger;
 const formatDurationDynamic = (n: NumberLike) =>
   n < 1000 ? formatDurationWithMs(n) : formatDuration(n);
 
+const formatFileOfTotal = (files: number, totalFiles: number) =>
+  `(${formatInteger(files)} / ${formatInteger(totalFiles)})`;
+
+const formatFileOfTotalForBrace = (files: number, totalFiles: number) =>
+  `(${formatInteger(files)} /GB ${formatInteger(totalFiles)})`;
+
 export interface ExecutionStagesPaneProps {
   execution: Execution;
   onErrorClick?: () => void;
@@ -113,9 +119,7 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
       ...stages.getInputCountersForStage(stage, 'bytes').map(formatSize),
       formatSize(stages.getTotalCounterForStage(stage, 'output', 'bytes')),
       formatSize(stages.getTotalCounterForStage(stage, 'sort', 'bytes')),
-      inputFileCount
-        ? `(${formatInteger(inputFileCount)} GB ${formatInteger(inputFileCount)})`
-        : '',
+      inputFileCount ? formatFileOfTotalForBrace(inputFileCount, inputFileCount) : '',
     ];
   });
 
@@ -138,14 +142,19 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
     const counterNames: ChannelCounterName[] = stages.getChannelCounterNamesForStage(stage);
 
     const bracesRows: Record<ChannelCounterName, string[]> = {} as any;
-    const bracesBytes: Record<ChannelCounterName, string[]> = {} as any;
+    const bracesExtra: Record<ChannelCounterName, string[]> = {} as any;
     for (const counterName of counterNames) {
       bracesRows[counterName] = wideCounters.map(wideCounter =>
         formatRows(wideCounter[counterName]!.rows),
       );
-      bracesBytes[counterName] = wideCounters.map(wideCounter =>
-        formatSize(wideCounter[counterName]!.bytes),
-      );
+      bracesExtra[counterName] = wideCounters.map(wideCounter => {
+        const totalFiles = wideCounter[counterName]!.totalFiles;
+        if (totalFiles) {
+          return formatFileOfTotalForBrace(totalFiles, totalFiles);
+        } else {
+          return formatSize(wideCounter[counterName]!.bytes);
+        }
+      });
     }
 
     return (
@@ -173,22 +182,35 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
             return {
               Header: twoLines(
                 stages.getStageCounterTitle(stage, counterName),
-                <i>rows &nbsp; (size)</i>,
+                counterName.startsWith('input') ? (
+                  <i>rows &nbsp; (size or files)</i>
+                ) : (
+                  <i>rows &nbsp; (size)</i>
+                ),
               ),
               id: counterName,
               accessor: d => d[counterName]!.rows,
               className: 'padded',
               width: 180,
               Cell({ value, original }) {
-                const c = original[counterName];
+                const c = (original as SimpleWideCounter)[counterName]!;
                 return (
                   <>
                     <BracedText text={formatRows(value)} braces={bracesRows[counterName]} />
-                    {c.bytes ? (
+                    {c.totalFiles ? (
+                      <>
+                        {' '}
+                        &nbsp;{' '}
+                        <BracedText
+                          text={formatFileOfTotal(c.files, c.totalFiles)}
+                          braces={bracesExtra[counterName]}
+                        />
+                      </>
+                    ) : c.bytes ? (
                       <>
                         {' '}
                         &nbsp;
-                        <BracedText text={formatSize(c.bytes)} braces={bracesBytes[counterName]} />
+                        <BracedText text={formatSize(c.bytes)} braces={bracesExtra[counterName]} />
                       </>
                     ) : undefined}
                   </>
@@ -295,9 +317,10 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
             {' '}
             &nbsp;{' '}
             <BracedText
-              text={`(${formatInteger(
+              text={formatFileOfTotal(
                 stages.getTotalCounterForStage(stage, inputCounter, 'files'),
-              )} / ${formatInteger(inputFileCount)})`}
+                inputFileCount,
+              )}
               braces={bytesAndFilesValues}
             />
           </>

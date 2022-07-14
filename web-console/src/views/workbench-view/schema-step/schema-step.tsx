@@ -83,7 +83,6 @@ import {
   submitTaskQuery,
 } from '../execution-utils';
 import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
-import { ExternalConfigDialog } from '../external-config-dialog/external-config-dialog';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { timeFormatToSql } from '../sql-utils';
 import { TitleFrame } from '../title-frame/title-frame';
@@ -258,7 +257,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
   const { queryString, onQueryStringChange, goToQuery, onBack, onDone } = props;
   const [mode, setMode] = useState<Mode>('table');
   const [columnSearch, setColumnSearch] = useState('');
-  const [showAddExternal, setShowAddExternal] = useState(false);
   const [editorColumn, setEditorColumn] = useState<EditorColumn | undefined>();
   const [showAddFilterEditor, setShowAddFilterEditor] = useState(false);
   const [filterInEditor, setFilterInEditor] = useState<SqlExpression | undefined>();
@@ -896,12 +894,6 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             queryResult={previewResultState.data}
             onEditColumn={handleColumnSelect}
             onClose={() => setShowRollupAnalysisPane(false)}
-          />
-        )}
-        {showAddExternal && (
-          <ExternalConfigDialog
-            onSetExternalConfig={() => {}}
-            onClose={() => setShowAddExternal(false)}
           />
         )}
         {showAddFilterEditor && ingestQueryPattern && (

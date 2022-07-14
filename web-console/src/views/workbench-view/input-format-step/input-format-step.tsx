@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-import { Button, Callout, FormGroup, Icon, Intent } from '@blueprintjs/core';
+import { Button, Callout, FormGroup, Icon, Intent, Switch, Tag } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { SqlExpression, SqlRef } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
-import { AutoForm, CenterMessage, LearnMore, Loader } from '../../../../components';
+import { AutoForm, CenterMessage, LearnMore, Loader } from '../../../components';
 import {
   guessColumnTypeFromHeaderAndRows,
   guessIsArrayFromHeaderAndRows,
@@ -29,28 +30,42 @@ import {
   inputFormatOutputsNumericStrings,
   InputSource,
   PLACEHOLDER_TIMESTAMP_SPEC,
-} from '../../../../druid-models';
-import { useQueryManager } from '../../../../hooks';
-import { getLink } from '../../../../links';
-import { deepSet, EMPTY_ARRAY } from '../../../../utils';
+  possibleDruidFormatForValues,
+} from '../../../druid-models';
+import { useQueryManager } from '../../../hooks';
+import { getLink } from '../../../links';
+import { deepSet, EMPTY_ARRAY, filterMap } from '../../../utils';
 import {
   headerAndRowsFromSampleResponse,
   postToSampler,
   SampleHeaderAndRows,
   SampleSpec,
-} from '../../../../utils/sampler';
-import { SignatureColumn } from '../../../../workbench-models';
-import { ParseDataTable } from '../../../load-data-view/parse-data-table/parse-data-table';
+} from '../../../utils/sampler';
+import { SignatureColumn } from '../../../workbench-models';
+import { ParseDataTable } from '../../load-data-view/parse-data-table/parse-data-table';
+import { timeFormatToSql } from '../sql-utils';
 
 import './input-format-step.scss';
 
 const noop = () => {};
 
+export interface InputFormatAndMore {
+  inputFormat: InputFormat;
+  signature: SignatureColumn[];
+  isArrays: boolean[];
+  timeExpression: SqlExpression | undefined;
+}
+
+interface PossibleTimeExpression {
+  column: string;
+  timeExpression: SqlExpression;
+}
+
 export interface InputFormatStepProps {
   inputSource: InputSource;
   initInputFormat: Partial<InputFormat>;
   doneButton: boolean;
-  onSet(inputFormat: InputFormat, signature: SignatureColumn[], isArrays: boolean[]): void;
+  onSet(inputFormatAndMore: InputFormatAndMore): void;
   onBack(): void;
 }
 
@@ -61,8 +76,9 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
   const [inputFormatToSample, setInputFormatToSample] = useState<InputFormat | undefined>(
     AutoForm.isValidModel(initInputFormat, INPUT_FORMAT_FIELDS) ? initInputFormat : undefined,
   );
+  const [selectTimestamp, setSelectTimestamp] = useState(true);
 
-  const [parseQueryState] = useQueryManager<InputFormat, SampleHeaderAndRows>({
+  const [previewState] = useQueryManager<InputFormat, SampleHeaderAndRows>({
     query: inputFormatToSample,
     processQuery: async (inputFormat: InputFormat) => {
       const sampleSpec: SampleSpec = {
@@ -98,22 +114,41 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
     },
   });
 
+  const previewData = previewState.data;
+
+  let possibleTimeExpression: PossibleTimeExpression | undefined;
+  if (previewData) {
+    possibleTimeExpression = filterMap(previewData.header, column => {
+      const values = previewData.rows.map(row => row.input[column]);
+      const possibleDruidFormat = possibleDruidFormatForValues(values);
+      if (!possibleDruidFormat) return;
+
+      const formatSql = timeFormatToSql(possibleDruidFormat);
+      if (!formatSql) return;
+
+      return {
+        column,
+        timeExpression: formatSql.fillPlaceholders([SqlRef.column(column)]),
+      };
+    })[0];
+  }
+
   return (
     <div className="input-format-step">
       <div className="preview">
-        {parseQueryState.isInit() && (
+        {previewState.isInit() && (
           <CenterMessage>
             Please fill out the fields on the right sidebar to get started{' '}
             <Icon icon={IconNames.ARROW_RIGHT} />
           </CenterMessage>
         )}
-        {parseQueryState.isLoading() && <Loader />}
-        {parseQueryState.error && (
-          <CenterMessage>{`Error: ${parseQueryState.getErrorMessage()}`}</CenterMessage>
+        {previewState.isLoading() && <Loader />}
+        {previewState.error && (
+          <CenterMessage>{`Error: ${previewState.getErrorMessage()}`}</CenterMessage>
         )}
-        {parseQueryState.data && (
+        {previewData && (
           <ParseDataTable
-            sampleData={parseQueryState.data}
+            sampleData={previewData}
             columnFilter=""
             canFlatten={false}
             flattenedColumnsOnly={false}
@@ -144,30 +179,50 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             />
           </FormGroup>
         )}
-        <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
-        <Button
-          className="next"
-          text={doneButton ? 'Done' : 'Next'}
-          rightIcon={doneButton ? IconNames.TICK : IconNames.ARROW_RIGHT}
-          intent={Intent.PRIMARY}
-          disabled={!parseQueryState.data}
-          onClick={() => {
-            const sampleData = parseQueryState.data;
-            if (!sampleData || !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
-            onSet(
-              inputFormat,
-              sampleData.header.map(name => ({
-                name,
-                type: guessColumnTypeFromHeaderAndRows(
-                  sampleData,
-                  name,
-                  inputFormatOutputsNumericStrings(inputFormat),
-                ),
-              })),
-              sampleData.header.map(name => guessIsArrayFromHeaderAndRows(sampleData, name)),
-            );
-          }}
-        />
+        <div className="bottom-controls">
+          {possibleTimeExpression && (
+            <FormGroup>
+              <Switch
+                checked={selectTimestamp}
+                onClick={() => setSelectTimestamp(!selectTimestamp)}
+              >
+                Select <Tag minimal>{possibleTimeExpression.column}</Tag> as the primary time
+                column.
+              </Switch>
+            </FormGroup>
+          )}
+          <div className="prev-next-bar">
+            <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
+            <Button
+              className="next"
+              text={doneButton ? 'Done' : 'Next'}
+              rightIcon={doneButton ? IconNames.TICK : IconNames.ARROW_RIGHT}
+              intent={Intent.PRIMARY}
+              disabled={!previewState.data}
+              onClick={() => {
+                const sampleData = previewState.data;
+                if (!sampleData || !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
+                onSet({
+                  inputFormat,
+                  signature: sampleData.header.map(name => ({
+                    name,
+                    type: guessColumnTypeFromHeaderAndRows(
+                      sampleData,
+                      name,
+                      inputFormatOutputsNumericStrings(inputFormat),
+                    ),
+                  })),
+                  isArrays: sampleData.header.map(name =>
+                    guessIsArrayFromHeaderAndRows(sampleData, name),
+                  ),
+                  timeExpression: selectTimestamp
+                    ? possibleTimeExpression?.timeExpression
+                    : undefined,
+                });
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

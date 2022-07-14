@@ -17,6 +17,7 @@
  */
 
 import {
+  filterMap,
   SqlExpression,
   SqlFunction,
   SqlLiteral,
@@ -129,6 +130,24 @@ export function externalConfigToTableExpression(config: ExternalConfig): SqlExpr
 )`);
 }
 
+export function externalConfigToInitDimensions(
+  config: ExternalConfig,
+  isArrays: boolean[],
+  timeExpression: SqlExpression | undefined,
+): SqlExpression[] {
+  return (timeExpression ? [timeExpression.as('__time')] : [])
+    .concat(
+      filterMap(config.signature, ({ name }, i) => {
+        if (timeExpression && timeExpression.containsColumn(name)) return;
+        return SqlRef.column(name).applyIf(
+          isArrays[i],
+          ex => SqlFunction.simple('MV_TO_ARRAY', [ex]).as(name) as any,
+        );
+      }),
+    )
+    .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS);
+}
+
 const INITIAL_CONTEXT_LINES = [
   `--:context msqFinalizeAggregations: false`,
   `--:context groupByEnableMultiValueUnnesting: false`,
@@ -136,7 +155,11 @@ const INITIAL_CONTEXT_LINES = [
 
 const INIT_CONFIG_EXTERNAL_CTE_NAME = 'input_data';
 
-export function externalConfigToInitQuery(config: ExternalConfig, isArrays: boolean[]): SqlQuery {
+export function externalConfigToInitQuery(
+  config: ExternalConfig,
+  isArrays: boolean[],
+  timeExpression: SqlExpression | undefined,
+): SqlQuery {
   return SqlQuery.create(SqlTableRef.create(INIT_CONFIG_EXTERNAL_CTE_NAME))
     .changeWithParts([
       SqlWithPart.simple(
@@ -145,20 +168,15 @@ export function externalConfigToInitQuery(config: ExternalConfig, isArrays: bool
       ),
     ])
     .changeSpace('initial', INITIAL_CONTEXT_LINES.join('\n') + '\n')
-    .changeSelectExpressions(
-      config.signature
-        .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
-        .map(({ name }, i) =>
-          SqlRef.column(name).applyIf(
-            isArrays[i],
-            ex => SqlFunction.simple('MV_TO_ARRAY', [ex]).as(name) as any,
-          ),
-        ),
-    )
+    .changeSelectExpressions(externalConfigToInitDimensions(config, isArrays, timeExpression))
     .changeReplaceClause(
       SqlReplaceClause.create(guessDataSourceNameFromInputSource(config.inputSource) || 'new_data'),
     )
-    .changePartitionedByClause(SqlPartitionedByClause.create(undefined));
+    .changePartitionedByClause(
+      SqlPartitionedByClause.create(
+        timeExpression ? new SqlLiteral({ stringValue: 'DAY', value: 'DAY' }) : undefined,
+      ),
+    );
 }
 
 export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {

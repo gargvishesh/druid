@@ -43,10 +43,12 @@ const IMPLY_FUNCTION_DOCS = {
         `The EXTERN function takes three parameters:
 1. \`inputSource\` - any Druid input source, as a JSON-encoded string.
 2. \`inputFormat\` - any Druid input format, as a JSON-encoded string.
-3. \`rowSignature\` - as a JSON-encoded array of column descriptors. Each column descriptor must have a name and a type. The type can be \`string\`, \`long\`, \`double\`, or \`float\`. This row signature will be used to map the external data into the SQL layer.`,
+3. \`signature\` - as a JSON-encoded array of column descriptors. Each column descriptor must have a name and a type. The type can be \`string\`, \`long\`, \`double\`, or \`float\`. This row signature will be used to map the external data into the SQL layer.`,
       ),
     ],
   ],
+
+  // JSON stuff
   JSON_VALUE: [
     [
       'expr, path',

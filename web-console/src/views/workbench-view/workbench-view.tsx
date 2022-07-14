@@ -25,6 +25,7 @@ import React from 'react';
 
 import { SpecDialog, StringSubmitDialog } from '../../dialogs';
 import { guessDataSourceNameFromInputSource } from '../../druid-models';
+import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
 import { ExecutionStateCache } from '../../singletons/execution-state-cache';
@@ -51,12 +52,12 @@ import {
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 
+import { ConnectExternalDataDialog } from './connect-external-data-dialog/connect-external-data-dialog';
 import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
 import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
 import { ExecutionSubmitDialog } from './execution-submit-dialog/execution-submit-dialog';
 import { getTaskExecution } from './execution-utils';
-import { ExternalConfigDialog } from './external-config-dialog/external-config-dialog';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
 import { convertSpecToSql, getSpecDatasourceName } from './spec-conversion';
@@ -97,7 +98,7 @@ export interface WorkbenchViewState {
   defaultSchema?: string;
   defaultTable?: string;
 
-  externalConfigDialogOpen: boolean;
+  connectExternalDataDialogOpen: boolean;
   explainDialogOpen: boolean;
   historyDialogOpen: boolean;
   specDialogOpen: boolean;
@@ -148,7 +149,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       tabEntries,
       columnMetadataState: QueryState.INIT,
 
-      externalConfigDialogOpen: externalDataTabId(props.tabId) && hasSqlTask,
+      connectExternalDataDialogOpen: externalDataTabId(props.tabId) && hasSqlTask,
       explainDialogOpen: false,
       historyDialogOpen: false,
       specDialogOpen: false,
@@ -193,7 +194,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       externalDataTabId(tabId) &&
       WorkbenchQuery.getQueryEngines().includes('sql-task')
     ) {
-      this.setState({ externalConfigDialogOpen: true });
+      this.setState({ connectExternalDataDialogOpen: true });
     }
   }
 
@@ -318,20 +319,20 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
-  private renderExternalConfigDialog() {
-    const { externalConfigDialogOpen } = this.state;
-    if (!externalConfigDialogOpen) return;
+  private renderConnectExternalDataDialog() {
+    const { connectExternalDataDialogOpen } = this.state;
+    if (!connectExternalDataDialogOpen) return;
 
     return (
-      <ExternalConfigDialog
-        onSetExternalConfig={(externalConfig, isArrays) => {
+      <ConnectExternalDataDialog
+        onSetExternalConfig={(externalConfig, isArrays, timeExpression) => {
           this.handleNewTab(
-            WorkbenchQuery.fromInitExternalConfig(externalConfig, isArrays),
+            WorkbenchQuery.fromInitExternalConfig(externalConfig, isArrays, timeExpression),
             'Ext ' + guessDataSourceNameFromInputSource(externalConfig.inputSource),
           );
         }}
         onClose={() => {
-          this.setState({ externalConfigDialogOpen: false });
+          this.setState({ connectExternalDataDialogOpen: false });
         }}
       />
     );
@@ -452,7 +453,6 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderToolbarMoreMenu() {
-    const { queryEngines } = this.props;
     const query = this.getCurrentQuery();
 
     return (
@@ -467,32 +467,6 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           text="Materialize helper queries"
           onClick={() => this.handleQueryChange(query.materializeHelpers())}
         />
-        {queryEngines.includes('sql-task') && (
-          <>
-            <MenuItem
-              icon={IconNames.TEXT_HIGHLIGHT}
-              text="Convert ingestion spec to SQL"
-              onClick={this.openSpecDialog}
-            />
-            <MenuItem
-              icon={IconNames.DOCUMENT_OPEN}
-              text="Attach tab from task ID"
-              onClick={this.openTaskIdSubmitDialog}
-            />
-            <MenuItem
-              icon={IconNames.UNARCHIVE}
-              text="Open query detail archive"
-              onClick={this.openExecutionSubmitDialog}
-            />
-            <MenuDivider />
-            <MenuItem
-              icon={IconNames.ROCKET_SLANT}
-              text="Load demo queries"
-              label="(replaces current tabs)"
-              onClick={() => this.handleQueriesChange(getDemoQueries())}
-            />
-          </>
-        )}
       </Menu>
     );
   }
@@ -510,7 +484,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             text="Connect external data"
             onClick={() => {
               this.setState({
-                externalConfigDialogOpen: true,
+                connectExternalDataDialogOpen: true,
               });
             }}
             minimal
@@ -668,9 +642,55 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           columnMetadata={columnMetadataState.getSomeData()}
           onQueryChange={this.handleQueryChange}
           onDetails={this.handleDetails}
-          onExplain={allowExplain ? this.openExplainDialog : undefined}
-          onHistory={this.openHistoryDialog}
           queryEngines={queryEngines}
+          runMoreMenu={
+            <Menu>
+              {allowExplain && (
+                <MenuItem
+                  icon={IconNames.CLEAN}
+                  text="Explain SQL query"
+                  onClick={this.openExplainDialog}
+                />
+              )}
+              <MenuItem
+                icon={IconNames.HISTORY}
+                text="Query history"
+                onClick={this.openHistoryDialog}
+              />
+              {queryEngines.includes('sql-task') && (
+                <>
+                  <MenuItem
+                    icon={IconNames.TEXT_HIGHLIGHT}
+                    text="Convert ingestion spec to SQL"
+                    onClick={this.openSpecDialog}
+                  />
+                  <MenuItem
+                    icon={IconNames.DOCUMENT_OPEN}
+                    text="Attach tab from task ID"
+                    onClick={this.openTaskIdSubmitDialog}
+                  />
+                  <MenuItem
+                    icon={IconNames.UNARCHIVE}
+                    text="Open query detail archive"
+                    onClick={this.openExecutionSubmitDialog}
+                  />
+                  <MenuDivider />
+                  <MenuItem
+                    icon={IconNames.ROCKET_SLANT}
+                    text="Load demo queries"
+                    label="(replaces current tabs)"
+                    onClick={() => this.handleQueriesChange(getDemoQueries())}
+                  />
+                </>
+              )}
+              <MenuItem
+                icon={IconNames.HELP}
+                text="DruidSQL documentation"
+                href={getLink('DOCS_SQL')}
+                target="_blank"
+              />
+            </Menu>
+          }
         />
       </div>
     );
@@ -767,7 +787,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         {this.renderExecutionDetailsDialog()}
         {this.renderExplainDialog()}
         {this.renderHistoryDialog()}
-        {this.renderExternalConfigDialog()}
+        {this.renderConnectExternalDataDialog()}
         {this.renderTabRenameDialog()}
         {this.renderSpecDialog()}
         {this.renderExecutionSubmit()}

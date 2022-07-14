@@ -76,9 +76,8 @@ export interface QueryTabProps {
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
-  onExplain?(): void;
-  onHistory?(): void;
   queryEngines: DruidEngine[];
+  runMoreMenu: JSX.Element;
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
@@ -88,9 +87,8 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     mandatoryQueryContext,
     onQueryChange,
     onDetails,
-    onExplain,
-    onHistory,
     queryEngines,
+    runMoreMenu,
   } = props;
   const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
     onQueryChange(query.changeQueryString(queryString));
@@ -302,7 +300,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                     </Menu>
                   }
                 >
-                  <Button icon={IconNames.MORE} minimal />
+                  <Button icon={IconNames.LIST} minimal />
                 </Popover2>
               </ButtonGroup>
             </div>
@@ -314,8 +312,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onRun={handleRun}
               loading={executionState.loading}
               queryEngines={queryEngines}
-              onExplain={onExplain}
-              onHistory={onHistory}
+              moreMenu={runMoreMenu}
             />
             {executionState.isLoading() && (
               <ExecutionTimerPanel

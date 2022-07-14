@@ -44,16 +44,20 @@
       text-align: right;
     }
 
-    .back {
+    .bottom-controls {
       position: absolute;
-      left: 0;
+      width: 100%;
       bottom: 0;
-    }
 
-    .next {
-      position: absolute;
-      right: 0;
-      bottom: 0;
+      .prev-next-bar {
+        position: relative;
+
+        .next {
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+      }
     }
   }
 }
