@@ -278,6 +278,57 @@ public class ControllerQueryKernelTests extends BaseControllerQueryKernelTest
     controllerQueryKernelTester.assertStagePhase(1, ControllerStagePhase.RESULTS_READY);
   }
 
+  @Test(expected = IllegalStateException.class)
+  public void testMarkSuccessfulTerminalStagesAsFinished1()
+  {
+    ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
+
+    // 0  1
+    // \  /
+    //   2
+    controllerQueryKernelTester.queryDefinition(
+        new MockQueryDefinitionBuilder(3)
+            .addVertex(0, 1)
+            .addVertex(1, 2)
+            .addVertex(2, 0)
+            .getQueryDefinitionBuilder()
+            .build()
+    );
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testMarkSuccessfulTerminalStagesAsFinished2()
+  {
+    ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
+
+    // 0  1
+    // \  /
+    //   2
+    controllerQueryKernelTester.queryDefinition(
+        new MockQueryDefinitionBuilder(1)
+            .addVertex(0, 0)
+            .getQueryDefinitionBuilder()
+            .build()
+    );
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testMarkSuccessfulTerminalStagesAsFinished3()
+  {
+    ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
+
+    // 0  1
+    // \  /
+    //   2
+    controllerQueryKernelTester.queryDefinition(
+        new MockQueryDefinitionBuilder(2)
+            .addVertex(0, 1)
+            .addVertex(1, 0)
+            .getQueryDefinitionBuilder()
+            .build()
+    );
+  }
+
   @Test
   public void testMarkSuccessfulTerminalStagesAsFinished()
   {

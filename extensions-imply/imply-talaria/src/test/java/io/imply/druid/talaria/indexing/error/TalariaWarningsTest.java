@@ -12,6 +12,7 @@ package io.imply.druid.talaria.indexing.error;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
+import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import io.imply.druid.talaria.sql.TalariaMode;
@@ -19,6 +20,7 @@ import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.LocalInputSource;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
@@ -44,8 +46,10 @@ public class TalariaWarningsTest extends TalariaTestRunner
 
   private File toRead;
   private RowSignature rowSignature;
-  private TalariaQuerySpec talariaQuerySpec;
   private String toReadFileNameAsJson;
+
+  private Query<?> defaultQuery;
+  private ColumnMappings defaultColumnMappings;
 
   @Before
   public void setUp3() throws IOException
@@ -58,43 +62,44 @@ public class TalariaWarningsTest extends TalariaTestRunner
                                .add("cnt", ColumnType.LONG)
                                .build();
 
-    talariaQuerySpec = TalariaQuerySpec.builder()
-        .query(GroupByQuery.builder()
-                           .setDataSource(new ExternalDataSource(
-                               new LocalInputSource(
-                                   null,
-                                   null,
-                                   ImmutableList.of(
-                                       toRead.getAbsoluteFile()
-                                   )
-                               ),
-                               new JsonInputFormat(null, null, null),
-                               RowSignature.builder()
-                                           .add("timestamp", ColumnType.STRING)
-                                           .add("page", ColumnType.STRING)
-                                           .add("user", ColumnType.STRING)
-                                           .build()
-                           ))
-                           .setInterval(querySegmentSpec(Filtration.eternity()))
-                           .setGranularity(Granularities.ALL)
-                           .setVirtualColumns(new ExpressionVirtualColumn(
-                               "v0",
-                               "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
-                               ColumnType.LONG,
-                               CalciteTests.createExprMacroTable()
-                           ))
-                           .setDimensions(dimensions(new DefaultDimensionSpec(
-                                                         "v0",
-                                                         "d0",
-                                                         ColumnType.LONG
-                                                     )
-                           ))
-                           .setAggregatorSpecs(aggregators(new CountAggregatorFactory("a0")))
-                           .setContext(ImmutableMap.of())
-                           .build())
-        .columnMappings(ColumnMappings.identity(rowSignature))
-        .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
-        .build();
+    defaultQuery = GroupByQuery.builder()
+                               .setDataSource(new ExternalDataSource(
+                                   new LocalInputSource(
+                                       null,
+                                       null,
+                                       ImmutableList.of(
+                                           toRead.getAbsoluteFile()
+                                       )
+                                   ),
+                                   new JsonInputFormat(null, null, null),
+                                   RowSignature.builder()
+                                               .add("timestamp", ColumnType.STRING)
+                                               .add("page", ColumnType.STRING)
+                                               .add("user", ColumnType.STRING)
+                                               .build()
+                               ))
+                               .setInterval(querySegmentSpec(Filtration.eternity()))
+                               .setGranularity(Granularities.ALL)
+                               .setVirtualColumns(new ExpressionVirtualColumn(
+                                   "v0",
+                                   "timestamp_floor(timestamp_parse(\"timestamp\",null,'UTC'),'P1D',null,'UTC')",
+                                   ColumnType.LONG,
+                                   CalciteTests.createExprMacroTable()
+                               ))
+                               .setDimensions(dimensions(new DefaultDimensionSpec(
+                                                             "v0",
+                                                             "d0",
+                                                             ColumnType.LONG
+                                                         )
+                               ))
+                               .setAggregatorSpecs(aggregators(new CountAggregatorFactory("a0")))
+                               .setContext(ImmutableMap.of())
+                               .build();
+
+    defaultColumnMappings = new ColumnMappings(ImmutableList.of(
+        new ColumnMapping("d0", "__time"),
+        new ColumnMapping("a0", "cnt"))
+    );
   }
 
 
@@ -117,7 +122,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
   }
@@ -141,7 +151,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .verifyResults();
   }
 
@@ -164,7 +179,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .setExpectedTalariaFault(UnknownFault.forMessage(
                          "java.lang.IllegalArgumentException: "
                          + "Invalid limit of -2 supplied for warnings of type CannotParseExternalData. "
@@ -191,7 +211,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(4, CannotParseExternalDataFault.CODE))
                      .verifyResults();
   }
@@ -216,7 +241,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .verifyResults();
   }
 
@@ -239,7 +269,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .verifyResults();
   }
 
@@ -263,7 +298,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1466985600000L, 20L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .setExpectedTalariaFault(new TooManyWarningsFault(0, CannotParseExternalDataFault.CODE))
                      .verifyResults();
   }
@@ -332,7 +372,12 @@ public class TalariaWarningsTest extends TalariaTestRunner
                      ))
                      .setExpectedRowSignature(rowSignature)
                      .setExpectedResultRows(ImmutableList.of(new Object[]{1566172800000L, 10L}))
-                     .setExpectedTalariaQuerySpec(talariaQuerySpec)
+                     .setExpectedTalariaQuerySpec(
+                         TalariaQuerySpec.builder()
+                                         .query(defaultQuery)
+                                         .columnMappings(defaultColumnMappings)
+                                         .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
+                                         .build())
                      .verifyResults();
   }
 }
