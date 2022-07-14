@@ -12,6 +12,7 @@ package io.imply.druid.query.samplinggroupby.sql;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import io.imply.druid.license.TestingImplyLicenseManager;
@@ -29,6 +30,7 @@ import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.JoinDataSource;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.QueryRunnerFactory;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
@@ -40,11 +42,20 @@ import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.TestExprMacroTable;
+import org.apache.druid.query.filter.Filter;
+import org.apache.druid.query.filter.InDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.ResultRow;
+import org.apache.druid.query.lookup.LookupExtractorFactoryContainerProvider;
+import org.apache.druid.query.planning.PreJoinableClause;
 import org.apache.druid.query.scan.ScanQuery;
+import org.apache.druid.segment.SegmentReference;
 import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.join.HashJoinSegment;
 import org.apache.druid.segment.join.JoinType;
+import org.apache.druid.segment.join.JoinableFactory;
+import org.apache.druid.segment.join.JoinableFactoryWrapper;
+import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlLifecycleFactory;
@@ -58,13 +69,22 @@ import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.view.InProcessViewManager;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+
 public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
 {
+  private InterceptingJoinableFactoryWrapper joinableFactoryWrapper;
+
   @Before
   @Override
   public void setUp() throws Exception
@@ -129,6 +149,19 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
     return CalciteTests.createSqlLifecycleFactory(plannerFactory, authConfig);
   }
 
+  @Override
+  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
+  {
+    joinableFactoryWrapper = new InterceptingJoinableFactoryWrapper(QueryStackTests.makeJoinableFactoryForLookup(
+        CalciteTests.INJECTOR.getInstance(LookupExtractorFactoryContainerProvider.class)
+    ));
+    return CalciteTests.createMockWalker(
+        conglomerate,
+        temporaryFolder.newFolder(),
+        QueryStackTests.DEFAULT_NOOP_SCHEDULER,
+        joinableFactoryWrapper
+    );
+  }
 
   private static class DelegatingQueryRunnerFactoryConglomerate implements QueryRunnerFactoryConglomerate
   {
@@ -443,5 +476,112 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
             new Object[]{16.536740479821432D, 0.3023570458822361D}
         )
     );
+  }
+
+  @Test
+  public void testSessionizeJoinToFilterUsingSamplingGroupByQuery() throws Exception
+  {
+    ImmutableMap.Builder<String, Object> queryContextBuilder = ImmutableMap.builder();
+    queryContextBuilder.putAll(QUERY_CONTEXT_DEFAULT);
+    queryContextBuilder.put(QueryContexts.REWRITE_JOIN_TO_FILTER_ENABLE_KEY, true);
+
+    testQuery(
+        "SELECT foo.m1, sample.dim1, sample.r from foo join ( " +
+        "SELECT * from (SELECT dim1, SAMPLING_RATE() as r from foo GROUP BY 1) "
+        + "TABLESAMPLE SYSTEM(2 rows) ) sample ON foo.dim1 = sample.dim1",
+        queryContextBuilder.build(),
+        ImmutableList.of(
+            Druids.newScanQueryBuilder()
+                  .dataSource(
+                      JoinDataSource.create(
+                          new TableDataSource("foo"),
+                          new QueryDataSource(
+                              Druids.newScanQueryBuilder()
+                                    .dataSource(
+                                        new QueryDataSource(
+                                            SamplingGroupByQuery
+                                                .builder()
+                                                .setDataSource("foo")
+                                                .setInterval(querySegmentSpec(Intervals.ETERNITY))
+                                                .setDimensions(
+                                                    new DefaultDimensionSpec("dim1", "d0")
+                                                )
+                                                .setAggregatorSpecs(ImmutableList.of())
+                                                .setPostAggregatorSpecs(ImmutableList.of(
+                                                    new FieldAccessPostAggregator(
+                                                        "a0",
+                                                        SamplingGroupByQuery.SAMPLING_RATE_DIMESION_NAME
+                                                    )
+                                                ))
+                                                .setGranularity(Granularities.ALL)
+                                                .setMaxGroups(2)
+                                                .build()
+                                        )
+                                    )
+                                    .columns("a0", "d0")
+                                    .eternityInterval()
+                                    .legacy(false)
+                                    .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                    .build()
+                          ),
+                          "j0.",
+                          "(\"dim1\" == \"j0.d0\")",
+                          JoinType.INNER,
+                          null,
+                          ExprMacroTable.nil()
+                      )
+                  )
+                  .columns("j0.a0", "j0.d0", "m1")
+                  .eternityInterval()
+                  .legacy(false)
+                  .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2.0F, "10.1", 0.3023570458822361D},
+            new Object[]{3.0F, "2", 0.3023570458822361D}
+        )
+    );
+    SegmentReference segmentReference = joinableFactoryWrapper.getInterceptedSegment();
+    assert segmentReference instanceof HashJoinSegment;
+    HashJoinSegment hashJoinSegment = (HashJoinSegment) segmentReference;
+    Assert.assertEquals(
+        hashJoinSegment.getBaseFilter(),
+        new InDimFilter("dim1", ImmutableSet.of("10.1", "2"))
+    );
+    // the returned clause list is not comparable with an expected clause list since the Joinable
+    // class member in JoinableClause doesn't implement equals method in its implementations
+    Assert.assertEquals(hashJoinSegment.getClauses().size(), 1);
+  }
+
+  private static class InterceptingJoinableFactoryWrapper extends JoinableFactoryWrapper
+  {
+    private SegmentReference interceptedSegment;
+
+    public InterceptingJoinableFactoryWrapper(JoinableFactory joinableFactory)
+    {
+      super(joinableFactory);
+    }
+
+    @Override
+    public Function<SegmentReference, SegmentReference> createSegmentMapFn(
+        @Nullable Filter baseFilter,
+        List<PreJoinableClause> clauses,
+        AtomicLong cpuTimeAccumulator,
+        Query<?> query
+    )
+    {
+      Function<SegmentReference, SegmentReference> fn =
+          super.createSegmentMapFn(baseFilter, clauses, cpuTimeAccumulator, query);
+      return segmentReference -> {
+        interceptedSegment = fn.apply(segmentReference);
+        return interceptedSegment;
+      };
+    }
+
+    public SegmentReference getInterceptedSegment()
+    {
+      return interceptedSegment;
+    }
   }
 }
