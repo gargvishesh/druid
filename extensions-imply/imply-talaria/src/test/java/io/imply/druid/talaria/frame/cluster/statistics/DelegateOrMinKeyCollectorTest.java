@@ -14,6 +14,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
 import io.imply.druid.talaria.frame.cluster.ClusterByKey;
 import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.hamcrest.CoreMatchers;
@@ -45,6 +46,15 @@ public class DelegateOrMinKeyCollectorTest
     Assert.assertEquals(0, collector.estimatedRetainedKeys());
     Assert.assertEquals(0, collector.estimatedTotalWeight());
     MatcherAssert.assertThat(collector.getDelegate().get(), CoreMatchers.instanceOf(QuantilesSketchKeyCollector.class));
+  }
+
+  @Test(expected = ISE.class)
+  public void testDelegateAndMinKeyNotNullThrowsException()
+  {
+    ClusterBy clusterBy = ClusterBy.none();
+    new DelegateOrMinKeyCollector<>(clusterBy.keyComparator(),
+                                    QuantilesSketchKeyCollectorFactory.create(clusterBy).newKeyCollector(),
+                                    ClusterByKey.empty());
   }
 
   @Test

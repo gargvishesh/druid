@@ -12,6 +12,7 @@ package io.imply.druid.talaria.exec;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
+import io.imply.druid.talaria.indexing.ColumnMapping;
 import io.imply.druid.talaria.indexing.ColumnMappings;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
@@ -140,7 +141,11 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                                "a0")))
                                                                         .setContext(DEFAULT_TALARIA_CONTEXT)
                                                                         .build())
-                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .columnMappings(
+                                                         new ColumnMappings(ImmutableList.of(
+                                                         new ColumnMapping("d0", "cnt"),
+                                                         new ColumnMapping("a0", "cnt1"))
+                                                     ))
                                                      .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
@@ -185,7 +190,11 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setExpectedTalariaQuerySpec(
             TalariaQuerySpec.builder()
                             .query(query)
-                            .columnMappings(ColumnMappings.identity(rowSignature))
+                            .columnMappings(
+                                new ColumnMappings(ImmutableList.of(
+                                new ColumnMapping("d0", "m1"),
+                                new ColumnMapping("a0", "cnt"))
+                            ))
                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                             .build())
         .setExpectedRowSignature(rowSignature)
@@ -237,7 +246,11 @@ public class TalariaSelectTest extends TalariaTestRunner
         .setExpectedTalariaQuerySpec(
             TalariaQuerySpec.builder()
                             .query(query)
-                            .columnMappings(ColumnMappings.identity(rowSignature))
+                            .columnMappings(
+                                new ColumnMappings(ImmutableList.of(
+                                new ColumnMapping("d0", "m1"),
+                                new ColumnMapping("a0", "sum_m1"))
+                            ))
                             .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                             .build()
         )
@@ -318,8 +331,10 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                 .setContext(
                                                        ImmutableMap.of())
                                                 .build())
-                             .columnMappings(ColumnMappings.identity(
-                                 rowSignature))
+                             .columnMappings(new ColumnMappings(ImmutableList.of(
+                                 new ColumnMapping("d0", "__time"),
+                                 new ColumnMapping("a0", "cnt"))
+                             ))
                              .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                              .build())
                      .verifyResults();
@@ -480,7 +495,11 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                         .setContext(context)
                                                                         .build()
                                                      )
-                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .columnMappings(
+                                                         new ColumnMappings(ImmutableList.of(
+                                                             new ColumnMapping("d0", "dim3"),
+                                                             new ColumnMapping("a0", "cnt1"))
+                                                         ))
                                                      .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
@@ -551,7 +570,11 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                         .setContext(context)
                                                                         .build()
                                                      )
-                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .columnMappings(
+                                                         new ColumnMappings(ImmutableList.of(
+                                                             new ColumnMapping("p0", "EXPR$0"),
+                                                             new ColumnMapping("a0", "cnt1"))
+                                                     ))
                                                      .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)
@@ -615,7 +638,11 @@ public class TalariaSelectTest extends TalariaTestRunner
                                                                         .setContext(DEFAULT_TALARIA_CONTEXT)
                                                                         .build()
                                                      )
-                                                     .columnMappings(ColumnMappings.identity(rowSignature))
+                                                     .columnMappings(
+                                                         new ColumnMappings(ImmutableList.of(
+                                                         new ColumnMapping("d0", "__time"),
+                                                         new ColumnMapping("a0", "cnt1"))
+                                                     ))
                                                      .tuningConfig(ParallelIndexTuningConfig.defaultConfig())
                                                      .build())
         .setExpectedRowSignature(rowSignature)

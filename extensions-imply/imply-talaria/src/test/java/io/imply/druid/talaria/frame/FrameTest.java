@@ -389,16 +389,6 @@ public class FrameTest
     }
   }
 
-  // Tests that explore behavior with various bad frames.
-  public static class BadFramesTest
-  {
-    @Test
-    public void testToDo()
-    {
-      // TODO(gianm): Add tests
-    }
-  }
-
   private static byte[] frameToByteArray(final Frame frame, final boolean compressed) throws Exception
   {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
