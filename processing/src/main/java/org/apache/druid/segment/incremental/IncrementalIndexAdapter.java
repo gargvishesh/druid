@@ -43,11 +43,6 @@ public class IncrementalIndexAdapter implements IndexableAdapter
 {
   private final Interval dataInterval;
 
-  public IncrementalIndex getIndex()
-  {
-    return index;
-  }
-
   private final IncrementalIndex index;
   private final Map<String, DimensionAccessor> accessors;
 
