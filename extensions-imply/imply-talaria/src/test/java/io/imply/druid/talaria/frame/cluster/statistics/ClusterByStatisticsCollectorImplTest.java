@@ -22,6 +22,7 @@ import io.imply.druid.talaria.frame.cluster.ClusterByKeyReader;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartition;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.ClusterByTestUtils;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.TestHelper;
@@ -425,6 +426,88 @@ public class ClusterByStatisticsCollectorImplTest extends InitializedNullHandlin
           verifySnapshotSerialization(testName, collector, aggregate);
         }
     );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMoreBucketsThanKeysThrowsException()
+  {
+    ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                            RowSignature.empty(),
+                                            0,
+                                            5,
+                                            false,
+                                            false);
+  }
+
+  @Test(expected = TooManyBucketsException.class)
+  public void testTooManyBuckets()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false,
+                                                                                                        false);
+    clusterByStatisticsCollector.add(ClusterByKey.empty(), 1);
+  }
+
+  @Test
+  public void testGeneratePartitionWithoutAddCreatesUniversalPartition()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false,
+                                                                                                        false);
+    Assert.assertEquals(ClusterByPartitions.oneUniversalPartition(), clusterByStatisticsCollector.generatePartitionsWithTargetWeight(10));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testGeneratePartitionWithZeroTargetWeightThrowsException()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false, false);
+    clusterByStatisticsCollector.generatePartitionsWithTargetWeight(0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testGeneratePartitionWithZeroCountThrowsException()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false,
+                                                                                                        false);
+    clusterByStatisticsCollector.generatePartitionsWithMaxCount(0);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testHasMultipleValuesFalseThrowsException()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false,
+                                                                                                        false);
+    clusterByStatisticsCollector.hasMultipleValues(0);
+  }
+
+  @Test(expected = ISE.class)
+  public void testHasMultipleValuesInvalidKeyThrowsException()
+  {
+    ClusterByStatisticsCollector clusterByStatisticsCollector = ClusterByStatisticsCollectorImpl.create(ClusterBy.none(),
+                                                                                                        RowSignature.empty(),
+                                                                                                        5,
+                                                                                                        0,
+                                                                                                        false,
+                                                                                                        false);
+    clusterByStatisticsCollector.hasMultipleValues(-1);
   }
 
   private void doTest(

@@ -31,7 +31,7 @@ public class MSQPartitionAssignment
   )
   {
     this.partitions = Preconditions.checkNotNull(partitions, "partitions");
-    this.allocations = allocations;
+    this.allocations = Preconditions.checkNotNull(allocations, "allocations");
 
     // Sanity checks.
     for (final int partitionNumber : allocations.keySet()) {

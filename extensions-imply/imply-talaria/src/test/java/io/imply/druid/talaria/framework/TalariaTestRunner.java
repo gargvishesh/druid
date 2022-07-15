@@ -595,10 +595,38 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         expectedTalariaQuerySpec.getQuery().withOverriddenContext(querySpecForTask.getQuery().getContext()),
         querySpecForTask.getQuery()
     );
-    // TODO: Add remaining asserts
-    return;
+    Assert.assertEquals(
+        expectedTalariaQuerySpec.getAssignmentStrategy(),
+        querySpecForTask.getAssignmentStrategy()
+    );
+    Assert.assertEquals(
+        expectedTalariaQuerySpec.getColumnMappings(),
+        querySpecForTask.getColumnMappings()
+    );
+    Assert.assertEquals(
+        expectedTalariaQuerySpec.getDestination(),
+        querySpecForTask.getDestination()
+    );
   }
 
+  private void assertTuningConfig(
+      ParallelIndexTuningConfig expectedTuningConfig,
+      ParallelIndexTuningConfig tuningConfig
+  )
+  {
+    Assert.assertEquals(
+        expectedTuningConfig.getMaxNumConcurrentSubTasks(),
+        tuningConfig.getMaxNumConcurrentSubTasks()
+    );
+    Assert.assertEquals(
+        expectedTuningConfig.getMaxRowsInMemory(),
+        tuningConfig.getMaxRowsInMemory()
+    );
+    Assert.assertEquals(
+        expectedTuningConfig.getPartitionsSpec(),
+        tuningConfig.getPartitionsSpec()
+    );
+  }
 
   private Optional<Pair<RowSignature, List<Object[]>>> getSignatureWithRows(TalariaResultsReport resultsReport)
   {
@@ -630,6 +658,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     protected Map<String, Object> queryContext = DEFAULT_TALARIA_CONTEXT;
     protected RowSignature expectedRowSignature = null;
     protected TalariaQuerySpec expectedTalariaQuerySpec = null;
+    protected ParallelIndexTuningConfig expectedTuningConfig = null;
     protected Set<SegmentId> expectedSegments = null;
     protected List<Object[]> expectedResultRows = null;
     protected Matcher<Throwable> expectedValidationErrorMatcher = null;
@@ -882,6 +911,9 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         // assert spec
         if (expectedTalariaQuerySpec != null) {
           assertTalariaSpec(expectedTalariaQuerySpec, foundSpec);
+        }
+        if (expectedTuningConfig != null) {
+          assertTuningConfig(expectedTuningConfig, foundSpec.getTuningConfig());
         }
         if (expectedDestinationIntervals != null) {
           Assert.assertNotNull(foundSpec);

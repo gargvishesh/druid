@@ -27,6 +27,7 @@ import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.mockito.Mockito;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -168,7 +169,43 @@ public class MockQueryDefinitionBuilder
    */
   private boolean verifyIfAcyclic()
   {
-    // TODO: Implementation
+    Map<Integer, StageState> visited = new HashMap<>();
+
+    for (int i = 0; i < numStages; i++) {
+      if (!checkAcyclic(i, visited)) {
+        return false;
+      }
+    }
     return true;
+  }
+
+  /**
+   * Checks for graph cycles using DFS
+   */
+  private boolean checkAcyclic(int node, Map<Integer, StageState> visited)
+  {
+    StageState state = visited.getOrDefault(node, StageState.NEW);
+    if (state == StageState.VISITED) {
+      return true;
+    }
+    if (state == StageState.VISITING) {
+      return false;
+    } else {
+      visited.put(node, StageState.VISITING);
+      for (int neighbour : adjacencyList.getOrDefault(node, Collections.emptySet())) {
+        if (!checkAcyclic(neighbour, visited)) {
+          return false;
+        }
+      }
+      visited.put(node, StageState.VISITED);
+      return true;
+    }
+  }
+
+  private enum StageState
+  {
+    NEW,
+    VISITING,
+    VISITED
   }
 }
