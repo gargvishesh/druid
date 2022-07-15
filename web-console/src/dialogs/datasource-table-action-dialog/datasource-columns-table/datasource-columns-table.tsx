@@ -20,7 +20,7 @@ import { SqlLiteral } from 'druid-query-toolkit';
 import React from 'react';
 import ReactTable from 'react-table';
 
-import { Loader } from '../../../components/loader/loader';
+import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
 import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../../react-table';
 import { ColumnMetadata, queryDruidSql } from '../../../utils';
@@ -33,21 +33,20 @@ export interface DatasourceColumnsTableRow {
 }
 
 export interface DatasourceColumnsTableProps {
-  datasourceId: string;
-  downloadFilename?: string;
+  datasource: string;
 }
 
 export const DatasourceColumnsTable = React.memo(function DatasourceColumnsTable(
   props: DatasourceColumnsTableProps,
 ) {
   const [columnsState] = useQueryManager<string, DatasourceColumnsTableRow[]>({
+    initQuery: props.datasource,
     processQuery: async (datasourceId: string) => {
       return await queryDruidSql<ColumnMetadata>({
         query: `SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
           WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = ${SqlLiteral.create(datasourceId)}`,
       });
     },
-    initQuery: props.datasourceId,
   });
 
   function renderTable() {
@@ -80,7 +79,7 @@ export const DatasourceColumnsTable = React.memo(function DatasourceColumnsTable
 
   return (
     <div className="datasource-columns-table">
-      <div className="main-area">{columnsState.loading ? <Loader /> : renderTable()}</div>
+      {columnsState.loading ? <Loader /> : renderTable()}
     </div>
   );
 });

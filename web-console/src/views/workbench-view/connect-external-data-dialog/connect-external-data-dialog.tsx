@@ -17,23 +17,27 @@
  */
 
 import { Classes, Dialog } from '@blueprintjs/core';
+import { SqlExpression } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import { ExternalConfig } from '../../../workbench-models';
+import { InputFormatStep } from '../input-format-step/input-format-step';
+import { InputSourceStep } from '../input-source-step/input-source-step';
 
-import { InputFormatStep } from './input-format-step/input-format-step';
-import { InputSourceStep } from './input-source-step/input-source-step';
+import './connect-external-data-dialog.scss';
 
-import './external-config-dialog.scss';
-
-export interface ExternalConfigDialogProps {
+export interface ConnectExternalDataDialogProps {
   initExternalConfig?: Partial<ExternalConfig>;
-  onSetExternalConfig(config: ExternalConfig, isArrays: boolean[]): void;
+  onSetExternalConfig(
+    config: ExternalConfig,
+    isArrays: boolean[],
+    timeExpression: SqlExpression | undefined,
+  ): void;
   onClose(): void;
 }
 
-export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
-  props: ExternalConfigDialogProps,
+export const ConnectExternalDataDialog = React.memo(function ConnectExternalDataDialog(
+  props: ConnectExternalDataDialogProps,
 ) {
   const { initExternalConfig, onClose, onSetExternalConfig } = props;
 
@@ -45,7 +49,7 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
 
   return (
     <Dialog
-      className="external-config-dialog"
+      className="connect-external-data-dialog"
       isOpen
       onClose={onClose}
       title={`Connect external data / ${inputFormat ? 'Parse' : 'Select input type'}`}
@@ -56,8 +60,12 @@ export const ExternalConfigDialog = React.memo(function ExternalConfigDialog(
             inputSource={inputSource}
             initInputFormat={inputFormat}
             doneButton
-            onSet={(inputFormat, signature, isArrays) => {
-              onSetExternalConfig({ inputSource, inputFormat, signature }, isArrays);
+            onSet={({ inputFormat, signature, isArrays, timeExpression }) => {
+              onSetExternalConfig(
+                { inputSource, inputFormat, signature },
+                isArrays,
+                timeExpression,
+              );
               onClose();
             }}
             onBack={() => {

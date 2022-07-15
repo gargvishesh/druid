@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { SqlQuery, SqlTableRef } from 'druid-query-toolkit';
+import { SqlExpression, SqlQuery, SqlTableRef } from 'druid-query-toolkit';
 import Hjson from 'hjson';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -49,7 +49,6 @@ export interface WorkbenchQueryValue {
 }
 
 export class WorkbenchQuery {
-  static PREVIEW_LIMIT = 10000;
   static INLINE_DATASOURCE_MARKER = '__query_select';
 
   private static enabledQueryEngines: DruidEngine[] = ['native', 'sql'];
@@ -64,12 +63,13 @@ export class WorkbenchQuery {
   static fromInitExternalConfig(
     externalConfig: ExternalConfig,
     isArrays: boolean[],
+    timeExpression: SqlExpression | undefined,
   ): WorkbenchQuery {
     return new WorkbenchQuery({
       queryContext: {},
       queryParts: [
         WorkbenchQueryPart.fromQueryString(
-          externalConfigToInitQuery(externalConfig, isArrays).toString(),
+          externalConfigToInitQuery(externalConfig, isArrays, timeExpression).toString(),
         ),
       ],
     });

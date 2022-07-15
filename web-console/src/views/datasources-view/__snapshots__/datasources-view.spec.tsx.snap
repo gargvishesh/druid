@@ -208,7 +208,7 @@ exports[`DatasourcesView matches snapshot 1`] = `
           "className": "padded",
           "filterable": false,
           "show": true,
-          "width": 220,
+          "width": 230,
         },
         Object {
           "Cell": [Function],

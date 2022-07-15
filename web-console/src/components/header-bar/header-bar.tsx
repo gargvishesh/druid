@@ -425,7 +425,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
 
         <AnchorButton
           minimal
-          active={active === 'workbench'}
+          active={oneOf(active, 'workbench', 'query')}
           icon={IconNames.APPLICATION}
           text="Query"
           href="#workbench"

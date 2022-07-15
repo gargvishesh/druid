@@ -30,28 +30,28 @@ import classNames from 'classnames';
 import { QueryResult } from 'druid-query-toolkit';
 import React, { useEffect, useState } from 'react';
 
-import { AutoForm } from '../../../../components';
-import { ShowValueDialog } from '../../../../dialogs/show-value-dialog/show-value-dialog';
+import { AutoForm } from '../../../components';
+import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import {
   getIngestionImage,
   getIngestionTitle,
   guessInputFormat,
   InputFormat,
   InputSource,
-} from '../../../../druid-models';
-import { useQueryManager } from '../../../../hooks';
-import { UrlBaser } from '../../../../singletons';
+} from '../../../druid-models';
+import { useQueryManager } from '../../../hooks';
+import { UrlBaser } from '../../../singletons';
 import {
   Execution,
   ExecutionError,
   externalConfigToTableExpression,
   INPUT_SOURCE_FIELDS,
-} from '../../../../workbench-models';
+} from '../../../workbench-models';
 import {
   executionBackgroundResultStatusCheck,
   extractQueryResults,
   submitTaskQuery,
-} from '../../execution-utils';
+} from '../execution-utils';
 
 import { InputSourceInfo } from './input-source-info';
 

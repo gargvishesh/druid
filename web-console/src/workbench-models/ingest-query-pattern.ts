@@ -39,9 +39,9 @@ import { filterMap, oneOf } from '../utils';
 
 import {
   ExternalConfig,
+  externalConfigToInitDimensions,
   externalConfigToTableExpression,
   fitExternalConfigPattern,
-  MULTI_STAGE_QUERY_MAX_COLUMNS,
 } from './external-config';
 
 const MULTI_STAGE_QUERY_FINALIZE_AGGREGATIONS = 'msqFinalizeAggregations';
@@ -73,23 +73,16 @@ export interface IngestQueryPattern {
 export function externalConfigToIngestQueryPattern(
   config: ExternalConfig,
   isArrays: boolean[],
+  timeExpression: SqlExpression | undefined,
 ): IngestQueryPattern {
-  const hasTimeColumn = false; // ToDo: actually detect the time column
   return {
     destinationTableName: guessDataSourceNameFromInputSource(config.inputSource) || 'data',
     mode: 'replace',
     mainExternalName: 'ext',
     mainExternalConfig: config,
     filters: [],
-    dimensions: config.signature
-      .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS)
-      .map(({ name }, i) =>
-        SqlRef.column(name).applyIf(
-          isArrays[i],
-          ex => SqlFunction.simple('MV_TO_ARRAY', [ex]).as(name) as any,
-        ),
-      ),
-    partitionedBy: hasTimeColumn ? 'day' : 'all',
+    dimensions: externalConfigToInitDimensions(config, isArrays, timeExpression),
+    partitionedBy: timeExpression ? 'day' : 'all',
     clusteredBy: [],
   };
 }

@@ -1128,7 +1128,7 @@ ORDER BY 1`;
             show: capabilities.hasSql() && visibleColumns.shown('Segment rows'),
             accessor: 'avg_segment_rows',
             filterable: false,
-            width: 220,
+            width: 230,
             className: 'padded',
             Cell: ({ value, original }) => {
               const { min_segment_rows, max_segment_rows } = original as Datasource;
@@ -1507,7 +1507,7 @@ ORDER BY 1`;
         {this.renderDatasourcesTable()}
         {datasourceTableActionDialogId && (
           <DatasourceTableActionDialog
-            datasourceId={datasourceTableActionDialogId}
+            datasource={datasourceTableActionDialogId}
             actions={actions}
             onClose={() => this.setState({ datasourceTableActionDialogId: undefined })}
           />

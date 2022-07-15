@@ -33,7 +33,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox } from '../../../components';
 import { EditContextDialog } from '../../../dialogs';
-import { getLink } from '../../../links';
 import { deepDelete, deepSet, formatInteger, pluralIfNeeded } from '../../../utils';
 import {
   changeUseApproximateCountDistinct,
@@ -121,13 +120,12 @@ export interface RunPanelProps {
   loading: boolean;
   small?: boolean;
   onRun(preview: boolean): void;
-  onExplain?(): void;
-  onHistory?(): void;
   queryEngines: DruidEngine[];
+  moreMenu?: JSX.Element;
 }
 
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
-  const { query, onQueryChange, onRun, onExplain, onHistory, loading, small, queryEngines } = props;
+  const { query, onQueryChange, onRun, moreMenu, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
   const [customNumTasksDialogOpen, setCustomNumTasksDialogOpen] = useState(false);
 
@@ -173,18 +171,8 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         onKeyDown: handlePreview,
       },
     ];
-    if (onExplain) {
-      keys.push({
-        allowInInput: true,
-        global: true,
-        group: 'Query',
-        combo: 'mod + e',
-        label: 'Explain the current query',
-        onKeyDown: onExplain,
-      });
-    }
     return keys;
-  }, [small, handleRun, handlePreview, onExplain]);
+  }, [small, handleRun, handlePreview]);
 
   useHotkeys(hotkeys);
 
@@ -382,27 +370,11 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           )}
         </ButtonGroup>
       )}
-      <Popover2
-        position={Position.BOTTOM_LEFT}
-        content={
-          <Menu>
-            {onExplain && (
-              <MenuItem icon={IconNames.CLEAN} text="Explain SQL query" onClick={onExplain} />
-            )}
-            {onHistory && (
-              <MenuItem icon={IconNames.HISTORY} text="Query history" onClick={onHistory} />
-            )}
-            <MenuItem
-              icon={IconNames.HELP}
-              text="DruidSQL documentation"
-              href={getLink('DOCS_SQL')}
-              target="_blank"
-            />
-          </Menu>
-        }
-      >
-        <Button small={small} minimal={small} rightIcon={IconNames.MORE} />
-      </Popover2>
+      {moreMenu && (
+        <Popover2 position={Position.BOTTOM_LEFT} content={moreMenu}>
+          <Button small={small} minimal={small} rightIcon={IconNames.MORE} />
+        </Popover2>
+      )}
       {editContextDialogOpen && (
         <EditContextDialog
           queryContext={queryContext}

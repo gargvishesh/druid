@@ -305,7 +305,6 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
               loading={executionState.loading}
               small
               queryEngines={queryEngines}
-              onExplain={undefined}
             />
             {executionState.isLoading() && (
               <ExecutionTimerPanel
