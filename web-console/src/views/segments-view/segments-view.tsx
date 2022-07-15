@@ -659,7 +659,9 @@ END AS "time_span"`,
                 case 'range': {
                   const dimensions = v.dimensions || [];
                   const formatEdge = (values: string[]) =>
-                    values.map((x, i) => formatRangeDimensionValue(dimensions[i], x)).join('; ');
+                    values
+                      .map((x, i) => formatRangeDimensionValue(dimensions[i] || `d${i}`, x))
+                      .join('; ');
 
                   return (
                     <TableClickableCell

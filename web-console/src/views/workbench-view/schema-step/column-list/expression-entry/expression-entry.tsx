@@ -17,12 +17,11 @@
  */
 
 import { Icon } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import { Column, QueryResult, SqlRef } from 'druid-query-toolkit';
 import React from 'react';
 
-import { dataTypeToIcon } from '../../../../../utils';
+import { columnToIcon } from '../../../../../utils';
 
 import './expression-entry.scss';
 
@@ -41,9 +40,7 @@ export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryPr
   const expression = queryResult.sqlQuery?.getSelectExpressionForIndex(headerIndex);
   if (!expression) return null;
 
-  const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
-  const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
-
+  const icon = columnToIcon(column);
   return (
     <div
       className={
@@ -61,7 +58,7 @@ export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryPr
       {icon && <Icon className="type-icon" icon={icon} iconSize={14} />}
       <div className="output-name">
         {expression.getOutputName() || 'EXPR?'}
-        <span className="type-name">{` :: ${effectiveType}`}</span>
+        <span className="type-name">{` :: ${column.nativeType}`}</span>
       </div>
       {!(expression instanceof SqlRef) && (
         <div className="expression">

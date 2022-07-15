@@ -176,7 +176,7 @@ exports[`LoadDataView matches snapshot batch 1`] = `
     <Blueprint4.FormGroup>
       <Blueprint4.Callout>
         <p>
-          Please specify where your raw data is located
+          Please specify where your raw data is located.
         </p>
       </Blueprint4.Callout>
     </Blueprint4.FormGroup>
@@ -360,7 +360,7 @@ exports[`LoadDataView matches snapshot streaming 1`] = `
     <Blueprint4.FormGroup>
       <Blueprint4.Callout>
         <p>
-          Please specify where your raw data is located
+          Please specify where your raw data is located.
         </p>
       </Blueprint4.Callout>
     </Blueprint4.FormGroup>

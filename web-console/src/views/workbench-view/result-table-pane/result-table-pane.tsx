@@ -45,9 +45,9 @@ import {
 } from '../../../druid-models';
 import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../../react-table';
 import {
+  columnToIcon,
+  columnToWidth,
   copyAndAlert,
-  dataTypeToColumnWidth,
-  dataTypeToIcon,
   filterMap,
   formatNumber,
   getNumericColumnBraces,
@@ -706,9 +706,7 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
           }
           columns={filterMap(queryResult.header, (column, i) => {
             const h = column.name;
-
-            const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
-            const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+            const icon = columnToIcon(column);
 
             return {
               Header() {
@@ -716,7 +714,7 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
                   <Popover2 content={<Deferred content={() => getHeaderMenu(column, i)} />}>
                     <div className="clickable-cell">
                       <div className="output-name">
-                        <Icon className="type-icon" icon={icon} iconSize={12} />
+                        {icon && <Icon className="type-icon" icon={icon} iconSize={12} />}
                         {h}
                         {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} iconSize={14} />}
                       </div>
@@ -748,7 +746,7 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
                   </div>
                 );
               },
-              width: dataTypeToColumnWidth(effectiveType),
+              width: columnToWidth(column),
               className:
                 parsedQuery && parsedQuery.isAggregateOutputColumn(h)
                   ? 'aggregate-column'

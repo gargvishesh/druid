@@ -29,8 +29,8 @@ import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-d
 import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../../react-table';
 import {
   changePage,
+  columnToWidth,
   copyAndAlert,
-  dataTypeToColumnWidth,
   formatNumber,
   getNumericColumnBraces,
   Pagination,
@@ -367,7 +367,6 @@ export const QueryOutput = React.memo(function QueryOutput(props: QueryOutputPro
         }
         columns={queryResult.header.map((column, i) => {
           const h = column.name;
-          const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
 
           return {
             Header:
@@ -386,7 +385,7 @@ export const QueryOutput = React.memo(function QueryOutput(props: QueryOutputPro
                     );
                   },
             headerClassName: getHeaderClassName(h, i),
-            width: dataTypeToColumnWidth(effectiveType),
+            width: columnToWidth(column),
             accessor: String(i),
             Cell(row) {
               const value = row.value;
