@@ -279,11 +279,11 @@ public class ControllerQueryKernelTests extends BaseControllerQueryKernelTest
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testMarkSuccessfulTerminalStagesAsFinished1()
+  public void testCycleInvalidQueryThrowsException()
   {
     ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
 
-    // 0  1
+    // 0 - 1
     // \  /
     //   2
     controllerQueryKernelTester.queryDefinition(
@@ -297,13 +297,12 @@ public class ControllerQueryKernelTests extends BaseControllerQueryKernelTest
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testMarkSuccessfulTerminalStagesAsFinished2()
+  public void testSelfLoopInvalidQueryThrowsException()
   {
     ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
 
-    // 0  1
-    // \  /
-    //   2
+    // 0 _
+    // |__|
     controllerQueryKernelTester.queryDefinition(
         new MockQueryDefinitionBuilder(1)
             .addVertex(0, 0)
@@ -313,13 +312,13 @@ public class ControllerQueryKernelTests extends BaseControllerQueryKernelTest
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testMarkSuccessfulTerminalStagesAsFinished3()
+  public void testLoopInvalidQueryThrowsException()
   {
     ControllerQueryKernelTester controllerQueryKernelTester = testControllerQueryKernel(1);
 
-    // 0  1
-    // \  /
-    //   2
+    // 0 - 1
+    // |   |
+    //  ---
     controllerQueryKernelTester.queryDefinition(
         new MockQueryDefinitionBuilder(2)
             .addVertex(0, 1)

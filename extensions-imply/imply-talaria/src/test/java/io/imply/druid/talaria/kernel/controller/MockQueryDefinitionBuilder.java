@@ -179,6 +179,9 @@ public class MockQueryDefinitionBuilder
     return true;
   }
 
+  /**
+   * Checks for graph cycles using DFS
+   */
   private boolean checkAcyclic(int node, Map<Integer, StageState> visited)
   {
     StageState state = visited.getOrDefault(node, StageState.NEW);
