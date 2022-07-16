@@ -34,9 +34,9 @@ import ReactTable from 'react-table';
 import { ShowValueDialog } from '../../dialogs/show-value-dialog/show-value-dialog';
 import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../react-table';
 import {
+  columnToIcon,
+  columnToWidth,
   copyAndAlert,
-  dataTypeToColumnWidth,
-  dataTypeToIcon,
   filterMap,
   formatNumber,
   getNumericColumnBraces,
@@ -236,16 +236,14 @@ export const RecordTablePane = React.memo(function RecordTablePane(props: Record
           }
           columns={filterMap(queryResult.header, (column, i) => {
             const h = column.name;
-
-            const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
-            const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+            const icon = columnToIcon(column);
 
             return {
               Header() {
                 return (
                   <div className="clickable-cell">
                     <div className="output-name">
-                      <Icon className="type-icon" icon={icon} iconSize={12} />
+                      {icon && <Icon className="type-icon" icon={icon} iconSize={12} />}
                       {h}
                       {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} iconSize={14} />}
                     </div>
@@ -273,7 +271,7 @@ export const RecordTablePane = React.memo(function RecordTablePane(props: Record
                   </div>
                 );
               },
-              width: dataTypeToColumnWidth(effectiveType),
+              width: columnToWidth(column),
             };
           })}
         />

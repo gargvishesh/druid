@@ -30,7 +30,7 @@ import classNames from 'classnames';
 import { QueryResult } from 'druid-query-toolkit';
 import React, { useEffect, useState } from 'react';
 
-import { AutoForm } from '../../../components';
+import { AutoForm, ExternalLink } from '../../../components';
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import {
   getIngestionImage,
@@ -234,7 +234,29 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         ) : (
           <FormGroup>
             <Callout>
-              <p>Please specify where your raw data is located</p>
+              <p>Please specify where your raw data is located.</p>
+              <p>
+                Your raw data can be in any of the following formats:
+                <ul>
+                  <li>
+                    <ExternalLink href="http://ndjson.org/">JSON (new line delimited)</ExternalLink>
+                  </li>
+                  <li>CSV</li>
+                  <li>TSV</li>
+                  <li>
+                    <ExternalLink href="https://parquet.apache.org/">Parquet</ExternalLink>
+                  </li>
+                  <li>
+                    <ExternalLink href="https://orc.apache.org/">ORC</ExternalLink>
+                  </li>
+                  <li>
+                    <ExternalLink href="https://avro.apache.org/">Avro</ExternalLink>
+                  </li>
+                  <li>
+                    Any line format that can be parsed with a custom regular expression (regex)
+                  </li>
+                </ul>
+              </p>
             </Callout>
           </FormGroup>
         )}

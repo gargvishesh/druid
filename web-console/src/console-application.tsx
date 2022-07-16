@@ -205,12 +205,15 @@ export class ConsoleApplication extends React.PureComponent<
   };
 
   private readonly wrappedDataLoaderView = () => {
+    const { exampleManifestsUrl } = this.props;
+
     return this.wrapInViewContainer(
       'data-loader',
       <LoadDataView
         mode="all"
         initTaskId={this.taskId}
         initSupervisorId={this.supervisorId}
+        exampleManifestsUrl={exampleManifestsUrl}
         goToIngestion={this.goToIngestionWithTaskGroupId}
       />,
       'narrow-pad',

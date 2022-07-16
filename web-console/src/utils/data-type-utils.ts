@@ -18,6 +18,12 @@
 
 import { IconName } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { Column } from 'druid-query-toolkit';
+
+export function columnToIcon(column: Column): IconName | undefined {
+  const effectiveType = column.sqlType || column.nativeType;
+  return effectiveType ? dataTypeToIcon(effectiveType) : undefined;
+}
 
 export function dataTypeToIcon(dataType: string): IconName {
   const typeUpper = dataType.toUpperCase();
@@ -56,7 +62,12 @@ export function dataTypeToIcon(dataType: string): IconName {
   }
 }
 
-export function dataTypeToColumnWidth(dataType: string | undefined): number {
+export function columnToWidth(column: Column): number {
+  const effectiveType = column.sqlType || column.nativeType;
+  return effectiveType ? dataTypeToWidth(effectiveType) : 180;
+}
+
+export function dataTypeToWidth(dataType: string | undefined): number {
   const typeUpper = String(dataType).toUpperCase();
 
   switch (typeUpper) {

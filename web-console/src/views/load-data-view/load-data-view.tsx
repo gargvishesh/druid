@@ -861,7 +861,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     const { selectedComboType, exampleManifests } = this.state;
 
     if (!selectedComboType) {
-      return <p>Please specify where your raw data is located</p>;
+      return <p>Please specify where your raw data is located.</p>;
     }
 
     const issue = this.selectedIngestionTypeIssue();

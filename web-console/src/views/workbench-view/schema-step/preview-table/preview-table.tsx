@@ -34,8 +34,8 @@ import ReactTable from 'react-table';
 import { BracedText, Deferred, TableCell } from '../../../../components';
 import { ShowValueDialog } from '../../../../dialogs/show-value-dialog/show-value-dialog';
 import {
-  dataTypeToColumnWidth,
-  dataTypeToIcon,
+  columnToIcon,
+  columnToWidth,
   filterMap,
   getNumericColumnBraces,
   prettyPrintSql,
@@ -158,8 +158,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
           const h = column.name;
           if (columnFilter && !columnFilter(h)) return;
 
-          const effectiveType = column.isTimeColumn() ? column.sqlType : column.nativeType;
-          const icon = effectiveType ? dataTypeToIcon(effectiveType) : IconNames.BLANK;
+          const icon = columnToIcon(column);
           const selected = selectedColumnIndex === i;
 
           const columnClassName = parsedQuery.isAggregateSelectIndex(i)
@@ -179,7 +178,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
               return (
                 <div className="header-wrapper" onClick={() => onEditColumn(i)}>
                   <div className="output-name">
-                    <Icon className="type-icon" icon={icon} iconSize={12} />
+                    {icon && <Icon className="type-icon" icon={icon} iconSize={12} />}
                     {h}
                     {hasFilterOnHeader(h, i) && (
                       <Icon className="filter-icon" icon={IconNames.FILTER} iconSize={14} />
@@ -191,7 +190,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
             },
             headerClassName: columnClassName,
             className: columnClassName,
-            width: dataTypeToColumnWidth(effectiveType),
+            width: columnToWidth(column),
             accessor: String(i),
             Cell(row) {
               const value = row.value;

@@ -44,7 +44,7 @@ export const INPUT_FORMAT_FIELDS: Field<InputFormat>[] = [
     name: 'type',
     label: 'Input format',
     type: 'string',
-    suggestions: ['json', 'csv', 'tsv', 'regex', 'parquet', 'orc', 'avro_ocf', 'avro_stream'],
+    suggestions: ['json', 'csv', 'tsv', 'parquet', 'orc', 'avro_ocf', 'avro_stream', 'regex'],
     required: true,
     info: (
       <>
