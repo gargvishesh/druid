@@ -58,6 +58,18 @@ pipeline {
 
             steps {
                 mavenInstall()
+
+                script {
+                    if (env.GIT_BRANCH.indexOf("LTS") >= 0) {
+                        echo "Getting suppressions file from master branch"
+                        sh script: '''#!/bin/bash
+                            git fetch origin master:master
+                            git checkout origin/master -- owasp-dependency-check-suppressions.xml
+                        ''',
+                           label: 'Update supressions to master branch version'
+                    }
+                }
+
                 sh script: '''#!/bin/bash
                     set -o pipefail
 
@@ -108,13 +120,12 @@ pipeline {
                 }
                 failure {
                     script {
-                        def svc_error = sh (script: '''
+                        def ERRORS = sh (script: '''
                                                 cat /tmp/svc-output | grep ERROR
                                             ''',
-                                            label: 'Saving ERRORs',
-                                            returnStdout: true)
-                        ERRORS = svc_error.trim()
-                        slackMessage = "Dependency Check for ${env.BRANCH_NAME} branch failed - (<${env.BUILD_URL}|Open>) \n" + "```${ERRORS}```"
+                                         label: 'Saving ERRORs',
+                                         returnStdout: true).trim()
+                        slackMessage = "Dependency Check for ${env.GIT_BRANCH} branch failed - (<${env.BUILD_URL}|Open>) \n" + "```${ERRORS}```"
                         slackSend channel: 'espresso-machine', message: slackMessage, color: "#FF0000"
                     }
                 }
