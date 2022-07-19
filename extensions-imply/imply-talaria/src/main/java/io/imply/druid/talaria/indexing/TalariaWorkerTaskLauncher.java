@@ -244,7 +244,7 @@ public class TalariaWorkerTaskLauncher
 
       final long stopStartTime = System.currentTimeMillis();
 
-      while (taskTrackers.values().stream().anyMatch(tracker -> !tracker.status.getStatusCode().isComplete())) {
+      while (taskTrackers.values().stream().anyMatch(tracker -> !tracker.isComplete())) {
         final long loopStartTime = System.currentTimeMillis();
 
         if (cancelTasksOnStop.get()) {
@@ -330,7 +330,7 @@ public class TalariaWorkerTaskLauncher
   {
     final Set<String> taskStatusesNeeded = new HashSet<>();
     for (final Map.Entry<String, TaskTracker> taskEntry : taskTrackers.entrySet()) {
-      if (taskEntry.getValue().status == null || !taskEntry.getValue().status.getStatusCode().isComplete()) {
+      if (!taskEntry.getValue().isComplete()) {
         taskStatusesNeeded.add(taskEntry.getKey());
       }
     }
@@ -454,6 +454,11 @@ public class TalariaWorkerTaskLauncher
     public boolean unknownLocation()
     {
       return initialLocation == null || TaskLocation.unknown().equals(initialLocation);
+    }
+
+    public boolean isComplete()
+    {
+      return status != null && status.getStatusCode().isComplete();
     }
 
     public boolean didFail()
