@@ -18,6 +18,7 @@ import io.imply.druid.cloudwatch.CloudWatchInputRowParser;
 import io.imply.druid.currency.CurrencySumAggregatorFactory;
 import io.imply.druid.fastrack.GeoIpExprMacro;
 import io.imply.druid.fastrack.GeoIpSqlOperator;
+import io.imply.druid.polaris.PolarisExplainTableOperatorConversion;
 import io.imply.druid.spatial.GeohashExprMacro;
 import io.imply.druid.spatial.GeohashSqlOperatorConversion;
 import org.apache.druid.guice.ExpressionModule;
@@ -50,5 +51,6 @@ public class UtilityBeltModule implements DruidModule
     ExpressionModule.addExprMacro(binder, GeohashExprMacro.class);
     SqlBindings.addOperatorConversion(binder, GeoIpSqlOperator.class);
     SqlBindings.addOperatorConversion(binder, GeohashSqlOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, PolarisExplainTableOperatorConversion.class);
   }
 }
