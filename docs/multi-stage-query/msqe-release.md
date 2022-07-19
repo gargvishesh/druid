@@ -7,6 +7,29 @@ title: Release notes
 
 ## Release notes
 
+### 2022.07
+
+#### MSQ Framework
+
+- There are two new context parameters:
+  - `msqMaxNumTasks` replaces to `msqNumTasks`. This property specifies the maximum number of tasks to launch, including the controller task . When both are present, `msqMaxNumTasks` takes precedence. The default value is `2`, which is the lowest supported number of tasks: one controller and one worker.  `msqNumTasks` will be removed in a future release. You can set this proprety in the console with the **Max tasks** option or include it as context parameter.
+  - `msqTaskAssignment` determines how the number of tasks is chosen. You can set it to either `max` where MSQ uses as many tasks as possible (up to the limit set by `msqMaxNumTasks`) or `auto` where MSQ uses as few tasks as possible without exceeding 10 Gib or 10,000 files per task.
+- The maximum number of tasks control is now more prominently displayed near the **Run** button in the web console.
+- MSQ now shows the following errors:
+  - An `InvalidNullByte` error if a string column includes a null byte, which is not allowed.
+  - An `InsertTimeNull` error if an INSERT or REPLACE query contains a null timestamp. 
+- Improved how the web console detects MSQ. The **sql-task** engine for MSQ is only available if the MSQ extension is configured correctly.
+- The **Connect external data** wizard now auto detects columns that are suitable to be parsed as the primary timestamp column.
+- The web console can now recover from network errors / connectivity issues while running a query.
+- You can now open a query detail archive generated in another cluster.
+- Improved the counters. There is now one counter per input. The detailed counters now contain more detail and are rendered as a table.
+- Improved reporting for task cancellations and worker errors.
+- Fixed the following bugs:
+  - Moving from one tab to another canceled a `native` or `sql` query if one was already running.
+  - Counters reset to 0 under certain crash conditions.
+  - Certain errors were being reported incorrectly (for example invalid "Access key ID" in an S3 input source).
+  - The shuffle mesh used an excessive number of threads. Communication now happens in chunks, so you no longer need to set. `druid.server.http.numThreads` to a very high number.
+
 ### 2022.06
 
 #### Changes and improvements
