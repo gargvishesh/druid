@@ -438,7 +438,10 @@ public class LeaderImpl implements Leader
       workerTaskLauncher.stop(false);
     } else {
       // If not successful, cancel running tasks.
-      workerTaskLauncher.stop(true);
+      // It can be possible that the query fails in initializeQueryDefAndState. In such a case, workerTaskLauncher can be null.
+      if (workerTaskLauncher != null) {
+        workerTaskLauncher.stop(true);
+      }
     }
 
     // Wait for worker tasks to exit. Ignore their return status. At this point, we've done everything we need to do,
