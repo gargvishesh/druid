@@ -3,6 +3,8 @@ id: reference
 title: Reference
 ---
 
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+
 ## Context parameters
 
 In addition to the Druid SQL [context parameters](../querying/sql-query-context.md), Multi-Stage Query (MSQ) supports context parameters that are specific to it. 

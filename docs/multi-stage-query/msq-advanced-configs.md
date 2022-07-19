@@ -3,12 +3,11 @@ id: advanced
 title: Advanced configs
 ---
 
-> The Multi-Stage Query (MSQ) framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
-
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Durable storage for mesh shuffle
 
-By default, the Multi-Stage Query (MSQ) framework uses the local storage of a node to store data from intermediate steps when executing a query. Although this method provides MSQ with better speed when executing a query, the data is lost if the node encounters an issue. When you enable durable storage, MSQ stores intermediate data in S3 instead. In essence, you trade some performance for better reliability. This is especially useful for long running queries.
+By default, the Multi-Stage Query (MSQ) Framework uses the local storage of a node to store data from intermediate steps when executing a query. Although this method provides MSQ with better speed when executing a query, the data is lost if the node encounters an issue. When you enable durable storage, MSQ stores intermediate data in S3 instead. In essence, you trade some performance for better reliability. This is especially useful for long running queries.
 
 To use durable storage for mesh shuffles: 
 

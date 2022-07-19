@@ -7,11 +7,11 @@ title: Tutorial - Convert ingestion spec
 
 Before you start, make sure you've [enabled the Multi-Stage Query (MSQ) framework](msq-setup.md).
 
-If you're already ingesting data with Druid's core query engine, you can use the Druid console to help you convert the ingestion spec to a SQL query. This query, called a task query, is a SQL query that uses the MSQ framework to ingest data.
+If you're already ingesting data with Druid's core query engine, you can use the Druid console to help you convert the ingestion spec to a task query that MSQ can use to ingest data.
 
 In the **Query** view, do the following:
 
-1. In the pane that includes **Run**, select **...** **>** **Convert ingestion spec to SQL**.
+1. In the menu bar that includes **Run**, select **...** **>** **Convert ingestion spec to SQL**.
 2. Provide your ingestion spec. You can use this sample ingestion spec if you don't have one:
 
    <details><summary>Show the spec</summary>
@@ -102,6 +102,9 @@ In the **Query** view, do the following:
 3. Submit the spec. The Druid console uses the JSON-based ingestion spec to generate a SQL query that you can use instead.
    
    <details><summary>Show the query</summary>
+
+   This is what the query looks like for the sample ingestion spec:
+
    ```sql
    -- This SQL query was auto generated from an ingestion spec
    --:context msqFinalizeAggregations: false

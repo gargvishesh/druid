@@ -8,7 +8,8 @@ title: Tutorial - Connect external data
 Before you start, make sure you've [enabled the Multi-Stage Query (MSQ) Framework](./msq-setup.md).
 
 The following section takes you through the **Connect external data** wizard that helps you create a query that references externally hosted data. 
-### Examine and load external data
+
+## Examine and load external data
 
 The following example uses EXTERN to query a JSON file located at https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json. 
 
@@ -75,12 +76,12 @@ To generate a query from external data, do the following:
     PARTITIONED BY DAY
     ```
 
-7. Optionally, select **Preview** to review the data before you ingest it. A preview runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries. You can see the general shape of the data before you commit to inserting it. The  LIMITs make the query run faster but could cause incomplete results.
+7. Optionally, select **Preview** to review the data before you ingest it. A preview runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries. You can see the general shape of the data before you commit to inserting it. The  LIMITs make the query run faster but can cause incomplete results.
 8. Run your query. The query returns information including the number of rows inserted into the table named `wikipedia-2016-06-27-sampled` and how long the query took.
 
 ## Query the data
 
-The data that you loaded into `wikipedia-2016-06-27-sampled` is queryable after the ingestion completes. You can analyze the data in the table to do things like produce a list of top channels:
+The data that you loaded into `wikipedia-2016-06-27-sampled` can be queried after the ingestion completes. You can analyze the data in the table to do things like produce a list of top channels:
 
 ```sql
 SELECT
@@ -91,7 +92,7 @@ GROUP BY channel
 ORDER BY COUNT(*) DESC
 ```
 
-With the EXTERN function, you could also run the same query on the external data directly:
+With the EXTERN function, you could run the same query on the external data directly without ingesting it first:
 
 <details><summary>Show the query</summary>
 
