@@ -1,329 +1,289 @@
 ---
-id: msqe-quickstart
-title: Quickstart
+id: queries
+title: Queries
 ---
 
-> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-Before you start, make sure you've [enabled the Multi-Stage Query Engine (MSQE)](msqe-setup.md).
+You can submit queries to the Multi-Stage Query (MSQ) Framework through the **Query** view in the Druid console or the API. The UI is a good place to start because you can preview a query before you run it. You can also experiment with many of the [context parameters](./msq-reference.md#context-parameters through the UI. Once you're comfortable with a query, explore [using the API to submit a query](./msq-api.md#submit-a-task-query).
 
-## Enhanced Query view
+If you encounter an issue after you submit a query, you can learn more about what an error means from [this table](./msq-reference.md#context-parameters). 
 
-MSQE uses the Enhanced Query view, which provides you with a UI to edit and use SQL queries. If MSQE is enabled, the enhanced Query view is available automatically. No additional configuration is required.
+Queries for MSQ involve 3 primary functions:
 
-The following screenshot shows you a populated enhanced Query view along with a description of its parts: 
+- EXTERN to query external data
+- INSERT INTO ... SELECT to insert data, such as data from an external source
+- REPLACE to replace existing datasources, partially or fully, with query results
 
-<details open><summary>Show the screenshot</summary>
+For information about the syntax for queries, see [SQL syntax](./msq-reference.md#sql-syntax).
 
-![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
+## Read external data
 
-1. The enhanced Query view is where you interact with MSQE. You can access the original Query view by navigating to `#query` in the URL. 
+Task queries can access external data through the EXTERN function. When using EXTERN, keep in mind that the operator cannot split large files across different worker tasks. If you have fewer input files than worker tasks, you can increase query parallelism by splitting up your input files such that you have at least one input file per worker task.
 
-2. The resources view shows the available schemas, datasources, and columns just like in the original Query view.
+The EXTERN function can be used anywhere a table is expected in the following form: `TABLE(EXTERN(...))`.  You can use external data with SELECT, INSERT and REPLACE queries. 
 
-3. Query tabs allow you to save, run, and manage multiple queries at once.
-
-4. The **Connect external data** wizard generates a basic `EXTERN` helper query by sampling your external datasource. You can then review and modify the query to suit your needs.
-
-5. The **Wrench icon** contains several tools that can help you build SQL queries, including a tool that converts your ingestion spec to SQL.
-
-6. The **Work history** panel shows you the previous queries executed by all users in the cluster.
-It is equivalent to the task view in the Ingestion tab with the filter of `
-type=’query_controller’`.
-You can show or hide this panel by selecting the **Wrench icon** (5).
-
-7. You can click on each query entry in **Work history** to attach to that query and track its progress.
-Additionally, you can see results, query stats, and the query.
-
-8. The query helpers let you define notebook-style queries that can be referenced from the main query as if they were defined as WITH clauses. You can refer to this extern 
-by name anywhere in the SQL query where you can use a table.
-They are essentially UI driven views that only exist within the given query tab.
-
-9. Context comments can be inserted anywhere in the query to set context parameters. These comments are parsed out of the query text and added to the context object in the API payload. For a full list, see [Context parameters](./msqe-api.md#context-variables).
-
-10.  The `Run` button’s more menu (`...`) lets you export the data as well as define the context for the query including the parallelism for the query.
-
-11.  The `Preview` button runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries. Use it to see the general shape of the data before you commit to inserting it.
-The added LIMITs make the query run faster but could cause incomplete results.
-
-12. The query timer indicates how long the query has been running.
-
-13.   The `(cancel)` link cancels the currently running query.
-
-14. The main progress bar shows the overall progress of the query.
-The progress is computed from the various counters in the live reports (16).
-
-15. The **Current stage** progress bar shows the progress for the current query stage.
-If several stages are executing concurrently, it shows the information for the earliest executing stage.
-
-16. The live query reports show detailed information of all the stages (past, present, and future). The live reports are shown while the query is running. 
-After a query finishes, reports are available by clicking on the query time indicator or from **Work history** (6).
-
-17. Each stage of the live query reports can be expanded to show per worker and per partition statistics.
-
-</details>
-
-## Create and run queries
-
-The following section takes you through running a series of queries that reference externally hosted data. The best way to start running these queries is with the enhanced **Query** view in the Druid web console. 
-
-### Examine and load external data
-
-The following example uses EXTERN to query a JSON file located at https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json. 
-
-Although you can manually create a query in the UI, you can use Druid to generate a base query for you that you can modify to meet your requirements.
-
-To generate a query from external data, do the following:
-
-1. Select **Connect external data**. Since you're doing a new ingestion, choose **Connect external data in a new tab**.
-2. On the **Select input type** screen, choose **HTTP(s)** and add the following value to the URI field: `https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json`. Leave the username and password blank.
-3. Click **Connect data**.
-4. On the **Parse** screen, you can perform a few actions before you load the data into Druid:
-   - Expand a row to see what data it corresponds to from the source.
-   - Customize how the data is handled by selecting the **Input format** and its related options, such as adding **JSON parser features** for JSON files.
-5. When you're ready, click **Done**. You're returned to a **Query** tab in the console where you can see the query that the Druid console generated:
-
-   - The query includes context variables for MSQE.  The syntax is unique to the Console: `--: context {key}: {value}`. When submitting queries to Druid directly, set the context variables in the context section of the SQL query object. For more information about context parameters, see [Context variables](./msqe-api.md#context-variables).
-   - For information about what the different parts of this query are, see [MSQE SQL syntax](./msqe-sql-syntax.md).
-   - The query inserts the data from the external source into a table named `wikipedia-2016-06-27-sampled`:
-
-   <details><summary>Show the query</summary>
-
-   ```sql
-   --:context msqFinalizeAggregations: false
-   --:context groupByEnableMultiValueUnnesting: false
-   INSERT INTO "wikipedia-2016-06-27-sampled"
-   SELECT
-     isRobot,
-     channel,
-     "timestamp",
-     flags,
-     isUnpatrolled,
-     page,
-     diffUrl,
-     added,
-     comment,
-     commentLength,
-     isNew,
-     isMinor,
-     delta,
-     isAnonymous,
-     user,
-     deltaBucket,
-     deleted,
-     namespace,
-     cityName,
-     countryName,
-     regionIsoCode,
-     metroCode,
-     countryIsoCode,
-     regionName
-   FROM "wikipedia-2016-06-27-sampled"
-   PARTITIONED BY ALL
-   ```
-   </details>
-
-6. Review and modify the query to meet your needs. For example, you can change the table name or the partitioning to `PARTITIONED BY DAY`to specify day-based segment granularity. Note that if you want to partition by something other than ALL, you need to include `TIME_PARSE("timestamp") AS __time` in your SELECT statement:
-   
-   ```sql
-   ...
-   SELECT
-     TIME_PARSE("timestamp") AS __time,
-   ...
-   ...
-    PARTITIONED BY DAY
-    ```
-
-7. Optionally, select **Preview** to review the data before you ingest it. A preview runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries. You can see the general shape of the data before you commit to inserting it. The  LIMITs make the query run faster but could cause incomplete results.
-8. Run your query. The query returns information including the number of rows inserted into the table named `wikipedia-2016-06-27-sampled` and how long the query took.
-
-### Query the data
-
-The data that you loaded into `wikipedia-2016-06-27-sampled` is queryable after the ingestion completes. You can analyze the data in the table to do things like produce a list of top channels:
+The following query reads external data hosted at 
 
 ```sql
 SELECT
-  channel,
-  COUNT(*)
-FROM "wikipedia-2016-06-27-sampled"
-GROUP BY channel
-ORDER BY COUNT(*) DESC
-```
-
-With the EXTERN function, you could also run the same query on the external data directly:
-
-<details><summary>Show the query</summary>
-
-```sql
-SELECT
-  channel,
-  COUNT(*)
+  *
 FROM TABLE(
   EXTERN(
     '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
     '{"type": "json"}',
-    '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
   )
 )
-GROUP BY channel
-ORDER BY COUNT(*) DESC
+LIMIT 100
+``` 
+
+For more information about the syntax, see [EXTERN](./msq-reference.md#extern).
+
+## Insert data
+
+With MSQ, Druid can use the results of a task query to create a new datasource
+or to append to an existing datasource. Syntactically, there is no difference between the two. These operations  use the INSERT INTO ... SELECT syntax.
+
+All SELECT capabilities are available for INSERT queries. However, MSQE does not include all native Druid query features. See [Known issues](msq-release.md#known-issues) for a list of capabilities that aren't available.
+
+The following example query inserts data from an external source into a table named `w000` and partitions it by day:
+
+```sql
+INSERT INTO w000
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
 ```
 
-</details>
+For more information about the syntax, see [INSERT](./msq-reference.md#insert).
 
-### Convert a JSON ingestion spec
+## Replace data 
 
-If you're already ingesting data with Druid's core query engine, you can use the Druid console to help you convert the ingestion spec to a SQL query.
+The syntax for REPLACE syntax is similar to INSERT. All SELECT functionality is available for REPLACE queries. However, keep in mind that MSQ does not yet implement all native Druid query features. See
+[Known issues](./msq-release.md#known-issues) for a list of functionality that is not available.
 
-In the **Query** view, do the following:
+When working with REPLACE queries, keep the following in mind:
 
-1. Select the **Wrench icon** **>** **Convert ingestion spec to SQL**.
-2. Provide your ingestion spec. You can use this sample ingestion spec if you don't have one:
+- The intervals generated as a result of the `OVERWRITE WHERE` query must align with the granularity specified in the PARTITIONED BY clause.
+- Only the `__time` column is supported in OVERWRITE WHERE queries.
 
-   <details><summary>Show the spec</summary>
-   This spec uses data hosted at `https://static.imply.io/data/wikipedia.json.gz` and loads it into a table named `wikipedia`.
-   
-   ```json
-   {
-     "type": "index_parallel",
-     "spec": {
-       "ioConfig": {
-         "type": "index_parallel",
-         "inputSource": {
-           "type": "http",
-           "uris": [
-             "https://static.imply.io/data/wikipedia.json.gz"
-           ]
-         },
-         "inputFormat": {
-           "type": "json"
-         }
-       },
-       "tuningConfig": {
-         "type": "index_parallel",
-         "partitionsSpec": {
-           "type": "dynamic"
-         }
-       },
-       "dataSchema": {
-         "dataSource": "wikipedia",
-         "timestampSpec": {
-           "column": "timestamp",
-           "format": "iso"
-         },
-         "dimensionsSpec": {
-           "dimensions": [
-             "isRobot",
-             "channel",
-             "flags",
-             "isUnpatrolled",
-             "page",
-             "diffUrl",
-             {
-               "type": "long",
-               "name": "added"
-             },
-             "comment",
-             {
-               "type": "long",
-               "name": "commentLength"
-             },
-             "isNew",
-             "isMinor",
-             {
-               "type": "long",
-               "name": "delta"
-             },
-             "isAnonymous",
-             "user",
-             {
-               "type": "long",
-               "name": "deltaBucket"
-             },
-             {
-               "type": "long",
-               "name": "deleted"
-             },
-             "namespace",
-             "cityName",
-             "countryName",
-             "regionIsoCode",
-             "metroCode",
-             "countryIsoCode",
-             "regionName"
-           ]
-         },
-         "granularitySpec": {
-           "queryGranularity": "none",
-           "rollup": false,
-           "segmentGranularity": "day"
-         }
-       }
-     }
-   }
-   ```
-   
-   </details>
+For more information about the syntax, see [REPLACE](./msq-reference.md#replace).
 
-3. Submit the spec. The Druid console uses the JSON-based ingestion spec to generate a SQL query that you can use instead.
-   
-   <details><summary>Show the query</summary>
-   ```sql
-   -- This SQL query was auto generated from an ingestion spec
-   --:context msqFinalizeAggregations: false
-   --:context groupByEnableMultiValueUnnesting: false
-   INSERT INTO wikipedia
-   WITH ioConfigExtern AS (SELECT * FROM TABLE(
-     EXTERN(
-       '{"type":"http","uris":["https://static.imply.io/data/wikipedia.json.gz"]}',
-       '{"type":"json"}',
-       '[{"name":"timestamp","type":"string"},{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"diffUrl","type":"string"},{"name":"added","type":"long"},{"name":"comment","type":"string"},{"name":"commentLength","type":"long"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"delta","type":"long"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"string"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"}]'
-     )
-   ))
-   SELECT
-     TIME_PARSE("timestamp") AS __time,
-     "isRobot",
-     "channel",
-     "flags",
-     "isUnpatrolled",
-     "page",
-     "diffUrl",
-     "added",
-     "comment",
-     "commentLength",
-     "isNew",
-     "isMinor",
-     "delta",
-     "isAnonymous",
-     "user",
-     "deltaBucket",
-     "deleted",
-     "namespace",
-     "cityName",
-     "countryName",
-     "regionIsoCode",
-     "metroCode",
-     "countryIsoCode",
-     "regionName"
-   FROM ioConfigExtern
-   PARTITIONED BY DAY   
-   ```
-   
-   </details>
+The following examples show you how to either replace all data in a table or only some data.
 
-4. Review the generated SQL to make sure it matches your requirements and does what you expect.
-5. Click **Run** to start the ingestion.
+#### REPLACE all data
+
+You can replace all the data in a table by using REPLACE INTO ... OVERWRITE ALL SELECT:
+
+```sql
+REPLACE INTO w000
+OVERWRITE ALL
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
+```
+
+#### REPLACE some data
+
+You can replace some of the data in a table using REPLACE INTO ... OVERWRITE WHERE ... SELECT:
+
+```sql
+REPLACE INTO w000
+OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25' AND __time < TIMESTAMP '2019-08-28'
+SELECT
+  TIME_PARSE("timestamp") AS __time,
+  *
+FROM TABLE(
+  EXTERN(
+    '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type": "json"}',
+    '[{"name": "timestamp", "type": "string"}, {"name": "page", "type": "string"}, {"name": "user", "type": "string"}]'
+  )
+)
+PARTITIONED BY DAY
+```
+
+## Adjust query behavior
+
+Changing query behavior can affect how your queries run or what your results look like. You can control how your queries behave by changing the following:
+
+- Primary timestamp
+- PARTITIONED BY
+- CLUSTERED BY
+- GROUP BY
+- Context parameters
+
+### Primary timestamp
+
+Druid tables always include a primary timestamp named `__time`, so your ingestion query should generally include a column named `__time`. The column is used for time-based partitioning, such as
+`PARTITIONED BY DAY`.
+
+If you use `PARTITIONED BY ALL` or `PARTITIONED BY ALL TIME`, time-based
+partitioning is disabled. In these cases, your ingestion query doesn't need
+to include a `__time` column. However, Druid still creates a `__time` column 
+in your Druid table and sets all timestamps to 1970-01-01 00:00:00.
+
+For more information, see [Primary timestamp](../ingestion/data-model.md#primary-timestamp).
+
+### PARTITIONED BY
+
+INSERT and REPLACE queries require the PARTITIONED BY clause, which determines how time-based partitioning is done. In Druid, data is split into segments, one or more per time chunk defined by the PARTITIONED BY granularity. A good general rule is to adjust the granularity so that each segment contains about five million rows. Choose a granularity based on your ingestion rate. For example, if you ingest a million rows per day, PARTITION BY DAY is good. If you ingest a million rows an hour, choose PARTITION BY HOUR instead.
+
+Using the clause provides the following benefits:
+
+- Better query performance due to time-based segment pruning, which removes segments from
+   consideration when they do not contain any data for a query's time filter.
+- More efficient data management, as data can be rewritten for each time partition individually
+   rather than the whole table.
+
+You can use the following arguments for PARTITIONED BY:
+
+- Time unit: `HOUR`, `DAY`, `MONTH`, or `YEAR`. Equivalent to `FLOOR(__time TO TimeUnit)`.
+- `TIME_FLOOR(__time, 'granularity_string')`, where granularity_string is an ISO8601 period like
+  'PT1H'. The first argument must be `__time`.
+- `FLOOR(__time TO TimeUnit)`, where TimeUnit is any unit supported by the [FLOOR function](../querying/sql-scalar.md#date-and-time-functions). The first
+  argument must be `__time`.
+- `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single
+  time chunk. To use LIMIT or OFFSET at the outer level of your INSERT or REPLACE query, you must set PARTITIONED BY to `ALL` or `ALL TIME`.
+
+MSQE supports the ISO8601 periods for `TIME_FLOOR`:
+
+- PT1S
+- PT1M
+- PT5M
+- PT10M
+- PT15M
+- PT30M
+- PT1H
+- PT6H
+- P1D
+- P1W
+- P1M
+- P3M
+- P1Y
 
 
-## Next steps
+### CLUSTERED BY
 
-To prepare to start ingesting your data, do the following:
+Data is first divided by the PARTITION BY clause. Data can be further split by the CLUSTERED BY clause. For example, suppose you ingest 100M rows per hour and use `PARTITIONED BY HOUR` as your time partition. You then divide up the data further by adding `CLUSTERED BY hostName`. The result will be segments of about 5 million rows, with like hostNames grouped within the same segment.
 
-- Review the [security details](./msqe-security.md) for MSQE, so that you understand what kind of access is required for your datasources in order to use MSQE. 
-- Read more about how [MSQE query syntax](./msqe-sql-syntax.md)
-- Look at the example queries to see examples of what you can do with MSQE.
+Using CLUSTERED BY has the following benefits:
 
-## Example queries
+- Lower storage footprint due to combining similar data into the same segments, which improves
+   compressibility.
+- Better query performance due to dimension-based segment pruning, which removes segments from
+   consideration when they cannot possibly contain data matching a query's filter.
+
+For dimension-based segment pruning to be effective, your queries should meet the following conditions:
+
+- All CLUSTERED BY columns are single-valued string columns
+- Use a REPLACE query for ingestion
+
+Druid still clusters data during ingestion if these conditions aren't met but won't perform dimension-based segment pruning at query time. That means if you use an INSERT query for ingestion or have numeric columns or multi-valued string columns, dimension-based segment pruning doesn't occur at query time.
+
+You can tell if dimension-based segment pruning is possible by using the `sys.segments` table to
+inspect the `shard_spec` for the segments that are generated by an ingestion query. If they are of type
+`range` or `single`, then dimension-based segment pruning is possible. Otherwise, it is not. The
+shard spec type is also available in the **Segments** view under the **Partitioning**
+column.
+
+You can use the following filters for dimension-based segment pruning:
+
+- Equality to string literals, like `x = 'foo'` or `x IN ('foo', 'bar')`.
+- Comparison to string literals, like `x < 'foo'` or other comparisons involving `<`, `>`, `<=`, or `>=`.
+
+This differs from multi-dimension range based partitioning in classic batch ingestion where both
+string and numeric columns support Broker-level pruning. With MSQE ingestion,
+only string columns support Broker-level pruning.
+
+It is okay to mix time partitioning with secondary partitioning. For example, you can
+combine `PARTITIONED BY HOUR` with `CLUSTERED BY channel` to perform
+time partitioning by hour and secondary partitioning by channel within each hour.
+
+### GROUP BY
+
+A query's GROUP BY clause determines how data is rolled up. The expressions in the GROUP BY clause become
+dimensions, and aggregation functions become metrics.
+
+#### Ingest-time aggregations
+
+When performing rollup using aggregations, it is important to use aggregators
+that return _nonfinalized_ state. This allows you to perform further rollups
+at query time. To achieve this, set `msqFinalizeAggregations: false` in your
+ingestion query context and refer to the following table for any additional
+modifications needed.
+
+Check out the [INSERT with rollup example query](./msq-queries.md#insert-with-rollup) to see this feature in
+action.
+
+Druid needs information for aggregating measures of different segments while working with Pivot and compaction
+tasks. For example, to aggregate `count("col") as example_measure`, Druid needs to sum the value of `example_measure`
+across the segments. This information is stored inside the metadata of the segment. For MSQE, Druid only populates the
+aggregator information of a column in the segment metadata when:
+
+- The INSERT or REPLACE query has an outer GROUP BY clause.
+- The following context parameters are set for the query context: `msqFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false`
+
+|Query-time aggregation|Notes|
+|----------------------|-----|
+|SUM|Use unchanged at ingest time.|
+|MIN|Use unchanged at ingest time.|
+|MAX|Use unchanged at ingest time.|
+|AVG|Use `SUM` and `COUNT` at ingest time. Switch to quotient of `SUM` at query time.|
+|COUNT|Use unchanged at ingest time, but switch to `SUM` at query time.|
+|COUNT(DISTINCT expr)|If approximate, use `APPROX_COUNT_DISTINCT` at ingest time.<br /><br />If exact, you cannot use an ingest-time aggregation. Instead, `expr` must be stored as-is. Add it to the `SELECT` and `GROUP BY` lists.|
+|EARLIEST(expr)<br /><br />(numeric form)|Not supported.|
+|EARLIEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|LATEST(expr)<br /><br />(numeric form)|Not supported.|
+|LATEST(expr, maxBytes)<br /><br />(string form)|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_BUILTIN|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_HLL|Use unchanged at ingest time.|
+|APPROX_COUNT_DISTINCT_DS_THETA|Use unchanged at ingest time.|
+|APPROX_QUANTILE|Not supported. Deprecated; we recommend using `APPROX_QUANTILE_DS` instead.|
+|APPROX_QUANTILE_DS|Use `DS_QUANTILES_SKETCH` at ingest time. Continue using `APPROX_QUANTILE_DS` at query time.|
+|APPROX_QUANTILE_FIXED_BUCKETS|Not supported.|
+
+#### Multi-value dimensions
+
+By default, multi-value dimensions are not ingested as expected when rollup is enabled because the
+GROUP BY operator unnests them instead of leaving them as arrays. This is [standard behavior](../querying/sql-data-types.md#multi-value-strings) for GROUP BY but is generally not desirable behavior for ingestion.
+
+To address this:
+
+- When using GROUP BY with data from EXTERN, wrap any `string`-typed fields from EXTERN that may be
+  multi-valued in `MV_TO_ARRAY`.
+- Set `groupByEnableMultiValueUnnesting: false` in your query context to ensure that all multi-value
+  strings are properly converted to arrays using `MV_TO_ARRAY`. If any strings aren't
+  wrapped in `MV_TO_ARRAY`, the query reports an error that includes the message "Encountered
+  multi-value dimension x that cannot be processed with groupByEnableMultiValueUnnesting set to false."
+
+For an example, see [INSERT with rollup example query](./msq-queries.md#insert-with-rollup).
+
+### Context parameters
+
+Context parameters can control things such as how many tasks get launched or what happens if MSQ encounters a malformed record.
+
+For a full list of context parameters and how they affect a query, see [Context parameters](./msq-reference.md#context-parameters).
+
+## Query examples
 
 These example queries show you some of the other things you can do to modify your MSQE queries depending on your use case. You can copy the example queries into the **Query** UI and run them.
 
@@ -356,7 +316,7 @@ CLUSTERED BY channel
 
 ### INSERT with rollup
 
-This example inserts data into a table named `kttm_data` and performs data rollup. This example implements the recommendations described in [multi-value dimensions](./msqe-sql-syntax.md#multi-value-dimensions).
+This example inserts data into a table named `kttm_data` and performs data rollup. This example implements the recommendations described in [multi-value dimensions](./msq-queries.md#multi-value-dimensions).
 
 <details><summary>Show the query</summary>
 

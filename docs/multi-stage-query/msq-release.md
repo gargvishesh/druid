@@ -1,9 +1,9 @@
 ---
-id: msqe-release
+id: release
 title: Release notes
 ---
 
-> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Release notes
 
@@ -36,10 +36,10 @@ title: Release notes
 
 - Property names have changed. Previously, properties used the `talaria` prefix. They now either use `msq` or `multiStageQuery` depending on the context. Note that the extension is still named `imply-talaria`.
 - You no longer need a license that has an explicit entitlement for MSQE.
-- MSQE now supports S3 as a storage medium when using mesh shuffles. For more information, see [Durable storage for mesh shuffles](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle).
+- MSQE now supports S3 as a storage medium when using mesh shuffles. For more information, see [Durable storage for mesh shuffles](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle).
 - Reports for MSQE queries now include warning sections that provide information about the type of warning and number of occurrences. 
-- You can now use REPLACE in MSQE queries. For more information, see [REPLACE](./msqe-sql-syntax.md#replace).
-- The default mode for MSQE is now `strict`. This means that a query fails if there is a single malformed record. You can change this behavior using the context variable [`msqMode`](./msqe-api.md#context-variables) (previously `talariaMode`).
+- You can now use REPLACE in MSQE queries. For more information, see [REPLACE](./msq-queries.md#replace-data).
+- The default mode for MSQE is now `strict`. This means that a query fails if there is a single malformed record. You can change this behavior using the context variable [`msqMode`](./msq-reference.md#context-parameters) (previously `talariaMode`).
 - The behavior of `msqNumTasks` (previously `talariaNumTasks`) has changed. It now accurately reflects the total number of slots required, including the controller. Previously, the controller was not accounted for. 
 - The EXTERN operator now requires READ access to the resource type EXTERNAL that is named EXTERNAL. This new permission must be added manually to API users who issue queries that access external data. In Imply Enterprise Hybrid and in Imply Enterprise, this permission is added automatically to users with the ManageDatasets permission. For Imply Enterprise, you must update Imply Manager to 2022.06 prior to updating your Imply version to 2022.06.
 - Queries that carry large amounts of data through multiple stages are sped up significantly due to performance enhancements in sorting and shuffling.
@@ -47,7 +47,7 @@ title: Release notes
 - Strings are no longer permitted to contain null bytes. Strings containing null bytes will result in an InvalidNullByte error.
 - INSERT or REPLACE queries with null values for `__time` now exit with an InsertTimeNull error.
 - INSERT or REPLACE queries that are aborted due to lock preemption now exit with an InsertLockPreempted error. Previously, they would exit with an UnknownError.
-- MSQE generated segments can now be used with Pivot datacubes and support auto-compaction if the query conforms to the conditions defined in [GROUP BY](./msqe-sql-syntax.md#group-by).
+- MSQE generated segments can now be used with Pivot datacubes and support auto-compaction if the query conforms to the conditions defined in [GROUP BY](./msq-queries.md#group-by).
 - You an now download the results of a query as a CSV, TSV, JSON file. Click the download icon in the Query view after you run a query: ![Click the download icon and choose either CSV, TSV, or JSON](../assets/multi-stage-query/msq-ui-download-query-results.png).
 
 #### Fixes
@@ -61,7 +61,7 @@ title: Release notes
 ### 2022.05
 
 - You no longer need to load the `imply-sql-async` extension to use the Multi-Stage Query Engine. You only need to load the `imply-talaria` extension.
-- The API endpoints have changed. Earlier versions of the Multi-Stage Query Engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](./msqe-api.md).
+- The API endpoints have changed. Earlier versions of the Multi-Stage Query Engine used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints based on what you're trying to do: `/druid/v2/sql/task` and `/druid/indexer/v1/task/`. For more information, see [API](./msq-api.md).
 - You no longer need to set a context parameter for `talaria` when making API calls. API calls to the `task` endpoint use the Multi-Stage Query Engine automatically.
 - Fixed an issue that caused an `IndexOutOfBoundsException` error to occur, which led to some ingestion jobs failing.
 
@@ -70,10 +70,10 @@ title: Release notes
 - Stage outputs are now removed from local disk when no longer needed. This reduces the total
   amount of local disk space required by jobs with more than two stages. (15030)
 - It is now possible to control segment sort order independently of CLUSTERED BY, using the
-  new [`talariaSegmentSortOrder`](./msqe-api.md#context-variables) context parameter. (18320)
+  new [`talariaSegmentSortOrder`](./msq-reference.md#context-parameters) context parameter. (18320)
 - There is now a guardrail on the maximum number of input files. Exceeded this limit leads to
-  a [TooManyInputFiles](./msqe-api.md#error-codes)) error. (15020)
-- Queries now report the error code [WorkerRpcFailed](./msqe-api.md#error-codes)) when controller-to-worker or
+  a [TooManyInputFiles](./msq-reference.md#error-codes)) error. (15020)
+- Queries now report the error code [WorkerRpcFailed](./msq-reference.md#error-codes)) when controller-to-worker or
   worker-to-worker communication fails. Previously, this would be reported as an
   UnknownError. (18971)
 - Fixed an issue where queries with large numbers of partitions could run out of memory. (19162)
@@ -90,26 +90,26 @@ title: Release notes
 - The web console now includes counters for external input rows and files, Druid table input rows
   and segments, and sort progress. As part of this change, the query detail response format has
   changed. Clients performing programmatic access will need to be updated. (15048, 15208, 18070)
-- Added the ability to avoid unnesting [multi-value string dimensions](./msqe-sql-syntax.md#multi-value-dimensions)
+- Added the ability to avoid unnesting [multi-value string dimensions](./msq-queries.md#multi-value-dimensions)
   during GROUP BY. This is useful for performing ingestion with rollup. (15031, 16875, 16887)
 - EXPLAIN PLAN FOR now works properly on INSERT queries. (17321)
 - External input files are now read in parallel when running in Indexers. (17933)
 - Improved accuracy of partition-determination. Segments generated by INSERT are now more regularly
   sized. (17867)
-- [CannotParseExternalData](./msqe-api.md#error-codes)) error reports now include input file path and line number
+- [CannotParseExternalData](./msq-reference.md#context-parameters)) error reports now include input file path and line number
   information. (16016)
 - There is now an upper limit on the number of workers, partially determined by available memory.
-  Exceeding this limit leads to a [TooManyWorkers](./msqe-api.md#error-codes)) error. (15021)
+  Exceeding this limit leads to a [TooManyWorkers](./msq-reference.md#context-parameters)) error. (15021)
 - There is now a guardrail on the maximum size of data involved in a broadcast join. Queries that
-  exceed the limit will report a [BroadcastTablesTooLarge](./msqe-api.md#error-codes)) error code. (15024)
-- When a worker fails abruptly, the controller now reports a [WorkerTaskFailed](./msqe-api.md#error-codes)) error
+  exceed the limit will report a [BroadcastTablesTooLarge](./msq-reference.md#context-parameters)) error code. (15024)
+- When a worker fails abruptly, the controller now reports a [WorkerTaskFailed](./msq-reference.md#context-parameters)) error
   code instead of UnknownError. (15024)
 - Controllers will no longer give up on workers before the Overlord does. Previously, the controller
   would fail with the message "Connection refused" if workers took longer than 30 seconds to start
   up. (17602)
 - Fixed an issue where INSERT queries that generate large numbers of time chunks may fail with a
   message containing "SketchesArgumentException: K must be >= 2 and <= 32768 and a power of 2". This
-  happened when the number of generated time chunks was close to the [TooManyBuckets](./msqe-advanced-configs.md#limits)
+  happened when the number of generated time chunks was close to the [TooManyBuckets](./msq-concepts.md#limits)
   limit. (14764)
 - Fixed an issue where queries with certain input sources would report an error with the message
   "Too many workers" when there were more files than workers. (18022)
@@ -173,11 +173,11 @@ title: Release notes
 
 - Only one local filesystem per server is used for stage output data during multi-stage query
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
-  available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle). (16181)
+  available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle). (16181)
 
 - When `msqMaxNumTasks` (formerly `msqNumTasks`, formerly `talariaNumTasks`) is higher than the total
   capacity of the cluster, more tasks may be launched than can run at once. This leads to a
-  [TaskStartTimeout](./msqe-api.md#error-codes) error code, as there is never enough capacity to run the query.
+  [TaskStartTimeout](./msq-reference.md#context-parameters) error code, as there is never enough capacity to run the query.
   To avoid this, set `msqMaxNumTasks` to a number of tasks that can run simultaneously on your cluster. (23242)
 
 - When `msqTaskAssignment` is set to `auto`, the system generates one task per input file for certain splittable
@@ -189,7 +189,7 @@ title: Release notes
 - INSERT queries can consume excessive memory when using complex types due to inaccurate footprint
   estimation. This can appear as an OutOfMemoryError during the SegmentGenerator stage when using
   sketches. If you run into this issue, try manually lowering the value of the
-  [`talariaRowsInMemory`](./msqe-api.md#context-variables) parameter. (17946)
+  [`talariaRowsInMemory`](./msq-reference.md#context-parameters) parameter. (17946)
 
 - INSERT queries can consume excessive memory on Indexers due to a too-high default value of
   `druid.processing.numThreads`. This can appear as an OutOfMemoryError during the SegmentGenerator
@@ -259,10 +259,10 @@ feature is not available. All columns and their types must be specified explicit
   (15007)
 - Figuring out `rollup`, `query-granularity`, and `aggregatorFactories` is on a best effort basis. In
   particular, Pivot will not be able to automatically create data cubes that properly reflect the
-  rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msqe-sql-syntax.md#group-by). Proper data cubes
+  rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msq-queries.md#group-by). Proper data cubes
   can still be created manually. (20879)
 
-- When INSERT with GROUP BY does the match the criteria mentioned in [GROUP BY](./msqe-sql-syntax.md#group-by),  the multi-stage engine generates segments that Druid's compaction
+- When INSERT with GROUP BY does the match the criteria mentioned in [GROUP BY](./msq-queries.md#group-by),  the multi-stage engine generates segments that Druid's compaction
   functionality is not able to further roll up. This applies to autocompaction as well as manually
   issued `compact` tasks. Individual queries executed with the multi-stage engine always guarantee
   perfect rollup for their output, so this only matters if you are performing a sequence of INSERT
@@ -270,7 +270,7 @@ feature is not available. All columns and their types must be specified explicit
   using another SQL query instead of a `compact` task.   (17945)
 
 - When using INSERT with GROUP BY, not all aggregation functions are implemented. See the
-  [GROUP BY](./msqe-sql-syntax.md#group-by) section for a list of aggregation functions that are currently available in
+  [GROUP BY](./msq-queries.md#group-by) section for a list of aggregation functions that are currently available in
   conjuction with INSERT. Note that all aggregations are supported for SELECT queries. (15010)
 
 - When using INSERT with GROUP BY, splitting of large partitions is not currently
@@ -294,5 +294,5 @@ feature is not available. All columns and their types must be specified explicit
 
 - Maximum amount of local disk space to use for temporary data. No guardrail today means worker
   tasks may exhaust all available disk space. In this case, you will receive an
-  [UnknownError](./msqe-api.md#error-codes)) with a message including "No space left on device". (15022)
+  [UnknownError](./msq-reference.md#error-codes)) with a message including "No space left on device". (15022)
 

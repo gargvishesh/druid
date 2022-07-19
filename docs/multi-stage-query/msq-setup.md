@@ -1,17 +1,17 @@
 ---
-id: msqe-setup
+id: setup
 sidebar_label: Setup
-title: Enable the Multi-Stage Query Engine
+title: Enable the Multi-Stage Query (MSQ) Framework
 ---
 
-> The Multi-Stage Query Engine is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> MSQ is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Prerequisites
 
-To use the Multi-Stage Query Engine (MSQE), make sure you meet the following requirements:
+To use MSQ, make sure you meet the following requirements:
 
 - An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.06 STS or later. Imply recommends using the latest STS version. MSQE isn't available in an LTS release yet. 
-- Administrator access to Imply Manager so that you can enable MSQE. For security information related to datasources, see [Security](./msqe-security.md).
+- Administrator access to Imply Manager so that you can enable MSQE. For security information related to datasources, see [Security](./msq-security.md).
 
 
 ## Enable MSQE in Imply
@@ -77,7 +77,7 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
 
 ## Enable durable storage
 
-Optionally, you can enable durable storage for mesh shuffles. Using this feature can improve the reliability of queries that use more than 20 workers. Note that only S3 is supported for the storage type. For more information about this feature, see [Durable storage for mesh shuffle](./msqe-advanced-configs.md#durable-storage-for-mesh-shuffle).
+Optionally, you can enable durable storage for mesh shuffles. Using this feature can improve the reliability of queries that use more than 20 workers. Note that only S3 is supported for the storage type. For more information about this feature, see [Durable storage for mesh shuffle](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle).
 
 To enable the feature with Imply Manager:
 
@@ -105,10 +105,13 @@ To enable the feature with Imply Manager:
 - `s3:AbortMultipartUpload`
 - `s3:DeleteObject`
 
-   For information about what the permissions are used for, see [S3](./msqe-security.md#s3).
+   For information about what the permissions are used for, see [S3](./msq-security.md#s3).
 
 6. Apply the changes to your cluster.
 
 ## Next steps
 
-Start with the [Multi-Stage Query Engine quickstart](./msqe-quickstart.md). It walks you through running queries against external datasources that are publicly hosted.
+Now that you've set up MSQ, you can do the following:
+
+- [Connect external data](./msq-tutorial-connect-external-data.md)
+- [Convert a JSON ingestion spec](./msq-tutorial-convert-ingest-spec.md)
