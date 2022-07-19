@@ -23,7 +23,7 @@ Task queries can access external data through the EXTERN function. When using EX
 
 The EXTERN function can be used anywhere a table is expected in the following form: `TABLE(EXTERN(...))`.  You can use external data with SELECT, INSERT and REPLACE queries. 
 
-The following query reads external data hosted at 
+The following query reads external data 
 
 ```sql
 SELECT
@@ -53,7 +53,8 @@ The following example query inserts data from an external source into a table na
 INSERT INTO w000
 SELECT
   TIME_PARSE("timestamp") AS __time,
-  *
+  "page",
+  "user"
 FROM TABLE(
   EXTERN(
     '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
@@ -89,7 +90,8 @@ REPLACE INTO w000
 OVERWRITE ALL
 SELECT
   TIME_PARSE("timestamp") AS __time,
-  *
+  "page",
+  "user"
 FROM TABLE(
   EXTERN(
     '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
@@ -109,7 +111,8 @@ REPLACE INTO w000
 OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25' AND __time < TIMESTAMP '2019-08-28'
 SELECT
   TIME_PARSE("timestamp") AS __time,
-  *
+  "page",
+  "user"
 FROM TABLE(
   EXTERN(
     '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
@@ -300,12 +303,34 @@ This example inserts data into a table named `w000` without performing any data 
 INSERT INTO w000
 SELECT
   TIME_PARSE("timestamp") AS __time,
-  *
+  isRobot,
+  channel,
+  flags,
+  isUnpatrolled,
+  page,
+  diffUrl,
+  added,
+  comment,
+  commentLength,
+  isNew,
+  isMinor,
+  delta,
+  isAnonymous,
+  user,
+  deltaBucket,
+  deleted,
+  namespace,
+  cityName,
+  countryName,
+  regionIsoCode,
+  metroCode,
+  countryIsoCode,
+  regionName
 FROM TABLE(
     EXTERN(
-      '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-      '{"type": "json"}',
-      '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
+      '{"type":"http","uris":["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+      '{"type":"json"}',
+      '[{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"timestamp","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"diffUrl","type":"string"},{"name":"added","type":"long"},{"name":"comment","type":"string"},{"name":"commentLength","type":"long"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"delta","type":"long"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"long"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"}]'
     )
   )
 PARTITIONED BY HOUR
@@ -402,30 +427,47 @@ This example inserts data into a table named `w003` and joins data from two sour
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO w003
-WITH wikidata AS (
-  SELECT * FROM TABLE(
-    EXTERN(
-      '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-      '{"type": "json"}',
-      '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
-    )
+WITH
+wikidata AS (SELECT * FROM TABLE(
+  EXTERN(
+    '{"type":"http","uris":["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+    '{"type":"json"}',
+    '[{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"timestamp","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"diffUrl","type":"string"},{"name":"added","type":"long"},{"name":"comment","type":"string"},{"name":"commentLength","type":"long"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"delta","type":"long"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"long"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"}]'
   )
-),
-
-countries AS (
-  SELECT * FROM TABLE(
-    EXTERN(
-      '{"type": "http", "uris": ["https://static.imply.io/lookup/country.tsv"]}',
-      '{"type": "tsv", "hasHeaderRow": true}',
-      '[{ "name": "Country", "type": "string" },{ "name": "Capital", "type": "string" },{ "name": "ISO3", "type": "string" },{ "name": "ISO2", "type": "string" }]'
-    )
+)),
+countries AS (SELECT * FROM TABLE(
+  EXTERN(
+    '{"type":"http","uris":["https://static.imply.io/lookup/country.tsv"]}',
+    '{"type":"tsv","findColumnsFromHeader":true}',
+    '[{"name":"Country","type":"string"},{"name":"Capital","type":"string"},{"name":"ISO3","type":"string"},{"name":"ISO2","type":"string"}]'
   )
-)
-
+))
 SELECT
-  TIME_PARSE(wikidata."timestamp") AS __time,
-  wikidata.*,
-  countries.Capital AS countryCapital
+  TIME_PARSE("timestamp") AS __time,
+  isRobot,
+  channel,
+  flags,
+  isUnpatrolled,
+  page,
+  diffUrl,
+  added,
+  comment,
+  commentLength,
+  isNew,
+  isMinor,
+  delta,
+  isAnonymous,
+  user,
+  deltaBucket,
+  deleted,
+  namespace,
+  cityName,
+  countryName,
+  regionIsoCode,
+  metroCode,
+  countryIsoCode,
+  countries.Capital AS countryCapital,
+  regionName
 FROM wikidata
 LEFT JOIN countries ON wikidata.countryIsoCode = countries.ISO2
 PARTITIONED BY HOUR
@@ -447,12 +489,34 @@ REPLACE INTO w007
 OVERWRITE ALL
 SELECT
   TIME_PARSE("timestamp") AS __time,
-  *
+  isRobot,
+  channel,
+  flags,
+  isUnpatrolled,
+  page,
+  diffUrl,
+  added,
+  comment,
+  commentLength,
+  isNew,
+  isMinor,
+  delta,
+  isAnonymous,
+  user,
+  deltaBucket,
+  deleted,
+  namespace,
+  cityName,
+  countryName,
+  regionIsoCode,
+  metroCode,
+  countryIsoCode,
+  regionName
 FROM TABLE(
     EXTERN(
-      '{"type": "http", "uris": ["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
-      '{"type": "json"}',
-      '[{"name": "added", "type": "long"}, {"name": "channel", "type": "string"}, {"name": "cityName", "type": "string"}, {"name": "comment", "type": "string"}, {"name": "commentLength", "type": "long"}, {"name": "countryIsoCode", "type": "string"}, {"name": "countryName", "type": "string"}, {"name": "deleted", "type": "long"}, {"name": "delta", "type": "long"}, {"name": "deltaBucket", "type": "string"}, {"name": "diffUrl", "type": "string"}, {"name": "flags", "type": "string"}, {"name": "isAnonymous", "type": "string"}, {"name": "isMinor", "type": "string"}, {"name": "isNew", "type": "string"}, {"name": "isRobot", "type": "string"}, {"name": "isUnpatrolled", "type": "string"}, {"name": "metroCode", "type": "string"}, {"name": "namespace", "type": "string"}, {"name": "page", "type": "string"}, {"name": "regionIsoCode", "type": "string"}, {"name": "regionName", "type": "string"}, {"name": "timestamp", "type": "string"}, {"name": "user", "type": "string"}]'
+      '{"type":"http","uris":["https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json"]}',
+      '{"type":"json"}',
+      '[{"name":"isRobot","type":"string"},{"name":"channel","type":"string"},{"name":"timestamp","type":"string"},{"name":"flags","type":"string"},{"name":"isUnpatrolled","type":"string"},{"name":"page","type":"string"},{"name":"diffUrl","type":"string"},{"name":"added","type":"long"},{"name":"comment","type":"string"},{"name":"commentLength","type":"long"},{"name":"isNew","type":"string"},{"name":"isMinor","type":"string"},{"name":"delta","type":"long"},{"name":"isAnonymous","type":"string"},{"name":"user","type":"string"},{"name":"deltaBucket","type":"long"},{"name":"deleted","type":"long"},{"name":"namespace","type":"string"},{"name":"cityName","type":"string"},{"name":"countryName","type":"string"},{"name":"regionIsoCode","type":"string"},{"name":"metroCode","type":"long"},{"name":"countryIsoCode","type":"string"},{"name":"regionName","type":"string"}]'
     )
   )
 PARTITIONED BY HOUR
