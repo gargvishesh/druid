@@ -75,6 +75,6 @@ class ReductionOperatorConversionHelper
           }
         }
 
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(returnSqlTypeName), true);
+        return typeFactory.createSqlType(returnSqlTypeName);
       };
 }
