@@ -136,7 +136,7 @@ public class IpAddressGroupByQueryTest
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 1L},
+              new Object[]{null, 2L},
               new Object[]{"1.2.3.4", 2L},
               new Object[]{"10.10.10.11", 2L},
               new Object[]{"100.200.123.12", 2L},
@@ -150,7 +150,7 @@ public class IpAddressGroupByQueryTest
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 10L}
+              new Object[]{null, 11L}
           )
       );
     }
@@ -200,7 +200,7 @@ public class IpAddressGroupByQueryTest
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"1.2.3.4", 2L},
             new Object[]{"10.10.10.11", 2L},
             new Object[]{"100.200.123.12", 2L},
@@ -272,7 +272,7 @@ public class IpAddressGroupByQueryTest
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"1.2.3.4", 2L},
             new Object[]{"10.10.10.11", 2L},
             new Object[]{"100.200.123.12", 2L},
@@ -424,7 +424,7 @@ public class IpAddressGroupByQueryTest
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"::ffff:102:304", 2L},
             new Object[]{"::ffff:1616:1718", 2L},
             new Object[]{"::ffff:506:708", 1L},
