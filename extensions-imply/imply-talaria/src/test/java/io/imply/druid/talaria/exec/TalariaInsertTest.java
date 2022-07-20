@@ -620,6 +620,39 @@ public class TalariaInsertTest extends TalariaTestRunner
                      .verifyResults();
   }
 
+  @Test
+  public void testInsertLimitWithPeriodGranularityThrowsException()
+  {
+    testIngestQuery().setSql(" INSERT INTO foo "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "LIMIT 50 "
+                             + "PARTITIONED BY MONTH")
+                     .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(SqlPlanningException.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "INSERT and REPLACE queries cannot have a LIMIT unless sqlInsertSegmentGranularity is \"all\""))
+                     ))
+                     .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testInsertOffsetThrowsException()
+  {
+    testIngestQuery().setSql(" INSERT INTO foo "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "LIMIT 50 "
+                             + "OFFSET 10"
+                             + "PARTITIONED BY ALL TIME")
+                     .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(SqlPlanningException.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "INSERT and REPLACE queries cannot have an OFFSET"))
+                     ))
+                     .verifyPlanningErrors();
+  }
+
   @Nonnull
   private List<Object[]> expectedFooRows()
   {

@@ -297,4 +297,39 @@ public class TalariaReplaceTest extends TalariaTestRunner
                      .setExpectedSegment(ImmutableSet.of(SegmentId.of("foo", Intervals.of("2000-01-01T/P1M"), "test", 0)))
                      .verifyResults();
   }
+
+  @Test
+  public void testReplaceLimitWithPeriodGranularityThrowsException()
+  {
+    testIngestQuery().setSql(" REPLACE INTO foo "
+                             + "OVERWRITE ALL "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "LIMIT 50"
+                             + "PARTITIONED BY MONTH")
+                     .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(SqlPlanningException.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "INSERT and REPLACE queries cannot have a LIMIT unless sqlInsertSegmentGranularity is \"all\""))
+                     ))
+                     .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testInsertOffsetThrowsException()
+  {
+    testIngestQuery().setSql(" REPLACE INTO foo "
+                             + "OVERWRITE ALL "
+                             + "SELECT __time, m1 "
+                             + "FROM foo "
+                             + "LIMIT 50 "
+                             + "OFFSET 10"
+                             + "PARTITIONED BY ALL TIME")
+                     .setExpectedValidationErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(SqlPlanningException.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "INSERT and REPLACE queries cannot have an OFFSET"))
+                     ))
+                     .verifyPlanningErrors();
+  }
 }
