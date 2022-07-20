@@ -226,17 +226,19 @@ public class ImplyQueryMakerFactory implements QueryMakerFactory
 
     if (sort != null && sort.fetch != null && !limitOk) {
       // Found an outer LIMIT that is not allowed.
+      // The segment generator relies on shuffle statistics to determine segment intervals when PARTITIONED BY is not ALL,
+      // and LIMIT/OFFSET prevent shuffle statistics from being generated. This is because they always send everything
+      // to a single partition, so there are no shuffle statistics.
       throw new ValidationException(
           StringUtils.format(
-              "INSERT queries cannot end with LIMIT unless %s is \"all\".",
+              "INSERT and REPLACE queries cannot have a LIMIT unless %s is \"all\".",
               DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY
           )
       );
     }
-
     if (sort != null && sort.offset != null) {
       // Found an outer OFFSET that is not allowed.
-      throw new ValidationException("INSERT queries cannot end with OFFSET.");
+      throw new ValidationException("INSERT and REPLACE queries cannot have an OFFSET.");
     }
   }
 
