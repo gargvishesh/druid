@@ -356,8 +356,12 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
   }
 
   @Override
-  public Object convertUnsortedEncodedKeyComponentToActualList(Integer key)
+  @Nullable
+  public Object convertUnsortedEncodedKeyComponentToActualList(@Nullable Integer key)
   {
+    if (key == null) {
+      return null;
+    }
     return getActualValue(key, false);
   }
 

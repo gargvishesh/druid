@@ -72,7 +72,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -101,7 +101,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -129,7 +129,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -152,7 +152,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(9, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -239,7 +239,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     );
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -269,7 +269,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     );
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
@@ -294,7 +294,7 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     );
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
-    Assert.assertEquals(9, ((List) results.get(0).getEvents()).size());
+    Assert.assertEquals(10, ((List) results.get(0).getEvents()).size());
   }
 
   @Test

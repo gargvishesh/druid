@@ -137,7 +137,7 @@ public class IpPrefixGroupByQueryTest
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 1L},
+              new Object[]{null, 2L},
               new Object[]{"1.2.3.4/32", 2L},
               new Object[]{"10.10.10.11/32", 2L},
               new Object[]{"100.200.123.12/32", 2L},
@@ -151,7 +151,7 @@ public class IpPrefixGroupByQueryTest
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 10L}
+              new Object[]{null, 11L}
           )
       );
     }
@@ -201,7 +201,7 @@ public class IpPrefixGroupByQueryTest
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"1.2.3.4/32", 2L},
             new Object[]{"10.10.10.11/32", 2L},
             new Object[]{"100.200.123.12/32", 2L},
@@ -255,7 +255,7 @@ public class IpPrefixGroupByQueryTest
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 2L},
+            new Object[]{null, 3L},
             new Object[]{"1.2.3.4/32", 3L},
             new Object[]{"10.10.10.11/32", 1L},
             new Object[]{"100.200.123.12/32", 1L},

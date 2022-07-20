@@ -34,6 +34,7 @@ import org.apache.druid.query.topn.TopNResultValue;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
+import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -101,7 +103,7 @@ public class IpAddressTopNQueryTest
   }
 
   @Test
-  public void testTopNStringifyVirtualColumn()
+  public void testTopNStringifyVirtualColumnWithoutNull()
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource("test_datasource")
@@ -117,7 +119,50 @@ public class IpAddressTopNQueryTest
             )
         )
         .metric("count")
+        .filters(BaseCalciteQueryTest.not(BaseCalciteQueryTest.selector("v0", null, null)))
         .threshold(2)
+        .aggregators(new CountAggregatorFactory("count"))
+        .context(getContext())
+        .build();
+    List rows = helper.runQueryOnSegmentsObjs(segments, query).toList();
+    List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
+        new Result<>(
+            DateTimes.of("2014-10-20T00:00:00.000Z"),
+            new TopNResultValue(
+                Arrays.<Map<String, Object>>asList(
+                    ImmutableMap.of(
+                        "count", 2,
+                        "v0", "1.2.3.4"
+                    ),
+                    ImmutableMap.of(
+                        "count", 2,
+                        "v0", "10.10.10.11"
+                    )
+                )
+            )
+        )
+    );
+    TestHelper.assertExpectedResults(expectedResults, rows);
+  }
+
+  @Test
+  public void testTopNStringifyVirtualColumnWithNull()
+  {
+    TopNQuery query = new TopNQueryBuilder()
+        .dataSource("test_datasource")
+        .granularity(Granularities.ALL)
+        .intervals(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
+        .dimension(DefaultDimensionSpec.of("v0"))
+        .virtualColumns(
+            new IpAddressFormatVirtualColumn(
+                "v0",
+                "ipv4",
+                true,
+                false
+            )
+        )
+        .metric("count")
+        .threshold(3)
         .aggregators(new CountAggregatorFactory("count"))
         .context(getContext())
         .build();
@@ -128,6 +173,10 @@ public class IpAddressTopNQueryTest
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
+                    new HashMap<String, Object>() {{
+                      put("count", 2);
+                      put("v0", null);
+                    }},
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "1.2.3.4"
@@ -272,7 +321,7 @@ public class IpAddressTopNQueryTest
             )
         )
         .metric("count")
-        .threshold(2)
+        .threshold(3)
         .aggregators(new CountAggregatorFactory("count"))
         .context(getContext())
         .build();
@@ -283,6 +332,10 @@ public class IpAddressTopNQueryTest
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
+                    new HashMap<String, Object>() {{
+                      put("count", 2);
+                      put("v0", null);
+                    }},
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "::ffff:102:304"
@@ -299,7 +352,7 @@ public class IpAddressTopNQueryTest
   }
 
   @Test
-  public void testTopNStringify()
+  public void testTopNStringifyWithoutNull()
   {
     ExpressionProcessing.initializeForTests(null);
     TopNQuery query = new TopNQueryBuilder()
@@ -320,7 +373,56 @@ public class IpAddressTopNQueryTest
             )
         )
         .metric("count")
+        .filters(BaseCalciteQueryTest.not(BaseCalciteQueryTest.selector("v0", null, null)))
         .threshold(2)
+        .aggregators(new CountAggregatorFactory("count"))
+        .context(getContext())
+        .build();
+    List rows = helper.runQueryOnSegmentsObjs(segments, query).toList();
+    List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
+        new Result<>(
+            DateTimes.of("2014-10-20T00:00:00.000Z"),
+            new TopNResultValue(
+                Arrays.<Map<String, Object>>asList(
+                    ImmutableMap.of(
+                        "count", 2,
+                        "v0", "1.2.3.4"
+                    ),
+                    ImmutableMap.of(
+                        "count", 2,
+                        "v0", "10.10.10.11"
+                    )
+                )
+            )
+        )
+    );
+    TestHelper.assertExpectedResults(expectedResults, rows);
+  }
+
+
+  @Test
+  public void testTopNStringifyWithNull()
+  {
+    ExpressionProcessing.initializeForTests(null);
+    TopNQuery query = new TopNQueryBuilder()
+        .dataSource("test_datasource")
+        .granularity(Granularities.ALL)
+        .intervals(QueryRunnerTestHelper.FULL_ON_INTERVAL_SPEC)
+        .dimension(DefaultDimensionSpec.of("v0"))
+        .virtualColumns(
+            new ExpressionVirtualColumn(
+                "v0",
+                "ip_stringify(\"ipv4\")",
+                null,
+                new ExprMacroTable(
+                    ImmutableList.of(
+                        new IpAddressExpressions.StringifyExprMacro()
+                    )
+                )
+            )
+        )
+        .metric("count")
+        .threshold(3)
         .aggregators(new CountAggregatorFactory("count"))
         .context(getContext())
         .build();
@@ -331,6 +433,10 @@ public class IpAddressTopNQueryTest
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
+                    new HashMap<String, Object>() {{
+                      put("count", 2);
+                      put("v0", null);
+                    }},
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "1.2.3.4"
