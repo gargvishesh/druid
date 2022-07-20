@@ -9,8 +9,6 @@ title: Release notes
 
 ### 2022.07
 
-#### MSQ Framework
-
 - There are two new context parameters:
   - `msqMaxNumTasks` replaces to `msqNumTasks`. This property specifies the maximum number of tasks to launch, including the controller task . When both are present, `msqMaxNumTasks` takes precedence. The default value is `2`, which is the lowest supported number of tasks: one controller and one worker.  `msqNumTasks` will be removed in a future release. You can set this proprety in the console with the **Max tasks** option or include it as context parameter.
   - `msqTaskAssignment` determines how the number of tasks is chosen. You can set it to either `max` where MSQ uses as many tasks as possible (up to the limit set by `msqMaxNumTasks`) or `auto` where MSQ uses as few tasks as possible without exceeding 10 Gib or 10,000 files per task.
@@ -29,6 +27,7 @@ title: Release notes
   - Counters reset to 0 under certain crash conditions.
   - Certain errors were being reported incorrectly (for example invalid "Access key ID" in an S3 input source).
   - The shuffle mesh used an excessive number of threads. Communication now happens in chunks, so you no longer need to set. `druid.server.http.numThreads` to a very high number.
+- The location of some of the documentation has changed. You may need to update your bookmarks. Additionally, the Multi-Stage Query Engine (MSQE) is now referred to as the Multi-Stage Query (MSQ) Framework. You may still see some references to MSQE.
 
 ### 2022.06
 

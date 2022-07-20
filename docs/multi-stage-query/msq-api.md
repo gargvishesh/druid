@@ -3,11 +3,11 @@ id: api
 title: API
 ---
 
-> The Multi-Stage Query (MSQ) framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 > Earlier versions of MSQ  used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the task engine for MSQ automatically.
 
-During the preview phase, the enhanced Query view provides the most stable experience. Use the UI if you do not need a programmatic interface.
+During the preview phase for the Multi-Stage Query (MSQ) Framework, the enhanced Query view provides the most stable experience. Use the UI if you do not need a programmatic interface.
 
 The action you want to take determines the endpoint you use:
 
@@ -20,7 +20,7 @@ The action you want to take determines the endpoint you use:
 
 Submit task queries using the `POST /druid/v2/sql/task/` API.
 
-Currently, MSQE ignores the provided values of `resultFormat`, `header`,
+Currently, MSQ ignores the provided values of `resultFormat`, `header`,
 `typesHeader`, and `sqlTypesHeader`. SQL SELECT queries always behave if `resultFormat` is "array", `header` is
 true, `typesHeader` is true, and `sqlTypesHeader` is true.
 
@@ -125,7 +125,7 @@ For information about the report fields, see [Report response fields](#report-re
 
 ### Report response fields
 
-The following table describes the response fields when you retrieve a report for a MSQE task using the `/druid/indexer/v1/task` endpoint:
+The following table describes the response fields when you retrieve a report for a MSQ task using the `/druid/indexer/v1/task` endpoint:
 
 |Field|Description|
 |-----|-----------|

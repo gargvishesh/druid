@@ -5,29 +5,29 @@ title: Concepts
 
 > The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-Learning the concepts about the Multi-Stage Query (MSQ) Framework on this page can help you understand what happens when you submit a query.
+This topic covers the main concepts and terminology of the Multi-Stage Query (MSQ) Framework.
 
 ## Vocabulary
 
 You might see the following terms in the documentation or while you're using MSQ, such as when you view a report about a query:
 
-- **Controller**: an indexing service task of type `query_controller` that manages
+- **Controller**: An indexing service task of type `query_controller` that manages
   the execution of a query. There is one controller task per query.
 
-- **Worker**: indexing service tasks of type `query_worker` that execute a
-  query. There may be more than one worker task per query. Internally,
+- **Worker**: Indexing service tasks of type `query_worker` that execute a
+  query. There can be multiple worker tasks per query. Internally,
   the tasks process items in parallel using their processing pools.
   (i.e., up to `druid.processing.numThreads` of execution parallelism
   within a worker task).
 
-- **Stage**: a stage of query execution that is parallelized across
+- **Stage**: A stage of query execution that is parallelized across
   worker tasks. Workers exchange data with each other between stages.
 
-- **Partition**: a slice of data output by worker tasks. In INSERT or REPLACE
+- **Partition**: A slice of data output by worker tasks. In INSERT or REPLACE
   queries, the partitions of the final stage become Druid segments.
 
-- **Shuffle**: workers exchange data between themselves on a per-partition basis in a process called
-  "shuffling". During a shuffle, each output partition is sorted by a clustering key.
+- **Shuffle**: Workers exchange data between themselves on a per-partition basis in a process called
+  shuffling. During a shuffle, each output partition is sorted by a clustering key.
 
 ## How MSQ works
 
@@ -35,18 +35,19 @@ Queries execute using indexing service tasks, specifically INSERT, REPLACE, and 
 
 When you submit a task query to MSQ, the following happens:
 
-1.  The **Broker** plans your SQL query into a native query, as usual.
+1.  The Broker plans your SQL query into a native query, as usual.
 
 2.  The Broker wraps the native query into a task of type `query_controller`
-    and submits it to the indexing service. The Broker returns the task
-    ID to you and exits.
+    and submits it to the indexing service.
 
-3.  The **controller task** launches some number of **worker tasks** determined by
-    the `msqMaxNumTasks` and `msqTaskAssignment` settings. These settings are [context parameters](./msq-reference.md#context-parameters) and can be set individually for each query.
+3. The Broker returns the task ID to you and exits.
 
-4.  The worker tasks execute the query.
+4.  The controller task launches some number of worker tasks determined by
+    the `msqMaxNumTasks` and `msqTaskAssignment` [context parameters](./msq-reference.md#context-parameters). You can set these settings individually for each query.
 
-5.  If the query is a SELECT query, the worker tasks send the results
+5.  The worker tasks execute the query.
+
+6.  If the query is a SELECT query, the worker tasks send the results
     back to the controller task, which writes them into its task report.
     If the query is an INSERT or REPLACE query, the worker tasks generate and
     publish new Druid segments to the provided datasource.
@@ -59,7 +60,7 @@ Paralleism affects how MSQ performs.
 The [`msqMaxNumTasks`](./msq-reference.md#context-parameters) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqMaxNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 
 The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
-of worker tasks that can run on each server at once. Worker tasks run single-threaded, so this
+of worker tasks that can run on each server at once. Worker tasks run single-threaded, which
 also determines the maximum number of processors on the server that can contribute towards
 multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
 Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
@@ -74,7 +75,7 @@ to stick with the default `druid.worker.capacity`.
 
 In two important cases, producer-side sort as part of shuffle and segment generation, more memory can reduce the number of passes required through the data and therefore improve performance.
 
-Worker tasks launched by MSQE use both JVM heap memory and off-heap ("direct") memory.
+Worker tasks launched by MSQ use both JVM heap memory and off-heap ("direct") memory.
 
 On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up into two
 equally-sized bundles: one processor bundle and one worker bundle. Each one comprises 37.5% of the
@@ -119,7 +120,7 @@ Understanding the limits of MSQ can help you troubleshoot any [errors](#error-co
 
 ## Error codes
 
-The following table describes error codes you may encounter in the `multiStageQuery.payload.status.errorReport.error.errorCode` field when using MSQE:
+The following table describes error codes you may encounter in the `multiStageQuery.payload.status.errorReport.error.errorCode` field when using MSQ:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|

@@ -4,7 +4,7 @@ title: Security for the Multi-Stage Query (MSQ) Framework
 sidebar_label: Security
 ---
 
-> MSQ is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 All authenticated users can use the Multi-Stage Query (MSQ) framework through the UI and API if the extension is loaded. However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data. The permission you need depends on what you are trying to do with MSQ.
 
@@ -23,7 +23,7 @@ Multi-Stage Query Engine tasks are Overlord tasks, so they follow the Overlord's
 To interact with a query through the Overlord API, you need the following permissions:
 
 - INSERT or REPLACE queries: You must have READ DATASOURCE permission on the output datasource.
-- SELECT queries: You must have read permissions on the `__query_select` datasource, which is a stub datasource that MSQE creates.
+- SELECT queries: You must have read permissions on the `__query_select` datasource, which is a stub datasource that MSQ creates.
 
 
 ## S3

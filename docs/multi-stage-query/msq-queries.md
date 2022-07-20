@@ -45,7 +45,7 @@ For more information about the syntax, see [EXTERN](./msq-reference.md#extern).
 With MSQ, Druid can use the results of a task query to create a new datasource
 or to append to an existing datasource. Syntactically, there is no difference between the two. These operations  use the INSERT INTO ... SELECT syntax.
 
-All SELECT capabilities are available for INSERT queries. However, MSQE does not include all native Druid query features. See [Known issues](msq-release.md#known-issues) for a list of capabilities that aren't available.
+All SELECT capabilities are available for INSERT queries. However, MSQ does not include all native Druid query features. See [Known issues](msq-release.md#known-issues) for a list of capabilities that aren't available.
 
 The following example query inserts data from an external source into a table named `w000` and partitions it by day:
 
@@ -166,7 +166,7 @@ You can use the following arguments for PARTITIONED BY:
 - `ALL` or `ALL TIME`, which effectively disables time partitioning by placing all data in a single
   time chunk. To use LIMIT or OFFSET at the outer level of your INSERT or REPLACE query, you must set PARTITIONED BY to `ALL` or `ALL TIME`.
 
-MSQE supports the ISO8601 periods for `TIME_FLOOR`:
+MSQ supports the ISO8601 periods for `TIME_FLOOR`:
 
 - PT1S
 - PT1M
@@ -213,7 +213,7 @@ You can use the following filters for dimension-based segment pruning:
 - Comparison to string literals, like `x < 'foo'` or other comparisons involving `<`, `>`, `<=`, or `>=`.
 
 This differs from multi-dimension range based partitioning in classic batch ingestion where both
-string and numeric columns support Broker-level pruning. With MSQE ingestion,
+string and numeric columns support Broker-level pruning. With MSQ ingestion,
 only string columns support Broker-level pruning.
 
 It is okay to mix time partitioning with secondary partitioning. For example, you can
@@ -238,7 +238,7 @@ action.
 
 Druid needs information for aggregating measures of different segments while working with Pivot and compaction
 tasks. For example, to aggregate `count("col") as example_measure`, Druid needs to sum the value of `example_measure`
-across the segments. This information is stored inside the metadata of the segment. For MSQE, Druid only populates the
+across the segments. This information is stored inside the metadata of the segment. For MSQ, Druid only populates the
 aggregator information of a column in the segment metadata when:
 
 - The INSERT or REPLACE query has an outer GROUP BY clause.
@@ -288,7 +288,7 @@ For a full list of context parameters and how they affect a query, see [Context 
 
 ## Query examples
 
-These example queries show you some of the other things you can do to modify your MSQE queries depending on your use case. You can copy the example queries into the **Query** UI and run them.
+These example queries show you some of the other things you can do to modify your MSQ queries depending on your use case. You can copy the example queries into the **Query** UI and run them.
 
 ### INSERT with no rollup
 

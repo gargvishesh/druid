@@ -4,36 +4,36 @@ sidebar_label: Setup
 title: Enable the Multi-Stage Query (MSQ) Framework
 ---
 
-> MSQ is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
 ## Prerequisites
 
-To use MSQ, make sure you meet the following requirements:
+To use the Multi-Stage Query (MSQ) Framework, make sure you meet the following requirements:
 
-- An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.06 STS or later. Imply recommends using the latest STS version. MSQE isn't available in an LTS release yet. 
-- Administrator access to Imply Manager so that you can enable MSQE. For security information related to datasources, see [Security](./msq-security.md).
+- An Imply Enterprise or Enterprise Hybrid cluster that runs version 2022.06 STS or later. Imply recommends using the latest STS version. MSQ isn't available in an LTS release yet. 
+- Administrator access to Imply Manager so that you can enable MSQ. For security information related to datasources, see [Security](./msq-security.md).
 
 
-## Enable MSQE in Imply
+## Enable MSQ in Imply
 
 The setup process for Imply Hybrid (formerly Imply Cloud) is different from Imply Enterprise (formerly Imply Private). Imply Enterprise requires additional steps.
 
-### Enable MSQE in Imply Hybrid
+### Enable MSQ in Imply Hybrid
 
-For Imply Hybrid, you enable MSQE by selecting the feature flag for it in Imply Manager: 
+For Imply Hybrid, you enable MSQ by selecting the feature flag for it in Imply Manager: 
 
-1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable MSQE on each individual cluster.
+1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable MSQ on each individual cluster.
 2. Go to **Setup** and expand the **Advanced config** options.
 3. Edit the enabled **Feature flags** by clicking the pencil icon.
   - Select **Multi-Stage Query Engine (MSQE) - Beta**.
   - Clear **Use Indexers instead of Middle Managers**. This is not supported.
-4. Apply the changes to your cluster. The cluster state changes to **UPDATING**, and MSQE will be available when the updates complete.
+4. Apply the changes to your cluster. The cluster state changes to **UPDATING**, and MSQ will be available when the updates complete.
 
-### Enable MSQE in Imply Enterprise
+### Enable MSQ in Imply Enterprise
 
-For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Manager, perform the following steps:
+For Imply Enterprise, you need to load the extension to enable MSQ. In Imply Manager, perform the following steps:
 
-1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable MSQE on each individual cluster.
+1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable MSQ on each individual cluster.
 2. Go to **Setup** and expand the **Advanced config** options.
 3. Add the following custom extensions:
 
@@ -73,7 +73,7 @@ For Imply Enterprise, you need to load the extension to enable MSQE. In Imply Ma
    druid.sql.executor.type=imply
    ```
 
-6. Apply the changes. The cluster restarts and MSQE will be available after the restart.
+6. Apply the changes. The cluster restarts and MSQ will be available after the restart.
 
 ## Enable durable storage
 
@@ -111,7 +111,7 @@ To enable the feature with Imply Manager:
 
 ## Next steps
 
-Now that you've set up MSQ, you can do the following:
+Now that you've set up MSQ, you can do the following tutorials:
 
 - [Connect external data](./msq-tutorial-connect-external-data.md)
 - [Convert a JSON ingestion spec](./msq-tutorial-convert-ingest-spec.md)
