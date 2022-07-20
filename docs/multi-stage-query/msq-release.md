@@ -20,13 +20,14 @@ title: Release notes
 - The **Connect external data** wizard now auto detects columns that are suitable to be parsed as the primary timestamp column.
 - The web console can now recover from network errors / connectivity issues while running a query.
 - You can now open a query detail archive generated in another cluster.
-- Improved the counters. There is now one counter per input. The detailed counters now contain more detail and are rendered as a table.
+- Improved the counters. There is now one counter per input. The counters now contain more detail, are sorted, and are rendered as a table.
 - Improved reporting for task cancellations and worker errors.
 - Fixed the following bugs:
   - Moving from one tab to another canceled a `native` or `sql` query if one was already running.
   - Counters reset to 0 under certain crash conditions.
   - Certain errors were being reported incorrectly (for example invalid "Access key ID" in an S3 input source).
   - The shuffle mesh used an excessive number of threads. Communication now happens in chunks, so you no longer need to set. `druid.server.http.numThreads` to a very high number.
+  - While using durable storage, if a worker gets killed due to any reason, the controller will still clean up the stage outputs of all the workers as a fail-safe.
 - The location of some of the documentation has changed. You may need to update your bookmarks. Additionally, the Multi-Stage Query Engine (MSQE) is now referred to as the Multi-Stage Query (MSQ) Framework. You may still see some references to MSQE.
 
 ### 2022.06
