@@ -22,9 +22,7 @@ public class TestCasesConfig<T>
   private final MethodCallCapturer<T> methodCallCapturer;
   private final Class<T> testCasesInterface;
   private final Class<? extends T> testClassImpl;
-  private final Map<TestMethodHandle, Integer> testCasesToRun = new LinkedHashMap<>();
-
-
+  private final Map<TestMethodHandle, TestCaseResult> testCasesToRun = new LinkedHashMap<>();
 
   public TestCasesConfig(Class<T> testCasesInterface, Class<? extends T> testClassImpl)
   {
@@ -33,17 +31,33 @@ public class TestCasesConfig<T>
     this.testClassImpl = testClassImpl;
   }
 
-  public TestCasesConfig<T> setTestCaseValue(TestMethodHandle testMethodHandle, int expectedSize)
+  public TestCasesConfig<T> setTestCaseValue(TestMethodHandle testMethodHandle, TestCaseResult expectedResult)
   {
-    testCasesToRun.put(testMethodHandle, expectedSize);
+    testCasesToRun.put(testMethodHandle, expectedResult);
 
     return this;
   }
 
-  public TestCasesConfig<T> setTestCaseValue(MethodAccess<T, Exception> methodAccess, int expectedSize)
+  public TestCasesConfig<T> setTestCaseValue(MethodAccess<T, Exception> methodAccess, TestCaseResult expectedResult)
   {
     TestMethodHandle testMethodHandle = capture(methodAccess);
-    testCasesToRun.put(testMethodHandle, expectedSize);
+    testCasesToRun.put(testMethodHandle, expectedResult);
+
+    return this;
+  }
+
+  public TestCasesConfig<T> setTestCaseValue(MethodAccess<T, Exception> methodAccess, int sizeBytes)
+  {
+    TestMethodHandle testMethodHandle = capture(methodAccess);
+    testCasesToRun.put(testMethodHandle, TestCaseResult.of(sizeBytes));
+
+    return this;
+  }
+
+  public TestCasesConfig<T> setTestCaseValue(MethodAccess<T, Exception> methodAccess, byte[] bytes)
+  {
+    TestMethodHandle testMethodHandle = capture(methodAccess);
+    testCasesToRun.put(testMethodHandle, TestCaseResult.of(bytes));
 
     return this;
   }
@@ -51,12 +65,12 @@ public class TestCasesConfig<T>
   public TestCasesConfig<T> enableTestCase(MethodAccess<T, Exception> methodAccess)
   {
     TestMethodHandle testMethodHandle = capture(methodAccess);
-    testCasesToRun.put(testMethodHandle, -1);
+    testCasesToRun.put(testMethodHandle, TestCaseResult.of(-1));
 
     return this;
   }
 
-  public int currentTestValue()
+  public TestCaseResult currentTestValue()
   {
     TestMethodHandle currentTestMethodHandle = getCurrentTestMethod();
     return testCasesToRun.get(currentTestMethodHandle);
@@ -172,5 +186,4 @@ public class TestCasesConfig<T>
       return null;
     }
   }
-
 }

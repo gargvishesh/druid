@@ -65,7 +65,9 @@ public class SimpleTimeSeriesBuffer
   {
     if (!isRead) {
       Preconditions.checkNotNull(timeSeriesSerde, "invalid state: trying to deserialize without serde");
-      simpleTimeSeries = timeSeriesSerde.deserialize(byteBufferSupplier.get());
+      ByteBuffer byteBuffer = byteBufferSupplier.get();
+
+      simpleTimeSeries = timeSeriesSerde.deserialize(byteBuffer);
       isRead = true;
     }
   }

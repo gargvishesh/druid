@@ -211,8 +211,6 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     }
   }
 
-
-
   @Override
   protected void internalCopy(SimpleTimeSeries copySeries)
   {

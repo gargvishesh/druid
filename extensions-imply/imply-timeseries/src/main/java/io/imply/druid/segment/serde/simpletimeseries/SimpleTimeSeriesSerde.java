@@ -20,7 +20,6 @@ import java.nio.ByteOrder;
 
 public class SimpleTimeSeriesSerde
 {
-  private static final byte[] EMPTY_BYTES = new byte[0];
   private static final int SINGLE_ITEM_LIST_SIZE_BYTES = Long.BYTES + Double.BYTES;
   private static final byte EXPECTED_ROW_HEADER_VERSION = 0;
 
@@ -33,10 +32,35 @@ public class SimpleTimeSeriesSerde
     this.timeStampsEncoderDecoder = timeStampsEncoderDecoder;
   }
 
+  public static SimpleTimeSeriesSerde create(long minTimestamp, boolean useInteger)
+  {
+    SimpleTimeSeriesSerde timeSeriesSerde;
+
+    if (useInteger) {
+      timeSeriesSerde = new SimpleTimeSeriesSerde(
+          new IntegerDeltaTimestampsEncoderDecoder(new IntegerDeltaEncoderDecoder(minTimestamp)));
+    } else {
+      timeSeriesSerde =
+          new SimpleTimeSeriesSerde(new LongDeltaTimestampsEncoderDecoder(new LongDeltaEncoderDecoder(minTimestamp)));
+    }
+
+    return timeSeriesSerde;
+  }
+
   public byte[] serialize(SimpleTimeSeries simpleTimeSeries)
   {
+    StorableBuffer storableBuffer = serializeDelayed(simpleTimeSeries);
+    ByteBuffer serialized = ByteBuffer.allocate(storableBuffer.getSerializedSize()).order(ByteOrder.nativeOrder());
+
+    storableBuffer.store(serialized);
+
+    return serialized.array();
+  }
+
+  public StorableBuffer serializeDelayed(SimpleTimeSeries simpleTimeSeries)
+  {
     if (simpleTimeSeries == null) {
-      return EMPTY_BYTES;
+      return StorableBuffer.EMPTY;
     }
 
     // force flattening of recursive structures
@@ -46,14 +70,23 @@ public class SimpleTimeSeriesSerde
     ImplyDoubleArrayList dataPoints = simpleTimeSeries.getDataPoints();
 
     if (timestamps.size() == 0) {
-      return EMPTY_BYTES;
+      return StorableBuffer.EMPTY;
     } else if (timestamps.size() == 1) {
-      ByteBuffer result = ByteBuffer.allocate(SINGLE_ITEM_LIST_SIZE_BYTES).order(ByteOrder.nativeOrder());
+      return new StorableBuffer()
+      {
+        @Override
+        public void store(ByteBuffer byteBuffer)
+        {
+          byteBuffer.putLong(timestamps.getLong(0));
+          byteBuffer.putDouble(dataPoints.getDouble(0));
+        }
 
-      result.putLong(timestamps.getLong(0));
-      result.putDouble(dataPoints.getDouble(0));
-
-      return result.array();
+        @Override
+        public int getSerializedSize()
+        {
+          return SINGLE_ITEM_LIST_SIZE_BYTES;
+        }
+      };
     } else {
       // list size is >= 2, so encode/decode classes below here do not need to handle list size 0/1 in efficient
       // manner. It will never be called in practice.
@@ -67,13 +100,24 @@ public class SimpleTimeSeriesSerde
       int sizeBytes = RowHeader.getSerializedSize()
                       + encodedTimestamps.getSerializedSize()
                       + encodedValues.getSerializedSize();
-      ByteBuffer serialized = ByteBuffer.allocate(sizeBytes).order(ByteOrder.nativeOrder());
 
-      headerWriter.store(serialized);
-      encodedTimestamps.store(serialized);
-      encodedValues.store(serialized);
+      return new StorableBuffer()
+      {
+        @Override
+        public void store(ByteBuffer byteBuffer)
+        {
+          headerWriter.store(byteBuffer);
+          encodedTimestamps.store(byteBuffer);
+          encodedValues.store(byteBuffer);
 
-      return serialized.array();
+        }
+
+        @Override
+        public int getSerializedSize()
+        {
+          return sizeBytes;
+        }
+      };
     }
   }
 

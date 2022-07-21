@@ -34,6 +34,21 @@ public class SimpleTimeSeriesTestUtil
     return buildTimeSeries(start, numDataPoints, offset, Integer.MAX_VALUE);
   }
 
+  public static SimpleTimeSeries buildTimeSeries(double initialValue, double increment, DateTime... timestamps)
+  {
+    SimpleTimeSeries simpleTimeSeries =
+        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+
+    double value = initialValue;
+
+    for (DateTime timestamp : timestamps) {
+      simpleTimeSeries.addDataPoint(timestamp.getMillis(), value);
+      value += increment;
+    }
+
+    return simpleTimeSeries;
+  }
+
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset, int modulo)
   {
     SimpleTimeSeries simpleTimeSeries =

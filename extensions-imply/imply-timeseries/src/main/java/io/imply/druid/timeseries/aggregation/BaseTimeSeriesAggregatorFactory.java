@@ -111,7 +111,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
 
   @Nonnull
   @JsonProperty
-  public Interval getwindow()
+  public Interval getWindow()
   {
     return window;
   }
@@ -137,7 +137,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
                    .appendString(getDataColumn())
                    .appendString(getTimeseriesColumn())
                    .appendString(String.valueOf(getTimeBucketMillis()))
-                   .appendString(String.valueOf(getwindow()))
+                   .appendString(String.valueOf(getWindow()))
                    .appendInt(getMaxEntries());
     if (getPostProcessing() != null) {
       cacheKeyBuilder.appendString(getPostProcessing().stream().map(TimeSeriesFn::cacheString).collect(Collectors.joining(",")));

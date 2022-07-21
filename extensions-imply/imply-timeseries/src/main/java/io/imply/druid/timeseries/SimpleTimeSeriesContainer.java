@@ -11,29 +11,37 @@ package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
+import io.imply.druid.segment.serde.simpletimeseries.StorableBuffer;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class SimpleTimeSeriesContainer
 {
-  private final boolean isBuffered;
+  private static final byte IS_NULL = 1;
+  private static final byte[] NULL_BYTES = new byte[]{IS_NULL};
 
-  private SimpleTimeSeriesBuffer simpleTimeSeriesBuffer;
-  private SimpleTimeSeries simpleTimeSeries;
+  private final boolean isBuffered;
+  private final SimpleTimeSeriesBuffer simpleTimeSeriesBuffer;
+  private final SimpleTimeSeries simpleTimeSeries;
 
   private SimpleTimeSeriesContainer(SimpleTimeSeriesBuffer simpleTimeSeriesBuffer)
   {
     this.simpleTimeSeriesBuffer = simpleTimeSeriesBuffer;
+    simpleTimeSeries = null;
     isBuffered = true;
   }
 
   private SimpleTimeSeriesContainer(@Nullable SimpleTimeSeries simpleTimeSeries)
   {
     this.simpleTimeSeries = simpleTimeSeries;
+    simpleTimeSeriesBuffer = null;
     isBuffered = false;
   }
 
@@ -47,15 +55,85 @@ public class SimpleTimeSeriesContainer
     return new SimpleTimeSeriesContainer(simpleTimeSeries);
   }
 
+  public static SimpleTimeSeriesContainer createFromByteBuffer(ByteBuffer byteBuffer, Interval window, int maxEntries)
+  {
+    boolean isNull = byteBuffer.get() == 1;
+
+    if (isNull) {
+      return SimpleTimeSeriesContainer.createFromInstance(null);
+    }
+
+    long minTimestamp = byteBuffer.getLong();
+    boolean useInteger = byteBuffer.get() == 1;
+    long edgePointStartTimestamp = byteBuffer.getLong();
+    double edgePointStartData = byteBuffer.getDouble();
+    long edgePointEndTimestamp = byteBuffer.getLong();
+    double edgePointEndData = byteBuffer.getDouble();
+
+    TimeSeries.EdgePoint edgePointStart = new TimeSeries.EdgePoint(edgePointStartTimestamp, edgePointStartData);
+    TimeSeries.EdgePoint edgePointEnd = new TimeSeries.EdgePoint(edgePointEndTimestamp, edgePointEndData);
+    SimpleTimeSeriesSerde timeSeriesSerde = SimpleTimeSeriesSerde.create(minTimestamp, useInteger);
+    // we know this cannot be null because our header before this verifies non-null timeSeries
+    SimpleTimeSeries rawSimpleTimeSeries = timeSeriesSerde.deserialize(byteBuffer);
+    @SuppressWarnings("ConstantConditions")
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+        rawSimpleTimeSeries.getTimestamps(),
+        rawSimpleTimeSeries.getDataPoints(),
+        window,
+        edgePointStart,
+        edgePointEnd,
+        maxEntries
+    );
+
+    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
+  }
+
   @JsonValue
+  public byte[] getSerializedBytes()
+  {
+    SimpleTimeSeries timeSeries = getSimpleTimeSeries();
+
+    if (timeSeries == null || timeSeries.size() == 0) {
+      return NULL_BYTES;
+    } else {
+      timeSeries.computeSimple();
+      ImplyLongArrayList timestamps = timeSeries.getTimestamps();
+      long minTimestamp = timestamps.getLong(0);
+      boolean useInteger = getUseInteger(timestamps);
+      SimpleTimeSeriesSerde timeSeriesSerde = SimpleTimeSeriesSerde.create(minTimestamp, useInteger);
+      StorableBuffer storableBuffer = timeSeriesSerde.serializeDelayed(timeSeries);
+      // isNull + minTimestamp + useInteger(byte) + 2 * edge{long, double} + bytes
+      ByteBuffer byteBuffer =
+          ByteBuffer.allocate(Byte.BYTES
+                              + Long.BYTES
+                              + Byte.BYTES
+                              + 2 * (Long.BYTES + Double.BYTES)
+                              + storableBuffer.getSerializedSize())
+                    .order(ByteOrder.nativeOrder());
+
+      byteBuffer.put((byte) 0); // isNull = false
+      byteBuffer.putLong(minTimestamp);
+      byteBuffer.put((byte) (useInteger ? 1 : 0));
+
+      TimeSeries.EdgePoint start = timeSeries.getStart();
+
+      byteBuffer.putLong(start.getTimestamp());
+      byteBuffer.putDouble(start.data);
+
+      TimeSeries.EdgePoint end = timeSeries.getEnd();
+
+      byteBuffer.putLong(end.getTimestamp());
+      byteBuffer.putDouble(end.data);
+      storableBuffer.store(byteBuffer);
+
+      return byteBuffer.array();
+    }
+  }
+
+  @SuppressWarnings("ConstantConditions")
   public SimpleTimeSeries getSimpleTimeSeries()
   {
     return isBuffered ? simpleTimeSeriesBuffer.getSimpleTimeSeries() : simpleTimeSeries;
-  }
-
-  public SimpleTimeSeriesData getSimpleTimeSeriesData()
-  {
-    return getSimpleTimeSeries().asSimpleTimeSeriesData();
   }
 
   public SimpleTimeSeries computeSimple()
@@ -97,6 +175,19 @@ public class SimpleTimeSeriesContainer
   public boolean isNull()
   {
     return isBuffered ? simpleTimeSeriesBuffer.isNull() : (simpleTimeSeries == null);
+  }
+
+  private boolean getUseInteger(ImplyLongArrayList timestamps)
+  {
+    return timestamps.size() == 0 || timestampRangeIsInteger(timestamps);
+  }
+
+  private boolean timestampRangeIsInteger(ImplyLongArrayList timestamps)
+  {
+    long minTimestamp = timestamps.getLong(0);
+    long maxTimestamp = timestamps.getLong(timestamps.size() - 1);
+
+    return maxTimestamp - minTimestamp <= Integer.MAX_VALUE;
   }
 
   @Override
