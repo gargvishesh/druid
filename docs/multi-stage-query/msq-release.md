@@ -163,13 +163,8 @@ title: Release notes
 
 - In case of a worker crash, stage outputs on S3 are not deleted automatically. You may need to delete
   the file using an external process or create an S3 lifecycle policy to remove the objects
-  under `druid.talaria.intermediate.storage.prefix`. A good start would be to delete the objects after 3 days if they are
+  under `druid.msq.intermediate.storage.prefix`. A good start would be to delete the objects after 3 days if they are
   not automatically deleted. (21917)
-
-- On cancelation or failure due to exception, the controller shuts down its worker tasks as part of
-  an orderly exit. However, worker tasks may outlive the controller in situations where the
-  controller vanishes without a chance to run its shutdown routines. This can happen due to
-  conditions like JVM crashes, OS crashes, or sudden hardware failure. (18052)
 
 - Only one local filesystem per server is used for stage output data during multi-stage query
   execution. If your servers have multiple local filesystems, this causes queries to exhaust
@@ -189,12 +184,7 @@ title: Release notes
 - INSERT queries can consume excessive memory when using complex types due to inaccurate footprint
   estimation. This can appear as an OutOfMemoryError during the SegmentGenerator stage when using
   sketches. If you run into this issue, try manually lowering the value of the
-  [`talariaRowsInMemory`](./msq-reference.md#context-parameters) parameter. (17946)
-
-- INSERT queries can consume excessive memory on Indexers due to a too-high default value of
-  `druid.processing.numThreads`. This can appear as an OutOfMemoryError during the SegmentGenerator
-  stage. If you run into this issue, try manually setting this parameter to one less than the number
-  of processors on the server. (18047)
+  [`msqRowsInMemory`](./msq-reference.md#context-parameters) parameter. (17946)
 
 - EXTERN loads an entire row group into memory at once when reading from Parquet files. Row groups
   can be up to 1 GB in size, which can lead to excessive heap usage when reading many files in
@@ -204,7 +194,7 @@ title: Release notes
 
 ### SELECT queries
 
-- SELECT query results do not include realtime data until it has been published. (18092)
+- SELECT query results do not include real-time data until it has been published. (18092)
 
 <!-- 
 - SELECT query results are funneled through the controller task
@@ -233,20 +223,9 @@ title: Release notes
   functionality, but there may be a performance impact, since
   these queries will run using an exact algorithm instead of an
   approximate one. (14998)
-
 - GROUPING SETS is not implemented. Queries that use GROUPING SETS
   will fail. (14999)
-
-- The numeric flavors of the EARLIEST and LATEST aggregators do not work
-  properly. Attempting to use the numeric flavors of these aggregators will
-  lead to an error like
-  `java.lang.ClassCastException: class java.lang.Double cannot be cast to class org.apache.druid.collections.SerializablePair`.
-  The string flavors, however, do work properly. (15040)
-
-- When querying system tables in `INFORMATION_SCHEMA` or `sys`, the
-  SQL API ignores the `talaria` parameter, and treats it as if it
-  were false. These queries always run with the core Druid
-  query engine. (15002)
+- The numeric flavors of the EARLIEST and LATEST aggregators do not work properly. Attempting to use the numeric flavors of these aggregators will lead to an error like `java.lang.ClassCastException: class java.lang.Double cannot be cast to class org.apache.druid.collections.SerializablePair`. The string flavors, however, do work properly. (15040)
 
 ###  INSERT queries
 
@@ -269,10 +248,6 @@ feature is not available. All columns and their types must be specified explicit
   queries that each append data to the same time chunk. If necessary, you can compact such data
   using another SQL query instead of a `compact` task.   (17945)
 
-- When using INSERT with GROUP BY, not all aggregation functions are implemented. See the
-  [GROUP BY](./msq-queries.md#group-by) section for a list of aggregation functions that are currently available in
-  conjuction with INSERT. Note that all aggregations are supported for SELECT queries. (15010)
-
 - When using INSERT with GROUP BY, splitting of large partitions is not currently
   implemented. If a single partition key appears in a
   very large number of rows, an oversized segment will be created.
@@ -285,14 +260,8 @@ feature is not available. All columns and their types must be specified explicit
 
 ### EXTERN queries
 
-- EXTERN does not accept `druid` or `sql` input sources. (15016, 15018)
+- EXTERN does not accept `druid` input sources. (15018)
 
 ### Missing guardrails
 
-- Maximum number of input files. No guardrail today means the controller can potentially run out of
-  memory tracking them all. (15020)
-
-- Maximum amount of local disk space to use for temporary data. No guardrail today means worker
-  tasks may exhaust all available disk space. In this case, you will receive an
-  [UnknownError](./msq-reference.md#error-codes)) with a message including "No space left on device". (15022)
-
+- Maximum amount of local disk space to use for temporary data when durable storage is turned off. No guardrail today means worker tasks may exhaust all available disk space. In this case, you will receive an [UnknownError](./msq-reference.md#error-codes)) with a message including "No space left on device". (19204)
