@@ -95,10 +95,10 @@ public class S3StorageConnector implements StorageConnector
   {
     ListObjectsV2Request listObjectsRequest = new ListObjectsV2Request()
         .withBucketName(config.getBucket())
-        .withPrefix(dirName);
+        .withPrefix(objectPath(dirName));
     ListObjectsV2Result objectListing = s3Client.listObjectsV2(listObjectsRequest);
 
-    while (true) {
+    while (objectListing.getObjectSummaries().size() > 0) {
       List<DeleteObjectsRequest.KeyVersion> deleteObjectsRequestKeys = objectListing.getObjectSummaries()
                                                                                     .stream()
                                                                                     .map(S3ObjectSummary::getKey)
