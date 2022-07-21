@@ -414,6 +414,8 @@ simple-client-sslcontext
 sharded
 sharding
 skipHeaderRows
+Smoosh
+smoosh
 smooshed
 splittable
 ssl
