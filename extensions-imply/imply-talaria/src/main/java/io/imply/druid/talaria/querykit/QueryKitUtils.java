@@ -13,6 +13,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByColumn;
+import io.imply.druid.talaria.indexing.error.ColumnNameRestrictedFault;
+import io.imply.druid.talaria.indexing.error.TalariaException;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.IAE;
@@ -46,11 +48,9 @@ import java.util.stream.Collectors;
  */
 public class QueryKitUtils
 {
-  // TODO(gianm): use safer name for __boost column
   // TODO(gianm): add partition boosting to groupBy too (only when there is order by!)
   public static final String PARTITION_BOOST_COLUMN = "__boost";
 
-  // TODO(gianm): use safer name for __bucket column
   public static final String SEGMENT_GRANULARITY_COLUMN = "__bucket";
 
   // TODO(gianm): hack alert: this is redundant to the ColumnMappings, but is here because QueryKit doesn't get those
@@ -95,7 +95,21 @@ public class QueryKitUtils
   }
 
   /**
-   * Adds {@link #SEGMENT_GRANULARITY_COLUMN} to a {@link RowSignature} if needed.
+   * Verifies the {@link RowSignature} and throws an appropriate exception if it is invalid or uses restricted column
+   * names
+   */
+  public static void verifyRowSignature(final RowSignature signature)
+  {
+    if (signature.contains(QueryKitUtils.PARTITION_BOOST_COLUMN)) {
+      throw new TalariaException(new ColumnNameRestrictedFault(QueryKitUtils.PARTITION_BOOST_COLUMN));
+    } else if (signature.contains(QueryKitUtils.SEGMENT_GRANULARITY_COLUMN)) {
+      throw new TalariaException(new ColumnNameRestrictedFault(QueryKitUtils.SEGMENT_GRANULARITY_COLUMN));
+    }
+  }
+
+  /**
+   * Adds {@link #SEGMENT_GRANULARITY_COLUMN} to a {@link RowSignature} if needed. Signature should be verified prior
+   * to calling this function to ensure that {@link #SEGMENT_GRANULARITY_COLUMN} is not passed in by the user
    */
   public static RowSignature signatureWithSegmentGranularity(
       final RowSignature signature,
@@ -105,10 +119,6 @@ public class QueryKitUtils
     if (Granularities.ALL.equals(segmentGranularity)) {
       return signature;
     } else {
-      if (signature.contains(QueryKitUtils.SEGMENT_GRANULARITY_COLUMN)) {
-        throw new ISE("Cannot use reserved column [%s]", QueryKitUtils.SEGMENT_GRANULARITY_COLUMN);
-      }
-
       return RowSignature.builder()
                          .addAll(signature)
                          .add(QueryKitUtils.SEGMENT_GRANULARITY_COLUMN, ColumnType.LONG)

@@ -43,15 +43,20 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     this.jsonMapper = jsonMapper;
   }
 
-  public static RowSignature getSignature(final ScanQuery scanQuery, final ObjectMapper jsonMapper)
+  public static RowSignature getAndValidateSignature(final ScanQuery scanQuery, final ObjectMapper jsonMapper)
   {
+    RowSignature scanSignature;
     try {
       final String s = scanQuery.getContextValue(DruidQuery.CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE);
-      return jsonMapper.readValue(s, RowSignature.class);
+      scanSignature = jsonMapper.readValue(s, RowSignature.class);
     }
     catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+    // Verify the signature prior to any actual processing. This is done unconditionally so that restricted columns
+    // are disallowed irrespective of the query shape
+    QueryKitUtils.verifyRowSignature(scanSignature);
+    return scanSignature;
   }
 
   @Override
@@ -80,7 +85,7 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
 
     final ScanQuery queryToRun = originalQuery.withDataSource(dataSourcePlan.getNewDataSource());
     final int firstStageNumber = Math.max(minStageNumber, queryDefBuilder.getNextStageNumber());
-    final RowSignature scanSignature = getSignature(queryToRun, jsonMapper);
+    final RowSignature scanSignature = getAndValidateSignature(queryToRun, jsonMapper);
     final ShuffleSpec shuffleSpec;
     final RowSignature signatureToUse;
     final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
