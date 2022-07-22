@@ -12,6 +12,7 @@ package io.imply.clarity.metrics;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.clarity.TestClarityEmitterConfig;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,6 +46,8 @@ public class ClarityMetricsUtilsTest
     context.put("implyUser", "implier");
     context.put("implyUserEmail", "implier@imply.io");
 
+    QueryContext queryContext = new QueryContext(context);
+
     Map<String, String> expectedNonAnonymizedMap = new HashMap<>();
     expectedNonAnonymizedMap.put("dataSource", "eternity");
     expectedNonAnonymizedMap.put("implyView", "view");
@@ -61,7 +64,7 @@ public class ClarityMetricsUtilsTest
         nonAnonymizedConfig,
         nonAnonymizedDimensions::put,
         nonAnonymizedDimensions::get,
-        context
+        queryContext
     );
     Assert.assertEquals(expectedNonAnonymizedMap, nonAnonymizedDimensions);
   }
@@ -90,6 +93,8 @@ public class ClarityMetricsUtilsTest
     context.put("implyUser", "implier");
     context.put("implyUserEmail", "implier@imply.io");
 
+    QueryContext queryContext = new QueryContext(context);
+
     Map<String, String> expectedAnonymizedMap = new HashMap<>();
     expectedAnonymizedMap.put("dataSource", "eternity");
     expectedAnonymizedMap.put("implyView", "view");
@@ -106,9 +111,171 @@ public class ClarityMetricsUtilsTest
         anonymizedConfig,
         anonymizedDimensions::put,
         anonymizedDimensions::get,
-        context
+        queryContext
     );
     Assert.assertEquals(expectedAnonymizedMap, anonymizedDimensions);
+  }
+
+  @Test
+  public void test_addContextDimensions_pivotParams()
+  {
+    TestClarityEmitterConfig anonymizedConfig = new TestClarityEmitterConfig(
+        "compositeMind",
+        true,
+        1000L,
+        false,
+        100,
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        null
+    );
+
+    Map<String, Object> pivotParams = new HashMap<>();
+    pivotParams.put("implyView", "view");
+    pivotParams.put("implyViewTitle", "truesight");
+    pivotParams.put("implyFeature", "coolFeature");
+    pivotParams.put("implyDataCube", "hypercube");
+    pivotParams.put("implyUser", "implier");
+    pivotParams.put("implyUserEmail", "implier@imply.io");
+
+    Map<String, Object> userParams = new HashMap<>();
+    userParams.put("pivotParams", pivotParams);
+
+    Map<String, Object> context = new HashMap<>();
+    context.put("userParams", userParams);
+    context.put("druidFeature", "coolDruidFeature");
+
+    QueryContext queryContext = new QueryContext(context);
+
+    Map<String, String> expectedDimensionsMap = new HashMap<>();
+    expectedDimensionsMap.put("dataSource", "eternity");
+    expectedDimensionsMap.put("implyView", "view");
+    expectedDimensionsMap.put("implyViewTitle", "truesight");
+    expectedDimensionsMap.put("implyFeature", "coolFeature");
+    expectedDimensionsMap.put("implyDataCube", "hypercube");
+    expectedDimensionsMap.put("druidFeature", "coolDruidFeature");
+    expectedDimensionsMap.put("implyUser", "998b903e421ca066f9aaead5e252f7421835d76e042945c58957240955db434f");
+    expectedDimensionsMap.put("implyUserEmail", "613e0a0334596486e8f40999f8624ad42cf4de67dfac614af635459f1bd3fae2");
+
+    Map<String, String> dimensions = new HashMap<>();
+    dimensions.put("dataSource", "eternity");
+    ClarityMetricsUtils.addContextDimensions(
+        anonymizedConfig,
+        dimensions::put,
+        dimensions::get,
+        queryContext
+    );
+    Assert.assertEquals(expectedDimensionsMap, dimensions);
+  }
+
+  @Test
+  public void test_addContextDimensions_no_pivotParams()
+  {
+    TestClarityEmitterConfig anonymizedConfig = new TestClarityEmitterConfig(
+        "compositeMind",
+        true,
+        1000L,
+        false,
+        100,
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        null
+    );
+
+    Map<String, Object> userParams = new HashMap<>();
+
+    Map<String, Object> context = new HashMap<>();
+    context.put("userParams", userParams);
+    context.put("druidFeature", "coolDruidFeature");
+    context.put("implyView", "view");
+    context.put("implyViewTitle", "truesight");
+    context.put("implyFeature", "coolFeature");
+    context.put("implyDataCube", "hypercube");
+    context.put("implyUser", "implier");
+    context.put("implyUserEmail", "implier@imply.io");
+
+    QueryContext queryContext = new QueryContext(context);
+
+    Map<String, String> expectedDimensionsMap = new HashMap<>();
+    expectedDimensionsMap.put("dataSource", "eternity");
+    expectedDimensionsMap.put("implyView", "view");
+    expectedDimensionsMap.put("implyViewTitle", "truesight");
+    expectedDimensionsMap.put("implyFeature", "coolFeature");
+    expectedDimensionsMap.put("implyDataCube", "hypercube");
+    expectedDimensionsMap.put("druidFeature", "coolDruidFeature");
+    expectedDimensionsMap.put("implyUser", "998b903e421ca066f9aaead5e252f7421835d76e042945c58957240955db434f");
+    expectedDimensionsMap.put("implyUserEmail", "613e0a0334596486e8f40999f8624ad42cf4de67dfac614af635459f1bd3fae2");
+
+    Map<String, String> dimensions = new HashMap<>();
+    dimensions.put("dataSource", "eternity");
+    ClarityMetricsUtils.addContextDimensions(
+        anonymizedConfig,
+        dimensions::put,
+        dimensions::get,
+        queryContext
+    );
+    Assert.assertEquals(expectedDimensionsMap, dimensions);
+  }
+
+  @Test
+  public void test_addContextDimensions_implyX_in_pivotParams_and_context()
+  {
+    TestClarityEmitterConfig anonymizedConfig = new TestClarityEmitterConfig(
+        "compositeMind",
+        true,
+        1000L,
+        false,
+        100,
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        ImmutableSet.of(),
+        null
+    );
+
+    Map<String, Object> pivotParams = new HashMap<>();
+    pivotParams.put("implyView", "view");
+    pivotParams.put("implyViewTitle", "truesight");
+    pivotParams.put("implyFeature", "coolFeature");
+    pivotParams.put("implyDataCube", "hypercube");
+    pivotParams.put("implyUser", "implier");
+    pivotParams.put("implyUserEmail", "implier@imply.io");
+
+    Map<String, Object> userParams = new HashMap<>();
+    userParams.put("pivotParams", pivotParams);
+
+    Map<String, Object> context = new HashMap<>();
+    context.put("userParams", userParams);
+    context.put("implyView", "view");
+    context.put("implyViewTitle", "truesight");
+    context.put("implyFeature", "coolFeature");
+    context.put("implyDataCube", "hypercube");
+    context.put("implyUser", "implier");
+    context.put("implyUserEmail", "implier@imply.io");
+    context.put("druidFeature", "coolDruidFeature");
+
+    QueryContext queryContext = new QueryContext(context);
+
+    Map<String, String> expectedDimensionsMap = new HashMap<>();
+    expectedDimensionsMap.put("dataSource", "eternity");
+    expectedDimensionsMap.put("implyView", "view");
+    expectedDimensionsMap.put("implyViewTitle", "truesight");
+    expectedDimensionsMap.put("implyFeature", "coolFeature");
+    expectedDimensionsMap.put("implyDataCube", "hypercube");
+    expectedDimensionsMap.put("druidFeature", "coolDruidFeature");
+    expectedDimensionsMap.put("implyUser", "998b903e421ca066f9aaead5e252f7421835d76e042945c58957240955db434f");
+    expectedDimensionsMap.put("implyUserEmail", "613e0a0334596486e8f40999f8624ad42cf4de67dfac614af635459f1bd3fae2");
+
+    Map<String, String> dimensions = new HashMap<>();
+    dimensions.put("dataSource", "eternity");
+    ClarityMetricsUtils.addContextDimensions(
+        anonymizedConfig,
+        dimensions::put,
+        dimensions::get,
+        queryContext
+    );
+    Assert.assertEquals(expectedDimensionsMap, dimensions);
   }
 
   @Test
@@ -126,11 +293,13 @@ public class ClarityMetricsUtilsTest
         null
     );
 
-    Map<String, Object> context = ImmutableMap.of(
+    Map<String, Object> userParams = ImmutableMap.of(
         QueryContexts.LANE_KEY, "some_lane",
         QueryContexts.PRIORITY_KEY, QueryContexts.DEFAULT_PRIORITY,
         "some_random_key", "wat"
     );
+
+    QueryContext context = new QueryContext(userParams);
 
     Map<String, String> expected = ImmutableMap.of(
         QueryContexts.LANE_KEY, "some_lane",

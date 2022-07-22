@@ -69,6 +69,6 @@ public class ClarityTimeseriesQueryMetrics extends DefaultTimeseriesQueryMetrics
   public void context(final TimeseriesQuery query)
   {
     // Override superclass to avoid storing JSON-ified "context". Instead, pull out the specific dimensions we want.
-    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getContext());
+    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getQueryContext());
   }
 }

@@ -70,6 +70,6 @@ public class ClarityGenericQueryMetrics<QueryType extends Query<?>> extends Defa
   public void context(final QueryType query)
   {
     // Override superclass to avoid storing JSON-ified "context". Instead, pull out the specific dimensions we want.
-    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getContext());
+    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getQueryContext());
   }
 }
