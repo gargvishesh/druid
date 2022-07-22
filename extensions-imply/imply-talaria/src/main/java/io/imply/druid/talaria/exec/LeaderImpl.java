@@ -1485,6 +1485,10 @@ public class LeaderImpl implements Leader
           0
       );
     }
+    catch (TalariaException e) {
+      // If the toolkit throws a TalariaFault, donot wrap it in a more generic QueryNotSupportedFault
+      throw e;
+    }
     catch (Exception e) {
       throw new TalariaException(e, QueryNotSupportedFault.INSTANCE);
     }

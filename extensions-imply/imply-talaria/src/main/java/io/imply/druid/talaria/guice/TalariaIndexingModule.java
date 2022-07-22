@@ -25,6 +25,7 @@ import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import io.imply.druid.talaria.indexing.error.BroadcastTablesTooLargeFault;
 import io.imply.druid.talaria.indexing.error.CanceledFault;
 import io.imply.druid.talaria.indexing.error.CannotParseExternalDataFault;
+import io.imply.druid.talaria.indexing.error.ColumnNameRestrictedFault;
 import io.imply.druid.talaria.indexing.error.ColumnTypeNotSupportedFault;
 import io.imply.druid.talaria.indexing.error.DurableStorageConfigurationFault;
 import io.imply.druid.talaria.indexing.error.InsertCannotAllocateSegmentFault;
@@ -91,6 +92,7 @@ public class TalariaIndexingModule implements DruidModule
       CanceledFault.class,
       CannotParseExternalDataFault.class,
       ColumnTypeNotSupportedFault.class,
+      ColumnNameRestrictedFault.class,
       DurableStorageConfigurationFault.class,
       InsertCannotAllocateSegmentFault.class,
       InsertCannotBeEmptyFault.class,

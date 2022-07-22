@@ -41,6 +41,7 @@ public class TalariaFaultSerdeTest
     assertFaultSerde(new CannotParseExternalDataFault("the message"));
     assertFaultSerde(new ColumnTypeNotSupportedFault("the column", null));
     assertFaultSerde(new ColumnTypeNotSupportedFault("the column", ColumnType.STRING_ARRAY));
+    assertFaultSerde(new ColumnNameRestrictedFault("the column"));
     assertFaultSerde(new InsertCannotAllocateSegmentFault("the datasource", Intervals.ETERNITY));
     assertFaultSerde(new InsertCannotBeEmptyFault("the datasource"));
     assertFaultSerde(new InsertCannotOrderByDescendingFault("the column"));

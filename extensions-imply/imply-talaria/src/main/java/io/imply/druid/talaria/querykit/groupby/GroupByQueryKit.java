@@ -263,10 +263,12 @@ public class GroupByQueryKit implements QueryKit<GroupByQuery>
         "Must have noop or default limitSpec"
     );
 
+    final RowSignature resultSignature = computeResultSignature(query);
+    QueryKitUtils.verifyRowSignature(resultSignature);
+
     if (query.getLimitSpec() instanceof DefaultLimitSpec) {
       final DefaultLimitSpec defaultLimitSpec = (DefaultLimitSpec) query.getLimitSpec();
 
-      final RowSignature resultSignature = computeResultSignature(query);
       for (final OrderByColumnSpec column : defaultLimitSpec.getColumns()) {
         final Optional<ColumnType> type = resultSignature.getColumnType(column.getDimension());
 

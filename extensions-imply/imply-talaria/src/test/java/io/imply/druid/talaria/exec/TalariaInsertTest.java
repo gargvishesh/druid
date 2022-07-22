@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
+import io.imply.druid.talaria.indexing.error.ColumnNameRestrictedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.hll.HyperLogLogCollector;
@@ -453,6 +454,33 @@ public class TalariaInsertTest extends TalariaTestRunner
                              "CLUSTERED BY found before PARTITIONED BY. In druid, the CLUSTERED BY clause has to be specified after the PARTITIONED BY clause"))
                      ))
                      .verifyPlanningErrors();
+  }
+
+  @Test
+  public void testInsertRestrictedColumns()
+  {
+    RowSignature rowSignature = RowSignature.builder()
+                                            .add("__time", ColumnType.LONG)
+                                            .add("namespace", ColumnType.STRING)
+                                            .add("__bucket", ColumnType.LONG)
+                                            .build();
+
+
+    testIngestQuery()
+        .setSql(" insert into foo1 SELECT\n"
+                + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
+                + " namespace, __bucket\n"
+                + "FROM TABLE(\n"
+                + "  EXTERN(\n"
+                + "    '{ \"files\": [\"ignored\"],\"type\":\"local\"}',\n"
+                + "    '{\"type\": \"json\"}',\n"
+                + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"namespace\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}, {\"name\": \"__bucket\", \"type\": \"string\"}]'\n"
+                + "  )\n"
+                + ") PARTITIONED by day")
+        .setExpectedDataSource("foo1")
+        .setExpectedRowSignature(rowSignature)
+        .setExpectedTalariaFault(new ColumnNameRestrictedFault("__bucket"))
+        .verifyResults();
   }
 
   @Test
