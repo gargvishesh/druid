@@ -14,16 +14,17 @@ public class LongSimpleTimeSeriesSerdeTest extends SimpleTimeSeriesSerdeTestBase
   public LongSimpleTimeSeriesSerdeTest()
   {
     super(
-        new SimpleTimeSeriesSerde(
-            new LongDeltaTimestampsEncoderDecoder(
-                new LongDeltaEncoderDecoder(SimpleTimeSeriesTestUtil.START_DATE_TIME.getMillis()))),
+        new SimpleTimeSeriesSerdeToTestingSerde(
+            new SimpleTimeSeriesSerde(
+                new LongDeltaTimestampsEncoderDecoder(
+                    new LongDeltaEncoderDecoder(SimpleTimeSeriesTestUtil.START_DATE_TIME.getMillis())))),
         new TestCasesConfig<>(SimpleTimeSeriesSerdeTest.class, SimpleTimeSeriesSerdeTestBase.class)
-            .enableTestCase(SimpleTimeSeriesSerdeTest::testNull)
-            .enableTestCase(SimpleTimeSeriesSerdeTest::testEmptyList)
-            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testSingleItemList, 16) // special case
-            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testTwoItemList, 44)
-            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testLargerList, 836)
-            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testSingleValueRun, 48)
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testEmptyList, TestCaseResult.of(new byte[0]))
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testNull, TestCaseResult.of(new byte[0]))
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testSingleItemList, TestCaseResult.of(16)) // special case
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testTwoItemList, TestCaseResult.of(44))
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testLargerList, TestCaseResult.of(836))
+            .setTestCaseValue(SimpleTimeSeriesSerdeTest::testSingleValueRun, TestCaseResult.of(48))
     );
   }
 }

@@ -24,15 +24,15 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
 {
   private static final SimpleTimeSeries EMPTY_SIMPLE_TIME_SERIES = SimpleTimeSeriesTestUtil.buildTimeSeries(0, 0);
 
-  private final SimpleTimeSeriesSerde timeSeriesSerde;
-  private TestCasesConfig<SimpleTimeSeriesSerdeTest> testCasesConfig;
+  protected final SimpleTimeSeriesTestingSerde serializer;
+  protected final TestCasesConfig<SimpleTimeSeriesSerdeTest> testCasesConfig;
 
   public SimpleTimeSeriesSerdeTestBase(
-      SimpleTimeSeriesSerde timeSeriesSerde,
+      SimpleTimeSeriesTestingSerde serializer,
       TestCasesConfig<SimpleTimeSeriesSerdeTest> testCasesConfig
   )
   {
-    this.timeSeriesSerde = timeSeriesSerde;
+    this.serializer = serializer;
     this.testCasesConfig = testCasesConfig;
   }
 
@@ -41,7 +41,7 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
   public void testNull()
   {
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
-    Assert.assertArrayEquals(SimpleTimeSeriesTestUtil.EMPTY_BYTES, timeSeriesSerde.serialize(null));
+    Assert.assertArrayEquals(testCasesConfig.currentTestValue().bytes, serializer.serialize(null));
   }
 
   @Test
@@ -50,8 +50,8 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
   {
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
     Assert.assertArrayEquals(
-        SimpleTimeSeriesTestUtil.EMPTY_BYTES,
-        timeSeriesSerde.serialize(EMPTY_SIMPLE_TIME_SERIES)
+        testCasesConfig.currentTestValue().bytes,
+        serializer.serialize(EMPTY_SIMPLE_TIME_SERIES)
     );
   }
 
@@ -62,10 +62,10 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
 
     SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeries(1, 0);
-    byte[] bytes = timeSeriesSerde.serialize(simpleTimeSeries);
-    Assert.assertEquals(testCasesConfig.currentTestValue(), bytes.length);
+    byte[] bytes = serializer.serialize(simpleTimeSeries);
+    Assert.assertEquals(testCasesConfig.currentTestValue().size, bytes.length);
     SimpleTimeSeries deserialized =
-        timeSeriesSerde.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
+        serializer.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
     Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
   }
 
@@ -76,10 +76,10 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
 
     SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeries(2, 0);
-    byte[] bytes = timeSeriesSerde.serialize(simpleTimeSeries);
-    Assert.assertEquals(testCasesConfig.currentTestValue(), bytes.length);
+    byte[] bytes = serializer.serialize(simpleTimeSeries);
+    Assert.assertEquals(testCasesConfig.currentTestValue().size, bytes.length);
     SimpleTimeSeries deserialized =
-        timeSeriesSerde.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
+        serializer.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
     Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
   }
 
@@ -90,10 +90,10 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
 
     SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeries(100, 0);
-    byte[] bytes = timeSeriesSerde.serialize(simpleTimeSeries);
-    Assert.assertEquals(testCasesConfig.currentTestValue(), bytes.length);
+    byte[] bytes = serializer.serialize(simpleTimeSeries);
+    Assert.assertEquals(testCasesConfig.currentTestValue().size, bytes.length);
     SimpleTimeSeries deserialized =
-        timeSeriesSerde.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
+        serializer.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
     Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
   }
 
@@ -104,11 +104,12 @@ public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
     Assume.assumeTrue(testCasesConfig.isCurrentTestEnabled());
 
     SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeriesWithValueRuns(10, 0, 10);
-    byte[] bytes = timeSeriesSerde.serialize(simpleTimeSeries);
+    byte[] bytes = serializer.serialize(simpleTimeSeries);
     // 4 byte header; timestamps delta + rle encode to 2,{(1,0), (9,1)} and values encode to 1,{10,0}
-    Assert.assertEquals(testCasesConfig.currentTestValue(), bytes.length);
+    Assert.assertEquals(testCasesConfig.currentTestValue().size, bytes.length);
     SimpleTimeSeries deserialized =
-        timeSeriesSerde.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
+        serializer.deserialize(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()));
     Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
   }
+
 }
