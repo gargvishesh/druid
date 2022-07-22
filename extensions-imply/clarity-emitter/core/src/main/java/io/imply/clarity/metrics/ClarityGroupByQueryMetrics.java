@@ -69,6 +69,6 @@ public class ClarityGroupByQueryMetrics extends DefaultGroupByQueryMetrics
   public void context(final GroupByQuery query)
   {
     // Override superclass to avoid storing JSON-ified "context". Instead, pull out the specific dimensions we want.
-    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getContext());
+    ClarityMetricsUtils.addContextDimensions(config, this::setDimension, builder::getDimension, query.getQueryContext());
   }
 }

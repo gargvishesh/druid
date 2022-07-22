@@ -12,17 +12,22 @@ package io.imply.clarity.metrics;
 import com.google.common.collect.ImmutableList;
 import io.imply.clarity.emitter.BaseClarityEmitterConfig;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public class ClarityMetricsUtils
 {
   private static final String CUSTOM_QUERY_DIMENSION_PREFIX = "context:";
+
+  private static final String PIVOT_PARAMS_KEY = "pivotParams";
+  private static final String USER_PARAMS_KEY = "userParams";
 
   private static final List<String> IMPLY_QUERY_DIMENSIONS = ImmutableList.of(
       "implyView",
@@ -49,15 +54,25 @@ public class ClarityMetricsUtils
       final BaseClarityEmitterConfig config,
       final BiConsumer<String, String> dimensionSetter,
       final Function<String, Object> dimensionGetter,
-      @Nullable final Map<String, Object> context
+      @Nullable QueryContext context
   )
   {
     if (context == null) {
       return;
     }
 
+    final Map<String, Object> userParams = (Map<String, Object>) context.get(USER_PARAMS_KEY);
+    final Map<String, Object> pivotParams = Optional.ofNullable(userParams)
+                                       .map(param -> (Map<String, Object>) param.get(PIVOT_PARAMS_KEY))
+                                       .orElse(null);
+
     for (final String implyDim : IMPLY_QUERY_DIMENSIONS) {
-      final Object value = context.get(implyDim);
+      final Object value;
+      if (pivotParams != null && pivotParams.containsKey(implyDim)) {
+        value = pivotParams.get(implyDim);
+      } else {
+        value = context.get(implyDim);
+      }
       if (value != null) {
         dimensionSetter.accept(implyDim, String.valueOf(value));
       }
