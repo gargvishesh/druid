@@ -35,6 +35,9 @@ import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +45,8 @@ import java.util.Map;
 public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
 {
   public static final Integer DEFAULT_MAX_ENTRIES = 7200; // 2 hours with per second granularity
+
+  private static final Base64.Decoder DECODER = Base64.getDecoder();
 
   private SimpleTimeSeriesAggregatorFactory(
       String name,
@@ -111,7 +116,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
-      return new SimpleTimeSeriesAggregator(timeSelector, dataSelector, getwindow(), getMaxEntries());
+      return new SimpleTimeSeriesAggregator(timeSelector, dataSelector, getWindow(), getMaxEntries());
     }
   }
 
@@ -123,7 +128,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
           getTimeseriesColumn());
       return new SimpleTimeSeriesMergeBufferAggregator(
           selector,
-          getwindow(),
+          getWindow(),
           getMaxEntries()
       );
     } else {
@@ -132,7 +137,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       return new SimpleTimeSeriesBuildBufferAggregator(
           timeSelector,
           dataSelector,
-          getwindow(),
+          getWindow(),
           getMaxEntries()
       );
     }
@@ -160,7 +165,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         getName(),
         getPostProcessing(),
         getTimeBucketMillis(),
-        getwindow(),
+        getWindow(),
         getMaxEntries()
     );
   }
@@ -171,6 +176,21 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     if (object instanceof SimpleTimeSeries) {
       return object;
     }
+
+    if (object instanceof String || object instanceof byte[]) {
+      byte[] bytes;
+
+      if (object instanceof String) {
+        bytes = DECODER.decode((String) object);
+      } else {
+        bytes = (byte[]) object;
+      }
+
+      ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
+
+      return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, getWindow(), getMaxEntries());
+    }
+
     Map<String, Object> timeseriesKeys = (Map<String, Object>) object;
     ImplyLongArrayList timestamps = new ImplyLongArrayList((List<Long>) timeseriesKeys.get("timestamps"));
     ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList((List<Double>) timeseriesKeys.get("dataPoints"));
@@ -178,7 +198,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
         timestamps,
         dataPoints,
-        getwindow(),
+        getWindow(),
         bounds.lhs,
         bounds.rhs,
         getMaxEntries()
@@ -232,7 +252,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         getTimeseriesColumn(),
         getPostProcessing(),
         getTimeBucketMillis(),
-        getwindow(),
+        getWindow(),
         getMaxEntries()
     );
   }

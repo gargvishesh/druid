@@ -12,19 +12,14 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import java.nio.ByteBuffer;
 
 /**
- * contains a list that is prepared to be stored in a buffer as well as the size and a flag indicating if it's
- * RLE-encoded or not
+ * useful when work needs to be done to prepare for serialization (eg encoding) which is also necessary
+ * to know how large a buffer is needed. Hence, returns both the size and a method to store in a buffer
+ * caller must allocate of sufficient size
  */
-public interface StorableList
+public interface StorableBuffer
 {
-  StorableList EMPTY = new StorableList()
+  StorableBuffer EMPTY = new StorableBuffer()
   {
-    @Override
-    public boolean isRle()
-    {
-      return false;
-    }
-
     @Override
     public void store(ByteBuffer byteBuffer)
     {
@@ -36,8 +31,6 @@ public interface StorableList
       return 0;
     }
   };
-
-  boolean isRle();
 
   void store(ByteBuffer byteBuffer);
 

@@ -71,7 +71,8 @@ public class SimpleTimeSeriesBufferStore
   ) throws IOException
   {
     SerializedColumnHeader columnHeader = createColumnHeader();
-    SimpleTimeSeriesSerde timeSeriesSerde = columnHeader.createSimpleTimeSeriesSerde();
+    SimpleTimeSeriesSerde timeSeriesSerde =
+        SimpleTimeSeriesSerde.create(columnHeader.getMinTimestamp(), columnHeader.isUseIntegerDeltas());
     RowWriter rowWriter = new RowWriter.Builder(byteBufferProvider, segmentWriteOutMedium).build();
     IOIterator<SimpleTimeSeries> bufferIterator = iterator();
 

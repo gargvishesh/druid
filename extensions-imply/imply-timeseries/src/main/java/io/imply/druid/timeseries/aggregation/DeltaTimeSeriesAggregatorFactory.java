@@ -104,7 +104,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
       return new DeltaTimeSeriesAggregator(timeSelector,
                                            dataSelector,
                                            new DurationGranularity(getTimeBucketMillis(), 0),
-                                           getwindow(),
+                                           getWindow(),
                                            getMaxEntries());
     }
   }
@@ -116,16 +116,16 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
       BaseObjectColumnValueSelector<DeltaTimeSeries> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
       return new DeltaTimeSeriesMergeBufferAggregator(selector,
                                                       new DurationGranularity(getTimeBucketMillis(), 0),
-                                                      getwindow(),
+                                                      getWindow(),
                                                       getMaxEntries());
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
       return new DeltaTimeSeriesBuildBufferAggregator(timeSelector,
-                                                     dataSelector,
-                                                     new DurationGranularity(getTimeBucketMillis(), 0),
-                                                     getwindow(),
-                                                     getMaxEntries());
+                                                      dataSelector,
+                                                      new DurationGranularity(getTimeBucketMillis(), 0),
+                                                      getWindow(),
+                                                      getMaxEntries());
     }
   }
 
@@ -160,7 +160,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
                                                 getName(),
                                                 getPostProcessing(),
                                                 getTimeBucketMillis(),
-                                                getwindow(),
+                                                getWindow(),
                                                 getMaxEntries());
   }
 
@@ -177,7 +177,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
     return new DeltaTimeSeries(timestamps,
                                dataPoints,
                                new DurationGranularity(getTimeBucketMillis(), 0),
-                               getwindow(),
+                               getWindow(),
                                bounds.lhs,
                                bounds.rhs,
                                getMaxEntries());
@@ -218,7 +218,7 @@ public class DeltaTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFa
         getTimeseriesColumn(),
         getPostProcessing(),
         getTimeBucketMillis(),
-        getwindow(),
+        getWindow(),
         getMaxEntries()
     );
   }

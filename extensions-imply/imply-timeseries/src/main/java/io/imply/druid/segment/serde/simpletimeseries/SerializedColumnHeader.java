@@ -55,16 +55,9 @@ public class SerializedColumnHeader
     return new SerializedColumnHeader(bytes, minTimestamp);
   }
 
-  public TimestampsEncoderDecoder createTimestampsEncoderDecoder()
-  {
-    return isUseIntegerDeltas()
-           ? new IntegerDeltaTimestampsEncoderDecoder(new IntegerDeltaEncoderDecoder(minTimestamp))
-           : new LongDeltaTimestampsEncoderDecoder(new LongDeltaEncoderDecoder(minTimestamp));
-  }
-
   public SimpleTimeSeriesSerde createSimpleTimeSeriesSerde()
   {
-    return new SimpleTimeSeriesSerde(createTimestampsEncoderDecoder());
+    return SimpleTimeSeriesSerde.create(minTimestamp, isUseIntegerDeltas());
   }
 
   public void transferTo(WritableByteChannel channel) throws IOException

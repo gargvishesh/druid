@@ -79,7 +79,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   {
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload = testHelper.generateBufferWithLongs(1024);
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
   }
 
@@ -89,7 +89,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   {
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload = testHelper.generateBufferWithLongs(256 * 1024); // 2mb
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
   }
 
@@ -100,7 +100,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer payload1 = testHelper.generateBufferWithLongs(1024); // 8 kb
     ByteBuffer payload2 = testHelper.generateBufferWithLongs(256 * 1024); // 256kb * 8 = 2mb
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Arrays.asList(payload1, payload2), expectedSize);
   }
 
@@ -115,7 +115,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     // block index entry 0: "0": 4 bytes
     // block index entry 1: "1": 4 bytes
     // data stream size : "0" : 4 bytes
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
   }
 
@@ -129,7 +129,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     // block index entry 0: "0": 4 bytes
     // block index entry 1: "1": 4 bytes
     // data stream size : "0" : 4 bytes
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(null), expectedSize);
   }
 
@@ -144,7 +144,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     // block index entry 1: "0": 4 bytes
     // data stream size : "1" : 4 bytes
     // compressed single 8 bytes: 9 bytes (compressed: "0")
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(payload), expectedSize);
   }
 
@@ -154,7 +154,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
   {
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 0, 0, 10);
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(bufferList, expectedSize);
   }
 
@@ -165,7 +165,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     // every integer within a payload is unique
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 64 * 1024, 2);
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(bufferList, expectedSize);
   }
 
@@ -177,7 +177,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     // same # of payloads and size of payloads as testOutliersInNormalDataUncompressablePayloads()
     // integer values range 0-9
     List<ByteBuffer> bufferList = testHelper.generateRaggedPayloadBuffer(100, 1024, 10, 64 * 1024, 2, 10);
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(bufferList, expectedSize);
   }
 
@@ -190,7 +190,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     ByteBuffer byteBuffer = testHelper.generateIntPayloads(16 * 1024);
     Assert.assertEquals(64 * 1024, byteBuffer.limit());
     // uncompressable 64k block size
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(byteBuffer), expectedSize);
   }
 
@@ -201,7 +201,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
     Assume.assumeTrue(testCases.isCurrentTestEnabled());
     ByteBuffer sourcePayLoad = testHelper.generateBufferWithLongs(1024); // 8k
     testHelper.setCompressionStrategy(CompressionStrategy.ZSTD);
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
     testHelper.validateReadAndSize(Collections.singletonList(sourcePayLoad), expectedSize);
   }
 
@@ -215,7 +215,7 @@ public class BytesReadWriteTestBase implements BytesReadWriteTest
 
     testHelper.setUseRandomReadOrder(true);
 
-    int expectedSize = testCases.currentTestValue();
+    int expectedSize = testCases.currentTestValue().size;
 
     testHelper.validateReadAndSize(byteBufferList, expectedSize);
   }
