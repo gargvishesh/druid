@@ -19,14 +19,14 @@
 import React from 'react';
 
 import { Loader } from '../../../components';
+import { Execution } from '../../../druid-models';
+import { getTaskExecution } from '../../../helpers';
 import { useInterval, useQueryManager } from '../../../hooks';
 import { QueryState } from '../../../utils';
-import { Execution } from '../../../workbench-models';
 import {
   ExecutionDetailsPane,
   ExecutionDetailsTab,
 } from '../execution-details-pane/execution-details-pane';
-import { getTaskExecution } from '../execution-utils';
 
 export interface ExecutionDetailsPaneLoaderProps {
   id: string;

@@ -19,7 +19,7 @@
 @import '../../variables';
 
 $column-tree-width: 250px;
-$work-panel-width: 250px;
+$recent-query-task-panel-width: 250px;
 
 .workbench-view {
   height: 100%;
@@ -34,12 +34,12 @@ $work-panel-width: 250px;
     @include card-like;
   }
 
-  .work-panel {
+  .recent-query-task-panel {
     position: absolute;
     top: 0;
     right: 0;
     height: 100%;
-    width: $work-panel-width;
+    width: $recent-query-task-panel-width;
   }
 
   .center-panel {
@@ -47,7 +47,7 @@ $work-panel-width: 250px;
     top: 0;
     height: 100%;
     left: $column-tree-width + $thin-padding;
-    right: $work-panel-width + $thin-padding;
+    right: $recent-query-task-panel-width + $thin-padding;
 
     .query-tabs {
       position: absolute;

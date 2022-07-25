@@ -20,9 +20,9 @@ import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import React, { useState } from 'react';
 import AceEditor from 'react-ace';
 
+import { Execution } from '../../../druid-models';
 import { AppToaster } from '../../../singletons';
 import { validJson } from '../../../utils';
-import { Execution } from '../../../workbench-models';
 
 import './execution-submit-dialog.scss';
 

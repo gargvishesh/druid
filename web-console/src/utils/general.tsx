@@ -17,6 +17,7 @@
  */
 
 import { Intent } from '@blueprintjs/core';
+import { IconName, IconNames } from '@blueprintjs/icons';
 import copy from 'copy-to-clipboard';
 import hasOwnProp from 'has-own-prop';
 import * as JSONBig from 'json-bigint-native';
@@ -278,6 +279,11 @@ export function alphanumericCompare(a: string, b: string): number {
   return String(a).localeCompare(b, undefined, { numeric: true });
 }
 
+export function zeroDivide(a: number, b: number): number {
+  if (b === 0) return 0;
+  return a / b;
+}
+
 export function arrangeWithPrefixSuffix(
   things: readonly string[],
   prefix: readonly string[],
@@ -424,4 +430,16 @@ export function objectHash(obj: any): string {
 
 export function hasPopoverOpen(): boolean {
   return Boolean(document.querySelector('.bp4-portal .bp4-overlay .bp4-popover2'));
+}
+
+export function checkedCircleIcon(checked: boolean): IconName {
+  return checked ? IconNames.TICK_CIRCLE : IconNames.CIRCLE;
+}
+
+export function tickIcon(checked: boolean): IconName {
+  return checked ? IconNames.TICK : IconNames.BLANK;
+}
+
+export function generate8HexId(): string {
+  return (Math.random() * 1e10).toString(16).replace('.', '').substr(0, 8);
 }

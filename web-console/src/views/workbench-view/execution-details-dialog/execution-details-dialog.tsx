@@ -19,7 +19,7 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import React from 'react';
 
-import { Execution } from '../../../workbench-models';
+import { Execution } from '../../../druid-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionDetailsPaneLoader } from '../execution-details-pane-loader/execution-details-pane-loader';
 

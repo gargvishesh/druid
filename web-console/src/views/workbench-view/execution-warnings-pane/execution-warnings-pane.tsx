@@ -18,7 +18,7 @@
 
 import React from 'react';
 
-import { Execution } from '../../../workbench-models';
+import { Execution } from '../../../druid-models';
 
 import { WarningCallout } from './warning-callout';
 

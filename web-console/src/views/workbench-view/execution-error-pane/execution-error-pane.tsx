@@ -22,9 +22,9 @@ import copy from 'copy-to-clipboard';
 import React, { useState } from 'react';
 
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
+import { Execution } from '../../../druid-models';
 import { AppToaster } from '../../../singletons';
 import { downloadQueryDetailArchive } from '../../../utils';
-import { Execution } from '../../../workbench-models';
 
 import './execution-error-pane.scss';
 

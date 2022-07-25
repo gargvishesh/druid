@@ -117,6 +117,19 @@ $config-width: 400px;
     right: 0;
     width: $config-width;
 
+    .example-label {
+      display: inline-block;
+      vertical-align: top;
+
+      .description {
+        opacity: 0.6;
+      }
+    }
+
+    .error-callout {
+      overflow: auto;
+    }
+
     .next {
       position: absolute;
       right: 0;

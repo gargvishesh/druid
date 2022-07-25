@@ -37,6 +37,7 @@ export * from './json-input/json-input';
 export * from './learn-more/learn-more';
 export * from './loader/loader';
 export * from './menu-checkbox/menu-checkbox';
+export * from './menu-tristate/menu-tristate';
 export * from './more-button/more-button';
 export * from './plural-pair-if-needed/plural-pair-if-needed';
 export * from './popover-text/popover-text';

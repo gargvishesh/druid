@@ -17,10 +17,11 @@
  */
 
 import { Button, Menu, MenuItem, PopoverPosition } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import React from 'react';
+
+import { tickIcon } from '../../../utils';
 
 import './live-query-mode-selector.scss';
 
@@ -57,7 +58,7 @@ export const LiveQueryModeSelector = React.memo(function LiveQueryModeSelector(
                 m === 'auto' ? (autoLiveQueryModeShouldRun ? 'auto-on' : 'auto-off') : undefined,
               )}
               key={m}
-              icon={m === liveQueryMode ? IconNames.TICK : IconNames.BLANK}
+              icon={tickIcon(m === liveQueryMode)}
               text={LIVE_QUERY_MODE_TITLE[m]}
               onClick={() => onLiveQueryModeChange(m)}
             />

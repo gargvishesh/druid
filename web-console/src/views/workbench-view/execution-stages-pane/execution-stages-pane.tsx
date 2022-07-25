@@ -25,6 +25,17 @@ import React from 'react';
 import ReactTable, { Column } from 'react-table';
 
 import { BracedText } from '../../../components';
+import {
+  ChannelCounterName,
+  ClusterBy,
+  CounterName,
+  Execution,
+  formatClusterBy,
+  SimpleWideCounter,
+  StageDefinition,
+  Stages,
+  summarizeInputSource,
+} from '../../../druid-models';
 import { DEFAULT_TABLE_CLASS_NAME } from '../../../react-table';
 import {
   deepGet,
@@ -36,17 +47,6 @@ import {
   NumberLike,
   oneOf,
 } from '../../../utils';
-import {
-  ChannelCounterName,
-  ClusterBy,
-  CounterName,
-  Execution,
-  formatClusterBy,
-  SimpleWideCounter,
-  StageDefinition,
-  Stages,
-  summarizeInputSource,
-} from '../../../workbench-models';
 
 import './execution-stages-pane.scss';
 

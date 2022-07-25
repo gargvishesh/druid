@@ -18,11 +18,11 @@
 
 import { computeFlattenExprsForData } from './flatten-spec';
 
-describe('spec-utils', () => {
+describe('flatten-spec', () => {
   describe('computeFlattenExprsForData', () => {
     const data = [
       {
-        context: { host: 'clarity', topic: 'moon', bonus: { foo: 'bar' } },
+        context: { host: 'cla', topic: 'moon', bonus: { foo: 'bar' } },
         tags: ['a', 'b', 'c'],
         messages: [
           { metric: 'request/time', value: 122 },
@@ -32,7 +32,7 @@ describe('spec-utils', () => {
         value: 5,
       },
       {
-        context: { host: 'pivot', popic: 'sun' },
+        context: { host: 'piv', popic: 'sun' },
         tags: ['a', 'd'],
         messages: [
           { metric: 'request/time', value: 44 },
@@ -41,7 +41,7 @@ describe('spec-utils', () => {
         value: 4,
       },
       {
-        context: { host: 'imply', dopik: 'fun' },
+        context: { host: 'imp', dopik: 'fun' },
         tags: ['x', 'y'],
         messages: [
           { metric: 'request/time', value: 4 },

@@ -40,19 +40,19 @@ export const LocalStorageKeys = {
   QUERY_HISTORY: 'query-history' as const,
   LIVE_QUERY_MODE: 'live-query-mode' as const,
 
-  // BEGIN: Imply-added code for the multi-stage query engine
   WORKBENCH_QUERIES: 'workbench-queries' as const,
   WORKBENCH_LAST_TAB: 'workbench-last-tab' as const,
   WORKBENCH_PANE_SIZE: 'workbench-pane-size' as const,
   WORKBENCH_HISTORY: 'workbench-history' as const,
-  WORKBENCH_WORK_PANEL: 'workbench-work-panel' as const,
+  WORKBENCH_TASK_PANEL: 'workbench-task-panel' as const,
 
   SQL_DATA_LOADER_SHOW: 'sql-data-loader-show' as const,
   SQL_DATA_LOADER_QUERY: 'sql-data-loader-query' as const,
-  // END: Imply-modified code for MSQE execution
 
+  // BEGIN: Imply-added code for the user management
   USERS_REFRESH_RATE: 'users-refresh-rate' as const,
   ROLES_REFRESH_RATE: 'roles-refresh-rate' as const,
+  // END: Imply-modified code for user management
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
 

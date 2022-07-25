@@ -19,8 +19,8 @@
 import { SqlTableRef } from 'druid-query-toolkit';
 import React from 'react';
 
+import { Execution } from '../../../druid-models';
 import { formatDuration, pluralIfNeeded } from '../../../utils';
-import { Execution } from '../../../workbench-models';
 
 import './insert-success-pane.scss';
 

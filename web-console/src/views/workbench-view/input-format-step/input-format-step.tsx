@@ -31,19 +31,18 @@ import {
   InputSource,
   PLACEHOLDER_TIMESTAMP_SPEC,
   possibleDruidFormatForValues,
+  SignatureColumn,
 } from '../../../druid-models';
 import { useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
-import { deepSet, EMPTY_ARRAY, filterMap } from '../../../utils';
+import { deepSet, EMPTY_ARRAY, filterMap, timeFormatToSql } from '../../../utils';
 import {
   headerAndRowsFromSampleResponse,
   postToSampler,
   SampleHeaderAndRows,
   SampleSpec,
 } from '../../../utils/sampler';
-import { SignatureColumn } from '../../../workbench-models';
 import { ParseDataTable } from '../../load-data-view/parse-data-table/parse-data-table';
-import { timeFormatToSql } from '../sql-utils';
 
 import './input-format-step.scss';
 
@@ -104,7 +103,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
         },
       };
 
-      const sampleResponse = await postToSampler(sampleSpec, 'should-use-multi-stage-query');
+      const sampleResponse = await postToSampler(sampleSpec, 'input-format-step');
 
       return headerAndRowsFromSampleResponse({
         sampleResponse,
@@ -184,7 +183,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
             <FormGroup>
               <Switch
                 checked={selectTimestamp}
-                onClick={() => setSelectTimestamp(!selectTimestamp)}
+                onChange={() => setSelectTimestamp(!selectTimestamp)}
               >
                 Select <Tag minimal>{possibleTimeExpression.column}</Tag> as the primary time
                 column.
