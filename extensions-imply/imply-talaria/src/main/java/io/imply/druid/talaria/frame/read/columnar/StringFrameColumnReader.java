@@ -103,7 +103,6 @@ public class StringFrameColumnReader implements FrameColumnReader
 
   private void validate(@SuppressWarnings("unused") final Frame frame)
   {
-    // TODO(gianm): Validate
   }
 
   private static boolean isMultiValue(final Memory memory)
@@ -212,9 +211,6 @@ public class StringFrameColumnReader implements FrameColumnReader
     @Override
     public int getCardinality()
     {
-      // Unknown, so return Integer.MAX_VALUE.
-      // TODO(gianm): Is this OK? It's what the interface javadocs say to do, but we should double-check usage.
-      //   May make more sense to switch the interface to ask for CARDINALITY_UNKNOWN
       return Integer.MAX_VALUE;
     }
 

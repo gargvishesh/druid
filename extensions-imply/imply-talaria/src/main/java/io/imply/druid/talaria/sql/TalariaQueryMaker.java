@@ -140,25 +140,15 @@ public class TalariaQueryMaker implements QueryMaker
         DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext()
                                                                   .get(TalariaContext.CTX_DESTINATION));
 
-    boolean containsTalariaQueryContextParameter =
-        plannerContext.getQueryContext().getMergedParams().keySet()
-                      .stream()
-                      .anyMatch(param -> StringUtils.toLowerCase(param).contains("talaria"));
-
-    if (containsTalariaQueryContextParameter) {
-      throw new ISE("Context parameters which contain the string \"talaria\" are now defunct. "
-                    + "Please check the documentation for the appropriate MSQE property.");
-    }
-
     Object segmentGranularity;
     try {
-      // TODO(gianm): better error messages for bad parameters
       segmentGranularity = Optional.ofNullable(plannerContext.getQueryContext()
                                                              .get(DruidSqlInsert.SQL_INSERT_SEGMENT_GRANULARITY))
                                    .orElse(jsonMapper.writeValueAsString(DEFAULT_SEGMENT_GRANULARITY));
     }
     catch (JsonProcessingException e) {
-      throw new ISE("Unable to serialize default segment granularity.");
+      throw new IAE("Unable to deserialize the insert granularity. Please retry the query with a valid "
+                    + "segment graularity");
     }
 
     final int maxNumTasks = TalariaContext.getMaxNumTasks(plannerContext.getQueryContext());

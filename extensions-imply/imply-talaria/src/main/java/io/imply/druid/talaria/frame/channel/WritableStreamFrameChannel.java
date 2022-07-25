@@ -18,7 +18,8 @@ import org.apache.druid.java.util.common.logger.Logger;
 import java.io.IOException;
 
 /**
- * TODO(gianm): Javadocs
+ * On disk writeable channel that is backed by a {@link FrameFileWriter} and
+ * produces {@link io.imply.druid.talaria.frame.file.FrameFile} when written to
  */
 public class WritableStreamFrameChannel implements WritableFrameChannel
 {
@@ -54,14 +55,21 @@ public class WritableStreamFrameChannel implements WritableFrameChannel
   @Override
   public void doneWriting() throws IOException
   {
-    // TODO(gianm): Do something special if there was an error?
+    if (errorEncountered) {
+      log.warn("Closing a writer on which error was encountered");
+    }
     writer.close();
   }
 
+  /**
+   * This assumes that the local disk has infinite space to accomadate for all the data, and therefore resolves to true
+   * all the time. This might not be the case if disk space is full.
+   * This method should account for the disk space while resolving the future or spill to an external storage if it
+   * wants to return true unconditionally
+   */
   @Override
   public ListenableFuture<?> writabilityFuture()
   {
-    // TODO(gianm): Should either return "not ready" when disk is full, or should spill to S3
     return Futures.immediateFuture(true);
   }
 }

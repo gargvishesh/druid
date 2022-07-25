@@ -34,8 +34,12 @@ public class ScanQueryFrameProcessorFactory extends BaseLeafFrameProcessorFactor
 {
   private final ScanQuery query;
 
-  // TODO(gianm): HACK ALERT: shared limit across all processors
-  // TODO(gianm): Bad because nothing really guarantees this factory is only used for a single makeWorkers call
+  /**
+   * Instantiated and passed to all the {@link ScanQueryFrameProcessor}s created from this factory to keep a track
+   * of the number of rows processed so far in case the query is limited (without any order by) because one doesn't need
+   * to scan through all the rows in that case.
+   * This is not ideal because nothing really guarantees this factory is used for a single makeWorkers call
+   */
   @Nullable
   private final AtomicLong runningCountForLimit;
 

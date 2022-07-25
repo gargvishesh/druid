@@ -31,10 +31,8 @@ public interface WorkerManagerClient extends Closeable
    * @return a {@code TaskLocation} associated with the task or
    * {@code TaskLocation.unknown()} if no associated entry could be found
    */
-  // TODO(paul): Change so that workers come with their location attached.
   TaskLocation location(String workerId);
 
-  // TODO(paul): Remove: workers should be ephemeral.
   Map<String, TaskStatus> statuses(Set<String> taskIds);
 
   void cancel(String workerId);

@@ -66,10 +66,10 @@ public interface FrameProcessorFactory<ExtraInfoType, ProcessorType extends Fram
 
   R newAccumulatedResult();
 
-  // TODO(gianm): Javadoc says "accumulated" may be modified and returned (or not)
+  // 'accumulated' might be modified in the implementations
   R accumulateResult(R accumulated, T current);
 
-  // TODO(gianm): Javadoc says "accumulated" may be modified and returned (or not)
+  // 'accumulated' might be modified in the implementations
   R mergeAccumulatedResult(R accumulated, R otherAccumulated);
 
   @SuppressWarnings("rawtypes")

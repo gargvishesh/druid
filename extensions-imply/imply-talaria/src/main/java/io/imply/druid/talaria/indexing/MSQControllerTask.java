@@ -67,7 +67,7 @@ public class MSQControllerTask extends AbstractTask
   @Nullable
   private final ExecutorService remoteFetchExecutorService;
 
-  // TODO(gianm): HACK HACK HACK
+  // Using an Injector directly because tasks do not have a way to provide their own Guice modules.
   @JacksonInject
   private Injector injector;
 
@@ -191,9 +191,6 @@ public class MSQControllerTask extends AbstractTask
     }
   }
 
-  /**
-   * TODO(gianm): Hack, because tasks must be associated with a datasource.
-   */
   private static String getDataSourceForTaskMetadata(final TalariaQuerySpec querySpec)
   {
     final MSQDestination destination = querySpec.getDestination();

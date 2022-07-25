@@ -29,7 +29,7 @@ public enum ControllerStagePhase
     }
   },
 
-  // Reading and mapping inputs (using stateless operators like filters, transforms).
+  // Reading and mapping inputs (using "stateless" operators like filters, transforms which operate on individual records).
   READING_INPUT {
     @Override
     public boolean canTransitionFrom(final ControllerStagePhase priorPhase)
@@ -38,9 +38,9 @@ public enum ControllerStagePhase
     }
   },
 
-  // Doing work that must be done *after* all inputs are read.
-  // TODO(gianm): This doc is unclear; POST_READING really means we're doing a preshuffle and have determined what the
-  //   output partition boundaries should be. It isn't valid in non-preshuffle contexts
+  // Post the inputs have been read and mapped to frames, in the `POST_READING` stage, we pre-shuffle and determing the partition boundaries.
+  // This step for a stage spits out the statistics of the data as a whole (and not just the individual records). This
+  // phase is not required in non-pre shuffle contexts.
   POST_READING {
     @Override
     public boolean canTransitionFrom(final ControllerStagePhase priorPhase)

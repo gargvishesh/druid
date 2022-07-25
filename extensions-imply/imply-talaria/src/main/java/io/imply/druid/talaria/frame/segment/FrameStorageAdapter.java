@@ -68,8 +68,6 @@ public class FrameStorageAdapter implements StorageAdapter
   public int getDimensionCardinality(String column)
   {
     // Unknown, so return Integer.MAX_VALUE.
-    // TODO(gianm): Is this OK? It's what the interface javadocs say to do, but we should double-check usage.
-    //   May make more sense to switch the interface to ask for CARDINALITY_UNKNOWN
     return Integer.MAX_VALUE;
   }
 
@@ -90,7 +88,6 @@ public class FrameStorageAdapter implements StorageAdapter
   public Comparable getMinValue(String column)
   {
     // It's ok to return null always, because callers are required to handle the case where the min value is not known.
-    // TODO(gianm): Add notes about this to javadocs
     return null;
   }
 
@@ -99,7 +96,6 @@ public class FrameStorageAdapter implements StorageAdapter
   public Comparable getMaxValue(String column)
   {
     // It's ok to return null always, because callers are required to handle the case where the max value is not known.
-    // TODO(gianm): Add notes about this to javadocs
     return null;
   }
 

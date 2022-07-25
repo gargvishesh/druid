@@ -13,7 +13,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.talaria.frame.Frame;
 
 /**
- * TODO(gianm): Needs a way to detect that the thing writing to the channel has died (?) Or maybe not, if we can use whole-system cancellation
+ * Represents a channel that can generate frames  for a reader to read. It can abstract over the transformations,
+ * computations and the way these individual frames might be represented physically
+ * This is meant for the usage of a single consumer only
  */
 public interface ReadableFrameChannel
 {
@@ -60,10 +62,6 @@ public interface ReadableFrameChannel
   /**
    * Releases any resources associated with this readable channel. After calling this, you should not call any other
    * methods on the channel.
-   *
-   * TODO(gianm): gracefully handle early-closing (like if there is a limiting worker that doesn't read all inputs)
-   * TODO(gianm): many implementations do not handle this very well
-   * TODO(gianm): especially make sure this works with FrameFileHttpResponseHandler
    */
   void doneReading();
 }

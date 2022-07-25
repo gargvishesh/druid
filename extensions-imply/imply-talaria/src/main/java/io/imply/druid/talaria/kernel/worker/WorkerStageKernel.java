@@ -13,11 +13,15 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsSnapshot;
 import io.imply.druid.talaria.kernel.StageDefinition;
+import io.imply.druid.talaria.kernel.StageId;
 import io.imply.druid.talaria.kernel.WorkOrder;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.Pair;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
+import java.util.Set;
 
 public class WorkerStageKernel
 {
@@ -36,6 +40,8 @@ public class WorkerStageKernel
 
   @Nullable
   private Throwable exceptionFromFail;
+
+  private final Set<Pair<StageId, Integer>> postedResultsComplete = new HashSet<>();
 
   private WorkerStageKernel(final WorkOrder workOrder)
   {
@@ -164,6 +170,11 @@ public class WorkerStageKernel
     if (exceptionFromFail == null) {
       exceptionFromFail = t;
     }
+  }
+
+  public boolean addPostedResultsComplete(Pair<StageId, Integer> stageIdAndWorkerNumber)
+  {
+    return postedResultsComplete.add(stageIdAndWorkerNumber);
   }
 
   private void assertPreshuffleStatisticsNeeded()

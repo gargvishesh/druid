@@ -20,7 +20,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * TODO(gianm): Javadoc including the fact that partitions must be iterated *in order*
+ * Represents partitions of a particular entity (generally input to the stage/worker). The various implementations of this
+ * interface represent different strategies to distribute these partitions into groups of partitions, each of which can
+ * then be fed as input to individual processing units
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {

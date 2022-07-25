@@ -16,9 +16,6 @@ import org.apache.druid.java.util.common.ISE;
 import javax.annotation.Nullable;
 import java.util.function.Function;
 
-/**
- * TODO(gianm): migrate to {@link org.apache.druid.java.util.common.Either}
- */
 public class Try<T>
 {
   @Nullable

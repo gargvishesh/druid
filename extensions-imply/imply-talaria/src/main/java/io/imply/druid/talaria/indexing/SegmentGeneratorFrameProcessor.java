@@ -124,8 +124,7 @@ public class SegmentGeneratorFrameProcessor implements FrameProcessor<DataSegmen
       } else {
         log.debug("Finished reading. Pushing segment [%s].", segmentIdWithShardSpec.asSegmentId());
 
-        // TODO(gianm): This blocks, violating FrameProcessor contract
-        // TODO(gianm): This doesn't respond properly to task cancellation
+        // This is a blocking action which violates the FrameProcessor's contract.
         // useUniquePath = false because this class is meant to be used by batch jobs.
         final ListenableFuture<SegmentsAndCommitMetadata> pushFuture =
             appenderator.push(Collections.singletonList(segmentIdWithShardSpec), null, false);

@@ -23,11 +23,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
-/**
- * TODO(gianm): Javadoc, including format details
- * TODO(gianm): Consistent naming for "footer" (we call it the last 2 ints; ReadableByteChunksFrameChannel calls it everything after the frames)
- * TODO(gianm): Compression...?
- */
 public class FrameFileWriter implements Closeable
 {
   public static final byte[] MAGIC = {(byte) 0xff, 0x01};
@@ -56,7 +51,8 @@ public class FrameFileWriter implements Closeable
 
   public static FrameFileWriter open(final WritableByteChannel channel)
   {
-    // TODO(gianm): Limit this somehow... probably by a max number of frames per frame file.
+    // While this is unlimited to prevent the size is bounded by numFrames * size of each frame.
+    // The limits can be made tighter to prevent OOM in case of smaller machines
     final HeapMemoryAllocator allocator = HeapMemoryAllocator.unlimited();
     return new FrameFileWriter(
         channel,
@@ -144,7 +140,6 @@ public class FrameFileWriter implements Closeable
       return;
     }
 
-    // TODO(gianm): Checksum?
     writeMagicIfNeeded();
 
     if (!tableOfContents.reserve(FOOTER_LENGTH)) {

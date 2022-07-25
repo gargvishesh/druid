@@ -41,6 +41,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * NOTE: This doesn't contain the test cases for frame file > 2GB
+ */
 @RunWith(Parameterized.class)
 public class FrameFileTest extends InitializedNullHandlingTest
 {

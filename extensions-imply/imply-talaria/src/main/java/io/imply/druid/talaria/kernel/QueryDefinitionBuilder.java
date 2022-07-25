@@ -93,8 +93,6 @@ public class QueryDefinitionBuilder
 
   public QueryDefinition build()
   {
-    // TODO(gianm): Sanity check: POSTSHUFFLE stages must have same clusterBy as previous stage
-
     final List<StageDefinition> stageDefinitions =
         stageBuilders.stream().map(builder -> builder.build(queryId)).collect(Collectors.toList());
 

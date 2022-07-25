@@ -44,8 +44,6 @@ import java.util.stream.Collectors;
 
 /**
  * This is a thread-unsafe class
- * TODO(gianm): Put something in here to make sure that limited-size in-memory channels do not block
- *   (readers must be spun up at the same time as writers)
  */
 public class ControllerQueryKernel
 {

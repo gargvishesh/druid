@@ -15,7 +15,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.Objects;
 
-// TODO(gianm): use this somewhere
 @JsonTypeName(RowTooLargeFault.CODE)
 public class RowTooLargeFault extends BaseTalariaFault
 {

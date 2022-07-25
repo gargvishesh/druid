@@ -35,8 +35,6 @@ import java.util.List;
  * Kernel for each stage. This is a package-private class because a stage kernel must be owned by a
  * {@link ControllerQueryKernel} and all the methods of this class must be invoked via the corresponding methods of
  * {@link ControllerQueryKernel}. This is to ensure that a query has a global view of all the phases of its stages.
- *
- * TODO(gianm): handle worker failures by tracking phase for each indiv. worker & allowing phase rollback
  */
 class ControllerStageKernel
 {
@@ -84,7 +82,9 @@ class ControllerStageKernel
   }
 
   /**
-   * TODO(gianm): Javadoc. Note that this is the method that decides how many workers to use.
+   * Given a stage definition and number of workers to available per stage, this method creates a stage kernel.
+   * This method determines the actual number of workers to use (which in turn depends on the input slices and
+   * the assignment strategy)
    */
   static ControllerStageKernel create(
       final StageDefinition stageDef,
@@ -118,8 +118,7 @@ class ControllerStageKernel
    */
   boolean canReadResults()
   {
-    // TODO(gianm): want to support running streamable stages in a pipeline, but can't yet since links between
-    //   stages are done as files on the worker side
+    // This is correct when we are working on the file granularity level, but not when working with streamable inputs
     return phase == ControllerStagePhase.RESULTS_READY;
   }
 
@@ -284,8 +283,11 @@ class ControllerStageKernel
       throw new NullPointerException("resultObject must not be null");
     }
 
-    // TODO(gianm): Allow rolling back workers from 'ready' to... not ready... if they fail.
-    // TODO(gianm): Allow rolling back phase if worker(s) fail and results are lost.
+    // This is unidirectional flow of data. While this works in the current state of MSQ where partial fault tolerance
+    // is implemented and a query flows in one direction only, rolling back of workers' state and query kernel's
+    // phase should be allowed to fully support fault tolerance in cases such as:
+    //  1. Rolling back worker's state in case it fails (and then retries)
+    //  2. Rolling back query kernel's phase in case the results are lost (and needs workers to retry the computation)
     if (workersWithResultsComplete.add(workerNumber)) {
       if (this.resultObject == null) {
         this.resultObject = resultObject;
@@ -324,7 +326,10 @@ class ControllerStageKernel
   }
 
   /**
-   * TODO(gianm): Javadoc about preconditions
+   * Failing to comply with the following preconditions of the method will result in an exception being generated:
+   *  1. If the method has been successfully called once before that resulted in the result partitions being computed
+   *  earlier
+   *  2. If the method has been called without gathering all the worker statistics
    */
   private void generateResultPartitionsAndBoundaries()
   {

@@ -35,7 +35,7 @@ public class TalariaWorkerTask extends AbstractTask
   private final String controllerTaskId;
   private final int workerNumber;
 
-  // TODO(gianm): HACK HACK HACK
+  // Using an Injector directly because tasks do not have a way to provide their own Guice modules.
   @JacksonInject
   private Injector injector;
 

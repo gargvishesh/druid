@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ReadableInputStreamFrameChannel implements ReadableFrameChannel
 {
@@ -50,6 +51,16 @@ public class ReadableInputStreamFrameChannel implements ReadableFrameChannel
 
   private ExecutorService executorService;
 
+  /**
+   * Parameter for manipulating retry sleep duration
+   */
+  private static final int BASE_SLEEP_MILLIS = 100;
+
+  /**
+   * Parameter for manipulating retry sleep duration.
+   */
+  private static final int MAX_SLEEP_MILLIS = 2000;
+
 
   public ReadableInputStreamFrameChannel(InputStream inputStream, String id, ExecutorService executorService)
   {
@@ -75,16 +86,17 @@ public class ReadableInputStreamFrameChannel implements ReadableFrameChannel
         readingStarted = true;
       }
       executorService.submit(() -> {
+        int nTry = 1;
         while (true) {
           if (!keepReading) {
             try {
-              //TODO: change to exponential backoff.
-              Thread.sleep(100);
+              Thread.sleep(nextRetrySleepMillis(nTry));
               synchronized (lock) {
                 if (inputStreamFinished || inputStreamError || delegate.isErrorOrFinished()) {
                   return;
                 }
               }
+              ++nTry;
             }
             catch (InterruptedException e) {
               // close inputstream anyway if the thread interrups
@@ -94,7 +106,7 @@ public class ReadableInputStreamFrameChannel implements ReadableFrameChannel
 
           } else {
             synchronized (lock) {
-
+              nTry = 1; // Reset the value of try because we are not waiting on the data from the inputStream
               // if done reading method is called we should not read input stream further
               if (inputStreamFinished) {
                 delegate.doneWriting();
@@ -194,4 +206,17 @@ public class ReadableInputStreamFrameChannel implements ReadableFrameChannel
       IOUtils.closeQuietly(inputStream);
     }
   }
+
+  /**
+   * Function to implement exponential backoff. The calculations are similar to the function that is being used in
+   * {@link org.apache.druid.java.util.common.RetryUtils} but with a different MAX_SLEEP_MILLIS and BASE_SLEEP_MILLIS
+   */
+  private static long nextRetrySleepMillis(final int nTry)
+  {
+    final double fuzzyMultiplier = Math.min(Math.max(1 + 0.2 * ThreadLocalRandom.current().nextGaussian(), 0), 2);
+    final long sleepMillis = (long) (Math.min(MAX_SLEEP_MILLIS, BASE_SLEEP_MILLIS * Math.pow(2, nTry - 1))
+                                     * fuzzyMultiplier);
+    return sleepMillis;
+  }
+
 }

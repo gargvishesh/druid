@@ -126,6 +126,7 @@ import org.apache.druid.indexing.common.actions.SegmentTransactionalInsertAction
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexTuningConfig;
 import org.apache.druid.indexing.overlord.Segments;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.JodaUtils;
@@ -184,10 +185,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -203,8 +204,8 @@ public class LeaderImpl implements Leader
   private final MSQControllerTask task;
   private final LeaderContext context;
 
-  // TODO(gianm): ArrayBlockingQueue; limit size; reasonable errors on overflow
-  private final BlockingQueue<Consumer<ControllerQueryKernel>> kernelManipulationQueue = new LinkedBlockingDeque<>();
+  private final BlockingQueue<Consumer<ControllerQueryKernel>> kernelManipulationQueue =
+      new ArrayBlockingQueue<>(Limits.MAX_KERNEL_MANIPULATION_QUEUE_SIZE);
 
   // For system error reporting. This is the very first error we got from a worker. (We only report that one.)
   private final AtomicReference<MSQErrorReport> workerErrorRef = new AtomicReference<>();
@@ -294,7 +295,7 @@ public class LeaderImpl implements Leader
     // stopGracefully() is called when the containing process is terminated, or when the task is canceled.
     log.info("Query [%s] canceled.", queryDef != null ? queryDef.getQueryId() : "<no id yet>");
 
-    kernelManipulationQueue.add(
+    addToKernelManipulationQueue(
         kernel -> {
           throw new TalariaException(CanceledFault.INSTANCE);
         }
@@ -527,7 +528,7 @@ public class LeaderImpl implements Leader
 
     workerTaskLauncherFuture.addListener(
         () ->
-            kernelManipulationQueue.add(queryKernel -> {
+            addToKernelManipulationQueue(queryKernel -> {
               // Throw an exception in the main loop, if anything went wrong.
               TalariaFutureUtils.getUncheckedImmediately(workerTaskLauncherFuture);
             }),
@@ -562,11 +563,10 @@ public class LeaderImpl implements Leader
           // going to correspond to the stage immediately prior to the final segment-generator stage.
           int shuffleStageNumber = Iterables.getOnlyElement(queryDef.getFinalStageDefinition().getInputStageNumbers());
 
-          // TODO(gianm): But sometimes it won't! for example, queries that end in GROUP BY with no ORDER BY
-          //    (the final stage is not a shuffle.) The below logic supports this, but it isn't necessarily
-          //    always OK! It assumes that stages without shuffling will retain the partition boundaries and
-          //    signature of the prior stages, which isn't necessarily guaranteed. (although I think it's true
-          //    for QueryKit-generated queries.)
+          // The following logic assumes that output of all the stages without a shuffle retain the partition boundaries
+          // of the input to that stage. This may not always be the case. For example GROUP BY queries without an ORDER BY
+          // clause. This works for QueryKit generated queries uptil now, but it should be reworked as it might not
+          // always be the case
           while (!queryDef.getStageDefinition(shuffleStageNumber).doesShuffle()) {
             shuffleStageNumber =
                 Iterables.getOnlyElement(queryDef.getStageDefinition(shuffleStageNumber).getInputStageNumbers());
@@ -577,10 +577,11 @@ public class LeaderImpl implements Leader
           final ClusterByPartitions partitionBoundaries =
               queryKernel.getResultPartitionBoundariesForStage(shuffleStageId);
 
+          // We require some data to be inserted in case it is partitioned by anything other than all and we are
+          // inserting everything into a single bucket. This can be handled more gracefully instead of throwing an exception
+          // Note: This can also be the case when we have limit queries but validation in Broker SQL layer prevents such
+          // queries
           if (isTimeBucketed && partitionBoundaries.equals(ClusterByPartitions.oneUniversalPartition())) {
-            // TODO(gianm): Properly handle the case where there is no data and remove EmptyInsertFault.
-            // TODO(gianm): This also happens when there is a LIMIT, because it obscures the order-by.
-            // TODO(gianm): However validation in the Broker SQL layer prevents this
             throw new TalariaException(new InsertCannotBeEmptyFault(task.getDataSource()));
           } else {
             log.info("Query [%s] generating %d segments.", queryDef.getQueryId(), partitionBoundaries.size());
@@ -724,10 +725,12 @@ public class LeaderImpl implements Leader
   @Override
   public void updateStatus(int stageNumber, int workerNumber, Object keyStatisticsObject)
   {
-    kernelManipulationQueue.add(
+    addToKernelManipulationQueue(
         queryKernel -> {
-          // TODO(gianm): don't blow up with NPE if given nonexistent stageid
           final StageId stageId = queryKernel.getStageId(stageNumber);
+          if (stageId == null) {
+            throw new ISE("Unable to find stage with id [%s].", stageId);
+          }
 
           // We need a specially-decorated ObjectMapper to deserialize key statistics.
           final StageDefinition stageDef = queryKernel.getStageDefinition(stageId);
@@ -737,9 +740,18 @@ public class LeaderImpl implements Leader
               stageDef.getShuffleSpec().get().doesAggregateByClusterKey()
           );
 
-          // TODO(gianm): do something useful if this conversion fails
-          final ClusterByStatisticsSnapshot keyStatistics =
-              mapper.convertValue(keyStatisticsObject, ClusterByStatisticsSnapshot.class);
+          final ClusterByStatisticsSnapshot keyStatistics;
+          try {
+            keyStatistics = mapper.convertValue(keyStatisticsObject, ClusterByStatisticsSnapshot.class);
+          }
+          catch (IllegalArgumentException e) {
+            throw new IAE(
+                e,
+                "Unable to deserialize the key statistic for stage [%s] received from the worker [%d]",
+                stageId,
+                workerNumber
+            );
+          }
 
           queryKernel.addResultKeyStatisticsForStageAndWorker(stageId, workerNumber, keyStatistics);
         }
@@ -806,7 +818,7 @@ public class LeaderImpl implements Leader
           null,
           new TooManyWarningsFault(limit.intValue(), errorCode)
       ));
-      kernelManipulationQueue.add(
+      addToKernelManipulationQueue(
           queryKernel ->
               queryKernel.getActiveStages().forEach(queryKernel::failStage)
       );
@@ -825,17 +837,28 @@ public class LeaderImpl implements Leader
       Object resultObject
   )
   {
-    kernelManipulationQueue.add(
+    addToKernelManipulationQueue(
         queryKernel -> {
-          // TODO(gianm): don't blow up with NPE if given nonexistent stageid
           final StageId stageId = new StageId(queryId, stageNumber);
+          if (stageId == null) {
+            throw new ISE("Unable to find stage with id [%s]", stageId);
+          }
+          final Object convertedResultObject;
+          try {
+            convertedResultObject = context.jsonMapper().convertValue(
+                resultObject,
+                queryKernel.getStageDefinition(stageId).getProcessorFactory().getAccumulatedResultTypeReference()
+            );
+          }
+          catch (IllegalArgumentException e) {
+            throw new IAE(
+                e,
+                "Unable to deserialize the result object for stage [%s] received from the worker [%d]",
+                stageId,
+                workerNumber
+            );
+          }
 
-          // TODO(gianm): do something useful if this conversion fails
-          //noinspection unchecked
-          final Object convertedResultObject = context.jsonMapper().convertValue(
-              resultObject,
-              queryKernel.getStageDefinition(stageId).getProcessorFactory().getAccumulatedResultTypeReference()
-          );
 
           queryKernel.setResultsCompleteForStageAndWorker(stageId, workerNumber, convertedResultObject);
         }
@@ -1225,7 +1248,6 @@ public class LeaderImpl implements Leader
       if (segments.isEmpty()) {
         // Nothing to publish, only drop. We already validated that the intervalsToDrop do not have any
         // partially-overlapping segments, so it's safe to drop them as intervals instead of as specific segments.
-        // TODO(gianm): Make this transactional
         for (final Interval interval : intervalsToDrop) {
           context.taskActionClient()
                  .submit(new MarkSegmentsAsUnusedAction(task.getDataSource(), interval));
@@ -1768,8 +1790,8 @@ public class LeaderImpl implements Leader
     }
 
     // Each column can be of either time, dimension, aggregator. For this method. we can ignore the time column.
-    // For non complex columns, If the aggregator factory of the column is not available, we treat the col as a dimension.
-    // For complex columns, certains hacks are in place.
+    // For non-complex columns, If the aggregator factory of the column is not available, we treat the column as
+    // a dimension. For complex columns, certains hacks are in place.
     for (final String outputColumn : outputColumnsInOrder) {
       final String queryColumn = columnMappings.getQueryColumnForOutputColumn(outputColumn);
       final ColumnType type =
@@ -1790,12 +1812,8 @@ public class LeaderImpl implements Leader
         } else {
           // complex columns only
           if (DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.containsKey(type.getComplexTypeName())) {
-            // todo(clint): this upstream method should be reworked to be less explody maybe, so we don't have to look
-            //               at providers directly
             dimensions.add(DimensionSchemaUtils.createDimensionSchema(outputColumn, type));
           } else if (!isRollupQuery) {
-            // TODO(gianm): hack to workaround the fact that aggregators are required for transferring complex types
-            //              that do not have a dimension handler
             aggregators.add(new PassthroughAggregatorFactory(outputColumn, type.getComplexTypeName()));
           } else {
             populateDimensionsAndAggregators(
@@ -1985,6 +2003,22 @@ public class LeaderImpl implements Leader
     return validExceptionExcerpts.stream().anyMatch(exceptionMsg::contains);
   }
 
+  private void addToKernelManipulationQueue(Consumer<ControllerQueryKernel> kernelConsumer)
+  {
+    try {
+      kernelManipulationQueue.add(kernelConsumer);
+    }
+    catch (IllegalStateException e) {
+      log.warn("The leader's kernel manipulation queue is full. "
+               + "To debug, start by taking stack traces of the leader and figure out which tasks are taking time.");
+      throw new ISE("Leader's kernel manipulation queue is full. "
+                    + "This indicates that leader kernel tasks are not completing fast enough.");
+    }
+    catch (Exception e) {
+      throw e;
+    }
+  }
+
   private interface TaskContactFn
   {
     ListenableFuture<Void> contactTask(WorkerClient client, String taskId, int workerNumber);
@@ -1993,7 +2027,6 @@ public class LeaderImpl implements Leader
   @Override
   public RunningLeaderStatus status()
   {
-    // TODO(paul): create a real status report
     return new RunningLeaderStatus(id());
   }
 }
