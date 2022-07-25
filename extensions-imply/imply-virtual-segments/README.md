@@ -56,7 +56,6 @@ No configuration change is required on hot historicals.
 ```
 druid.service=druid/broker-cold
 druid.broker.segment.watchedTiers=["_cold_tier"]
-
 ```
 
 ## Hot-tier broker configuration
