@@ -39,7 +39,6 @@ public class ComplexFrameColumnReader implements FrameColumnReader
   @Override
   public ColumnPlus readColumn(final Frame frame)
   {
-    // TODO(gianm): implement validation
 
     final Memory memory = frame.region(columnNumber);
     final int typeNameLength = memory.getInt(Byte.BYTES);

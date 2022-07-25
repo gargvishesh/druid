@@ -69,12 +69,15 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 /**
- * TODO(gianm): Feature to collapse to single level if L0 has # mergers = 1, and # partitions = 1
- * TODO(gianm): Feature to merge already-sorted inputs (i.e. inject at level 0 instead of -1)
- * TODO(gianm): Feature to combine while merging
- * TODO(gianm): Use in-memory channels when limiting (?) although hard to predict if this is OK due to variable frame sizes
- * TODO(gianm): Clarify semantics of limits + partitions (is the limit applied to each? or globally?)
- * TODO(gianm): Document requirement that input channel frames be individually sorted
+ * This is an implementation of off-memory on-disk n-way merge sort.
+ *
+ * Given a list of inputChannels that contains sorted frame channels, the main method of this class attempts to merge
+ * them all s.t. the resultant output is sorted as well. IMPORTANT NOTE: The channels should produce frames that need
+ * to be individually sorted. There isn't an ordering requirement between the different frames of an input channel or
+ * between channels themselves.
+ *
+ * The output of this sort method is then broken down into chunks depending on the outputPartitions that is supplied
+ * to it and each chunk is then written to an outputChannel which is created from outputChannelFactory
  */
 public class SuperSorter
 {
@@ -82,17 +85,54 @@ public class SuperSorter
   public static final int UNKNOWN_LEVEL = -1;
   public static final long UNKNOWN_TOTAL = -1;
 
+  /**
+   * Input Channels that contain individually sorted frames that need to be merged
+   */
   private final List<ReadableFrameChannel> inputChannels;
+
+  /**
+   * Reader used to read the frames from the channels
+   */
   private final FrameReader frameReader;
+
+  /**
+   * The columns on which the sort ordering is determined. For example, given frames with col1,col2,col3,col4 and
+   * clusterBy as col4,col3, the sorting would be done on the tuple (col4, col3)
+   */
   private final ClusterBy clusterBy;
+
+  /**
+   * Resolves to ClusterBy partitions which determine the cuts that need to be made in the final sorted output stream
+   * of data. This is supplied as a future so that the computation of the partitions can be done in parallel by the
+   * tasks while the lower levels of the sorting is taking place
+   */
   private final ListenableFuture<ClusterByPartitions> outputPartitionsFuture;
+
+  /**
+   * Executor used to actually merge the individually sorted frames
+   */
   private final FrameProcessorExecutor exec;
+
+  /**
+   * Temporary directory for intermediate merge outputs
+   */
   private final File directory;
+
+  /**
+   * Factory that is used to produce output channels corresponding to each outputPartition
+   */
   private final OutputChannelFactory outputChannelFactory;
+
+  // Parameters and variables for managing memory and number of individual mergers running at a time
   private final Supplier<MemoryAllocator> innerFrameAllocatorMaker;
   private final int maxChannelsPerProcessor;
   private final int maxActiveProcessors;
   private final long rowLimit;
+
+  /**
+   * Can be used to cancel the work being executed by the SuperSorter. This must be associated with the FrameProcessorExectuor
+   * passed to it
+   */
   private final String cancellationId;
 
   private final Object runWorkersLock = new Object();
@@ -334,7 +374,6 @@ public class SuperSorter
             final IntSet keepReading = result.rhs;
 
             synchronized (runWorkersLock) {
-              // TODO(gianm): Something that limits the size of the inputBuffer
               inputBuffer.addAll(batch);
               inputFramesReadSoFar += batch.size();
               inputChannelsToRead = keepReading;

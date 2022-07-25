@@ -190,7 +190,6 @@ public class FrameProcessorExecutor
           }
         }
 
-        // TODO(gianm): Interrupt the thread running this when cancel is called
         Optional<ReturnOrAwait<T>> retVal;
 
         try {

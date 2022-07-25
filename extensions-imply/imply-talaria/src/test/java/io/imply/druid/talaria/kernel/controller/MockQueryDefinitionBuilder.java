@@ -165,7 +165,7 @@ public class MockQueryDefinitionBuilder
 
   /**
    * Perform a basic check that the query definition that the user is trying to build is acyclic indeed. This method
-   * is not required in the source code because the DAG there is created by query toolkits
+   * is not required in the source code because the DAG there is created by query toolkits.
    */
   private boolean verifyIfAcyclic()
   {

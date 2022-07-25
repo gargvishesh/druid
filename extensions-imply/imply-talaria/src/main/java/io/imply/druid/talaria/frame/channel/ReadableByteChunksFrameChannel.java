@@ -31,9 +31,9 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
- * TODO(gianm): Javadocs
- * TODO(gianm): Note that the limit is 'loose' (single frame may exceed it)
- * TODO(gianm): Make sure we can cleanly detect truncation; & include tests
+ * Accepts chunks of bytes and produces frames to read if the chunks added so far form a complete frame. There is a soft
+ * contract between the users of this class and this class that the user will stop adding chunk once the channel's limit
+ * is reached, however the channel will still continue to accept it even if it is over its limit.
  */
 public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
 {
@@ -113,8 +113,9 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
         if (chunk.length > 0) {
           bytesAdded += chunk.length;
 
+          // We are inherently ignoring the FOOTER with the following logic. Footer should be validated instead of
+          // simply being ignored
           if (streamPart != StreamPart.FOOTER) {
-            // TODO(gianm): Validate footer instead of throwing it away
             chunks.add(Try.value(chunk));
             bytesBuffered += chunk.length;
           }
@@ -238,9 +239,9 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
   public void doneReading()
   {
     synchronized (lock) {
-      // TODO(gianm): Setting "noMoreWrites" causes the upstream entity to realize this channel has closed the
-      //    next time it calls "addChunk". It'd be better to propagate this information earlier, so that entity
-      //    can shut itself down more promptly in case of query cancelation or downstream failure.
+      // Setting "noMoreWrites" causes the upstream entity to realize this channel has closed the
+      // next time it calls "addChunk". It'd be better to propagate this information earlier, so that entity
+      // can shut itself down more promptly in case of query cancelation or downstream failure.
       noMoreWrites = true;
       chunks.clear();
       nextCompressedFrameLength = UNKNOWN_LENGTH;
@@ -325,9 +326,9 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
           // Read nextFrameLength if needed; otherwise do nothing.
           if (nextCompressedFrameLength == UNKNOWN_LENGTH
               && bytesBuffered >= FRAME_MARKER_AND_LENGTH_BYTES) {
-            // TODO(gianm): Prevent super-jumbo nextFrameLength; this stream may not come from fully-trusted source and
-            //  we must avoid resource exhaustion
             nextCompressedFrameLength = copyFromQueuedChunks(FRAME_MARKER_AND_LENGTH_BYTES).getLong(Byte.BYTES);
+            // nextCompressedFrameLength should be validated to account for valid sized frames. Larger frames might not
+            // come from trusted sources and can cause resource exhaustion.
           }
         } else if (memory.getByte(0) == FrameFileWriter.MARKER_NO_MORE_FRAMES) {
           streamPart = StreamPart.FOOTER;
@@ -339,7 +340,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
     }
 
     if (streamPart == StreamPart.FOOTER) {
-      // TODO(gianm): Validate footer instead of throwing it away
+      // Footer should be validated instead of being silently ignored like this
       if (bytesBuffered > 0) {
         deleteFromQueuedChunks(bytesBuffered);
       }
@@ -374,7 +375,7 @@ public class ReadableByteChunksFrameChannel implements ReadableFrameChannel
       throw new IAE("Cannot copy [%,d] bytes, only have [%,d] buffered", numBytes, bytesBuffered);
     }
 
-    // TODO(gianm): consistent order
+    // Instead of native ordering, a consistent ordering should be enforced everywhere
     final WritableMemory buf = WritableMemory.allocate(numBytes, ByteOrder.nativeOrder());
 
     int bufPos = 0;

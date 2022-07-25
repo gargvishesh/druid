@@ -39,8 +39,8 @@ public class InsertLockPreemptedFaultTest extends TalariaTestRunner
   }
 
   /**
-   * Hack to allow the {@link io.imply.druid.talaria.framework.TalariaTestTaskActionClient} to determine whether
-   * to grant or preempt the lock
+   * Dummy class for {@link io.imply.druid.talaria.framework.TalariaTestTaskActionClient} to determine whether
+   * to grant or preempt the lock. This should be ideally done via injectors
    */
   public static class LockPreemptedHelper
   {

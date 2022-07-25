@@ -127,8 +127,7 @@ public class OffsetLimitFrameProcessor implements FrameProcessor<Long>
 
     final Cursor cursor = FrameProcessors.makeCursor(frame, frameReader);
 
-    // TODO(gianm): hack to make sure we can always generate a single frame.
-    //    we can remove this need if we complexify the logic.
+    // Using an unlimited memory allocator to make sure that atleast a single frame can always be generated
     final HeapMemoryAllocator unlimitedAllocator = HeapMemoryAllocator.unlimited();
 
     long rowsProcessedSoFarInFrame = 0;

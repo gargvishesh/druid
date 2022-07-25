@@ -158,8 +158,13 @@ public class MSQErrorReport
 
     Throwable cause = e;
 
+    // This method will grow as we try to add more faults and exceptions
+    // One way of handling this would be to extend the faults to have a method like
+    // public TalariaFault fromException(@Nullable Throwable e) which returns the specific fault if it can be reconstructed
+    // from the exception or null. Then instead of having a case per exception, we can have a case per fault, which
+    // should be cool because there is a 1:1 mapping between faults and exceptions (apart from the more geeneric
+    // UnknownFaults and TalariaExceptions)
     while (cause != null) {
-      // TODO(gianm): Provide better way to register exception -> fault mappings
 
       if (cause instanceof TalariaException) {
         return ((TalariaException) cause).getFault();

@@ -39,7 +39,6 @@ public class FrameCursor implements Cursor
   @Override
   public DateTime getTime()
   {
-    // TODO(gianm): What's a sensible cursor time? Get it from the frame, maybe?
     return DateTimes.utc(0);
   }
 

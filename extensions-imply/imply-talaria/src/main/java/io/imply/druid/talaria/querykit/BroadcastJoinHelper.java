@@ -36,9 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * TODO(gianm): build hash tables using {@link org.apache.druid.query.groupby.epinephelinae.collection.MemoryOpenHashTable}
- */
 public class BroadcastJoinHelper
 {
   private final Int2IntMap inputNumberToProcessorChannelMap;
@@ -52,7 +49,9 @@ public class BroadcastJoinHelper
   private long memoryUsed = 0L;
 
   /**
-   * Create a new broadcast join helper.
+   * Create a new broadcast join helper. Currently this builds the tables in channelData. Using
+   * {@link org.apache.druid.query.groupby.epinephelinae.collection.MemoryOpenHashTable} should be more appropriate for
+   * this purpose
    *
    * @param inputNumberToProcessorChannelMap map of input slice number -> channel position in the "channels" list
    * @param channels                         list of input channels
@@ -137,7 +136,7 @@ public class BroadcastJoinHelper
     return joinableFactory.createSegmentMapFn(
         analysis.getJoinBaseTableFilter().map(Filters::toFilter).orElse(null),
         analysis.getPreJoinableClauses(),
-        new AtomicLong() /* TODO(gianm): cpu time accumulator */,
+        new AtomicLong(),
         analysis.getBaseQuery().orElse(query)
     );
   }

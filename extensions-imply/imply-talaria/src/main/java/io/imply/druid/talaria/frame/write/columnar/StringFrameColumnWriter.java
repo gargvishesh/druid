@@ -71,8 +71,6 @@ public abstract class StringFrameColumnWriter<T extends ColumnValueSelector> imp
   @Override
   public boolean addSelection()
   {
-    // TODO(gianm): retain dictionary codes from selectors
-
     final List<ByteBuffer> utf8Data = getUtf8ByteBuffersFromSelector(selector);
     final int utf8DataByteLength = countBytes(utf8Data);
 

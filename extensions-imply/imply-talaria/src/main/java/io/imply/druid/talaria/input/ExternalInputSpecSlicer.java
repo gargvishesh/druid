@@ -59,8 +59,6 @@ public class ExternalInputSpecSlicer implements InputSpecSlicer
       final SplittableInputSource<Object> splittableInputSource = (SplittableInputSource<Object>) inputSource;
 
       try {
-        // TODO(gianm): Need a limit on # of files to prevent OOMing here. We are flat-out ignoring the recommendation
-        //  from InputSource#createSplits to avoid materializing the list.
         workerInputSourcess = SplitUtils.makeSplits(
             splittableInputSource.createSplits(inputFormat, FilePerSplitHintSpec.INSTANCE)
                                  .map(splittableInputSource::withSplit)

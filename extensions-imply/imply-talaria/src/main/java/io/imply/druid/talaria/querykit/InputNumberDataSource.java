@@ -34,8 +34,6 @@ public class InputNumberDataSource implements DataSource
   @Override
   public Set<String> getTableNames()
   {
-    // TODO(gianm): there actually may be some tables in the input, but they are getting dropped here
-    // TODO(gianm): is this ok? (it probably is, because it's similar to what happens with inline. but should verify.)
     return Collections.emptySet();
   }
 

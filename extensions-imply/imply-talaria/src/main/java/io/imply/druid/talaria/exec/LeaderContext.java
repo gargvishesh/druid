@@ -27,7 +27,8 @@ import java.util.Map;
 public interface LeaderContext
 {
   ObjectMapper jsonMapper();
-  // TODO(paul): Per Gian, this is a hack in MSQControllerTask carried over here.
+
+  // Using an Injector directly because tasks do not have a way to provide their own Guice modules.
   Injector injector();
   DruidNode selfNode();
 
@@ -41,8 +42,6 @@ public interface LeaderContext
    * Despite the name: this is a client that <b>tasks</b>
    * to take Overlord <b>actions</b>.
    */
-  // TODO(paul): This must be modified to allow taking actions even if the
-  // task is not running within the Overlord system.
   TaskActionClient taskActionClient();
 
   /**

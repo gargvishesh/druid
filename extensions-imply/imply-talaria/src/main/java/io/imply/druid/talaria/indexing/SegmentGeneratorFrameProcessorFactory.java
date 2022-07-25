@@ -159,7 +159,7 @@ public class SegmentGeneratorFrameProcessorFactory
                       persistDirectory,
                       frameContext.memoryParameters()
                   ),
-                  new FireDepartmentMetrics() /* TODO(gianm): Don't throw away */,
+                  new FireDepartmentMetrics(), // We should eventually expose the FireDepartmentMetrics
                   frameContext.segmentPusher(),
                   frameContext.jsonMapper(),
                   frameContext.indexIO(),

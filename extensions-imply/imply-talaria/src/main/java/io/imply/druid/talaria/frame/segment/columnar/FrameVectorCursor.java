@@ -23,7 +23,6 @@ import java.io.IOException;
  *
  * This class is only used for columnar frames. It is not used for row-based frames.
  */
-@SuppressWarnings("unused") // TODO(gianm): implement this
 public class FrameVectorCursor implements VectorCursor
 {
   private final VectorOffset offset;

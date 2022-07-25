@@ -182,7 +182,6 @@ public class InputChannels
       final BlockingQueueFrameChannel queueChannel = BlockingQueueFrameChannel.minimal();
       final FrameChannelMuxer muxer = new FrameChannelMuxer(channels, queueChannel);
 
-      // TODO(gianm): Return future is ignored. is that ok? can we just use the channel?
       exec.runFully(muxer, cancellationId);
 
       return queueChannel;
@@ -199,7 +198,9 @@ public class InputChannels
       final String cancellationId
   ) throws IOException
   {
-    // TODO(gianm): Use SuperSorter, but must implement "already-sorted channel" optimization first.
+    // This can be done via SuperSorter, but it would be slow in the current implementation because of the overhead required
+    // in case of the sorted channels.
+    // This can reuse the SuperSorter once it is optimized to handle already sorted cases
     final BlockingQueueFrameChannel queueChannel = BlockingQueueFrameChannel.minimal();
 
     final List<ReadableFrameChannel> channels = openChannels(
@@ -228,7 +229,6 @@ public class InputChannels
           -1
       );
 
-      // TODO(gianm): Return future is ignored. is that ok? can we just use the channel?
       exec.runFully(merger, cancellationId);
 
       return queueChannel;

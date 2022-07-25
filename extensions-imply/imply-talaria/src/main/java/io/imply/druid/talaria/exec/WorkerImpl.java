@@ -113,11 +113,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -242,9 +240,6 @@ public class WorkerImpl implements Worker
 
     final Map<StageId, SettableFuture<ClusterByPartitions>> partitionBoundariesFutureMap = new HashMap<>();
 
-    // TODO(gianm): push this into kernel
-    final Set<Pair<StageId, Integer>> postedResultsComplete = new HashSet<>();
-
     final Map<StageId, FrameContext> stageFrameContexts = new HashMap<>();
 
     while (!kernelHolder.isDone()) {
@@ -321,7 +316,7 @@ public class WorkerImpl implements Worker
         }
 
         if (kernel.getPhase() == WorkerStagePhase.RESULTS_READY
-            && postedResultsComplete.add(Pair.of(stageDefinition.getId(), kernel.getWorkOrder().getWorkerNumber()))) {
+            && kernel.addPostedResultsComplete(Pair.of(stageDefinition.getId(), kernel.getWorkOrder().getWorkerNumber()))) {
           if (leaderAlive) {
             leaderClient.postResultsComplete(
                 stageDefinition.getId(),
@@ -636,8 +631,10 @@ public class WorkerImpl implements Worker
         continue;
       }
       output.doneReading();
-      // todo: push this down to the readableFrameChannel
-      // todo: clean the stage output in case of a worker crash.
+
+      // One caveat with this approach is that in case of a worker crash, while the MM/Indexer systems will delete their
+      // temp directories where intermediate results were stored, it won't be the case for the external storage.
+      // Therefore, the logic for cleaning the stage output in case of a worker/machine crash has to be external. We currently take care of this in the leader.
       if (durableStageStorageEnabled) {
         final String fileName = DurableStorageOutputChannelFactory.getPartitionFileName(
             task.getControllerTaskId(),

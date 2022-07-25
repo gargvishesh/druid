@@ -201,7 +201,6 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
    */
   private boolean writeOutputRow() throws IOException
   {
-    // TODO(gianm): hack: the mergeFn can shrink the row too much; re-expand it.
     final int resultRowSize = query.getResultRowSignature().size();
 
     if (outputRow.length() < resultRowSize) {
@@ -211,7 +210,6 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
     }
 
     // Apply post-aggregators.
-    // TODO(gianm): copy-pasted code from GroupByStrategyV2
     final Map<String, Object> outputRowAsMap = outputRow.toMap(query);
 
     for (int i = 0; i < query.getPostAggregatorSpecs().size(); i++) {
@@ -295,7 +293,6 @@ public class GroupByPostShuffleFrameProcessor implements FrameProcessor<Long>
       clonedHavingSpec.setQuery(query);
       return clonedHavingSpec;
     } else {
-      // TODO(gianm): Only works with AlwaysHavingSpec and DimFilterHavingSpec
       throw new UnsupportedOperationException("Must use 'filter' or 'always' havingSpec");
     }
   }

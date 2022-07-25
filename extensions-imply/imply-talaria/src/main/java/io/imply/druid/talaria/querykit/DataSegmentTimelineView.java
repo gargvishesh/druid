@@ -20,17 +20,15 @@ import java.util.Optional;
 public interface DataSegmentTimelineView
 {
   /**
-   * Returns the timeline for a datasource, if it exists. The analysis object passed in must represent a scan-based
+   * Returns the timeline for a datasource, if it 'exists'. The analysis object passed in must represent a scan-based
    * datasource of a single table. (i.e., {@link DataSourceAnalysis#getBaseTableDataSource()} must be present.)
-   *
-   * TODO(gianm): Define "exists"
    *
    * @param dataSource table data source name
    * @param intervals  relevant intervals. The returned timeline will *at least* include all segments that overlap
    *                   these intervals. It may also include more. Empty means the timeline may not contain any
    *                   segments at all.
    *
-   * @return timeline, if it exists
+   * @return timeline, if it 'exists'
    *
    * @throws IllegalStateException if 'analysis' does not represent a scan-based datasource of a single table
    */

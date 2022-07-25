@@ -73,7 +73,6 @@ public class FrameCursorFactory implements CursorFactory
   @Override
   public boolean canVectorize(@Nullable Filter filter, VirtualColumns virtualColumns, boolean descending)
   {
-    // TODO(gianm): impl vectorized cursor enough that it's actually usable
     return false;
   }
 
@@ -106,7 +105,6 @@ public class FrameCursorFactory implements CursorFactory
       return Sequences.withBaggage(Sequences.simple(Collections.singletonList(cursor)), closer);
     } else {
       // If gran != ALL, assume the frame is time-ordered. Callers shouldn't use gran != ALL on non-time-ordered data.
-      // TODO(gianm): Validate the above, instead of assuming it.
 
       if (frameColumnSelector.getNumRows() == 0) {
         return Sequences.empty();

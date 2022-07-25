@@ -32,8 +32,9 @@ import java.util.Map;
  */
 public interface Leader
 {
-  // TODO(paul): Flesh out this status and move to the API package.
-  // This probably wants to be an Async API status
+  /**
+   * POJO for capturing the status of a leader task that is currently running
+   */
   class RunningLeaderStatus
   {
     private final String id;

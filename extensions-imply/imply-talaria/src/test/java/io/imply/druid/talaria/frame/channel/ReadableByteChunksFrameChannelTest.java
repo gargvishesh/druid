@@ -43,9 +43,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * TODO(gianm): Add tests for bad streams.
- */
 @RunWith(Enclosed.class)
 public class ReadableByteChunksFrameChannelTest
 {

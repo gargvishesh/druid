@@ -220,7 +220,7 @@ public class IndexerWorkerContext implements WorkerContext
   {
     final int numWorkersInJvm;
 
-    // TODO(gianm): hack alert!! need to know max # of workers in jvm for memory allocations
+    // Determine the max number of workers in JVM for memory allocations.
     if (toolbox.getAppenderatorsManager() instanceof UnifiedIndexerAppenderatorsManager) {
       // CliIndexer
       numWorkersInJvm = injector.getInstance(WorkerConfig.class).getCapacity();

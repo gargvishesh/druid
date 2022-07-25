@@ -34,9 +34,6 @@ import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.EnumSet;
 
-/**
- * TODO(gianm): document file format
- */
 public class FrameFile implements Closeable
 {
   private static final Logger log = new Logger(FrameFile.class);
@@ -91,8 +88,6 @@ public class FrameFile implements Closeable
       throw new IOE("File [%s] is too short for a header", file);
     }
 
-    // TODO(gianm): Validation of file format, magic, length, etc.
-    // TODO(gianm): consider whether 2B frames is enough for a single file
     final int numFrames = memory.getInt(memory.getCapacity() - Integer.BYTES * 2);
     final int numPartitions = memory.getInt(memory.getCapacity() - Integer.BYTES);
 
@@ -188,9 +183,6 @@ public class FrameFile implements Closeable
     }
   }
 
-  /**
-   * TODO(gianm): this causes an allocation and decompression and copy. provide a way to pass in memory to avoid allocation
-   */
   public Frame frame(final int frameNumber)
   {
     checkOpen();

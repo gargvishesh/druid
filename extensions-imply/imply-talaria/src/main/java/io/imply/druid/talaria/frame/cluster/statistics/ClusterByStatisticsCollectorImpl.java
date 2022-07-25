@@ -33,8 +33,8 @@ import java.util.stream.Collectors;
 
 public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsCollector
 {
-  // Used for generatePartitionsWithMaxCount; see https://github.com/implydata/druid/pull/884 for potentially
-  // better implementation.
+  // Check if this can be done via binary search (accounting for the fuzziness of the datasketches)
+  // for an objectively faster and more accurate solution instead of finding the best match with the following parameters
   private static final int MAX_COUNT_MAX_ITERATIONS = 500;
   private static final double MAX_COUNT_ITERATION_GROWTH_FACTOR = 1.05;
 
@@ -46,7 +46,8 @@ public class ClusterByStatisticsCollectorImpl implements ClusterByStatisticsColl
 
   private final boolean[] hasMultipleValues;
 
-  // TODO(gianm): max size is better than max keys. what if some of the keys are really big?
+  // This can be reworked to accommodate maxSize instead of maxRetainedKeys to account for the skewness in the size of hte
+  // keys depending on the datasource
   private final int maxRetainedKeys;
   private final int maxBuckets;
   private int totalRetainedKeys;

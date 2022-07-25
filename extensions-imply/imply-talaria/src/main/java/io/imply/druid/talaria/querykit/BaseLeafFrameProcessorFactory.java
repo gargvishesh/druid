@@ -85,10 +85,10 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
     final int outstandingProcessors;
 
     if (hasParquet(inputSlices)) {
-      // Hack alert: workaround for memory use in ParquetFileReader, which loads up an entire row group into memory as
+      // This is a workaround for memory use in ParquetFileReader, which loads up an entire row group into memory as
       // part of its normal operation. Row groups can be quite large (like, 1GB large) so this is a major source of
-      // unaccounted-for memory use during ingestion and query of external data. Work around this by only running
-      // a single processor at once.
+      // unaccounted-for memory use during ingestion and query of external data.
+      // We are trying to prevent memory overload by running only a single processor at once
       outstandingProcessors = 1;
     } else {
       outstandingProcessors = Math.min(totalProcessors, maxOutstandingProcessors);
@@ -118,7 +118,8 @@ public abstract class BaseLeafFrameProcessorFactory extends BaseFrameProcessorFa
 
     final Sequence<FrameProcessor<Long>> processors = processorBaseInputs.map(
         processorBaseInput -> {
-          // TODO(gianm): this is wasteful: we're opening channels and rebuilding broadcast tables for _every processor_
+          // For each processor, we are rebuilding the broadcast table again which is wasteful. This can be pushed
+          // up to the factory level
           final Int2ObjectMap<ReadableInput> sideChannels =
               readBroadcastInputs(stageDefinition, inputSlices, inputSliceReader, counters, warningPublisher);
 

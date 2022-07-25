@@ -43,4 +43,9 @@ public class Limits
    * Maximum number of input bytes per worker in case number of tasks is determined automatically.
    */
   public static final long MAX_INPUT_BYTES_PER_WORKER = 10 * 1024 * 1024 * 1024L;
+
+  /**
+   * Maximum size of the kernel manipulation queue
+   */
+  public static final int MAX_KERNEL_MANIPULATION_QUEUE_SIZE = 100_000;
 }

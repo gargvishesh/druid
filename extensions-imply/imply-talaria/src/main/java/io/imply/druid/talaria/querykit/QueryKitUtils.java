@@ -48,12 +48,10 @@ import java.util.stream.Collectors;
  */
 public class QueryKitUtils
 {
-  // TODO(gianm): add partition boosting to groupBy too (only when there is order by!)
   public static final String PARTITION_BOOST_COLUMN = "__boost";
 
   public static final String SEGMENT_GRANULARITY_COLUMN = "__bucket";
 
-  // TODO(gianm): hack alert: this is redundant to the ColumnMappings, but is here because QueryKit doesn't get those
   public static final String CTX_TIME_COLUMN_NAME = "msqTimeColumn";
 
   private static final ObjectMapper OBJECT_MAPPER = new DefaultObjectMapper();

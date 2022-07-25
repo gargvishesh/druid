@@ -338,19 +338,24 @@ public class Frame
 
   /**
    * Writes this frame to a channel, optionally compressing it as well. Returns the number of bytes written.
+   * Instead of explicitly passing "compress" variable, the frame should itself have an indicator that determines
+   * whether it is compressed or not.
    */
   public long writeTo(final WritableByteChannel channel, final boolean compress) throws IOException
   {
     if (compress) {
-      // TODO(gianm): Indicator in the frame itself whether it's compressed or not
-      // TODO(gianm): Handle case where numBytes > int.maxvalue? Or make it impossible.
-      // TODO(gianm): Limit allocations somehow
+      // This method can perform a lot of allocations if not restricted somehow
       final ByteBuffer compressedFrame;
       final int compressedFrameLength;
 
       if (memory.hasByteBuffer()) {
         // Compress directly from the byte buffer.
-        compressedFrame = ByteBuffer.allocate(LZ4_COMPRESSOR.maxCompressedLength(Ints.checkedCast(numBytes)));
+        try {
+          compressedFrame = ByteBuffer.allocate(LZ4_COMPRESSOR.maxCompressedLength(Ints.checkedCast(numBytes)));
+        }
+        catch (IllegalArgumentException e) {
+          throw new IAE(e, "Frame too large to be written to a channel");
+        }
 
         compressedFrameLength = LZ4_COMPRESSOR.compress(
             memory.getByteBuffer(),

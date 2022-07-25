@@ -23,7 +23,7 @@ public interface WorkerContext
 {
   ObjectMapper jsonMapper();
 
-  // TODO(paul): Per Gian, this is a hack in TalariaWorkerTask carried over here.
+  // Using an Injector directly because tasks do not have a way to provide their own Guice modules.
   Injector injector();
 
   /**

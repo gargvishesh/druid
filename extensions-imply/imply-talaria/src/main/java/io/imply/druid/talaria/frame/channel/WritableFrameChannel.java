@@ -14,7 +14,11 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 
 /**
- * TODO(gianm): Javadocs. meant to be used by a single producer and single consumer.
+ * Represents a channel for producers to write to. It can abstract over the transformations, computations and the way
+ * these individual frames are stored physically in memory or disk. This doesn't provide a way of extracting the data from
+ * the written to channel, the users of this interface are required to know the specific implementation of the same
+ * and extract the data approperiately
+ * This is meant for the usage of a single producer only
  */
 public interface WritableFrameChannel
 {
@@ -24,8 +28,8 @@ public interface WritableFrameChannel
   }
 
   /**
-   * TODO(gianm): spec behavior for what happens if the channel is full
-   * TODO(gianm): make it so in-memory channels can always accept an error (by overwriting unread stuff?)
+   * Writes to the frame channel. If the channel is full, then the current implementations of the interface can throw
+   * an error but may choose not to.
    */
   void write(Try<FrameWithPartition> frameTry) throws IOException;
 

@@ -16,7 +16,8 @@ import io.imply.druid.talaria.frame.Frame;
 import java.util.NoSuchElementException;
 
 /**
- * TODO(gianm): Javadocs
+ * Noop implementation of {@link ReadableFrameChannel} that is eternally empty and generates an exception while trying
+ * to read a channel
  */
 public class ReadableNilFrameChannel implements ReadableFrameChannel
 {

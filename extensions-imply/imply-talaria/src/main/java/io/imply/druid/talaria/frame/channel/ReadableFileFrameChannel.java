@@ -19,7 +19,8 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 
 /**
- * TODO(gianm): Javadocs
+ * A {@link ReadableFrameChannel} backed by a {@link FrameFile}. It can splice up the file and represent only a small
+ * portion of the same instead of all the frames in the file.
  */
 public class ReadableFileFrameChannel implements ReadableFrameChannel
 {

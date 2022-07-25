@@ -59,6 +59,14 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     return scanSignature;
   }
 
+  /**
+   * We ignore the resultShuffleSpecFactory in case:
+   *  1. There is no cluster by
+   *  2. This is an offset which means everything gets funneled into a single partition hence we use MaxCountShuffleSpec
+   */
+  // No ordering, but there is a limit or an offset. These work by funneling everything through a single partition.
+  // So there is no point in forcing any particular partitioning. Since everything is funnelled into a single
+  // partition without a ClusterBy, we donot need to necessarily create it via the resultShuffleSpecFactory provided
   @Override
   public QueryDefinition makeQueryDefinition(
       final String queryId,
@@ -90,10 +98,11 @@ public class ScanQueryKit implements QueryKit<ScanQuery>
     final RowSignature signatureToUse;
     final boolean hasLimitOrOffset = queryToRun.isLimited() || queryToRun.getScanRowsOffset() > 0;
 
+
+    // We ignore the resultShuffleSpecFactory in case:
+    //  1. There is no cluster by
+    //  2. There is an offset which means everything gets funneled into a single partition hence we use MaxCountShuffleSpec
     if (queryToRun.getOrderBys().isEmpty() && hasLimitOrOffset) {
-      // No ordering, but there is a limit or an offset. These work by funneling everything through a single partition.
-      // So there is no point in forcing any particular partitioning.
-      // TODO(gianm): Write some javadoc that explains why it's OK to ignore the resultShuffleSpecFactory here
       shuffleSpec = new MaxCountShuffleSpec(ClusterBy.none(), 1, false);
       signatureToUse = scanSignature;
     } else {

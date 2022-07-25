@@ -297,7 +297,10 @@ public class BaseControllerQueryKernelTest extends InitializedNullHandlingTest
       }
     }
 
-    // TODO: stub
+    /**
+     * Checks if the state of the BaseControllerQueryKernel is initialized properly. Currently this is just stubbed to
+     * return true irrespective of the actual state
+     */
     private boolean isValidInitState()
     {
       return true;

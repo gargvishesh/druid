@@ -16,7 +16,9 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
- * TODO(gianm): Javadocs
+ * A collection of start and end {@link ClusterByKey} which usually acts as a representative of a multiple {@link ClusterByKey}'s.
+ * that lie between the start and the end, when compared lexicographically
+ * This is generally used to denote partition boundaries for the ClusterBy columns
  */
 public class ClusterByPartition
 {
