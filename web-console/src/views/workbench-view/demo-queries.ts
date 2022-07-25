@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-import { TabEntry, WorkbenchQuery } from '../../workbench-models';
+import { TabEntry, WorkbenchQuery } from '../../druid-models';
 
-const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({ msqMaxNumTasks: 3 });
+const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({
+  msqMaxNumTasks: 3,
+});
 
 export function getDemoQueries(): TabEntry[] {
   return [
@@ -45,8 +47,6 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context msqFinalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_rollup" OVERWRITE ALL
 
 WITH kttm_data AS (
@@ -87,8 +87,6 @@ CLUSTERED BY browser, session
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context msqFinalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_etl" OVERWRITE ALL
 WITH
 kttm_data AS (
@@ -141,8 +139,6 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
---:context msqFinalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
 REPLACE INTO "kttm_reingest" OVERWRITE ALL
 WITH
 country_lookup AS (

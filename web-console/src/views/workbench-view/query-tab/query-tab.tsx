@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, ButtonGroup, Code, Menu, MenuItem } from '@blueprintjs/core';
+import { Button, Code, Menu, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -25,6 +25,12 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 
 import { Loader, QueryErrorPane } from '../../../components';
+import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../druid-models';
+import {
+  executionBackgroundStatusCheck,
+  reattachTaskExecution,
+  submitTaskQuery,
+} from '../../../helpers';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { ExecutionStateCache } from '../../../singletons/execution-state-cache';
@@ -44,18 +50,12 @@ import {
   RowColumn,
 } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
-import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../workbench-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
-import {
-  executionBackgroundStatusCheck,
-  reattachTaskExecution,
-  submitTaskQuery,
-} from '../execution-utils';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
@@ -232,6 +232,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   const statsTaskId: string | undefined = execution?.id;
 
   const queryPrefixes = query.getPrefixQueries();
+  const extractedCtes = query.extractCteHelpers();
 
   return (
     <div className="query-tab">
@@ -273,15 +274,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 }
                 editorStateId={query.getId()}
               />
-              <ButtonGroup className="corner">
-                <Button
-                  icon={IconNames.ARROW_UP}
-                  title="Save as helper query"
-                  minimal
-                  onClick={() => {
-                    onQueryChange(query.addBlank());
-                  }}
-                />
+              <div className="corner">
                 <Popover2
                   content={
                     <Menu>
@@ -292,9 +285,23 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                           onQueryChange(query.addBlank());
                         }}
                       />
+                      {extractedCtes !== query && (
+                        <MenuItem
+                          icon={IconNames.DOCUMENT_SHARE}
+                          text="Extract WITH clauses into helper queries"
+                          onClick={() => onQueryChange(extractedCtes)}
+                        />
+                      )}
+                      {query.hasHelperQueries() && (
+                        <MenuItem
+                          icon={IconNames.DOCUMENT_OPEN}
+                          text="Materialize helper queries"
+                          onClick={() => onQueryChange(query.materializeHelpers())}
+                        />
+                      )}
                       <MenuItem
                         icon={IconNames.DUPLICATE}
-                        text="Duplicate"
+                        text="Duplicate as helper query"
                         onClick={() => onQueryChange(query.duplicateLast())}
                       />
                     </Menu>
@@ -302,7 +309,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 >
                   <Button icon={IconNames.LIST} minimal />
                 </Popover2>
-              </ButtonGroup>
+              </div>
             </div>
           </div>
           <div className="run-bar">

@@ -31,88 +31,33 @@ import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo, useState } from 'react';
 
-import { MenuCheckbox } from '../../../components';
+import { MenuCheckbox, MenuTristate } from '../../../components';
 import { EditContextDialog } from '../../../dialogs';
-import { deepDelete, deepSet, formatInteger, pluralIfNeeded } from '../../../utils';
+import { DruidEngine, WorkbenchQuery } from '../../../druid-models';
+import { formatInteger, pluralIfNeeded, tickIcon } from '../../../utils';
 import {
+  changeDurableShuffleStorage,
+  changeFinalizeAggregations,
+  changeGroupByEnableMultiValueUnnesting,
+  changeMaxNumTasks,
+  changeMaxParseExceptions,
   changeUseApproximateCountDistinct,
   changeUseApproximateTopN,
   changeUseCache,
+  getDurableShuffleStorage,
+  getFinalizeAggregations,
+  getGroupByEnableMultiValueUnnesting,
+  getMaxNumTasks,
+  getMaxParseExceptions,
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
   getUseCache,
-  QueryContext,
 } from '../../../utils/query-context';
-import { DruidEngine, WorkbenchQuery } from '../../../workbench-models';
 import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
 import './run-panel.scss';
 
 const MAX_NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
-
-// msqMaxNumTasks
-
-function getMaxNumTasks(context: QueryContext): number {
-  const { msqMaxNumTasks } = context;
-  return Math.max(typeof msqMaxNumTasks === 'number' ? msqMaxNumTasks : 0, 2);
-}
-
-function changeMaxNumTasks(context: QueryContext, numTasks: number | undefined): QueryContext {
-  return typeof numTasks === 'number'
-    ? deepSet(context, 'msqMaxNumTasks', numTasks)
-    : deepDelete(context, 'msqMaxNumTasks');
-}
-
-// msqFinalizeAggregations
-
-function getFinalizeAggregations(context: QueryContext): boolean {
-  const { msqFinalizeAggregations } = context;
-  return typeof msqFinalizeAggregations === 'boolean' ? msqFinalizeAggregations : true;
-}
-
-function changeFinalizeAggregations(
-  context: QueryContext,
-  msqFinalizeAggregations: boolean,
-): QueryContext {
-  if (msqFinalizeAggregations) {
-    return deepDelete(context, 'msqFinalizeAggregations');
-  } else {
-    return deepSet(context, 'msqFinalizeAggregations', false);
-  }
-}
-
-// msqDurableShuffleStorage
-
-function getDurableShuffleStorage(context: QueryContext): boolean {
-  const { msqDurableShuffleStorage } = context;
-  return Boolean(msqDurableShuffleStorage);
-}
-
-function changeDurableShuffleStorage(
-  context: QueryContext,
-  msqDurableShuffleStorage: boolean,
-): QueryContext {
-  if (msqDurableShuffleStorage) {
-    return deepSet(context, 'msqDurableShuffleStorage', true);
-  } else {
-    return deepDelete(context, 'msqDurableShuffleStorage');
-  }
-}
-
-// maxParseExceptions
-
-function getMaxParseExceptions(context: QueryContext): number {
-  const { maxParseExceptions } = context;
-  return Number(maxParseExceptions) || 0;
-}
-
-function changeMaxParseExceptions(context: QueryContext, maxParseExceptions: number): QueryContext {
-  if (maxParseExceptions !== 0) {
-    return deepSet(context, 'maxParseExceptions', maxParseExceptions);
-  } else {
-    return deepDelete(context, 'maxParseExceptions');
-  }
-}
 
 export interface RunPanelProps {
   query: WorkbenchQuery;
@@ -127,7 +72,7 @@ export interface RunPanelProps {
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const { query, onQueryChange, onRun, moreMenu, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
-  const [customNumTasksDialogOpen, setCustomNumTasksDialogOpen] = useState(false);
+  const [customMaxNumTasksDialogOpen, setCustomMaxNumTasksDialogOpen] = useState(false);
 
   const emptyQuery = query.isEmptyQuery();
   const ingestMode = query.isIngestQuery();
@@ -135,8 +80,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const numContextKeys = Object.keys(queryContext).length;
 
   const maxParseExceptions = getMaxParseExceptions(queryContext);
-  const msqFinalizeAggregations = getFinalizeAggregations(queryContext);
-  const msqDurableShuffleStorage = getDurableShuffleStorage(queryContext);
+  const finalizeAggregations = getFinalizeAggregations(queryContext);
+  const groupByEnableMultiValueUnnesting = getGroupByEnableMultiValueUnnesting(queryContext);
+  const durableShuffleStorage = getDurableShuffleStorage(queryContext);
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
   const useApproximateTopN = getUseApproximateTopN(queryContext);
   const useCache = getUseCache(queryContext);
@@ -182,7 +128,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
     return (
       <MenuItem
         key={String(e)}
-        icon={e === queryEngine ? IconNames.TICK : IconNames.BLANK}
+        icon={tickIcon(e === queryEngine)}
         text={typeof e === 'undefined' ? 'auto' : e}
         onClick={() => onQueryChange(query.changeEngine(e))}
         shouldDismissPopover={false}
@@ -232,7 +178,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   icon={IconNames.PROPERTIES}
                   text="Edit context"
                   onClick={() => setEditContextDialogOpen(true)}
-                  label={numContextKeys ? pluralIfNeeded(numContextKeys, 'key') : undefined}
+                  label={pluralIfNeeded(numContextKeys, 'key')}
                 />
                 {effectiveEngine === 'sql-task' ? (
                   <>
@@ -244,7 +190,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                       {[0, 1, 5, 10, 1000, 10000, -1].map(v => (
                         <MenuItem
                           key={String(v)}
-                          icon={v === maxParseExceptions ? IconNames.TICK : IconNames.BLANK}
+                          icon={tickIcon(v === maxParseExceptions)}
                           text={v === -1 ? '∞ (-1)' : String(v)}
                           onClick={() => {
                             onQueryChange(
@@ -255,24 +201,37 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                         />
                       ))}
                     </MenuItem>
-                    <MenuCheckbox
-                      checked={msqDurableShuffleStorage}
-                      text="Durable shuffle storage"
-                      onChange={() => {
+                    <MenuTristate
+                      icon={IconNames.TRANSLATE}
+                      text="Finalize aggregations"
+                      value={finalizeAggregations}
+                      undefinedEffectiveValue={!ingestMode}
+                      onValueChange={v => {
+                        onQueryChange(
+                          query.changeQueryContext(changeFinalizeAggregations(queryContext, v)),
+                        );
+                      }}
+                    />
+                    <MenuTristate
+                      icon={IconNames.FORK}
+                      text="Enable GroupBy multi-value unnesting"
+                      value={groupByEnableMultiValueUnnesting}
+                      undefinedEffectiveValue={!ingestMode}
+                      onValueChange={v => {
                         onQueryChange(
                           query.changeQueryContext(
-                            changeDurableShuffleStorage(queryContext, !msqDurableShuffleStorage),
+                            changeGroupByEnableMultiValueUnnesting(queryContext, v),
                           ),
                         );
                       }}
                     />
                     <MenuCheckbox
-                      checked={msqFinalizeAggregations}
-                      text="Finalize aggregations"
+                      checked={durableShuffleStorage}
+                      text="Durable shuffle storage"
                       onChange={() => {
                         onQueryChange(
                           query.changeQueryContext(
-                            changeFinalizeAggregations(queryContext, !msqFinalizeAggregations),
+                            changeDurableShuffleStorage(queryContext, !durableShuffleStorage),
                           ),
                         );
                       }}
@@ -347,7 +306,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   {MAX_NUM_TASK_OPTIONS.map(m => (
                     <MenuItem
                       key={String(m)}
-                      icon={m === maxNumTasks ? IconNames.TICK : IconNames.BLANK}
+                      icon={tickIcon(m === maxNumTasks)}
                       text={formatInteger(m)}
                       label={`(1 controller + ${m === 2 ? '1 worker' : `max ${m - 1} workers`})`}
                       onClick={() =>
@@ -356,11 +315,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                     />
                   ))}
                   <MenuItem
-                    icon={
-                      MAX_NUM_TASK_OPTIONS.includes(maxNumTasks) ? IconNames.BLANK : IconNames.TICK
-                    }
+                    icon={tickIcon(!MAX_NUM_TASK_OPTIONS.includes(maxNumTasks))}
                     text="Custom"
-                    onClick={() => setCustomNumTasksDialogOpen(true)}
+                    onClick={() => setCustomMaxNumTasksDialogOpen(true)}
                   />
                 </Menu>
               }
@@ -387,9 +344,9 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           }}
         />
       )}
-      {customNumTasksDialogOpen && (
+      {customMaxNumTasksDialogOpen && (
         <NumericInputDialog
-          title="Custom task number"
+          title="Custom max task number"
           message={
             <>
               <p>Specify the total number of tasks that should be launched.</p>
@@ -404,7 +361,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           onSave={p => {
             onQueryChange(query.changeQueryContext(changeMaxNumTasks(queryContext, p)));
           }}
-          onClose={() => setCustomNumTasksDialogOpen(false)}
+          onClose={() => setCustomMaxNumTasksDialogOpen(false)}
         />
       )}
     </div>

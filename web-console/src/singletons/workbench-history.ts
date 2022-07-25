@@ -18,8 +18,8 @@
 
 import * as JSONBig from 'json-bigint-native';
 
+import { WorkbenchQuery } from '../druid-models';
 import { deepSet, localStorageGetJson, LocalStorageKeys, localStorageSetJson } from '../utils';
-import { WorkbenchQuery } from '../workbench-models';
 
 export interface WorkbenchQueryHistoryEntry {
   readonly version: string;

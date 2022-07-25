@@ -22,12 +22,12 @@ import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
 
 import { CenterMessage } from '../../../components';
+import { WorkbenchQuery } from '../../../druid-models';
 import {
   WorkbenchHistory,
   WorkbenchQueryHistoryEntry,
 } from '../../../singletons/workbench-history';
 import { pluralIfNeeded } from '../../../utils';
-import { WorkbenchQuery } from '../../../workbench-models';
 import { ExecutionStagesPaneLoader } from '../execution-stages-pane-loader/execution-stages-pane-loader';
 
 import './workbench-history-dialog.scss';

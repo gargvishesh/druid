@@ -46,7 +46,7 @@ export const DIMENSION_SPEC_FIELDS: Field<DimensionSpec>[] = [
     name: 'type',
     type: 'string',
     required: true,
-    suggestions: ['string', 'long', 'float', 'double'],
+    suggestions: ['string', 'long', 'float', 'double', 'json'],
   },
   {
     name: 'createBitmapIndex',

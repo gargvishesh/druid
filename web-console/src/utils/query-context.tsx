@@ -19,10 +19,18 @@
 import { deepDelete, deepSet } from './object-change';
 
 export interface QueryContext {
-  useCache?: boolean | undefined;
-  populateCache?: boolean | undefined;
-  useApproximateCountDistinct?: boolean | undefined;
-  useApproximateTopN?: boolean | undefined;
+  useCache?: boolean;
+  populateCache?: boolean;
+  useApproximateCountDistinct?: boolean;
+  useApproximateTopN?: boolean;
+
+  // MSQ
+  msqMaxNumTasks?: number;
+  msqFinalizeAggregations?: boolean;
+  msqDurableShuffleStorage?: boolean;
+  maxParseExceptions?: number;
+  groupByEnableMultiValueUnnesting?: boolean;
+
   [key: string]: any;
 }
 
@@ -82,5 +90,91 @@ export function changeUseApproximateTopN(
     return deepDelete(context, 'useApproximateTopN');
   } else {
     return deepSet(context, 'useApproximateTopN', false);
+  }
+}
+
+// msqMaxNumTasks
+
+export function getMaxNumTasks(context: QueryContext): number {
+  const { msqMaxNumTasks } = context;
+  return Math.max(typeof msqMaxNumTasks === 'number' ? msqMaxNumTasks : 0, 2);
+}
+
+export function changeMaxNumTasks(
+  context: QueryContext,
+  maxNumTasks: number | undefined,
+): QueryContext {
+  return typeof maxNumTasks === 'number'
+    ? deepSet(context, 'msqMaxNumTasks', maxNumTasks)
+    : deepDelete(context, 'msqMaxNumTasks');
+}
+
+// msqFinalizeAggregations
+
+export function getFinalizeAggregations(context: QueryContext): boolean | undefined {
+  const { msqFinalizeAggregations } = context;
+  return typeof msqFinalizeAggregations === 'boolean' ? msqFinalizeAggregations : undefined;
+}
+
+export function changeFinalizeAggregations(
+  context: QueryContext,
+  finalizeAggregations: boolean | undefined,
+): QueryContext {
+  return typeof finalizeAggregations === 'boolean'
+    ? deepSet(context, 'msqFinalizeAggregations', finalizeAggregations)
+    : deepDelete(context, 'msqFinalizeAggregations');
+}
+
+// msqFinalizeAggregations
+
+export function getGroupByEnableMultiValueUnnesting(context: QueryContext): boolean | undefined {
+  const { groupByEnableMultiValueUnnesting } = context;
+  return typeof groupByEnableMultiValueUnnesting === 'boolean'
+    ? groupByEnableMultiValueUnnesting
+    : undefined;
+}
+
+export function changeGroupByEnableMultiValueUnnesting(
+  context: QueryContext,
+  groupByEnableMultiValueUnnesting: boolean | undefined,
+): QueryContext {
+  return typeof groupByEnableMultiValueUnnesting === 'boolean'
+    ? deepSet(context, 'groupByEnableMultiValueUnnesting', groupByEnableMultiValueUnnesting)
+    : deepDelete(context, 'groupByEnableMultiValueUnnesting');
+}
+
+// msqDurableShuffleStorage
+
+export function getDurableShuffleStorage(context: QueryContext): boolean {
+  const { msqDurableShuffleStorage } = context;
+  return Boolean(msqDurableShuffleStorage);
+}
+
+export function changeDurableShuffleStorage(
+  context: QueryContext,
+  msqDurableShuffleStorage: boolean,
+): QueryContext {
+  if (msqDurableShuffleStorage) {
+    return deepSet(context, 'msqDurableShuffleStorage', true);
+  } else {
+    return deepDelete(context, 'msqDurableShuffleStorage');
+  }
+}
+
+// maxParseExceptions
+
+export function getMaxParseExceptions(context: QueryContext): number {
+  const { maxParseExceptions } = context;
+  return Number(maxParseExceptions) || 0;
+}
+
+export function changeMaxParseExceptions(
+  context: QueryContext,
+  maxParseExceptions: number,
+): QueryContext {
+  if (maxParseExceptions !== 0) {
+    return deepSet(context, 'maxParseExceptions', maxParseExceptions);
+  } else {
+    return deepDelete(context, 'maxParseExceptions');
   }
 }

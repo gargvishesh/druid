@@ -20,7 +20,7 @@ import { Classes, Dialog } from '@blueprintjs/core';
 import { SqlExpression } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
-import { ExternalConfig } from '../../../workbench-models';
+import { ExternalConfig } from '../../../druid-models';
 import { InputFormatStep } from '../input-format-step/input-format-step';
 import { InputSourceStep } from '../input-source-step/input-source-step';
 
@@ -75,6 +75,7 @@ export const ConnectExternalDataDialog = React.memo(function ConnectExternalData
         ) : (
           <InputSourceStep
             initInputSource={inputSource}
+            mode="sampler"
             onSet={(inputSource, inputFormat) => {
               setExternalConfigStep({ inputSource, inputFormat });
             }}

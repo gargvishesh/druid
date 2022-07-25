@@ -23,6 +23,19 @@ import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
 import React, { useEffect, useRef } from 'react';
 
 import { Loader, QueryErrorPane } from '../../../components';
+import {
+  DruidEngine,
+  Execution,
+  fitExternalConfigPattern,
+  LastExecution,
+  summarizeExternalConfig,
+  WorkbenchQuery,
+} from '../../../druid-models';
+import {
+  executionBackgroundStatusCheck,
+  reattachTaskExecution,
+  submitTaskQuery,
+} from '../../../helpers';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
 import { Api } from '../../../singletons';
 import { ExecutionStateCache } from '../../../singletons/execution-state-cache';
@@ -33,25 +46,12 @@ import {
 } from '../../../singletons/workbench-running-promises';
 import { ColumnMetadata, DruidError, QueryAction, QueryManager, RowColumn } from '../../../utils';
 import { QueryContext } from '../../../utils/query-context';
-import {
-  DruidEngine,
-  Execution,
-  fitExternalConfigPattern,
-  LastExecution,
-  summarizeExternalConfig,
-  WorkbenchQuery,
-} from '../../../workbench-models';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
 import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
-import {
-  executionBackgroundStatusCheck,
-  reattachTaskExecution,
-  submitTaskQuery,
-} from '../execution-utils';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';

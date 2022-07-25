@@ -20,9 +20,9 @@ import { Button, ButtonGroup } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
+import { Execution } from '../../../druid-models';
 import { useInterval } from '../../../hooks';
 import { formatDurationHybrid } from '../../../utils';
-import { Execution } from '../../../workbench-models';
 import { CancelQueryDialog } from '../cancel-query-dialog/cancel-query-dialog';
 
 import './execution-timer-panel.scss';

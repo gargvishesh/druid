@@ -24,7 +24,19 @@ import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
 import { SpecDialog, StringSubmitDialog } from '../../dialogs';
-import { guessDataSourceNameFromInputSource } from '../../druid-models';
+import {
+  DruidEngine,
+  Execution,
+  guessDataSourceNameFromInputSource,
+  TabEntry,
+  WorkbenchQuery,
+} from '../../druid-models';
+import {
+  convertSpecToSql,
+  getSpecDatasourceName,
+  getTaskExecution,
+  QueryAndContext,
+} from '../../helpers';
 import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
@@ -33,6 +45,7 @@ import { WorkbenchRunningPromises } from '../../singletons/workbench-running-pro
 import {
   ColumnMetadata,
   deepSet,
+  generate8HexId,
   localStorageGet,
   localStorageGetJson,
   LocalStorageKeys,
@@ -42,13 +55,6 @@ import {
   QueryManager,
   QueryState,
 } from '../../utils';
-import {
-  DruidEngine,
-  Execution,
-  generate8HexId,
-  TabEntry,
-  WorkbenchQuery,
-} from '../../workbench-models';
 import { ColumnTree } from '../query-view/column-tree/column-tree';
 import { ExplainDialog } from '../query-view/explain-dialog/explain-dialog';
 
@@ -57,12 +63,10 @@ import { getDemoQueries } from './demo-queries';
 import { ExecutionDetailsDialog } from './execution-details-dialog/execution-details-dialog';
 import { ExecutionDetailsTab } from './execution-details-pane/execution-details-pane';
 import { ExecutionSubmitDialog } from './execution-submit-dialog/execution-submit-dialog';
-import { getTaskExecution } from './execution-utils';
 import { MetadataChangeDetector } from './metadata-change-detector';
 import { QueryTab } from './query-tab/query-tab';
-import { convertSpecToSql, getSpecDatasourceName } from './spec-conversion';
+import { RecentQueryTaskPanel } from './recent-query-task-panel/recent-query-task-panel';
 import { TabRenameDialog } from './tab-rename-dialog/tab-rename-dialog';
-import { WorkPanel } from './work-panel/work-panel';
 import { WorkbenchHistoryDialog } from './workbench-history-dialog/workbench-history-dialog';
 
 import './workbench-view.scss';
@@ -106,7 +110,7 @@ export interface WorkbenchViewState {
   taskIdSubmitDialogOpen: boolean;
   renamingTab?: TabEntry;
 
-  showWorkHistory: boolean;
+  showRecentQueryTaskPanel: boolean;
 }
 
 export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, WorkbenchViewState> {
@@ -121,8 +125,8 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     WorkbenchQuery.setQueryEngines(queryEngines);
 
     const hasSqlTask = queryEngines.includes('sql-task');
-    const showWorkHistory = Boolean(
-      hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL),
+    const showRecentQueryTaskPanel = Boolean(
+      hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_TASK_PANEL),
     );
 
     const tabEntries =
@@ -156,7 +160,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       executionSubmitDialogOpen: false,
       taskIdSubmitDialogOpen: false,
 
-      showWorkHistory,
+      showRecentQueryTaskPanel,
     };
   }
 
@@ -218,9 +222,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     this.setState({ taskIdSubmitDialogOpen: true });
   };
 
-  private readonly handleWorkPanelClose = () => {
-    this.setState({ showWorkHistory: false });
-    localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, false);
+  private readonly handleRecentQueryTaskPanelClose = () => {
+    this.setState({ showRecentQueryTaskPanel: false });
+    localStorageSetJson(LocalStorageKeys.WORKBENCH_TASK_PANEL, false);
   };
 
   private readonly handleDetails = (id: string, initTab?: ExecutionDetailsTab) => {
@@ -366,9 +370,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return (
       <SpecDialog
         onSubmit={spec => {
-          let sql: string;
+          let converted: QueryAndContext;
           try {
-            sql = convertSpecToSql(spec as any);
+            converted = convertSpecToSql(spec as any);
           } catch (e) {
             AppToaster.show({
               message: `Could not convert spec: ${e.message}`,
@@ -382,7 +386,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             intent: Intent.SUCCESS,
           });
           this.handleNewTab(
-            WorkbenchQuery.blank().changeQueryString(sql),
+            WorkbenchQuery.blank()
+              .changeQueryString(converted.query)
+              .changeQueryContext(converted.context),
             'Convert ' + getSpecDatasourceName(spec as any),
           );
         }}
@@ -452,55 +458,31 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
-  private renderToolbarMoreMenu() {
-    const query = this.getCurrentQuery();
-
-    return (
-      <Menu>
-        <MenuItem
-          icon={IconNames.DOCUMENT_SHARE}
-          text="Extract helper queries"
-          onClick={() => this.handleQueryChange(query.extractCteHelpers())}
-        />
-        <MenuItem
-          icon={IconNames.DOCUMENT_OPEN}
-          text="Materialize helper queries"
-          onClick={() => this.handleQueryChange(query.materializeHelpers())}
-        />
-      </Menu>
-    );
-  }
-
   private renderToolbar() {
     const { queryEngines } = this.props;
-    const { showWorkHistory } = this.state;
+    if (!queryEngines.includes('sql-task')) return;
 
-    const hasSqlTask = queryEngines.includes('sql-task');
+    const { showRecentQueryTaskPanel } = this.state;
     return (
       <ButtonGroup className="toolbar">
-        {hasSqlTask && (
-          <Button
-            icon={IconNames.TH_DERIVED}
-            text="Connect external data"
-            onClick={() => {
-              this.setState({
-                connectExternalDataDialogOpen: true,
-              });
-            }}
-            minimal
-          />
-        )}
-        <Popover2 content={this.renderToolbarMoreMenu()}>
-          <Button icon={IconNames.WRENCH} minimal />
-        </Popover2>
-        {hasSqlTask && !showWorkHistory && (
+        <Button
+          icon={IconNames.TH_DERIVED}
+          text="Connect external data"
+          onClick={() => {
+            this.setState({
+              connectExternalDataDialogOpen: true,
+            });
+          }}
+          minimal
+        />
+        {!showRecentQueryTaskPanel && (
           <Button
             icon={IconNames.DRAWER_RIGHT}
             minimal
-            title="Show work history"
+            title="Show recent query task panel"
             onClick={() => {
-              this.setState({ showWorkHistory: true });
-              localStorageSetJson(LocalStorageKeys.WORKBENCH_WORK_PANEL, true);
+              this.setState({ showRecentQueryTaskPanel: true });
+              localStorageSetJson(LocalStorageKeys.WORKBENCH_TASK_PANEL, true);
             }}
           />
         )}
@@ -746,7 +728,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   render(): JSX.Element {
     const { queryEngines } = this.props;
-    const { columnMetadataState, showWorkHistory } = this.state;
+    const { columnMetadataState, showRecentQueryTaskPanel } = this.state;
     const query = this.getCurrentQuery();
 
     let defaultSchema;
@@ -761,7 +743,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       <div
         className={classNames('workbench-view app-view', {
           'hide-column-tree': columnMetadataState.isError(),
-          'hide-work-history': !showWorkHistory,
+          'hide-work-history': !showRecentQueryTaskPanel,
         })}
       >
         {!columnMetadataState.isError() && (
@@ -776,9 +758,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           />
         )}
         {this.renderCenterPanel()}
-        {showWorkHistory && queryEngines.includes('sql-task') && (
-          <WorkPanel
-            onClose={this.handleWorkPanelClose}
+        {showRecentQueryTaskPanel && queryEngines.includes('sql-task') && (
+          <RecentQueryTaskPanel
+            onClose={this.handleRecentQueryTaskPanelClose}
             onExecutionDetails={this.handleDetails}
             onRunQuery={query => this.handleQueryStringChange(query, true)}
             onNewTab={this.handleNewTab}

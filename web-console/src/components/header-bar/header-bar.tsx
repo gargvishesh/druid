@@ -243,12 +243,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     useState(false);
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
 
-  // BEGIN: Imply-added code for MSQE loader
   const [showSqlDataLoader, setShowSqlDataLoader] = useLocalStorageState(
     LocalStorageKeys.SQL_DATA_LOADER_SHOW,
     false,
   );
-  // END: Imply-added code for MSQE loader
 
   const showSplitDataLoaderMenu = showSqlDataLoader && capabilities.hasMsqe();
 
@@ -398,7 +396,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  // BEGIN: Imply-added code for MSQE execution
   const handleLogoClick = usePermanentCallback((e: MouseEvent) => {
     if (!e.altKey || !e.shiftKey) return;
     e.preventDefault();
@@ -413,7 +410,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     });
     location.hash = nextShowSqlDataLoader ? '#sql-data-loader' : '#home';
   });
-  // END: Imply-modified code for MSQE execution
 
   return (
     <Navbar className="header-bar">

@@ -24,6 +24,7 @@ import { RouteComponentProps } from 'react-router';
 import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
+import { DruidEngine } from './druid-models';
 import { AppToaster } from './singletons';
 import { Capabilities, QueryManager } from './utils';
 import {
@@ -39,7 +40,6 @@ import {
   UserManagementView,
   WorkbenchView,
 } from './views';
-import { DruidEngine } from './workbench-models';
 
 import './console-application.scss';
 
@@ -261,7 +261,6 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
-  // BEGIN: Imply-added code for MSQE execution
   private readonly wrappedWorkbenchView = (p: RouteComponentProps<any>) => {
     const { defaultQueryContext, mandatoryQueryContext } = this.props;
     const { capabilities } = this.state;
@@ -297,7 +296,6 @@ export class ConsoleApplication extends React.PureComponent<
       <SqlDataLoaderView goToQuery={this.goToQuery} />,
     );
   };
-  // END: Imply-modified code for MSQE execution
 
   private readonly wrappedUserManagementView = () => {
     return this.wrapInViewContainer('user-management', <UserManagementView />);
@@ -395,10 +393,7 @@ export class ConsoleApplication extends React.PureComponent<
                 path={['/workbench/:tabId', '/workbench']}
                 component={this.wrappedWorkbenchView}
               />
-
-              {/* BEGIN: Imply-added code for MSQE execution */}
               <Route path="/sql-data-loader" component={this.wrappedSqlDataLoaderView} />
-              {/* END: Imply-modified code for MSQE execution */}
 
               {/* BEGIN: Imply-added code for user management */}
               <Route path="/user-management" component={this.wrappedUserManagementView} />

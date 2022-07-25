@@ -274,6 +274,7 @@ export class DatasourcesView extends React.PureComponent<
   DatasourcesViewState
 > {
   static UNUSED_COLOR = '#0a1500';
+  static EMPTY_COLOR = '#868686';
   static FULLY_AVAILABLE_COLOR = '#57d500';
   static PARTIALLY_AVAILABLE_COLOR = '#ffbf00';
 
@@ -1070,6 +1071,13 @@ ORDER BY 1`;
               );
               if (typeof num_segments_to_load !== 'number' || typeof num_segments !== 'number') {
                 return '-';
+              } else if (num_segments === 0) {
+                return (
+                  <span>
+                    <span style={{ color: DatasourcesView.EMPTY_COLOR }}>&#x25cf;&nbsp;</span>
+                    Empty
+                  </span>
+                );
               } else if (num_segments_to_load === 0) {
                 return (
                   <span>

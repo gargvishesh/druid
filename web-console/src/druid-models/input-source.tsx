@@ -16,7 +16,22 @@
  * limitations under the License.
  */
 
-import { nonEmptyArray } from '../utils';
+import React from 'react';
+
+import { ExternalLink, Field } from '../components';
+import { getLink } from '../links';
+import { deepGet, deepSet, nonEmptyArray, typeIs } from '../utils';
+
+export const FILTER_SUGGESTIONS: string[] = [
+  '*',
+  '*.json',
+  '*.json.gz',
+  '*.csv',
+  '*.tsv',
+  '*.parquet',
+  '*.orc',
+  '*.avro',
+];
 
 export interface InputSource {
   type: string;
@@ -150,3 +165,441 @@ export function issueWithInputSource(inputSource: InputSource | undefined): stri
       return;
   }
 }
+
+export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
+  // {
+  //   name: 'type',
+  //   label: 'Source type',
+  //   type: 'string',
+  //   suggestions: ['local', 'http', 'inline', 's3', 'azure', 'google', 'hdfs'],
+  //   info: (
+  //     <p>
+  //       Druid connects to raw data through{' '}
+  //       <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#input-sources`}>
+  //         inputSources
+  //       </ExternalLink>
+  //       . You can change your selected inputSource here.
+  //     </p>
+  //   ),
+  // },
+
+  // inline
+  {
+    name: 'data',
+    label: 'Inline data',
+    type: 'string',
+    defined: typeIs('inline'),
+    required: true,
+    placeholder: 'Paste your data here',
+    multiline: true,
+    info: <p>Put you inline data here</p>,
+  },
+
+  // http
+
+  {
+    name: 'uris',
+    label: 'URIs',
+    type: 'string-array',
+    placeholder: 'https://example.com/path/to/file1.ext, https://example.com/path/to/file2.ext',
+    defined: typeIs('http'),
+    required: true,
+    info: (
+      <p>
+        The full URI of your file. To ingest from multiple URIs, use commas to separate each
+        individual URI.
+      </p>
+    ),
+  },
+  {
+    name: 'httpAuthenticationUsername',
+    label: 'HTTP auth username',
+    type: 'string',
+    defined: typeIs('http'),
+    placeholder: '(optional)',
+    info: <p>Username to use for authentication with specified URIs</p>,
+  },
+  {
+    name: 'httpAuthenticationPassword',
+    label: 'HTTP auth password',
+    type: 'string',
+    defined: typeIs('http'),
+    placeholder: '(optional)',
+    info: <p>Password to use for authentication with specified URIs</p>,
+  },
+
+  // local
+
+  {
+    name: 'baseDir',
+    label: 'Base directory',
+    type: 'string',
+    placeholder: '/path/to/files/',
+    defined: typeIs('local'),
+    required: true,
+    info: (
+      <>
+        <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#input-sources`}>
+          baseDir
+        </ExternalLink>
+        <p>Specifies the directory to search recursively for files to be ingested.</p>
+      </>
+    ),
+  },
+  {
+    name: 'filter',
+    label: 'File filter',
+    type: 'string',
+    defined: typeIs('local'),
+    required: true,
+    suggestions: FILTER_SUGGESTIONS,
+    info: (
+      <>
+        <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#local-input-source`}>
+          filter
+        </ExternalLink>
+        <p>
+          A wildcard filter for files. See{' '}
+          <ExternalLink href="https://commons.apache.org/proper/commons-io/apidocs/org/apache/commons/io/filefilter/WildcardFileFilter.html">
+            here
+          </ExternalLink>{' '}
+          for format information.
+        </p>
+      </>
+    ),
+  },
+
+  // s3
+
+  {
+    name: 'uris',
+    label: 'S3 URIs',
+    type: 'string-array',
+    placeholder: 's3://your-bucket/some-file1.ext, s3://your-bucket/some-file2.ext',
+    defined: inputSource =>
+      inputSource.type === 's3' &&
+      !deepGet(inputSource, 'prefixes') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          The full S3 URI of your file. To ingest from multiple URIs, use commas to separate each
+          individual URI.
+        </p>
+        <p>Either S3 URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'prefixes',
+    label: 'S3 prefixes',
+    type: 'string-array',
+    placeholder: 's3://your-bucket/some-path1, s3://your-bucket/some-path2',
+    defined: inputSource =>
+      inputSource.type === 's3' &&
+      !deepGet(inputSource, 'uris') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>A list of paths (with bucket) where your files are stored.</p>
+        <p>Either S3 URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'objects',
+    label: 'S3 objects',
+    type: 'json',
+    placeholder: '{"bucket":"your-bucket", "path":"some-file.ext"}',
+    defined: inputSource => inputSource.type === 's3' && deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          JSON array of{' '}
+          <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/s3.html`}>
+            S3 Objects
+          </ExternalLink>
+          .
+        </p>
+        <p>Either S3 URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+
+  // azure
+
+  {
+    name: 'uris',
+    label: 'Azure URIs',
+    type: 'string-array',
+    placeholder: 'azure://your-container/some-file1.ext, azure://your-container/some-file2.ext',
+    defined: inputSource =>
+      inputSource.type === 'azure' &&
+      !deepGet(inputSource, 'prefixes') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          The full Azure URI of your file. To ingest from multiple URIs, use commas to separate each
+          individual URI.
+        </p>
+        <p>Either Azure URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'prefixes',
+    label: 'Azure prefixes',
+    type: 'string-array',
+    placeholder: 'azure://your-container/some-path1, azure://your-container/some-path2',
+    defined: inputSource =>
+      inputSource.type === 'azure' &&
+      !deepGet(inputSource, 'uris') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>A list of paths (with bucket) where your files are stored.</p>
+        <p>Either Azure URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'objects',
+    label: 'Azure objects',
+    type: 'json',
+    placeholder: '{"bucket":"your-container", "path":"some-file.ext"}',
+    defined: inputSource => inputSource.type === 'azure' && deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          JSON array of{' '}
+          <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/azure.html`}>
+            S3 Objects
+          </ExternalLink>
+          .
+        </p>
+        <p>Either Azure URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+
+  // google
+  {
+    name: 'uris',
+    label: 'Google Cloud Storage URIs',
+    type: 'string-array',
+    placeholder: 'gs://your-bucket/some-file1.ext, gs://your-bucket/some-file2.ext',
+    defined: inputSource =>
+      inputSource.type === 'google' &&
+      !deepGet(inputSource, 'prefixes') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          The full Google Cloud Storage URI of your file. To ingest from multiple URIs, use commas
+          to separate each individual URI.
+        </p>
+        <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'prefixes',
+    label: 'Google Cloud Storage prefixes',
+    type: 'string-array',
+    placeholder: 'gs://your-bucket/some-path1, gs://your-bucket/some-path2',
+    defined: inputSource =>
+      inputSource.type === 'google' &&
+      !deepGet(inputSource, 'uris') &&
+      !deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>A list of paths (with bucket) where your files are stored.</p>
+        <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+  {
+    name: 'objects',
+    label: 'Google Cloud Storage objects',
+    type: 'json',
+    placeholder: '{"bucket":"your-bucket", "path":"some-file.ext"}',
+    defined: inputSource => inputSource.type === 'google' && deepGet(inputSource, 'objects'),
+    required: true,
+    info: (
+      <>
+        <p>
+          JSON array of{' '}
+          <ExternalLink href={`${getLink('DOCS')}/development/extensions-core/google.html`}>
+            Google Cloud Storage Objects
+          </ExternalLink>
+          .
+        </p>
+        <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+
+  // Cloud common
+  {
+    name: 'filter',
+    label: 'File filter',
+    type: 'string',
+    suggestions: FILTER_SUGGESTIONS,
+    placeholder: '*',
+    defined: typeIs('s3', 'azure', 'google'),
+    info: (
+      <p>
+        A wildcard filter for files. See{' '}
+        <ExternalLink href="https://commons.apache.org/proper/commons-io/apidocs/org/apache/commons/io/filefilter/WildcardFileFilter.html">
+          here
+        </ExternalLink>{' '}
+        for format information. Files matching the filter criteria are considered for ingestion.
+        Files not matching the filter criteria are ignored.
+      </p>
+    ),
+  },
+
+  // S3 auth extra
+  {
+    name: 'properties.accessKeyId.type',
+    label: 'Access key ID type',
+    type: 'string',
+    suggestions: [undefined, 'environment', 'default'],
+    placeholder: '(none)',
+    defined: typeIs('s3'),
+    info: (
+      <>
+        <p>S3 access key type.</p>
+        <p>Setting this will override the default configuration provided in the config.</p>
+        <p>
+          The access key can be pulled from an environment variable or inlined in the ingestion spec
+          (default).
+        </p>
+        <p>
+          Note: Inlining the access key into the ingestion spec is dangerous as it might appear in
+          server log files and can be seen by anyone accessing this console.
+        </p>
+      </>
+    ),
+    adjustment: inputSource => {
+      return deepSet(
+        inputSource,
+        'properties.secretAccessKey.type',
+        deepGet(inputSource, 'properties.accessKeyId.type'),
+      );
+    },
+  },
+  {
+    name: 'properties.accessKeyId.variable',
+    label: 'Access key ID environment variable',
+    type: 'string',
+    placeholder: '(environment variable name)',
+    defined: inputSource =>
+      inputSource.type === 's3' &&
+      deepGet(inputSource, 'properties.accessKeyId.type') === 'environment',
+    info: <p>The environment variable containing the S3 access key for this S3 bucket.</p>,
+  },
+  {
+    name: 'properties.accessKeyId.password',
+    label: 'Access key ID value',
+    type: 'string',
+    placeholder: '(access key)',
+    defined: inputSource =>
+      inputSource.type === 's3' &&
+      deepGet(inputSource, 'properties.accessKeyId.type') === 'default',
+    info: (
+      <>
+        <p>S3 access key for this S3 bucket.</p>
+        <p>
+          Note: Inlining the access key into the ingestion spec is dangerous as it might appear in
+          server log files and can be seen by anyone accessing this console.
+        </p>
+      </>
+    ),
+  },
+  {
+    name: 'properties.secretAccessKey.type',
+    label: 'Secret access key type',
+    type: 'string',
+    suggestions: [undefined, 'environment', 'default'],
+    placeholder: '(none)',
+    defined: typeIs('s3'),
+    info: (
+      <>
+        <p>S3 secret key type.</p>
+        <p>Setting this will override the default configuration provided in the config.</p>
+        <p>
+          The secret key can be pulled from an environment variable or inlined in the ingestion spec
+          (default).
+        </p>
+        <p>
+          Note: Inlining the secret key into the ingestion spec is dangerous as it might appear in
+          server log files and can be seen by anyone accessing this console.
+        </p>
+      </>
+    ),
+  },
+  {
+    name: 'properties.secretAccessKey.variable',
+    label: 'Secret access key environment variable',
+    type: 'string',
+    placeholder: '(environment variable name)',
+    defined: inputSource =>
+      deepGet(inputSource, 'properties.secretAccessKey.type') === 'environment',
+    info: <p>The environment variable containing the S3 secret key for this S3 bucket.</p>,
+  },
+  {
+    name: 'properties.secretAccessKey.password',
+    label: 'Secret access key value',
+    type: 'string',
+    placeholder: '(secret key)',
+    defined: inputSource => deepGet(inputSource, 'properties.secretAccessKey.type') === 'default',
+    info: (
+      <>
+        <p>S3 secret key for this S3 bucket.</p>
+        <p>
+          Note: Inlining the access key into the ingestion spec is dangerous as it might appear in
+          server log files and can be seen by anyone accessing this console.
+        </p>
+      </>
+    ),
+  },
+
+  // hdfs
+  {
+    name: 'paths',
+    label: 'Paths',
+    type: 'string',
+    placeholder: '/path/to/file.ext',
+    defined: typeIs('hdfs'),
+    required: true,
+  },
+
+  // sql
+  {
+    name: 'database.type',
+    label: 'Database type',
+    type: 'string',
+    suggestions: ['mysql', 'postgresql'],
+    defined: typeIs('sql'),
+    required: true,
+    info: (
+      <>
+        <p>
+          The full Google Cloud Storage URI of your file. To ingest from multiple URIs, use commas
+          to separate each individual URI.
+        </p>
+        <p>Either Google Cloud Storage URIs or prefixes or objects must be set.</p>
+      </>
+    ),
+  },
+];

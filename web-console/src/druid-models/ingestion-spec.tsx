@@ -45,7 +45,7 @@ import {
   getDimensionSpecType,
 } from './dimension-spec';
 import { InputFormat, issueWithInputFormat } from './input-format';
-import { InputSource, issueWithInputSource } from './input-source';
+import { FILTER_SUGGESTIONS, InputSource, issueWithInputSource } from './input-source';
 import {
   getMetricSpecOutputType,
   getMetricSpecs,
@@ -447,6 +447,24 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
     ),
   };
 
+  const inputSourceFilter: Field<IoConfig> = {
+    name: 'inputSource.filter',
+    label: 'File filter',
+    type: 'string',
+    suggestions: FILTER_SUGGESTIONS,
+    placeholder: '*',
+    info: (
+      <p>
+        A wildcard filter for files. See{' '}
+        <ExternalLink href="https://commons.apache.org/proper/commons-io/apidocs/org/apache/commons/io/filefilter/WildcardFileFilter.html">
+          here
+        </ExternalLink>{' '}
+        for format information. Files matching the filter criteria are considered for ingestion.
+        Files not matching the filter criteria are ignored.
+      </p>
+    ),
+  };
+
   switch (ingestionComboType) {
     case 'index_parallel:http':
       return [
@@ -504,16 +522,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
           label: 'File filter',
           type: 'string',
           required: true,
-          suggestions: [
-            '*',
-            '*.json',
-            '*.json.gz',
-            '*.csv',
-            '*.tsv',
-            '*.parquet',
-            '*.orc',
-            '*.avro',
-          ],
+          suggestions: FILTER_SUGGESTIONS,
           info: (
             <>
               <ExternalLink
@@ -526,7 +535,8 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
                 <ExternalLink href="https://commons.apache.org/proper/commons-io/apidocs/org/apache/commons/io/filefilter/WildcardFileFilter.html">
                   here
                 </ExternalLink>{' '}
-                for format information.
+                for format information. Files matching the filter criteria are considered for
+                ingestion. Files not matching the filter criteria are ignored.
               </p>
             </>
           ),
@@ -634,7 +644,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             </>
           ),
         },
-
+        inputSourceFilter,
         {
           name: 'inputSource.properties.accessKeyId.type',
           label: 'Access key ID type',
@@ -796,6 +806,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             </>
           ),
         },
+        inputSourceFilter,
       ];
 
     case 'index_parallel:google':
@@ -854,6 +865,7 @@ export function getIoConfigFormFields(ingestionComboType: IngestionComboType): F
             </>
           ),
         },
+        inputSourceFilter,
       ];
 
     case 'index_parallel:hdfs':

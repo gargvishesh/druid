@@ -47,6 +47,7 @@ import { SMALL_TABLE_PAGE_SIZE, SMALL_TABLE_PAGE_SIZE_OPTIONS } from '../../../r
 import {
   columnToIcon,
   columnToWidth,
+  convertToGroupByExpression,
   copyAndAlert,
   filterMap,
   formatNumber,
@@ -56,9 +57,9 @@ import {
   prettyPrintSql,
   QueryAction,
   stringifyValue,
+  timeFormatToSql,
 } from '../../../utils';
-import { ExpressionEditorDialog } from '../expression-editor-dialog/expression-editor-dialog';
-import { convertToGroupByExpression, timeFormatToSql } from '../sql-utils';
+import { ExpressionEditorDialog } from '../../sql-data-loader-view/expression-editor-dialog/expression-editor-dialog';
 import { TimeFloorMenuItem } from '../time-floor-menu-item/time-floor-menu-item';
 
 import './result-table-pane.scss';
