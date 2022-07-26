@@ -131,14 +131,13 @@ public class TalariaQueryMaker implements QueryMaker
   {
     String taskId = TalariaTasks.controllerTaskId(plannerContext.getSqlQueryId());
 
-    Object talariaMode = plannerContext.getQueryContext().getOrDefault(TalariaMode.CTX_TALARIA_MODE, "strict");
+    String talariaMode = TalariaMode.getTalariaMode(plannerContext.getQueryContext());
     if (talariaMode != null) {
-      TalariaMode.populateDefaultQueryContext(talariaMode.toString(), plannerContext.getQueryContext());
+      TalariaMode.populateDefaultQueryContext(talariaMode, plannerContext.getQueryContext());
     }
 
     final String ctxDestination =
-        DimensionHandlerUtils.convertObjectToString(plannerContext.getQueryContext()
-                                                                  .get(TalariaContext.CTX_DESTINATION));
+        DimensionHandlerUtils.convertObjectToString(TalariaContext.getDestination(plannerContext.getQueryContext()));
 
     Object segmentGranularity;
     try {
@@ -161,11 +160,9 @@ public class TalariaQueryMaker implements QueryMaker
     // This parameter is used internally for the number of worker tasks only, so we subtract 1
     final int maxNumWorkers = maxNumTasks - 1;
 
-    final int rowsPerSegment = plannerContext.getQueryContext()
-                                             .getAsInt(TalariaContext.CTX_ROWS_PER_SEGMENT, DEFAULT_ROWS_PER_SEGMENT);
+    final int rowsPerSegment = TalariaContext.getRowsPerSegment(plannerContext.getQueryContext(), DEFAULT_ROWS_PER_SEGMENT);
 
-    final int rowsInMemory = plannerContext.getQueryContext()
-                                           .getAsInt(TalariaContext.CTX_ROWS_IN_MEMORY, DEFAULT_ROWS_IN_MEMORY);
+    final int rowsInMemory = TalariaContext.getRowsInMemory(plannerContext.getQueryContext(), DEFAULT_ROWS_IN_MEMORY);
 
     final boolean finalizeAggregations = TalariaContext.isFinalizeAggregations(plannerContext.getQueryContext());
 
@@ -252,7 +249,7 @@ public class TalariaQueryMaker implements QueryMaker
       }
 
       final List<String> segmentSortOrder = TalariaInsertContextKeys.decodeSortOrder(
-          (String) plannerContext.getQueryContext().get(TalariaInsertContextKeys.CTX_SORT_ORDER)
+          TalariaInsertContextKeys.getSortOrder(plannerContext.getQueryContext())
       );
 
       validateSegmentSortOrder(

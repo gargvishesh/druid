@@ -34,7 +34,7 @@ public class DurableStorageConfigurationFault extends BaseTalariaFault
         + "Check the documentation on how to enable durable storage mode. "
         + "If you want to still query without durable storage mode, set %s to false in the query context. Got error %s",
         TalariaIndexingModule.TALARIA_INTERMEDIATE_STORAGE_ENABLED,
-        TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE,
+        TalariaContext.CTX_ENABLE_DURABLE_SHUFFLE_STORAGE,
         errorMessage
     );
     this.errorMessage = errorMessage;

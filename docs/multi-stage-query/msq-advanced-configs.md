@@ -18,14 +18,14 @@ To use durable storage for mesh shuffles:
 **UI**
 
    ```sql
-   --:context msqDurableShuffleStorage: true
+   --:context durableShuffleStorage: true
    ```
 
 **API**
 
    ```json
    "context": {
-       "msqDurableShuffleStorage": true
+       "durableShuffleStorage": true
    }
    ```
 

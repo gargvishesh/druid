@@ -229,7 +229,7 @@ dimensions, and aggregation functions become metrics.
 
 When performing rollup using aggregations, it is important to use aggregators
 that return _nonfinalized_ state. This allows you to perform further rollups
-at query time. To achieve this, set `msqFinalizeAggregations: false` in your
+at query time. To achieve this, set `finalizeAggregations: false` in your
 ingestion query context and refer to the following table for any additional
 modifications needed.
 
@@ -242,7 +242,7 @@ across the segments. This information is stored inside the metadata of the segme
 aggregator information of a column in the segment metadata when:
 
 - The INSERT or REPLACE query has an outer GROUP BY clause.
-- The following context parameters are set for the query context: `msqFinalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false`
+- The following context parameters are set for the query context: `finalizeAggregations: false` and `groupByEnableMultiValueUnnesting: false`
 
 |Query-time aggregation|Notes|
 |----------------------|-----|
@@ -297,7 +297,7 @@ This example inserts data into a table named `w000` without performing any data 
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO w000
@@ -346,7 +346,7 @@ This example inserts data into a table named `kttm_data` and performs data rollu
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO "kttm_rollup"
@@ -392,7 +392,7 @@ This example rolls up data from a table named `w000` and inserts the result into
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO w002
@@ -423,7 +423,7 @@ This example inserts data into a table named `w003` and joins data from two sour
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 INSERT INTO w003
@@ -482,7 +482,7 @@ This example replaces the entire datasource used in the table `w007` with the ne
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 REPLACE INTO w007
@@ -532,7 +532,7 @@ This example replaces certain segments in a datasource with the new query data w
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 REPLACE INTO w007
@@ -558,7 +558,7 @@ CLUSTERED BY page
 <details><summary>Show the query</summary>
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 REPLACE INTO w000
@@ -589,7 +589,7 @@ CLUSTERED BY page
 
 
 ```sql
---:context msqFinalizeAggregations: false
+--:context finalizeAggregations: false
 --:context groupByEnableMultiValueUnnesting: false
 
 WITH flights AS (

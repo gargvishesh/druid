@@ -43,7 +43,7 @@ When you submit a task query to MSQ, the following happens:
 3. The Broker returns the task ID to you and exits.
 
 4.  The controller task launches some number of worker tasks determined by
-    the `msqMaxNumTasks` and `msqTaskAssignment` [context parameters](./msq-reference.md#context-parameters). You can set these settings individually for each query.
+    the `maxNumTasks` and `taskAssignment` [context parameters](./msq-reference.md#context-parameters). You can set these settings individually for each query.
 
 5.  The worker tasks execute the query.
 
@@ -57,7 +57,7 @@ When you submit a task query to MSQ, the following happens:
 
 Paralleism affects how MSQ performs.
 
-The [`msqMaxNumTasks`](./msq-reference.md#context-parameters) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `msqMaxNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
+The [`maxNumTasks`](./msq-reference.md#context-parameters) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `maxNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 
 The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
 of worker tasks that can run on each server at once. Worker tasks run single-threaded, which
@@ -141,7 +141,7 @@ The following table describes error codes you may encounter in the `multiStageQu
 +|  InvalidNullByte  | A string column included a null byte. Null bytes in strings are not permitted. |  &bull;&nbsp;column: the column that included the null byte |
 | QueryNotSupported   |   QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that the multi-stage engine does not yet support, like GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame.<br /> <br />See the Limits table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   &bull;&nbsp;maxFrameSize: the limit on frame size which was exceeded |
-|  TaskStartTimeout  | Unable to launch all the worker tasks in time. <br /> <br />There might be insufficient available slots to start all the worker tasks simultaneously.<br /> <br /> Try splitting up the query into smaller chunks with lesser `msqMaxNumTasks` number. Another option is to increase capacity.  | |
+|  TaskStartTimeout  | Unable to launch all the worker tasks in time. <br /> <br />There might be insufficient available slots to start all the worker tasks simultaneously.<br /> <br /> Try splitting up the query into smaller chunks with lesser `maxNumTasks` number. Another option is to increase capacity.  | |
 |  TooManyBuckets  |  Too many partition buckets for a stage.<br /> <br />Currently, partition buckets are only used for segmentGranularity during INSERT queries. The most common reason for this error is that your segmentGranularity is too narrow relative to the data. See the [Limits](./msq-concepts.md#limits) table for the specific limit.  |  &bull;&nbsp;maxBuckets: the limit on buckets which was exceeded  |
 | TooManyInputFiles | Too many input files/segments per worker.<br /> <br />See the [Limits](./msq-concepts.md#limits) table for the specific limit. |&bull;&nbsp;numInputFiles: the total number of input files/segments for the stage<br /><br />&bull;&nbsp;maxInputFiles: the maximum number of input files/segments per worker per stage<br /><br />&bull;&nbsp;minNumWorker: the minimum number of workers required for a sucessfull run |
 |  TooManyPartitions   |  Too many partitions for a stage.<br /> <br />The most common reason for this is that the final stage of an INSERT or REPLACE query generated too many segments. See the [Limits](./msq-concepts.md#limits) table for the specific limit.  | &bull;&nbsp;maxPartitions: the limit on partitions which was exceeded    |
