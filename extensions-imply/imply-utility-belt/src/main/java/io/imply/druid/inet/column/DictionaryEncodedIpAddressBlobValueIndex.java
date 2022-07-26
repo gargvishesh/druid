@@ -17,6 +17,7 @@ import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.segment.IntListUtils;
+import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.data.GenericIndexed;
 
 import javax.annotation.Nullable;
@@ -25,7 +26,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-public class DictionaryEncodedIpAddressBlobValueIndex
+public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncodedValueIndex
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
@@ -42,23 +43,7 @@ public class DictionaryEncodedIpAddressBlobValueIndex
     this.dictionary = dictionary;
   }
 
-
-  public BitmapFactory getBitmapFactory()
-  {
-    return bitmapFactory;
-  }
-
-
-  public int getIndex(@Nullable ByteBuffer blob)
-  {
-    // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
-    if (blob == null) {
-      return dictionary.indexOf(null);
-    }
-    return dictionary.indexOf(blob);
-  }
-
-
+  @Override
   public ImmutableBitmap getBitmap(int idx)
   {
     if (idx < 0) {
@@ -69,100 +54,11 @@ public class DictionaryEncodedIpAddressBlobValueIndex
     return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
   }
 
-
-
   public ImmutableBitmap getBitmapForValue(@Nullable ByteBuffer blob)
   {
     final int idx = dictionary.indexOf(blob);
     return getBitmap(idx);
   }
-
-
-  public Iterable<ImmutableBitmap> getBitmapsInRange(
-      @Nullable ByteBuffer startValue,
-      boolean startStrict,
-      @Nullable ByteBuffer endValue,
-      boolean endStrict
-  )
-  {
-    final IntIntPair range = getRange(startValue, startStrict, endValue, endStrict);
-    final int start = range.leftInt(), end = range.rightInt();
-    return () -> new Iterator<ImmutableBitmap>()
-    {
-      final IntIterator rangeIterator = IntListUtils.fromTo(start, end).iterator();
-
-      @Override
-      public boolean hasNext()
-      {
-        return rangeIterator.hasNext();
-      }
-
-      @Override
-      public ImmutableBitmap next()
-      {
-        return getBitmap(rangeIterator.nextInt());
-      }
-    };
-  }
-
-
-  public Iterable<ImmutableBitmap> getBitmapsInRange(
-      @Nullable ByteBuffer startValue,
-      boolean startStrict,
-      @Nullable ByteBuffer endValue,
-      boolean endStrict,
-      Predicate<String> indexMatcher
-  )
-  {
-    final IntIntPair range = getRange(startValue, startStrict, endValue, endStrict);
-    final int start = range.leftInt(), end = range.rightInt();
-    return () -> new Iterator<ImmutableBitmap>()
-    {
-      int currIndex = start;
-      int found;
-      {
-        found = findNext();
-      }
-
-      private int findNext()
-      {
-        while (currIndex < end) {
-          IpAddressBlob blob = IpAddressBlob.ofByteBuffer(dictionary.get(currIndex));
-          String blobString = blob == null ? null : blob.asCompressedString();
-          if (indexMatcher.apply(blobString)) {
-            break;
-          }
-          currIndex++;
-        }
-
-        if (currIndex < end) {
-          return currIndex++;
-        } else {
-          return -1;
-        }
-      }
-
-      @Override
-      public boolean hasNext()
-      {
-        return found != -1;
-      }
-
-      @Override
-      public ImmutableBitmap next()
-      {
-        int cur = found;
-
-        if (cur == -1) {
-          throw new NoSuchElementException();
-        }
-
-        found = findNext();
-        return getBitmap(cur);
-      }
-    };
-  }
-
 
   public Iterable<ImmutableBitmap> getBitmapsForValues(Set<ByteBuffer> values)
   {
@@ -202,35 +98,6 @@ public class DictionaryEncodedIpAddressBlobValueIndex
         }
       }
     };
-  }
-
-  private IntIntPair getRange(@Nullable ByteBuffer startValue, boolean startStrict, @Nullable ByteBuffer endValue, boolean endStrict)
-  {
-    int startIndex, endIndex;
-    if (startValue == null) {
-      startIndex = 0;
-    } else {
-      final int found = dictionary.indexOf(startValue);
-      if (found >= 0) {
-        startIndex = startStrict ? found + 1 : found;
-      } else {
-        startIndex = -(found + 1);
-      }
-    }
-
-    if (endValue == null) {
-      endIndex = dictionary.size();
-    } else {
-      final int found = dictionary.indexOf(endValue);
-      if (found >= 0) {
-        endIndex = endStrict ? found : found + 1;
-      } else {
-        endIndex = -(found + 1);
-      }
-    }
-
-    endIndex = Math.max(startIndex, endIndex);
-    return new IntIntImmutablePair(startIndex, endIndex);
   }
 
   public Iterable<ImmutableBitmap> getBitmapsForPredicateFactory(DruidPredicateFactory predicateFactory)

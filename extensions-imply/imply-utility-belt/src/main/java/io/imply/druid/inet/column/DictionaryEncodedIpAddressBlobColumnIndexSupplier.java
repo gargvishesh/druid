@@ -12,6 +12,7 @@ package io.imply.druid.inet.column;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
+import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.data.GenericIndexed;
 
 import javax.annotation.Nullable;
@@ -38,7 +39,7 @@ public class DictionaryEncodedIpAddressBlobColumnIndexSupplier implements Column
   @Override
   public <T> T as(Class<T> clazz)
   {
-    if (clazz.equals(DictionaryEncodedIpAddressBlobValueIndex.class)) {
+    if (clazz.isAssignableFrom(DictionaryEncodedIpAddressBlobValueIndex.class)) {
       return (T) new DictionaryEncodedIpAddressBlobValueIndex(bitmapFactory, bitmaps, dictionary);
     }
     return null;
