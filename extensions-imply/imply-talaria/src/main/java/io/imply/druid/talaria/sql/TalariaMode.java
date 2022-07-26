@@ -9,8 +9,10 @@
 
 package io.imply.druid.talaria.sql;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.talaria.indexing.error.TalariaWarnings;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.QueryContext;
@@ -18,6 +20,7 @@ import org.apache.druid.query.QueryContext;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -32,12 +35,24 @@ public enum TalariaMode
 
   private static final Logger log = new Logger(TalariaMode.class);
 
-  public static final String CTX_TALARIA_MODE = "msqMode";
+  public static final String CTX_TALARIA_MODE = "mode";
+  public static final List<String> CTX_TALARIA_MODE_LEGACY_ALIASES = ImmutableList.of("msqMode");
+  public static final String CTX_TALARIA_MODE_DEFAULT = "strict";
 
   TalariaMode(final String value, final Map<String, Object> defaultQueryContext)
   {
     this.value = value;
     this.defaultQueryContext = new HashMap<>(defaultQueryContext);
+  }
+
+  public static String getTalariaMode(QueryContext queryContext)
+  {
+    return (String) TalariaContext.getValueFromPropertyMap(
+        queryContext.getMergedParams(),
+        CTX_TALARIA_MODE,
+        CTX_TALARIA_MODE_LEGACY_ALIASES,
+        "strict"
+    );
   }
 
   @Nullable

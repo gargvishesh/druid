@@ -52,7 +52,7 @@ public class QueryKitUtils
 
   public static final String SEGMENT_GRANULARITY_COLUMN = "__bucket";
 
-  public static final String CTX_TIME_COLUMN_NAME = "msqTimeColumn";
+  public static final String CTX_TIME_COLUMN_NAME = "__timeColumn";
 
   private static final ObjectMapper OBJECT_MAPPER = new DefaultObjectMapper();
 

@@ -316,7 +316,7 @@ public class TalariaReplaceTest extends TalariaTestRunner
   }
 
   @Test
-  public void testInsertOffsetThrowsException()
+  public void testReplaceOffsetThrowsException()
   {
     testIngestQuery().setSql(" REPLACE INTO foo "
                              + "OVERWRITE ALL "

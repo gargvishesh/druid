@@ -12,9 +12,12 @@ package io.imply.druid.talaria.indexing;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.opencsv.RFC4180Parser;
 import com.opencsv.RFC4180ParserBuilder;
+import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.query.QueryContext;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -33,13 +36,24 @@ public class TalariaInsertContextKeys
    * Controls sort order within segments. Normally, this is the same as the overall order of the query (from the
    * CLUSTERED BY clause) but it can be overridden.
    */
-  public static final String CTX_SORT_ORDER = "msqSegmentSortOrder";
+  public static final String CTX_SORT_ORDER = "segmentSortOrder";
+  public static final List<String> CTX_SORT_ORDER_LEGACY_ALIASES = ImmutableList.of("msqSegmentSortOrder");
 
   private static final Pattern LOOKS_LIKE_JSON_ARRAY = Pattern.compile("^\\s*\\[.*", Pattern.DOTALL);
 
   private TalariaInsertContextKeys()
   {
     // No instantiation.
+  }
+
+  public static String getSortOrder(final QueryContext queryContext)
+  {
+    return (String) TalariaContext.getValueFromPropertyMap(
+        queryContext.getMergedParams(),
+        CTX_SORT_ORDER,
+        CTX_SORT_ORDER_LEGACY_ALIASES,
+        null
+    );
   }
 
   /**

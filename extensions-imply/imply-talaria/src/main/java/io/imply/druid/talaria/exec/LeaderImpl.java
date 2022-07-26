@@ -1645,7 +1645,7 @@ public class LeaderImpl implements Leader
    */
   private static boolean isRollupQuery(Query<?> query)
   {
-    return query.getContextBoolean(TalariaContext.CTX_FINALIZE_AGGREGATIONS, true) == false
+    return TalariaContext.isFinalizeAggregations(query.getQueryContext()) == false
            && query.getContextBoolean(GroupByQueryConfig.CTX_KEY_ENABLE_MULTI_VALUE_UNNESTING, true) == false
            && query instanceof GroupByQuery;
   }

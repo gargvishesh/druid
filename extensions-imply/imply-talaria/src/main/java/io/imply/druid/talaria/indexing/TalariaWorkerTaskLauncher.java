@@ -294,7 +294,7 @@ public class TalariaWorkerTaskLauncher
     final Map<String, Object> taskContext = new HashMap<>();
 
     if (durableStageStorageEnabled) {
-      taskContext.put(TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE, true);
+      taskContext.put(TalariaContext.CTX_ENABLE_DURABLE_SHUFFLE_STORAGE, true);
     }
 
     final int firstTask;

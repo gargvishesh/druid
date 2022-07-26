@@ -181,7 +181,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   public static final Map<String, Object> DEFAULT_TALARIA_CONTEXT = ImmutableMap.<String, Object>builder()
                                                                                 .put("multiStageQuery", true)
                                                                                 .put(
-                                                                                    TalariaContext.CTX_DURABLE_SHUFFLE_STORAGE,
+                                                                                    TalariaContext.CTX_ENABLE_DURABLE_SHUFFLE_STORAGE,
                                                                                     true
                                                                                 )
                                                                                 .build();

@@ -107,7 +107,7 @@ In the **Query** view, do the following:
 
    ```sql
    -- This SQL query was auto generated from an ingestion spec
-   --:context msqFinalizeAggregations: false
+   --:context finalizeAggregations: false
    --:context groupByEnableMultiValueUnnesting: false
    INSERT INTO wikipedia
    WITH ioConfigExtern AS (SELECT * FROM TABLE(
