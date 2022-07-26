@@ -45,7 +45,7 @@ public class FrameCursor implements Cursor
   @Override
   public void advance()
   {
-    offset.increment();
+    advanceUninterruptibly();
     BaseQuery.checkInterrupted();
   }
 

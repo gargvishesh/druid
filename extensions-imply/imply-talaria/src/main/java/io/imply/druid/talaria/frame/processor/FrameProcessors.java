@@ -130,7 +130,7 @@ public class FrameProcessors
       }
 
       @Override
-      public ReturnOrAwait<T> runIncrementally(IntSet readableInputs) throws IOException
+      public ReturnOrAwait<T> runIncrementally(IntSet readableInputs) throws InterruptedException, IOException
       {
         return processor.runIncrementally(readableInputs);
       }

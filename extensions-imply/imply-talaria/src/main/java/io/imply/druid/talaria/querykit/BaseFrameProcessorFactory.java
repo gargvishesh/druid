@@ -11,8 +11,8 @@ package io.imply.druid.talaria.querykit;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.kernel.ExtraInfoHolder;
+import io.imply.druid.talaria.kernel.FrameProcessorFactory;
 import io.imply.druid.talaria.kernel.NilExtraInfoHolder;
 import org.apache.druid.java.util.common.ISE;
 

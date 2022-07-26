@@ -18,7 +18,6 @@ import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.ClusterByPartitions;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollector;
 import io.imply.druid.talaria.frame.cluster.statistics.ClusterByStatisticsCollectorImpl;
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.read.FrameReader;
 import io.imply.druid.talaria.input.InputSpec;
 import io.imply.druid.talaria.input.InputSpecs;

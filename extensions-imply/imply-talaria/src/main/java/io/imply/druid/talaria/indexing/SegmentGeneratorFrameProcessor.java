@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class SegmentGeneratorFrameProcessor implements FrameProcessor<DataSegment>
@@ -105,7 +106,7 @@ public class SegmentGeneratorFrameProcessor implements FrameProcessor<DataSegmen
   }
 
   @Override
-  public ReturnOrAwait<DataSegment> runIncrementally(final IntSet readableInputs)
+  public ReturnOrAwait<DataSegment> runIncrementally(final IntSet readableInputs) throws InterruptedException
   {
     if (firstRun) {
       log.debug("Starting job for segment [%s].", segmentIdWithShardSpec.asSegmentId());
@@ -128,15 +129,17 @@ public class SegmentGeneratorFrameProcessor implements FrameProcessor<DataSegmen
         // useUniquePath = false because this class is meant to be used by batch jobs.
         final ListenableFuture<SegmentsAndCommitMetadata> pushFuture =
             appenderator.push(Collections.singletonList(segmentIdWithShardSpec), null, false);
-        final SegmentsAndCommitMetadata metadata = FutureUtils.getUnchecked(pushFuture, true);
+
+        final SegmentsAndCommitMetadata metadata;
 
         try {
-          appenderator.clear();
+          metadata = FutureUtils.get(pushFuture, true);
         }
-        catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
+        catch (ExecutionException e) {
+          throw new RuntimeException(e.getCause());
         }
+
+        appenderator.clear();
 
         log.debug("Finished work for segment [%s].", segmentIdWithShardSpec.asSegmentId());
         return ReturnOrAwait.returnObject(Iterables.getOnlyElement(metadata.getSegments()));

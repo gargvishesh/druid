@@ -18,7 +18,7 @@ import java.util.Objects;
 
 /**
  * Holds extra info that will be passed as the "extra" parameter to
- * {@link io.imply.druid.talaria.frame.processor.FrameProcessorFactory#makeProcessors}.
+ * {@link FrameProcessorFactory#makeProcessors}.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public abstract class ExtraInfoHolder<ExtraInfoType>

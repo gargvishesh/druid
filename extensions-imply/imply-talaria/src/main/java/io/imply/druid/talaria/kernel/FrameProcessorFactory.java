@@ -7,15 +7,18 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.talaria.frame.processor;
+package io.imply.druid.talaria.kernel;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.talaria.counters.CounterTracker;
+import io.imply.druid.talaria.frame.processor.FrameContext;
+import io.imply.druid.talaria.frame.processor.FrameProcessor;
+import io.imply.druid.talaria.frame.processor.FrameProcessors;
+import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
+import io.imply.druid.talaria.frame.processor.ProcessorsAndChannels;
 import io.imply.druid.talaria.input.InputSlice;
 import io.imply.druid.talaria.input.InputSliceReader;
-import io.imply.druid.talaria.kernel.ExtraInfoHolder;
-import io.imply.druid.talaria.kernel.StageDefinition;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
