@@ -16,14 +16,12 @@ In its current state, MSQ enables you to do the following:
 - Transform and rewrite existing tables using SQL.
 - Perform multi-dimension range partitioning reliably, which leads to more evenly distributed segment sizes and better performance.
 
-In addition, MSQ can do the following as part of a proof of concept or demo: 
+MSQ has additional features that can be used as part of a proof of concept or demo, but don't use or rely on the following features for any meaningful use cases, especially production ones:
 
 - Execute heavy-weight queries and return large numbers of rows.
 - Execute queries that exchange large amounts of data between servers, like exact count distinct of high-cardinality fields.
 
-Do not use these queries in production or for any meaningful use cases.
-
-You can read more about the motivation for building MSQ in this [Imply blog post](https://imply.io/blog/a-new-shape-for-apache-druid/).
+You can read more about the motivation for building MSQE in this [Imply blog post](https://imply.io/blog/a-new-shape-for-apache-druid/).
 
 ## Next steps
 
