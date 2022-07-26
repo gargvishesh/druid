@@ -39,7 +39,6 @@ import io.imply.druid.talaria.frame.processor.FrameChannelMuxer;
 import io.imply.druid.talaria.frame.processor.FrameContext;
 import io.imply.druid.talaria.frame.processor.FrameProcessor;
 import io.imply.druid.talaria.frame.processor.FrameProcessorExecutor;
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.frame.processor.FrameProcessors;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
@@ -70,6 +69,7 @@ import io.imply.druid.talaria.input.SegmentsInputSlice;
 import io.imply.druid.talaria.input.SegmentsInputSliceReader;
 import io.imply.druid.talaria.input.StageInputSlice;
 import io.imply.druid.talaria.input.StageInputSliceReader;
+import io.imply.druid.talaria.kernel.FrameProcessorFactory;
 import io.imply.druid.talaria.kernel.QueryDefinition;
 import io.imply.druid.talaria.kernel.ReadablePartition;
 import io.imply.druid.talaria.kernel.StageDefinition;
@@ -225,7 +225,15 @@ public class WorkerImpl implements Worker
     });
 
     // Close stage output processors and running futures (if present)
-    closer.register(() -> workerExec.cancel(cancellationId));
+    closer.register(() -> {
+      try {
+        workerExec.cancel(cancellationId);
+      }
+      catch (InterruptedException e) {
+        // Strange that cancelation would itself be interrupted. Throw an exception, since this is unexpected.
+        throw new RuntimeException(e);
+      }
+    });
 
     final TalariaWarningReportPublisher talariaWarningReportPublisher = new TalariaWarningReportLimiterPublisher(
         new TalariaWarningReportSimplePublisher(

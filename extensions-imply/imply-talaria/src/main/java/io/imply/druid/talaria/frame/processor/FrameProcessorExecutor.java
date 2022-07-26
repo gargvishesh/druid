@@ -24,7 +24,7 @@ import io.imply.druid.talaria.frame.channel.Try;
 import io.imply.druid.talaria.frame.channel.WritableFrameChannel;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.Either;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.io.Closer;
@@ -33,8 +33,11 @@ import org.apache.druid.java.util.common.logger.Logger;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -54,16 +57,20 @@ public class FrameProcessorExecutor
 
   private final Object lock = new Object();
 
+  // Futures that are active and therefore cancelable.
   @GuardedBy("lock")
-  private final SetMultimap<String, ListenableFuture<?>> cancellationFutures =
+  private final SetMultimap<String, ListenableFuture<?>> cancelableFutures =
       Multimaps.newSetMultimap(new HashMap<>(), Sets::newIdentityHashSet);
 
+  // Processors that are active and therefore cancelable. They may not currently be running on an actual thread.
   @GuardedBy("lock")
-  private final SetMultimap<String, FrameProcessor<?>> cancellationProcessors =
+  private final SetMultimap<String, FrameProcessor<?>> cancelableProcessors =
       Multimaps.newSetMultimap(new HashMap<>(), Sets::newIdentityHashSet);
 
+  // Processors that are currently running on a thread.
+  // The "lock" is notified when processors are removed from runningProcessors.
   @GuardedBy("lock")
-  private final Set<FrameProcessor<?>> runningProcessors = Sets.newIdentityHashSet();
+  private final Map<FrameProcessor<?>, Thread> runningProcessors = new IdentityHashMap<>();
 
   public FrameProcessorExecutor(final ListeningExecutorService exec)
   {
@@ -81,8 +88,8 @@ public class FrameProcessorExecutor
   /**
    * Runs a processor until it is done, and returns a future that resolves when execution is complete.
    *
-   * If "cancellationId" is provided, it can be used to cancel all processors currently running for a particular set of
-   * work.
+   * If "cancellationId" is provided, it can be used with the {@link #cancel(String)} method to cancel all processors
+   * currently running with the same cancellationId.
    */
   public <T> ListenableFuture<T> runFully(final FrameProcessor<T> processor, @Nullable final String cancellationId)
   {
@@ -112,7 +119,7 @@ public class FrameProcessorExecutor
           final Optional<ReturnOrAwait<T>> maybeResult = runProcessorNow();
 
           if (!maybeResult.isPresent()) {
-            // Processor was canceled. Just exit.
+            // Processor exited abnormally. Just exit; cleanup would have been handled elsewhere.
             return;
           }
 
@@ -165,10 +172,10 @@ public class FrameProcessorExecutor
 
       /**
        * Executes {@link FrameProcessor#runIncrementally} on the currently-readable inputs, while respecting
-       * cancellation. Returns an empty Optional if the processor was canceled, or a present Optional if the processor
-       * ran successfully. Throws an exception if the processor does.
+       * cancellation. Returns an empty Optional if the processor exited abnormally (canceled or failed). Returns a
+       * present Optional if the processor ran successfully. Throws an exception if the processor does.
        */
-      private Optional<ReturnOrAwait<T>> runProcessorNow() throws IOException
+      private Optional<ReturnOrAwait<T>> runProcessorNow()
       {
         final IntSet readableInputs = new IntOpenHashSet(inputChannels.size());
 
@@ -180,9 +187,11 @@ public class FrameProcessorExecutor
         }
 
         if (cancellationId != null) {
+          // After this synchronized block, our thread may be interrupted by cancellations, because "cancel"
+          // checks "runningProcessors".
           synchronized (lock) {
-            if (cancellationProcessors.containsEntry(cancellationId, processor)) {
-              runningProcessors.add(processor);
+            if (cancelableProcessors.containsEntry(cancellationId, processor)) {
+              runningProcessors.put(processor, Thread.currentThread());
             } else {
               // Processor has been canceled. We don't need to handle cleanup, because someone else did it.
               return Optional.empty();
@@ -190,29 +199,44 @@ public class FrameProcessorExecutor
           }
         }
 
-        Optional<ReturnOrAwait<T>> retVal;
+        boolean canceled = false;
+        Either<Throwable, ReturnOrAwait<T>> retVal;
 
         try {
-          retVal = Optional.of(processor.runIncrementally(readableInputs));
+          if (Thread.interrupted()) {
+            throw new InterruptedException();
+          }
+
+          retVal = Either.value(processor.runIncrementally(readableInputs));
+        }
+        catch (Throwable e) {
+          retVal = Either.error(e);
         }
         finally {
           if (cancellationId != null) {
+            // After this synchronized block, our thread will no longer be interrupted by cancellations,
+            // because "cancel" checks "runningProcessors".
             synchronized (lock) {
-              runningProcessors.remove(processor);
+              if (Thread.interrupted()) {
+                // ignore: interrupt was meant for the processor, but came after the processor already exited.
+              }
 
-              if (!cancellationProcessors.containsEntry(cancellationId, processor)) {
-                // Processor has been canceled. We need to handle cleanup. Also: overwrite the return value.
-                retVal = Optional.empty();
+              runningProcessors.remove(processor);
+              lock.notifyAll();
+
+              if (!cancelableProcessors.containsEntry(cancellationId, processor)) {
+                // Processor has been canceled by one of the "cancel" methods. They will handle cleanup.
+                canceled = true;
               }
             }
           }
         }
 
-        if (!retVal.isPresent()) {
-          fail(new ISE("Canceled"));
+        if (canceled) {
+          return Optional.empty();
+        } else {
+          return Optional.of(retVal.valueOrThrow());
         }
-
-        return retVal;
       }
 
       private <V> void runProcessorAfterFutureResolves(final ListenableFuture<V> future)
@@ -241,6 +265,12 @@ public class FrameProcessorExecutor
         );
       }
 
+      /**
+       * Called when a processor succeeds.
+       *
+       * Runs the cleanup routine and sets the finished future to a particular value. If cleanup fails, sets the
+       * finished future to an error.
+       */
       private void succeed(T value)
       {
         try {
@@ -254,6 +284,11 @@ public class FrameProcessorExecutor
         finished.set(value);
       }
 
+      /**
+       * Called when a processor fails.
+       *
+       * Writes errors to all output channels, runs the cleanup routine, and sets the finished future to an error.
+       */
       private void fail(Throwable e)
       {
         for (final WritableFrameChannel outputChannel : outputChannels) {
@@ -275,15 +310,27 @@ public class FrameProcessorExecutor
         finished.setException(e);
       }
 
+      /**
+       * Called when a processor exits via {@link #succeed} or {@link #fail}. Not called when a processor
+       * is canceled.
+       */
       void doProcessorCleanup() throws IOException
       {
+        final boolean doCleanup;
+
         if (cancellationId != null) {
           synchronized (lock) {
-            cancellationProcessors.remove(cancellationId, processor);
+            // Skip cleanup if the processor is no longer in cancelableProcessors. This means one of the "cancel"
+            // methods is going to do the cleanup.
+            doCleanup = cancelableProcessors.remove(cancellationId, processor);
           }
+        } else {
+          doCleanup = true;
         }
 
-        processor.cleanup();
+        if (doCleanup) {
+          processor.cleanup();
+        }
       }
     }
 
@@ -291,17 +338,21 @@ public class FrameProcessorExecutor
 
     finished.addListener(
         () -> {
-          if (finished.isCancelled()) {
+          logProcessorStatusString(processor, finished, null);
+
+          // If the future was canceled, and the processor is cancelable, then cancel the processor too.
+          if (finished.isCancelled() && cancellationId != null) {
             try {
-              cancel(cancellationId, processor);
+              cancel(Collections.singleton(processor));
+            }
+            catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
             }
             catch (Throwable e) {
               // No point throwing. Exceptions thrown in listeners don't go anywhere.
               log.noStackTrace().warn(e, "Exception encountered while canceling processor [%s]", processor);
             }
           }
-
-          logProcessorStatusString(processor, finished, null);
         },
         Execs.directExecutor()
     );
@@ -312,41 +363,28 @@ public class FrameProcessorExecutor
     return finished;
   }
 
-  public void cancel(final String cancellationId)
+  /**
+   * Cancels all processors associated with a given cancellationId. Waits for the processors to exit before
+   * returning.
+   */
+  public void cancel(final String cancellationId) throws InterruptedException
   {
     Preconditions.checkNotNull(cancellationId, "cancellationId");
 
     final Set<ListenableFuture<?>> futuresToCancel;
-    final Set<FrameProcessor<?>> processorsToCancel;
+    final Set<FrameProcessor<?>> processorsToCleanup;
 
     synchronized (lock) {
-      futuresToCancel = cancellationFutures.removeAll(cancellationId);
-      processorsToCancel = Sets.newIdentityHashSet();
-      processorsToCancel.addAll(cancellationProcessors.removeAll(cancellationId));
-
-      // Don't cancel running processors; runProcessorNow will handle those.
-      processorsToCancel.removeIf(runningProcessors::contains);
+      futuresToCancel = cancelableFutures.removeAll(cancellationId);
+      processorsToCleanup = cancelableProcessors.removeAll(cancellationId);
     }
 
-    // Do the actual closing outside the critical section.
-    final Closer closer = Closer.create();
+    // Cancel all processors.
+    cancel(processorsToCleanup);
 
-    for (FrameProcessor<?> processor : processorsToCancel) {
-      closer.register(processor::cleanup);
-    }
-
-    closer.register(() -> {
-      for (final ListenableFuture<?> future : futuresToCancel) {
-        // Best-effort cancellation, I suppose. The return value is ignored.
-        future.cancel(true);
-      }
-    });
-
-    try {
-      closer.close();
-    }
-    catch (IOException e) {
-      throw new RuntimeException(e);
+    // Cancel all associated futures.
+    for (final ListenableFuture<?> future : futuresToCancel) {
+      future.cancel(true);
     }
   }
 
@@ -357,11 +395,11 @@ public class FrameProcessorExecutor
   {
     if (cancellationId != null) {
       synchronized (lock) {
-        cancellationFutures.put(cancellationId, future);
+        cancelableFutures.put(cancellationId, future);
         future.addListener(
             () -> {
               synchronized (lock) {
-                cancellationFutures.remove(cancellationId, future);
+                cancelableFutures.remove(cancellationId, future);
               }
             },
             Execs.directExecutor()
@@ -372,24 +410,46 @@ public class FrameProcessorExecutor
     return future;
   }
 
-  private void cancel(final String cancellationId, final FrameProcessor<?> processor) throws IOException
+  /**
+   * Cancels a given processor associated with a given cancellationId. Waits for the processor to exit before
+   * returning.
+   */
+  private void cancel(final Set<FrameProcessor<?>> processorsToCleanup)
+      throws InterruptedException
   {
     synchronized (lock) {
-      if (!cancellationProcessors.remove(cancellationId, processor) || runningProcessors.contains(processor)) {
-        return;
+      for (final FrameProcessor<?> processor : processorsToCleanup) {
+        final Thread processorThread = runningProcessors.get(processor);
+        if (processorThread != null) {
+          // Interrupt the thread running the processor. Do this under lock, because we want to make sure we don't
+          // interrupt the thread shortly *before* or *after* it runs the processor.
+          processorThread.interrupt();
+        }
+      }
+
+      // Wait for all running processors to stop running. Then clean them up outside the critical section.
+      while (processorsToCleanup.stream().anyMatch(runningProcessors::containsKey)) {
+        lock.wait();
       }
     }
 
-    // Lack of return means "processor" is not running, and therefore won't run again, because we removed it from
-    // cancellationProcessors. (runProcessorNow checks for that.) Run its cleanup routine.
-    processor.cleanup();
+    // Now processorsToCleanup are not running, also won't run again, because we removed them from cancelableProcessors.
+    // (runProcessorNow checks for that.) Run their cleanup routines outside the critical section.
+    try (final Closer closer = Closer.create()) {
+      for (final FrameProcessor<?> processor : processorsToCleanup) {
+        closer.register(processor::cleanup);
+      }
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private <T> void registerCancelableProcessor(final FrameProcessor<T> processor, @Nullable final String cancellationId)
   {
     if (cancellationId != null) {
       synchronized (lock) {
-        cancellationProcessors.put(cancellationId, processor);
+        cancelableProcessors.put(cancellationId, processor);
       }
     }
   }

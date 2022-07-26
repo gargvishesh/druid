@@ -47,7 +47,7 @@ public class TalariaFutureUtils
    * futures if the returned future is canceled or fails.
    */
   public static <T> ListenableFuture<List<T>> allAsList(
-      final List<ListenableFuture<T>> futures,
+      final Iterable<? extends ListenableFuture<? extends T>> futures,
       final boolean cancelOnErrorOrInterrupt
   )
   {
@@ -67,7 +67,7 @@ public class TalariaFutureUtils
             @Override
             public void onFailure(Throwable t)
             {
-              for (final ListenableFuture<T> inputFuture : futures) {
+              for (final ListenableFuture<? extends T> inputFuture : futures) {
                 inputFuture.cancel(true);
               }
             }

@@ -9,7 +9,6 @@
 
 package io.imply.druid.talaria.kernel;
 
-import io.imply.druid.talaria.frame.processor.FrameProcessorFactory;
 import io.imply.druid.talaria.input.InputSpec;
 import io.imply.druid.talaria.input.InputSpecs;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
