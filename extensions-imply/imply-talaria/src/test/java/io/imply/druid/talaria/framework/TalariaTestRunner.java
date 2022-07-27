@@ -28,6 +28,7 @@ import com.google.inject.util.Providers;
 import io.imply.druid.storage.LocalFileStorageConnectorProvider;
 import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.storage.StorageConnectorProvider;
+import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import io.imply.druid.talaria.guice.Talaria;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
@@ -157,6 +158,7 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.DATASOURCE1;
 import static org.apache.druid.sql.calcite.util.CalciteTests.DATASOURCE2;
 import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS1;
 import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
+import static org.mockito.Mockito.spy;
 
 /**
  * Base test runner for running talaria unit tests. It sets up talaria query execution environment
@@ -215,6 +217,13 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private TestGroupByBuffers groupByBuffers;
+  protected final WorkerMemoryParameters workerMemoryParameters = spy(WorkerMemoryParameters.compute(
+      WorkerMemoryParameters.PROCESSING_MINIMUM_BYTES * 50,
+      2,
+      10,
+      2
+  ));
+
 
   @After
   public void tearDown2()
@@ -322,7 +331,8 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
     indexingServiceClient = new TalariaTestOverlordServiceClient(
         objectMapper,
         injector,
-        new TalariaTestTaskActionClient(objectMapper)
+        new TalariaTestTaskActionClient(objectMapper),
+        workerMemoryParameters
     );
     final InProcessViewManager viewManager = new InProcessViewManager(CalciteTests.DRUID_VIEW_MACRO_FACTORY);
     DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(

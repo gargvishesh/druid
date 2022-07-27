@@ -48,18 +48,21 @@ public class TalariaTestWorkerContext implements WorkerContext
   private final Injector injector;
   private final Map<String, Worker> inMemoryWorkers;
   private final File file = FileUtils.createTempDir();
+  private final WorkerMemoryParameters workerMemoryParameters;
 
   public TalariaTestWorkerContext(
       Map<String, Worker> inMemoryWorkers,
       Leader leader,
       ObjectMapper mapper,
-      Injector injector
+      Injector injector,
+      WorkerMemoryParameters workerMemoryParameters
   )
   {
     this.inMemoryWorkers = inMemoryWorkers;
     this.leader = leader;
     this.mapper = mapper;
     this.injector = injector;
+    this.workerMemoryParameters = workerMemoryParameters;
   }
 
   @Override
@@ -146,12 +149,7 @@ public class TalariaTestWorkerContext implements WorkerContext
         ),
         indexIO,
         injector.getInstance(DataSegmentProvider.class),
-        WorkerMemoryParameters.compute(
-            WorkerMemoryParameters.PROCESSING_MINIMUM_BYTES * 50,
-            2,
-            10,
-            2
-        )
+        workerMemoryParameters
     );
   }
 

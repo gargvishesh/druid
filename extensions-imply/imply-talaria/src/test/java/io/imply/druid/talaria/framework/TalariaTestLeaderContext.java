@@ -22,6 +22,7 @@ import io.imply.druid.talaria.exec.Worker;
 import io.imply.druid.talaria.exec.WorkerClient;
 import io.imply.druid.talaria.exec.WorkerImpl;
 import io.imply.druid.talaria.exec.WorkerManagerClient;
+import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.indexing.TalariaWorkerTask;
 import org.apache.druid.client.coordinator.CoordinatorClient;
 import org.apache.druid.indexer.TaskLocation;
@@ -69,8 +70,9 @@ public class TalariaTestLeaderContext implements LeaderContext
 
   private Leader leader;
   private Map<String, TaskReport> report = null;
+  private final WorkerMemoryParameters workerMemoryParameters;
 
-  public TalariaTestLeaderContext(ObjectMapper mapper, Injector injector, TaskActionClient taskActionClient)
+  public TalariaTestLeaderContext(ObjectMapper mapper, Injector injector, TaskActionClient taskActionClient, WorkerMemoryParameters workerMemoryParameters)
   {
     this.mapper = mapper;
     this.injector = injector;
@@ -88,6 +90,7 @@ public class TalariaTestLeaderContext implements LeaderContext
                               .collect(Collectors.toList())
                      )
     );
+    this.workerMemoryParameters = workerMemoryParameters;
   }
 
   WorkerManagerClient workerManagerClient = new WorkerManagerClient()
@@ -100,7 +103,7 @@ public class TalariaTestLeaderContext implements LeaderContext
       }
       Worker worker = new WorkerImpl(
           task,
-          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector)
+          new TalariaTestWorkerContext(inMemoryWorkers, leader, mapper, injector, workerMemoryParameters)
       );
       inMemoryWorkers.put(task.getId(), worker);
       statusMap.put(task.getId(), TaskStatus.running(task.getId()));

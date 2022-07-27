@@ -17,6 +17,7 @@ import com.google.common.hash.Hashing;
 import io.imply.druid.talaria.framework.TalariaTestRunner;
 import io.imply.druid.talaria.indexing.error.ColumnNameRestrictedFault;
 import io.imply.druid.talaria.indexing.error.InsertTimeNullFault;
+import io.imply.druid.talaria.indexing.error.RowTooLargeFault;
 import io.imply.druid.talaria.util.TalariaContext;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.java.util.common.ISE;
@@ -44,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
+import static org.mockito.Mockito.doReturn;
 
 public class TalariaInsertTest extends TalariaTestRunner
 {
@@ -646,6 +649,34 @@ public class TalariaInsertTest extends TalariaTestRunner
                          )
                      )
                      .verifyResults();
+  }
+
+  @Test
+  public void testInsertWithTooLargeRowShouldThrowException() throws IOException
+  {
+    final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
+    final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
+
+    doReturn(500).when(workerMemoryParameters).getLargeFrameSize();
+
+    testIngestQuery().setSql(" insert into foo1 SELECT\n"
+                             + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
+                             + "  count(*) as cnt\n"
+                             + "FROM TABLE(\n"
+                             + "  EXTERN(\n"
+                             + "    '{ \"files\": [" + toReadFileNameAsJson + "],\"type\":\"local\"}',\n"
+                             + "    '{\"type\": \"json\"}',\n"
+                             + "    '[{\"name\": \"timestamp\", \"type\": \"string\"}, {\"name\": \"page\", \"type\": \"string\"}, {\"name\": \"user\", \"type\": \"string\"}]'\n"
+                             + "  )\n"
+                             + ") group by 1  PARTITIONED by day ")
+                     .setExpectedDataSource("foo")
+                     .setExpectedTalariaFault(new RowTooLargeFault(500))
+                     .setExpectedExecutionErrorMatcher(CoreMatchers.allOf(
+                         CoreMatchers.instanceOf(ISE.class),
+                         ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                             "Row too large to add to frame"))
+                     ))
+                     .verifyExecutionError();
   }
 
   @Test
