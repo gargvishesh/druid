@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Injector;
 import io.imply.druid.talaria.exec.Leader;
 import io.imply.druid.talaria.exec.LeaderImpl;
+import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.indexing.MSQControllerTask;
 import io.imply.druid.talaria.indexing.TalariaQuerySpec;
 import org.apache.druid.client.indexing.NoopOverlordClient;
@@ -31,6 +32,7 @@ public class TalariaTestOverlordServiceClient extends NoopOverlordClient
   private final Injector injector;
   private final ObjectMapper objectMapper;
   private final TaskActionClient taskActionClient;
+  private final WorkerMemoryParameters workerMemoryParameters;
   private Map<String, Leader> inMemoryLeaders = new HashMap<>();
   private Map<String, Map<String, TaskReport>> reports = new HashMap<>();
   private Map<String, TalariaQuerySpec> talariaQuerySpec = new HashMap<>();
@@ -38,12 +40,14 @@ public class TalariaTestOverlordServiceClient extends NoopOverlordClient
   public TalariaTestOverlordServiceClient(
       ObjectMapper objectMapper,
       Injector injector,
-      TaskActionClient taskActionClient
+      TaskActionClient taskActionClient,
+      WorkerMemoryParameters workerMemoryParameters
   )
   {
     this.objectMapper = objectMapper;
     this.injector = injector;
     this.taskActionClient = taskActionClient;
+    this.workerMemoryParameters = workerMemoryParameters;
   }
 
   @Override
@@ -52,7 +56,7 @@ public class TalariaTestOverlordServiceClient extends NoopOverlordClient
     LeaderImpl leader = null;
     TalariaTestLeaderContext talariaTestLeaderContext = null;
     try {
-      talariaTestLeaderContext = new TalariaTestLeaderContext(objectMapper, injector, taskActionClient);
+      talariaTestLeaderContext = new TalariaTestLeaderContext(objectMapper, injector, taskActionClient, workerMemoryParameters);
 
       MSQControllerTask cTask = objectMapper.convertValue(taskObject, MSQControllerTask.class);
       talariaQuerySpec.put(cTask.getId(), cTask.getQuerySpec());
