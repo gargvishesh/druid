@@ -35,6 +35,7 @@ import org.apache.druid.timeline.partition.DimensionRangeShardSpec;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
+import org.mockito.Mockito;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -45,8 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
-import static org.mockito.Mockito.doReturn;
 
 public class TalariaInsertTest extends TalariaTestRunner
 {
@@ -657,7 +656,7 @@ public class TalariaInsertTest extends TalariaTestRunner
     final File toRead = getResourceAsTemporaryFile("/wikipedia-sampled.json");
     final String toReadFileNameAsJson = queryJsonMapper.writeValueAsString(toRead.getAbsolutePath());
 
-    doReturn(500).when(workerMemoryParameters).getLargeFrameSize();
+    Mockito.doReturn(500).when(workerMemoryParameters).getLargeFrameSize();
 
     testIngestQuery().setSql(" insert into foo1 SELECT\n"
                              + "  floor(TIME_PARSE(\"timestamp\") to day) AS __time,\n"
