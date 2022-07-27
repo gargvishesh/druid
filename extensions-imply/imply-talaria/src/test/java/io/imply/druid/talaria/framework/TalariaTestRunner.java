@@ -134,6 +134,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -158,7 +159,6 @@ import static org.apache.druid.sql.calcite.util.CalciteTests.DATASOURCE1;
 import static org.apache.druid.sql.calcite.util.CalciteTests.DATASOURCE2;
 import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS1;
 import static org.apache.druid.sql.calcite.util.CalciteTests.ROWS2;
-import static org.mockito.Mockito.spy;
 
 /**
  * Base test runner for running talaria unit tests. It sets up talaria query execution environment
@@ -217,7 +217,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private TestGroupByBuffers groupByBuffers;
-  protected final WorkerMemoryParameters workerMemoryParameters = spy(WorkerMemoryParameters.compute(
+  protected final WorkerMemoryParameters workerMemoryParameters = Mockito.spy(WorkerMemoryParameters.compute(
       WorkerMemoryParameters.PROCESSING_MINIMUM_BYTES * 50,
       2,
       10,
