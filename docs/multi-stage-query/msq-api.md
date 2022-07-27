@@ -5,9 +5,9 @@ title: API
 
 > The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
 
-> Earlier versions of MSQ  used the `/druid/v2/sql/async/` end point. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the task engine for MSQ automatically.
+> Earlier versions of the Multi-Stage Query (MSQ) Framework used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the task engine for MSQ automatically.
 
-During the preview phase for the Multi-Stage Query (MSQ) Framework, the enhanced Query view provides the most stable experience. Use the UI if you do not need a programmatic interface.
+During the preview phase for MSQ, the enhanced **Query** view provides the most stable experience. Use the UI if you do not need a programmatic interface.
 
 The action you want to take determines the endpoint you use:
 
@@ -21,10 +21,12 @@ The action you want to take determines the endpoint you use:
 Submit task queries using the `POST /druid/v2/sql/task/` API.
 
 Currently, MSQ ignores the provided values of `resultFormat`, `header`,
-`typesHeader`, and `sqlTypesHeader`. SQL SELECT queries always behave if `resultFormat` is "array", `header` is
+`typesHeader`, and `sqlTypesHeader`. SQL SELECT queries always behave as if `resultFormat` is an array, `header` is
 true, `typesHeader` is true, and `sqlTypesHeader` is true.
 
-For task queries like the examples in the [quickstart](./msq-queries.md#query-examples), you need to escape characters such as quotation marks (") if you use something like `curl`. If you use a method that can parse JSON seamlessly like Python, you don't need to. The following example does though.
+For task queries similar to the examples in the [quickstart](./msq-queries.md#query-examples), you need to escape characters such as quotation marks (") if you use something like `curl`. 
+You don't need to escape characters if you use a method that can parse JSON seamlessly, such as Python.
+The Python example in this topic escapes quotation marks although it's not required.
 
 The following example is the same query that you submit when you complete [Convert a JSON ingestion spec](./msq-tutorial-convert-ingest-spec.md) where you insert data into a table named `wikipedia`. Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
 
@@ -99,8 +101,8 @@ print(response.text)
 
 |Field|Description|
 |-----|-----------|
-|taskId|Controller task ID.<br /><br />Druid's standard [task APIs](../operations/api-reference.md#overlord) can be used to interact with this controller task.|
-|state|Initial state for the query, which is "RUNNING".|
+ | taskId | Controller task ID. You can use Druid's standard [task APIs](../operations/api-reference.md#overlord) to interact with this controller task.|
+ | state | Initial state for the query, which is "RUNNING".|
 
 
 ## Get the payload for a task query
@@ -115,9 +117,9 @@ print(response.text)
 
 Keep the following in mind when using the task API to view reports:
 
-- For SELECT queries, the results are included in the report. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
-- Query details are physically stored in the task report for controller tasks.
-- If you encounter 500 Server Error or 404 Not Found errors, the task may be in the process of starting up or shutting down.
+- For SELECT queries, the report includes the results. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
+- The task report stores query detials for controller tasks.
+- If you encounter `500 Server Error` or `404 Not Found` errors, the task may be in the process of starting up or shutting down.
 
 For information about the report fields, see [Report response fields](#report-response-fields).
 
@@ -151,11 +153,11 @@ The following table describes the response fields when you retrieve a report for
 |multiStageQuery.payload.stages[].duration|The number of milliseconds that the stage has been running. Only present if the stage has started.|
 |multiStageQuery.payload.stages[].sort|A boolean that is set to `true` if the stage does a sort as part of its execution.|
 |multiStageQuery.payload.stages[].definition|The object defining what the stage does.|
-|multiStageQuery.payload.stages[].definition.id|The unique indentifier of the stage.|
+|multiStageQuery.payload.stages[].definition.id|The unique identifier of the stage.|
 |multiStageQuery.payload.stages[].definition.input|Array of inputs that the stage has.|
 |multiStageQuery.payload.stages[].definition.broadcast|Array of input indexes that get broadcasted. Only present if there are inputs that get broadcasted.|
 |multiStageQuery.payload.stages[].definition.processor|An object defining the processor logic.|
-|multiStageQuery.payload.stages[].definition.signature|The output signiture of the stage.|
+|multiStageQuery.payload.stages[].definition.signature|The output signature of the stage.|
 
 ## Cancel a task query
 
