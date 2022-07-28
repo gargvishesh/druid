@@ -19,23 +19,20 @@ import java.nio.ByteBuffer;
 public class IpAddressDictionaryEncodedColumnSupplier implements Supplier<IpAddressDictionaryEncodedColumn>
 {
   private final GenericIndexed<ByteBuffer> dictionary;
-  private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final Supplier<ColumnarInts> column;
 
   public IpAddressDictionaryEncodedColumnSupplier(
       Supplier<ColumnarInts> column,
-      GenericIndexed<ByteBuffer> dictionary,
-      GenericIndexed<ImmutableBitmap> bitmaps
+      GenericIndexed<ByteBuffer> dictionary
   )
   {
     this.column = column;
     this.dictionary = dictionary;
-    this.bitmaps = bitmaps;
   }
 
   @Override
   public IpAddressDictionaryEncodedColumn get()
   {
-    return new IpAddressDictionaryEncodedColumn(column.get(), dictionary, bitmaps);
+    return new IpAddressDictionaryEncodedColumn(column.get(), dictionary);
   }
 }

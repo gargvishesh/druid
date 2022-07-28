@@ -120,19 +120,32 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
           metadata.getBitmapSerdeFactory().getObjectStrategy(),
           builder.getFileMapper()
       );
-      builder.setIndexSupplier(
-          new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
-              metadata.getBitmapSerdeFactory().getBitmapFactory(),
-              bitmaps,
-              dictionaryBytes
-          ),
-          true,
-          false
-      );
+
+      boolean hasValidBitmap = true;
+      if (version == 0) {
+        // Version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+        // We should not use these bitmaps and fall back to using no indexes
+        for (ImmutableBitmap bitmap : bitmaps) {
+          if (bitmap == null) {
+            hasValidBitmap = false;
+          }
+        }
+      }
+      if (hasValidBitmap) {
+        builder.setIndexSupplier(
+            new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
+                metadata.getBitmapSerdeFactory().getBitmapFactory(),
+                bitmaps,
+                dictionaryBytes
+            ),
+            true,
+            false
+        );
+      }
+
       IpPrefixDictionaryEncodedColumnSupplier supplier = new IpPrefixDictionaryEncodedColumnSupplier(
           column,
-          dictionaryBytes,
-          bitmaps
+          dictionaryBytes
       );
 
       builder.setDictionaryEncodedColumnSupplier(supplier);

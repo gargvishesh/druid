@@ -26,7 +26,6 @@ import org.apache.druid.segment.data.ObjectStrategy;
 import org.apache.druid.segment.data.WritableSupplier;
 import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
-import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -148,8 +147,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 
       IpAddressDictionaryEncodedColumnSupplier supplier = new IpAddressDictionaryEncodedColumnSupplier(
           column,
-          dictionaryBytes,
-          bitmaps
+          dictionaryBytes
       );
 
       builder.setDictionaryEncodedColumnSupplier(supplier);
