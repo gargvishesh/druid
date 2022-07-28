@@ -53,6 +53,7 @@ import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.filter.BooleanValueMatcher;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
+import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 import org.apache.druid.segment.vector.ReadableVectorInspector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
@@ -592,7 +593,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     if (index == null) {
       // Index can be null as IP address/prefix of version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
       // Hence, we fall back to using no indexes for those segments
-      return null;
+      return NoIndexesColumnIndexSupplier.getInstance();
     }
 
     return new ColumnIndexSupplier()
