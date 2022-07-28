@@ -98,7 +98,7 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
   {
     try {
       byte version = buffer.get();
-      Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
+      Preconditions.checkArgument(version == 0 || version == 1, StringUtils.format("Unknown version %s", version));
       IpAddressBlobColumnMetadata metadata = IpPrefixComplexTypeSerde.JSON_MAPPER.readValue(
           IpPrefixDictionaryEncodedColumnMerger.SERIALIZER_UTILS.readString(buffer),
           IpAddressBlobColumnMetadata.class
