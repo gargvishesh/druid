@@ -20,10 +20,13 @@ import io.imply.druid.inet.column.IpAddressBlob;
 import io.imply.druid.inet.column.IpAddressDictionaryEncodedColumn;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.BitmapResultFactory;
+import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.filter.DimFilterUtils;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
@@ -57,6 +60,7 @@ import org.apache.druid.segment.vector.ReadableVectorInspector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.VectorObjectSelector;
+import org.apache.druid.segment.virtual.VirtualColumnCacheHelper;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -93,7 +97,11 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    return new byte[0];
+    return new CacheKeyBuilder(VirtualColumnCacheHelper.CACHE_TYPE_ID_USER_DEFINED).appendString("ip-format")
+                                                                                   .appendString(field)
+                                                                                   .appendBoolean(compact)
+                                                                                   .appendBoolean(forceV6)
+                                                                                   .build();
   }
 
   @JsonProperty("name")
