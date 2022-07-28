@@ -590,7 +590,9 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     );
 
     if (index == null) {
-      throw new UnsupportedOperationException("How can this be?");
+      // Index can be null as IP address/prefix of version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+      // Hence, we fall back to using no indexes for those segments
+      return null;
     }
 
     return new ColumnIndexSupplier()
