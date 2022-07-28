@@ -12,6 +12,7 @@ package io.imply.druid.talaria.shuffle;
 import com.google.common.base.Preconditions;
 import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
+import io.imply.druid.talaria.frame.channel.ReadableNilFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableStreamFrameChannel;
 import io.imply.druid.talaria.frame.file.FrameFileWriter;
 import io.imply.druid.talaria.frame.processor.OutputChannel;
@@ -80,7 +81,7 @@ public class DurableStorageOutputChannelFactory implements OutputChannelFactory
     return OutputChannel.pair(
         writableChannel,
         ArenaMemoryAllocator.createOnHeap(frameSize),
-        () -> null, // remote reads should happen by the IndexerWorkerClient#getChannelData
+        () -> ReadableNilFrameChannel.INSTANCE, // remote reads should happen via the DurableStorageInputChannelFactory
         partitionNumber
     );
   }
