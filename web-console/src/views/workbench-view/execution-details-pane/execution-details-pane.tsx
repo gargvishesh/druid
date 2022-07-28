@@ -34,12 +34,13 @@ export type ExecutionDetailsTab = 'general' | 'sql' | 'native' | 'result' | 'err
 interface ExecutionDetailsPaneProps {
   execution: Execution;
   initTab?: ExecutionDetailsTab;
+  goToIngestion(taskId: string): void;
 }
 
 export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
   props: ExecutionDetailsPaneProps,
 ) {
-  const { execution, initTab } = props;
+  const { execution, initTab, goToIngestion } = props;
   const [activeTab, setActiveTab] = useState<ExecutionDetailsTab>(initTab || 'general');
 
   function renderContent() {
@@ -54,6 +55,7 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
                 execution={execution}
                 onErrorClick={() => setActiveTab('error')}
                 onWarningClick={() => setActiveTab('warnings')}
+                goToIngestion={goToIngestion}
               />
             ) : (
               <p>No stage info was reported.</p>

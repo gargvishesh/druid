@@ -49,56 +49,58 @@ $recent-query-task-panel-width: 250px;
     left: $column-tree-width + $thin-padding;
     right: $recent-query-task-panel-width + $thin-padding;
 
-    .query-tabs {
+    .tab-and-tool-bar {
       position: absolute;
       top: 0;
       left: 0;
-      right: 215px;
-      white-space: nowrap;
-      overflow: hidden;
+      right: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 10px;
 
-      .tab-button {
-        display: inline-block;
+      .tab-bar {
+        flex: 1;
+        white-space: nowrap;
+        overflow: auto;
 
-        &.active {
-          @include card-like;
-          border-bottom-left-radius: 0;
-          border-bottom-right-radius: 0;
-          border-bottom: 2px solid #a1a6ba;
-        }
+        .tab-button {
+          display: inline-block;
 
-        .tab-name .#{$bp-ns}-button-text {
-          max-width: 220px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          line-height: 150%;
-        }
+          &.active {
+            @include card-like;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom: 2px solid #a1a6ba;
+          }
 
-        .tab-close {
-          opacity: 0;
-          margin: 0 3px;
-        }
+          .tab-name .#{$bp-ns}-button-text {
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 150%;
+          }
 
-        &.active,
-        &:hover {
           .tab-close {
-            opacity: 1;
+            opacity: 0;
+            margin: 0 3px;
+          }
+
+          &.active,
+          &:hover {
+            .tab-close {
+              opacity: 1;
+            }
           }
         }
-      }
 
-      .add-tab {
-        display: inline-block;
-        vertical-align: top;
-        padding: 6px 14px;
-        margin-left: 4px;
+        .add-tab {
+          display: inline-block;
+          vertical-align: top;
+          padding: 6px 14px;
+          margin-left: 4px;
+        }
       }
-    }
-
-    .toolbar {
-      position: absolute;
-      top: 0;
-      right: 0;
     }
 
     .query-tab {

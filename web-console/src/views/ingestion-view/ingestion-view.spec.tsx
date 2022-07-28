@@ -28,6 +28,7 @@ describe('IngestionView', () => {
     const taskView = shallow(
       <IngestionView
         openDialog="test"
+        taskId={undefined}
         taskGroupId="test"
         datasourceId="datasource"
         goToDatasource={() => {}}

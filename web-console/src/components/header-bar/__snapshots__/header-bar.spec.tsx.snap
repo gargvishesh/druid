@@ -35,18 +35,18 @@ exports[`HeaderBar matches snapshot 1`] = `
     <Blueprint4.AnchorButton
       active={false}
       disabled={false}
-      href="#ingestion"
-      icon="gantt-chart"
-      minimal={true}
-      text="Ingestion"
-    />
-    <Blueprint4.AnchorButton
-      active={false}
-      disabled={false}
       href="#datasources"
       icon="multi-select"
       minimal={true}
       text="Datasources"
+    />
+    <Blueprint4.AnchorButton
+      active={false}
+      disabled={false}
+      href="#ingestion"
+      icon="gantt-chart"
+      minimal={true}
+      text="Ingestion"
     />
     <Blueprint4.AnchorButton
       active={false}
@@ -124,7 +124,7 @@ exports[`HeaderBar matches snapshot 1`] = `
       capabilities={
         Capabilities {
           "coordinator": true,
-          "msqe": true,
+          "multiStageQuery": true,
           "overlord": true,
           "queryType": "nativeAndSql",
           "warnings": Array [],

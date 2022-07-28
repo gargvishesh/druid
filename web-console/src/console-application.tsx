@@ -160,6 +160,12 @@ export class ConsoleApplication extends React.PureComponent<
     this.resetInitialsWithDelay();
   };
 
+  private readonly goToIngestionWithTaskId = (taskId?: string) => {
+    this.taskId = taskId;
+    window.location.hash = 'ingestion';
+    this.resetInitialsWithDelay();
+  };
+
   private readonly goToIngestionWithTaskGroupId = (taskGroupId?: string, openDialog?: string) => {
     this.taskGroupId = taskGroupId;
     if (openDialog) this.openDialog = openDialog;
@@ -269,7 +275,7 @@ export class ConsoleApplication extends React.PureComponent<
     if (capabilities.hasSql()) {
       queryEngines.push('sql');
     }
-    if (capabilities.hasMsqe()) {
+    if (capabilities.hasMultiStageQuery()) {
       queryEngines.push('sql-task');
     }
 
@@ -285,6 +291,7 @@ export class ConsoleApplication extends React.PureComponent<
         mandatoryQueryContext={mandatoryQueryContext}
         queryEngines={queryEngines}
         allowExplain
+        goToIngestion={this.goToIngestionWithTaskId}
       />,
       'thin',
     );
@@ -293,7 +300,7 @@ export class ConsoleApplication extends React.PureComponent<
   private readonly wrappedSqlDataLoaderView = () => {
     return this.wrapInViewContainer(
       'sql-data-loader',
-      <SqlDataLoaderView goToQuery={this.goToQuery} />,
+      <SqlDataLoaderView goToQuery={this.goToQuery} goToIngestion={this.goToIngestionWithTaskId} />,
     );
   };
 
@@ -333,6 +340,7 @@ export class ConsoleApplication extends React.PureComponent<
     return this.wrapInViewContainer(
       'ingestion',
       <IngestionView
+        taskId={this.taskId}
         taskGroupId={this.taskGroupId}
         datasourceId={this.datasource}
         openDialog={this.openDialog}

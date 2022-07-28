@@ -29,18 +29,24 @@ export interface ExecutionDetailsDialogProps {
   id: string;
   initTab?: ExecutionDetailsTab;
   initExecution?: Execution;
-  onClose: () => void;
+  goToIngestion(taskId: string): void;
+  onClose(): void;
 }
 
 export const ExecutionDetailsDialog = React.memo(function ExecutionDetailsDialog(
   props: ExecutionDetailsDialogProps,
 ) {
-  const { id, initTab, initExecution, onClose } = props;
+  const { id, initTab, initExecution, goToIngestion, onClose } = props;
 
   return (
     <Dialog className="execution-details-dialog" isOpen onClose={onClose} title="Execution details">
       <div className={Classes.DIALOG_BODY}>
-        <ExecutionDetailsPaneLoader id={id} initTab={initTab} initExecution={initExecution} />
+        <ExecutionDetailsPaneLoader
+          id={id}
+          initTab={initTab}
+          initExecution={initExecution}
+          goToIngestion={goToIngestion}
+        />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>

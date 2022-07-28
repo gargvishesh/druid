@@ -8,8 +8,8 @@ exports[`ExecutionErrorPane matches snapshot 1`] = `
   <p
     className="error-message-text"
   >
-    TooManyBuckets: 
-    Too many partition buckets (max = 10,000); try breaking your query up into smaller queries or using a wider segmentGranularity
+    UnknownError: 
+    java.lang.RuntimeException: Error occured while trying to read uri: https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz_
      
     <a
       onClick={[Function]}
@@ -20,12 +20,12 @@ exports[`ExecutionErrorPane matches snapshot 1`] = `
   <p>
     Failed task ID: 
     <Memo(ClickToCopy)
-      text="query_worker_kttm_naobfgjd_2021-12-03T23:16:15.269Z"
+      text="query-9656b08e-1cc5-4204-813c-acc56d7870fe-worker0"
     />
      
     On host: 
     <Memo(ClickToCopy)
-      text="ip-10-3-228-20.ec2.internal:8100"
+      text="localhost:8091"
     />
      
     Debug:

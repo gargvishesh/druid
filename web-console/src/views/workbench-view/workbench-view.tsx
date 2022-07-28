@@ -90,6 +90,7 @@ export interface WorkbenchViewProps {
   mandatoryQueryContext?: Record<string, any>;
   queryEngines: DruidEngine[];
   allowExplain: boolean;
+  goToIngestion(taskId: string): void;
 }
 
 export interface WorkbenchViewState {
@@ -259,6 +260,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderExecutionDetailsDialog() {
+    const { goToIngestion } = this.props;
     const { details } = this.state;
     if (!details) return;
 
@@ -267,6 +269,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         id={details.id}
         initTab={details.initTab}
         initExecution={details.initExecution}
+        goToIngestion={goToIngestion}
         onClose={() => this.setState({ details: undefined })}
       />
     );
@@ -303,7 +306,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         }
         onOpenQuery={queryString => {
           this.handleNewTab(
-            WorkbenchQuery.blank().changeEngine('native').changeQueryString(queryString),
+            WorkbenchQuery.blank().changeQueryString(queryString),
             'Explained query',
           );
         }}
@@ -458,6 +461,132 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     );
   }
 
+  private renderTabBar() {
+    const { onTabChange } = this.props;
+    const { tabEntries } = this.state;
+    const currentTabEntry = this.getCurrentTabEntry();
+
+    return (
+      <div className="tab-bar">
+        {tabEntries.map((tabEntry, i) => {
+          const currentId = tabEntry.id;
+          const active = currentTabEntry === tabEntry;
+          return (
+            <div key={i} className={classNames('tab-button', { active })}>
+              {active ? (
+                <Popover2
+                  position="bottom"
+                  content={
+                    <Menu>
+                      <MenuItem
+                        icon={IconNames.EDIT}
+                        text="Rename tab"
+                        onClick={() => this.setState({ renamingTab: tabEntry })}
+                      />
+                      <MenuItem
+                        icon={IconNames.DUPLICATE}
+                        text="Duplicate tab"
+                        onClick={() => {
+                          const id = generate8HexId();
+                          const newTabEntry: TabEntry = {
+                            id,
+                            tabName: tabEntry.tabName + ' (copy)',
+                            query: tabEntry.query.duplicate(),
+                          };
+                          this.handleQueriesChange(
+                            tabEntries.slice(0, i + 1).concat(newTabEntry, tabEntries.slice(i + 1)),
+                            () => {
+                              onTabChange(newTabEntry.id);
+                            },
+                          );
+                        }}
+                      />
+                      {tabEntries.length > 1 && (
+                        <MenuItem
+                          icon={IconNames.CROSS}
+                          text="Close other tabs"
+                          intent={Intent.DANGER}
+                          onClick={() => {
+                            tabEntries.forEach(tabEntry => {
+                              if (tabEntry.id === currentId) return;
+                              cleanupTabEntry(tabEntry);
+                            });
+                            this.handleQueriesChange(
+                              tabEntries.filter(({ id }) => id === currentId),
+                              () => {
+                                if (!active) return;
+                                onTabChange(tabEntry.id);
+                              },
+                            );
+                          }}
+                        />
+                      )}
+                      <MenuItem
+                        icon={IconNames.CROSS}
+                        text="Close all tabs"
+                        intent={Intent.DANGER}
+                        onClick={() => {
+                          tabEntries.forEach(cleanupTabEntry);
+                          this.handleQueriesChange([], () => {
+                            onTabChange(this.state.tabEntries[0].id);
+                          });
+                        }}
+                      />
+                    </Menu>
+                  }
+                >
+                  <Button
+                    className="tab-name"
+                    text={tabEntry.tabName}
+                    title={tabEntry.tabName}
+                    minimal
+                    onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
+                  />
+                </Popover2>
+              ) : (
+                <Button
+                  className="tab-name"
+                  text={tabEntry.tabName}
+                  title={tabEntry.tabName}
+                  minimal
+                  onClick={() => {
+                    localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
+                    onTabChange(currentId);
+                  }}
+                />
+              )}
+              <Button
+                className="tab-close"
+                icon={IconNames.CROSS}
+                title={`Close tab '${tabEntry.tabName}`}
+                small
+                minimal
+                onClick={() => {
+                  cleanupTabEntry(tabEntry);
+                  this.handleQueriesChange(
+                    tabEntries.filter(({ id }) => id !== currentId),
+                    () => {
+                      if (!active) return;
+                      onTabChange(this.state.tabEntries[Math.max(0, i - 1)].id);
+                    },
+                  );
+                }}
+              />
+            </div>
+          );
+        })}
+        <Button
+          className="add-tab"
+          icon={IconNames.PLUS}
+          minimal
+          onClick={() => {
+            this.handleNewTab(WorkbenchQuery.blank());
+          }}
+        />
+      </div>
+    );
+  }
+
   private renderToolbar() {
     const { queryEngines } = this.props;
     if (!queryEngines.includes('sql-task')) return;
@@ -491,140 +620,26 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private renderCenterPanel() {
-    const { onTabChange, mandatoryQueryContext, queryEngines, allowExplain } = this.props;
-    const { columnMetadataState, tabEntries } = this.state;
+    const { mandatoryQueryContext, queryEngines, allowExplain, goToIngestion } = this.props;
+    const { columnMetadataState } = this.state;
     const currentTabEntry = this.getCurrentTabEntry();
 
     return (
       <div className="center-panel">
-        <div className="query-tabs">
-          {tabEntries.map((tabEntry, i) => {
-            const currentId = tabEntry.id;
-            const active = currentTabEntry === tabEntry;
-            return (
-              <div key={i} className={classNames('tab-button', { active })}>
-                {active ? (
-                  <Popover2
-                    position="bottom"
-                    content={
-                      <Menu>
-                        <MenuItem
-                          icon={IconNames.EDIT}
-                          text="Rename tab"
-                          onClick={() => this.setState({ renamingTab: tabEntry })}
-                        />
-                        <MenuItem
-                          icon={IconNames.DUPLICATE}
-                          text="Duplicate tab"
-                          onClick={() => {
-                            const id = generate8HexId();
-                            const newTabEntry: TabEntry = {
-                              id,
-                              tabName: tabEntry.tabName + ' (copy)',
-                              query: tabEntry.query.duplicate(),
-                            };
-                            this.handleQueriesChange(
-                              tabEntries
-                                .slice(0, i + 1)
-                                .concat(newTabEntry, tabEntries.slice(i + 1)),
-                              () => {
-                                onTabChange(newTabEntry.id);
-                              },
-                            );
-                          }}
-                        />
-                        {tabEntries.length > 1 && (
-                          <MenuItem
-                            icon={IconNames.CROSS}
-                            text="Close other tabs"
-                            intent={Intent.DANGER}
-                            onClick={() => {
-                              tabEntries.forEach(tabEntry => {
-                                if (tabEntry.id === currentId) return;
-                                cleanupTabEntry(tabEntry);
-                              });
-                              this.handleQueriesChange(
-                                tabEntries.filter(({ id }) => id === currentId),
-                                () => {
-                                  if (!active) return;
-                                  onTabChange(tabEntry.id);
-                                },
-                              );
-                            }}
-                          />
-                        )}
-                        <MenuItem
-                          icon={IconNames.CROSS}
-                          text="Close all tabs"
-                          intent={Intent.DANGER}
-                          onClick={() => {
-                            tabEntries.forEach(cleanupTabEntry);
-                            this.handleQueriesChange([], () => {
-                              onTabChange(this.state.tabEntries[0].id);
-                            });
-                          }}
-                        />
-                      </Menu>
-                    }
-                  >
-                    <Button
-                      className="tab-name"
-                      text={tabEntry.tabName}
-                      title={tabEntry.tabName}
-                      minimal
-                      onDoubleClick={() => this.setState({ renamingTab: tabEntry })}
-                    />
-                  </Popover2>
-                ) : (
-                  <Button
-                    className="tab-name"
-                    text={tabEntry.tabName}
-                    title={tabEntry.tabName}
-                    minimal
-                    onClick={() => {
-                      localStorageSet(LocalStorageKeys.WORKBENCH_LAST_TAB, currentId);
-                      onTabChange(currentId);
-                    }}
-                  />
-                )}
-                <Button
-                  className="tab-close"
-                  icon={IconNames.CROSS}
-                  title={`Close tab '${tabEntry.tabName}`}
-                  small
-                  minimal
-                  onClick={() => {
-                    cleanupTabEntry(tabEntry);
-                    this.handleQueriesChange(
-                      tabEntries.filter(({ id }) => id !== currentId),
-                      () => {
-                        if (!active) return;
-                        onTabChange(this.state.tabEntries[Math.max(0, i - 1)].id);
-                      },
-                    );
-                  }}
-                />
-              </div>
-            );
-          })}
-          <Button
-            className="add-tab"
-            icon={IconNames.PLUS}
-            minimal
-            onClick={() => {
-              this.handleNewTab(WorkbenchQuery.blank());
-            }}
-          />
+        <div className="tab-and-tool-bar">
+          {this.renderTabBar()}
+          {this.renderToolbar()}
         </div>
-        {this.renderToolbar()}
         <QueryTab
           key={currentTabEntry.id}
           query={currentTabEntry.query}
           mandatoryQueryContext={mandatoryQueryContext}
           columnMetadata={columnMetadataState.getSomeData()}
           onQueryChange={this.handleQueryChange}
+          onQueryTab={this.handleNewTab}
           onDetails={this.handleDetails}
           queryEngines={queryEngines}
+          goToIngestion={goToIngestion}
           runMoreMenu={
             <Menu>
               {allowExplain && (

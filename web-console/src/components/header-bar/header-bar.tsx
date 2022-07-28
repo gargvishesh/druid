@@ -248,7 +248,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     false,
   );
 
-  const showSplitDataLoaderMenu = showSqlDataLoader && capabilities.hasMsqe();
+  const showSplitDataLoaderMenu = showSqlDataLoader && capabilities.hasMultiStageQuery();
 
   const loadDataViewsMenuActive = oneOf(
     active,
@@ -460,19 +460,19 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
 
         <AnchorButton
           minimal
-          active={active === 'ingestion'}
-          icon={IconNames.GANTT_CHART}
-          text="Ingestion"
-          href="#ingestion"
-          disabled={!capabilities.hasSqlOrOverlordAccess()}
-        />
-        <AnchorButton
-          minimal
           active={active === 'datasources'}
           icon={IconNames.MULTI_SELECT}
           text="Datasources"
           href="#datasources"
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
+        />
+        <AnchorButton
+          minimal
+          active={active === 'ingestion'}
+          icon={IconNames.GANTT_CHART}
+          text="Ingestion"
+          href="#ingestion"
+          disabled={!capabilities.hasSqlOrOverlordAccess()}
         />
         <AnchorButton
           minimal

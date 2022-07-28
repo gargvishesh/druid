@@ -116,24 +116,30 @@ $config-width: 400px;
     bottom: 0;
     right: 0;
     width: $config-width;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 
-    .example-label {
-      display: inline-block;
-      vertical-align: top;
+    .top-controls {
+      flex: 1;
+      overflow: auto;
 
-      .description {
-        opacity: 0.6;
+      .example-label {
+        display: inline-block;
+        vertical-align: top;
+
+        .description {
+          opacity: 0.6;
+        }
+      }
+
+      .error-callout {
+        overflow: auto;
       }
     }
 
-    .error-callout {
-      overflow: auto;
-    }
-
-    .next {
-      position: absolute;
-      right: 0;
-      bottom: 0;
+    .bottom-controls {
+      text-align: right;
     }
   }
 }

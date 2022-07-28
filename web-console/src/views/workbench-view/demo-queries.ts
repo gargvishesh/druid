@@ -19,7 +19,7 @@
 import { TabEntry, WorkbenchQuery } from '../../druid-models';
 
 const BASE_QUERY = WorkbenchQuery.blank().changeQueryContext({
-  msqMaxNumTasks: 3,
+  maxNumTasks: 3,
 });
 
 export function getDemoQueries(): TabEntry[] {
