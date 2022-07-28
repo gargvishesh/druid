@@ -54,7 +54,6 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DefaultQueryConfig;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
-import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.QueryLifecycleFactory;
 import org.apache.druid.server.QueryScheduler;
 import org.apache.druid.server.QuerySchedulerProvider;
@@ -110,29 +109,22 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Tests the Avatica-based JDBC implementation using JSON serialization. See
- * {@link DruidAvaticaProtobufHandlerTest} for a subclass which runs
- * this same set of tests using Protobuf serialization.
- */
-public class DruidAvaticaHandlerTest extends CalciteTestBase
+public abstract class DruidAvaticaHandlerTest extends CalciteTestBase
 {
   private static final AvaticaServerConfig AVATICA_CONFIG = new AvaticaServerConfig()
   {
     @Override
     public int getMaxConnections()
     {
-      // This must match the number of Connection objects created in testTooManyStatements()
+      // This must match the number of Connection objects created in setUp()
       return 4;
     }
 
@@ -154,7 +146,6 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   {
     resourceCloser = Closer.create();
     conglomerate = QueryStackTests.createQueryRunnerFactoryConglomerate(resourceCloser);
-    System.setProperty("user.timezone", "UTC");
   }
 
   @AfterClass
@@ -269,155 +260,139 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testSelectCount() throws SQLException
+  public void testSelectCount() throws Exception
   {
-    try (Statement stmt = client.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 6L)
-          ),
-          rows
-      );
-    }
+    final ResultSet resultSet = client.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 6L)
+        ),
+        rows
+    );
   }
 
   @Test
-  public void testSelectCountNoTrailingSlash() throws SQLException
+  public void testSelectCountNoTrailingSlash() throws Exception
   {
-    try (Statement stmt = clientNoTrailingSlash.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 6L)
-          ),
-          rows
-      );
-    }
+    final ResultSet resultSet = clientNoTrailingSlash.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 6L)
+        ),
+        rows
+    );
   }
 
   @Test
-  public void testSelectCountAlternateStyle() throws SQLException
+  public void testSelectCountAlternateStyle() throws Exception
   {
-    try (PreparedStatement stmt = client.prepareStatement("SELECT COUNT(*) AS cnt FROM druid.foo")) {
-      final ResultSet resultSet = stmt.executeQuery();
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 6L)
-          ),
-          rows
-      );
-    }
+    final ResultSet resultSet = client.prepareStatement("SELECT COUNT(*) AS cnt FROM druid.foo").executeQuery();
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 6L)
+        ),
+        rows
+    );
   }
 
   @Test
-  public void testTimestampsInResponse() throws SQLException
+  public void testTimestampsInResponse() throws Exception
   {
-    try (Statement stmt = client.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1"
-      );
+    final ResultSet resultSet = client.createStatement().executeQuery(
+        "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1"
+    );
 
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of(
-                  "__time", new Timestamp(DateTimes.of("2000-01-01T00:00:00.000Z").getMillis()),
-                  "t2", new Date(DateTimes.of("2000-01-01").getMillis())
-              )
-          ),
-          getRows(resultSet)
-      );
-    }
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of(
+                "__time", new Timestamp(DateTimes.of("2000-01-01T00:00:00.000Z").getMillis()),
+                "t2", new Date(DateTimes.of("2000-01-01").getMillis())
+            )
+        ),
+        getRows(resultSet)
+    );
   }
 
   @Test
-  public void testTimestampsInResponseLosAngelesTimeZone() throws SQLException
+  public void testTimestampsInResponseLosAngelesTimeZone() throws Exception
   {
-    try (Statement stmt = clientLosAngeles.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1"
-      );
+    final ResultSet resultSet = clientLosAngeles.createStatement().executeQuery(
+        "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1"
+    );
 
-      final DateTimeZone timeZone = DateTimes.inferTzFromString("America/Los_Angeles");
-      final DateTime localDateTime = new DateTime("2000-01-01T00Z", timeZone);
+    final DateTimeZone timeZone = DateTimes.inferTzFromString("America/Los_Angeles");
+    final DateTime localDateTime = new DateTime("2000-01-01T00Z", timeZone);
 
-      final List<Map<String, Object>> resultRows = getRows(resultSet);
+    final List<Map<String, Object>> resultRows = getRows(resultSet);
 
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of(
-                  "__time", new Timestamp(Calcites.jodaToCalciteTimestamp(localDateTime, timeZone)),
-                  "t2", new Date(Calcites.jodaToCalciteTimestamp(localDateTime.dayOfMonth().roundFloorCopy(), timeZone))
-              )
-          ),
-          resultRows
-      );
-    }
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of(
+                "__time", new Timestamp(Calcites.jodaToCalciteTimestamp(localDateTime, timeZone)),
+                "t2", new Date(Calcites.jodaToCalciteTimestamp(localDateTime.dayOfMonth().roundFloorCopy(), timeZone))
+            )
+        ),
+        resultRows
+    );
   }
 
   @Test
-  public void testFieldAliasingSelect() throws SQLException
+  public void testFieldAliasingSelect() throws Exception
   {
-    try (Statement stmt = client.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "SELECT dim2 AS \"x\", dim2 AS \"y\" FROM druid.foo LIMIT 1"
-      );
+    final ResultSet resultSet = client.createStatement().executeQuery(
+        "SELECT dim2 AS \"x\", dim2 AS \"y\" FROM druid.foo LIMIT 1"
+    );
 
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("x", "a", "y", "a")
-          ),
-          getRows(resultSet)
-      );
-    }
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("x", "a", "y", "a")
+        ),
+        getRows(resultSet)
+    );
   }
 
   @Test
-  public void testSelectBoolean() throws SQLException
+  public void testSelectBoolean() throws Exception
   {
-    try (Statement stmt = client.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "SELECT dim2, dim2 IS NULL AS isnull FROM druid.foo LIMIT 1"
-      );
+    final ResultSet resultSet = client.createStatement().executeQuery(
+        "SELECT dim2, dim2 IS NULL AS isnull FROM druid.foo LIMIT 1"
+    );
 
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("dim2", "a", "isnull", false)
-          ),
-          getRows(resultSet)
-      );
-    }
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("dim2", "a", "isnull", false)
+        ),
+        getRows(resultSet)
+    );
   }
 
   @Test
-  public void testExplainSelectCount() throws SQLException
+  public void testExplainSelectCount() throws Exception
   {
-    try (Statement stmt = clientLosAngeles.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo"
-      );
+    final ResultSet resultSet = clientLosAngeles.createStatement().executeQuery(
+        "EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo"
+    );
 
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of(
-                  "PLAN",
-                  StringUtils.format("DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"context\":{\"sqlQueryId\":\"%s\",\"sqlStringifyArrays\":false,\"sqlTimeZone\":\"America/Los_Angeles\"}}], signature=[{a0:LONG}])\n",
-                                     DUMMY_SQL_QUERY_ID
-                  ),
-                  "RESOURCES",
-                  "[{\"name\":\"foo\",\"type\":\"DATASOURCE\"}]"
-              )
-          ),
-          getRows(resultSet)
-      );
-    }
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of(
+                "PLAN",
+                StringUtils.format("DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"context\":{\"sqlQueryId\":\"%s\",\"sqlStringifyArrays\":false,\"sqlTimeZone\":\"America/Los_Angeles\"}}], signature=[{a0:LONG}])\n",
+                                   DUMMY_SQL_QUERY_ID
+                ),
+                "RESOURCES",
+                "[{\"name\":\"foo\",\"type\":\"DATASOURCE\"}]"
+            )
+        ),
+        getRows(resultSet)
+    );
   }
 
   @Test
-  public void testDatabaseMetaDataCatalogs() throws SQLException
+  public void testDatabaseMetaDataCatalogs() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
     Assert.assertEquals(
@@ -429,7 +404,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataSchemas() throws SQLException
+  public void testDatabaseMetaDataSchemas() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
     Assert.assertEquals(
@@ -441,7 +416,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataTables() throws SQLException
+  public void testDatabaseMetaDataTables() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
     Assert.assertEquals(
@@ -510,7 +485,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataTablesAsSuperuser() throws SQLException
+  public void testDatabaseMetaDataTablesAsSuperuser() throws Exception
   {
     final DatabaseMetaData metaData = superuserClient.getMetaData();
     Assert.assertEquals(
@@ -584,7 +559,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataColumns() throws SQLException
+  public void testDatabaseMetaDataColumns() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
     Assert.assertEquals(
@@ -662,7 +637,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataColumnsOnForbiddenDatasource() throws SQLException
+  public void testDatabaseMetaDataColumnsOnForbiddenDatasource() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
     Assert.assertEquals(
@@ -675,7 +650,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testDatabaseMetaDataColumnsWithSuperuser() throws SQLException
+  public void testDatabaseMetaDataColumnsWithSuperuser() throws Exception
   {
     final DatabaseMetaData metaData = superuserClient.getMetaData();
     Assert.assertEquals(
@@ -744,8 +719,9 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     );
   }
 
+
   @Test(timeout = 90_000L)
-  public void testConcurrentQueries() throws InterruptedException, ExecutionException
+  public void testConcurrentQueries() throws Exception
   {
     final List<ListenableFuture<Integer>> futures = new ArrayList<>();
     final ListeningExecutorService exec = MoreExecutors.listeningDecorator(
@@ -773,24 +749,23 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     for (int i = 0; i < 2000; i++) {
       Assert.assertEquals(i + 6, (int) integers.get(i));
     }
-    exec.shutdown();
   }
 
   @Test
-  public void testTooManyStatements() throws SQLException
+  public void testTooManyStatements() throws Exception
   {
-    client.createStatement();
-    client.createStatement();
-    client.createStatement();
-    client.createStatement();
+    final Statement statement1 = client.createStatement();
+    final Statement statement2 = client.createStatement();
+    final Statement statement3 = client.createStatement();
+    final Statement statement4 = client.createStatement();
 
     expectedException.expect(AvaticaClientRuntimeException.class);
-    expectedException.expectMessage("Too many open statements, limit is [4]");
-    client.createStatement();
+    expectedException.expectMessage("Too many open statements, limit is[4]");
+    final Statement statement5 = client.createStatement();
   }
 
   @Test
-  public void testNotTooManyStatementsWhenYouCloseThem() throws SQLException
+  public void testNotTooManyStatementsWhenYouCloseThem() throws Exception
   {
     client.createStatement().close();
     client.createStatement().close();
@@ -802,75 +777,54 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     client.createStatement().close();
     client.createStatement().close();
     client.createStatement().close();
+
+    Assert.assertTrue(true);
   }
 
-  /**
-   * JDBC allows sequential reuse of statements. A statement is not closed until
-   * the application closes it (or the connection), but the statement's result set
-   * is closed on each EOF.
-   */
   @Test
-  public void testManyUsesOfTheSameStatement() throws SQLException
+  public void testNotTooManyStatementsWhenYouFullyIterateThem() throws Exception
   {
-    try (Statement statement = client.createStatement()) {
-      for (int i = 0; i < 50; i++) {
-        final ResultSet resultSet = statement.executeQuery(
-            "SELECT COUNT(*) AS cnt FROM druid.foo"
-        );
-        Assert.assertEquals(
-            ImmutableList.of(
-                ImmutableMap.of("cnt", 6L)
-            ),
-            getRows(resultSet)
-        );
-      }
+    for (int i = 0; i < 50; i++) {
+      final ResultSet resultSet = client.createStatement().executeQuery(
+          "SELECT COUNT(*) AS cnt FROM druid.foo"
+      );
+      Assert.assertEquals(
+          ImmutableList.of(
+              ImmutableMap.of("cnt", 6L)
+          ),
+          getRows(resultSet)
+      );
     }
+
+    Assert.assertTrue(true);
   }
 
-  /**
-   * Statements should not be closed if then encounter an error. The {@code ResultSet}
-   * can be closed, but not the statement.
-   */
   @Test
-  public void tesErrorsDoNotCloseStatements() throws SQLException
+  public void testNotTooManyStatementsWhenTheyThrowErrors() throws Exception
   {
-    try (Statement statement = client.createStatement()) {
+    for (int i = 0; i < 50; i++) {
+      Exception thrown = null;
       try {
-        statement.executeQuery("SELECT SUM(nonexistent) FROM druid.foo");
-        Assert.fail();
+        client.createStatement().executeQuery("SELECT SUM(nonexistent) FROM druid.foo");
       }
       catch (Exception e) {
-        // Expected
+        thrown = e;
       }
 
-      final ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
+      Assert.assertNotNull(thrown);
+
+      final ResultSet resultSet = client.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
       Assert.assertEquals(
           ImmutableList.of(ImmutableMap.of("cnt", 6L)),
           getRows(resultSet)
       );
     }
-  }
 
-  /**
-   * Since errors do not close statements, they must be closed by the application,
-   * preferably in a try-with-resources block.
-   */
-  @Test
-  public void testNotTooManyStatementsWhenClosed()
-  {
-    for (int i = 0; i < 50; i++) {
-      try (Statement statement = client.createStatement()) {
-        statement.executeQuery("SELECT SUM(nonexistent) FROM druid.foo");
-        Assert.fail();
-      }
-      catch (Exception e) {
-        // Expected
-      }
-    }
+    Assert.assertTrue(true);
   }
 
   @Test
-  public void testAutoReconnectOnNoSuchConnection() throws SQLException
+  public void testAutoReconnectOnNoSuchConnection() throws Exception
   {
     for (int i = 0; i < 50; i++) {
       final ResultSet resultSet = client.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
@@ -880,10 +834,12 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
       );
       druidMeta.closeAllConnections();
     }
+
+    Assert.assertTrue(true);
   }
 
   @Test
-  public void testTooManyConnections() throws SQLException
+  public void testTooManyConnections() throws Exception
   {
     client.createStatement();
     clientLosAngeles.createStatement();
@@ -893,16 +849,23 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     expectedException.expect(AvaticaClientRuntimeException.class);
     expectedException.expectMessage("Too many connections");
 
-    DriverManager.getConnection(url);
+    final Connection connection5 = DriverManager.getConnection(url);
   }
 
   @Test
-  public void testNotTooManyConnectionsWhenTheyAreEmpty() throws SQLException
+  public void testNotTooManyConnectionsWhenTheyAreEmpty() throws Exception
   {
-    for (int i = 0; i < 4; i++) {
-      try (Connection connection = DriverManager.getConnection(url)) {
-      }
-    }
+    final Connection connection1 = DriverManager.getConnection(url);
+    connection1.createStatement().close();
+
+    final Connection connection2 = DriverManager.getConnection(url);
+    connection2.createStatement().close();
+
+    final Connection connection3 = DriverManager.getConnection(url);
+    connection3.createStatement().close();
+
+    final Connection connection4 = DriverManager.getConnection(url);
+    Assert.assertTrue(true);
   }
 
   @Test
@@ -994,6 +957,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     );
   }
 
+
   @Test
   public void testMinRowsPerFrame() throws Exception
   {
@@ -1067,7 +1031,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     String smallFrameUrl = this.getJdbcConnectionString(port);
     Connection smallFrameClient = DriverManager.getConnection(smallFrameUrl, "regularUser", "druid");
 
-    // use a prepared statement because Avatica currently ignores fetchSize on the initial fetch of a Statement
+    // use a prepared statement because avatica currently ignores fetchSize on the initial fetch of a Statement
     PreparedStatement statement = smallFrameClient.prepareStatement("SELECT dim1 FROM druid.foo");
     // set a fetch size below the minimum configured threshold
     statement.setFetchSize(2);
@@ -1089,14 +1053,12 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testSqlRequestLog() throws SQLException
+  @SuppressWarnings("unchecked")
+  public void testSqlRequestLog() throws Exception
   {
     // valid sql
-    testRequestLogger.clear();
     for (int i = 0; i < 3; i++) {
-      try (Statement stmt = client.createStatement()) {
-        stmt.executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
-      }
+      client.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM druid.foo");
     }
     Assert.assertEquals(3, testRequestLogger.getSqlQueryLogs().size());
     for (RequestLogLine logLine : testRequestLogger.getSqlQueryLogs()) {
@@ -1109,188 +1071,107 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
 
     // invalid sql
     testRequestLogger.clear();
-    try (Statement stmt = client.createStatement()) {
-      stmt.executeQuery("SELECT notexist FROM druid.foo");
+    try {
+      client.createStatement().executeQuery("SELECT notexist FROM druid.foo");
       Assert.fail("invalid SQL should throw SQLException");
     }
     catch (SQLException e) {
-      // Expected
     }
     Assert.assertEquals(1, testRequestLogger.getSqlQueryLogs().size());
-    {
-      final Map<String, Object> stats = testRequestLogger.getSqlQueryLogs().get(0).getQueryStats().getStats();
-      Assert.assertEquals(false, stats.get("success"));
-      Assert.assertEquals("regularUser", stats.get("identity"));
-      Assert.assertTrue(stats.containsKey("exception"));
-    }
+    final Map<String, Object> stats = testRequestLogger.getSqlQueryLogs().get(0).getQueryStats().getStats();
+    Assert.assertEquals(false, stats.get("success"));
+    Assert.assertEquals("regularUser", stats.get("identity"));
+    Assert.assertTrue(stats.containsKey("exception"));
 
     // unauthorized sql
     testRequestLogger.clear();
-    try (Statement stmt = client.createStatement()) {
-      stmt.executeQuery("SELECT count(*) FROM druid.forbiddenDatasource");
+    try {
+      client.createStatement().executeQuery("SELECT count(*) FROM druid.forbiddenDatasource");
       Assert.fail("unauthorzed SQL should throw SQLException");
     }
     catch (SQLException e) {
-      // Expected
     }
-    // SqlLifecycle does not allow logging for security failures.
     Assert.assertEquals(0, testRequestLogger.getSqlQueryLogs().size());
   }
 
   @Test
-  public void testSqlRequestLogPrepared() throws SQLException
+  public void testParameterBinding() throws Exception
   {
-    // valid sql
-    testRequestLogger.clear();
-    for (int i = 0; i < 3; i++) {
-      try (PreparedStatement stmt = client.prepareStatement("SELECT COUNT(*) AS cnt FROM druid.foo")) {
-        stmt.execute();
-      }
-    }
-    Assert.assertEquals(6, testRequestLogger.getSqlQueryLogs().size());
-    for (RequestLogLine logLine : testRequestLogger.getSqlQueryLogs()) {
-      final Map<String, Object> stats = logLine.getQueryStats().getStats();
-      Assert.assertEquals(true, stats.get("success"));
-      Assert.assertEquals("regularUser", stats.get("identity"));
-      Assert.assertTrue(stats.containsKey("sqlQuery/time"));
-      Assert.assertTrue(stats.containsKey("sqlQuery/bytes"));
-    }
-
-    // invalid sql
-    testRequestLogger.clear();
-    try (PreparedStatement stmt = client.prepareStatement("SELECT notexist FROM druid.foo")) {
-      Assert.fail("invalid SQL should throw SQLException");
-    }
-    catch (SQLException e) {
-      // Expected
-    }
-    Assert.assertEquals(1, testRequestLogger.getSqlQueryLogs().size());
-    {
-      final Map<String, Object> stats = testRequestLogger.getSqlQueryLogs().get(0).getQueryStats().getStats();
-      Assert.assertEquals(false, stats.get("success"));
-      Assert.assertEquals("regularUser", stats.get("identity"));
-      Assert.assertTrue(stats.containsKey("exception"));
-    }
-
-    // unauthorized sql
-    testRequestLogger.clear();
-    try (PreparedStatement stmt = client.prepareStatement("SELECT count(*) FROM druid.forbiddenDatasource")) {
-      Assert.fail("unauthorzed SQL should throw SQLException");
-    }
-    catch (SQLException e) {
-      // Expected
-    }
-    // SqlLifecycle does not allow logging for security failures.
-    Assert.assertEquals(0, testRequestLogger.getSqlQueryLogs().size());
+    PreparedStatement statement = client.prepareStatement("SELECT COUNT(*) AS cnt FROM druid.foo WHERE dim1 = ? OR dim1 = ?");
+    statement.setString(1, "abc");
+    statement.setString(2, "def");
+    final ResultSet resultSet = statement.executeQuery();
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 2L)
+        ),
+        rows
+    );
   }
 
   @Test
-  public void testParameterBinding() throws SQLException
+  public void testSysTableParameterBindingRegularUser() throws Exception
   {
-    try (PreparedStatement statement = client.prepareStatement("SELECT COUNT(*) AS cnt FROM druid.foo WHERE dim1 = ? OR dim1 = ?")) {
-      statement.setString(1, "abc");
-      statement.setString(2, "def");
-      final ResultSet resultSet = statement.executeQuery();
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 2L)
-          ),
-          rows
-      );
-    }
+    PreparedStatement statement =
+        client.prepareStatement("SELECT COUNT(*) AS cnt FROM sys.servers WHERE servers.host = ?");
+    statement.setString(1, "dummy");
+
+    Assert.assertThrows(
+        "Insufficient permission to view servers",
+        AvaticaSqlException.class,
+        statement::executeQuery
+    );
   }
 
   @Test
-  public void testSysTableParameterBindingRegularUser() throws SQLException
+  public void testSysTableParameterBindingSuperUser() throws Exception
   {
-    try (PreparedStatement statement =
-        client.prepareStatement("SELECT COUNT(*) AS cnt FROM sys.servers WHERE servers.host = ?")) {
-      statement.setString(1, "dummy");
-
-      Assert.assertThrows(
-          "Insufficient permission to view servers",
-          AvaticaSqlException.class,
-          statement::executeQuery
-      );
-    }
+    PreparedStatement statement =
+        superuserClient.prepareStatement("SELECT COUNT(*) AS cnt FROM sys.servers WHERE servers.host = ?");
+    statement.setString(1, "dummy");
+    final ResultSet resultSet = statement.executeQuery();
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 1L)
+        ),
+        rows
+    );
   }
 
   @Test
-  public void testSysTableParameterBindingSuperUser() throws SQLException
+  public void testExtendedCharacters() throws Exception
   {
-    try (PreparedStatement statement =
-        superuserClient.prepareStatement("SELECT COUNT(*) AS cnt FROM sys.servers WHERE servers.host = ?")) {
-      statement.setString(1, "dummy");
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 1L)
-          ),
-          getRows(statement.executeQuery())
-      );
-    }
+    final ResultSet resultSet = client.createStatement().executeQuery(
+        "SELECT COUNT(*) AS cnt FROM druid.lotsocolumns WHERE dimMultivalEnumerated = 'ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ ㅡ ㅣ'"
+    );
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 1L)
+        ),
+        rows
+    );
+
+
+    PreparedStatement statement = client.prepareStatement(
+        "SELECT COUNT(*) AS cnt FROM druid.lotsocolumns WHERE dimMultivalEnumerated = ?"
+    );
+    statement.setString(1, "ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ ㅡ ㅣ");
+    final ResultSet resultSet2 = statement.executeQuery();
+    final List<Map<String, Object>> rows2 = getRows(resultSet2);
+    Assert.assertEquals(
+        ImmutableList.of(
+            ImmutableMap.of("cnt", 1L)
+        ),
+        rows
+    );
+    Assert.assertEquals(rows, rows2);
   }
 
   @Test
-  public void testExecuteMany() throws SQLException
-  {
-    try (PreparedStatement statement =
-        superuserClient.prepareStatement("SELECT COUNT(*) AS cnt FROM sys.servers WHERE servers.host = ?")) {
-      statement.setString(1, "dummy");
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 1L)
-          ),
-          getRows(statement.executeQuery())
-      );
-      statement.setString(1, "foo");
-      Assert.assertEquals(
-          Collections.emptyList(),
-          getRows(statement.executeQuery())
-      );
-      statement.setString(1, "dummy");
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 1L)
-          ),
-          getRows(statement.executeQuery())
-      );
-    }
-  }
-
-  @Test
-  public void testExtendedCharacters() throws SQLException
-  {
-    try (Statement stmt = client.createStatement()) {
-      final ResultSet resultSet = stmt.executeQuery(
-          "SELECT COUNT(*) AS cnt FROM druid.lotsocolumns WHERE dimMultivalEnumerated = 'ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ ㅡ ㅣ'"
-      );
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 1L)
-          ),
-          rows
-      );
-    }
-
-    try (PreparedStatement statement = client.prepareStatement(
-        "SELECT COUNT(*) AS cnt FROM druid.lotsocolumns WHERE dimMultivalEnumerated = ?")) {
-      statement.setString(1, "ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ ㅡ ㅣ");
-      final ResultSet resultSet2 = statement.executeQuery();
-      final List<Map<String, Object>> rows = getRows(resultSet2);
-      Assert.assertEquals(
-          ImmutableList.of(
-              ImmutableMap.of("cnt", 1L)
-          ),
-          rows
-      );
-      Assert.assertEquals(rows, rows);
-    }
-  }
-
-  @Test
-  public void testEscapingForGetColumns() throws SQLException
+  public void testEscapingForGetColumns() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
 
@@ -1444,7 +1325,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
   }
 
   @Test
-  public void testEscapingForGetTables() throws SQLException
+  public void testEscapingForGetTables() throws Exception
   {
     final DatabaseMetaData metaData = client.getMetaData();
 
@@ -1493,51 +1374,36 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     );
   }
 
+
   @Test
-  public void testArrayStuff() throws SQLException
+  public void testArrayStuffs() throws Exception
   {
-    try (PreparedStatement statement = client.prepareStatement(
-        "SELECT ARRAY_AGG(dim2) AS arr1, ARRAY_AGG(l1) AS arr2, ARRAY_AGG(d1)  AS arr3, ARRAY_AGG(f1) AS arr4 FROM druid.numfoo")) {
-      final ResultSet resultSet = statement.executeQuery();
-      final List<Map<String, Object>> rows = getRows(resultSet);
-      Assert.assertEquals(1, rows.size());
-      Assert.assertTrue(rows.get(0).containsKey("arr1"));
-      Assert.assertTrue(rows.get(0).containsKey("arr2"));
-      Assert.assertTrue(rows.get(0).containsKey("arr3"));
-      Assert.assertTrue(rows.get(0).containsKey("arr4"));
-      if (NullHandling.sqlCompatible()) {
-        Assert.assertArrayEquals(new Object[]{"a", null, "", "a", "abc", null}, (Object[]) rows.get(0).get("arr1"));
-        Assert.assertArrayEquals(new Object[]{7L, 325323L, 0L, null, null, null}, (Object[]) rows.get(0).get("arr2"));
-        Assert.assertArrayEquals(new Object[]{1.0, 1.7, 0.0, null, null, null}, (Object[]) rows.get(0).get("arr3"));
-        Assert.assertArrayEquals(new Object[]{1.0f, 0.1f, 0.0f, null, null, null}, (Object[]) rows.get(0).get("arr4"));
-      } else {
-        Assert.assertArrayEquals(new Object[]{"a", null, null, "a", "abc", null}, (Object[]) rows.get(0).get("arr1"));
-        Assert.assertArrayEquals(new Object[]{7L, 325323L, 0L, 0L, 0L, 0L}, (Object[]) rows.get(0).get("arr2"));
-        Assert.assertArrayEquals(new Object[]{1.0, 1.7, 0.0, 0.0, 0.0, 0.0}, (Object[]) rows.get(0).get("arr3"));
-        Assert.assertArrayEquals(new Object[]{1.0f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f}, (Object[]) rows.get(0).get("arr4"));
-      }
+    PreparedStatement statement = client.prepareStatement(
+        "SELECT ARRAY_AGG(dim2) AS arr1, ARRAY_AGG(l1) AS arr2, ARRAY_AGG(d1)  AS arr3, ARRAY_AGG(f1) AS arr4 FROM druid.numfoo"
+    );
+    final ResultSet resultSet = statement.executeQuery();
+    final List<Map<String, Object>> rows = getRows(resultSet);
+    Assert.assertEquals(1, rows.size());
+    Assert.assertTrue(rows.get(0).containsKey("arr1"));
+    Assert.assertTrue(rows.get(0).containsKey("arr2"));
+    Assert.assertTrue(rows.get(0).containsKey("arr3"));
+    Assert.assertTrue(rows.get(0).containsKey("arr4"));
+    if (NullHandling.sqlCompatible()) {
+      Assert.assertArrayEquals(new Object[]{"a", null, "", "a", "abc", null}, (Object[]) rows.get(0).get("arr1"));
+      Assert.assertArrayEquals(new Object[]{7L, 325323L, 0L, null, null, null}, (Object[]) rows.get(0).get("arr2"));
+      Assert.assertArrayEquals(new Object[]{1.0, 1.7, 0.0, null, null, null}, (Object[]) rows.get(0).get("arr3"));
+      Assert.assertArrayEquals(new Object[]{1.0f, 0.1f, 0.0f, null, null, null}, (Object[]) rows.get(0).get("arr4"));
+    } else {
+      Assert.assertArrayEquals(new Object[]{"a", null, null, "a", "abc", null}, (Object[]) rows.get(0).get("arr1"));
+      Assert.assertArrayEquals(new Object[]{7L, 325323L, 0L, 0L, 0L, 0L}, (Object[]) rows.get(0).get("arr2"));
+      Assert.assertArrayEquals(new Object[]{1.0, 1.7, 0.0, 0.0, 0.0, 0.0}, (Object[]) rows.get(0).get("arr3"));
+      Assert.assertArrayEquals(new Object[]{1.0f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f}, (Object[]) rows.get(0).get("arr4"));
     }
   }
 
-  // Default implementation is for JSON to allow debugging of tests.
-  protected String getJdbcConnectionString(final int port)
-  {
-    return StringUtils.format(
-            "jdbc:avatica:remote:url=http://127.0.0.1:%d%s",
-            port,
-            DruidAvaticaJsonHandler.AVATICA_PATH
-    );
-  }
+  protected abstract String getJdbcConnectionString(int port);
 
-  // Default implementation is for JSON to allow debugging of tests.
-  protected AbstractAvaticaHandler getAvaticaHandler(final DruidMeta druidMeta)
-  {
-    return new DruidAvaticaJsonHandler(
-            druidMeta,
-            new DruidNode("dummy", "dummy", false, 1, null, true, false),
-            new AvaticaMonitor()
-    );
-  }
+  protected abstract AbstractAvaticaHandler getAvaticaHandler(DruidMeta druidMeta);
 
   private static List<Map<String, Object>> getRows(final ResultSet resultSet) throws SQLException
   {
@@ -1571,7 +1437,6 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     }
   }
 
-  @SafeVarargs
   private static Map<String, Object> row(final Pair<String, ?>... entries)
   {
     final Map<String, Object> m = new HashMap<>();

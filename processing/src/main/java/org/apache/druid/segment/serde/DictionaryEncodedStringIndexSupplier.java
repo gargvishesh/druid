@@ -35,7 +35,6 @@ import org.apache.druid.segment.IntListUtils;
 import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
-import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.column.DruidPredicateIndex;
 import org.apache.druid.segment.column.LexicographicalRangeIndex;
 import org.apache.druid.segment.column.NullValueIndex;
@@ -106,7 +105,7 @@ public class DictionaryEncodedStringIndexSupplier implements ColumnIndexSupplier
             bitmaps,
             NullHandling.isNullOrEquivalent(dictionary.get(0))
         );
-      } else if (clazz.equals(DictionaryEncodedStringValueIndex.class) || clazz.equals(DictionaryEncodedValueIndex.class)) {
+      } else if (clazz.equals(DictionaryEncodedStringValueIndex.class)) {
         return (T) new GenericIndexedDictionaryEncodedStringValueIndex(bitmapFactory, dictionary, bitmaps);
       }
     }

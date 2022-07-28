@@ -17,20 +17,31 @@
  * under the License.
  */
 
-package org.apache.druid.segment.column;
+package org.apache.druid.sql.avatica;
 
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.calcite.avatica.server.AbstractAvaticaHandler;
+import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.server.DruidNode;
 
-/**
- * This exposes a 'raw' view into a bitmap value indexes, allowing operation via dictionaryIds
- *
- * This interface should only be used when it is beneficial to operate in such a manner, most filter implementations
- * should likely be using higher level index instead.
- */
-public interface DictionaryEncodedValueIndex
+public class DruidAvaticaJsonHandlerTest extends DruidAvaticaHandlerTest
 {
-  /**
-   * Get the {@link ImmutableBitmap} for dictionary id of the underlying dictionary
-   */
-  ImmutableBitmap getBitmap(int idx);
+  @Override
+  protected String getJdbcConnectionString(final int port)
+  {
+    return StringUtils.format(
+            "jdbc:avatica:remote:url=http://127.0.0.1:%d%s",
+            port,
+            DruidAvaticaJsonHandler.AVATICA_PATH
+    );
+  }
+
+  @Override
+  protected AbstractAvaticaHandler getAvaticaHandler(final DruidMeta druidMeta)
+  {
+    return new DruidAvaticaJsonHandler(
+            druidMeta,
+            new DruidNode("dummy", "dummy", false, 1, null, true, false),
+            new AvaticaMonitor()
+    );
+  }
 }

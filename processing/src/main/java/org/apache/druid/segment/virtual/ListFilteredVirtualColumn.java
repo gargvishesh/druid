@@ -47,7 +47,6 @@ import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
-import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.column.DruidPredicateIndex;
 import org.apache.druid.segment.column.LexicographicalRangeIndex;
 import org.apache.druid.segment.column.NullValueIndex;
@@ -231,7 +230,7 @@ public class ListFilteredVirtualColumn implements VirtualColumn
           return (T) new ListFilteredDruidPredicateIndex(underlyingIndex, idMapping);
         } else if (clazz.equals(LexicographicalRangeIndex.class)) {
           return (T) new ListFilteredLexicographicalRangeIndex(underlyingIndex, idMapping);
-        } else if (clazz.equals(DictionaryEncodedStringValueIndex.class) || clazz.equals(DictionaryEncodedValueIndex.class)) {
+        } else if (clazz.equals(DictionaryEncodedStringValueIndex.class)) {
           return (T) new ListFilteredDictionaryEncodedStringValueIndex(underlyingIndex, idMapping);
         }
         return null;
