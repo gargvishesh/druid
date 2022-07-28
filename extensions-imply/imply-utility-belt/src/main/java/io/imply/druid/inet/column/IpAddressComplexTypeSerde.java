@@ -26,6 +26,7 @@ import org.apache.druid.segment.data.ObjectStrategy;
 import org.apache.druid.segment.data.WritableSupplier;
 import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
+import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -100,7 +101,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
   {
     try {
       byte version = buffer.get();
-      Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
+      Preconditions.checkArgument(version == 0 || version == 1, StringUtils.format("Unknown version %s", version));
       IpAddressBlobColumnMetadata metadata = IpAddressComplexTypeSerde.JSON_MAPPER.readValue(
           SERIALIZER_UTILS.readString(buffer),
           IpAddressBlobColumnMetadata.class
@@ -122,15 +123,29 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
           metadata.getBitmapSerdeFactory().getObjectStrategy(),
           builder.getFileMapper()
       );
-      builder.setIndexSupplier(
-          new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
-              metadata.getBitmapSerdeFactory().getBitmapFactory(),
-              bitmaps,
-              dictionaryBytes
-          ),
-          true,
-          false
-      );
+
+      boolean hasValidBitmap = true;
+      if (version == 0) {
+        // Version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+        // We should not use these bitmaps and fall back to using no indexes
+        for (ImmutableBitmap bitmap : bitmaps) {
+          if (bitmap == null) {
+            hasValidBitmap = false;
+          }
+        }
+      }
+      if (hasValidBitmap) {
+        builder.setIndexSupplier(
+            new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
+                metadata.getBitmapSerdeFactory().getBitmapFactory(),
+                bitmaps,
+                dictionaryBytes
+            ),
+            true,
+            false
+        );
+      }
+
       IpAddressDictionaryEncodedColumnSupplier supplier = new IpAddressDictionaryEncodedColumnSupplier(
           column,
           dictionaryBytes,
