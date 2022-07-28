@@ -20,7 +20,6 @@
 package org.apache.druid.segment.column;
 
 import org.apache.druid.collections.bitmap.BitmapFactory;
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
 
 import javax.annotation.Nullable;
 
@@ -33,7 +32,7 @@ import javax.annotation.Nullable;
  * should likely be using {@link StringValueSetIndex}, {@link DruidPredicateIndex}, {@link LexicographicalRangeIndex} or
  * some other higher level index instead.
  */
-public interface DictionaryEncodedStringValueIndex
+public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValueIndex
 {
   BitmapFactory getBitmapFactory();
 
@@ -54,9 +53,4 @@ public interface DictionaryEncodedStringValueIndex
    * the underlying dictionary
    */
   int getIndex(@Nullable String value);
-
-  /**
-   * Get the {@link ImmutableBitmap} for dictionary id of the underlying dictionary
-   */
-  ImmutableBitmap getBitmap(int idx);
 }
