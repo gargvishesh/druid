@@ -58,7 +58,7 @@ import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summ
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
-import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
+import { IngestSuccessPane } from '../ingest-success-pane/ingest-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
@@ -75,9 +75,11 @@ export interface QueryTabProps {
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
+  onQueryTab(newQuery: WorkbenchQuery, tabName?: string): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
   queryEngines: DruidEngine[];
   runMoreMenu: JSX.Element;
+  goToIngestion(taskId: string): void;
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
@@ -86,9 +88,11 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     columnMetadata,
     mandatoryQueryContext,
     onQueryChange,
+    onQueryTab,
     onDetails,
     queryEngines,
     runMoreMenu,
+    goToIngestion,
   } = props;
   const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
     onQueryChange(query.changeQueryString(queryString));
@@ -255,11 +259,13 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onQueryChange={newQuery => {
                   onQueryChange(query.applyUpdate(newQuery, i));
                 }}
+                onQueryTab={onQueryTab}
                 onDelete={() => {
                   onQueryChange(query.remove(i));
                 }}
                 onDetails={onDetails}
                 queryEngines={queryEngines}
+                goToIngestion={goToIngestion}
               />
             ))}
             <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
@@ -362,10 +368,10 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onQueryAction={handleQueryAction}
               />
             ) : execution.isSuccessfulInsert() ? (
-              <InsertSuccessPane
+              <IngestSuccessPane
                 execution={execution}
                 onDetails={() => onDetails(statsTaskId!)}
-                onQueryChange={handleQueryStringChange}
+                onQueryTab={onQueryTab}
               />
             ) : execution.error ? (
               <div className="error-container">
@@ -375,6 +381,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                     execution={execution}
                     onErrorClick={() => onDetails(statsTaskId!, 'error')}
                     onWarningClick={() => onDetails(statsTaskId!, 'warnings')}
+                    goToIngestion={goToIngestion}
                   />
                 )}
               </div>
@@ -396,6 +403,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               <ExecutionProgressPane
                 execution={executionState.intermediate}
                 intermediateError={executionState.intermediateError}
+                goToIngestion={goToIngestion}
                 onCancel={() => {
                   queryManager.cancelCurrent();
                 }}

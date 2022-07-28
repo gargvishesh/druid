@@ -235,27 +235,98 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
         </div>
       </div>
       <div className="config">
-        {typeof inputSource === 'string' ? (
-          <>
-            <FormGroup label="Select example dataset">
-              <RadioGroup
-                selectedValue={inputSource}
-                onChange={e => setInputSource(e.currentTarget.value)}
-              >
-                {EXAMPLE_INPUT_SOURCES.map((e, i) => (
-                  <Radio
-                    key={i}
-                    labelElement={
-                      <div className="example-label">
-                        <div className="name">{e.name}</div>
-                        <div className="description">{e.description}</div>
-                      </div>
-                    }
-                    value={e.name}
-                  />
-                ))}
-              </RadioGroup>
+        <div className="top-controls">
+          {typeof inputSource === 'string' ? (
+            <>
+              <FormGroup label="Select example dataset">
+                <RadioGroup
+                  selectedValue={inputSource}
+                  onChange={e => setInputSource(e.currentTarget.value)}
+                >
+                  {EXAMPLE_INPUT_SOURCES.map((e, i) => (
+                    <Radio
+                      key={i}
+                      labelElement={
+                        <div className="example-label">
+                          <div className="name">{e.name}</div>
+                          <div className="description">{e.description}</div>
+                        </div>
+                      }
+                      value={e.name}
+                    />
+                  ))}
+                </RadioGroup>
+              </FormGroup>
+            </>
+          ) : inputSource ? (
+            <>
+              <FormGroup>
+                <Callout>
+                  <InputSourceInfo inputSource={inputSource} />
+                </Callout>
+              </FormGroup>
+              <AutoForm
+                fields={INPUT_SOURCE_FIELDS}
+                model={inputSource}
+                onChange={setInputSource}
+              />
+            </>
+          ) : (
+            <FormGroup>
+              <Callout>
+                <p>Please specify where your raw data is located.</p>
+                <p>Your raw data can be in any of the following formats:</p>
+                <ul>
+                  <li>
+                    <ExternalLink href="http://ndjson.org/">JSON (new line delimited)</ExternalLink>
+                  </li>
+                  <li>CSV</li>
+                  <li>TSV</li>
+                  <li>
+                    <ExternalLink href="https://parquet.apache.org/">Parquet</ExternalLink>
+                  </li>
+                  <li>
+                    <ExternalLink href="https://orc.apache.org/">ORC</ExternalLink>
+                  </li>
+                  <li>
+                    <ExternalLink href="https://avro.apache.org/">Avro</ExternalLink>
+                  </li>
+                  <li>
+                    Any line format that can be parsed with a custom regular expression (regex)
+                  </li>
+                </ul>
+              </Callout>
             </FormGroup>
+          )}
+          {guessedInputFormatState.isLoading() && (
+            <FormGroup>
+              <ProgressBar intent={Intent.PRIMARY} />
+            </FormGroup>
+          )}
+          {connectResultError && (
+            <FormGroup>
+              <Callout className="error-callout" intent={Intent.DANGER}>
+                <p>{guessedInputFormatState.getErrorMessage()}</p>
+                {(connectResultError as any).executionError && (
+                  <p>
+                    <a
+                      onClick={() => {
+                        setStackToShow(
+                          ((connectResultError as any).executionError as ExecutionError)
+                            .exceptionStackTrace,
+                        );
+                      }}
+                    >
+                      Stack trace
+                    </a>
+                  </p>
+                )}
+              </Callout>
+            </FormGroup>
+          )}
+        </div>
+        <div className="bottom-controls">
+          {typeof inputSource === 'string' ? (
             <Button
               className="next"
               text={guessedInputFormatState.isLoading() ? 'Loading...' : 'Use example'}
@@ -267,15 +338,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
                 connectQueryManager.runQuery(exampleInputSource);
               }}
             />
-          </>
-        ) : inputSource ? (
-          <>
-            <FormGroup>
-              <Callout>
-                <InputSourceInfo inputSource={inputSource} />
-              </Callout>
-            </FormGroup>
-            <AutoForm fields={INPUT_SOURCE_FIELDS} model={inputSource} onChange={setInputSource} />
+          ) : inputSource ? (
             <Button
               className="next"
               text={guessedInputFormatState.isLoading() ? 'Loading...' : 'Connect data'}
@@ -290,58 +353,8 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
                 connectQueryManager.runQuery(inputSource);
               }}
             />
-          </>
-        ) : (
-          <FormGroup>
-            <Callout>
-              <p>Please specify where your raw data is located.</p>
-              <p>Your raw data can be in any of the following formats:</p>
-              <ul>
-                <li>
-                  <ExternalLink href="http://ndjson.org/">JSON (new line delimited)</ExternalLink>
-                </li>
-                <li>CSV</li>
-                <li>TSV</li>
-                <li>
-                  <ExternalLink href="https://parquet.apache.org/">Parquet</ExternalLink>
-                </li>
-                <li>
-                  <ExternalLink href="https://orc.apache.org/">ORC</ExternalLink>
-                </li>
-                <li>
-                  <ExternalLink href="https://avro.apache.org/">Avro</ExternalLink>
-                </li>
-                <li>Any line format that can be parsed with a custom regular expression (regex)</li>
-              </ul>
-            </Callout>
-          </FormGroup>
-        )}
-        {guessedInputFormatState.isLoading() && (
-          <FormGroup>
-            <ProgressBar intent={Intent.PRIMARY} />
-          </FormGroup>
-        )}
-        {connectResultError && (
-          <FormGroup>
-            <Callout className="error-callout" intent={Intent.DANGER}>
-              <p>{guessedInputFormatState.getErrorMessage()}</p>
-              {(connectResultError as any).executionError && (
-                <p>
-                  <a
-                    onClick={() => {
-                      setStackToShow(
-                        ((connectResultError as any).executionError as ExecutionError)
-                          .exceptionStackTrace,
-                      );
-                    }}
-                  >
-                    Stack trace
-                  </a>
-                </p>
-              )}
-            </Callout>
-          </FormGroup>
-        )}
+          ) : undefined}
+        </div>
       </div>
       {stackToShow && (
         <ShowValueDialog

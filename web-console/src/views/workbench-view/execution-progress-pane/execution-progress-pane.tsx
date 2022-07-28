@@ -28,6 +28,7 @@ import './execution-progress-pane.scss';
 export interface ExecutionProgressPaneProps {
   execution: Execution;
   intermediateError?: Error;
+  goToIngestion(taskId: string): void;
   onCancel?(): void;
   allowLiveReportsPane?: boolean;
 }
@@ -35,7 +36,7 @@ export interface ExecutionProgressPaneProps {
 export const ExecutionProgressPane = React.memo(function ExecutionProgressPane(
   props: ExecutionProgressPaneProps,
 ) {
-  const { execution, intermediateError, onCancel, allowLiveReportsPane } = props;
+  const { execution, intermediateError, onCancel, allowLiveReportsPane, goToIngestion } = props;
   const [showLiveReports, setShowLiveReports] = useState(true);
 
   return (
@@ -49,7 +50,7 @@ export const ExecutionProgressPane = React.memo(function ExecutionProgressPane(
         onCancel={onCancel}
       />
       {allowLiveReportsPane && showLiveReports && execution.stages && (
-        <ExecutionStagesPane execution={execution} />
+        <ExecutionStagesPane execution={execution} goToIngestion={goToIngestion} />
       )}
       {intermediateError && (
         <div className="network-error-notification">

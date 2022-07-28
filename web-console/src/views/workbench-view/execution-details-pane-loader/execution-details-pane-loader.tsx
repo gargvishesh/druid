@@ -32,12 +32,13 @@ export interface ExecutionDetailsPaneLoaderProps {
   id: string;
   initTab?: ExecutionDetailsTab;
   initExecution?: Execution;
+  goToIngestion(taskId: string): void;
 }
 
 export const ExecutionDetailsPaneLoader = React.memo(function ExecutionDetailsPaneLoader(
   props: ExecutionDetailsPaneLoaderProps,
 ) {
-  const { id, initTab, initExecution } = props;
+  const { id, initTab, initExecution, goToIngestion } = props;
 
   const [executionState, queryManager] = useQueryManager<string, Execution>({
     processQuery: (id: string) => {
@@ -57,7 +58,9 @@ export const ExecutionDetailsPaneLoader = React.memo(function ExecutionDetailsPa
 
   const execution = executionState.getSomeData();
   if (execution) {
-    return <ExecutionDetailsPane execution={execution} initTab={initTab} />;
+    return (
+      <ExecutionDetailsPane execution={execution} initTab={initTab} goToIngestion={goToIngestion} />
+    );
   } else if (executionState.isLoading()) {
     return <Loader className="execution-stages-pane" />;
   } else if (executionState.isError()) {

@@ -41,13 +41,14 @@ import { TitleFrame } from './title-frame/title-frame';
 import './sql-data-loader-view.scss';
 
 export interface SqlDataLoaderViewProps {
-  goToQuery: (initSql: string) => void;
+  goToQuery(initSql: string): void;
+  goToIngestion(taskId: string): void;
 }
 
 export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
   props: SqlDataLoaderViewProps,
 ) {
-  const { goToQuery } = props;
+  const { goToQuery, goToIngestion } = props;
   const [externalConfigStep, setExternalConfigStep] = useState<Partial<ExternalConfig>>({});
   const [queryString, setQueryString] = useLocalStorageState<string>(
     LocalStorageKeys.SQL_DATA_LOADER_QUERY,
@@ -65,7 +66,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
       return await submitTaskQuery({
         query: queryString,
         context: {
-          msqFinalizeAggregations: false,
+          finalizeAggregations: false,
           groupByEnableMultiValueUnnesting: false,
         },
         cancelToken,
@@ -134,7 +135,10 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
             showLiveReports={showLiveReports}
           />
           {insertResultState.intermediate?.stages && showLiveReports && (
-            <ExecutionStagesPane execution={insertResultState.intermediate} />
+            <ExecutionStagesPane
+              execution={insertResultState.intermediate}
+              goToIngestion={goToIngestion}
+            />
           )}
         </div>
       )}

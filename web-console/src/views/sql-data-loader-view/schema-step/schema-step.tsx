@@ -420,7 +420,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             query: previewQueryString,
             context: {
               groupByEnableMultiValueUnnesting: false,
-              msqFinalizeAggregations: false,
+              finalizeAggregations: false,
               sqlOuterLimit: 25,
             },
             cancelToken,

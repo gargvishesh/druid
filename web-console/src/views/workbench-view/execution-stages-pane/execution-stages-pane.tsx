@@ -17,14 +17,13 @@
  */
 
 import { Button, Icon, Intent } from '@blueprintjs/core';
-import { clamp } from '@blueprintjs/core/lib/esnext/common/utils';
 import { IconNames } from '@blueprintjs/icons';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import React from 'react';
 import ReactTable, { Column } from 'react-table';
 
-import { BracedText } from '../../../components';
+import { BracedText, TableClickableCell } from '../../../components';
 import {
   ChannelCounterName,
   ClusterBy,
@@ -38,6 +37,7 @@ import {
 } from '../../../druid-models';
 import { DEFAULT_TABLE_CLASS_NAME } from '../../../react-table';
 import {
+  clamp,
   deepGet,
   formatBytes,
   formatDuration,
@@ -87,16 +87,45 @@ const formatFileOfTotal = (files: number, totalFiles: number) =>
 const formatFileOfTotalForBrace = (files: number, totalFiles: number) =>
   `(${formatInteger(files)} /GB ${formatInteger(totalFiles)})`;
 
+function inputLabelContent(stage: StageDefinition, inputIndex: number) {
+  const { input, broadcast } = stage.definition;
+  const stageInput = input[inputIndex];
+  return (
+    <>
+      Input{' '}
+      {stageInput.type === 'stage' && <span className="stage">{`Stage${stageInput.stage}`}</span>}
+      {stageInput.type === 'table' && (
+        <span className="datasource" title={stageInput.dataSource}>
+          {stageInput.dataSource}
+        </span>
+      )}
+      {stageInput.type === 'external' && (
+        <span className="external" title={summarizeInputSource(stageInput.inputSource, true)}>
+          {`${stageInput.inputSource.type} external`}
+        </span>
+      )}
+      {broadcast?.includes(inputIndex) && (
+        <Icon
+          className="broadcast-tag"
+          icon={IconNames.CELL_TOWER}
+          title="This input is being broadcast to all workers in this stage."
+        />
+      )}
+    </>
+  );
+}
+
 export interface ExecutionStagesPaneProps {
   execution: Execution;
-  onErrorClick?: () => void;
-  onWarningClick?: () => void;
+  onErrorClick?(): void;
+  onWarningClick?(): void;
+  goToIngestion(taskId: string): void;
 }
 
 export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
   props: ExecutionStagesPaneProps,
 ) {
-  const { execution, onErrorClick, onWarningClick } = props;
+  const { execution, onErrorClick, onWarningClick, goToIngestion } = props;
   const stages = execution.stages || new Stages([]);
   const error = execution.error;
 
@@ -171,22 +200,31 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
             Header: 'Worker',
             id: 'worker',
             accessor: d => d.index,
-            className: 'padded',
             width: 100,
             Cell({ value }) {
-              return `Worker${value}`;
+              const taskId = `${execution.id}-worker${value}`;
+              return (
+                <TableClickableCell
+                  hoverIcon={IconNames.SHARE}
+                  title={`Go to task: ${taskId}`}
+                  onClick={() => {
+                    goToIngestion(taskId);
+                  }}
+                >{`Worker${value}`}</TableClickableCell>
+              );
             },
           } as Column<SimpleWideCounter>,
         ].concat(
-          counterNames.map(counterName => {
+          counterNames.map((counterName, i) => {
+            const isInput = counterName.startsWith('input');
             return {
               Header: twoLines(
-                stages.getStageCounterTitle(stage, counterName),
-                counterName.startsWith('input') ? (
-                  <i>rows &nbsp; (size or files)</i>
+                isInput ? (
+                  <span>{inputLabelContent(stage, i)}</span>
                 ) : (
-                  <i>rows &nbsp; (size)</i>
+                  stages.getStageCounterTitle(stage, counterName)
                 ),
+                isInput ? <i>rows &nbsp; (size or files)</i> : <i>rows &nbsp; (size)</i>,
               ),
               id: counterName,
               accessor: d => d[counterName]!.rows,
@@ -489,38 +527,12 @@ export const ExecutionStagesPane = React.memo(function ExecutionStagesPane(
           width: 150,
           Cell(props) {
             const stage = props.original as StageDefinition;
-            const { input, broadcast } = stage.definition;
+            const { input } = stage.definition;
             return (
               <>
-                {input.map((stageInput, i) => {
-                  return (
-                    <div key={i}>
-                      Input{' '}
-                      {stageInput.type === 'stage' && (
-                        <span className="stage">{`Stage${stageInput.stage}`}</span>
-                      )}
-                      {stageInput.type === 'table' && (
-                        <span className="datasource" title={stageInput.dataSource}>
-                          {stageInput.dataSource}
-                        </span>
-                      )}
-                      {stageInput.type === 'external' && (
-                        <Tooltip2
-                          content={<pre>{summarizeInputSource(stageInput.inputSource, true)}</pre>}
-                        >
-                          <span className="external">
-                            {`${stageInput.inputSource.type} external`}
-                          </span>
-                        </Tooltip2>
-                      )}
-                      {broadcast?.includes(i) && (
-                        <Tooltip2 content="This input is being broadcast to all workers in this stage.">
-                          <Icon className="broadcast-tag" icon={IconNames.CELL_TOWER} />
-                        </Tooltip2>
-                      )}
-                    </div>
-                  );
-                })}
+                {input.map((_, i) => (
+                  <div key={i}>{inputLabelContent(stage, i)}</div>
+                ))}
                 {stages.hasCounterForStage(stage, 'output') && (
                   <>
                     <div className="counter-spacer extend-right" />

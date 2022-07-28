@@ -72,14 +72,16 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
             />
           </Popover2>
           <Switch
-            label="Show stats"
+            label="Show details"
             checked={Boolean(showStats && record.taskId)}
             onChange={() => setShowStats(!showStats)}
             disabled={!record.taskId}
           />
         </div>
         <TextArea className="query-string" readOnly value={record.query.getQueryString()} />
-        {showStats && record.taskId && <ExecutionStagesPaneLoader id={record.taskId} />}
+        {showStats && record.taskId && (
+          <ExecutionStagesPaneLoader id={record.taskId} goToIngestion={() => {}} />
+        )}
       </div>
     );
   }

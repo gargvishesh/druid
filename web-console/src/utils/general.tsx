@@ -46,6 +46,10 @@ export function wait(ms: number): Promise<void> {
   });
 }
 
+export function clamp(n: number, min: number, max: number): number {
+  return Math.min(Math.max(n, min), max);
+}
+
 export function addOrUpdate<T>(xs: readonly T[], x: T, keyFn: (x: T) => string | number): T[] {
   const keyX = keyFn(x);
   let added = false;
