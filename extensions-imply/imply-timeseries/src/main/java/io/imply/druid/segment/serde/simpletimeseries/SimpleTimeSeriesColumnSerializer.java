@@ -10,7 +10,7 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.GenericColumnSerializer;
@@ -94,7 +94,7 @@ import java.nio.channels.WritableByteChannel;
  * </pre>
  */
 
-public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeries>
+public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeriesContainer>
 {
   private final NativeClearedByteBufferProvider byteBufferProvider;
   private final SegmentWriteOutMedium segmentWriteOutMedium;
@@ -131,13 +131,14 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void serialize(ColumnValueSelector<? extends SimpleTimeSeries> selector) throws IOException
+  public void serialize(ColumnValueSelector<? extends SimpleTimeSeriesContainer> selector) throws IOException
   {
     Preconditions.checkState(state == State.OPEN, "serialize called in invalid state %s", state);
 
-    SimpleTimeSeries timeSeries = selector.getObject();
+    SimpleTimeSeriesContainer timeSeriesContainer = selector.getObject();
 
-    buffer.store(timeSeries);
+    //noinspection ConstantConditions
+    buffer.store(timeSeriesContainer.getSimpleTimeSeries());
   }
 
 

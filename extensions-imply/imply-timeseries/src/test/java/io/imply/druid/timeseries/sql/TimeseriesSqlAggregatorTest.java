@@ -58,7 +58,8 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
 
     return Iterables.concat(
         super.getJacksonModules(),
-        timeseries.getJacksonModules());
+        timeseries.getJacksonModules()
+    );
   }
 
   @Override
@@ -145,47 +146,60 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
                   .granularity(Granularities.ALL)
                   .aggregators(ImmutableList.of(
-                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory("a0:agg",
-                                                                                        "m1",
-                                                                                        "__time",
-                                                                                        null,
-                                                                                        null,
-                                                                                        Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                                                                                        null),
-                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory("a1:agg",
-                                                                                          "m1",
-                                                                                          "__time",
-                                                                                          null,
-                                                                                          null,
-                                                                                          86400000L,
-                                                                                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                                                                                          null),
-                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory("a2:agg",
-                                                                                           "m1",
-                                                                                           "__time",
-                                                                                           null,
-                                                                                           null,
-                                                                                            86400000L,
-                                                                                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                                                                                           null),
-                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory("a3:agg",
-                                                                                          "m1",
-                                                                                          "__time",
-                                                                                          null,
-                                                                                          null,
-                                                                                          86400000L,
-                                                                                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                                                                                          100),
-                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory("a4:agg",
-                                                                                            "m1",
-                                                                                            "__time",
-                                                                                            null,
-                                                                                            null,
-                                                                                            86400000L,
-                                                                                            Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                                                                                            100)
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a0:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          null,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          null
+                      ),
+                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+                          "a1:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          null
+                      ),
+                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
+                          "a2:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          null
+                      ),
+                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+                          "a3:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          100
+                      ),
+                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
+                          "a4:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          100
+                      )
                   ))
                   .postAggregators(
+                      /* this is the post-agg that should be generated
+                      new FinalizingFieldAccessPostAggregator("p0", "a0:agg"),
+                       */
                       new FieldAccessPostAggregator("p0", "a0:agg"),
                       new FieldAccessPostAggregator("p1", "a1:agg"),
                       new FieldAccessPostAggregator("p2", "a2:agg"),
@@ -205,7 +219,8 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "p8",
                           new FieldAccessPostAggregator("p7", "a0:agg"),
                           Interpolator.LINEAR,
-                          86400000L),
+                          86400000L
+                      ),
                       new TimeWeightedAveragePostAggregator(
                           "p11",
                           new InterpolationPostAggregator(
@@ -215,42 +230,51 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               12 * 60 * 60 * 1000L
                           ),
                           Interpolator.LINEAR,
-                          86400000L)
+                          86400000L
+                      )
                   )
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
-        ImmutableList.of(new Object[]{"{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[1.0,2.0,3.0],"
-                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}}," // this result is wrong due to a bug,
-                                          + "\"bucketStarts\":[946684800000,946771200000,946857600000]," // which leads to non-finalization of aggregations,
-                                          + "\"countPoints\":[1,1,1],"
-                                          + "\"sumPoints\":[1.0,2.0,3.0],"
-                                          + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
-                                          + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                                          + "\"timestamps\":[946684800000,946684800000,946771200000,946771200000,946857600000,946857600000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.5],"
-                                          + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
-                                          + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[1.5,2.5,3.5],"
-                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                                      "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                          + "\"dataPoints\":[0.0,0.0,0.0],"
-                                          + "\"timestamps\":[946684800000,946771200000,946857600000],"
-                                          + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}"})
+        ImmutableList.of(
+            new Object[]{
+                "\"AACsz2rcAAAAAf//////////AAAAAAAA8L///////////wAAAAAAAPC/AAAAAAMAAAAAAAAAAFwmBQBcJgUDAAAAAAAAAAAA8D8AAAAAAAAAQAAAAAAAAAhA\"",
+                /* save this value for when planner is fixed to properly finalize
+                                          "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                                              + "\"dataPoints\":[1.0,2.0,3.0],"
+                                              + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                                              + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                 */
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                // this result is wrong due to a bug,
+                  + "\"bucketStarts\":[946684800000,946771200000,946857600000],"
+                // which leads to non-finalization of aggregations,
+                  + "\"countPoints\":[1,1,1],"
+                  + "\"sumPoints\":[1.0,2.0,3.0],"
+                  + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
+                  + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
+                  + "\"timestamps\":[946684800000,946684800000,946771200000,946771200000,946857600000,946857600000],"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.5],"
+                  + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
+                  + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[1.5,2.5,3.5],"
+                  + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[0.0,0.0,0.0],"
+                  + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}"
+            })
     );
   }
 }

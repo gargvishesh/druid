@@ -10,6 +10,8 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseLongColumnValueSelector;
@@ -62,7 +64,10 @@ public class SimpleTimeSeriesBuildBufferAggregator implements BufferAggregator
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return simpleByteBufferTimeSeries.computeSimpleBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
+    SimpleTimeSeries simpleTimeSeries =
+        simpleByteBufferTimeSeries.computeSimpleBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
+
+    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
   }
 
   @Override
