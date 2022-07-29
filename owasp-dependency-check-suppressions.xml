@@ -616,6 +616,8 @@
    ]]></notes>
     <cve>CVE-2020-36518</cve>
   </suppress>
+
+  <suppress>
     <!-- False alarm for the Async javascript library (https://github.com/caolan/async) which is a dev dependency for the web console -->
     <notes><![CDATA[
    file name: async-http-client-2.5.3.jar
