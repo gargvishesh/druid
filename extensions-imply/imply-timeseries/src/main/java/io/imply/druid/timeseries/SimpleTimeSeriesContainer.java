@@ -103,13 +103,12 @@ public class SimpleTimeSeriesContainer
       SimpleTimeSeriesSerde timeSeriesSerde = SimpleTimeSeriesSerde.create(minTimestamp, useInteger);
       StorableBuffer storableBuffer = timeSeriesSerde.serializeDelayed(timeSeries);
       // isNull + minTimestamp + useInteger(byte) + 2 * edge{long, double} + bytes
-      ByteBuffer byteBuffer =
-          ByteBuffer.allocate(Byte.BYTES
-                              + Long.BYTES
-                              + Byte.BYTES
-                              + 2 * (Long.BYTES + Double.BYTES)
-                              + storableBuffer.getSerializedSize())
-                    .order(ByteOrder.nativeOrder());
+      ByteBuffer byteBuffer = ByteBuffer.allocate(Byte.BYTES
+                                                  + Long.BYTES
+                                                  + Byte.BYTES
+                                                  + 2 * (Long.BYTES + Double.BYTES)
+                                                  + storableBuffer.getSerializedSize())
+                                        .order(ByteOrder.nativeOrder());
 
       byteBuffer.put((byte) 0); // isNull = false
       byteBuffer.putLong(minTimestamp);

@@ -333,7 +333,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     return simpleTimeSeries;
   }
 
-  private static class SimpleTimeSeriesColumnValueSelector implements ColumnValueSelector<SimpleTimeSeries>
+  private static class SimpleTimeSeriesColumnValueSelector implements ColumnValueSelector<SimpleTimeSeriesContainer>
   {
     private final SimpleTimeSeries simpleTimeSeries;
 
@@ -373,15 +373,15 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
 
     @Nullable
     @Override
-    public SimpleTimeSeries getObject()
+    public SimpleTimeSeriesContainer getObject()
     {
-      return simpleTimeSeries;
+      return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
     }
 
     @Override
-    public Class<? extends SimpleTimeSeries> classOfObject()
+    public Class<? extends SimpleTimeSeriesContainer> classOfObject()
     {
-      return SimpleTimeSeries.class;
+      return SimpleTimeSeriesContainer.class;
     }
   }
 }

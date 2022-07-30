@@ -14,15 +14,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
-import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
-import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
-import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
-import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.NonnullPair;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
@@ -39,7 +34,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 
 public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
@@ -116,7 +110,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
-      return new SimpleTimeSeriesAggregator(timeSelector, dataSelector, getWindow(), getMaxEntries());
+      return new SimpleTimeSeriesBuildAggregator(timeSelector, dataSelector, getWindow(), getMaxEntries());
     }
   }
 
@@ -177,34 +171,17 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       return object;
     }
 
-    if (object instanceof String || object instanceof byte[]) {
-      byte[] bytes;
+    byte[] bytes;
 
-      if (object instanceof String) {
-        bytes = DECODER.decode((String) object);
-      } else {
-        bytes = (byte[]) object;
-      }
-
-      ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
-
-      return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, getWindow(), getMaxEntries());
+    if (object instanceof String) {
+      bytes = DECODER.decode((String) object);
+    } else {
+      bytes = (byte[]) object;
     }
 
-    Map<String, Object> timeseriesKeys = (Map<String, Object>) object;
-    ImplyLongArrayList timestamps = new ImplyLongArrayList((List<Long>) timeseriesKeys.get("timestamps"));
-    ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList((List<Double>) timeseriesKeys.get("dataPoints"));
-    NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> bounds = SerdeUtils.getBounds(timeseriesKeys);
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        timestamps,
-        dataPoints,
-        getWindow(),
-        bounds.lhs,
-        bounds.rhs,
-        getMaxEntries()
-    );
+    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
 
-    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
+    return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, getWindow(), getMaxEntries());
   }
 
   @Nullable

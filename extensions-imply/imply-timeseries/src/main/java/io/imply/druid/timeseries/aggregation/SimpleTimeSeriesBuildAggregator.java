@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseLongColumnValueSelector;
@@ -17,16 +18,16 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 
-public class SimpleTimeSeriesAggregator implements Aggregator
+public class SimpleTimeSeriesBuildAggregator implements Aggregator
 {
   private final BaseDoubleColumnValueSelector dataSelector;
   private final BaseLongColumnValueSelector timeSelector;
   private final SimpleTimeSeries timeSeries;
 
-  public SimpleTimeSeriesAggregator(final BaseLongColumnValueSelector timeSelector,
-                                    final BaseDoubleColumnValueSelector dataSelector,
-                                    final Interval window,
-                                    final int maxEntries)
+  public SimpleTimeSeriesBuildAggregator(final BaseLongColumnValueSelector timeSelector,
+                                         final BaseDoubleColumnValueSelector dataSelector,
+                                         final Interval window,
+                                         final int maxEntries)
   {
     this.dataSelector = dataSelector;
     this.timeSelector = timeSelector;
@@ -46,7 +47,7 @@ public class SimpleTimeSeriesAggregator implements Aggregator
   @Override
   public Object get()
   {
-    return timeSeries;
+    return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
   }
 
   @Override
