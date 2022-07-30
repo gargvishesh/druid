@@ -22,6 +22,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.core.Emitter;
 import org.apache.druid.java.util.emitter.core.Event;
+import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.HttpResponseHandler;
 import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
@@ -100,7 +101,7 @@ public class ClarityHttpEmitterTest
   @Test
   public void testSanity() throws Exception
   {
-    final List<UnitEvent> events = Arrays.asList(buildUnitEvent(1), buildUnitEvent(2));
+    final List<Event> events = Arrays.asList(buildEvent(1), buildEvent(2));
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
                                 .withClusterName(TEST_IMPLY_CLUSTER)
@@ -136,7 +137,7 @@ public class ClarityHttpEmitterTest
         }.times(1)
     );
 
-    for (UnitEvent event : events) {
+    for (Event event : events) {
       emitter.emit(event);
     }
     waitForEmission(emitter);
@@ -147,7 +148,7 @@ public class ClarityHttpEmitterTest
   @Test
   public void testMetricContext() throws Exception
   {
-    final UnitEvent event = buildUnitEvent(1);
+    final Event event = buildEvent(1);
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
                                 .withClusterName(TEST_IMPLY_CLUSTER)
@@ -207,16 +208,16 @@ public class ClarityHttpEmitterTest
     );
 
     httpClient.setGoHandler(assertingFailingHandler());
-    emitter.emit(buildUnitEvent(1));
-    emitter.emit(buildUnitEvent(2));
+    emitter.emit(buildEvent(1));
+    emitter.emit(buildEvent(2));
 
     httpClient.setGoHandler(GoHandlers.passingHandler(okResponse()).times(1));
-    emitter.emit(buildUnitEvent(3));
+    emitter.emit(buildEvent(3));
     waitForEmission(emitter);
 
     httpClient.setGoHandler(assertingFailingHandler());
-    emitter.emit(buildUnitEvent(4));
-    emitter.emit(buildUnitEvent(5));
+    emitter.emit(buildEvent(4));
+    emitter.emit(buildEvent(5));
 
     closeAndExpectFlush(emitter);
     Assert.assertTrue(httpClient.succeeded());
@@ -253,7 +254,7 @@ public class ClarityHttpEmitterTest
     );
 
     long emitTime = System.currentTimeMillis();
-    emitter.emit(buildUnitEvent(1));
+    emitter.emit(buildEvent(1));
 
     latch.await();
     long timeWaited = System.currentTimeMillis() - emitTime;
@@ -282,7 +283,7 @@ public class ClarityHttpEmitterTest
     );
 
     emitTime = System.currentTimeMillis();
-    emitter.emit(buildUnitEvent(2));
+    emitter.emit(buildEvent(2));
 
     thisLatch.await();
     timeWaited = System.currentTimeMillis() - emitTime;
@@ -299,8 +300,8 @@ public class ClarityHttpEmitterTest
   @Test
   public void testFailedEmission() throws Exception
   {
-    final UnitEvent event1 = buildUnitEvent(1);
-    final UnitEvent event2 = buildUnitEvent(2);
+    final Event event1 = buildEvent(1);
+    final Event event2 = buildEvent(2);
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
                                 .withClusterName(TEST_IMPLY_CLUSTER)
@@ -378,7 +379,7 @@ public class ClarityHttpEmitterTest
   @Test
   public void testBasicAuthenticationAndNewlineSeparating() throws Exception
   {
-    final List<UnitEvent> events = Arrays.asList(buildUnitEvent(1), buildUnitEvent(2));
+    final List<Event> events = Arrays.asList(buildEvent(1), buildEvent(2));
 
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
@@ -426,7 +427,7 @@ public class ClarityHttpEmitterTest
         }.times(1)
     );
 
-    for (UnitEvent event : events) {
+    for (Event event : events) {
       emitter.emit(event);
     }
     emitter.flush();
@@ -443,11 +444,11 @@ public class ClarityHttpEmitterTest
       big[i] = 'x';
     }
     final String bigString = new String(big, StandardCharsets.UTF_8);
-    final List<UnitEvent> events = Arrays.asList(
-        buildUnitEvent(bigString, 1),
-        buildUnitEvent(bigString, 2),
-        buildUnitEvent(bigString, 3),
-        buildUnitEvent(bigString, 4)
+    final List<Event> events = Arrays.asList(
+        buildEvent(bigString, 1),
+        buildEvent(bigString, 2),
+        buildEvent(bigString, 3),
+        buildEvent(bigString, 4)
     );
 
     emitter = getEmitter(
@@ -489,7 +490,7 @@ public class ClarityHttpEmitterTest
         }.times(3)
     );
 
-    for (UnitEvent event : events) {
+    for (Event event : events) {
       emitter.emit(event);
     }
     Assert.assertEquals(JSON_MAPPER.writeValueAsString(events).length() - events.size() - 1, emitter.getBufferedSize());
@@ -524,18 +525,18 @@ public class ClarityHttpEmitterTest
 
     httpClient.setGoHandler(assertingFailingHandler());
 
-    emitter.emit(buildUnitEvent(bigString, 1));
-    emitter.emit(buildUnitEvent(bigString, 2));
-    emitter.emit(buildUnitEvent(bigString, 3));
-    emitter.emit(buildUnitEvent(bigString, 4));
+    emitter.emit(buildEvent(bigString, 1));
+    emitter.emit(buildEvent(bigString, 2));
+    emitter.emit(buildEvent(bigString, 3));
+    emitter.emit(buildEvent(bigString, 4));
 
     httpClient.setGoHandler(GoHandlers.passingHandler(okResponse()).times(1));
-    emitter.emit(buildUnitEvent(bigString, 5));
+    emitter.emit(buildEvent(bigString, 5));
     waitForEmission(emitter);
 
     httpClient.setGoHandler(assertingFailingHandler());
-    emitter.emit(buildUnitEvent(bigString, 6));
-    emitter.emit(buildUnitEvent(bigString, 7));
+    emitter.emit(buildEvent(bigString, 6));
+    emitter.emit(buildEvent(bigString, 7));
 
     closeAndExpectFlush(emitter);
     Assert.assertTrue(httpClient.succeeded());
@@ -544,7 +545,7 @@ public class ClarityHttpEmitterTest
   @Test
   public void testLz4Compression() throws Exception
   {
-    final List<UnitEvent> events = Arrays.asList(buildUnitEvent(1), buildUnitEvent(2));
+    final List<Event> events = Arrays.asList(buildEvent(1), buildEvent(2));
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
                                 .withClusterName(TEST_IMPLY_CLUSTER)
@@ -574,7 +575,7 @@ public class ClarityHttpEmitterTest
         }.times(1)
     );
 
-    for (UnitEvent event : events) {
+    for (Event event : events) {
       emitter.emit(event);
     }
     waitForEmission(emitter);
@@ -585,7 +586,7 @@ public class ClarityHttpEmitterTest
   @Test
   public void testGzipCompression() throws Exception
   {
-    final List<UnitEvent> events = Arrays.asList(buildUnitEvent(1), buildUnitEvent(2));
+    final List<Event> events = Arrays.asList(buildEvent(1), buildEvent(2));
     emitter = getEmitter(
         ClarityHttpEmitterConfig.builder(TARGET_URL)
                                 .withClusterName(TEST_IMPLY_CLUSTER)
@@ -617,7 +618,7 @@ public class ClarityHttpEmitterTest
         }.times(1)
     );
 
-    for (UnitEvent event : events) {
+    for (Event event : events) {
       emitter.emit(event);
     }
     waitForEmission(emitter);
@@ -628,11 +629,11 @@ public class ClarityHttpEmitterTest
   @Test
   public void testSampledMetrics0() throws Exception
   {
-    List<UnitEvent> events = ImmutableList.of(
-        buildUnitEvent("test", 1, "metric-type-1", "id-1"),
-        buildUnitEvent("test", 2, "metric-type-2", "id-2"),
-        buildUnitEvent("test", 3, "metric-type-1", null),
-        buildUnitEvent("test", 4, "metric-type-2", null)
+    List<Event> events = ImmutableList.of(
+        buildEvent("test", 1, "metric-type-1", "id-1"),
+        buildEvent("test", 2, "metric-type-2", "id-2"),
+        buildEvent("test", 3, "metric-type-1", null),
+        buildEvent("test", 4, "metric-type-2", null)
     );
 
     List expectedResults = JSON_MAPPER.convertValue(
@@ -646,11 +647,11 @@ public class ClarityHttpEmitterTest
   @Test
   public void testSampledMetrics100() throws Exception
   {
-    List<UnitEvent> events = ImmutableList.of(
-        buildUnitEvent("test", 1, "metric-type-1", "id-1"),
-        buildUnitEvent("test", 2, "metric-type-2", "id-2"),
-        buildUnitEvent("test", 3, "metric-type-1", null),
-        buildUnitEvent("test", 4, "metric-type-2", null)
+    List<Event> events = ImmutableList.of(
+        buildEvent("test", 1, "metric-type-1", "id-1"),
+        buildEvent("test", 2, "metric-type-2", "id-2"),
+        buildEvent("test", 3, "metric-type-1", null),
+        buildEvent("test", 4, "metric-type-2", null)
     );
 
     List expectedResults = JSON_MAPPER.convertValue(
@@ -664,11 +665,11 @@ public class ClarityHttpEmitterTest
   @Test
   public void testSampledMetricsNodeType() throws Exception
   {
-    List<UnitEvent> events = ImmutableList.of(
-        buildUnitEvent("test", 1, "metric-type-1", "id-1"),
-        buildUnitEvent("test", 2, "metric-type-2", "id-2"),
-        buildUnitEvent("test", 3, "metric-type-1", null),
-        buildUnitEvent("test", 4, "metric-type-2", null)
+    List<Event> events = ImmutableList.of(
+        buildEvent("test", 1, "metric-type-1", "id-1"),
+        buildEvent("test", 2, "metric-type-2", "id-2"),
+        buildEvent("test", 3, "metric-type-1", null),
+        buildEvent("test", 4, "metric-type-2", null)
     );
 
     List expectedResults = JSON_MAPPER.convertValue(
@@ -680,7 +681,7 @@ public class ClarityHttpEmitterTest
   }
 
   private void testSampledMetrics(
-      List<UnitEvent> events,
+      List<Event> events,
       final List<Object> expectedResults,
       Set<String> sampledMetrics,
       Set<String> sampledNodeTypes,
@@ -790,31 +791,30 @@ public class ClarityHttpEmitterTest
     return emitter;
   }
 
-  private UnitEvent buildUnitEvent(String feed, Number value, String metric, String id)
+  private Event buildEvent(String feed, Number value, String metric, String id)
   {
-    Map<String, Object> userDims = new HashMap<>();
-    userDims.put("metric", metric);
-    userDims.put("id", id);
+    final ServiceMetricEvent.Builder builder =
+        ServiceMetricEvent.builder()
+                          .setFeed(feed)
+                          .setDimension("implyNodeType", TEST_NODE_TYPE)
+                          .setDimension("implyDruidVersion", TEST_DRUID_VERSION)
+                          .setDimension("implyCluster", TEST_IMPLY_CLUSTER)
+                          .setDimension("implyVersion", TEST_IMPLY_VERSION);
 
-    return new UnitEvent(
-        feed,
-        value,
-        TARGET_URL_KEY,
-        TEST_NODE_TYPE,
-        TEST_DRUID_VERSION,
-        TEST_IMPLY_CLUSTER,
-        TEST_IMPLY_VERSION,
-        userDims
-    );
+    if (id != null) {
+      builder.setDimension("id", id);
+    }
+
+    return builder.build(String.valueOf(metric), value == null ? 0 : value).build("service", "host");
   }
 
-  private UnitEvent buildUnitEvent(String feed, Number value)
+  private Event buildEvent(String feed, Number value)
   {
-    return buildUnitEvent(feed, value, null, null);
+    return buildEvent(feed, value, null, null);
   }
 
-  private UnitEvent buildUnitEvent(Number value)
+  private Event buildEvent(Number value)
   {
-    return buildUnitEvent("test", value);
+    return buildEvent("test", value);
   }
 }

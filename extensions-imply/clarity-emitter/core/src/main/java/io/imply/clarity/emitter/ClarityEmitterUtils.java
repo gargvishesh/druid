@@ -18,6 +18,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.core.Event;
+import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.query.DruidMetrics;
 
 import javax.annotation.Nullable;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ClarityEmitterUtils
 {
@@ -97,15 +99,9 @@ public class ClarityEmitterUtils
       final ObjectMapper jsonMapper
   )
   {
-    final Map<String, Object> eventMap = ClarityEmitterUtils.getModifiedEventMap(
+    final boolean shouldDrop = ClarityEmitterUtils.shouldDropEvent(
         event,
         nodeDetails,
-        config,
-        jsonMapper
-    );
-
-    final boolean shouldDrop = ClarityEmitterUtils.shouldDropEvent(
-        eventMap,
         config.getSampledMetrics(),
         config.getSampledNodeTypes(),
         config.getSamplingRate()
@@ -114,6 +110,13 @@ public class ClarityEmitterUtils
     if (shouldDrop) {
       return null;
     }
+
+    final Map<String, Object> eventMap = ClarityEmitterUtils.getModifiedEventMap(
+        event,
+        nodeDetails,
+        config,
+        jsonMapper
+    );
 
     final byte[] eventBytes;
     try {
@@ -182,21 +185,31 @@ public class ClarityEmitterUtils
   }
 
   private static boolean shouldDropEvent(
-      final Map<String, Object> eventMap,
+      final Event event,
+      final ClarityNodeDetails nodeDetails,
       final Set<String> sampledMetrics,
       final Set<String> sampledNodeTypes,
       final int samplingRate
   )
   {
-    if (eventMap.get("metric") == null
-        || !sampledMetrics.contains(eventMap.get("metric").toString())
-        || !sampledNodeTypes.contains(eventMap.get(IMPLY_NODE_TYPE_KEY).toString())) {
+    if (!(event instanceof ServiceMetricEvent)) {
       return false;
     }
 
-    final Object id = eventMap.get("id");
-    final int hash = (id != null ? id.hashCode() : eventMap.hashCode());
+    final ServiceMetricEvent serviceMetricEvent = (ServiceMetricEvent) event;
 
-    return (Math.abs(hash % 100) > samplingRate);
+    if (samplingRate == 100
+        || serviceMetricEvent.getMetric() == null
+        || !sampledNodeTypes.contains(nodeDetails.getNodeType())
+        || !sampledMetrics.contains(serviceMetricEvent.getMetric())) {
+      return false;
+    }
+
+    final Object id = serviceMetricEvent.getUserDims().get("id");
+    if (id == null) {
+      return ThreadLocalRandom.current().nextInt(100) > samplingRate;
+    } else {
+      return Math.abs(id.hashCode() % 100) > samplingRate;
+    }
   }
 }
