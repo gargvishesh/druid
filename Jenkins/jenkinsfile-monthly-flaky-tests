@@ -1,0 +1,756 @@
+def setupMavenSettings() {
+    script {
+        withCredentials([file(credentialsId: 'maven-artifactory-settings', variable: 'MVN_SETTINGS_PATH')]) {
+            sh script: '''
+                mkdir -p ~/.m2
+                cp -f $MVN_SETTINGS_PATH ~/.m2/settings.xml
+            ''',
+               label: 'setup maven settings'
+        }
+    }
+}
+
+def mavenInstall() {
+    setupMavenSettings()
+    sh script: '''
+        ${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
+        ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+    ''',
+       label: 'mvn install'
+}
+
+def dockerCleanup() {
+    sh  script: 'docker system prune -f -a --volumes || true',
+        label: 'cleanup docker data'
+}
+
+def mavenDockerBackup() {
+    rtDockerPull(
+            serverId: "${RT_SERVER_ID}",
+            image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}",
+            sourceRepo: 'docker-local'
+    )
+    sh script: '''#!/bin/bash -e
+        TEMP_DIR=$(mktemp -d)
+        git status --ignored --porcelain | \
+            grep -E '^\\!\\!' | sed 's|/$||' | awk -F'\\!\\! ' '{print $2}' | grep -v -E '^web-console' | \
+        while read mvnresult; do mkdir -p ${TEMP_DIR}/$(dirname -- $mvnresult); cp -R $mvnresult ${TEMP_DIR}/$mvnresult; done
+        tar -czf /tmp/mvnresult.tar.gz -C ${TEMP_DIR} .
+        tar -czf /tmp/m2repository.tar.gz -C ~/.m2 repository
+        rm -rf ${TEMP_DIR}
+
+        cd /tmp
+        echo "FROM ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}" >> Dockerfile
+        echo "COPY m2repository.tar.gz /tmp/m2repository.tar.gz" >> Dockerfile
+        echo "COPY mvnresult.tar.gz /tmp/mvnresult.tar.gz" >> Dockerfile
+        docker build -t ${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${DOCKER_TAG} .
+    ''',
+       label: 'build temporary docker image for the build'
+    rtDockerPush(
+            serverId: "${RT_SERVER_ID}",
+            image: "${RT_DOCKER_REPOSITORY_PREFIX}/${CURRENT_DOCKER_IMAGE}-${DOCKER_TAG}",
+            targetRepo: 'docker-local'
+    )
+}
+
+def mavenCacheRestore() {
+    setupMavenSettings()
+    sh script: '''#!/bin/bash -e
+        tar -xzf /tmp/mvnresult.tar.gz --no-same-owner --no-overwrite-dir -C ./
+        mkdir -p ~/.m2
+        tar -xzf /tmp/m2repository.tar.gz --no-same-owner --no-overwrite-dir -C ~/.m2/
+    ''',
+       label: 'restore build cache'
+}
+
+def prepareIfconfig() {
+    sh script: '''
+        echo -e '#!/bin/bash\nPATH=/sbin:$PATH exec ifconfig eth0 $@' > /usr/bin/ifconfig
+        chmod +x /usr/bin/ifconfig
+        hash -r
+    ''',
+       label: "prepare ifconfig"
+}
+
+def getInstanceId() {
+    sh script: '''#!/bin/bash -x
+        curl -s http://169.254.169.254/latest/meta-data/instance-id
+    ''',
+       label: 'print instance id'
+}
+
+def buildArtifacts(stageName) {
+    script {
+        def stageArtifactsDirPath = "stage_${stageName.replaceAll(~/[^A-Za-z0-9_-]/,'_')}"
+        withEnv(["stageArtifactsDirPath=${stageArtifactsDirPath}"]) {
+            // copy logs
+            sh script: '''#!/bin/bash -x
+                mkdir -p ${stageArtifactsDirPath}
+
+                shopt -s globstar
+
+                urlencode_path() {
+                    python -c 'import urllib, sys; print urllib.quote(sys.argv[1], sys.argv[2])' "$1" "/"
+                }
+
+                copy_files_by_pattern() {
+                    if  ls ${1}; then
+                        for fname in ${1}; do
+                            fname_root=$(echo "${fname}" | cut -d "/" -f1)
+                            if ! [[ "$fname_root" = "${2}" ]]; then
+                                if [[ -f "$fname" ]]; then
+                                    dest=${2}/$(urlencode_path "${fname}")
+                                    mkdir -p $(dirname -- "$dest")
+                                    cp "$fname" "$dest"
+                                fi
+                            fi
+                        done
+                    fi
+                }
+
+                if [ -d ~/shared ]; then
+                    artifacts_path=$(pwd)/${stageArtifactsDirPath}
+                    pushd ~/shared
+                    copy_files_by_pattern 'logs/**' $artifacts_path
+                    copy_files_by_pattern 'tasklogs/**' $artifacts_path
+                    popd
+                fi
+
+                # copy dockerd logs
+                artifacts_path=$(pwd)/${stageArtifactsDirPath}
+                pushd /var/tmp
+                copy_files_by_pattern 'dockerd.log' $artifacts_path
+                popd
+
+                # copy test reports
+                copy_files_by_pattern '**/target/surefire-reports/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/target/failsafe-reports/*.xml' ${stageArtifactsDirPath}
+
+                # copy top-level jacoco reports
+                copy_files_by_pattern '**/target/*.exec' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.html' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/*.csv' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/jacoco-resources/*' ${stageArtifactsDirPath}
+                # copy detailed jacoco reports
+                copy_files_by_pattern '**/jacoco/**/*.html' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/**/*.xml' ${stageArtifactsDirPath}
+                copy_files_by_pattern '**/jacoco/**/*.csv' ${stageArtifactsDirPath}
+                # inspection results
+                copy_files_by_pattern 'inspection-results/*.xml' ${stageArtifactsDirPath}
+            '''
+        }
+        // fixate artifacts
+        archiveArtifacts artifacts: "${stageArtifactsDirPath}/**", allowEmptyArchive: true
+        // cleanup tmp artifacts dir
+        sh script: "rm -rf ${stageArtifactsDirPath}"
+    }
+}
+
+def resetWs() {
+    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+}
+
+def isEligibleToNotify() {
+    return  !env.CHANGE_ID \
+            && (env.BRANCH_NAME ==~ env.ACTIVE_DEV_BRANCH_REGEX || env.BRANCH_NAME ==~ (env.RELEASE_BRANCH_PREFIX_REGEX+env.RELEASE_BRANCH_SUFFIX_REGEX))
+}
+
+def implyQueryIntegrationTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} -pl integration-tests process-resources && \${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=query \
+                    -Dit.indexer=middleManager \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/prepopulated-data \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                   label: "imply query integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def implyKeycloakSecurityIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: """
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=keycloak-security \
+                    -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/keycloak-security \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                   label: "imply keycloak security integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def implyVirtualSegmentsIntegrationTests(jvmRuntimeOpt) {
+    mavenInstall()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=virtual-segments \
+                    -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/virtual-segments \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                   label: "imply cold tier integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def implyAsyncDownloadIntegrationTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} -pl integration-tests process-resources && ${MVN} verify -Pintegration-tests-imply -pl integration-tests-imply \
+                    -Dgroups=async-download \
+                    -Dit.indexer=middleManager \
+                    -Doverride.config.path=../../integration-tests-imply/docker/environment-configs/test-groups/async-download \
+                    ${jvmRuntimeOpt} \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                   label: "imply async query result download integration tests with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def implyS3Tests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            def cloudpath = UUID.randomUUID().toString()
+            writeFile   file: "jenkins/s3-config",
+                        text: "druid_storage_type=s3\ndruid_storage_bucket=druid-qa\ndruid_storage_baseKey=${cloudpath}\ndruid_s3_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"imply-sql-async\",\"druid-s3-extensions\"]\ndruid_query_async_storage_type=s3\ndruid_query_async_storage_s3_bucket=druid-qa\ndruid_query_async_storage_s3_prefix=${cloudpath}/async-test/\ndruid_query_async_storage_s3_tempDir=/shared/async-tmp-results\ndruid_metadata_storage_type=mysql\ndruid_metadata_storage_connector_connectURI=jdbc:mysql://druid-metadata-storage/druid\ndruid_metadata_storage_connector_user=druid\ndruid_metadata_storage_connector_password=diurd"
+            retry(2) {
+                try {
+                    sh script: """
+                        \${MVN} -pl integration-tests process-resources && ${MVN} verify -P integration-tests-imply -pl integration-tests-imply \
+                        -Dgroups=imply-s3 \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=druid-qa \
+                        -Ddruid.test.config.cloudPath=${cloudpath}/ \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                       label: "imply-s3 with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    dockerCleanup()
+                }
+            }
+        }
+    }
+}
+
+def s3DeepStorageTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            def cloudpath = UUID.randomUUID().toString()
+            writeFile   file: "jenkins/s3-config",
+                        text: "druid_storage_type=s3\n" +
+                              "druid_storage_bucket=druid-qa\n" +
+                              "druid_storage_baseKey=${cloudpath}\n" +
+                              "druid_s3_accessKey=${AWS_ACCESS_KEY_ID}\n" +
+                              "druid_s3_secretKey=${AWS_SECRET_ACCESS_KEY}\n" +
+                              "AWS_REGION=us-east-1\n" +
+                              "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-s3-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
+            retry(2) {
+                try {
+                    sh script: """
+                        aws s3 sync \
+                        ./integration-tests/src/test/resources/data/batch_index/json/ s3://druid-qa/${cloudpath} \
+                        --exclude "*" --include "wikipedia_index_data*.json"
+                    """,
+                       label: "uploading data to bucket"
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Dgroups=s3-deep-storage \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/s3-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=druid-qa \
+                        -Ddruid.test.config.cloudPath=${cloudpath}/ \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                       label: "s3-deep-storage with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    dockerCleanup()
+                    sh script: "aws s3 rm s3://druid-qa/${cloudpath} --recursive"
+                }
+            }
+        }
+    }
+}
+
+def kinesisDeepStorageTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId:  'aws', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+            lock('awsResource') {
+                writeFile   file: "jenkins/kinesis-config",
+                            text: "druid_kinesis_accessKey=${AWS_ACCESS_KEY_ID}\ndruid_kinesis_secretKey=${AWS_SECRET_ACCESS_KEY}\nAWS_REGION=us-east-1\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-kinesis-indexing-service\"]"
+                retry(2) {
+                    try {
+                        sh script: """
+                            \${MVN} verify -P integration-tests -pl integration-tests \
+                            -Dgroups=kinesis-index \
+                            -Doverride.config.path=\${WORKSPACE}/jenkins/kinesis-config \
+                            ${jvmRuntimeOpt} \
+                            -Ddruid.test.config.streamEndpoint=kinesis.us-east-1.amazonaws.com \
+                            -Ddocker.build.hadoop=true \
+                            -Dstart.hadoop.docker=true \
+                            -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                        """,
+                           label: "kinesis-deep-storage with ${jvmRuntimeOpt}"
+                    } finally {
+                        dockerCleanup()
+                    }
+                }
+            }
+        }
+    }
+}
+
+def azureDeepStorageTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([usernamePassword(credentialsId: 'azure_credentials', usernameVariable: 'AZURE_ACCOUNT', passwordVariable: 'AZURE_KEY')]) {
+            def containerName = UUID.randomUUID().toString()
+            writeFile   file: "jenkins/azure-config",
+                        text: "druid_storage_type=azure\n" +
+                              "druid_azure_account=${AZURE_ACCOUNT}\n" +
+                              "druid_azure_key=${AZURE_KEY}\n" +
+                              "druid_azure_container=${containerName}\n" +
+                              "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-azure-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
+            retry(2) {
+                try {
+                    sh script: """
+                        az storage container create -n ${containerName} \
+                        --public-access blob \
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+                    """,
+                       label: "creating storage container"
+                    sh script: """
+                        az storage blob upload-batch \
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY} \
+                        -d ${containerName} \
+                        --source ./integration-tests/src/test/resources/data/batch_index/json/ --pattern "wikipedia_index_data*.json"
+                    """,
+                       label: "uploading data to storage container"
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Dgroups=azure-deep-storage \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/azure-config \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=${containerName} \
+                        -Ddruid.test.config.cloudPath= \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                       label: "azure-deep-storage with ${jvmRuntimeOpt}"
+                }
+                finally {
+                    dockerCleanup()
+                    sh script: """
+                        az storage container delete -n ${containerName}\
+                        --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
+                    """
+                }
+            }
+        }
+    }
+}
+
+def gcsDeepStorageTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        withCredentials([file(credentialsId: 'gcs-bucket-qa', variable: 'GC_KEY')]) {
+            def cloudpath = "gcs-test-${UUID.randomUUID().toString()}/"
+            def bucket = "imply-qa-testing"
+            writeFile   file: "jenkins/gcs-config",
+                        text: "druid_storage_type=google\ndruid_google_bucket=${bucket}\ndruid_google_prefix=${cloudpath}\ndruid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-google-extensions\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]\nGOOGLE_APPLICATION_CREDENTIALS=/shared/docker/credentials/creds.json"
+            retry(3) {
+                try {
+                    sh script: """
+                        mkdir -p jenkins/gcs
+                        cp -f \${GC_KEY} jenkins/gcs/creds.json
+                        chmod 764 jenkins/gcs/creds.json
+                        gsutil \
+                            -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json \
+                            cp \${WORKSPACE}/integration-tests/src/test/resources/data/batch_index/json/wikipedia_index_data*.json \
+                            gs://${bucket}/${cloudpath}
+                    """,
+                       label: "copying gcs creds"
+                    sh script: """
+                        \${MVN} verify -P integration-tests -pl integration-tests \
+                        -Doverride.config.path=\${WORKSPACE}/jenkins/gcs-config \
+                        -Dresource.file.dir.path=\${WORKSPACE}/jenkins/gcs \
+                        -Dgroups=gcs-deep-storage \
+                        ${jvmRuntimeOpt} \
+                        -Ddruid.test.config.cloudBucket=${bucket} \
+                        -Ddruid.test.config.cloudPath=${cloudpath} \
+                        -Ddocker.build.hadoop=true \
+                        -Dstart.hadoop.docker=true \
+                        -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                    """,
+                       label: "gcs-deep-storage with ${jvmRuntimeOpt}"
+                } finally {
+                    dockerCleanup()
+                    sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
+                }
+            }
+        }
+    }
+}
+
+def hdfsDeepStorageTests(jvmRuntimeOpt) {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    writeFile   file:   "jenkins/hdfs-config",
+                text:   "druid_storage_type=hdfs\n" +
+                        "druid_storage_storageDirectory=/druid/segments\n" +
+                        "druid_extensions_loadList=[\"mysql-metadata-storage\",\"druid-basic-security\",\"simple-client-sslcontext\",\"druid-testing-tools\",\"druid-lookups-cached-global\",\"druid-histogram\",\"druid-datasketches\",\"druid-hdfs-storage\",\"druid-parquet-extensions\",\"druid-avro-extensions\",\"druid-protobuf-extensions\",\"druid-orc-extensions\",\"druid-kafka-indexing-service\"]"
+    script {
+        retry(2) {
+            try {
+                sh script: """
+                    \${MVN} verify -P integration-tests -pl integration-tests \
+                    -Doverride.config.path=\${WORKSPACE}/jenkins/hdfs-config \
+                    -Dgroups=hdfs-deep-storage \
+                    -Ddocker.build.hadoop=true \
+                    -Dstart.hadoop.docker=true \
+                    ${jvmRuntimeOpt} \
+                    -Ddruid.test.config.extraDatasourceNameSuffix="" \
+                    -Dit.test=ITHdfsToHdfsParallelIndexTest \
+                    -ff \${MAVEN_SKIP} -Djacoco.skip=true
+                """,
+                   label: "hdfs-deep-storage with ${jvmRuntimeOpt}"
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def coreIntegrationTests() {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    ${MAVEN_SKIP}
+                ''',
+                   label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def coreIntegrationTestsWithPrepopulatedData() {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/prepopulated-data \
+                    ${MAVEN_SKIP}
+                ''',
+                   label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def coreIntegrationTestsWithShuffleDeepStorage() {
+    mavenCacheRestore()
+    prepareIfconfig()
+    getInstanceId()
+    script {
+        retry(3) {
+            try {
+                sh script: '''
+                    ${MVN} verify -pl integration-tests -P integration-tests \
+                    ${TESTNG_GROUPS} ${JVM_RUNTIME} -Dit.indexer=${USE_INDEXER} \
+                    -Doverride.config.path=../../integration-tests/docker/environment-configs/test-groups/shuffle-deep-store \
+                    ${MAVEN_SKIP}
+                ''',
+                   label: 'core integration tests'
+            } finally {
+                dockerCleanup()
+            }
+        }
+    }
+}
+
+def runUnitTest() {
+    mavenCacheRestore()
+    getInstanceId()
+    script {
+        try {
+            sh script: '''#!/bin/bash
+                unset _JAVA_OPTIONS
+                # Set MAVEN_OPTS for Surefire launcher. Skip remoteresources to avoid intermittent connection timeouts when
+                # resolving the SIGAR dependency.
+                export BUILD_STATUS=0
+                MAVEN_OPTS='-Xmx2048m' ${MVN} test -pl ${MAVEN_PROJECTS:-processing} \
+                    ${MAVEN_SKIP} -Dremoteresources.skip=true -Ddruid.generic.useDefaultValueForNull=${DRUID_USE_DEFAULT_VALUE_FOR_NULL:-true} \
+                    || export BUILD_STATUS=1
+
+                ${MVN} -pl ${MAVEN_PROJECTS} jacoco:report
+                exit $BUILD_STATUS
+            ''',
+               label: "processing module test"
+        } finally {
+            dockerCleanup()
+        }
+    }
+}
+
+def getCodeChanges() {
+    script {
+        def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
+        withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
+            sh script: '''#!/bin/bash -eux
+                                files=$(curl -u  ${GIT_CREDS_USR}:${GIT_CREDS_PSW} \
+                                https://api.github.com/repos/implydata/druid/pulls/${CHANGE_ID}/files \
+                                | jq -r '.[] | .filename' |  tr '\\n' ',' | sed 's/.$//'  )
+                                any_docs=$(python3 check_test_suite_jenkins.py docs $files|tail -1)
+                                any_console=$(python3 check_test_suite_jenkins.py 'web console' $files|tail -1)
+                                any_java=$(python3 check_test_suite_jenkins.py any_java $files|tail -1)
+                                echo ${any_java} > any_java.info
+                                echo ${any_docs} > any_docs.info
+                                echo ${any_console} > any_console.info
+                            '''
+        }
+    }
+    script {
+        env.JAVA_CODE_CHANGES = sh(script: 'head -n 1 any_java.info', returnStdout: true).trim()
+    }
+    script {
+        env.DOC_CODE_CHANGES = sh(script: 'head -n 1 any_docs.info', returnStdout: true).trim()
+    }
+    script {
+        env.CONSOLE_CODE_CHANGES = sh(script: 'head -n 1 any_console.info', returnStdout: true).trim()
+    }
+    sh 'printenv | sort'
+}
+
+@NonCPS
+def cancelPreviousBuilds() {
+    println("Checking to see if any previous builds need to be aborted.")
+    def jobName = env.JOB_NAME
+    def buildNumber = env.BUILD_NUMBER.toInteger()
+    /* Get job name */
+    def currentJob = Jenkins.instance.getItemByFullName(jobName)
+    /* Iterating over the builds for specific job */
+    for (def build : currentJob.builds) {
+        def exec = build.getExecutor()
+        /* If there is a build that is currently running and it's not current build */
+        if (build.isBuilding() && build.number.toInteger() != buildNumber && exec != null) {
+            println("Initiating interrupt of previous build #${build.number}")
+            /* Then stop it */
+            exec.interrupt(
+                    Result.ABORTED,
+                    new CauseOfInterruption.UserInterruption("Aborted by #${currentBuild.number}")
+            )
+            println("Aborted previously running build #${build.number}")
+        }
+    }
+}
+
+pipeline {
+    options {
+        timeout(time: 4, unit: 'HOURS')
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
+    }
+
+    parameters {
+        booleanParam(name: 'SKIP_ALL_JENKINS_TESTS', defaultValue: false, description: 'Skip all jenkins tests defined in the jenkinsfile')
+        booleanParam(name: 'SKIP_JENKINS_INTEGRATION_TESTS', defaultValue: false, description: 'Skip integration tests defined in the jenkinsfile')
+        booleanParam(name: 'SKIP_JENKINS_UNIT_TESTS_AND_CHECKS', defaultValue: false, description: 'Skip unit test and checks defined in the jenkinsfile')
+        booleanParam(name: 'PUBLISH_ON_ANY_BRANCH', defaultValue: false, description: 'Build and publish to artifactory regardless branch name')
+    }
+
+    agent none
+
+    environment {
+        MVN = "mvn -B"
+        MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
+        MAVEN_SKIP_TESTS = "-Pskip-tests"
+        DOCKER_IP = "127.0.0.1"
+        APACHE_ARCHIVE_MIRROR_HOST = "https://repo.cnc.imply.io/artifactory/archive-apache-org-remote"
+        COMPOSE_HTTP_TIMEOUT = "600"
+
+        ACTIVE_DEV_BRANCH_REGEX = '^monthly$'
+        RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
+        RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
+
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1647252999"
+        IMAGE_JDK11 = "docker/druid-ci-jdk11:1620827975"
+        IMAGE_JDK15 = "docker/druid-ci-jdk15:1625878101"
+        DOCKER_TAG = "${BUILD_TAG}".replaceAll(~/[^A-Za-z0-9_-]/,'_')
+        RT_REGISTRY_URL = "https://repo.cnc.imply.io/artifactory"
+        RT_REGISTRY_CREDS = "repo.qa.imply.io"
+        RT_SERVER_ID = "repo-qa-imply-io"
+        RT_DOCKER_REPOSITORY_PREFIX = "repo.cnc.imply.io"
+        DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
+        DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
+        EXPECTED_SHA1_RUN_DRUID = "41f61f5dea4229c9b559c068cd62b426ccb37be6"
+        EXPECTED_SHA1_VERIFY_JAVA = "2adffa7d6baeae93c48038816311e691e3b01932"
+        EXPECTED_SHA1_RUN_ZK = "3bb11f705ea777d145d9e1ffdaaa71fb9935c395"
+        SLACK_CHANNEL = "#monthly-flaky-tests"
+
+    }
+
+    stages {
+        stage('Cancel old builds, check labels') {
+            steps {
+                script {
+                    // Do not cancel previous monthly builds
+                    if (env.BRANCH_NAME != 'monthly') {
+                        cancelPreviousBuilds()
+                    }
+                    if (env.CHANGE_ID && pullRequest.labels.contains("Don't Build")) {
+                        currentBuild.result = 'ABORTED'
+                        error("Tagged Don't Build")
+                    }
+                    // Set initial value of JAVA_CODE_CHANGES here because value set in env block cannot be changed
+                    env.JAVA_CODE_CHANGES = "True"
+                    env.DOC_CODE_CHANGES  =  "True"
+                    env.CONSOLE_CODE_CHANGES = "True"
+                }
+            }
+        }
+
+        stage('Maven install') {
+            when {
+                expression { !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+            }
+            parallel {
+                stage('(openjdk8) maven install') {
+                    agent {docker {image "${IMAGE_JDK8}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK8}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+                stage('(openjdk11) maven install') {
+                    agent {docker {image "${IMAGE_JDK11}"; args "${DOCKER_AGENT_ARGS}"; label "${DOCKER_AGENT_LABEL}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"}}
+                    environment { CURRENT_DOCKER_IMAGE="${IMAGE_JDK11}" }
+                    steps {
+                        mavenInstall()
+                        mavenDockerBackup()
+
+                    }
+                    post {
+                        cleanup {
+                            resetWs()
+                            dockerCleanup()
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Flaky Tests') {
+            when {
+                expression { !params.SKIP_JENKINS_INTEGRATION_TESTS && !params.SKIP_ALL_JENKINS_TESTS }
+                beforeAgent true
+            }
+            environment {
+                DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
+            }
+            parallel {
+                stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test') {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
+            } // end of parallel
+        } // end of stage('Checks')
+    } // end of stages
+    post {
+        aborted {
+            slackSend color: "#FF0000", channel: "${SLACK_CHANNEL}", message: "Build aborted  -  ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+        }
+        failure {
+            slackSend failOnError:true, color: "#FF0000", channel: "${SLACK_CHANNEL}", message: "Build failed  - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+        }
+        fixed {
+            slackSend color: "#00FF00", channel: "${SLACK_CHANNEL}", message: "Fixed ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+        }
+    }
+}

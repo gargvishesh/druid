@@ -2270,8 +2270,15 @@ pipeline {
                     library 'imply-shared-library'
                     fixedDruidBVTNotification(currentBuild)
                 }
+            // trigger falky tests if the build is successful for monthly branch
+            script {
+                if (env.BRANCH_NAME == 'monthly') {
+                    build(job: 'monthly-flaky-tests', wait: false)
+                }
+            }
+
+
             }
         }
-    }
 }
 
