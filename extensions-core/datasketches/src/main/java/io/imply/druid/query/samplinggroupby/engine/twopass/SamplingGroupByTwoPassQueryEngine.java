@@ -11,6 +11,7 @@ package io.imply.druid.query.samplinggroupby.engine.twopass;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
+import io.imply.druid.query.samplinggroupby.SamplingGroupByUtils;
 import io.imply.druid.query.samplinggroupby.hashing.HashVectorSupplier;
 import io.imply.druid.query.samplinggroupby.hashing.HashingVectorColumnProcessorFactory;
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetrics;
@@ -256,8 +257,7 @@ public class SamplingGroupByTwoPassQueryEngine
     ImmutableList.Builder<VirtualColumn> virtualColumns = ImmutableList.builder();
     virtualColumns.addAll(Arrays.asList(query.getVirtualColumns().getVirtualColumns()));
     virtualColumns.addAll(ImmutableList.of(dimensionHashVirtualColumn, thetaVirtualColumn));
-    GroupByQuery groupByQuery = query
-        .generateIntermediateGroupByQuery()
+    GroupByQuery groupByQuery = SamplingGroupByUtils.generateIntermediateGroupByQuery(query)
         .withDimFilter(andDimFilter)
         .withVirtualColumns(VirtualColumns.create(virtualColumns.build()));
 

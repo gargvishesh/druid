@@ -53,7 +53,7 @@ public class SamplingGroupByMergingQueryRunner extends ChainedExecutionQueryRunn
     return super.run(
         queryPlus.withQuery(
             samplingGroupByQuery.withResultOrdering(
-                samplingGroupByQuery.generateIntermediateGroupByQuery().getResultOrdering()
+                samplingGroupByQuery.generateIntermediateGroupByQueryOrdering()
             )
         ),
         responseContext
