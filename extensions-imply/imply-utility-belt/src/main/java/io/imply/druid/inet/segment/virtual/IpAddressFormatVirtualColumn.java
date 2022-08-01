@@ -97,6 +97,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
   public byte[] getCacheKey()
   {
     return new CacheKeyBuilder(VirtualColumnCacheHelper.CACHE_TYPE_ID_USER_DEFINED).appendString("ip-format")
+                                                                                   .appendString(name)
                                                                                    .appendString(field)
                                                                                    .appendBoolean(compact)
                                                                                    .appendBoolean(forceV6)
