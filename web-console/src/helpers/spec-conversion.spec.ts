@@ -146,8 +146,8 @@ describe('spec conversion', () => {
     expect(converted.context).toEqual({
       groupByEnableMultiValueUnnesting: false,
       maxParseExceptions: 3,
-      msqFinalizeAggregations: false,
-      msqMaxNumTasks: 5,
+      finalizeAggregations: false,
+      maxNumTasks: 5,
     });
   });
 
@@ -284,7 +284,7 @@ describe('spec conversion', () => {
 
     expect(converted.context).toEqual({
       groupByEnableMultiValueUnnesting: false,
-      msqFinalizeAggregations: false,
+      finalizeAggregations: false,
     });
   });
 });

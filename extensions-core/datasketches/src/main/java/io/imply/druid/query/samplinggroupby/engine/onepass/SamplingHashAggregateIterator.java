@@ -12,6 +12,7 @@ package io.imply.druid.query.samplinggroupby.engine.onepass;
 
 import com.google.common.base.Suppliers;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
+import io.imply.druid.query.samplinggroupby.SamplingGroupByUtils;
 import io.imply.druid.query.samplinggroupby.hashing.HashSupplier;
 import io.imply.druid.query.samplinggroupby.hashing.HashingColumnProcessorFactory;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
@@ -56,7 +57,7 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
   )
   {
     super(
-        query.generateIntermediateGroupByQuery(),
+        SamplingGroupByUtils.generateIntermediateGroupByQuery(query),
         querySpecificConfig,
         processingConfig,
         cursor,

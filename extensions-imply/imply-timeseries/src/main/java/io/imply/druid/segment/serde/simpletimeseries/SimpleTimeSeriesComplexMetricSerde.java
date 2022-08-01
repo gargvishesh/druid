@@ -10,6 +10,7 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.GenericColumnSerializer;
@@ -58,7 +59,7 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   }
 
   @Override
-  public GenericColumnSerializer<SimpleTimeSeries> getSerializer(
+  public GenericColumnSerializer<SimpleTimeSeriesContainer> getSerializer(
       SegmentWriteOutMedium segmentWriteOutMedium,
       String column
   )

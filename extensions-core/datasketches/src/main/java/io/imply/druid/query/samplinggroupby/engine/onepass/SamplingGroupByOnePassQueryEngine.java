@@ -11,6 +11,7 @@ package io.imply.druid.query.samplinggroupby.engine.onepass;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
+import io.imply.druid.query.samplinggroupby.SamplingGroupByUtils;
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetrics;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.guava.BaseSequence;
@@ -54,7 +55,7 @@ public class SamplingGroupByOnePassQueryEngine
   )
   {
     try {
-      GroupByQuery groupByQuery = query.generateIntermediateGroupByQuery();
+      GroupByQuery groupByQuery = SamplingGroupByUtils.generateIntermediateGroupByQuery(query);
       // create constant VCs for hash and theta and add that in the cursor
       VirtualColumn hashVirtualColumn = new ExpressionVirtualColumn(
           SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
@@ -120,7 +121,7 @@ public class SamplingGroupByOnePassQueryEngine
           ).withBaggage(bufferHolder);
       // sort the groups by time, groupHash, grouping dimensions
       List<ResultRow> resultGroups = resultRowSequence.toList();
-      resultGroups.sort(query.generateIntermediateGroupByQuery().getResultOrdering());
+      resultGroups.sort(query.generateIntermediateGroupByQueryOrdering());
       return Sequences.simple(resultGroups);
     }
     finally {

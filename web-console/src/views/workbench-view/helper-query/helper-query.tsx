@@ -53,7 +53,7 @@ import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-p
 import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
 import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
 import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
-import { InsertSuccessPane } from '../insert-success-pane/insert-success-pane';
+import { IngestSuccessPane } from '../ingest-success-pane/ingest-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
 import { ResultTablePane } from '../result-table-pane/result-table-pane';
 import { RunPanel } from '../run-panel/run-panel';
@@ -70,9 +70,11 @@ export interface HelperQueryProps {
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
   onQueryChange(newQuery: WorkbenchQuery): void;
+  onQueryTab(newQuery: WorkbenchQuery, tabName?: string): void;
   onDelete(): void;
   onDetails(id: string, initTab?: ExecutionDetailsTab): void;
   queryEngines: DruidEngine[];
+  goToIngestion(taskId: string): void;
 }
 
 export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryProps) {
@@ -81,9 +83,11 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     columnMetadata,
     mandatoryQueryContext,
     onQueryChange,
+    onQueryTab,
     onDelete,
     onDetails,
     queryEngines,
+    goToIngestion,
   } = props;
   const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
     onQueryChange(query.changeQueryString(queryString));
@@ -335,10 +339,10 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                     initPageSize={5}
                   />
                 ) : execution.isSuccessfulInsert() ? (
-                  <InsertSuccessPane
+                  <IngestSuccessPane
                     execution={execution}
                     onDetails={() => onDetails(statsTaskId!)}
-                    onQueryChange={handleQueryStringChange}
+                    onQueryTab={onQueryTab}
                   />
                 ) : execution.error ? (
                   <div className="error-container">
@@ -348,6 +352,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                         execution={execution}
                         onErrorClick={() => onDetails(statsTaskId!, 'error')}
                         onWarningClick={() => onDetails(statsTaskId!, 'warnings')}
+                        goToIngestion={goToIngestion}
                       />
                     )}
                   </div>
@@ -369,6 +374,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
                   <ExecutionProgressPane
                     execution={executionState.intermediate}
                     intermediateError={executionState.intermediateError}
+                    goToIngestion={goToIngestion}
                     onCancel={() => {
                       queryManager.cancelCurrent();
                     }}

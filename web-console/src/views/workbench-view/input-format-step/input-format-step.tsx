@@ -158,26 +158,28 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
         )}
       </div>
       <div className="config">
-        <FormGroup>
-          <Callout>
-            <p>Ensure that your data appears correctly in a row/column orientation.</p>
-            <LearnMore href={`${getLink('DOCS')}/ingestion/data-formats.html`} />
-          </Callout>
-        </FormGroup>
-        <AutoForm fields={INPUT_FORMAT_FIELDS} model={inputFormat} onChange={setInputFormat} />
-        {inputFormatToSample !== inputFormat && (
-          <FormGroup className="control-buttons">
-            <Button
-              text="Preview changes"
-              intent={Intent.PRIMARY}
-              disabled={!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)}
-              onClick={() => {
-                if (!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
-                setInputFormatToSample(inputFormat);
-              }}
-            />
+        <div className="top-controls">
+          <FormGroup>
+            <Callout>
+              <p>Ensure that your data appears correctly in a row/column orientation.</p>
+              <LearnMore href={`${getLink('DOCS')}/ingestion/data-formats.html`} />
+            </Callout>
           </FormGroup>
-        )}
+          <AutoForm fields={INPUT_FORMAT_FIELDS} model={inputFormat} onChange={setInputFormat} />
+          {inputFormatToSample !== inputFormat && (
+            <FormGroup className="control-buttons">
+              <Button
+                text="Preview changes"
+                intent={Intent.PRIMARY}
+                disabled={!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)}
+                onClick={() => {
+                  if (!AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
+                  setInputFormatToSample(inputFormat);
+                }}
+              />
+            </FormGroup>
+          )}
+        </div>
         <div className="bottom-controls">
           {possibleTimeExpression && (
             <FormGroup>

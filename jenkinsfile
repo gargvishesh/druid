@@ -2243,12 +2243,12 @@ pipeline {
     post {
         failure {
             script {
-                if(isEligibleToNotify()) {
+                if (isEligibleToNotify()) {
                     library 'imply-shared-library'
                     failedDruidBVTNotification(currentBuild)
                 }
             }
-            node('jenkinsOnDemand'){
+            node('jenkinsOnDemand') {
                 // notify about failed build
                 script {
                     echo "checking to see if should set BVT as Fail for ${BUILD_VERSION}"
@@ -2266,9 +2266,15 @@ pipeline {
         success {
             // notify about fixed build
             script {
-                if(isEligibleToNotify()) {
+                if (isEligibleToNotify()) {
                     library 'imply-shared-library'
                     fixedDruidBVTNotification(currentBuild)
+                }
+            }
+            // trigger falky tests if the build is successful for monthly branch
+            script {
+                if (env.BRANCH_NAME == 'monthly') {
+                    build(job: 'monthly-flaky-tests', wait: false)
                 }
             }
         }

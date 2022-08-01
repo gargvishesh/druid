@@ -684,14 +684,7 @@ public class LeaderImpl implements Leader
       }
 
       // Notify the workers to clean up the stages which can be marked as finished.
-      for (final StageId stageId : queryKernel.getEffectivelyFinishedStageIds()) {
-        log.info("Query [%s] issuing cleanup order for stage %d.", queryDef.getQueryId(), stageId.getStageNumber());
-        contactWorkersForStage(
-            (netClient, taskId, workerNumber) -> netClient.postCleanupStage(taskId, stageId),
-            queryKernel.getWorkerInputsForStage(stageId).workers()
-        );
-        queryKernel.finishStage(stageId, true);
-      }
+      cleanUpEffectivelyFinishedStages(queryDef, queryKernel);
 
       if (!queryKernel.isDone()) {
         // Wait for next command, run it, then look through the query tracker again.
@@ -716,7 +709,20 @@ public class LeaderImpl implements Leader
       }
     }
 
+    cleanUpEffectivelyFinishedStages(queryDef, queryKernel);
     return Pair.of(queryKernel, workerTaskLauncherFuture);
+  }
+
+  private void cleanUpEffectivelyFinishedStages(QueryDefinition queryDef, ControllerQueryKernel queryKernel)
+  {
+    for (final StageId stageId : queryKernel.getEffectivelyFinishedStageIds()) {
+      log.info("Query [%s] issuing cleanup order for stage %d.", queryDef.getQueryId(), stageId.getStageNumber());
+      contactWorkersForStage(
+          (netClient, taskId, workerNumber) -> netClient.postCleanupStage(taskId, stageId),
+          queryKernel.getWorkerInputsForStage(stageId).workers()
+      );
+      queryKernel.finishStage(stageId, true);
+    }
   }
 
   /**

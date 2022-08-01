@@ -9,7 +9,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": false,
         "queryType": "none",
         "warnings": Array [],
@@ -20,7 +20,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": false,
         "queryType": "none",
         "warnings": Array [],
@@ -31,7 +31,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": false,
         "queryType": "none",
         "warnings": Array [],
@@ -42,7 +42,7 @@ exports[`HomeView matches snapshot (coordinator) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": false,
         "queryType": "none",
         "warnings": Array [],
@@ -61,7 +61,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -72,7 +72,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -83,7 +83,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -94,7 +94,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -105,7 +105,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -116,7 +116,7 @@ exports[`HomeView matches snapshot (full) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": true,
-        "msqe": true,
+        "multiStageQuery": true,
         "overlord": true,
         "queryType": "nativeAndSql",
         "warnings": Array [],
@@ -135,7 +135,7 @@ exports[`HomeView matches snapshot (overlord) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": false,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": true,
         "queryType": "none",
         "warnings": Array [],
@@ -146,7 +146,7 @@ exports[`HomeView matches snapshot (overlord) 1`] = `
     capabilities={
       Capabilities {
         "coordinator": false,
-        "msqe": false,
+        "multiStageQuery": false,
         "overlord": true,
         "queryType": "none",
         "warnings": Array [],

@@ -24,10 +24,10 @@ export interface QueryContext {
   useApproximateCountDistinct?: boolean;
   useApproximateTopN?: boolean;
 
-  // MSQ
-  msqMaxNumTasks?: number;
-  msqFinalizeAggregations?: boolean;
-  msqDurableShuffleStorage?: boolean;
+  // Multi-stage query
+  maxNumTasks?: number;
+  finalizeAggregations?: boolean;
+  durableShuffleStorage?: boolean;
   maxParseExceptions?: number;
   groupByEnableMultiValueUnnesting?: boolean;
 
@@ -93,11 +93,11 @@ export function changeUseApproximateTopN(
   }
 }
 
-// msqMaxNumTasks
+// maxNumTasks
 
 export function getMaxNumTasks(context: QueryContext): number {
-  const { msqMaxNumTasks } = context;
-  return Math.max(typeof msqMaxNumTasks === 'number' ? msqMaxNumTasks : 0, 2);
+  const { maxNumTasks } = context;
+  return Math.max(typeof maxNumTasks === 'number' ? maxNumTasks : 0, 2);
 }
 
 export function changeMaxNumTasks(
@@ -105,15 +105,15 @@ export function changeMaxNumTasks(
   maxNumTasks: number | undefined,
 ): QueryContext {
   return typeof maxNumTasks === 'number'
-    ? deepSet(context, 'msqMaxNumTasks', maxNumTasks)
-    : deepDelete(context, 'msqMaxNumTasks');
+    ? deepSet(context, 'maxNumTasks', maxNumTasks)
+    : deepDelete(context, 'maxNumTasks');
 }
 
-// msqFinalizeAggregations
+// finalizeAggregations
 
 export function getFinalizeAggregations(context: QueryContext): boolean | undefined {
-  const { msqFinalizeAggregations } = context;
-  return typeof msqFinalizeAggregations === 'boolean' ? msqFinalizeAggregations : undefined;
+  const { finalizeAggregations } = context;
+  return typeof finalizeAggregations === 'boolean' ? finalizeAggregations : undefined;
 }
 
 export function changeFinalizeAggregations(
@@ -121,11 +121,11 @@ export function changeFinalizeAggregations(
   finalizeAggregations: boolean | undefined,
 ): QueryContext {
   return typeof finalizeAggregations === 'boolean'
-    ? deepSet(context, 'msqFinalizeAggregations', finalizeAggregations)
-    : deepDelete(context, 'msqFinalizeAggregations');
+    ? deepSet(context, 'finalizeAggregations', finalizeAggregations)
+    : deepDelete(context, 'finalizeAggregations');
 }
 
-// msqFinalizeAggregations
+// finalizeAggregations
 
 export function getGroupByEnableMultiValueUnnesting(context: QueryContext): boolean | undefined {
   const { groupByEnableMultiValueUnnesting } = context;
@@ -143,21 +143,21 @@ export function changeGroupByEnableMultiValueUnnesting(
     : deepDelete(context, 'groupByEnableMultiValueUnnesting');
 }
 
-// msqDurableShuffleStorage
+// durableShuffleStorage
 
 export function getDurableShuffleStorage(context: QueryContext): boolean {
-  const { msqDurableShuffleStorage } = context;
-  return Boolean(msqDurableShuffleStorage);
+  const { durableShuffleStorage } = context;
+  return Boolean(durableShuffleStorage);
 }
 
 export function changeDurableShuffleStorage(
   context: QueryContext,
-  msqDurableShuffleStorage: boolean,
+  durableShuffleStorage: boolean,
 ): QueryContext {
-  if (msqDurableShuffleStorage) {
-    return deepSet(context, 'msqDurableShuffleStorage', true);
+  if (durableShuffleStorage) {
+    return deepSet(context, 'durableShuffleStorage', true);
   } else {
-    return deepDelete(context, 'msqDurableShuffleStorage');
+    return deepDelete(context, 'durableShuffleStorage');
   }
 }
 

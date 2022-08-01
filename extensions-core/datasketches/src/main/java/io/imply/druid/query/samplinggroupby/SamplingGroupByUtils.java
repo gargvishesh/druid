@@ -9,15 +9,20 @@
 
 package io.imply.druid.query.samplinggroupby;
 
+import com.google.common.collect.ImmutableList;
+import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.filter.Filter;
+import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnCapabilities;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 import java.util.List;
+
 
 public class SamplingGroupByUtils
 {
@@ -63,5 +68,41 @@ public class SamplingGroupByUtils
               // must be single valued
               return columnCapabilities.hasMultipleValues().isFalse();
             });
+  }
+
+  /**
+   * Generates an intermediate GroupBy query which is used in per segment query processing. The intermediate query
+   * doesn't include the post aggregators present in the original query. It is ok to do so since post aggregators are
+   * always processed in brokers using the original {@link SamplingGroupByQuery}.
+   */
+  public static GroupByQuery generateIntermediateGroupByQuery(SamplingGroupByQuery samplingGroupByQuery)
+  {
+    ImmutableList.Builder<DimensionSpec> dimensionsWithHashAndTheta = ImmutableList.builder();
+    dimensionsWithHashAndTheta
+        .add(
+            new DefaultDimensionSpec(
+                SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
+                SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
+                ColumnType.LONG
+            )
+        )
+        .addAll(samplingGroupByQuery.getDimensions())
+        .add(
+            new DefaultDimensionSpec(
+                SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
+                SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
+                ColumnType.LONG
+            ));
+    return GroupByQuery.builder()
+                       .setDataSource(samplingGroupByQuery.getDataSource())
+                       .setInterval(samplingGroupByQuery.getQuerySegmentSpec())
+                       .setDimensions(dimensionsWithHashAndTheta.build())
+                       .setVirtualColumns(samplingGroupByQuery.getVirtualColumns())
+                       .setAggregatorSpecs(samplingGroupByQuery.getAggregatorSpecs())
+                       .setDimFilter(samplingGroupByQuery.getDimFilter())
+                       .setHavingSpec(samplingGroupByQuery.getHavingSpec())
+                       .setGranularity(samplingGroupByQuery.getGranularity())
+                       .setContext(samplingGroupByQuery.getContext())
+                       .build();
   }
 }

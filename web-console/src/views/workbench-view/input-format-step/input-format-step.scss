@@ -39,16 +39,20 @@
     bottom: 0;
     right: 0;
     width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 
     .control-buttons {
       text-align: right;
     }
 
-    .bottom-controls {
-      position: absolute;
-      width: 100%;
-      bottom: 0;
+    .top-controls {
+      flex: 1;
+      overflow: auto;
+    }
 
+    .bottom-controls {
       .prev-next-bar {
         position: relative;
 

@@ -43,7 +43,7 @@ export interface QueryAndContext {
 export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
   if (spec.type !== 'index_parallel') throw new Error('only index_parallel is supported');
   const context: Record<string, any> = {
-    msqFinalizeAggregations: false,
+    finalizeAggregations: false,
     groupByEnableMultiValueUnnesting: false,
   };
 
@@ -135,7 +135,7 @@ export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
 
   const maxNumConcurrentSubTasks = deepGet(spec, 'spec.tuningConfig.maxNumConcurrentSubTasks');
   if (maxNumConcurrentSubTasks > 1) {
-    context.msqMaxNumTasks = maxNumConcurrentSubTasks + 1;
+    context.maxNumTasks = maxNumConcurrentSubTasks + 1;
   }
 
   const maxParseExceptions = deepGet(spec, 'spec.tuningConfig.maxParseExceptions');
