@@ -18,7 +18,6 @@ import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.IAE;
@@ -40,7 +39,6 @@ import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.groupby.having.HavingSpec;
 import org.apache.druid.query.spec.QuerySegmentSpec;
-import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
@@ -50,7 +48,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -320,10 +317,7 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
       return resultOrdering;
     }
 
-    return getIntermediateRowOrdering(
-        getDimensions().stream().map(DimensionSpec::getOutputType).collect(Collectors.toList()),
-        getResultRowDimensionStart()
-    );
+    return generateIntermediateGroupByQueryOrdering();
   }
 
   private static void verifyOutputNames(
@@ -516,62 +510,15 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
     return getIntermediateResultRowAggregatorStart() - 1;
   }
 
-  public Ordering<ResultRow> getIntermediateRowOrdering(List<ColumnType> columnTypes, int colStart)
-  {
-    final Comparator<ResultRow> timeComparator = getTimeComparator();
-
-    if (timeComparator == null) {
-      return Ordering.from((lhs, rhs) -> compareDims(columnTypes, lhs, rhs, colStart));
-    } else {
-      return Ordering.from(
-          (lhs, rhs) -> {
-            final int timeCompare = timeComparator.compare(lhs, rhs);
-
-            if (timeCompare != 0) {
-              return timeCompare;
-            }
-
-            return compareDims(columnTypes, lhs, rhs, colStart);
-          }
-      );
-    }
-  }
-
-  private int compareDims(List<ColumnType> columnTypes, ResultRow lhs, ResultRow rhs, int colStart)
-  {
-    for (int i = 0; i < columnTypes.size(); i++) {
-      final int dimCompare = DimensionHandlerUtils.compareObjectsAsType(
-          lhs.get(colStart + i),
-          rhs.get(colStart + i),
-          columnTypes.get(i)
-      );
-      if (dimCompare != 0) {
-        return dimCompare;
-      }
-    }
-
-    return 0;
-  }
-
-  @Nullable
-  private Comparator<ResultRow> getTimeComparator()
-  {
-    if (!isIntermediateResultRowWithTimestamp()) {
-      return null;
-    } else {
-      return (ResultRow lhs, ResultRow rhs) -> Longs.compare(lhs.getLong(0), rhs.getLong(0));
-    }
-  }
-
   /**
-   * Generates an intermediate GroupBy query which is used in historical query processing. The intermediate query
-   * doesn't include the post aggregators present in the original query. It is ok to do so since post aggregators are
-   * always processed in brokers using the original {@link SamplingGroupByQuery}.
+   * Provides an ordering function for intermediate groupby query results. It compares two
+   * groups first on hash value of the dimensions and then the dimension values themselves.
+   * @return ordering to be used for intermediate groupsby query results
    */
-  public GroupByQuery generateIntermediateGroupByQuery()
+  public Ordering generateIntermediateGroupByQueryOrdering()
   {
-    ImmutableList.Builder<DimensionSpec> dimensionsWithHashAndTheta = ImmutableList.builder();
-    dimensionsWithHashAndTheta
+    ImmutableList.Builder<DimensionSpec> dimensionsWithHash = ImmutableList.builder();
+    dimensionsWithHash
         .add(
             new DefaultDimensionSpec(
                 INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
@@ -579,24 +526,19 @@ public class SamplingGroupByQuery extends BaseQuery<ResultRow> implements Query<
                 ColumnType.LONG
             )
         )
-        .addAll(getDimensions())
-        .add(
-            new DefaultDimensionSpec(
-                INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
-                INTERMEDIATE_RESULT_ROW_THETA_DIMENSION_NAME,
-                ColumnType.LONG
-            ));
+        .addAll(getDimensions());
     return GroupByQuery.builder()
                        .setDataSource(getDataSource())
                        .setInterval(getQuerySegmentSpec())
-                       .setDimensions(dimensionsWithHashAndTheta.build())
+                       .setDimensions(dimensionsWithHash.build())
                        .setVirtualColumns(getVirtualColumns())
                        .setAggregatorSpecs(getAggregatorSpecs())
                        .setDimFilter(getDimFilter())
                        .setHavingSpec(getHavingSpec())
                        .setGranularity(getGranularity())
                        .setContext(getContext())
-                       .build();
+                       .build()
+                       .getResultOrdering();
   }
 
   public static class Builder

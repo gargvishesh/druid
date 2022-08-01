@@ -44,7 +44,7 @@ import java.util.Map;
  * While merging, the toolchest achieves the following things :
  * 1. Recieve a set of sorted results from historicals (or from segments within a historical). The sorting is done on
  * the time, hash values of the dimensions and then on the actual values of the dimensions via
- * {@link SamplingGroupByQuery#generateIntermediateGroupByQuery()}
+ * {@link SamplingGroupByQuery#generateIntermediateGroupByQueryOrdering()}
  * 2. Merge the sorted rows received where the hashes and dimension values are same.
  * 3. Pass the de-duplicated result sequence to {@link SamplingGroupByMergingSequence} for picking lowest hash groups
  * per grain.
@@ -115,7 +115,7 @@ public class SamplingGroupByQueryToolChest extends QueryToolChest<ResultRow, Sam
       // merge exactly same groups here for a start, de-deuplicates the list of groups
       QueryRunner<ResultRow> deDupQueryRunner = new ResultMergeQueryRunner<>(
           runner,
-          query -> ((SamplingGroupByQuery) query).generateIntermediateGroupByQuery().getResultOrdering(),
+          query -> ((SamplingGroupByQuery) query).generateIntermediateGroupByQueryOrdering(),
           query -> new IntermediateResultRowMergeFn((SamplingGroupByQuery) query)
       );
       Sequence<ResultRow> mergedSequence = new SamplingGroupByMergingSequence(
