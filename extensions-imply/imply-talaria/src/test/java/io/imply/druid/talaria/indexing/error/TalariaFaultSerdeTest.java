@@ -9,6 +9,8 @@
 
 package io.imply.druid.talaria.indexing.error;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -74,6 +76,16 @@ public class TalariaFaultSerdeTest
     for (Class<? extends TalariaFault> faultClass : TalariaIndexingModule.FAULT_CLASSES) {
       EqualsVerifier.forClass(faultClass).usingGetClass().verify();
     }
+  }
+
+  @Test
+  public void testDuplicateErrorCodeInSerialization() throws JsonProcessingException
+  {
+    TooManyBucketsFault fault = new TooManyBucketsFault(10);
+    String serialized = objectMapper.writeValueAsString(fault);
+
+    objectMapper.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+    objectMapper.readValue(serialized, TooManyBucketsFault.class);
   }
 
   private void assertFaultSerde(final TalariaFault fault) throws IOException
