@@ -36,7 +36,7 @@ import static io.imply.druid.inet.column.IpAddressDictionaryEncodedColumnMerger.
 
 public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 {
-  private static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
+  static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
     @Override
     public Class<? extends ByteBuffer> getClazz()

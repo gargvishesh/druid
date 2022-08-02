@@ -37,7 +37,7 @@ import java.nio.ByteOrder;
 
 public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
 {
-  private static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
+  static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
     @Override
     public Class<? extends ByteBuffer> getClazz()
