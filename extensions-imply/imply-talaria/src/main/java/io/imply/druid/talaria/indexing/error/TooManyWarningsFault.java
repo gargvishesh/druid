@@ -10,6 +10,7 @@
 package io.imply.druid.talaria.indexing.error;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -41,7 +42,7 @@ public class TooManyWarningsFault extends BaseTalariaFault
   }
 
   @Override
-  @JsonProperty
+  @JsonIgnore
   public String getErrorCode()
   {
     return errorCode;
