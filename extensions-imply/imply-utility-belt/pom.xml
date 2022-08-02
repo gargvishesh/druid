@@ -227,6 +227,11 @@
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
