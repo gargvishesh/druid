@@ -271,6 +271,12 @@ public class NestedFieldLiteralColumnIndexSupplier implements ColumnIndexSupplie
   private class NestedLiteralDictionaryEncodedStringValueIndex implements DictionaryEncodedStringValueIndex
   {
     @Override
+    public BitmapFactory getBitmapFactory()
+    {
+      return bitmapFactory;
+    }
+
+    @Override
     public int getCardinality()
     {
       return dictionary.size();
