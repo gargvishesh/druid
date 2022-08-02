@@ -10,13 +10,9 @@
 package io.imply.druid.inet.column;
 
 import com.google.common.base.Predicate;
-import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.query.filter.DruidPredicateFactory;
-import org.apache.druid.segment.IntListUtils;
 import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.data.GenericIndexed;
 

@@ -10,7 +10,6 @@
 package io.imply.druid.inet.column;
 
 import com.google.common.base.Supplier;
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.GenericIndexed;
 
