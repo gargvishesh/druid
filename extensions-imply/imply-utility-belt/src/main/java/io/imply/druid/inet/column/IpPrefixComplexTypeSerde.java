@@ -37,7 +37,7 @@ import java.nio.ByteOrder;
 
 public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
 {
-  private static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
+  static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
     @Override
     public Class<? extends ByteBuffer> getClazz()
@@ -98,7 +98,7 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
   {
     try {
       byte version = buffer.get();
-      Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
+      Preconditions.checkArgument(version == 0 || version == 1, StringUtils.format("Unknown version %s", version));
       IpAddressBlobColumnMetadata metadata = IpPrefixComplexTypeSerde.JSON_MAPPER.readValue(
           IpPrefixDictionaryEncodedColumnMerger.SERIALIZER_UTILS.readString(buffer),
           IpAddressBlobColumnMetadata.class
@@ -120,19 +120,32 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
           metadata.getBitmapSerdeFactory().getObjectStrategy(),
           builder.getFileMapper()
       );
-      builder.setIndexSupplier(
-          new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
-              metadata.getBitmapSerdeFactory().getBitmapFactory(),
-              bitmaps,
-              dictionaryBytes
-          ),
-          true,
-          false
-      );
+
+      boolean hasValidBitmap = true;
+      if (version == 0) {
+        // Version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+        // We should not use these bitmaps and fall back to using no indexes
+        for (ImmutableBitmap bitmap : bitmaps) {
+          if (bitmap == null) {
+            hasValidBitmap = false;
+          }
+        }
+      }
+      if (hasValidBitmap) {
+        builder.setIndexSupplier(
+            new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
+                metadata.getBitmapSerdeFactory().getBitmapFactory(),
+                bitmaps,
+                dictionaryBytes
+            ),
+            true,
+            false
+        );
+      }
+
       IpPrefixDictionaryEncodedColumnSupplier supplier = new IpPrefixDictionaryEncodedColumnSupplier(
           column,
-          dictionaryBytes,
-          bitmaps
+          dictionaryBytes
       );
 
       builder.setDictionaryEncodedColumnSupplier(supplier);

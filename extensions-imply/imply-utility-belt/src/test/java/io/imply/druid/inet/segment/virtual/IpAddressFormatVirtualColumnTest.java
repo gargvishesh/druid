@@ -294,7 +294,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   public void testGetCacheKey()
   {
     IpAddressFormatVirtualColumn virtualColumn1 = new IpAddressFormatVirtualColumn("v0", "field1", true, false);
-    IpAddressFormatVirtualColumn virtualColumn2 = new IpAddressFormatVirtualColumn("v1", "field1", true, false);
+    IpAddressFormatVirtualColumn virtualColumn2 = new IpAddressFormatVirtualColumn("v0", "field1", true, false);
     IpAddressFormatVirtualColumn virtualColumn3 = new IpAddressFormatVirtualColumn("v0", "field1", false, true);
     IpAddressFormatVirtualColumn virtualColumn4 = new IpAddressFormatVirtualColumn("v0", "field2", true, false);
     Assert.assertTrue(Arrays.equals(virtualColumn1.getCacheKey(), virtualColumn2.getCacheKey()));
