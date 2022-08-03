@@ -13,7 +13,6 @@
 package io.imply.druid.inet.column;
 
 import com.google.common.base.Supplier;
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.GenericIndexed;
 
@@ -22,23 +21,20 @@ import java.nio.ByteBuffer;
 public class IpPrefixDictionaryEncodedColumnSupplier implements Supplier<IpPrefixDictionaryEncodedColumn>
 {
   private final GenericIndexed<ByteBuffer> dictionary;
-  private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final Supplier<ColumnarInts> column;
 
   public IpPrefixDictionaryEncodedColumnSupplier(
       Supplier<ColumnarInts> column,
-      GenericIndexed<ByteBuffer> dictionary,
-      GenericIndexed<ImmutableBitmap> bitmaps
+      GenericIndexed<ByteBuffer> dictionary
   )
   {
     this.column = column;
     this.dictionary = dictionary;
-    this.bitmaps = bitmaps;
   }
 
   @Override
   public IpPrefixDictionaryEncodedColumn get()
   {
-    return new IpPrefixDictionaryEncodedColumn(column.get(), dictionary, bitmaps);
+    return new IpPrefixDictionaryEncodedColumn(column.get(), dictionary);
   }
 }

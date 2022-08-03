@@ -163,12 +163,6 @@ public class DictionaryEncodedStringIndexSupplier implements ColumnIndexSupplier
     }
 
     @Override
-    public boolean hasNulls()
-    {
-      return dictionary.indexOf(null) >= 0;
-    }
-
-    @Override
     public int getCardinality()
     {
       return dictionary.size();
@@ -181,11 +175,6 @@ public class DictionaryEncodedStringIndexSupplier implements ColumnIndexSupplier
       return dictionary.get(index);
     }
 
-    @Override
-    public int getIndex(@Nullable String value)
-    {
-      return dictionary.indexOf(value);
-    }
   }
 
   public static final class GenericIndexedDictionaryEncodedStringValueSetIndex
