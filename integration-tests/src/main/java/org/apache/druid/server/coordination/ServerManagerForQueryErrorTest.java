@@ -51,7 +51,9 @@ import org.apache.druid.server.SegmentManager;
 import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -61,9 +63,8 @@ import java.util.function.Function;
  *
  * - Missing segments. A segment can be missing during a query if a historical drops the segment
  *   after the broker issues the query to the historical. To mimic this situation, the historical
- *   with this server manager announces all segments assigned, but reports missing segment for the
- *   first segment of the datasource specified in the query. The missing report is only generated once for the first
- *   segment. Post that report, all segments are served for the datasource. See ITQueryRetryTestOnMissingSegments.
+ *   with this server manager announces all segments assigned, but reports missing segments for the
+ *   first 3 segments specified in the query. See ITQueryRetryTestOnMissingSegments.
  * - Other query errors. This server manager returns a sequence that always throws an exception
  *   based on a given query context value. See ITQueryErrorTest.
  *
@@ -81,9 +82,9 @@ public class ServerManagerForQueryErrorTest extends ServerManager
   public static final String QUERY_FAILURE_TEST_CONTEXT_KEY = "query-failure-test";
 
   private static final Logger LOG = new Logger(ServerManagerForQueryErrorTest.class);
-  private static final int MAX_NUM_FALSE_MISSING_SEGMENTS_REPORTS = 1;
+  private static final int MAX_NUM_FALSE_MISSING_SEGMENTS_REPORTS = 3;
 
-  private final ConcurrentHashMap<String, Integer> queryToIgnoredSegments = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Set<SegmentDescriptor>> queryToIgnoredSegments = new ConcurrentHashMap<>();
 
   @Inject
   public ServerManagerForQueryErrorTest(
@@ -129,15 +130,15 @@ public class ServerManagerForQueryErrorTest extends ServerManager
       final MutableBoolean isIgnoreSegment = new MutableBoolean(false);
       queryToIgnoredSegments.compute(
           query.getMostSpecificId(),
-          (queryId, ignoreCounter) -> {
-            if (ignoreCounter == null) {
-              ignoreCounter = 0;
+          (queryId, ignoredSegments) -> {
+            if (ignoredSegments == null) {
+              ignoredSegments = new HashSet<>();
             }
-            if (ignoreCounter < MAX_NUM_FALSE_MISSING_SEGMENTS_REPORTS) {
-              ignoreCounter++;
+            if (ignoredSegments.size() < MAX_NUM_FALSE_MISSING_SEGMENTS_REPORTS) {
+              ignoredSegments.add(descriptor);
               isIgnoreSegment.setTrue();
             }
-            return ignoreCounter;
+            return ignoredSegments;
           }
       );
 

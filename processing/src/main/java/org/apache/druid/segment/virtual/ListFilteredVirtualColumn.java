@@ -615,6 +615,12 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
+    public boolean hasNulls()
+    {
+      return delegate.hasNulls();
+    }
+
+    @Override
     public int getCardinality()
     {
       return idMapping.getValueCardinality();
@@ -625,6 +631,12 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     public String getValue(int index)
     {
       return delegate.getValue(idMapping.getReverseId(index));
+    }
+
+    @Override
+    public int getIndex(@Nullable String value)
+    {
+      return getReverseIndex(value);
     }
 
     @Override
