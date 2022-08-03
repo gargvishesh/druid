@@ -24,17 +24,19 @@ import org.apache.druid.collections.bitmap.BitmapFactory;
 import javax.annotation.Nullable;
 
 /**
- * This exposes a 'raw' view into bitmap value indexes of a string {@link DictionaryEncodedColumn}. This allows callers
- * to directly retrieve bitmaps via dictionary ids, as well as access to lower level details of such a column like
- * value lookup and value cardinality.
+ * This exposes a 'raw' view into a bitmap value indexes of a string {@link DictionaryEncodedColumn}, allowing
+ * operation via dictionaryIds, as well as access to lower level details of such a column like value lookup and
+ * value cardinality.
  *
- * Most filter implementations should likely be using higher level index instead, such as {@link StringValueSetIndex},
- * {@link LexicographicalRangeIndex}, {@link NumericRangeIndex}, or {@link DruidPredicateIndex}
+ * This interface should only be used when it is beneficial to operate in such a manner, most filter implementations
+ * should likely be using {@link StringValueSetIndex}, {@link DruidPredicateIndex}, {@link LexicographicalRangeIndex} or
+ * some other higher level index instead.
  */
 public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValueIndex
 {
   BitmapFactory getBitmapFactory();
 
+  boolean hasNulls();
   /**
    * Get the cardinality of the underlying value dictionary
    */
@@ -45,4 +47,10 @@ public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValu
    */
   @Nullable
   String getValue(int index);
+
+  /**
+   * Returns the index of "value" in this DictionaryEncodedStringValueIndex, or a negative value, if not present in
+   * the underlying dictionary
+   */
+  int getIndex(@Nullable String value);
 }
