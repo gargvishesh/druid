@@ -21,9 +21,12 @@ import org.apache.druid.query.Druids;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.filter.BoundDimFilter;
+import org.apache.druid.query.filter.SearchQueryDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.scan.ScanResultValue;
+import org.apache.druid.query.search.ContainsSearchQuerySpec;
+import org.apache.druid.query.search.SearchQuerySpec;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.testing.InitializedNullHandlingTest;
@@ -130,6 +133,40 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
     List<ScanResultValue> results = seq.toList();
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
+  }
+
+  @Test
+  public void testIngestIpWithMergesAndQueryUsingBitmap() throws Exception
+  {
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .virtualColumns(
+                                                 new IpAddressFormatVirtualColumn("v0", "ipv4", true, false)
+                                             )
+                                             .filters(
+                                                 new SearchQueryDimFilter("v0", new ContainsSearchQuerySpec("10.10", true), null)
+                                             )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
+    List<Segment> segs = IpAddressTestUtils.createIpAddressSegments(
+        helper,
+        tempFolder,
+        Granularities.HOUR,
+        true,
+        3
+    );
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> results = seq.toList();
+    Assert.assertEquals(1, results.size());
+    Assert.assertEquals(2, ((List) results.get(0).getEvents()).size());
   }
 
   @Test
