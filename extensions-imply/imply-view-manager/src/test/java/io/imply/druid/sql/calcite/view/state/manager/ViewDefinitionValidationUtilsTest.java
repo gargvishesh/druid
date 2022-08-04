@@ -474,7 +474,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         DEFAULT_PARAMETERS,
         "EXPLAIN PLAN FOR " + sql,
         CalciteTests.REGULAR_USER_AUTH_RESULT
-    );
+    ).rhs;
 
     String queryPlan = (String) results.get(0)[0];
     String resourceSetSerialized = (String) results.get(0)[1];
