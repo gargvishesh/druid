@@ -541,7 +541,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
         context,
         ImmutableList.of(),
         CalciteTests.REGULAR_USER_AUTH_RESULT
-    ).toList();
+    ).rhs.toList();
 
     return (String) Iterables.getOnlyElement(sequence)[0];
   }
