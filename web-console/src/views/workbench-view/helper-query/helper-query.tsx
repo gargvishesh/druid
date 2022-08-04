@@ -28,6 +28,7 @@ import {
   Execution,
   fitExternalConfigPattern,
   LastExecution,
+  QueryContext,
   summarizeExternalConfig,
   WorkbenchQuery,
 } from '../../../druid-models';
@@ -45,7 +46,6 @@ import {
   WorkbenchRunningPromises,
 } from '../../../singletons/workbench-running-promises';
 import { ColumnMetadata, DruidError, QueryAction, QueryManager, RowColumn } from '../../../utils';
-import { QueryContext } from '../../../utils/query-context';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
@@ -89,7 +89,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     queryEngines,
     goToIngestion,
   } = props;
-  const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
+  const handleQueryStringChange = usePermanentCallback((queryString: string) => {
     onQueryChange(query.changeQueryString(queryString));
   });
 

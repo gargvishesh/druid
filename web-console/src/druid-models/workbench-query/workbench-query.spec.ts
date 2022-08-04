@@ -80,6 +80,291 @@ describe('WorkbenchQuery', () => {
     });
   });
 
+  describe('.fromString', () => {
+    const tabString = sane`
+      ===== Helper: q =====
+
+      SELECT *
+
+      FROM wikipedia
+
+      ===== Query =====
+
+      SELECT * FROM q
+
+      ===== Context =====
+
+      {
+        "maxNumTasks": 3
+      }
+    `;
+
+    expect(String(WorkbenchQuery.fromString(tabString))).toEqual(tabString);
+  });
+
+  describe('#getApiQuery', () => {
+    const makeQueryId = () => 'deadbeef-9fb0-499c-8475-ea461e96a4fd';
+
+    it('works with native', () => {
+      const native = sane`
+        {
+          "queryType": "topN",
+          "dataSource": "kttm1"
+          "dimension": "browser",
+          "threshold": 1001,
+          "intervals": "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+          "granularity":"all"
+          "aggregations": [
+            {
+              "type": "count",
+              "name": "Count"
+            }
+          ],
+          "context": {
+            "x": 1
+          }
+        }
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(native)
+        .changeQueryContext({ useCache: false });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+        engine: 'native',
+        query: {
+          aggregations: [
+            {
+              name: 'Count',
+              type: 'count',
+            },
+          ],
+          context: {
+            queryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+            useCache: false,
+            x: 1,
+          },
+          dataSource: 'kttm1',
+          dimension: 'browser',
+          granularity: 'all',
+          intervals: '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z',
+          queryType: 'topN',
+          threshold: 1001,
+        },
+      });
+    });
+
+    it('works with native [explicit queryId]', () => {
+      const native = sane`
+        {
+          "queryType": "topN",
+          "dataSource": "kttm1"
+          "dimension": "browser",
+          "threshold": 1001,
+          "intervals": "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+          "granularity":"all"
+          "aggregations": [
+            {
+              "type": "count",
+              "name": "Count"
+            }
+          ],
+          "context": {
+            "x": 1
+          }
+        }
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(native)
+        .changeQueryContext({ queryId: 'lol' });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'lol',
+        engine: 'native',
+        query: {
+          aggregations: [
+            {
+              name: 'Count',
+              type: 'count',
+            },
+          ],
+          context: {
+            queryId: 'lol',
+            x: 1,
+          },
+          dataSource: 'kttm1',
+          dimension: 'browser',
+          granularity: 'all',
+          intervals: '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z',
+          queryType: 'topN',
+          threshold: 1001,
+        },
+      });
+    });
+
+    it('works with sql (as SQL string)', () => {
+      const sql = `SELECT * FROM wikipedia`;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(sql)
+        .changeQueryContext({ useCache: false });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+        engine: 'sql',
+        query: {
+          context: {
+            sqlOuterLimit: 1001,
+            sqlQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+            useCache: false,
+          },
+          header: true,
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        },
+        sqlPrefixLines: 0,
+      });
+    });
+
+    it('works with sql (as SQL string) [explicit sqlQueryId]', () => {
+      const sql = `SELECT * FROM wikipedia`;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(sql)
+        .changeQueryContext({ sqlQueryId: 'lol' });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'lol',
+        engine: 'sql',
+        query: {
+          context: {
+            sqlOuterLimit: 1001,
+            sqlQueryId: 'lol',
+          },
+          header: true,
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        },
+        sqlPrefixLines: 0,
+      });
+    });
+
+    it('works with sql (as JSON)', () => {
+      const sqlInJson = sane`
+        {
+          context: {
+            sqlOuterLimit: 1001,
+            x: 1
+          },
+          header: true
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        }
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(sqlInJson)
+        .changeQueryContext({ useCache: false });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+        engine: 'sql',
+        query: {
+          context: {
+            sqlOuterLimit: 1001,
+            sqlQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
+            useCache: false,
+            x: 1,
+          },
+          header: true,
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        },
+        sqlPrefixLines: 0,
+      });
+    });
+
+    it('works with sql (as JSON) [explicit sqlQueryId]', () => {
+      const sqlInJson = sane`
+        {
+          context: {
+            sqlOuterLimit: 1001,
+            x: 1
+          },
+          header: true
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        }
+      `;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(sqlInJson)
+        .changeQueryContext({ sqlQueryId: 'lol' });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        cancelQueryId: 'lol',
+        engine: 'sql',
+        query: {
+          context: {
+            sqlOuterLimit: 1001,
+            sqlQueryId: 'lol',
+            x: 1,
+          },
+          header: true,
+          query: 'SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        },
+        sqlPrefixLines: 0,
+      });
+    });
+
+    it('works with sql-task (as SQL string)', () => {
+      const sql = `INSERT INTO wiki2 SELECT * FROM wikipedia`;
+
+      const workbenchQuery = WorkbenchQuery.blank()
+        .changeQueryString(sql)
+        .changeQueryContext({ useCache: false });
+
+      const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
+      expect(apiQuery).toEqual({
+        engine: 'sql-task',
+        query: {
+          context: {
+            finalizeAggregations: false,
+            groupByEnableMultiValueUnnesting: false,
+            useCache: false,
+          },
+          header: true,
+          query: 'INSERT INTO wiki2 SELECT * FROM wikipedia',
+          resultFormat: 'array',
+          sqlTypesHeader: true,
+          typesHeader: true,
+        },
+        sqlPrefixLines: 0,
+      });
+    });
+  });
+
   describe('#getInsertDatasource', () => {
     it('works with INSERT', () => {
       const sql = sane`

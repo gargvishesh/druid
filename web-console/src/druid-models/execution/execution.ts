@@ -18,8 +18,8 @@
 
 import { Column, QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
 
+import { QueryContext } from '../../druid-models';
 import { deepGet, deleteKeys, nonEmptyArray, oneOf } from '../../utils';
-import { QueryContext } from '../../utils/query-context';
 import { DRUID_ENGINES, DruidEngine } from '../druid-engine/druid-engine';
 import { Stages } from '../stages/stages';
 
@@ -438,7 +438,7 @@ export class Execution {
     return true;
   }
 
-  public getInsertDatasource(): string | undefined {
+  public getIngestDatasource(): string | undefined {
     const { destination } = this;
     if (destination?.type !== 'dataSource') return;
     return destination.dataSource;
@@ -446,7 +446,7 @@ export class Execution {
 
   public isSuccessfulInsert(): boolean {
     return Boolean(
-      this.isFullyComplete() && this.getInsertDatasource() && this.status === 'SUCCESS',
+      this.isFullyComplete() && this.getIngestDatasource() && this.status === 'SUCCESS',
     );
   }
 

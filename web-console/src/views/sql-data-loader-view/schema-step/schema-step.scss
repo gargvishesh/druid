@@ -93,6 +93,9 @@ $gap: 15px;
       bottom: 0;
       right: 0;
       width: $controls-width;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
 
       .time-column-warning {
         .#{$bp-ns}-heading {
@@ -100,16 +103,22 @@ $gap: 15px;
         }
       }
 
-      .back {
-        position: absolute;
-        left: 0;
-        bottom: 0;
+      .top-controls {
+        flex: 1;
+        overflow: auto;
       }
 
-      .next {
-        position: absolute;
-        right: 0;
-        bottom: 0;
+      .bottom-controls {
+        .prev-next-bar {
+          position: relative;
+          padding-top: 15px;
+
+          .next {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+          }
+        }
       }
     }
 

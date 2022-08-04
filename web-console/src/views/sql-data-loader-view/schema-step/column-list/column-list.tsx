@@ -108,7 +108,7 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
           })}
         </div>
       </div>
-      {metrics ? (
+      {metrics && (
         <div className="list-column">
           <div className="list-label">
             {'Metrics '}
@@ -149,10 +149,6 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
               );
             })}
           </div>
-        </div>
-      ) : (
-        <div className="list-column">
-          <div className="placeholder">Reserved for metrics when in rollup mode</div>
         </div>
       )}
     </div>

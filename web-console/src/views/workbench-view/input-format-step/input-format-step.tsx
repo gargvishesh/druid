@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, Callout, FormGroup, Icon, Intent, Switch, Tag } from '@blueprintjs/core';
+import { Button, Callout, FormGroup, Icon, Intent, Tag } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { SqlExpression, SqlRef } from 'druid-query-toolkit';
 import React, { useState } from 'react';
@@ -35,7 +35,13 @@ import {
 } from '../../../druid-models';
 import { useQueryManager } from '../../../hooks';
 import { getLink } from '../../../links';
-import { deepSet, EMPTY_ARRAY, filterMap, timeFormatToSql } from '../../../utils';
+import {
+  checkedCircleIcon,
+  deepSet,
+  EMPTY_ARRAY,
+  filterMap,
+  timeFormatToSql,
+} from '../../../utils';
 import {
   headerAndRowsFromSampleResponse,
   postToSampler,
@@ -66,10 +72,12 @@ export interface InputFormatStepProps {
   doneButton: boolean;
   onSet(inputFormatAndMore: InputFormatAndMore): void;
   onBack(): void;
+  onAltSet?(inputFormatAndMore: InputFormatAndMore): void;
+  altText?: string;
 }
 
 export const InputFormatStep = React.memo(function InputFormatStep(props: InputFormatStepProps) {
-  const { inputSource, initInputFormat, doneButton, onSet, onBack } = props;
+  const { inputSource, initInputFormat, doneButton, onSet, onBack, onAltSet, altText } = props;
 
   const [inputFormat, setInputFormat] = useState<Partial<InputFormat>>(initInputFormat);
   const [inputFormatToSample, setInputFormatToSample] = useState<InputFormat | undefined>(
@@ -132,6 +140,25 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
     })[0];
   }
 
+  const inputFormatAndMore =
+    previewData && AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)
+      ? {
+          inputFormat,
+          signature: previewData.header.map(name => ({
+            name,
+            type: guessColumnTypeFromHeaderAndRows(
+              previewData,
+              name,
+              inputFormatOutputsNumericStrings(inputFormat),
+            ),
+          })),
+          isArrays: previewData.header.map(name =>
+            guessIsArrayFromHeaderAndRows(previewData, name),
+          ),
+          timeExpression: selectTimestamp ? possibleTimeExpression?.timeExpression : undefined,
+        }
+      : undefined;
+
   return (
     <div className="input-format-step">
       <div className="preview">
@@ -183,13 +210,32 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
         <div className="bottom-controls">
           {possibleTimeExpression && (
             <FormGroup>
-              <Switch
-                checked={selectTimestamp}
-                onChange={() => setSelectTimestamp(!selectTimestamp)}
-              >
-                Select <Tag minimal>{possibleTimeExpression.column}</Tag> as the primary time
-                column.
-              </Switch>
+              <Callout>
+                <Button
+                  rightIcon={checkedCircleIcon(selectTimestamp)}
+                  onClick={() => setSelectTimestamp(!selectTimestamp)}
+                  minimal
+                >
+                  Select <Tag minimal>{possibleTimeExpression.column}</Tag> as the primary time
+                  column.
+                </Button>
+              </Callout>
+            </FormGroup>
+          )}
+          {altText && onAltSet && (
+            <FormGroup>
+              <Callout>
+                <Button
+                  text={altText}
+                  rightIcon={IconNames.ARROW_TOP_RIGHT}
+                  minimal
+                  disabled={!inputFormatAndMore}
+                  onClick={() => {
+                    if (!inputFormatAndMore) return;
+                    onAltSet(inputFormatAndMore);
+                  }}
+                />
+              </Callout>
             </FormGroup>
           )}
           <div className="prev-next-bar">
@@ -199,27 +245,10 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
               text={doneButton ? 'Done' : 'Next'}
               rightIcon={doneButton ? IconNames.TICK : IconNames.ARROW_RIGHT}
               intent={Intent.PRIMARY}
-              disabled={!previewState.data}
+              disabled={!inputFormatAndMore}
               onClick={() => {
-                const sampleData = previewState.data;
-                if (!sampleData || !AutoForm.isValidModel(inputFormat, INPUT_FORMAT_FIELDS)) return;
-                onSet({
-                  inputFormat,
-                  signature: sampleData.header.map(name => ({
-                    name,
-                    type: guessColumnTypeFromHeaderAndRows(
-                      sampleData,
-                      name,
-                      inputFormatOutputsNumericStrings(inputFormat),
-                    ),
-                  })),
-                  isArrays: sampleData.header.map(name =>
-                    guessIsArrayFromHeaderAndRows(sampleData, name),
-                  ),
-                  timeExpression: selectTimestamp
-                    ? possibleTimeExpression?.timeExpression
-                    : undefined,
-                });
+                if (!inputFormatAndMore) return;
+                onSet(inputFormatAndMore);
               }}
             />
           </div>

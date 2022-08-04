@@ -24,7 +24,7 @@ import { RouteComponentProps } from 'react-router';
 import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
-import { DruidEngine } from './druid-models';
+import { DruidEngine, QueryContext } from './druid-models';
 import { AppToaster } from './singletons';
 import { Capabilities, QueryManager } from './utils';
 import {
@@ -81,6 +81,7 @@ export class ConsoleApplication extends React.PureComponent<
   private datasource?: string;
   private onlyUnavailable?: boolean;
   private initQuery?: string;
+  private initContext?: QueryContext;
 
   constructor(props: ConsoleApplicationProps, context: any) {
     super(props, context);
@@ -132,6 +133,7 @@ export class ConsoleApplication extends React.PureComponent<
       this.datasource = undefined;
       this.onlyUnavailable = undefined;
       this.initQuery = undefined;
+      this.initContext = undefined;
     }, 50);
   }
 
@@ -180,8 +182,9 @@ export class ConsoleApplication extends React.PureComponent<
     this.resetInitialsWithDelay();
   };
 
-  private readonly goToQuery = (initQuery: string) => {
+  private readonly goToQuery = (initQuery: string, initContext?: QueryContext) => {
     this.initQuery = initQuery;
+    this.initContext = initContext;
     window.location.hash = 'workbench';
     this.resetInitialsWithDelay();
   };
@@ -287,6 +290,7 @@ export class ConsoleApplication extends React.PureComponent<
           location.hash = `#workbench/${newTabId}`;
         }}
         initQuery={this.initQuery}
+        initContext={this.initContext}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
         queryEngines={queryEngines}

@@ -20,6 +20,11 @@ import { IconName } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Column } from 'druid-query-toolkit';
 
+function getEffectiveColumnType(column: Column): string | undefined {
+  if (column.sqlType === 'TIMESTAMP') return column.sqlType;
+  return column.nativeType || column.sqlType;
+}
+
 export function sqlTypeFromDruid(druidType: string): string {
   druidType = druidType.toLowerCase();
   switch (druidType) {
@@ -39,7 +44,7 @@ export function sqlTypeFromDruid(druidType: string): string {
 }
 
 export function columnToIcon(column: Column): IconName | undefined {
-  const effectiveType = column.sqlType || column.nativeType;
+  const effectiveType = getEffectiveColumnType(column);
   return effectiveType ? dataTypeToIcon(effectiveType) : undefined;
 }
 
@@ -81,7 +86,7 @@ export function dataTypeToIcon(dataType: string): IconName {
 }
 
 export function columnToWidth(column: Column): number {
-  const effectiveType = column.sqlType || column.nativeType;
+  const effectiveType = getEffectiveColumnType(column);
   return effectiveType ? dataTypeToWidth(effectiveType) : 180;
 }
 

@@ -95,7 +95,6 @@ export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEd
   const { expression, onApply, onCancel, dirty, queryResult, headerIndex } = props;
 
   const breakdown = expression ? breakdownExpression(expression) : undefined;
-  console.log(breakdown);
 
   const [outputName, setOutputName] = useState<string | undefined>();
   const [nativeType, setNativeType] = useState<string | undefined>();
@@ -114,7 +113,8 @@ export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEd
     const expression = queryResult.sqlQuery?.getSelectExpressionForIndex(headerIndex);
 
     if (expression && column.sqlType !== 'TIMESTAMP') {
-      const implicitText = `implicit (${String(column.nativeType).toLowerCase()})`;
+      const implicitText =
+        'implicit' + (breakdown?.nativeType ? '' : ` (${String(column.nativeType).toLowerCase()})`);
       const selectExpression = sqlQuery.getSelectExpressionForIndex(headerIndex);
       if (selectExpression) {
         typeButton = (

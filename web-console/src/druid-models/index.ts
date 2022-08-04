@@ -32,6 +32,7 @@ export * from './input-source/input-source';
 export * from './lookup-spec/lookup-spec';
 export * from './metric-spec/metric-spec';
 export * from './overlord-dynamic-config/overlord-dynamic-config';
+export * from './query-context/query-context';
 export * from './stages/stages';
 export * from './time/time';
 export * from './timestamp-spec/timestamp-spec';

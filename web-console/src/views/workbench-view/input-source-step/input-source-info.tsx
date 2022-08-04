@@ -55,22 +55,22 @@ export const InputSourceInfo = React.memo(function InputSourceInfo(props: InputS
 
     case 'inline':
       return (
-        <>
-          <p>Ingest a small amount of data directly from the clipboard.</p>
-        </>
+        <p>
+          Ingest a small amount of data by typing it in directly (or pasting from the clipboard).
+        </p>
       );
 
     case 's3':
-      return <p>Load text based, orc, or parquet data from Amazon S3.</p>;
+      return <p>Load text based, avro, orc, or parquet data from Amazon S3.</p>;
 
     case 'azure':
-      return <p>Load text based, orc, or parquet data from Azure.</p>;
+      return <p>Load text based, avro, orc, or parquet data from Azure.</p>;
 
     case 'google':
-      return <p>Load text based, orc, or parquet data from the Google Blobstore.</p>;
+      return <p>Load text based, avro, orc, or parquet data from the Google Blobstore.</p>;
 
     case 'hdfs':
-      return <p>Load text based, orc, or parquet data from HDFS.</p>;
+      return <p>Load text based, avro, orc, or parquet data from HDFS.</p>;
 
     default:
       return null;

@@ -20,6 +20,7 @@ import { Button, ButtonGroup, Intent, Menu, MenuDivider, MenuItem } from '@bluep
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
+import copy from 'copy-to-clipboard';
 import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
@@ -28,15 +29,12 @@ import {
   DruidEngine,
   Execution,
   guessDataSourceNameFromInputSource,
+  QueryContext,
+  QueryWithContext,
   TabEntry,
   WorkbenchQuery,
 } from '../../druid-models';
-import {
-  convertSpecToSql,
-  getSpecDatasourceName,
-  getTaskExecution,
-  QueryAndContext,
-} from '../../helpers';
+import { convertSpecToSql, getSpecDatasourceName, getTaskExecution } from '../../helpers';
 import { getLink } from '../../links';
 import { AppToaster } from '../../singletons';
 import { AceEditorStateCache } from '../../singletons/ace-editor-state-cache';
@@ -86,6 +84,7 @@ export interface WorkbenchViewProps {
   tabId: string | undefined;
   onTabChange(newTabId: string): void;
   initQuery: string | undefined;
+  initContext: QueryContext | undefined;
   defaultQueryContext?: Record<string, any>;
   mandatoryQueryContext?: Record<string, any>;
   queryEngines: DruidEngine[];
@@ -119,7 +118,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   constructor(props: WorkbenchViewProps) {
     super(props);
-    const { queryEngines, initQuery } = props;
+    const { queryEngines, initQuery, initContext } = props;
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
 
@@ -142,7 +141,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         tabName: 'Opened query',
         query: WorkbenchQuery.blank()
           .changeQueryString(initQuery)
-          .changeQueryContext(props.defaultQueryContext || {}),
+          .changeQueryContext(initContext || props.defaultQueryContext || {}),
       });
     }
 
@@ -295,7 +294,6 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         queryWithContext={{
           queryString: apiQuery.query,
           queryContext,
-          wrapQueryLimit: undefined,
         }}
         mandatoryQueryContext={{}}
         onClose={() => {
@@ -373,7 +371,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     return (
       <SpecDialog
         onSubmit={spec => {
-          let converted: QueryAndContext;
+          let converted: QueryWithContext;
           try {
             converted = convertSpecToSql(spec as any);
           } catch (e) {
@@ -390,8 +388,8 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           });
           this.handleNewTab(
             WorkbenchQuery.blank()
-              .changeQueryString(converted.query)
-              .changeQueryContext(converted.context),
+              .changeQueryString(converted.queryString)
+              .changeQueryContext(converted.queryContext),
             'Convert ' + getSpecDatasourceName(spec as any),
           );
         }}
@@ -482,6 +480,17 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                         icon={IconNames.EDIT}
                         text="Rename tab"
                         onClick={() => this.setState({ renamingTab: tabEntry })}
+                      />
+                      <MenuItem
+                        icon={IconNames.CLIPBOARD}
+                        text="Copy tab"
+                        onClick={() => {
+                          copy(currentTabEntry.query.toString(), { format: 'text/plain' });
+                          AppToaster.show({
+                            message: `Tab '${currentTabEntry.tabName}' copied to clipboard.`,
+                            intent: Intent.SUCCESS,
+                          });
+                        }}
                       />
                       <MenuItem
                         icon={IconNames.DUPLICATE}
@@ -654,6 +663,13 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                 text="Query history"
                 onClick={this.openHistoryDialog}
               />
+              {currentTabEntry.query.canPrettify() && (
+                <MenuItem
+                  icon={IconNames.ALIGN_LEFT}
+                  text="Prettify query"
+                  onClick={() => this.handleQueryChange(currentTabEntry.query.prettify())}
+                />
+              )}
               {queryEngines.includes('sql-task') && (
                 <>
                   <MenuItem
@@ -671,21 +687,23 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                     text="Open query detail archive"
                     onClick={this.openExecutionSubmitDialog}
                   />
-                  <MenuDivider />
-                  <MenuItem
-                    icon={IconNames.ROCKET_SLANT}
-                    text="Load demo queries"
-                    label="(replaces current tabs)"
-                    onClick={() => this.handleQueriesChange(getDemoQueries())}
-                  />
                 </>
               )}
+              <MenuDivider />
               <MenuItem
                 icon={IconNames.HELP}
                 text="DruidSQL documentation"
                 href={getLink('DOCS_SQL')}
                 target="_blank"
               />
+              {queryEngines.includes('sql-task') && (
+                <MenuItem
+                  icon={IconNames.ROCKET_SLANT}
+                  text="Load demo queries"
+                  label="(replaces current tabs)"
+                  onClick={() => this.handleQueriesChange(getDemoQueries())}
+                />
+              )}
             </Menu>
           }
         />
@@ -701,7 +719,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     this.setState({ tabEntries }, callback);
   };
 
-  private readonly handleQueryChange = (newQuery: WorkbenchQuery, _preferablyRun?: boolean) => {
+  private readonly handleQueryChange = (newQuery: WorkbenchQuery) => {
     const { tabEntries } = this.state;
     const tabId = this.getTabId();
     const tabIndex = Math.max(
@@ -709,18 +727,15 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
       0,
     );
     const newQueries = deepSet(tabEntries, `${tabIndex}.query`, newQuery);
-    this.handleQueriesChange(newQueries); // preferablyRun ? this.handleRunIfLive : undefined
+    this.handleQueriesChange(newQueries);
   };
 
-  private readonly handleQueryStringChange = (
-    queryString: string,
-    preferablyRun?: boolean,
-  ): void => {
-    this.handleQueryChange(this.getCurrentQuery().changeQueryString(queryString), preferablyRun);
+  private readonly handleQueryStringChange = (queryString: string): void => {
+    this.handleQueryChange(this.getCurrentQuery().changeQueryString(queryString));
   };
 
-  private readonly handleSqlQueryChange = (sqlQuery: SqlQuery, preferablyRun?: boolean): void => {
-    this.handleQueryStringChange(sqlQuery.toString(), preferablyRun);
+  private readonly handleSqlQueryChange = (sqlQuery: SqlQuery): void => {
+    this.handleQueryStringChange(sqlQuery.toString());
   };
 
   private readonly getParsedQuery = () => {
@@ -777,7 +792,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           <RecentQueryTaskPanel
             onClose={this.handleRecentQueryTaskPanelClose}
             onExecutionDetails={this.handleDetails}
-            onRunQuery={query => this.handleQueryStringChange(query, true)}
+            onChangeQuery={this.handleQueryStringChange}
             onNewTab={this.handleNewTab}
           />
         )}

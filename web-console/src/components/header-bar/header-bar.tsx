@@ -270,7 +270,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         icon={IconNames.CLEAN}
         text="Batch - SQL"
         href="#sql-data-loader"
-        labelElement={<Tag minimal>new</Tag>}
+        labelElement={<Tag minimal>multi-stage-query</Tag>}
       />
       <MenuItem
         icon={IconNames.LIST}
@@ -420,6 +420,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         <NavbarDivider />
 
         <AnchorButton
+          className="header-entry"
           minimal
           active={oneOf(active, 'workbench', 'query')}
           icon={IconNames.APPLICATION}
@@ -439,6 +440,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
             position={Position.BOTTOM_LEFT}
           >
             <Button
+              className="header-entry"
               icon={IconNames.CLOUD_UPLOAD}
               text="Load data"
               minimal
@@ -448,6 +450,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           </Popover2>
         ) : (
           <AnchorButton
+            className="header-entry"
             icon={IconNames.CLOUD_UPLOAD}
             text="Load data"
             href="#data-loader"
@@ -459,6 +462,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         <NavbarDivider />
 
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'datasources'}
           icon={IconNames.MULTI_SELECT}
@@ -467,6 +471,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'ingestion'}
           icon={IconNames.GANTT_CHART}
@@ -475,6 +480,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrOverlordAccess()}
         />
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'segments'}
           icon={IconNames.STACKED_CHART}
@@ -483,6 +489,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'services'}
           icon={IconNames.DATABASE}
@@ -491,16 +498,21 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
         <Popover2 content={moreViewsMenu} position={Position.BOTTOM_LEFT}>
-          <Button minimal icon={IconNames.MORE} active={moreViewsMenuActive} />
+          <Button
+            className="header-entry"
+            minimal
+            icon={IconNames.MORE}
+            active={moreViewsMenuActive}
+          />
         </Popover2>
       </NavbarGroup>
       <NavbarGroup align={Alignment.RIGHT}>
         <RestrictedMode capabilities={capabilities} onUnrestrict={onUnrestrict} />
         <Popover2 content={configMenu} position={Position.BOTTOM_RIGHT}>
-          <Button minimal icon={IconNames.COG} />
+          <Button className="header-entry" minimal icon={IconNames.COG} />
         </Popover2>
         <Popover2 content={helpMenu} position={Position.BOTTOM_RIGHT}>
-          <Button minimal icon={IconNames.HELP} />
+          <Button className="header-entry" minimal icon={IconNames.HELP} />
         </Popover2>
       </NavbarGroup>
       {aboutDialogOpen && <AboutDialog onClose={() => setAboutDialogOpen(false)} />}

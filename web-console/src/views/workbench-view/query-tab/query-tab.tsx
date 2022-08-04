@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, Code, Menu, MenuItem } from '@blueprintjs/core';
+import { Button, Code, Intent, Menu, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
@@ -25,14 +25,20 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 
 import { Loader, QueryErrorPane } from '../../../components';
-import { DruidEngine, Execution, LastExecution, WorkbenchQuery } from '../../../druid-models';
+import {
+  DruidEngine,
+  Execution,
+  LastExecution,
+  QueryContext,
+  WorkbenchQuery,
+} from '../../../druid-models';
 import {
   executionBackgroundStatusCheck,
   reattachTaskExecution,
   submitTaskQuery,
 } from '../../../helpers';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
-import { Api } from '../../../singletons';
+import { Api, AppToaster } from '../../../singletons';
 import { ExecutionStateCache } from '../../../singletons/execution-state-cache';
 import { WorkbenchHistory } from '../../../singletons/workbench-history';
 import {
@@ -49,7 +55,6 @@ import {
   QueryManager,
   RowColumn,
 } from '../../../utils';
-import { QueryContext } from '../../../utils/query-context';
 import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
 import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
 import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
@@ -94,7 +99,23 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     runMoreMenu,
     goToIngestion,
   } = props;
-  const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
+  const handleQueryStringChange = usePermanentCallback((queryString: string) => {
+    if (query.isEmptyQuery() && queryString.split('=====').length > 2) {
+      let parsedWorkbenchQuery: WorkbenchQuery | undefined;
+      try {
+        parsedWorkbenchQuery = WorkbenchQuery.fromString(queryString);
+      } catch (e) {
+        AppToaster.show({
+          icon: IconNames.CLIPBOARD,
+          intent: Intent.DANGER,
+          message: `Could not paste tab content due to: ${e.message}`,
+        });
+      }
+      if (parsedWorkbenchQuery) {
+        onQueryChange(parsedWorkbenchQuery);
+        return;
+      }
+    }
     onQueryChange(query.changeQueryString(queryString));
   });
 

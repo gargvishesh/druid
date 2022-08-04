@@ -25,10 +25,10 @@ import { ExecutionProgressBarPane } from './execution-progress-bar-pane';
 
 describe('ExecutionProgressBarPane', () => {
   it('matches snapshot', () => {
-    const columnTree = shallow(
+    const comp = shallow(
       <ExecutionProgressBarPane execution={EXECUTION_INGEST_COMPLETE} onCancel={() => {}} />,
     );
 
-    expect(columnTree).toMatchSnapshot();
+    expect(comp).toMatchSnapshot();
   });
 });

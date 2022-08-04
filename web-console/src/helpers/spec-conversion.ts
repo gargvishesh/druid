@@ -24,24 +24,47 @@ import {
   inflateDimensionSpec,
   IngestionSpec,
   MetricSpec,
+  QueryWithContext,
   TimestampSpec,
   Transform,
+  upgradeSpec,
 } from '../druid-models';
-import { deepGet, filterMap } from '../utils';
+import { deepGet, filterMap, oneOf } from '../utils';
 
 export function getSpecDatasourceName(spec: IngestionSpec): string {
   return deepGet(spec, 'spec.dataSchema.dataSource') || 'unknown_datasource';
 }
 
-const SOURCE_REF = SqlTableRef.create('source');
+function convertFilter(filter: any): SqlExpression {
+  switch (filter.type) {
+    case 'selector':
+      return SqlRef.columnWithQuotes(filter.dimension).equal(filter.value);
 
-export interface QueryAndContext {
-  query: string;
-  context: Record<string, any>;
+    case 'in':
+      return SqlRef.columnWithQuotes(filter.dimension).in(filter.values);
+
+    case 'not':
+      return convertFilter(filter.field).not();
+
+    case 'and':
+      return SqlExpression.and(filter.fields.map(convertFilter));
+
+    case 'or':
+      return SqlExpression.or(filter.fields.map(convertFilter));
+
+    default:
+      throw new Error(`unknown filter type '${filter.type}'`);
+  }
 }
 
-export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
-  if (spec.type !== 'index_parallel') throw new Error('only index_parallel is supported');
+const SOURCE_REF = SqlTableRef.create('source');
+
+export function convertSpecToSql(spec: any): QueryWithContext {
+  if (!oneOf(spec.type, 'index_parallel', 'index', 'index_hadoop')) {
+    throw new Error('Only index_parallel, index, and index_hadoop specs are supported');
+  }
+  spec = upgradeSpec(spec, true);
+
   const context: Record<string, any> = {
     finalizeAggregations: false,
     groupByEnableMultiValueUnnesting: false,
@@ -160,8 +183,30 @@ export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
     lines.push(`REPLACE INTO ${SqlTableRef.create(dataSource)} OVERWRITE ${overwrite}`);
   }
 
-  const inputSource = deepGet(spec, 'spec.ioConfig.inputSource');
-  if (!inputSource) throw new Error(`spec.ioConfig.inputSource is not defined`);
+  let inputSource: any;
+  if (oneOf(spec.type, 'index_parallel', 'index')) {
+    inputSource = deepGet(spec, 'spec.ioConfig.inputSource');
+    if (!inputSource) throw new Error(`spec.ioConfig.inputSource is not defined`);
+  } else {
+    // index_hadoop
+    const inputSpec = deepGet(spec, 'spec.ioConfig.inputSpec');
+    if (!inputSpec) throw new Error(`spec.ioConfig.inputSpec is not defined`);
+    if (inputSpec.type !== 'static') {
+      throw new Error(`can only convert when spec.ioConfig.inputSpec.type = 'static'`);
+    }
+
+    const paths = inputSpec.paths.split(',');
+    const firstPath = paths[0];
+    if (firstPath.startsWith('s3://')) {
+      inputSource = { type: 's3', uris: paths };
+    } else if (firstPath.startsWith('gs://')) {
+      inputSource = { type: 'google', uris: paths };
+    } else if (firstPath.startsWith('hdfs://')) {
+      inputSource = { type: 'hdfs', paths };
+    } else {
+      throw new Error('unsupported');
+    }
+  }
 
   if (inputSource.type === 'druid') {
     lines.push(
@@ -226,11 +271,15 @@ export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
 
   const filter = deepGet(spec, 'spec.dataSchema.transformSpec.filter');
   if (filter) {
-    lines.push(
-      `-- The spec contained a filter that could not be automatically converted: ${JSONBig.stringify(
-        filter,
-      )}`,
-    );
+    try {
+      lines.push(`WHERE ${convertFilter(filter)}`);
+    } catch {
+      lines.push(
+        `-- The spec contained a filter that could not be automatically converted: ${JSONBig.stringify(
+          filter,
+        )}`,
+      );
+    }
   }
 
   if (rollup) {
@@ -258,8 +307,8 @@ export function convertSpecToSql(spec: IngestionSpec): QueryAndContext {
   }
 
   return {
-    query: lines.join('\n'),
-    context,
+    queryString: lines.join('\n'),
+    queryContext: context,
   };
 }
 

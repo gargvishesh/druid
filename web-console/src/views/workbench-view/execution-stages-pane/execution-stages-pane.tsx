@@ -37,6 +37,7 @@ import {
 } from '../../../druid-models';
 import { DEFAULT_TABLE_CLASS_NAME } from '../../../react-table';
 import {
+  capitalizeFirst,
   clamp,
   deepGet,
   formatBytes,
@@ -46,26 +47,13 @@ import {
   formatPercent,
   NumberLike,
   oneOf,
+  twoLines,
 } from '../../../utils';
 
 import './execution-stages-pane.scss';
 
 const MAX_STAGE_ROWS = 20;
 const MAX_DETAIL_ROWS = 20;
-
-function twoLines(line1: string | JSX.Element, line2: string | JSX.Element) {
-  return (
-    <>
-      {line1}
-      <br />
-      {line2}
-    </>
-  );
-}
-
-function capitalizeFirst(str: string): string {
-  return str.slice(0, 1).toUpperCase() + str.slice(1).toLowerCase();
-}
 
 function formatBreakdown(breakdown: Record<string, number>): string {
   return Object.keys(breakdown)

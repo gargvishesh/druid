@@ -18,9 +18,8 @@
 
 import {
   Button,
+  ButtonGroup,
   FormGroup,
-  HTMLSelect,
-  Icon,
   InputGroup,
   Intent,
   Radio,
@@ -31,7 +30,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import React, { useState } from 'react';
 
-import { DestinationInfo } from '../../../druid-models';
+import { DestinationInfo, DestinationMode } from '../../../druid-models';
 
 import './destination-form.scss';
 
@@ -47,28 +46,48 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
 
   const [tableSearch, setTableSearch] = useState<string>('');
 
+  function changeMode(mode: DestinationMode) {
+    changeDestinationInfo({ ...destinationInfo, mode });
+  }
+
+  const { mode, table } = destinationInfo;
   return (
     <div className={classNames('destination-form', className)}>
-      <RadioGroup
-        selectedValue={destinationInfo.mode}
-        onChange={e => {
-          changeDestinationInfo({ ...destinationInfo, mode: (e.target as any).value });
-        }}
-      >
-        <Radio label="Create new table" value="new" />
-        <Radio label="Append to table" value="insert" />
-        <Radio label="Replace table" value="replace" />
-      </RadioGroup>
-      {destinationInfo.mode === 'new' && (
-        <FormGroup label="Table name">
+      <FormGroup>
+        <ButtonGroup fill>
+          <Button
+            text="New table"
+            active={mode === 'new'}
+            onClick={() => {
+              changeMode('new');
+            }}
+          />
+          <Button
+            text="Append to table"
+            active={mode === 'insert'}
+            onClick={() => {
+              changeMode('insert');
+            }}
+          />
+          <Button
+            text="Replace table"
+            active={mode === 'replace'}
+            onClick={() => {
+              changeMode('replace');
+            }}
+          />
+        </ButtonGroup>
+      </FormGroup>
+      {mode === 'new' ? (
+        <FormGroup label="New table name">
           <InputGroup
-            value={destinationInfo.table}
+            value={table}
             onChange={e => {
               changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });
             }}
             placeholder="Choose a name"
             rightElement={
-              existingTables.includes(destinationInfo.table) ? (
+              existingTables.includes(table) ? (
                 <Tooltip2 content="Table name already exists">
                   <Button icon={IconNames.DELETE} intent={Intent.DANGER} minimal />
                 </Tooltip2>
@@ -76,8 +95,7 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
             }
           />
         </FormGroup>
-      )}
-      {destinationInfo.mode === 'insert' && (
+      ) : (
         <>
           <FormGroup label="Choose a table">
             <InputGroup
@@ -90,7 +108,7 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
           </FormGroup>
           <RadioGroup
             className="table-radios"
-            selectedValue={destinationInfo.table}
+            selectedValue={table}
             onChange={e => {
               changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });
             }}
@@ -99,29 +117,11 @@ export const DestinationForm = React.memo(function DestinationForm(props: Destin
               .filter(t => t.includes(tableSearch))
               .map(table => (
                 <Radio key={table} value={table}>
-                  <Icon className="table-icon" icon={IconNames.TH} />
                   {table}
                 </Radio>
               ))}
           </RadioGroup>
         </>
-      )}
-      {destinationInfo.mode === 'replace' && (
-        <FormGroup label="Table name">
-          <HTMLSelect
-            fill
-            value={destinationInfo.table}
-            onChange={e => {
-              changeDestinationInfo({ ...destinationInfo, table: (e.target as any).value });
-            }}
-          >
-            {existingTables.map(table => (
-              <option key={table} value={table}>
-                {table}
-              </option>
-            ))}
-          </HTMLSelect>
-        </FormGroup>
       )}
     </div>
   );

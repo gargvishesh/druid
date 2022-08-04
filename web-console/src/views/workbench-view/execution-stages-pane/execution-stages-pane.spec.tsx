@@ -16,24 +16,19 @@
  * limitations under the License.
  */
 
-@import '../../variables';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-.query-history-dialog {
-  &.#{$bp-ns}-dialog {
-    width: 900px;
-  }
+import { EXECUTION_INGEST_COMPLETE } from '../../../druid-models/mocks';
 
-  .panel {
-    width: 100%;
-  }
+import { ExecutionStagesPane } from './execution-stages-pane';
 
-  .text-area {
-    width: 100%;
-    height: 500px;
-    resize: none;
-  }
+describe('ExecutionStagesPane', () => {
+  it('matches snapshot', () => {
+    const comp = shallow(
+      <ExecutionStagesPane execution={EXECUTION_INGEST_COMPLETE} goToIngestion={() => {}} />,
+    );
 
-  .center-message {
-    height: 400px;
-  }
-}
+    expect(comp).toMatchSnapshot();
+  });
+});

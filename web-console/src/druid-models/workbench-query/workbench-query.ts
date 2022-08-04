@@ -18,13 +18,18 @@
 
 import { SqlExpression, SqlQuery, SqlTableRef } from 'druid-query-toolkit';
 import Hjson from 'hjson';
+import * as JSONBig from 'json-bigint-native';
 import { v4 as uuidv4 } from 'uuid';
 
-import { ColumnMetadata, deleteKeys } from '../../utils';
-import { QueryContext } from '../../utils/query-context';
+import {
+  externalConfigToIngestQueryPattern,
+  ingestQueryPatternToQuery,
+  QueryContext,
+} from '../../druid-models';
+import { ColumnMetadata, deleteKeys, generate8HexId } from '../../utils';
 import { DRUID_ENGINES, DruidEngine } from '../druid-engine/druid-engine';
 import { LastExecution } from '../execution/execution';
-import { ExternalConfig, externalConfigToInitQuery } from '../external-config/external-config';
+import { ExternalConfig } from '../external-config/external-config';
 
 import { WorkbenchQueryPart } from './workbench-query-part';
 
@@ -64,9 +69,62 @@ export class WorkbenchQuery {
       queryContext: {},
       queryParts: [
         WorkbenchQueryPart.fromQueryString(
-          externalConfigToInitQuery(externalConfig, isArrays, timeExpression).toString(),
+          ingestQueryPatternToQuery(
+            externalConfigToIngestQueryPattern(externalConfig, isArrays, timeExpression),
+          ).toString(),
         ),
       ],
+    });
+  }
+
+  static fromString(tabString: string): WorkbenchQuery {
+    const parts = tabString.split('\n\n');
+    const headers: string[] = [];
+    const bodies: string[] = [];
+    for (const part of parts) {
+      const m = part.match(/^===== (Helper:.+|Query|Context) =====$/);
+      if (m) {
+        headers.push(m[1]);
+      } else {
+        const i = headers.length - 1;
+        if (i < 0) throw new Error('content before header');
+        bodies[i] = bodies[i] ? bodies[i] + '\n\n' + part : part;
+      }
+    }
+
+    const queryParts: WorkbenchQueryPart[] = [];
+    let queryContext: QueryContext = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i];
+      const body = bodies[i];
+      if (header === 'Context') {
+        queryContext = JSONBig.parse(body);
+      } else if (header.startsWith('Helper:')) {
+        queryParts.push(
+          new WorkbenchQueryPart({
+            id: generate8HexId(),
+            queryName: header.replace(/^Helper:/, '').trim(),
+            queryString: body,
+            collapsed: true,
+          }),
+        );
+      } else {
+        queryParts.push(
+          new WorkbenchQueryPart({
+            id: generate8HexId(),
+            queryString: body,
+          }),
+        );
+      }
+    }
+
+    if (!queryParts.length) {
+      queryParts.push(WorkbenchQueryPart.blank());
+    }
+
+    return new WorkbenchQuery({
+      queryContext,
+      queryParts,
     });
   }
 
@@ -145,6 +203,20 @@ export class WorkbenchQuery {
     };
   }
 
+  public toString(): string {
+    const { queryParts, queryContext } = this;
+    return queryParts
+      .slice(0, queryParts.length - 1)
+      .flatMap(part => [`===== Helper: ${part.queryName} =====`, part.queryString])
+      .concat([
+        `===== Query =====`,
+        this.getLastPart().queryString,
+        `===== Context =====`,
+        JSONBig.stringify(queryContext, undefined, 2),
+      ])
+      .join('\n\n');
+  }
+
   public changeQueryParts(queryParts: WorkbenchQueryPart[]): WorkbenchQuery {
     return new WorkbenchQuery({ ...this.valueOf(), queryParts });
   }
@@ -169,7 +241,13 @@ export class WorkbenchQuery {
     const { engine } = this;
     if (engine) return engine;
     const enabledEngines = WorkbenchQuery.getQueryEngines();
-    if (enabledEngines.includes('native') && this.getLastPart().isJsonLike()) return 'native';
+    if (this.getLastPart().isJsonLike()) {
+      if (this.getLastPart().isSqlInJson()) {
+        if (enabledEngines.includes('sql')) return 'sql';
+      } else {
+        if (enabledEngines.includes('native')) return 'native';
+      }
+    }
     if (enabledEngines.includes('sql-task') && this.isTaskEngineNeeded()) return 'sql-task';
     if (enabledEngines.includes('sql')) return 'sql';
     return enabledEngines[0] || 'sql';
@@ -219,6 +297,22 @@ export class WorkbenchQuery {
     }
 
     return true;
+  }
+
+  public canPrettify(): boolean {
+    const lastPart = this.getLastPart();
+    return lastPart.isJsonLike();
+  }
+
+  public prettify(): WorkbenchQuery {
+    const lastPart = this.getLastPart();
+    let parsed;
+    try {
+      parsed = Hjson.parse(lastPart.queryString);
+    } catch {
+      return this;
+    }
+    return this.changeQueryString(JSONBig.stringify(parsed, undefined, 2));
   }
 
   public getIngestDatasource(): string | undefined {
@@ -334,7 +428,7 @@ export class WorkbenchQuery {
     return ret.changeQueryString(newQueryString);
   }
 
-  public getApiQuery(): {
+  public getApiQuery(makeQueryId: () => string = uuidv4): {
     engine: DruidEngine;
     query: Record<string, any>;
     sqlPrefixLines?: number;
@@ -354,12 +448,12 @@ export class WorkbenchQuery {
           `You have selected the 'native' engine but the query you entered could not be parsed as JSON: ${e.message}`,
         );
       }
-      query.context = { ...(query.context || {}), queryContext };
+      query.context = { ...(query.context || {}), ...queryContext };
 
       let cancelQueryId = query.context.queryId;
       if (!cancelQueryId) {
         // If the queryId (sqlQueryId) is not explicitly set on the context generate one so it is possible to cancel the query.
-        query.context.queryId = cancelQueryId = uuidv4();
+        query.context.queryId = cancelQueryId = makeQueryId();
       }
 
       return {
@@ -373,18 +467,34 @@ export class WorkbenchQuery {
       .slice(0, queryParts.length - 1)
       .filter(part => !part.getIngestDatasource());
 
-    let sqlQuery = lastQueryPart.getSqlString();
+    let apiQuery: Record<string, any> = {};
+    if (lastQueryPart.isJsonLike()) {
+      try {
+        apiQuery = Hjson.parse(lastQueryPart.queryString);
+      } catch (e) {
+        throw new Error(`The query you entered could not be parsed as JSON: ${e.message}`);
+      }
+    } else {
+      apiQuery = {
+        query: lastQueryPart.queryString,
+        resultFormat: 'array',
+        header: true,
+        typesHeader: true,
+        sqlTypesHeader: true,
+      };
+    }
+
     let queryPrepend = '';
     let queryAppend = '';
 
     if (prefixParts.length) {
-      const insertIntoLine = WorkbenchQuery.getInsertOrReplaceLine(sqlQuery);
+      const insertIntoLine = WorkbenchQuery.getInsertOrReplaceLine(apiQuery.query);
       if (insertIntoLine) {
-        const partitionedByLine = WorkbenchQuery.getPartitionedByLine(sqlQuery);
-        const clusteredByLine = WorkbenchQuery.getClusteredByLine(sqlQuery);
+        const partitionedByLine = WorkbenchQuery.getPartitionedByLine(apiQuery.query);
+        const clusteredByLine = WorkbenchQuery.getClusteredByLine(apiQuery.query);
 
         queryPrepend += insertIntoLine + '\n';
-        sqlQuery = WorkbenchQuery.commentOutIngestParts(sqlQuery);
+        apiQuery.query = WorkbenchQuery.commentOutIngestParts(apiQuery.query);
 
         if (clusteredByLine) {
           queryAppend = '\n' + clusteredByLine + queryAppend;
@@ -401,10 +511,10 @@ export class WorkbenchQuery {
     let prefixLines = 0;
     if (queryPrepend) {
       prefixLines = queryPrepend.split('\n').length - 1;
-      sqlQuery = queryPrepend + sqlQuery + queryAppend;
+      apiQuery.query = queryPrepend + apiQuery.query + queryAppend;
     }
 
-    const m = /(--:context\s.+)(?:\n|$)/.exec(sqlQuery);
+    const m = /(--:context\s.+)(?:\n|$)/.exec(apiQuery.query);
     if (m) {
       throw new Error(
         `This query contains a context comment '${m[1]}'. Context comments have been deprecated. Please rewrite the context comment as a context parameter.`,
@@ -412,35 +522,33 @@ export class WorkbenchQuery {
     }
 
     const ingestQuery = this.isIngestQuery();
-    const context: QueryContext = {
-      sqlOuterLimit: unlimited || ingestQuery ? undefined : 1001,
+    if (!unlimited && !ingestQuery) {
+      apiQuery.context ||= {};
+      apiQuery.context.sqlOuterLimit = 1001;
+    }
+
+    apiQuery.context = {
+      ...(apiQuery.context || {}),
       ...queryContext,
     };
 
     let cancelQueryId: string | undefined;
     if (engine === 'sql') {
-      cancelQueryId = context.sqlQueryId;
+      cancelQueryId = apiQuery.context.sqlQueryId;
       if (!cancelQueryId) {
         // If the sqlQueryId is not explicitly set on the context generate one, so it is possible to cancel the query.
-        context.sqlQueryId = cancelQueryId = uuidv4();
+        apiQuery.context.sqlQueryId = cancelQueryId = makeQueryId();
       }
     }
 
     if (engine === 'sql-task') {
-      context.finalizeAggregations ??= !ingestQuery;
-      context.groupByEnableMultiValueUnnesting ??= !ingestQuery;
+      apiQuery.context.finalizeAggregations ??= !ingestQuery;
+      apiQuery.context.groupByEnableMultiValueUnnesting ??= !ingestQuery;
     }
 
     return {
       engine,
-      query: {
-        query: sqlQuery,
-        context,
-        resultFormat: 'array',
-        header: true,
-        typesHeader: true,
-        sqlTypesHeader: true,
-      },
+      query: apiQuery,
       sqlPrefixLines: prefixLines,
       cancelQueryId,
     };
