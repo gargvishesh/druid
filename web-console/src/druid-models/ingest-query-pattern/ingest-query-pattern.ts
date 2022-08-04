@@ -17,6 +17,8 @@
  */
 
 import {
+  Column,
+  LiteralValue,
   QueryResult,
   RefName,
   SqlAlias,
@@ -243,6 +245,10 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
 
 const SAMPLE_ARRAY_SEPARATOR = '-3432-d401-';
 
+function nullForColumn(column: Column): LiteralValue {
+  return oneOf(column.sqlType, 'BIGINT', 'DOUBLE', 'FLOAT') ? 0 : '';
+}
+
 function sampleDataToQuery(sample: QueryResult): SqlQuery {
   const { header, rows } = sample;
   const arrayIndexes: Record<number, boolean> = {};
@@ -258,7 +264,8 @@ function sampleDataToQuery(sample: QueryResult): SqlQuery {
                 arrayIndexes[i] = true;
                 return SqlLiteral.create(r.join(SAMPLE_ARRAY_SEPARATOR));
               } else {
-                return SqlLiteral.create(r);
+                // Avoid actually using NULL literals as they create havc in the VALUES type system and throw errors.
+                return SqlLiteral.create(r == null ? nullForColumn(header[i]) : r);
               }
             }),
           ),
