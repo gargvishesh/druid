@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing.error;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
@@ -53,7 +54,7 @@ public abstract class BaseTalariaFault implements TalariaFault
   }
 
   @Override
-  @JsonProperty
+  @JsonIgnore
   public String getErrorCode()
   {
     return errorCode;

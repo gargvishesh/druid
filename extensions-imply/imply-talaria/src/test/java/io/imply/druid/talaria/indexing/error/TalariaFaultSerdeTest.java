@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing.error;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.talaria.guice.TalariaIndexingModule;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -31,6 +32,7 @@ public class TalariaFaultSerdeTest
   {
     objectMapper = TestHelper.makeJsonMapper();
     objectMapper.registerModules(new TalariaIndexingModule().getJacksonModules());
+    objectMapper.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
   }
 
   @Test

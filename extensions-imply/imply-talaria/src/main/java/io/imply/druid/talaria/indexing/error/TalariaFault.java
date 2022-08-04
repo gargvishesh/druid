@@ -9,6 +9,7 @@
 
 package io.imply.druid.talaria.indexing.error;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import javax.annotation.Nullable;
@@ -21,6 +22,7 @@ import javax.annotation.Nullable;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "errorCode")
 public interface TalariaFault
 {
+  @JsonProperty
   String getErrorCode();
 
   @Nullable
