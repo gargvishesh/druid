@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-import { Button, Classes, Dialog, Intent, Switch, Tab, Tabs, TextArea } from '@blueprintjs/core';
+import { Button, Classes, Dialog, Intent, Switch, Tab, Tabs } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
+import AceEditor from 'react-ace';
 
 import { CenterMessage } from '../../../components';
 import { WorkbenchQuery } from '../../../druid-models';
@@ -52,6 +53,9 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
   }
 
   function renderQueryEntry(record: WorkbenchQueryHistoryEntry) {
+    const queryString = record.query.getQueryString();
+    const jsonMode = queryString.trim().startsWith('{');
+
     return (
       <div className="query-entry">
         <div className="query-info-bar">
@@ -78,7 +82,18 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
             disabled={!record.taskId}
           />
         </div>
-        <TextArea className="query-string" readOnly value={record.query.getQueryString()} />
+        <AceEditor
+          mode={jsonMode ? 'hjson' : 'dsql'}
+          theme="solarized_dark"
+          className="query-string"
+          name="ace-editor"
+          fontSize={13}
+          width="100%"
+          showGutter
+          showPrintMargin={false}
+          value={queryString}
+          readOnly
+        />
         {showStats && record.taskId && (
           <ExecutionStagesPaneLoader id={record.taskId} goToIngestion={() => {}} />
         )}

@@ -25,11 +25,11 @@ import {
   Intent,
   Tab,
   Tabs,
-  TextArea,
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import * as JSONBig from 'json-bigint-native';
 import React from 'react';
+import AceEditor from 'react-ace';
 
 import { Loader } from '../../../components';
 import { useQueryManager } from '../../../hooks';
@@ -116,7 +116,19 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
     return (
       <div className="query-explanation">
         <FormGroup className="query-group" label="Query">
-          <TextArea readOnly value={queryString} />
+          <AceEditor
+            mode={'hjson'}
+            theme="solarized_dark"
+            className="query-string"
+            name="ace-editor"
+            fontSize={13}
+            width="100%"
+            height="100%"
+            showGutter
+            showPrintMargin={false}
+            value={queryString}
+            readOnly
+          />
         </FormGroup>
         <FormGroup className="signature-group" label="Signature">
           <InputGroup defaultValue={formatSignature(queryExplanation)} readOnly />
