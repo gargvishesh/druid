@@ -173,7 +173,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>java</executable>
+                                    <executable>${project.parent.basedir}/examples/bin/run-java</executable>
                                     <arguments>
                                         <argument>-classpath</argument>
                                         <classpath />
@@ -366,7 +366,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>java</executable>
+                                    <executable>${project.parent.basedir}/examples/bin/run-java</executable>
                                     <arguments>
                                         <argument>-classpath</argument>
                                         <classpath/>
@@ -580,7 +580,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>java</executable>
+                                    <executable>${project.parent.basedir}/examples/bin/run-java</executable>
                                     <arguments>
                                         <argument>-classpath</argument>
                                         <classpath />
@@ -748,7 +748,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>java</executable>
+                                    <executable>${project.parent.basedir}/examples/bin/run-java</executable>
                                     <arguments>
                                         <argument>-classpath</argument>
                                         <classpath />
