@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-import { Button } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
-import { SqlQuery, SqlTableRef } from 'druid-query-toolkit';
+import { SqlQuery } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import {
@@ -37,6 +35,7 @@ import { InputFormatStep } from '../workbench-view/input-format-step/input-forma
 import { InputSourceStep } from '../workbench-view/input-source-step/input-source-step';
 import { MaxTasksButton } from '../workbench-view/max-tasks-button/max-tasks-button';
 
+import { DoneStep } from './done-step/done-step';
 import { SchemaStep } from './schema-step/schema-step';
 import { TitleFrame } from './title-frame/title-frame';
 
@@ -177,35 +176,15 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
         <div className="error-step">{insertResultState.getErrorMessage()}</div>
       )}
       {insertResultState.data && (
-        <div className="done-step">
-          <p>Done loading data into {insertResultState.data.getIngestDatasource()}</p>
-          <p>
-            <Button
-              icon={IconNames.APPLICATION}
-              text={`Query: ${insertResultState.data.getIngestDatasource()}`}
-              onClick={() => {
-                setExternalConfigStep({});
-                setQueryWithContext(undefined);
-                goToQuery({
-                  queryString: `SELECT * FROM ${SqlTableRef.create(
-                    insertResultState.data!.getIngestDatasource()!,
-                  )}`,
-                });
-              }}
-            />
-          </p>
-          <p>
-            <Button
-              icon={IconNames.RESET}
-              text="Reset loader"
-              onClick={() => {
-                setExternalConfigStep({});
-                setQueryWithContext(undefined);
-                ingestQueryManager.reset();
-              }}
-            />
-          </p>
-        </div>
+        <DoneStep
+          execution={insertResultState.data}
+          goToQuery={goToQuery}
+          onReset={() => {
+            setExternalConfigStep({});
+            setQueryWithContext(undefined);
+            ingestQueryManager.reset();
+          }}
+        />
       )}
     </div>
   );
