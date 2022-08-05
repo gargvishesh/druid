@@ -36,12 +36,12 @@ export interface QueryContext {
 
 export interface QueryWithContext {
   queryString: string;
-  queryContext: QueryContext;
+  queryContext?: QueryContext;
   wrapQueryLimit?: number;
 }
 
-export function isEmptyContext(context: QueryContext): boolean {
-  return Object.keys(context).length === 0;
+export function isEmptyContext(context: QueryContext | undefined): boolean {
+  return !context || Object.keys(context).length === 0;
 }
 
 // -----------------------------

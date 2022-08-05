@@ -41,6 +41,7 @@ import {
 import { AsyncActionDialog } from '../../dialogs';
 import { SegmentTableActionDialog } from '../../dialogs/segments-table-action-dialog/segment-table-action-dialog';
 import { ShowValueDialog } from '../../dialogs/show-value-dialog/show-value-dialog';
+import { QueryWithContext } from '../../druid-models';
 import {
   booleanCustomTableFilter,
   BooleanFilterInput,
@@ -128,7 +129,7 @@ function formatRangeDimensionValue(dimension: any, value: any): string {
 }
 
 export interface SegmentsViewProps {
-  goToQuery: (initSql: string) => void;
+  goToQuery(queryWithContext: QueryWithContext): void;
   datasource: string | undefined;
   onlyUnavailable: boolean | undefined;
   capabilities: Capabilities;
@@ -915,7 +916,7 @@ END AS "time_span"`,
             disabled={!lastSegmentsQuery}
             onClick={() => {
               if (!lastSegmentsQuery) return;
-              goToQuery(lastSegmentsQuery);
+              goToQuery({ queryString: lastSegmentsQuery });
             }}
           />
         )}
