@@ -33,31 +33,28 @@ import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox, MenuTristate } from '../../../components';
 import { EditContextDialog } from '../../../dialogs';
-import { DruidEngine, WorkbenchQuery } from '../../../druid-models';
-import { formatInteger, pluralIfNeeded, tickIcon } from '../../../utils';
 import {
   changeDurableShuffleStorage,
   changeFinalizeAggregations,
   changeGroupByEnableMultiValueUnnesting,
-  changeMaxNumTasks,
   changeMaxParseExceptions,
   changeUseApproximateCountDistinct,
   changeUseApproximateTopN,
   changeUseCache,
+  DruidEngine,
   getDurableShuffleStorage,
   getFinalizeAggregations,
   getGroupByEnableMultiValueUnnesting,
-  getMaxNumTasks,
   getMaxParseExceptions,
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
   getUseCache,
-} from '../../../utils/query-context';
-import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
+  WorkbenchQuery,
+} from '../../../druid-models';
+import { pluralIfNeeded, tickIcon } from '../../../utils';
+import { MaxTasksButton } from '../max-tasks-button/max-tasks-button';
 
 import './run-panel.scss';
-
-const MAX_NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
 
 export interface RunPanelProps {
   query: WorkbenchQuery;
@@ -72,7 +69,6 @@ export interface RunPanelProps {
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const { query, onQueryChange, onRun, moreMenu, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
-  const [customMaxNumTasksDialogOpen, setCustomMaxNumTasksDialogOpen] = useState(false);
 
   const emptyQuery = query.isEmptyQuery();
   const ingestMode = query.isIngestQuery();
@@ -122,7 +118,6 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
 
   useHotkeys(hotkeys);
 
-  const maxNumTasks = getMaxNumTasks(queryContext);
   const queryEngine = query.engine;
   function renderQueryEngineMenuItem(e: DruidEngine | undefined) {
     return (
@@ -130,6 +125,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         key={String(e)}
         icon={tickIcon(e === queryEngine)}
         text={typeof e === 'undefined' ? 'auto' : e}
+        label={e === 'sql-task' ? 'multi-stage-query' : undefined}
         onClick={() => onQueryChange(query.changeEngine(e))}
         shouldDismissPopover={false}
       />
@@ -298,32 +294,12 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
             />
           </Popover2>
           {effectiveEngine === 'sql-task' && (
-            <Popover2
-              position={Position.BOTTOM_LEFT}
-              content={
-                <Menu>
-                  <MenuDivider title="Number of tasks to launch" />
-                  {MAX_NUM_TASK_OPTIONS.map(m => (
-                    <MenuItem
-                      key={String(m)}
-                      icon={tickIcon(m === maxNumTasks)}
-                      text={formatInteger(m)}
-                      label={`(1 controller + ${m === 2 ? '1 worker' : `max ${m - 1} workers`})`}
-                      onClick={() =>
-                        onQueryChange(query.changeQueryContext(changeMaxNumTasks(queryContext, m)))
-                      }
-                    />
-                  ))}
-                  <MenuItem
-                    icon={tickIcon(!MAX_NUM_TASK_OPTIONS.includes(maxNumTasks))}
-                    text="Custom"
-                    onClick={() => setCustomMaxNumTasksDialogOpen(true)}
-                  />
-                </Menu>
+            <MaxTasksButton
+              queryContext={queryContext}
+              changeQueryContext={queryContext =>
+                onQueryChange(query.changeQueryContext(queryContext))
               }
-            >
-              <Button text={`Max tasks: ${maxNumTasks}`} rightIcon={IconNames.CARET_DOWN} />
-            </Popover2>
+            />
           )}
         </ButtonGroup>
       )}
@@ -342,26 +318,6 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           onClose={() => {
             setEditContextDialogOpen(false);
           }}
-        />
-      )}
-      {customMaxNumTasksDialogOpen && (
-        <NumericInputDialog
-          title="Custom max task number"
-          message={
-            <>
-              <p>Specify the total number of tasks that should be launched.</p>
-              <p>
-                There must be at least 2 tasks to account for the controller and at least one
-                worker.
-              </p>
-            </>
-          }
-          minValue={2}
-          initValue={maxNumTasks}
-          onSave={p => {
-            onQueryChange(query.changeQueryContext(changeMaxNumTasks(queryContext, p)));
-          }}
-          onClose={() => setCustomMaxNumTasksDialogOpen(false)}
         />
       )}
     </div>

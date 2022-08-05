@@ -32,6 +32,7 @@ import React from 'react';
 import AceEditor from 'react-ace';
 
 import { Loader } from '../../../components';
+import { isEmptyContext, QueryContext, QueryWithContext } from '../../../druid-models';
 import { useQueryManager } from '../../../hooks';
 import {
   formatSignature,
@@ -39,19 +40,15 @@ import {
   nonEmptyArray,
   queryDruidSql,
   QueryExplanation,
-  QueryWithContext,
-  trimSemicolon,
 } from '../../../utils';
-import { isEmptyContext } from '../../../utils/query-context';
 
 import './explain-dialog.scss';
 
 function isExplainQuery(query: string): boolean {
-  return /EXPLAIN\sPLAN\sFOR/i.test(query);
+  return /^\s*EXPLAIN\sPLAN\sFOR/im.test(query);
 }
 
 function wrapInExplainIfNeeded(query: string): string {
-  query = trimSemicolon(query);
   if (isExplainQuery(query)) return query;
   return `EXPLAIN PLAN FOR ${query}`;
 }
@@ -71,7 +68,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
     processQuery: async (queryWithContext: QueryWithContext) => {
       const { queryString, queryContext, wrapQueryLimit } = queryWithContext;
 
-      let context: Record<string, any> | undefined;
+      let context: QueryContext | undefined;
       if (!isEmptyContext(queryContext) || wrapQueryLimit || mandatoryQueryContext) {
         context = {
           ...queryContext,

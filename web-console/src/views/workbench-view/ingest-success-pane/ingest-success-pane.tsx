@@ -35,7 +35,7 @@ export const IngestSuccessPane = React.memo(function IngestSuccessPane(
 ) {
   const { execution, onDetails, onQueryTab } = props;
 
-  const datasource = execution.getInsertDatasource();
+  const datasource = execution.getIngestDatasource();
   if (!datasource) return null;
 
   const { stages } = execution;

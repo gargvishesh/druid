@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+@import '../../../variables';
+
 .input-format-step {
   position: relative;
 
@@ -55,11 +57,12 @@
     .bottom-controls {
       .prev-next-bar {
         position: relative;
+        padding-top: 15px;
 
         .next {
           position: absolute;
           right: 0;
-          top: 0;
+          bottom: 0;
         }
       }
     }

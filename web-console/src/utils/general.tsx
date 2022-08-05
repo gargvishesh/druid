@@ -288,6 +288,10 @@ export function zeroDivide(a: number, b: number): number {
   return a / b;
 }
 
+export function capitalizeFirst(str: string): string {
+  return str.slice(0, 1).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 export function arrangeWithPrefixSuffix(
   things: readonly string[],
   prefix: readonly string[],
@@ -386,7 +390,7 @@ export function isInBackground(): boolean {
   return document.visibilityState === 'hidden';
 }
 
-export function twoLines(line1: string, line2: string) {
+export function twoLines(line1: string | JSX.Element, line2: string | JSX.Element) {
   return (
     <>
       {line1}

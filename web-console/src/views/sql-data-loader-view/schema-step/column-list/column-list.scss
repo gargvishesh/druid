@@ -25,12 +25,11 @@
 }
 
 .column-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;
-  grid-gap: 10px;
+  display: flex;
+  gap: 10px;
 
   .list-column {
+    flex: 1;
     position: relative;
     @include sunk-panel;
     overflow: auto;

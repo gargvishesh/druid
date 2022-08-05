@@ -21,18 +21,13 @@ import {
   SqlExpression,
   SqlFunction,
   SqlLiteral,
-  SqlPartitionedByClause,
   SqlQuery,
   SqlRef,
-  SqlReplaceClause,
   SqlStar,
-  SqlTableRef,
-  SqlWithPart,
 } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 
 import { nonEmptyArray } from '../../utils';
-import { guessDataSourceNameFromInputSource } from '../ingestion-spec/ingestion-spec';
 import { InputFormat } from '../input-format/input-format';
 import { InputSource } from '../input-source/input-source';
 
@@ -148,31 +143,6 @@ export function externalConfigToInitDimensions(
       }),
     )
     .slice(0, MULTI_STAGE_QUERY_MAX_COLUMNS);
-}
-
-const INIT_CONFIG_EXTERNAL_CTE_NAME = 'input_data';
-
-export function externalConfigToInitQuery(
-  config: ExternalConfig,
-  isArrays: boolean[],
-  timeExpression: SqlExpression | undefined,
-): SqlQuery {
-  return SqlQuery.create(SqlTableRef.create(INIT_CONFIG_EXTERNAL_CTE_NAME))
-    .changeWithParts([
-      SqlWithPart.simple(
-        INIT_CONFIG_EXTERNAL_CTE_NAME,
-        SqlQuery.create(externalConfigToTableExpression(config)),
-      ),
-    ])
-    .changeSelectExpressions(externalConfigToInitDimensions(config, isArrays, timeExpression))
-    .changeReplaceClause(
-      SqlReplaceClause.create(guessDataSourceNameFromInputSource(config.inputSource) || 'new_data'),
-    )
-    .changePartitionedByClause(
-      SqlPartitionedByClause.create(
-        timeExpression ? new SqlLiteral({ stringValue: 'DAY', value: 'DAY' }) : undefined,
-      ),
-    );
 }
 
 export function fitExternalConfigPattern(query: SqlQuery): ExternalConfig {

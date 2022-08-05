@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, Tag } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { SqlQuery } from 'druid-query-toolkit';
 import React, { useState } from 'react';
@@ -26,6 +26,8 @@ import {
   ExternalConfig,
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
+  QueryContext,
+  QueryWithContext,
 } from '../../druid-models';
 import { executionBackgroundStatusCheck, submitTaskQuery } from '../../helpers';
 import { useLocalStorageState, useQueryManager } from '../../hooks';
@@ -34,6 +36,7 @@ import { ExecutionProgressBarPane } from '../workbench-view/execution-progress-b
 import { ExecutionStagesPane } from '../workbench-view/execution-stages-pane/execution-stages-pane';
 import { InputFormatStep } from '../workbench-view/input-format-step/input-format-step';
 import { InputSourceStep } from '../workbench-view/input-source-step/input-source-step';
+import { MaxTasksButton } from '../workbench-view/max-tasks-button/max-tasks-button';
 
 import { SchemaStep } from './schema-step/schema-step';
 import { TitleFrame } from './title-frame/title-frame';
@@ -41,7 +44,7 @@ import { TitleFrame } from './title-frame/title-frame';
 import './sql-data-loader-view.scss';
 
 export interface SqlDataLoaderViewProps {
-  goToQuery(initSql: string): void;
+  goToQuery(initSql: string, queryContext: QueryContext): void;
   goToIngestion(taskId: string): void;
 }
 
@@ -54,21 +57,29 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
     LocalStorageKeys.SQL_DATA_LOADER_QUERY,
     '',
   );
+  const [queryContext, setQueryContext] = useState<QueryContext>({
+    finalizeAggregations: false,
+    groupByEnableMultiValueUnnesting: false,
+  });
   const [showLiveReports, setShowLiveReports] = useState(false);
 
   const { inputSource, inputFormat } = externalConfigStep;
 
-  const [insertResultState, insertQueryManager] = useQueryManager<string, Execution, Execution>({
-    processQuery: async (queryString: string, cancelToken) => {
-      const ingestDatasource = SqlQuery.parse(queryString).getIngestTable()?.getTable();
+  const [insertResultState, ingestQueryManager] = useQueryManager<
+    QueryWithContext,
+    Execution,
+    Execution
+  >({
+    processQuery: async (queryWithContext: QueryWithContext, cancelToken) => {
+      const ingestDatasource = SqlQuery.parse(queryWithContext.queryString)
+        .getIngestTable()
+        ?.getTable();
+
       if (!ingestDatasource) throw new Error(`Must have an ingest datasource`);
 
       return await submitTaskQuery({
-        query: queryString,
-        context: {
-          finalizeAggregations: false,
-          groupByEnableMultiValueUnnesting: false,
-        },
+        query: queryWithContext.queryString,
+        context: queryWithContext.queryContext,
         cancelToken,
       });
     },
@@ -84,12 +95,21 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
               queryString={queryString}
               onQueryStringChange={setQueryString}
               enableAnalyze={false}
-              goToQuery={() => goToQuery(queryString)}
+              goToQuery={() => goToQuery(queryString, queryContext)}
               onBack={() => setQueryString('')}
               onDone={() => {
-                console.log('Ingesting:', queryString);
-                insertQueryManager.runQuery(queryString);
+                ingestQueryManager.runQuery({
+                  queryString,
+                  queryContext,
+                });
               }}
+              extraCallout={
+                <MaxTasksButton
+                  queryContext={queryContext}
+                  changeQueryContext={setQueryContext}
+                  minimal
+                />
+              }
             />
           ) : inputFormat && inputSource ? (
             <TitleFrame title="Load data" subtitle="Parse">
@@ -106,6 +126,19 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
                         timeExpression,
                       ),
                     ).toString(),
+                  );
+                }}
+                altText="Skip the wizard and continue with custom SQL"
+                onAltSet={({ inputFormat, signature, isArrays, timeExpression }) => {
+                  goToQuery(
+                    ingestQueryPatternToQuery(
+                      externalConfigToIngestQueryPattern(
+                        { inputSource, inputFormat, signature },
+                        isArrays,
+                        timeExpression,
+                      ),
+                    ).toString(),
+                    queryContext,
                   );
                 }}
                 onBack={() => {
@@ -130,7 +163,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
         <div className="loading-step">
           <ExecutionProgressBarPane
             execution={insertResultState.intermediate}
-            onCancel={() => insertQueryManager.cancelCurrent()}
+            onCancel={() => ingestQueryManager.cancelCurrent()}
             onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
             showLiveReports={showLiveReports}
           />
@@ -147,14 +180,12 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
       )}
       {insertResultState.data && (
         <div className="done-step">
-          <p>Done loading data into {insertResultState.data.getInsertDatasource()}</p>
+          <p>Done loading data into {insertResultState.data.getIngestDatasource()}</p>
           <p>
-            <Button icon={IconNames.APPLICATION}>
-              {'Query '}
-              <Tag minimal round>
-                {insertResultState.data.getInsertDatasource()}
-              </Tag>
-            </Button>
+            <Button
+              icon={IconNames.APPLICATION}
+              text={`Query: ${insertResultState.data.getIngestDatasource()}`}
+            />
           </p>
           <p>
             <Button
@@ -163,7 +194,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
               onClick={() => {
                 setExternalConfigStep({});
                 setQueryString('');
-                insertQueryManager.reset();
+                ingestQueryManager.reset();
               }}
             />
           </p>

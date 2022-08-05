@@ -28,8 +28,8 @@ import SplitterLayout from 'react-splitter-layout';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Loader, QueryErrorPane } from '../../components';
-import { EditContextDialog } from '../../dialogs/edit-context-dialog/edit-context-dialog';
-import { QueryHistoryDialog } from '../../dialogs/query-history-dialog/query-history-dialog';
+import { EditContextDialog } from '../../dialogs';
+import { QueryContext, QueryWithContext } from '../../druid-models';
 import { Api, AppToaster } from '../../singletons';
 import {
   ColumnMetadata,
@@ -45,10 +45,8 @@ import {
   queryDruidSql,
   QueryManager,
   QueryState,
-  QueryWithContext,
   RowColumn,
 } from '../../utils';
-import { QueryContext } from '../../utils/query-context';
 import { QueryRecord, QueryRecordUtil } from '../../utils/query-history';
 
 import { ColumnTree } from './column-tree/column-tree';
@@ -59,6 +57,7 @@ import {
   LiveQueryModeSelector,
 } from './live-query-mode-selector/live-query-mode-selector';
 import { QueryExtraInfo } from './query-extra-info/query-extra-info';
+import { QueryHistoryDialog } from './query-history-dialog/query-history-dialog';
 import { QueryInput } from './query-input/query-input';
 import { QueryOutput } from './query-output/query-output';
 import { QueryTimer } from './query-timer/query-timer';

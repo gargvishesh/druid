@@ -16,6 +16,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     <Blueprint4.NavbarDivider />
     <Blueprint4.AnchorButton
       active={true}
+      className="header-entry"
       disabled={false}
       href="#workbench"
       icon="application"
@@ -25,6 +26,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     />
     <Blueprint4.AnchorButton
       active={false}
+      className="header-entry"
       disabled={false}
       href="#data-loader"
       icon="cloud-upload"
@@ -34,6 +36,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     <Blueprint4.NavbarDivider />
     <Blueprint4.AnchorButton
       active={false}
+      className="header-entry"
       disabled={false}
       href="#datasources"
       icon="multi-select"
@@ -42,6 +45,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     />
     <Blueprint4.AnchorButton
       active={false}
+      className="header-entry"
       disabled={false}
       href="#ingestion"
       icon="gantt-chart"
@@ -50,6 +54,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     />
     <Blueprint4.AnchorButton
       active={false}
+      className="header-entry"
       disabled={false}
       href="#segments"
       icon="stacked-chart"
@@ -58,6 +63,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     />
     <Blueprint4.AnchorButton
       active={false}
+      className="header-entry"
       disabled={false}
       href="#services"
       icon="database"
@@ -112,6 +118,7 @@ exports[`HeaderBar matches snapshot 1`] = `
     >
       <Blueprint4.Button
         active={false}
+        className="header-entry"
         icon="more"
         minimal={true}
       />
@@ -244,6 +251,7 @@ exports[`HeaderBar matches snapshot 1`] = `
       usePortal={true}
     >
       <Blueprint4.Button
+        className="header-entry"
         icon="cog"
         minimal={true}
       />
@@ -332,6 +340,7 @@ exports[`HeaderBar matches snapshot 1`] = `
       usePortal={true}
     >
       <Blueprint4.Button
+        className="header-entry"
         icon="help"
         minimal={true}
       />

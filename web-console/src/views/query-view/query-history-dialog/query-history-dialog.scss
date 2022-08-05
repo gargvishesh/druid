@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-import { shallow } from 'enzyme';
-import React from 'react';
+@import '../../../variables';
 
-import { EXECUTION_INGEST_COMPLETE } from '../../../druid-models/mocks';
+.query-history-dialog {
+  &.#{$bp-ns}-dialog {
+    width: 900px;
+  }
 
-import { IngestSuccessPane } from './ingest-success-pane';
+  .panel {
+    width: 100%;
+  }
 
-describe('IngestSuccessPane', () => {
-  it('matches snapshot', () => {
-    const comp = shallow(
-      <IngestSuccessPane
-        execution={EXECUTION_INGEST_COMPLETE}
-        onDetails={() => {}}
-        onQueryTab={() => {}}
-      />,
-    );
+  .text-area {
+    width: 100%;
+    height: 500px;
+    resize: none;
+  }
 
-    expect(comp).toMatchSnapshot();
-  });
-});
+  .center-message {
+    height: 400px;
+  }
+}

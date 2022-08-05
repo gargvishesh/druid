@@ -352,7 +352,7 @@ export function cleanSpec(
   ) as IngestionSpec;
 }
 
-export function upgradeSpec(spec: any): Partial<IngestionSpec> {
+export function upgradeSpec(spec: any, yolo = false): Partial<IngestionSpec> {
   spec = nestSpecIfNeeded(spec);
 
   // Upgrade firehose if exists
@@ -373,9 +373,13 @@ export function upgradeSpec(spec: any): Partial<IngestionSpec> {
 
   // Decompose parser if exists
   if (deepGet(spec, 'spec.dataSchema.parser')) {
-    const parserType = deepGet(spec, 'spec.dataSchema.parser.type');
-    if (parserType !== 'string') {
-      throw new Error(`Can not rewrite parser of type '${parserType}', only 'string' is supported`);
+    if (!yolo) {
+      const parserType = deepGet(spec, 'spec.dataSchema.parser.type');
+      if (parserType !== 'string') {
+        throw new Error(
+          `Can not rewrite parser of type '${parserType}', only 'string' is supported`,
+        );
+      }
     }
 
     spec = deepMove(

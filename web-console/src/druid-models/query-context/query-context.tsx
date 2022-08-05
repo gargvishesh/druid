@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { deepDelete, deepSet } from './object-change';
+import { deepDelete, deepSet } from '../../utils';
 
 export interface QueryContext {
   useCache?: boolean;
@@ -32,6 +32,12 @@ export interface QueryContext {
   groupByEnableMultiValueUnnesting?: boolean;
 
   [key: string]: any;
+}
+
+export interface QueryWithContext {
+  queryString: string;
+  queryContext: QueryContext;
+  wrapQueryLimit?: number;
 }
 
 export function isEmptyContext(context: QueryContext): boolean {
@@ -107,6 +113,22 @@ export function changeMaxNumTasks(
   return typeof maxNumTasks === 'number'
     ? deepSet(context, 'maxNumTasks', maxNumTasks)
     : deepDelete(context, 'maxNumTasks');
+}
+
+// taskAssignment
+
+export function getTaskAssigment(context: QueryContext): string {
+  const { taskAssignment } = context;
+  return taskAssignment ?? 'max';
+}
+
+export function changeTaskAssigment(
+  context: QueryContext,
+  taskAssignment: string | undefined,
+): QueryContext {
+  return typeof taskAssignment === 'string'
+    ? deepSet(context, 'taskAssignment', taskAssignment)
+    : deepDelete(context, 'taskAssignment');
 }
 
 // finalizeAggregations

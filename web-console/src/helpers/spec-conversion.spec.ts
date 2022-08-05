@@ -21,7 +21,7 @@ import { sane } from 'druid-query-toolkit';
 import { convertSpecToSql } from './spec-conversion';
 
 describe('spec conversion', () => {
-  it('converts spec (without rollup)', () => {
+  it('converts index_parallel spec (without rollup)', () => {
     const converted = convertSpecToSql({
       type: 'index_parallel',
       spec: {
@@ -42,6 +42,16 @@ describe('spec conversion', () => {
             rollup: false,
           },
           dataSource: 'wikipedia',
+          transformSpec: {
+            filter: {
+              type: 'not',
+              field: {
+                type: 'selector',
+                dimension: 'channel',
+                value: 'xxx',
+              },
+            },
+          },
           timestampSpec: {
             column: 'timestamp',
             format: 'auto',
@@ -101,9 +111,9 @@ describe('spec conversion', () => {
           maxParseExceptions: 3,
         },
       },
-    } as any);
+    });
 
-    expect(converted.query).toEqual(sane`
+    expect(converted.queryString).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
       REPLACE INTO wikipedia OVERWRITE ALL
       WITH source AS (SELECT * FROM TABLE(
@@ -139,11 +149,12 @@ describe('spec conversion', () => {
         "countryIsoCode",
         "regionName"
       FROM source
+      WHERE NOT ("channel" = 'xxx')
       PARTITIONED BY HOUR
       CLUSTERED BY "isRobot"
     `);
 
-    expect(converted.context).toEqual({
+    expect(converted.queryContext).toEqual({
       groupByEnableMultiValueUnnesting: false,
       maxParseExceptions: 3,
       finalizeAggregations: false,
@@ -151,7 +162,7 @@ describe('spec conversion', () => {
     });
   });
 
-  it('converts spec (with rollup)', () => {
+  it('converts index_parallel spec (with rollup)', () => {
     const converted = convertSpecToSql({
       type: 'index_parallel',
       spec: {
@@ -240,9 +251,9 @@ describe('spec conversion', () => {
           forceGuaranteedRollup: true,
         },
       },
-    } as any);
+    });
 
-    expect(converted.query).toEqual(sane`
+    expect(converted.queryString).toEqual(sane`
       -- This SQL query was auto generated from an ingestion spec
       REPLACE INTO wikipedia_rollup OVERWRITE ALL
       WITH source AS (SELECT * FROM TABLE(
@@ -282,7 +293,158 @@ describe('spec conversion', () => {
       PARTITIONED BY HOUR
     `);
 
-    expect(converted.context).toEqual({
+    expect(converted.queryContext).toEqual({
+      groupByEnableMultiValueUnnesting: false,
+      finalizeAggregations: false,
+    });
+  });
+
+  it('converts index_hadoop spec (with rollup)', () => {
+    const converted = convertSpecToSql({
+      type: 'index_hadoop',
+      spec: {
+        dataSchema: {
+          dataSource: 'newSource',
+          hadoopDependencyCoordinates: [
+            'org.apache.hadoop:hadoop-client:2.7.3',
+            'org.apache.hadoop:hadoop-aws:2.7.3',
+          ],
+          parser: {
+            type: 'parquet',
+            parseSpec: {
+              format: 'timeAndDims',
+              timestampSpec: {
+                column: 'event_ts',
+                format: 'auto',
+              },
+              columns: [
+                'col1',
+                'col2',
+                'col3',
+                'col4',
+                'metric1',
+                'metric2',
+                'metric3',
+                'metric4',
+                'metric5',
+                'metric6',
+                'metric7',
+              ],
+              dimensionsSpec: {
+                dimensions: ['col1', 'col2', 'col3', 'col4'],
+                dimensionExclusions: [],
+                spatialDimensions: [],
+              },
+            },
+          },
+          metricsSpec: [
+            {
+              type: 'doubleSum',
+              name: 'metric1',
+              fieldName: 'field1',
+            },
+            {
+              type: 'doubleMax',
+              name: 'metric2',
+              fieldName: 'field2',
+            },
+            {
+              type: 'doubleMin',
+              name: 'metric3',
+              fieldName: 'field3',
+            },
+            {
+              type: 'hyperUnique',
+              name: 'metric4',
+              fieldName: 'field4',
+              isInputHyperUnique: true,
+            },
+            {
+              type: 'hyperUnique',
+              name: 'metric5',
+              fieldName: 'field5',
+              isInputHyperUnique: true,
+            },
+            {
+              type: 'longSum',
+              name: 'metric6',
+              fieldName: 'field6',
+            },
+            {
+              type: 'doubleSum',
+              name: 'metric7',
+              fieldName: 'field7',
+            },
+          ],
+          granularitySpec: {
+            type: 'uniform',
+            segmentGranularity: 'HOUR',
+            queryGranularity: 'HOUR',
+            intervals: ['2022-08-01/2022-08-02'],
+            rollup: true,
+          },
+          transformSpec: {
+            filter: {
+              type: 'selector',
+              dimension: 'col2',
+              value: 'xxx',
+            },
+          },
+        },
+        ioConfig: {
+          type: 'hadoop',
+          inputSpec: {
+            type: 'static',
+            inputFormat: 'org.apache.druid.data.input.parquet.DruidParquetInputFormat',
+            paths: 's3://path',
+          },
+        },
+        tuningConfig: {
+          type: 'hadoop',
+          partitionsSpec: {
+            type: 'hashed',
+            targetPartitionSize: 3000000,
+          },
+          forceExtendableShardSpecs: true,
+          jobProperties: {
+            'mapreduce.job.classloader': 'true',
+            'mapreduce.map.memory.mb': '8192',
+            'mapreduce.reduce.memory.mb': '18288',
+          },
+        },
+      },
+    });
+
+    expect(converted.queryString).toEqual(sane`
+      -- This SQL query was auto generated from an ingestion spec
+      REPLACE INTO newSource OVERWRITE ALL
+      WITH source AS (SELECT * FROM TABLE(
+        EXTERN(
+          '{"type":"s3","uris":["s3://path"]}',
+          '{"columns":["col1","col2","col3","col4","metric1","metric2","metric3","metric4","metric5","metric6","metric7"],"type":"timeAndDims"}',
+          '[{"name":"event_ts","type":"string"},{"name":"col1","type":"string"},{"name":"col2","type":"string"},{"name":"col3","type":"string"},{"name":"col4","type":"string"},{"name":"field1","type":"double"},{"name":"field2","type":"double"},{"name":"field3","type":"double"},{"name":"field4","type":"string"},{"name":"field5","type":"string"},{"name":"field6","type":"long"},{"name":"field7","type":"double"}]'
+        )
+      ))
+      SELECT
+        TIME_FLOOR(CASE WHEN CAST(event_ts AS BIGINT) > 0 THEN MILLIS_TO_TIMESTAMP(CAST(event_ts AS BIGINT)) ELSE TIME_PARSE(event_ts) END, 'PT1H') AS __time,
+        "col1",
+        "col2",
+        "col3",
+        "col4",
+        SUM("field1") AS "metric1",
+        MAX("field2") AS "metric2",
+        MIN("field3") AS "metric3",
+        APPROX_COUNT_DISTINCT_BUILTIN("field4") AS "metric4",
+        APPROX_COUNT_DISTINCT_BUILTIN("field5") AS "metric5",
+        SUM("field6") AS "metric6",
+        SUM("field7") AS "metric7"
+      FROM source
+      WHERE "col2" = 'xxx'
+      GROUP BY 1, 2, 3, 4, 5
+      PARTITIONED BY HOUR
+    `);
+
+    expect(converted.queryContext).toEqual({
       groupByEnableMultiValueUnnesting: false,
       finalizeAggregations: false,
     });

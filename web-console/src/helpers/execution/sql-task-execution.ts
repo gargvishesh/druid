@@ -19,7 +19,7 @@
 import { AxiosResponse, CancelToken } from 'axios';
 import { SqlLiteral } from 'druid-query-toolkit';
 
-import { Execution } from '../../druid-models';
+import { Execution, QueryContext } from '../../druid-models';
 import { Api } from '../../singletons';
 import {
   deepGet,
@@ -28,7 +28,6 @@ import {
   queryDruidSql,
   QueryManager,
 } from '../../utils';
-import { QueryContext } from '../../utils/query-context';
 
 const WAIT_FOR_SEGMENTS_TIMEOUT = 180000; // 3 minutes to wait until segments appear
 

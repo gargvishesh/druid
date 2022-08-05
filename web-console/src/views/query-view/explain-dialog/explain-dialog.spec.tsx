@@ -36,7 +36,7 @@ describe('ExplainDialog', () => {
     return (
       <ExplainDialog
         onOpenQuery={() => {}}
-        queryWithContext={{ queryString: 'test', queryContext: {}, wrapQueryLimit: undefined }}
+        queryWithContext={{ queryString: 'test', queryContext: {} }}
         onClose={() => {}}
         openQueryLabel="Open query"
       />

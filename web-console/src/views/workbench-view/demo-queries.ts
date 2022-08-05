@@ -29,6 +29,22 @@ export function getDemoQueries(): TabEntry[] {
       tabName: 'Demo 1',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- Demo 1 showcases the new SQL syntax available as part of the sql-task engine.
+--
+-- The two syntax pieces highlighted in this demo are:
+--
+-- 1. The REPLACE clause wraps a query and specifies that the result of the underlying query should be written to a datasource.
+--
+-- 2. The TABLE(EXTERN(...)) function defines a external table that can be used anywhere a table can be used.
+--
+-- This demo reads the file located at https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz and writes it into
+-- the "kttm_simple" datasource (overwriting it if it already exists).
+--
+-- You can click the "Preview" button if you want to see a preview of the shape of the data that will be ingested and then
+-- click "Run" to actually create the kttm_simple datasource (it will be needed for later demos).
+--
+-- The ingestion here is as simple as it could be (SELECT *), in "Demo 2" we will perform more transformations on the data.
+
 REPLACE INTO "kttm_simple" OVERWRITE ALL
 SELECT *
 FROM TABLE(
@@ -47,6 +63,18 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 2',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- In Demo 2, you build on the concepts of Demo 1 by transforming data.
+-- You're no longer simply reading data from a file and writing it to a datasource.
+--
+-- In this ingestion, you:
+--  - select only a handful of columns.
+--  - parse the "timestamp" column and truncate it to MINUTE and make it the "primary time column" by aliasing it to __time
+--  - filter the rows with a WHERE clause so that only data for 'iOS' is ingested
+--  - perform "rollup" by applying a GROUP BY clause and specifying some aggregates ("metrics")
+--  - apply time based partitioning as well as clustering on two columns
+--
+-- In Demo 3, you'll enrich data at ingestion time by transforming it further.
+
 REPLACE INTO "kttm_rollup" OVERWRITE ALL
 
 WITH kttm_data AS (
@@ -87,6 +115,13 @@ CLUSTERED BY browser, session
       tabName: 'Demo 3',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- This demo has the same query as Demo 2, except that it utilizes an additional external data file (you can have as many
+-- as you want) to enrich the data via a JOIN. Specifically for every country in the fact data we add a column for Capital
+-- and that countries ISO3 code.
+-- This query also computes a derived column, "browser_major", by applying a SQL transformation.
+--
+-- In the next demo we will see how you are not limited to reading external data in these queries.
+
 REPLACE INTO "kttm_etl" OVERWRITE ALL
 WITH
 kttm_data AS (
@@ -139,6 +174,12 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4a',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- This demo has a query that is identical to the previous demo except instead of reading the fact data from an external
+-- file, it reads the "kttm_simple" datasource that was created in Demo 1.
+-- This shows you that you can mix and match data already stored in Druid with external data and transform as needed.
+--
+-- In the next demo we will look at another type of data transformation.
+
 REPLACE INTO "kttm_reingest" OVERWRITE ALL
 WITH
 country_lookup AS (
@@ -183,6 +224,11 @@ CLUSTERED BY browser, session
       tabName: 'Demo 4b',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- Imagine you are an avid reader of https://www.reddit.com/r/MapsWithoutNZ and want your data to reflect your cartography
+-- humor. In this demo we transform the datasource created in the first demo to remove all entries for 'New Zealand'.
+-- Notice that we can read and write to the same datasource.
+-- You can open a new tab and run 'SELECT COUNT(*) FROM kttm_simple' before and after running this query to see the change.
+
 REPLACE INTO kttm_simple OVERWRITE ALL
 SELECT *
 FROM kttm_simple
@@ -196,6 +242,16 @@ PARTITIONED BY ALL TIME
       tabName: 'Demo 5',
       query: BASE_QUERY.duplicate().changeQueryString(
         `
+-- You don't have to wrap your query in a REPLACE / INSERT clause to run it with the sql-task engine. In fact, when you
+-- use the "Preview" button for any of the earlier demos, it works by removing the REPLACE / INSERT clause and
+-- running the query "inline" as a SELECT with a limit.
+--
+-- If you want to run a one time calculation on data, you can do it without ingesting it into Druid. Doing this
+-- takes the same order of magnitude of resources and time as it would to ingest the data into Druid though.
+--
+-- This functionality should be considered as a tech preview of what the sql-task engine can do and not something for
+-- production use (outside of specific, narrow uses like the "Preview" feature in this console).
+
 WITH
 kttm_data AS (
 SELECT * FROM TABLE(
@@ -231,6 +287,10 @@ LIMIT 10
       query: BASE_QUERY.duplicate()
         .changeQueryString(
           `
+-- At the heart of the sql-task engine is the ability to sort arbitrarily large amounts of data. Demo 6 
+-- re-sorts the kttm_simple datasource on an arbitrary sort condition. This isn't possible with the "sql" or "native"
+-- engines since it requires the same order of magnitude of resources as ingesting the entire dataset over again.
+
 SELECT
   session,
   number,

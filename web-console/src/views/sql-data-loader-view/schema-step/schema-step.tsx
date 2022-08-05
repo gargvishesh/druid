@@ -33,6 +33,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { select, selectAll } from 'd3-selection';
 import {
+  Column,
   QueryResult,
   QueryRunner,
   SqlExpression,
@@ -40,6 +41,7 @@ import {
   SqlQuery,
   SqlRef,
 } from 'druid-query-toolkit';
+import * as JSONBig from 'json-bigint-native';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { ClearableInput, LearnMore, Loader } from '../../../components';
@@ -78,6 +80,7 @@ import {
   queryDruidSql,
   tickIcon,
   timeFormatToSql,
+  validJson,
   wait,
   without,
 } from '../../../utils';
@@ -97,11 +100,40 @@ import './schema-step.scss';
 
 const queryRunner = new QueryRunner();
 
-const destinationModeTitle: Record<DestinationMode, string> = {
-  new: 'Create new',
-  replace: 'Replace',
-  insert: 'Append',
+const DESTINATION_MODE_TITLE: Record<DestinationMode, string> = {
+  new: 'new',
+  replace: 'replace',
+  insert: 'append',
 };
+
+// This is a hack to work around the fact that JSON columns sometimes lose their types
+function convertJsonColumnsHack(queryResult: QueryResult): QueryResult {
+  const { header, rows } = queryResult;
+  const indexesToTransform = filterMap(header, (column, i) => {
+    return column.nativeType === 'COMPLEX' && rows.every(row => validJson(row[i])) ? i : undefined;
+  });
+  if (!indexesToTransform.length) return queryResult;
+
+  const newHeader = header.slice();
+  const newRows = rows.map(row => row.slice());
+  for (const index of indexesToTransform) {
+    const h = newHeader[index];
+    newHeader[index] = new Column({
+      name: h.name,
+      sqlType: h.sqlType,
+      nativeType: 'COMPLEX<json>',
+    });
+    for (const row of newRows) {
+      row[index] = JSONBig.parse(row[index]);
+    }
+  }
+
+  return new QueryResult({
+    ...queryResult.valueOf(),
+    header: newHeader,
+    rows: newRows,
+  });
+}
 
 function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
@@ -253,10 +285,19 @@ export interface SchemaStepProps {
   goToQuery: () => void;
   onBack(): void;
   onDone(): void;
+  extraCallout?: JSX.Element;
 }
 
 export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
-  const { queryString, onQueryStringChange, enableAnalyze, goToQuery, onBack, onDone } = props;
+  const {
+    queryString,
+    onQueryStringChange,
+    enableAnalyze,
+    goToQuery,
+    onBack,
+    onDone,
+    extraCallout,
+  } = props;
   const [mode, setMode] = useState<Mode>('table');
   const [columnSearch, setColumnSearch] = useState('');
   const [editorColumn, setEditorColumn] = useState<EditorColumn | undefined>();
@@ -438,7 +479,10 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           throw new DruidError(e);
         }
 
-        return result.attachQuery({}, SqlQuery.maybeParse(previewQueryString));
+        return convertJsonColumnsHack(result).attachQuery(
+          {},
+          SqlQuery.maybeParse(previewQueryString),
+        );
       }
     },
     backgroundStatusCheck: executionBackgroundResultStatusCheck,
@@ -556,13 +600,18 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
                       key={i}
                       icon={IconNames.MERGE_COLUMNS}
                       text={ingestQueryPattern.dimensions[p].getOutputName()}
-                      onClick={() =>
-                        updatePattern({
-                          ...ingestQueryPattern,
-                          clusteredBy: without(ingestQueryPattern.clusteredBy, p),
-                        })
-                      }
-                    />
+                    >
+                      <MenuItem
+                        icon={IconNames.CROSS}
+                        text="Remove"
+                        onClick={() =>
+                          updatePattern({
+                            ...ingestQueryPattern,
+                            clusteredBy: without(ingestQueryPattern.clusteredBy, p),
+                          })
+                        }
+                      />
+                    </MenuItem>
                   ))}
                   <MenuItem icon={IconNames.PLUS} text="Add column clustering">
                     {filterMap(ingestQueryPattern.dimensions, (dimension, i) => {
@@ -615,18 +664,17 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           </Button>
           {ingestQueryPattern && existingTableState.data && (
             <Button
-              icon={IconNames.TH_DERIVED}
+              icon={IconNames.MULTI_SELECT}
               minimal
               onClick={() => setShowDestinationDialog(true)}
             >
-              {
-                destinationModeTitle[
-                  getDestinationMode(ingestQueryPattern, existingTableState.data)
-                ]
-              }{' '}
-              &nbsp;
+              {`Datasource: ${ingestQueryPattern.destinationTableName} `}
               <Tag minimal round>
-                {ingestQueryPattern.destinationTableName}
+                {
+                  DESTINATION_MODE_TITLE[
+                    getDestinationMode(ingestQueryPattern, existingTableState.data)
+                  ]
+                }
               </Tag>
             </Button>
           )}
@@ -803,90 +851,101 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           )}
         </div>
         <div className="controls">
-          {!editorColumn && (
-            <FormGroup>
-              <Callout>
-                <p>
-                  Each column in Druid must have an assigned type (string, long, float, double,
-                  complex, etc).
-                </p>
-                <p>
-                  Types are implicitly determined for your columns. If you want to change the type
-                  of a column you can cast it to a specific type. You can do that by clicking on a
-                  column header.
-                </p>
-                <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
-              </Callout>
-            </FormGroup>
-          )}
-          {editorColumn && ingestQueryPattern && (
-            <>
-              <ColumnEditor
-                expression={editorColumn.expression}
-                onApply={newColumn => {
-                  if (!editorColumn) return;
-                  updatePattern(
-                    changeQueryPatternExpression(
-                      ingestQueryPattern,
-                      editorColumn.index,
-                      editorColumn.type,
-                      newColumn,
-                    ),
-                  );
-                }}
-                onCancel={() => setEditorColumn(undefined)}
-                dirty={() => setEditorColumn({ ...editorColumn, dirty: true })}
-                queryResult={previewResultState.data}
-                headerIndex={editorColumn.index}
-              />
-              {editorColumn.index !== -1 && (
-                <ColumnActions
+          <div className="top-controls">
+            {!editorColumn && (
+              <FormGroup>
+                <Callout>
+                  <p>
+                    Each column in Druid must have an assigned type (string, long, float, double,
+                    complex, etc).
+                  </p>
+                  <p>
+                    Types are implicitly determined for your columns. If you want to change the type
+                    of a column you can cast it to a specific type. You can do that by clicking on a
+                    column header.
+                  </p>
+                  <LearnMore href={`${getLink('DOCS')}/ingestion/schema-design.html`} />
+                </Callout>
+              </FormGroup>
+            )}
+            {editorColumn && ingestQueryPattern && (
+              <>
+                <ColumnEditor
+                  expression={editorColumn.expression}
+                  onApply={newColumn => {
+                    if (!editorColumn) return;
+                    updatePattern(
+                      changeQueryPatternExpression(
+                        ingestQueryPattern,
+                        editorColumn.index,
+                        editorColumn.type,
+                        newColumn,
+                      ),
+                    );
+                  }}
+                  onCancel={() => setEditorColumn(undefined)}
+                  dirty={() => setEditorColumn({ ...editorColumn, dirty: true })}
                   queryResult={previewResultState.data}
                   headerIndex={editorColumn.index}
-                  onQueryAction={handleQueryAction}
                 />
-              )}
-            </>
-          )}
-          {ingestPatternError && (
-            <FormGroup>
-              <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>
-            </FormGroup>
-          )}
-          {!editorColumn && timeSuggestions.length > 0 && (
-            <Callout
-              className="time-column-warning"
-              intent={Intent.WARNING}
-              title="No __time column defined"
-            >
-              {timeSuggestions.map((timeSuggestion, i) => (
-                <FormGroup key={i}>
-                  <Button
-                    icon={IconNames.CLEAN}
-                    text={timeSuggestion.label}
-                    intent={Intent.SUCCESS}
-                    onClick={() => handleQueryAction(timeSuggestion.queryAction)}
+                {editorColumn.index !== -1 && (
+                  <ColumnActions
+                    queryResult={previewResultState.data}
+                    headerIndex={editorColumn.index}
+                    onQueryAction={handleQueryAction}
                   />
-                </FormGroup>
-              ))}
-              <AnchorButton
-                icon={IconNames.HELP}
-                text="Learn more..."
-                href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
-                target="_blank"
+                )}
+              </>
+            )}
+            {ingestPatternError && (
+              <FormGroup>
+                <Callout intent={Intent.DANGER}>{ingestPatternError}</Callout>
+              </FormGroup>
+            )}
+            {!editorColumn && timeSuggestions.length > 0 && (
+              <Callout
+                className="time-column-warning"
                 intent={Intent.WARNING}
-                minimal
+                title="No __time column defined"
+              >
+                {timeSuggestions.map((timeSuggestion, i) => (
+                  <FormGroup key={i}>
+                    <Button
+                      icon={IconNames.CLEAN}
+                      text={timeSuggestion.label}
+                      intent={Intent.SUCCESS}
+                      onClick={() => handleQueryAction(timeSuggestion.queryAction)}
+                    />
+                  </FormGroup>
+                ))}
+                <AnchorButton
+                  icon={IconNames.HELP}
+                  text="Learn more..."
+                  href={`${getLink('DOCS')}/ingestion/data-model.html#primary-timestamp`}
+                  target="_blank"
+                  intent={Intent.WARNING}
+                  minimal
+                />
+              </Callout>
+            )}
+          </div>
+          <div className="bottom-controls">
+            {extraCallout && (
+              <FormGroup>
+                <Callout>{extraCallout}</Callout>
+              </FormGroup>
+            )}
+            <div className="prev-next-bar">
+              <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
+              <Button
+                className="next"
+                icon={IconNames.CLOUD_UPLOAD}
+                text="Start loading data"
+                intent={Intent.PRIMARY}
+                onClick={onDone}
               />
-            </Callout>
-          )}
-          <Button className="back" icon={IconNames.ARROW_LEFT} text="Back" onClick={onBack} />
-          <Button
-            className="next"
-            icon={IconNames.CLOUD_UPLOAD}
-            text="Start loading data"
-            intent={Intent.PRIMARY}
-            onClick={onDone}
-          />
+            </div>
+          </div>
         </div>
         {showRollupAnalysisPane && ingestQueryPattern && (
           <RollupAnalysisPane

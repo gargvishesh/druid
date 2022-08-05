@@ -19,8 +19,8 @@
 import { Button, Classes, Dialog, Intent, Tab, Tabs, TextArea } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-import { CenterMessage } from '../../components';
-import { QueryRecord } from '../../utils/query-history';
+import { CenterMessage } from '../../../components';
+import { QueryRecord } from '../../../utils/query-history';
 
 import './query-history-dialog.scss';
 

@@ -31,8 +31,6 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo } from 'react';
 
 import { MenuCheckbox } from '../../../components';
-import { getLink } from '../../../links';
-import { pluralIfNeeded } from '../../../utils';
 import {
   changeUseApproximateCountDistinct,
   changeUseApproximateTopN,
@@ -41,7 +39,9 @@ import {
   getUseApproximateTopN,
   getUseCache,
   QueryContext,
-} from '../../../utils/query-context';
+} from '../../../druid-models';
+import { getLink } from '../../../links';
+import { pluralIfNeeded } from '../../../utils';
 
 import './run-button.scss';
 

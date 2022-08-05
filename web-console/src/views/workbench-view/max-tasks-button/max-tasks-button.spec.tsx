@@ -19,19 +19,11 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import { EXECUTION_INGEST_COMPLETE } from '../../../druid-models/mocks';
+import { MaxTasksButton } from './max-tasks-button';
 
-import { IngestSuccessPane } from './ingest-success-pane';
-
-describe('IngestSuccessPane', () => {
+describe('MaxTasksButton', () => {
   it('matches snapshot', () => {
-    const comp = shallow(
-      <IngestSuccessPane
-        execution={EXECUTION_INGEST_COMPLETE}
-        onDetails={() => {}}
-        onQueryTab={() => {}}
-      />,
-    );
+    const comp = shallow(<MaxTasksButton queryContext={{}} changeQueryContext={() => {}} />);
 
     expect(comp).toMatchSnapshot();
   });

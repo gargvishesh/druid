@@ -67,14 +67,14 @@ interface HistoryEntry {
 export interface RecentQueryTaskPanelProps {
   onClose(): void;
   onExecutionDetails(id: string): void;
-  onRunQuery(query: string): void;
+  onChangeQuery(queryString: string): void;
   onNewTab(query: WorkbenchQuery, tabName: string): void;
 }
 
 export const RecentQueryTaskPanel = React.memo(function RecentQueryTaskPanel(
   props: RecentQueryTaskPanelProps,
 ) {
-  const { onClose, onExecutionDetails, onRunQuery, onNewTab } = props;
+  const { onClose, onExecutionDetails, onChangeQuery, onNewTab } = props;
 
   const [confirmCancelId, setConfirmCancelId] = useState<string | undefined>();
 
@@ -173,7 +173,7 @@ LIMIT 100`,
                       icon={IconNames.APPLICATION}
                       text={`SELECT * FROM ${SqlTableRef.create(w.datasource)}`}
                       onClick={() =>
-                        onRunQuery(`SELECT * FROM ${SqlTableRef.create(w.datasource)}`)
+                        onChangeQuery(`SELECT * FROM ${SqlTableRef.create(w.datasource)}`)
                       }
                     />
                   )}
