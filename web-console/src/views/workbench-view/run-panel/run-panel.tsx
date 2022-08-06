@@ -121,7 +121,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
 
   const hotkeys = useMemo(() => {
     if (small) return [];
-    const keys = [
+    return [
       {
         allowInInput: true,
         global: true,
@@ -139,7 +139,6 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         onKeyDown: handlePreview,
       },
     ];
-    return keys;
   }, [small, handleRun, handlePreview]);
 
   useHotkeys(hotkeys);
