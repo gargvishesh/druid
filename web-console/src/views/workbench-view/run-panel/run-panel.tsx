@@ -223,6 +223,48 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   onClick={() => setEditContextDialogOpen(true)}
                   label={pluralIfNeeded(numContextKeys, 'key')}
                 />
+                {effectiveEngine !== 'native' && (
+                  <MenuItem
+                    icon={IconNames.GLOBE_NETWORK}
+                    text="Timezone"
+                    label={timezone || 'default'}
+                  >
+                    <MenuDivider title="Timezone type" />
+                    <MenuItem
+                      icon={tickIcon(!timezone)}
+                      text="Default"
+                      shouldDismissPopover={false}
+                      onClick={() => {
+                        onQueryChange(
+                          query.changeQueryContext(changeTimezone(queryContext, undefined)),
+                        );
+                      }}
+                    />
+                    <MenuItem icon={tickIcon(String(timezone).includes('/'))} text="Named">
+                      {NAMED_TIMEZONES.map(namedTimezone => (
+                        <MenuItem
+                          key={namedTimezone}
+                          icon={tickIcon(namedTimezone === timezone)}
+                          text={namedTimezone}
+                          shouldDismissPopover={false}
+                          onClick={() => {
+                            onQueryChange(
+                              query.changeQueryContext(changeTimezone(queryContext, namedTimezone)),
+                            );
+                          }}
+                        />
+                      ))}
+                    </MenuItem>
+                    <MenuItem icon={tickIcon(String(timezone).includes(':'))} text="Offset">
+                      {offsetOptions()}
+                    </MenuItem>
+                    <MenuItem
+                      icon={IconNames.BLANK}
+                      text="Custom"
+                      onClick={() => setCustomTimezoneDialogOpen(true)}
+                    />
+                  </MenuItem>
+                )}
                 {effectiveEngine === 'sql-task' ? (
                   <>
                     <MenuItem
@@ -305,60 +347,20 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   </>
                 )}
                 {effectiveEngine !== 'native' && (
-                  <>
-                    <MenuCheckbox
-                      checked={useApproximateCountDistinct}
-                      text="Use approximate COUNT(DISTINCT)"
-                      onChange={() => {
-                        onQueryChange(
-                          query.changeQueryContext(
-                            changeUseApproximateCountDistinct(
-                              queryContext,
-                              !useApproximateCountDistinct,
-                            ),
+                  <MenuCheckbox
+                    checked={useApproximateCountDistinct}
+                    text="Use approximate COUNT(DISTINCT)"
+                    onChange={() => {
+                      onQueryChange(
+                        query.changeQueryContext(
+                          changeUseApproximateCountDistinct(
+                            queryContext,
+                            !useApproximateCountDistinct,
                           ),
-                        );
-                      }}
-                    />
-                    <MenuItem icon={IconNames.TIME} text="Timezone" label={timezone || 'default'}>
-                      <MenuDivider title="Timezone type" />
-                      <MenuItem
-                        icon={tickIcon(!timezone)}
-                        text="Default"
-                        shouldDismissPopover={false}
-                        onClick={() => {
-                          onQueryChange(
-                            query.changeQueryContext(changeTimezone(queryContext, undefined)),
-                          );
-                        }}
-                      />
-                      <MenuItem icon={tickIcon(String(timezone).includes('/'))} text="Named">
-                        {NAMED_TIMEZONES.map(namedTimezone => (
-                          <MenuItem
-                            key={namedTimezone}
-                            icon={tickIcon(namedTimezone === timezone)}
-                            text={namedTimezone}
-                            shouldDismissPopover={false}
-                            onClick={() => {
-                              onQueryChange(
-                                query.changeQueryContext(
-                                  changeTimezone(queryContext, namedTimezone),
-                                ),
-                              );
-                            }}
-                          />
-                        ))}
-                      </MenuItem>
-                      <MenuItem icon={tickIcon(String(timezone).includes(':'))} text="Offset">
-                        {offsetOptions()}
-                      </MenuItem>
-                      <MenuItem
-                        icon={IconNames.BLANK}
-                        text="Custom"
-                        onClick={() => setCustomTimezoneDialogOpen(true)}
-                      />
-                    </MenuItem>
-                  </>
+                        ),
+                      );
+                    }}
+                  />
                 )}
                 <MenuCheckbox
                   checked={!query.unlimited}
