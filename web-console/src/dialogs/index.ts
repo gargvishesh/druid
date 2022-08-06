@@ -25,6 +25,7 @@ export * from './doctor-dialog/doctor-dialog';
 export * from './edit-context-dialog/edit-context-dialog';
 export * from './history-dialog/history-dialog';
 export * from './lookup-edit-dialog/lookup-edit-dialog';
+export * from './numeric-input-dialog/numeric-input-dialog';
 export * from './overlord-dynamic-config-dialog/overlord-dynamic-config-dialog';
 export * from './retention-dialog/retention-dialog';
 export * from './snitch-dialog/snitch-dialog';
