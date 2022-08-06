@@ -24,7 +24,7 @@ import copy from 'copy-to-clipboard';
 import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
-import { SpecDialog, StringSubmitDialog } from '../../dialogs';
+import { SpecDialog, StringInputDialog } from '../../dialogs';
 import {
   DruidEngine,
   Execution,
@@ -421,7 +421,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     if (!taskIdSubmitDialogOpen) return;
 
     return (
-      <StringSubmitDialog
+      <StringInputDialog
         title="Enter task ID"
         placeholder="taskId"
         onSubmit={async taskId => {

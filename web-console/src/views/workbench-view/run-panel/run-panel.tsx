@@ -32,12 +32,13 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { MenuCheckbox, MenuTristate } from '../../../components';
-import { EditContextDialog } from '../../../dialogs';
+import { EditContextDialog, StringInputDialog } from '../../../dialogs';
 import {
   changeDurableShuffleStorage,
   changeFinalizeAggregations,
   changeGroupByEnableMultiValueUnnesting,
   changeMaxParseExceptions,
+  changeTimezone,
   changeUseApproximateCountDistinct,
   changeUseApproximateTopN,
   changeUseCache,
@@ -46,6 +47,7 @@ import {
   getFinalizeAggregations,
   getGroupByEnableMultiValueUnnesting,
   getMaxParseExceptions,
+  getTimezone,
   getUseApproximateCountDistinct,
   getUseApproximateTopN,
   getUseCache,
@@ -55,6 +57,28 @@ import { pluralIfNeeded, tickIcon } from '../../../utils';
 import { MaxTasksButton } from '../max-tasks-button/max-tasks-button';
 
 import './run-panel.scss';
+
+const NAMED_TIMEZONES: string[] = [
+  'America/Juneau', // -9.0
+  'America/Los_Angeles', // -8.0
+  'America/Yellowknife', // -7.0
+  'America/Phoenix', // -7.0
+  'America/Denver', // -7.0
+  'America/Mexico_City', // -6.0
+  'America/Chicago', // -6.0
+  'America/New_York', // -5.0
+  'America/Argentina/Buenos_Aires', // -4.0
+  'Etc/UTC', // +0.0
+  'Europe/London', // +0.0
+  'Europe/Paris', // +1.0
+  'Asia/Jerusalem', // +2.0
+  'Asia/Shanghai', // +8.0
+  'Asia/Hong_Kong', // +8.0
+  'Asia/Seoul', // +9.0
+  'Asia/Tokyo', // +9.0
+  'Pacific/Guam', // +10.0
+  'Australia/Sydney', // +11.0
+];
 
 export interface RunPanelProps {
   query: WorkbenchQuery;
@@ -69,6 +93,7 @@ export interface RunPanelProps {
 export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const { query, onQueryChange, onRun, moreMenu, loading, small, queryEngines } = props;
   const [editContextDialogOpen, setEditContextDialogOpen] = useState(false);
+  const [customTimezoneDialogOpen, setCustomTimezoneDialogOpen] = useState(false);
 
   const emptyQuery = query.isEmptyQuery();
   const ingestMode = query.isIngestQuery();
@@ -82,6 +107,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   const useApproximateCountDistinct = getUseApproximateCountDistinct(queryContext);
   const useApproximateTopN = getUseApproximateTopN(queryContext);
   const useCache = getUseCache(queryContext);
+  const timezone = getTimezone(queryContext);
 
   const handleRun = useCallback(() => {
     if (!onRun) return;
@@ -133,6 +159,27 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
   }
 
   const availableEngines = ([undefined] as (DruidEngine | undefined)[]).concat(queryEngines);
+
+  function offsetOptions(): JSX.Element[] {
+    const items: JSX.Element[] = [];
+
+    for (let i = -12; i <= 14; i++) {
+      const offset = `${i < 0 ? '-' : '+'}${String(Math.abs(i)).padStart(2, '0')}:00`;
+      items.push(
+        <MenuItem
+          key={offset}
+          icon={tickIcon(offset === timezone)}
+          text={offset}
+          shouldDismissPopover={false}
+          onClick={() => {
+            onQueryChange(query.changeQueryContext(changeTimezone(queryContext, offset)));
+          }}
+        />,
+      );
+    }
+
+    return items;
+  }
 
   const effectiveEngine = query.getEffectiveEngine();
   return (
@@ -258,20 +305,60 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                   </>
                 )}
                 {effectiveEngine !== 'native' && (
-                  <MenuCheckbox
-                    checked={useApproximateCountDistinct}
-                    text="Use approximate COUNT(DISTINCT)"
-                    onChange={() => {
-                      onQueryChange(
-                        query.changeQueryContext(
-                          changeUseApproximateCountDistinct(
-                            queryContext,
-                            !useApproximateCountDistinct,
+                  <>
+                    <MenuCheckbox
+                      checked={useApproximateCountDistinct}
+                      text="Use approximate COUNT(DISTINCT)"
+                      onChange={() => {
+                        onQueryChange(
+                          query.changeQueryContext(
+                            changeUseApproximateCountDistinct(
+                              queryContext,
+                              !useApproximateCountDistinct,
+                            ),
                           ),
-                        ),
-                      );
-                    }}
-                  />
+                        );
+                      }}
+                    />
+                    <MenuItem icon={IconNames.TIME} text="Timezone" label={timezone || 'default'}>
+                      <MenuDivider title="Timezone type" />
+                      <MenuItem
+                        icon={tickIcon(!timezone)}
+                        text="Default"
+                        shouldDismissPopover={false}
+                        onClick={() => {
+                          onQueryChange(
+                            query.changeQueryContext(changeTimezone(queryContext, undefined)),
+                          );
+                        }}
+                      />
+                      <MenuItem icon={tickIcon(String(timezone).includes('/'))} text="Named">
+                        {NAMED_TIMEZONES.map(namedTimezone => (
+                          <MenuItem
+                            key={namedTimezone}
+                            icon={tickIcon(namedTimezone === timezone)}
+                            text={namedTimezone}
+                            shouldDismissPopover={false}
+                            onClick={() => {
+                              onQueryChange(
+                                query.changeQueryContext(
+                                  changeTimezone(queryContext, namedTimezone),
+                                ),
+                              );
+                            }}
+                          />
+                        ))}
+                      </MenuItem>
+                      <MenuItem icon={tickIcon(String(timezone).includes(':'))} text="Offset">
+                        {offsetOptions()}
+                      </MenuItem>
+                      <MenuItem
+                        icon={IconNames.BLANK}
+                        text="Custom"
+                        onClick={() => setCustomTimezoneDialogOpen(true)}
+                      />
+                    </MenuItem>
+                  </>
                 )}
                 <MenuCheckbox
                   checked={!query.unlimited}
@@ -318,6 +405,15 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
           onClose={() => {
             setEditContextDialogOpen(false);
           }}
+        />
+      )}
+      {customTimezoneDialogOpen && (
+        <StringInputDialog
+          title="Custom timezone"
+          placeholder="Etc/UTC"
+          maxLength={50}
+          onSubmit={tz => onQueryChange(query.changeQueryContext(changeTimezone(queryContext, tz)))}
+          onClose={() => setCustomTimezoneDialogOpen(false)}
         />
       )}
     </div>

@@ -104,7 +104,7 @@ export const MaxTasksButton = function MaxTasksButton(props: MaxTasksButtonProps
           }
           minValue={2}
           initValue={maxNumTasks}
-          onSave={p => {
+          onSubmit={p => {
             changeQueryContext(changeMaxNumTasks(queryContext, p));
           }}
           onClose={() => setCustomMaxNumTasksDialogOpen(false)}

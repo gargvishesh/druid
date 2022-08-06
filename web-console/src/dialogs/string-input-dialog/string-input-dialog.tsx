@@ -19,18 +19,19 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-export interface StringSubmitDialogProps {
+export interface StringInputDialogProps {
   title: string;
   initValue?: string;
   placeholder?: string;
+  maxLength?: number;
   onSubmit(str: string): void;
   onClose(): void;
 }
 
-export const StringSubmitDialog = React.memo(function StringSubmitDialog(
-  props: StringSubmitDialogProps,
+export const StringInputDialog = React.memo(function StringSubmitDialog(
+  props: StringInputDialogProps,
 ) {
-  const { title, initValue, placeholder, onSubmit, onClose } = props;
+  const { title, initValue, placeholder, maxLength, onSubmit, onClose } = props;
 
   const [value, setValue] = useState(initValue || '');
 
@@ -40,11 +41,11 @@ export const StringSubmitDialog = React.memo(function StringSubmitDialog(
   }
 
   return (
-    <Dialog className="string-submit-dialog" isOpen onClose={onClose} title={title}>
+    <Dialog className="string-input-dialog" isOpen onClose={onClose} title={title}>
       <div className={Classes.DIALOG_BODY}>
         <InputGroup
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={e => setValue(String(e.target.value).substring(0, maxLength || 280))}
           autoFocus
           placeholder={placeholder}
         />

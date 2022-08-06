@@ -26,14 +26,14 @@ interface NumericInputDialogProps {
   message?: JSX.Element;
   minValue?: number;
   initValue: number;
-  onSave(value: number): void;
+  onSubmit(value: number): void;
   onClose(): void;
 }
 
 export const NumericInputDialog = React.memo(function NumericInputDialog(
   props: NumericInputDialogProps,
 ) {
-  const { title, message, minValue, initValue, onSave, onClose } = props;
+  const { title, message, minValue, initValue, onSubmit, onClose } = props;
 
   const [value, setValue] = useState<number>(initValue);
 
@@ -68,7 +68,7 @@ export const NumericInputDialog = React.memo(function NumericInputDialog(
             text="OK"
             intent={Intent.PRIMARY}
             onClick={() => {
-              onSave(value);
+              onSubmit(value);
               onClose();
             }}
           />
