@@ -23,7 +23,6 @@ import {
   ButtonGroup,
   Callout,
   Card,
-  Classes,
   Code,
   FormGroup,
   H5,
@@ -135,13 +134,12 @@ import {
   EMPTY_OBJECT,
   filterMap,
   getDruidErrorMessage,
-  localStorageGet,
+  localStorageGetJson,
   LocalStorageKeys,
-  localStorageSet,
+  localStorageSetJson,
   moveElement,
   moveToIndex,
   oneOf,
-  parseJson,
   pluralIfNeeded,
   QueryState,
 } from '../../utils';
@@ -310,8 +308,10 @@ const VIEW_TITLE: Record<Step, string> = {
   loading: 'Loading',
 };
 
+export type LoadDataViewMode = 'all' | 'streaming' | 'batch';
+
 export interface LoadDataViewProps {
-  mode: 'all' | 'streaming' | 'batch';
+  mode: LoadDataViewMode;
   initSupervisorId?: string;
   initTaskId?: string;
   exampleManifestsUrl?: string;
@@ -383,10 +383,19 @@ export interface LoadDataViewState {
 }
 
 export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDataViewState> {
+  static MODE_TO_KEY: Record<LoadDataViewMode, LocalStorageKeys> = {
+    all: LocalStorageKeys.INGESTION_SPEC,
+    streaming: LocalStorageKeys.STREAMING_INGESTION_SPEC,
+    batch: LocalStorageKeys.BATCH_INGESTION_SPEC,
+  };
+
+  private readonly localStorageKey: LocalStorageKeys;
+
   constructor(props: LoadDataViewProps) {
     super(props);
 
-    let spec = parseJson(String(localStorageGet(LocalStorageKeys.INGESTION_SPEC)));
+    this.localStorageKey = LoadDataView.MODE_TO_KEY[props.mode];
+    let spec = localStorageGetJson(this.localStorageKey);
     if (!spec || typeof spec !== 'object') spec = {};
     this.state = {
       step: 'loading',
@@ -553,7 +562,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       deltaState.cacheRows = undefined;
     }
     this.setState(deltaState as LoadDataViewState);
-    localStorageSet(LocalStorageKeys.INGESTION_SPEC, JSONBig.stringify(newSpec));
+    localStorageSetJson(this.localStorageKey, newSpec);
   };
 
   private readonly updateSpecPreview = (newSpecPreview: Partial<IngestionSpec>) => {
@@ -563,7 +572,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
   private readonly applyPreviewSpec = () => {
     this.setState(({ spec, nextSpec }) => {
       if (nextSpec) {
-        localStorageSet(LocalStorageKeys.INGESTION_SPEC, JSONBig.stringify(nextSpec));
+        localStorageSetJson(this.localStorageKey, nextSpec);
       }
       return { spec: nextSpec ? nextSpec : { ...spec }, nextSpec: undefined }; // If applying again, make a shallow copy to force a refresh
     });
@@ -642,21 +651,23 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
   }
 
   render(): JSX.Element {
+    const { mode } = this.props;
     const { step, continueToSpec } = this.state;
+    const type = mode === 'all' ? '' : `${mode} `;
 
     if (!continueToSpec) {
       return (
         <div className={classNames('load-data-continue-view load-data-view')}>
           {this.renderActionCard(
             IconNames.ASTERISK,
-            'Start a new spec',
-            'Begin a new ingestion flow',
+            `Start a new ${type}spec`,
+            `Begin a new ${type}ingestion flow.`,
             this.handleResetSpec,
           )}
           {this.renderActionCard(
             IconNames.REPEAT,
-            'Continue from previous spec',
-            'Go back to the most recent spec you were working on',
+            `Continue from previous ${type}spec`,
+            `Go back to the most recent ${type}ingestion flow you were working on.`,
             this.handleContinueSpec,
           )}
         </div>
@@ -709,25 +720,27 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     const { step } = this.state;
 
     return (
-      <div className={classNames(Classes.TABS, 'step-nav')}>
-        {SECTIONS.map(section => (
-          <div className="step-section" key={section.name}>
-            <div className="step-nav-l1">{section.name}</div>
-            <ButtonGroup className="step-nav-l2">
-              {section.steps.map(s => (
-                <Button
-                  className={s}
-                  key={s}
-                  active={s === step}
-                  onClick={() => this.updateStep(s)}
-                  icon={s === 'spec' && IconNames.MANUALLY_ENTERED_DATA}
-                  text={VIEW_TITLE[s]}
-                  disabled={!this.isStepEnabled(s)}
-                />
-              ))}
-            </ButtonGroup>
-          </div>
-        ))}
+      <div className="step-nav">
+        <div className="step-nav-inner">
+          {SECTIONS.map(section => (
+            <div className="step-section" key={section.name}>
+              <div className="step-nav-l1">{section.name}</div>
+              <ButtonGroup className="step-nav-l2">
+                {section.steps.map(s => (
+                  <Button
+                    className={s}
+                    key={s}
+                    active={s === step}
+                    onClick={() => this.updateStep(s)}
+                    icon={s === 'spec' && IconNames.MANUALLY_ENTERED_DATA}
+                    text={VIEW_TITLE[s]}
+                    disabled={!this.isStepEnabled(s)}
+                  />
+                ))}
+              </ButtonGroup>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -786,7 +799,10 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
 
     return (
       <Card
-        className={classNames({ disabled: !goodToGo, active: selectedComboType === comboType })}
+        className={classNames('ingestion-card', {
+          disabled: !goodToGo,
+          active: selectedComboType === comboType,
+        })}
         interactive
         elevation={1}
         onClick={e => {

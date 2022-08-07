@@ -250,14 +250,6 @@ export function pluralIfNeeded(n: NumberLike, singular: string, plural?: string)
 
 // ----------------------------
 
-export function parseJson(json: string): any {
-  try {
-    return JSONBig.parse(json);
-  } catch (e) {
-    return undefined;
-  }
-}
-
 export function validJson(json: string): boolean {
   try {
     JSONBig.parse(json);
