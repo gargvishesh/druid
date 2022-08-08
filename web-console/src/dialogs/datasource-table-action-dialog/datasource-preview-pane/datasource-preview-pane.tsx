@@ -57,6 +57,9 @@ export const DatasourcePreviewPane = React.memo(function DatasourcePreviewPane(
     <div className="datasource-preview-pane">
       {recordState.loading && <Loader />}
       {recordState.data && <RecordTablePane queryResult={recordState.data} />}
+      {recordState.error && (
+        <div className="datasource-preview-error">{recordState.error.message}</div>
+      )}
     </div>
   );
 });
