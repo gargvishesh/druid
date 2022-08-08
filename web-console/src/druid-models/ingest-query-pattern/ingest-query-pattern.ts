@@ -17,22 +17,13 @@
  */
 
 import {
-  Column,
-  LiteralValue,
-  QueryResult,
-  RefName,
-  SqlAlias,
-  SqlColumnList,
   SqlExpression,
   SqlFunction,
   SqlLiteral,
   SqlPartitionedByClause,
   SqlQuery,
-  SqlRecord,
-  SqlRef,
   SqlReplaceClause,
   SqlTableRef,
-  SqlValues,
   SqlWithPart,
 } from 'druid-query-toolkit';
 
@@ -243,56 +234,10 @@ export function fitIngestQueryPattern(query: SqlQuery): IngestQueryPattern {
   };
 }
 
-const SAMPLE_ARRAY_SEPARATOR = '-3432-d401-';
-
-function nullForColumn(column: Column): LiteralValue {
-  return oneOf(column.sqlType, 'BIGINT', 'DOUBLE', 'FLOAT') ? 0 : '';
-}
-
-function sampleDataToQuery(sample: QueryResult): SqlQuery {
-  const { header, rows } = sample;
-  const arrayIndexes: Record<number, boolean> = {};
-  return SqlQuery.create(
-    new SqlAlias({
-      expression: SqlValues.create(
-        rows.map(row =>
-          SqlRecord.create(
-            row.map((r, i) => {
-              if (header[i].nativeType === 'COMPLEX<json>') {
-                return SqlLiteral.create(JSON.stringify(r));
-              } else if (Array.isArray(r)) {
-                arrayIndexes[i] = true;
-                return SqlLiteral.create(r.join(SAMPLE_ARRAY_SEPARATOR));
-              } else {
-                // Avoid actually using NULL literals as they create havc in the VALUES type system and throw errors.
-                return SqlLiteral.create(r == null ? nullForColumn(header[i]) : r);
-              }
-            }),
-          ),
-        ),
-      ),
-      alias: RefName.alias('t'),
-      columns: SqlColumnList.create(header.map((_, i) => RefName.create(`c${i}`, true))),
-    }),
-  ).changeSelectExpressions(
-    header.map((h, i) => {
-      let ex: SqlExpression = SqlRef.column(`c${i}`);
-      if (h.nativeType === 'COMPLEX<json>') {
-        ex = SqlFunction.simple('PARSE_JSON', [ex]);
-      } else if (arrayIndexes[i]) {
-        ex = SqlFunction.simple('STRING_TO_MV', [ex, SqlLiteral.create(SAMPLE_ARRAY_SEPARATOR)]);
-      } else if (h.sqlType) {
-        ex = ex.cast(h.sqlType);
-      }
-      return ex.as(h.name, true);
-    }),
-  );
-}
-
 export function ingestQueryPatternToQuery(
   ingestQueryPattern: IngestQueryPattern,
   preview?: boolean,
-  sample?: QueryResult,
+  sampleDataQuery?: SqlQuery,
 ): SqlQuery {
   const {
     destinationTableName,
@@ -315,12 +260,10 @@ export function ingestQueryPatternToQuery(
     .changeWithParts([
       SqlWithPart.simple(
         mainExternalName,
-        sample
-          ? sampleDataToQuery(sample)
-          : SqlQuery.create(externalConfigToTableExpression(mainExternalConfig)).applyIf(
-              preview,
-              q => q.changeLimitValue(10000),
-            ),
+        sampleDataQuery ||
+          SqlQuery.create(externalConfigToTableExpression(mainExternalConfig)).applyIf(preview, q =>
+            q.changeLimitValue(10000),
+          ),
       ),
     ])
     .applyForEach(dimensions, (query, ex) =>

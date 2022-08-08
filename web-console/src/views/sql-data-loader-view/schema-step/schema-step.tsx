@@ -76,6 +76,7 @@ import {
   oneOf,
   QueryAction,
   queryDruidSql,
+  sampleDataToQuery,
   tickIcon,
   timeFormatToSql,
   wait,
@@ -413,9 +414,14 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     backgroundStatusCheck: executionBackgroundResultStatusCheck,
   });
 
+  const sampleDataQuery = useMemo(() => {
+    if (!sampleState.data) return;
+    return sampleDataToQuery(sampleState.data);
+  }, [sampleState.data]);
+
   const previewQueryString = useLastDefined(
-    ingestQueryPattern && mode !== 'sql' && sampleState.data
-      ? ingestQueryPatternToQuery(ingestQueryPattern, true, sampleState.data).toString()
+    ingestQueryPattern && mode !== 'sql' && sampleDataQuery
+      ? ingestQueryPatternToQuery(ingestQueryPattern, true, sampleDataQuery).toString()
       : undefined,
   );
 
@@ -629,6 +635,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           </Button>
           {ingestQueryPattern && existingTableState.data && (
             <Button
+              className="destination-button"
               icon={IconNames.MULTI_SELECT}
               minimal
               onClick={() => setShowDestinationDialog(true)}
@@ -916,7 +923,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         {showRollupAnalysisPane && ingestQueryPattern && (
           <RollupAnalysisPane
             dimensions={ingestQueryPattern.dimensions}
-            seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true, sampleState.data)}
+            seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true, sampleDataQuery)}
             queryResult={previewResultState.data}
             onEditColumn={handleColumnSelect}
             onClose={() => setShowRollupAnalysisPane(false)}
