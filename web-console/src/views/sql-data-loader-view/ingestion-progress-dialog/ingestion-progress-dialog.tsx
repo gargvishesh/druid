@@ -107,6 +107,7 @@ export const IngestionProgressDialog = React.memo(function IngestionProgressDial
             <Button
               icon={IconNames.GANTT_CHART}
               text="Go to Ingestion view"
+              rightIcon={IconNames.ARROW_TOP_RIGHT}
               onClick={() => {
                 if (!insertResultState.intermediate) return;
                 goToIngestion(insertResultState.intermediate.id);

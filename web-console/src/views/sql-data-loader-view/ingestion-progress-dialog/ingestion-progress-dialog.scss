@@ -28,6 +28,6 @@
   }
 
   .#{$bp-ns}-dialog-body {
-    max-height: 300px;
+    min-height: 160px;
   }
 }
