@@ -16,16 +16,58 @@
  * limitations under the License.
  */
 
+@import '../../variables';
+
 .sql-data-loader-view {
   height: 100%;
   width: 100%;
   position: relative;
 
   .title-frame,
+  .resume-step,
   .loading-step,
   .error-step {
     width: 100%;
     height: 100%;
+  }
+
+  .resume-step {
+    text-align: center;
+
+    .spec-card {
+      display: inline-block;
+      vertical-align: top;
+      position: relative;
+      width: 440px;
+      height: 120px;
+      margin: 10px;
+      text-align: left;
+
+      .spec-card-icon {
+        position: absolute;
+        top: 26px;
+        left: 20px;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      .spec-card-header {
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 32px;
+        padding-left: 36px;
+
+        .spec-card-caption {
+          font-size: 13px;
+          line-height: 20px;
+          font-weight: 400;
+          color: $gray4;
+        }
+      }
+    }
   }
 
   .loading-step {

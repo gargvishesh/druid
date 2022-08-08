@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import { Card, Icon, IconName } from '@blueprintjs/core';
+import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
 import {
@@ -49,15 +51,48 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
   const [queryWithContext, setQueryWithContext] = useLocalStorageState<
     QueryWithContext | undefined
   >(LocalStorageKeys.SQL_DATA_LOADER_CONTENT);
+  const [needVerify, setNeedVerify] = useState(Boolean(queryWithContext));
   const [runningQueryWithContext, setRunningQueryWithContext] = useState<
     QueryWithContext | undefined
   >();
 
   const { inputSource, inputFormat } = externalConfigStep;
 
+  function renderActionCard(icon: IconName, title: string, caption: string, onClick: () => void) {
+    return (
+      <Card className="spec-card" interactive onClick={onClick} elevation={1}>
+        <Icon className="spec-card-icon" icon={icon} iconSize={30} />
+        <div className="spec-card-header">
+          {title}
+          <div className="spec-card-caption">{caption}</div>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <div className="sql-data-loader-view">
-      {queryWithContext ? (
+      {needVerify ? (
+        <div className="resume-step">
+          {renderActionCard(
+            IconNames.ASTERISK,
+            `Start a new flow`,
+            `Begin a new SQL ingestion flow.`,
+            () => {
+              setQueryWithContext(undefined);
+              setNeedVerify(false);
+            },
+          )}
+          {renderActionCard(
+            IconNames.REPEAT,
+            `Continue from previous flow`,
+            `Go back to the most recent SQL ingestion flow you were working on.`,
+            () => {
+              setNeedVerify(false);
+            },
+          )}
+        </div>
+      ) : queryWithContext ? (
         <SchemaStep
           queryString={queryWithContext.queryString}
           onQueryStringChange={queryString =>
