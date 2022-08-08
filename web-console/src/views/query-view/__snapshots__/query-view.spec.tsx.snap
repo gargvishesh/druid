@@ -135,6 +135,7 @@ exports[`QueryView matches snapshot 1`] = `
         <Memo(LiveQueryModeButton)
           autoLiveQueryModeShouldRun={true}
           liveQueryMode="auto"
+          minimal={true}
           onLiveQueryModeChange={[Function]}
         />
         <Memo(QueryTimer) />
@@ -287,6 +288,7 @@ exports[`QueryView matches snapshot with query 1`] = `
         <Memo(LiveQueryModeButton)
           autoLiveQueryModeShouldRun={true}
           liveQueryMode="auto"
+          minimal={true}
           onLiveQueryModeChange={[Function]}
         />
         <Memo(QueryTimer) />

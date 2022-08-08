@@ -9,7 +9,6 @@ exports[`HeaderBar matches snapshot 1`] = `
   >
     <a
       href="#"
-      onClick={[Function]}
     >
       <Memo(DruidLogo) />
     </a>
@@ -24,15 +23,79 @@ exports[`HeaderBar matches snapshot 1`] = `
       onClick={[Function]}
       text="Query"
     />
-    <Blueprint4.AnchorButton
-      active={false}
-      className="header-entry"
+    <Blueprint4.Popover2
+      boundary="clippingParents"
+      captureDismiss={false}
+      content={
+        <Blueprint4.Menu>
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#streaming-data-loader"
+            icon="feed"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Streaming"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#sql-data-loader"
+            icon="clean"
+            labelElement={
+              <Blueprint4.Tag
+                minimal={true}
+              >
+                multi-stage-query
+              </Blueprint4.Tag>
+            }
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Batch - SQL"
+          />
+          <Blueprint4.MenuItem
+            active={false}
+            disabled={false}
+            href="#classic-batch-data-loader"
+            icon="list"
+            multiline={false}
+            popoverProps={Object {}}
+            selected={false}
+            shouldDismissPopover={true}
+            text="Batch - classic"
+          />
+        </Blueprint4.Menu>
+      }
+      defaultIsOpen={false}
       disabled={false}
-      href="#data-loader"
-      icon="cloud-upload"
-      minimal={true}
-      text="Load data"
-    />
+      fill={false}
+      hasBackdrop={false}
+      hoverCloseDelay={300}
+      hoverOpenDelay={150}
+      inheritDarkTheme={true}
+      interactionKind="click"
+      minimal={false}
+      openOnTargetFocus={true}
+      position="bottom-left"
+      positioningStrategy="absolute"
+      shouldReturnFocusOnClose={false}
+      targetTagName="span"
+      transitionDuration={300}
+      usePortal={true}
+    >
+      <Blueprint4.Button
+        active={false}
+        className="header-entry"
+        disabled={false}
+        icon="cloud-upload"
+        minimal={true}
+        text="Load data"
+      />
+    </Blueprint4.Popover2>
     <Blueprint4.NavbarDivider />
     <Blueprint4.AnchorButton
       active={false}

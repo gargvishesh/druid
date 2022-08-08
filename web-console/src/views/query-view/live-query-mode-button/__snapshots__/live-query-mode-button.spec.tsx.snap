@@ -65,9 +65,7 @@ exports[`LiveQueryModeButton matches snapshot auto 1`] = `
   <Blueprint4.Button
     className="live-query-mode-button"
   >
-    <span>
-      Live query:
-    </span>
+    Live query:
      
     <span
       className="auto auto-on"
@@ -143,9 +141,7 @@ exports[`LiveQueryModeButton matches snapshot on 1`] = `
   <Blueprint4.Button
     className="live-query-mode-button"
   >
-    <span>
-      Live query:
-    </span>
+    Live query:
      
     <span
       className="on auto-on"

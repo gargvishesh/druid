@@ -48,7 +48,6 @@ export const LocalStorageKeys = {
   WORKBENCH_HISTORY: 'workbench-history' as const,
   WORKBENCH_TASK_PANEL: 'workbench-task-panel' as const,
 
-  SQL_DATA_LOADER_SHOW: 'sql-data-loader-show' as const,
   SQL_DATA_LOADER_CONTENT: 'sql-data-loader-content' as const,
 
   // BEGIN: Imply-added code for the user management
