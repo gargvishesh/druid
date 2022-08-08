@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`LiveQueryModeSelector matches snapshot auto 1`] = `
+exports[`LiveQueryModeButton matches snapshot auto 1`] = `
 <Blueprint4.Popover2
   boundary="clippingParents"
   captureDismiss={false}
@@ -52,9 +52,9 @@ exports[`LiveQueryModeSelector matches snapshot auto 1`] = `
   hoverOpenDelay={150}
   inheritDarkTheme={true}
   interactionKind="click"
-  minimal={true}
+  minimal={false}
   openOnTargetFocus={true}
-  portalClassName="live-query-mode-selector-portal"
+  portalClassName="live-query-mode-button-portal"
   position="bottom-left"
   positioningStrategy="absolute"
   shouldReturnFocusOnClose={false}
@@ -63,8 +63,7 @@ exports[`LiveQueryModeSelector matches snapshot auto 1`] = `
   usePortal={true}
 >
   <Blueprint4.Button
-    className="live-query-mode-selector"
-    minimal={true}
+    className="live-query-mode-button"
   >
     <span>
       Live query:
@@ -79,7 +78,7 @@ exports[`LiveQueryModeSelector matches snapshot auto 1`] = `
 </Blueprint4.Popover2>
 `;
 
-exports[`LiveQueryModeSelector matches snapshot on 1`] = `
+exports[`LiveQueryModeButton matches snapshot on 1`] = `
 <Blueprint4.Popover2
   boundary="clippingParents"
   captureDismiss={false}
@@ -131,9 +130,9 @@ exports[`LiveQueryModeSelector matches snapshot on 1`] = `
   hoverOpenDelay={150}
   inheritDarkTheme={true}
   interactionKind="click"
-  minimal={true}
+  minimal={false}
   openOnTargetFocus={true}
-  portalClassName="live-query-mode-selector-portal"
+  portalClassName="live-query-mode-button-portal"
   position="bottom-left"
   positioningStrategy="absolute"
   shouldReturnFocusOnClose={false}
@@ -142,8 +141,7 @@ exports[`LiveQueryModeSelector matches snapshot on 1`] = `
   usePortal={true}
 >
   <Blueprint4.Button
-    className="live-query-mode-selector"
-    minimal={true}
+    className="live-query-mode-button"
   >
     <span>
       Live query:

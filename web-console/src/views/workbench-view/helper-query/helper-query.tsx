@@ -97,7 +97,17 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   const handleQueryAction = usePermanentCallback((queryAction: QueryAction) => {
     if (!(parsedQuery instanceof SqlQuery)) return;
     onQueryChange(query.changeQueryString(parsedQuery.apply(queryAction).toString()));
+
+    if (shouldAutoRun()) {
+      setTimeout(() => handleRun(false), 20);
+    }
   });
+
+  function shouldAutoRun(): boolean {
+    if (query.getEffectiveEngine() !== 'sql') return false;
+    const queryDuration = executionState.data?.result?.queryDuration;
+    return Boolean(queryDuration && queryDuration < 10000);
+  }
 
   const queryInputRef = useRef<FlexibleQueryInput | null>(null);
 
@@ -218,12 +228,12 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
     currentQueryInput.goToPosition(position);
   }
 
-  function handleRun(preview = true) {
+  const handleRun = usePermanentCallback((preview: boolean) => {
     if (!query.isValid()) return;
 
     WorkbenchHistory.addQueryToHistory(query);
     queryManager.runQuery(preview ? query.makePreview() : query);
-  }
+  });
 
   const collapsed = query.getCollapsed();
   const insertDatasource = query.getIngestDatasource();

@@ -132,7 +132,7 @@ exports[`QueryView matches snapshot 1`] = `
             onChange={[Function]}
           />
         </Blueprint4.Tooltip2>
-        <Memo(LiveQueryModeSelector)
+        <Memo(LiveQueryModeButton)
           autoLiveQueryModeShouldRun={true}
           liveQueryMode="auto"
           onLiveQueryModeChange={[Function]}
@@ -284,7 +284,7 @@ exports[`QueryView matches snapshot with query 1`] = `
             onChange={[Function]}
           />
         </Blueprint4.Tooltip2>
-        <Memo(LiveQueryModeSelector)
+        <Memo(LiveQueryModeButton)
           autoLiveQueryModeShouldRun={true}
           liveQueryMode="auto"
           onLiveQueryModeChange={[Function]}
