@@ -192,6 +192,10 @@ title: Release notes
   you run into this issue, try using a smaller number of worker tasks or you can increase the heap
   size of your Indexers or of your Middle Manager-launched indexing tasks. (17932)
 
+- Ingesting a very long row may consume excessive memory and result in an OutOfMemoryError. If a row is read 
+  which requires more memory than is available, the service might throw OutOfMemoryError. If you run into this
+  issue, allocate enough memory to be able to store the largest row to the indexer. (16919)
+
 ### SELECT queries
 
 - SELECT query results do not include real-time data until it has been published. (18092)
