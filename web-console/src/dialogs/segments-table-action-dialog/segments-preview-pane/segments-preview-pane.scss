@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-.datasource-preview-pane {
+.segments-preview-pane {
   position: relative;
   height: 100%;
 
   .record-table-pane {
     height: 100%;
   }
-  .datasource-preview-error {
+  .segments-preview-error {
     color: #9e2b0e;
+    height: 100%;
   }
 }
