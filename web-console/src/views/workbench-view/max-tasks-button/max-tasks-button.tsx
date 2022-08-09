@@ -21,6 +21,7 @@ import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 
+import { NumericInputDialog } from '../../../dialogs';
 import {
   changeMaxNumTasks,
   changeTaskAssigment,
@@ -29,7 +30,6 @@ import {
   QueryContext,
 } from '../../../druid-models';
 import { formatInteger, tickIcon } from '../../../utils';
-import { NumericInputDialog } from '../numeric-input-dialog/numeric-input-dialog';
 
 const MAX_NUM_TASK_OPTIONS = [2, 3, 4, 5, 7, 9, 11, 17, 33, 65];
 const TASK_ASSIGNMENT_OPTIONS = ['max', 'auto'];
@@ -104,7 +104,7 @@ export const MaxTasksButton = function MaxTasksButton(props: MaxTasksButtonProps
           }
           minValue={2}
           initValue={maxNumTasks}
-          onSave={p => {
+          onSubmit={p => {
             changeQueryContext(changeMaxNumTasks(queryContext, p));
           }}
           onClose={() => setCustomMaxNumTasksDialogOpen(false)}

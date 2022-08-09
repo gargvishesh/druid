@@ -23,6 +23,7 @@ export interface QueryContext {
   populateCache?: boolean;
   useApproximateCountDistinct?: boolean;
   useApproximateTopN?: boolean;
+  sqlTimeZone?: string;
 
   // Multi-stage query
   maxNumTasks?: number;
@@ -36,12 +37,12 @@ export interface QueryContext {
 
 export interface QueryWithContext {
   queryString: string;
-  queryContext: QueryContext;
+  queryContext?: QueryContext;
   wrapQueryLimit?: number;
 }
 
-export function isEmptyContext(context: QueryContext): boolean {
-  return Object.keys(context).length === 0;
+export function isEmptyContext(context: QueryContext | undefined): boolean {
+  return !context || Object.keys(context).length === 0;
 }
 
 // -----------------------------
@@ -96,6 +97,20 @@ export function changeUseApproximateTopN(
     return deepDelete(context, 'useApproximateTopN');
   } else {
     return deepSet(context, 'useApproximateTopN', false);
+  }
+}
+
+// sqlTimeZone
+
+export function getTimezone(context: QueryContext): string | undefined {
+  return context.sqlTimeZone;
+}
+
+export function changeTimezone(context: QueryContext, timezone: string | undefined): QueryContext {
+  if (timezone) {
+    return deepSet(context, 'sqlTimeZone', timezone);
+  } else {
+    return deepDelete(context, 'sqlTimeZone');
   }
 }
 

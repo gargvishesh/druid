@@ -217,7 +217,12 @@ export const QueryOutput = React.memo(function QueryOutput(props: QueryOutputPro
         icon={icon}
         text={`${having ? 'Having' : 'Filter on'}: ${prettyPrintSql(clause)}`}
         onClick={() => {
-          onQueryAction(having ? q => q.addHaving(clause) : q => q.addWhere(clause));
+          const column = clause.getUsedColumns()[0];
+          onQueryAction(
+            having
+              ? q => q.removeFromHaving(column).addHaving(clause)
+              : q => q.removeColumnFromWhere(column).addWhere(clause),
+          );
         }}
       />
     );

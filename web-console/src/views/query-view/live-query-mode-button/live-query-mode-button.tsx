@@ -23,7 +23,7 @@ import React from 'react';
 
 import { tickIcon } from '../../../utils';
 
-import './live-query-mode-selector.scss';
+import './live-query-mode-button.scss';
 
 export type LiveQueryMode = 'auto' | 'on' | 'off';
 export const LIVE_QUERY_MODES: LiveQueryMode[] = ['auto', 'on', 'off'];
@@ -33,21 +33,22 @@ export const LIVE_QUERY_MODE_TITLE: Record<LiveQueryMode, string> = {
   off: 'Off',
 };
 
-export interface LiveQueryModeSelectorProps {
+export interface LiveQueryModeButtonProps {
   liveQueryMode: LiveQueryMode;
-  onLiveQueryModeChange: (liveQueryMode: LiveQueryMode) => void;
+  onLiveQueryModeChange(liveQueryMode: LiveQueryMode): void;
   autoLiveQueryModeShouldRun: boolean;
+  minimal?: boolean;
 }
 
-export const LiveQueryModeSelector = React.memo(function LiveQueryModeSelector(
-  props: LiveQueryModeSelectorProps,
+export const LiveQueryModeButton = React.memo(function LiveQueryModeButton(
+  props: LiveQueryModeButtonProps,
 ) {
-  const { liveQueryMode, onLiveQueryModeChange, autoLiveQueryModeShouldRun } = props;
+  const { liveQueryMode, onLiveQueryModeChange, autoLiveQueryModeShouldRun, minimal } = props;
 
   return (
     <Popover2
-      portalClassName="live-query-mode-selector-portal"
-      minimal
+      portalClassName="live-query-mode-button-portal"
+      minimal={minimal}
       position={PopoverPosition.BOTTOM_LEFT}
       content={
         <Menu>
@@ -66,8 +67,8 @@ export const LiveQueryModeSelector = React.memo(function LiveQueryModeSelector(
         </Menu>
       }
     >
-      <Button minimal className="live-query-mode-selector">
-        <span>Live query:</span>{' '}
+      <Button className="live-query-mode-button" minimal={minimal}>
+        Live query:{' '}
         <span
           className={classNames(liveQueryMode, autoLiveQueryModeShouldRun ? 'auto-on' : 'auto-off')}
         >

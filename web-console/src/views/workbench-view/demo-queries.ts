@@ -43,7 +43,7 @@ export function getDemoQueries(): TabEntry[] {
 -- You can click the "Preview" button if you want to see a preview of the shape of the data that will be ingested and then
 -- click "Run" to actually create the kttm_simple datasource (it will be needed for later demos).
 --
--- The ingestion here is as simple as it could be (SELECT *), in "Demo 2" we will perform more transformations on the data.
+-- The ingestion here is as simple as it could be (SELECT *), in "Demo 2" you will perform more transformations on the data.
 
 REPLACE INTO "kttm_simple" OVERWRITE ALL
 SELECT *
@@ -68,10 +68,10 @@ PARTITIONED BY ALL TIME
 --
 -- In this ingestion, you:
 --  - select only a handful of columns.
---  - parse the "timestamp" column and truncate it to MINUTE and make it the "primary time column" by aliasing it to __time
---  - filter the rows with a WHERE clause so that only data for 'iOS' is ingested
---  - perform "rollup" by applying a GROUP BY clause and specifying some aggregates ("metrics")
---  - apply time based partitioning as well as clustering on two columns
+--  - parse the "timestamp" column, truncate it to MINUTE, and make it the "primary time column" by aliasing it to __time.
+--  - filter the rows with a WHERE clause so that only data for 'iOS' is ingested.
+--  - perform "rollup" by applying a GROUP BY clause and specifying some aggregates ("metrics").
+--  - apply time based partitioning as well as clustering on two columns.
 --
 -- In Demo 3, you'll enrich data at ingestion time by transforming it further.
 
@@ -116,11 +116,11 @@ CLUSTERED BY browser, session
       query: BASE_QUERY.duplicate().changeQueryString(
         `
 -- This demo has the same query as Demo 2, except that it utilizes an additional external data file (you can have as many
--- as you want) to enrich the data via a JOIN. Specifically for every country in the fact data we add a column for Capital
+-- as you want) to enrich the data via a JOIN. Specifically for every country in the fact data you add a column for Capital
 -- and that countries ISO3 code.
 -- This query also computes a derived column, "browser_major", by applying a SQL transformation.
 --
--- In the next demo we will see how you are not limited to reading external data in these queries.
+-- In the next demo you will see how you are not limited to reading external data in these queries.
 
 REPLACE INTO "kttm_etl" OVERWRITE ALL
 WITH
@@ -178,7 +178,7 @@ CLUSTERED BY browser, session
 -- file, it reads the "kttm_simple" datasource that was created in Demo 1.
 -- This shows you that you can mix and match data already stored in Druid with external data and transform as needed.
 --
--- In the next demo we will look at another type of data transformation.
+-- In the next demo you will look at another type of data transformation.
 
 REPLACE INTO "kttm_reingest" OVERWRITE ALL
 WITH
@@ -225,8 +225,8 @@ CLUSTERED BY browser, session
       query: BASE_QUERY.duplicate().changeQueryString(
         `
 -- Imagine you are an avid reader of https://www.reddit.com/r/MapsWithoutNZ and want your data to reflect your cartography
--- humor. In this demo we transform the datasource created in the first demo to remove all entries for 'New Zealand'.
--- Notice that we can read and write to the same datasource.
+-- humor. In this demo you transform the datasource created in Demo 1 to remove all entries for 'New Zealand'.
+-- Notice that you can read and write to the same datasource.
 -- You can open a new tab and run 'SELECT COUNT(*) FROM kttm_simple' before and after running this query to see the change.
 
 REPLACE INTO kttm_simple OVERWRITE ALL
@@ -287,7 +287,7 @@ LIMIT 10
       query: BASE_QUERY.duplicate()
         .changeQueryString(
           `
--- At the heart of the sql-task engine is the ability to sort arbitrarily large amounts of data. Demo 6 
+-- At the heart of the sql-task engine is the ability to sort arbitrarily large amounts of data. Demo 6
 -- re-sorts the kttm_simple datasource on an arbitrary sort condition. This isn't possible with the "sql" or "native"
 -- engines since it requires the same order of magnitude of resources as ingesting the entire dataset over again.
 

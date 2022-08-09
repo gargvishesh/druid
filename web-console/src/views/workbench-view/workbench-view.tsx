@@ -24,12 +24,11 @@ import copy from 'copy-to-clipboard';
 import { SqlQuery } from 'druid-query-toolkit';
 import React from 'react';
 
-import { SpecDialog, StringSubmitDialog } from '../../dialogs';
+import { SpecDialog, StringInputDialog } from '../../dialogs';
 import {
   DruidEngine,
   Execution,
   guessDataSourceNameFromInputSource,
-  QueryContext,
   QueryWithContext,
   TabEntry,
   WorkbenchQuery,
@@ -83,8 +82,7 @@ function externalDataTabId(tabId: string | undefined): boolean {
 export interface WorkbenchViewProps {
   tabId: string | undefined;
   onTabChange(newTabId: string): void;
-  initQuery: string | undefined;
-  initContext: QueryContext | undefined;
+  initQueryWithContext: QueryWithContext | undefined;
   defaultQueryContext?: Record<string, any>;
   mandatoryQueryContext?: Record<string, any>;
   queryEngines: DruidEngine[];
@@ -118,7 +116,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   constructor(props: WorkbenchViewProps) {
     super(props);
-    const { queryEngines, initQuery, initContext } = props;
+    const { queryEngines, initQueryWithContext } = props;
 
     const possibleTabEntries: TabEntry[] = localStorageGetJson(LocalStorageKeys.WORKBENCH_QUERIES);
 
@@ -134,14 +132,14 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
         ? possibleTabEntries.map(q => ({ ...q, query: new WorkbenchQuery(q.query) }))
         : [];
 
-    if (initQuery) {
+    if (initQueryWithContext) {
       // Put it in the front so that it is the opened tab
       tabEntries.unshift({
         id: generate8HexId(),
         tabName: 'Opened query',
         query: WorkbenchQuery.blank()
-          .changeQueryString(initQuery)
-          .changeQueryContext(initContext || props.defaultQueryContext || {}),
+          .changeQueryString(initQueryWithContext.queryString)
+          .changeQueryContext(initQueryWithContext.queryContext || props.defaultQueryContext || {}),
       });
     }
 
@@ -242,9 +240,9 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
   }
 
   private getTabId(): string | undefined {
-    const { tabId, initQuery } = this.props;
+    const { tabId, initQueryWithContext } = this.props;
     if (tabId) return tabId;
-    if (initQuery) return; // If initialized from a query go to the first tab, forget about the last opened tab
+    if (initQueryWithContext) return; // If initialized from a query go to the first tab, forget about the last opened tab
     return localStorageGet(LocalStorageKeys.WORKBENCH_LAST_TAB);
   }
 
@@ -389,7 +387,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           this.handleNewTab(
             WorkbenchQuery.blank()
               .changeQueryString(converted.queryString)
-              .changeQueryContext(converted.queryContext),
+              .changeQueryContext(converted.queryContext || {}),
             'Convert ' + getSpecDatasourceName(spec as any),
           );
         }}
@@ -423,7 +421,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     if (!taskIdSubmitDialogOpen) return;
 
     return (
-      <StringSubmitDialog
+      <StringInputDialog
         title="Enter task ID"
         placeholder="taskId"
         onSubmit={async taskId => {

@@ -24,6 +24,13 @@ $controls-width: 305px;
 $gap: 15px;
 
 .schema-step {
+  .destination-button .#{$bp-ns}-button-text {
+    max-width: 230px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 150%;
+  }
+
   .schema-container {
     .loader-controls {
       position: absolute;

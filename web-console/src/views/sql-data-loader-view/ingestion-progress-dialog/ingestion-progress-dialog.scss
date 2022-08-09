@@ -18,19 +18,16 @@
 
 @import '../../../variables';
 
-.show-async-value-dialog {
-  &.#{$bp-ns}-dialog {
-    width: 90vw;
-    height: 90vh;
-    padding-bottom: 10px;
+.ingestion-progress-dialog {
+  position: absolute;
+  top: 20%;
+  margin: 0;
+
+  &.loading.#{$bp-ns}-dialog {
+    width: 75vw;
   }
 
-  .#{$bp-ns}-input {
-    margin: 10px;
-    flex: 1;
-  }
-
-  .#{$bp-ns}-dialog-footer-actions {
-    padding-right: 10px;
+  .#{$bp-ns}-dialog-body {
+    min-height: 160px;
   }
 }

@@ -40,6 +40,7 @@ import {
   SupervisorTableActionDialog,
   TaskTableActionDialog,
 } from '../../dialogs';
+import { QueryWithContext } from '../../druid-models';
 import {
   booleanCustomTableFilter,
   SMALL_TABLE_PAGE_SIZE,
@@ -113,7 +114,7 @@ export interface IngestionViewProps {
   datasourceId: string | undefined;
   openDialog: string | undefined;
   goToDatasource(datasource: string): void;
-  goToQuery(initSql: string): void;
+  goToQuery(queryWithContext: QueryWithContext): void;
   goToStreamingDataLoader(supervisorId?: string): void;
   goToClassicBatchDataLoader(taskId?: string): void;
   capabilities: Capabilities;
@@ -962,7 +963,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
             <MenuItem
               icon={IconNames.APPLICATION}
               text="View SQL query for table"
-              onClick={() => goToQuery(IngestionView.SUPERVISOR_SQL)}
+              onClick={() => goToQuery({ queryString: IngestionView.SUPERVISOR_SQL })}
             />
           )}
           <MenuItem
@@ -1081,7 +1082,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
           <MenuItem
             icon={IconNames.APPLICATION}
             text="View SQL query for table"
-            onClick={() => goToQuery(IngestionView.TASK_SQL)}
+            onClick={() => goToQuery({ queryString: IngestionView.TASK_SQL })}
           />
         )}
         <MenuItem

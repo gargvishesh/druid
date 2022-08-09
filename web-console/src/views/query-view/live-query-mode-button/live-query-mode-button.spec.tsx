@@ -16,25 +16,33 @@
  * limitations under the License.
  */
 
-@import '../../../variables';
-@import '../../../blueprint-overrides/common/colors';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-.live-query-mode-selector {
-  .auto.auto-on {
-    color: $druid-brand;
-  }
+import { LiveQueryModeButton } from './live-query-mode-button';
 
-  .on {
-    color: $druid-brand;
-  }
-}
+describe('LiveQueryModeButton', () => {
+  it('matches snapshot on', () => {
+    const liveQueryModeSelector = shallow(
+      <LiveQueryModeButton
+        liveQueryMode="on"
+        onLiveQueryModeChange={() => {}}
+        autoLiveQueryModeShouldRun
+      />,
+    );
 
-.live-query-mode-selector-portal {
-  .auto.auto-on .#{$bp-ns}-text-overflow-ellipsis {
-    color: $druid-brand;
-  }
+    expect(liveQueryModeSelector).toMatchSnapshot();
+  });
 
-  .on .#{$bp-ns}-text-overflow-ellipsis {
-    color: $druid-brand;
-  }
-}
+  it('matches snapshot auto', () => {
+    const liveQueryModeSelector = shallow(
+      <LiveQueryModeButton
+        liveQueryMode="auto"
+        onLiveQueryModeChange={() => {}}
+        autoLiveQueryModeShouldRun
+      />,
+    );
+
+    expect(liveQueryModeSelector).toMatchSnapshot();
+  });
+});

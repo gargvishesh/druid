@@ -123,7 +123,17 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   const handleQueryAction = usePermanentCallback((queryAction: QueryAction) => {
     if (!(parsedQuery instanceof SqlQuery)) return;
     onQueryChange(query.changeQueryString(parsedQuery.apply(queryAction).toString()));
+
+    if (shouldAutoRun()) {
+      setTimeout(() => handleRun(false), 20);
+    }
   });
+
+  function shouldAutoRun(): boolean {
+    if (query.getEffectiveEngine() !== 'sql') return false;
+    const queryDuration = executionState.data?.result?.queryDuration;
+    return Boolean(queryDuration && queryDuration < 10000);
+  }
 
   const handleSecondaryPaneSizeChange = useCallback((secondaryPaneSize: number) => {
     localStorageSet(LocalStorageKeys.WORKBENCH_PANE_SIZE, String(secondaryPaneSize));
@@ -247,12 +257,12 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     currentQueryInput.goToPosition(position);
   }
 
-  function handleRun(preview = true) {
+  const handleRun = usePermanentCallback((preview: boolean) => {
     if (!query.isValid()) return;
 
     WorkbenchHistory.addQueryToHistory(query);
     queryManager.runQuery(preview ? query.makePreview() : query);
-  }
+  });
 
   const statsTaskId: string | undefined = execution?.id;
 
