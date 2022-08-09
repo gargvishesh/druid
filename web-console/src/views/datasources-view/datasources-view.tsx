@@ -42,6 +42,7 @@ import {
   CompactionConfig,
   CompactionStatus,
   formatCompactionConfigAndStatus,
+  QueryWithContext,
   zeroCompactionStatus,
 } from '../../druid-models';
 import { STANDARD_TABLE_PAGE_SIZE, STANDARD_TABLE_PAGE_SIZE_OPTIONS } from '../../react-table';
@@ -233,9 +234,9 @@ interface CompactionDialogOpenOn {
 }
 
 export interface DatasourcesViewProps {
-  goToQuery: (initSql: string) => void;
-  goToTask: (datasource?: string, openDialog?: string) => void;
-  goToSegments: (datasource: string, onlyUnavailable?: boolean) => void;
+  goToQuery(queryWithContext: QueryWithContext): void;
+  goToTask(datasource?: string, openDialog?: string): void;
+  goToSegments(datasource: string, onlyUnavailable?: boolean): void;
   capabilities: Capabilities;
   initDatasource?: string;
 }
@@ -690,7 +691,7 @@ ORDER BY 1`;
             disabled={!lastDatasourcesQuery}
             onClick={() => {
               if (!lastDatasourcesQuery) return;
-              goToQuery(lastDatasourcesQuery);
+              goToQuery({ queryString: lastDatasourcesQuery });
             }}
           />
         )}
@@ -829,7 +830,8 @@ ORDER BY 1`;
       goToActions.push({
         icon: IconNames.APPLICATION,
         title: 'Query with SQL',
-        onAction: () => goToQuery(SqlQuery.create(SqlTableRef.create(datasource)).toString()),
+        onAction: () =>
+          goToQuery({ queryString: SqlQuery.create(SqlTableRef.create(datasource)).toString() }),
       });
     }
 

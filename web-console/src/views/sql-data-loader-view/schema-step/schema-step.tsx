@@ -33,7 +33,6 @@ import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { select, selectAll } from 'd3-selection';
 import {
-  Column,
   QueryResult,
   QueryRunner,
   SqlExpression,
@@ -41,7 +40,6 @@ import {
   SqlQuery,
   SqlRef,
 } from 'druid-query-toolkit';
-import * as JSONBig from 'json-bigint-native';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { ClearableInput, LearnMore, Loader } from '../../../components';
@@ -78,9 +76,9 @@ import {
   oneOf,
   QueryAction,
   queryDruidSql,
+  sampleDataToQuery,
   tickIcon,
   timeFormatToSql,
-  validJson,
   wait,
   without,
 } from '../../../utils';
@@ -105,35 +103,6 @@ const DESTINATION_MODE_TITLE: Record<DestinationMode, string> = {
   replace: 'replace',
   insert: 'append',
 };
-
-// This is a hack to work around the fact that JSON columns sometimes lose their types
-function convertJsonColumnsHack(queryResult: QueryResult): QueryResult {
-  const { header, rows } = queryResult;
-  const indexesToTransform = filterMap(header, (column, i) => {
-    return column.nativeType === 'COMPLEX' && rows.every(row => validJson(row[i])) ? i : undefined;
-  });
-  if (!indexesToTransform.length) return queryResult;
-
-  const newHeader = header.slice();
-  const newRows = rows.map(row => row.slice());
-  for (const index of indexesToTransform) {
-    const h = newHeader[index];
-    newHeader[index] = new Column({
-      name: h.name,
-      sqlType: h.sqlType,
-      nativeType: 'COMPLEX<json>',
-    });
-    for (const row of newRows) {
-      row[index] = JSONBig.parse(row[index]);
-    }
-  }
-
-  return new QueryResult({
-    ...queryResult.valueOf(),
-    header: newHeader,
-    rows: newRows,
-  });
-}
 
 function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
@@ -445,9 +414,14 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
     backgroundStatusCheck: executionBackgroundResultStatusCheck,
   });
 
+  const sampleDataQuery = useMemo(() => {
+    if (!sampleState.data) return;
+    return sampleDataToQuery(sampleState.data);
+  }, [sampleState.data]);
+
   const previewQueryString = useLastDefined(
-    ingestQueryPattern && mode !== 'sql' && sampleState.data
-      ? ingestQueryPatternToQuery(ingestQueryPattern, true, sampleState.data).toString()
+    ingestQueryPattern && mode !== 'sql' && sampleDataQuery
+      ? ingestQueryPatternToQuery(ingestQueryPattern, true, sampleDataQuery).toString()
       : undefined,
   );
 
@@ -472,17 +446,14 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         try {
           result = await queryRunner.runQuery({
             query: previewQueryString,
-            extraQueryContext: { sqlOuterLimit: 25 },
+            extraQueryContext: { sqlOuterLimit: 25, sqlStringifyArrays: false },
             cancelToken,
           });
         } catch (e) {
           throw new DruidError(e);
         }
 
-        return convertJsonColumnsHack(result).attachQuery(
-          {},
-          SqlQuery.maybeParse(previewQueryString),
-        );
+        return result.attachQuery({}, SqlQuery.maybeParse(previewQueryString));
       }
     },
     backgroundStatusCheck: executionBackgroundResultStatusCheck,
@@ -664,6 +635,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
           </Button>
           {ingestQueryPattern && existingTableState.data && (
             <Button
+              className="destination-button"
               icon={IconNames.MULTI_SELECT}
               minimal
               onClick={() => setShowDestinationDialog(true)}
@@ -815,6 +787,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
               {previewResultState.isInit() && sampleState.isLoading() && (
                 <Loader loadingText="Loading data sample..." />
               )}
+              {sampleState.getErrorMessage() && 'Sample error'}
             </>
           )}
           {effectiveMode === 'list' &&
@@ -950,7 +923,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
         {showRollupAnalysisPane && ingestQueryPattern && (
           <RollupAnalysisPane
             dimensions={ingestQueryPattern.dimensions}
-            seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true, sampleState.data)}
+            seedQuery={ingestQueryPatternToQuery(ingestQueryPattern, true, sampleDataQuery)}
             queryResult={previewResultState.data}
             onEditColumn={handleColumnSelect}
             onClose={() => setShowRollupAnalysisPane(false)}

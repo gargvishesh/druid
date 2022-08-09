@@ -91,7 +91,7 @@ interface ColumnEditorProps {
   headerIndex: number;
 }
 
-export const ColumnEditor = React.memo(function ExpressionEditor(props: ColumnEditorProps) {
+export const ColumnEditor = React.memo(function ColumnEditor(props: ColumnEditorProps) {
   const { expression, onApply, onCancel, dirty, queryResult, headerIndex } = props;
 
   const breakdown = expression ? breakdownExpression(expression) : undefined;

@@ -81,26 +81,22 @@ export const StatusDialog = React.memo(function StatusDialog(props: StatusDialog
           showPagination={response.modules.length > SMALL_TABLE_PAGE_SIZE}
           columns={[
             {
-              columns: [
-                {
-                  Header: 'Extension name',
-                  accessor: 'artifact',
-                  width: 200,
-                  className: 'padded',
-                },
-                {
-                  Header: 'Version',
-                  accessor: 'version',
-                  width: 200,
-                  className: 'padded',
-                },
-                {
-                  Header: 'Fully qualified name',
-                  accessor: 'name',
-                  width: 500,
-                  className: 'padded',
-                },
-              ],
+              Header: 'Extension name',
+              accessor: 'artifact',
+              width: 200,
+              className: 'padded',
+            },
+            {
+              Header: 'Version',
+              accessor: 'version',
+              width: 200,
+              className: 'padded',
+            },
+            {
+              Header: 'Fully qualified name',
+              accessor: 'name',
+              width: 500,
+              className: 'padded',
             },
           ]}
         />

@@ -24,7 +24,7 @@ import { RouteComponentProps } from 'react-router';
 import { HashRouter, Route, Switch } from 'react-router-dom';
 
 import { HeaderActiveTab, HeaderBar, Loader } from './components';
-import { DruidEngine, QueryContext } from './druid-models';
+import { DruidEngine, QueryWithContext } from './druid-models';
 import { AppToaster } from './singletons';
 import { Capabilities, QueryManager } from './utils';
 import {
@@ -80,8 +80,7 @@ export class ConsoleApplication extends React.PureComponent<
   private openDialog?: string;
   private datasource?: string;
   private onlyUnavailable?: boolean;
-  private initQuery?: string;
-  private initContext?: QueryContext;
+  private queryWithContext?: QueryWithContext;
 
   constructor(props: ConsoleApplicationProps, context: any) {
     super(props, context);
@@ -132,8 +131,7 @@ export class ConsoleApplication extends React.PureComponent<
       this.openDialog = undefined;
       this.datasource = undefined;
       this.onlyUnavailable = undefined;
-      this.initQuery = undefined;
-      this.initContext = undefined;
+      this.queryWithContext = undefined;
     }, 50);
   }
 
@@ -182,9 +180,8 @@ export class ConsoleApplication extends React.PureComponent<
     this.resetInitialsWithDelay();
   };
 
-  private readonly goToQuery = (initQuery: string, initContext?: QueryContext) => {
-    this.initQuery = initQuery;
-    this.initContext = initContext;
+  private readonly goToQuery = (queryWithContext: QueryWithContext) => {
+    this.queryWithContext = queryWithContext;
     window.location.hash = 'workbench';
     this.resetInitialsWithDelay();
   };
@@ -262,7 +259,7 @@ export class ConsoleApplication extends React.PureComponent<
     return this.wrapInViewContainer(
       'query',
       <QueryView
-        initQuery={this.initQuery}
+        initQuery={this.queryWithContext?.queryString}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
       />,
@@ -289,8 +286,7 @@ export class ConsoleApplication extends React.PureComponent<
         onTabChange={newTabId => {
           location.hash = `#workbench/${newTabId}`;
         }}
-        initQuery={this.initQuery}
-        initContext={this.initContext}
+        initQueryWithContext={this.queryWithContext}
         defaultQueryContext={defaultQueryContext}
         mandatoryQueryContext={mandatoryQueryContext}
         queryEngines={queryEngines}

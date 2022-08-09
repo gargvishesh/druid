@@ -16,43 +16,62 @@
  * limitations under the License.
  */
 
-import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
+import { Button, Classes, Dialog, Intent, NumericInput } from '@blueprintjs/core';
 import React, { useState } from 'react';
 
-export interface StringSubmitDialogProps {
+const DEFAULT_MIN_VALUE = 1;
+
+interface NumericInputDialogProps {
   title: string;
-  initValue?: string;
-  placeholder?: string;
-  onSubmit(str: string): void;
+  message?: JSX.Element;
+  minValue?: number;
+  initValue: number;
+  onSubmit(value: number): void;
   onClose(): void;
 }
 
-export const StringSubmitDialog = React.memo(function StringSubmitDialog(
-  props: StringSubmitDialogProps,
+export const NumericInputDialog = React.memo(function NumericInputDialog(
+  props: NumericInputDialogProps,
 ) {
-  const { title, initValue, placeholder, onSubmit, onClose } = props;
+  const { title, message, minValue, initValue, onSubmit, onClose } = props;
 
-  const [value, setValue] = useState(initValue || '');
-
-  function handleSubmit() {
-    onSubmit(value);
-    onClose();
-  }
+  const [value, setValue] = useState<number>(initValue);
 
   return (
-    <Dialog className="string-submit-dialog" isOpen onClose={onClose} title={title}>
+    <Dialog
+      className="numeric-input-dialog"
+      onClose={onClose}
+      isOpen
+      title={title}
+      canOutsideClickClose={false}
+    >
       <div className={Classes.DIALOG_BODY}>
-        <InputGroup
+        {message}
+        <NumericInput
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onValueChange={(v: number) => {
+            if (isNaN(v)) return;
+            setValue(Math.max(v, DEFAULT_MIN_VALUE));
+          }}
+          min={minValue ?? DEFAULT_MIN_VALUE}
+          stepSize={1}
+          minorStepSize={null}
+          majorStepSize={10}
+          fill
           autoFocus
-          placeholder={placeholder}
         />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
           <Button text="Close" onClick={onClose} />
-          <Button text="Submit" intent={Intent.PRIMARY} onClick={handleSubmit} />
+          <Button
+            text="OK"
+            intent={Intent.PRIMARY}
+            onClick={() => {
+              onSubmit(value);
+              onClose();
+            }}
+          />
         </div>
       </div>
     </Dialog>

@@ -197,7 +197,7 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
     const selected = type === effectiveType;
     return (
       <Card
-        className={classNames({ selected, disabled: false })}
+        className={classNames('ingestion-card', { selected, disabled: false })}
         interactive
         elevation={1}
         onClick={() => {
@@ -222,17 +222,15 @@ export const InputSourceStep = React.memo(function InputSourceStep(props: InputS
   const connectResultError = guessedInputFormatState.error;
   return (
     <div className="input-source-step">
-      <div className="main">
-        <div className="ingestion-cards">
-          {renderIngestionCard('s3')}
-          {renderIngestionCard('azure')}
-          {renderIngestionCard('google')}
-          {renderIngestionCard('hdfs')}
-          {renderIngestionCard('http')}
-          {renderIngestionCard('local')}
-          {renderIngestionCard('inline')}
-          {renderIngestionCard('example')}
-        </div>
+      <div className="ingestion-cards">
+        {renderIngestionCard('s3')}
+        {renderIngestionCard('azure')}
+        {renderIngestionCard('google')}
+        {renderIngestionCard('hdfs')}
+        {renderIngestionCard('http')}
+        {renderIngestionCard('local')}
+        {renderIngestionCard('inline')}
+        {renderIngestionCard('example')}
       </div>
       <div className="config">
         <div className="top-controls">

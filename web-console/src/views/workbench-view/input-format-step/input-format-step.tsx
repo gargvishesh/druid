@@ -217,7 +217,7 @@ export const InputFormatStep = React.memo(function InputFormatStep(props: InputF
                   minimal
                 >
                   Select <Tag minimal>{possibleTimeExpression.column}</Tag> as the primary time
-                  column.
+                  column
                 </Button>
               </Callout>
             </FormGroup>

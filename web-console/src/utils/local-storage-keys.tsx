@@ -21,6 +21,8 @@ import * as JSONBig from 'json-bigint-native';
 export const LocalStorageKeys = {
   CAPABILITIES_OVERRIDE: 'capabilities-override' as const,
   INGESTION_SPEC: 'ingestion-spec' as const,
+  BATCH_INGESTION_SPEC: 'batch-ingestion-spec' as const,
+  STREAMING_INGESTION_SPEC: 'streaming-ingestion-spec' as const,
   DATASOURCE_TABLE_COLUMN_SELECTION: 'datasource-table-column-selection' as const,
   SEGMENT_TABLE_COLUMN_SELECTION: 'segment-table-column-selection' as const,
   SUPERVISOR_TABLE_COLUMN_SELECTION: 'supervisor-table-column-selection' as const,
@@ -46,8 +48,7 @@ export const LocalStorageKeys = {
   WORKBENCH_HISTORY: 'workbench-history' as const,
   WORKBENCH_TASK_PANEL: 'workbench-task-panel' as const,
 
-  SQL_DATA_LOADER_SHOW: 'sql-data-loader-show' as const,
-  SQL_DATA_LOADER_QUERY: 'sql-data-loader-query' as const,
+  SQL_DATA_LOADER_CONTENT: 'sql-data-loader-content' as const,
 
   // BEGIN: Imply-added code for the user management
   USERS_REFRESH_RATE: 'users-refresh-rate' as const,

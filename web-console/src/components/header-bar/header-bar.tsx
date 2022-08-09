@@ -32,7 +32,7 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { MouseEvent, useState } from 'react';
+import React, { useState } from 'react';
 
 import {
   AboutDialog,
@@ -40,9 +40,7 @@ import {
   DoctorDialog,
   OverlordDynamicConfigDialog,
 } from '../../dialogs';
-import { useLocalStorageState, usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
-import { AppToaster } from '../../singletons';
 import {
   Capabilities,
   localStorageGetJson,
@@ -243,12 +241,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     useState(false);
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
 
-  const [showSqlDataLoader, setShowSqlDataLoader] = useLocalStorageState(
-    LocalStorageKeys.SQL_DATA_LOADER_SHOW,
-    false,
-  );
-
-  const showSplitDataLoaderMenu = showSqlDataLoader && capabilities.hasMultiStageQuery();
+  const showSplitDataLoaderMenu = capabilities.hasMultiStageQuery();
 
   const loadDataViewsMenuActive = oneOf(
     active,
@@ -262,21 +255,21 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       <MenuItem
         icon={IconNames.FEED}
         text="Streaming"
-        active={active === 'streaming-data-loader'}
         href="#streaming-data-loader"
+        selected={active === 'streaming-data-loader'}
       />
       <MenuItem
-        active={active === 'sql-data-loader'}
         icon={IconNames.CLEAN}
         text="Batch - SQL"
         href="#sql-data-loader"
         labelElement={<Tag minimal>multi-stage-query</Tag>}
+        selected={active === 'sql-data-loader'}
       />
       <MenuItem
         icon={IconNames.LIST}
         text="Batch - classic"
-        active={active === 'classic-batch-data-loader'}
         href="#classic-batch-data-loader"
+        selected={active === 'classic-batch-data-loader'}
       />
     </Menu>
   );
@@ -286,10 +279,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     <Menu>
       <MenuItem
         icon={IconNames.PROPERTIES}
-        active={active === 'lookups'}
         text="Lookups"
         href="#lookups"
         disabled={!capabilities.hasCoordinatorAccess()}
+        selected={active === 'lookups'}
       />
 
       {/* BEGIN: Imply-modified code for user management */}
@@ -396,25 +389,10 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  const handleLogoClick = usePermanentCallback((e: MouseEvent) => {
-    if (!e.altKey || !e.shiftKey) return;
-    e.preventDefault();
-    const nextShowSqlDataLoader = !showSqlDataLoader;
-    setShowSqlDataLoader(nextShowSqlDataLoader);
-    AppToaster.show({
-      message: nextShowSqlDataLoader
-        ? 'You have enabled the new and experimental SQL based data loader.'
-        : 'You have disabled the SQL based data loader.',
-      intent: Intent.SUCCESS,
-      timeout: 5000,
-    });
-    location.hash = nextShowSqlDataLoader ? '#sql-data-loader' : '#home';
-  });
-
   return (
     <Navbar className="header-bar">
       <NavbarGroup align={Alignment.LEFT}>
-        <a href="#" onClick={handleLogoClick}>
+        <a href="#">
           <DruidLogo />
         </a>
         <NavbarDivider />

@@ -54,8 +54,8 @@ import { ExplainDialog } from './explain-dialog/explain-dialog';
 import {
   LIVE_QUERY_MODES,
   LiveQueryMode,
-  LiveQueryModeSelector,
-} from './live-query-mode-selector/live-query-mode-selector';
+  LiveQueryModeButton,
+} from './live-query-mode-button/live-query-mode-button';
 import { QueryExtraInfo } from './query-extra-info/query-extra-info';
 import { QueryHistoryDialog } from './query-history-dialog/query-history-dialog';
 import { QueryInput } from './query-input/query-input';
@@ -331,15 +331,16 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
     );
   }
 
-  private renderLiveQueryModeSelector() {
+  private renderLiveQueryModeButton() {
     const { liveQueryMode, queryString } = this.state;
     if (QueryView.isJsonLike(queryString)) return;
 
     return (
-      <LiveQueryModeSelector
+      <LiveQueryModeButton
         liveQueryMode={liveQueryMode}
         onLiveQueryModeChange={this.handleLiveQueryModeChange}
         autoLiveQueryModeShouldRun={this.autoLiveQueryModeShouldRun()}
+        minimal
       />
     );
   }
@@ -421,7 +422,7 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
               loading={queryResultState.loading}
             />
             {this.renderWrapQueryLimitSelector()}
-            {this.renderLiveQueryModeSelector()}
+            {this.renderLiveQueryModeButton()}
             {queryResult && (
               <QueryExtraInfo
                 queryResult={queryResult}

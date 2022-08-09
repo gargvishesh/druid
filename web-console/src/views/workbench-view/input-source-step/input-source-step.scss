@@ -32,7 +32,7 @@ $config-width: 400px;
 .input-source-step {
   position: relative;
 
-  .main {
+  .ingestion-cards {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -40,60 +40,46 @@ $config-width: 400px;
     left: 0;
     @include sunk-panel;
     overflow: auto;
+    display: grid;
+    gap: $thin-padding;
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+    grid-template-rows: repeat(auto-fill, 150px);
+    padding: 10px;
 
-    .ingestion-cards {
-      display: grid;
-      gap: $thin-padding;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      padding: 10px;
+    .ingestion-card {
+      position: relative;
+      display: inline-block;
+      vertical-align: top;
+      text-align: center;
 
-      @media (max-width: 1800px) {
-        grid-template-columns: 1fr 1fr 1fr;
+      & > * {
+        user-select: none;
+        pointer-events: none;
       }
 
-      @media (max-width: 1240px) {
-        grid-template-columns: 1fr 1fr;
+      &.selected::after {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        content: '';
+        border: 2px solid $blue3;
+        border-radius: $pt-border-radius;
+
+        .#{$bp-ns}-dark & {
+          border: 2px solid $blue4;
+        }
       }
 
-      @media (max-width: 900px) {
-        grid-template-columns: 1fr;
+      &.disabled {
+        opacity: 0.4;
       }
 
-      .#{$bp-ns}-card {
-        position: relative;
+      img {
+        width: $icon-width;
+        height: $icon-width * ($actual-icon-height / $actual-icon-width);
         display: inline-block;
-        vertical-align: top;
-        text-align: center;
-
-        & > * {
-          user-select: none;
-          pointer-events: none;
-        }
-
-        &.selected::after {
-          position: absolute;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          content: '';
-          border: 2px solid $blue3;
-          border-radius: $pt-border-radius;
-
-          .#{$bp-ns}-dark & {
-            border: 2px solid $blue4;
-          }
-        }
-
-        &.disabled {
-          opacity: 0.4;
-        }
-
-        img {
-          width: $icon-width;
-          height: $icon-width * ($actual-icon-height / $actual-icon-width);
-          display: inline-block;
-        }
       }
     }
 
