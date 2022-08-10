@@ -21,13 +21,13 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.table.DruidTable;
+import org.apache.druid.sql.calcite.table.InlineTable;
 
 import java.util.List;
 
 /**
- * A macro for specifying the signature of the table along with its declaration. Only meant to be used for Imply
- * internal usecases.
+ * A macro for specifying the signature of the table along with its declaration.
+ * Only meant to be used for Imply internal use cases.
  */
 public class PolarisExplainTableMacro implements TableMacro
 {
@@ -45,12 +45,9 @@ public class PolarisExplainTableMacro implements TableMacro
     try {
       RowSignature signature = jsonMapper.readValue((String) arguments.get(0), RowSignature.class);
 
-      return new DruidTable(
+      return new InlineTable(
           InlineDataSource.fromIterable(ImmutableList.of(), signature),
-          signature,
-          jsonMapper,
-          false,
-          false
+          signature
       );
     }
     catch (JsonProcessingException e) {
