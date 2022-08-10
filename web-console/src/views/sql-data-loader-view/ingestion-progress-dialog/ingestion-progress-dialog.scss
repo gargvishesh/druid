@@ -23,8 +23,14 @@
   top: 20%;
   margin: 0;
 
-  &.loading.#{$bp-ns}-dialog {
-    width: 75vw;
+  &.loading {
+    &.#{$bp-ns}-dialog {
+      width: 75vw;
+    }
+
+    .#{$bp-ns}-dialog-close-button {
+      display: none;
+    }
   }
 
   .#{$bp-ns}-dialog-body {

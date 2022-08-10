@@ -26,13 +26,14 @@ import {
   Code,
   FormGroup,
   H5,
-  HTMLSelect,
   Icon,
   IconName,
   InputGroup,
   Intent,
   Menu,
   MenuItem,
+  Radio,
+  RadioGroup,
   Switch,
   TextArea,
 } from '@blueprintjs/core';
@@ -1294,13 +1295,13 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           )}
           {oneOf(specType, 'kafka', 'kinesis') && (
             <FormGroup label="Where should the data be sampled from?">
-              <HTMLSelect
-                value={sampleStrategy}
-                onChange={e => this.setState({ sampleStrategy: e.target.value as any })}
+              <RadioGroup
+                selectedValue={sampleStrategy}
+                onChange={e => this.setState({ sampleStrategy: e.currentTarget.value as any })}
               >
-                <option value="start">Start of stream</option>
-                <option value="end">End of the stream</option>
-              </HTMLSelect>
+                <Radio value="start">Start of stream</Radio>
+                <Radio value="end">End of stream</Radio>
+              </RadioGroup>
             </FormGroup>
           )}
           {this.renderApplyButtonBar(
