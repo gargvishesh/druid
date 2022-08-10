@@ -14,6 +14,8 @@ import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.sql.calcite.table.DatasourceTable;
+import org.apache.druid.sql.calcite.table.DatasourceTable.PhysicalDatasourceMetadata;
 import org.apache.druid.sql.calcite.table.DruidTable;
 
 import java.util.Map;
@@ -37,12 +39,13 @@ public class ExternalDruidSchemaUtils
       for (TableColumn tableColumn : tableSchema.getColumns()) {
         rowSignatureBuilder.add(tableColumn.getName(), tableColumn.getType());
       }
-      DruidTable druidTable = new DruidTable(
-          new TableDataSource(tableSchema.getName()),
-          rowSignatureBuilder.build(),
-          null,
-          false,
-          false
+      DruidTable druidTable = new DatasourceTable(
+          new PhysicalDatasourceMetadata(
+              new TableDataSource(tableSchema.getName()),
+              rowSignatureBuilder.build(),
+              false,
+              false
+          )
       );
       druidTableMap.put(tableSchema.getName(), druidTable);
     }
