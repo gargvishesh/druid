@@ -246,6 +246,23 @@ export const COMPACTION_CONFIG_FIELDS: Field<CompactionConfig>[] = [
     ),
   },
   {
+    name: 'tuningConfig.maxColumnsToMerge',
+    type: 'number',
+    defaultValue: -1,
+    min: -1,
+    info: (
+      <>
+        <p>
+          Limit of the number of segments to merge in a single phase when merging segments for
+          publishing. This limit affects the total number of columns present in a set of segments to
+          merge. If the limit is exceeded, segment merging occurs in multiple phases. Druid merges
+          at least 2 segments per phase, regardless of this setting.
+        </p>
+        <p>Default: -1 (unlimited)</p>
+      </>
+    ),
+  },
+  {
     name: 'tuningConfig.totalNumMergeTasks',
     type: 'number',
     defaultValue: 10,

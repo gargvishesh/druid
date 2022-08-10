@@ -37,7 +37,7 @@ export const ExecutionTimerPanel = React.memo(function ExecutionTimerPanel(
 ) {
   const { execution, onCancel } = props;
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [startTime] = useState(execution?.startTime || new Date());
+  const [mountTime] = useState(Date.now());
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useInterval(() => {
@@ -52,7 +52,7 @@ export const ExecutionTimerPanel = React.memo(function ExecutionTimerPanel(
     }
   }
 
-  const elapsed = currentTime - startTime.valueOf();
+  const elapsed = currentTime - (execution?.startTime?.valueOf() || mountTime);
   if (elapsed <= 0) return null;
   return (
     <ButtonGroup className="execution-timer-panel">

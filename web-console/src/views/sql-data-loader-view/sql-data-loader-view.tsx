@@ -16,18 +16,22 @@
  * limitations under the License.
  */
 
-import { Card, Icon, IconName } from '@blueprintjs/core';
+import { Card, Icon, IconName, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { SqlQuery } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import {
+  Execution,
   ExternalConfig,
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
   QueryWithContext,
 } from '../../druid-models';
+import { submitTaskQuery } from '../../helpers';
 import { useLocalStorageState } from '../../hooks';
-import { LocalStorageKeys } from '../../utils';
+import { AppToaster } from '../../singletons';
+import { deepDelete, LocalStorageKeys } from '../../utils';
 import { InputFormatStep } from '../workbench-view/input-format-step/input-format-step';
 import { InputSourceStep } from '../workbench-view/input-source-step/input-source-step';
 import { MaxTasksButton } from '../workbench-view/max-tasks-button/max-tasks-button';
@@ -37,6 +41,10 @@ import { SchemaStep } from './schema-step/schema-step';
 import { TitleFrame } from './title-frame/title-frame';
 
 import './sql-data-loader-view.scss';
+
+interface LoaderContent extends QueryWithContext {
+  id?: string;
+}
 
 export interface SqlDataLoaderViewProps {
   goToQuery(queryWithContext: QueryWithContext): void;
@@ -48,13 +56,10 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
 ) {
   const { goToQuery, goToIngestion } = props;
   const [externalConfigStep, setExternalConfigStep] = useState<Partial<ExternalConfig>>({});
-  const [queryWithContext, setQueryWithContext] = useLocalStorageState<
-    QueryWithContext | undefined
-  >(LocalStorageKeys.SQL_DATA_LOADER_CONTENT);
-  const [needVerify, setNeedVerify] = useState(Boolean(queryWithContext));
-  const [runningQueryWithContext, setRunningQueryWithContext] = useState<
-    QueryWithContext | undefined
-  >();
+  const [content, setContent] = useLocalStorageState<LoaderContent | undefined>(
+    LocalStorageKeys.SQL_DATA_LOADER_CONTENT,
+  );
+  const [needVerify, setNeedVerify] = useState(Boolean(content && !content.id));
 
   const { inputSource, inputFormat } = externalConfigStep;
 
@@ -79,7 +84,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
             `Start a new flow`,
             `Begin a new SQL ingestion flow.`,
             () => {
-              setQueryWithContext(undefined);
+              setContent(undefined);
               setNeedVerify(false);
             },
           )}
@@ -92,24 +97,43 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
             },
           )}
         </div>
-      ) : queryWithContext ? (
+      ) : content ? (
         <SchemaStep
-          queryString={queryWithContext.queryString}
-          onQueryStringChange={queryString =>
-            setQueryWithContext({ ...queryWithContext, queryString })
-          }
+          queryString={content.queryString}
+          onQueryStringChange={queryString => setContent({ ...content, queryString })}
           enableAnalyze={false}
-          goToQuery={() => goToQuery(queryWithContext)}
-          onBack={() => setQueryWithContext(undefined)}
-          onDone={() => {
-            setRunningQueryWithContext(queryWithContext);
+          goToQuery={() => goToQuery(content)}
+          onBack={() => setContent(undefined)}
+          onDone={async () => {
+            const ingestDatasource = SqlQuery.parse(content.queryString)
+              .getIngestTable()
+              ?.getTable();
+
+            if (!ingestDatasource) {
+              AppToaster.show({ message: `Must have an ingest datasource`, intent: Intent.DANGER });
+              return;
+            }
+
+            try {
+              const execution = await submitTaskQuery({
+                query: content.queryString,
+                context: content.queryContext,
+              });
+
+              const taskId = execution instanceof Execution ? execution.id : execution.state.id;
+
+              setContent({ ...content, id: taskId });
+            } catch (e) {
+              AppToaster.show({
+                message: `Error submitting task: ${e.message}`,
+                intent: Intent.DANGER,
+              });
+            }
           }}
           extraCallout={
             <MaxTasksButton
-              queryContext={queryWithContext.queryContext || {}}
-              changeQueryContext={queryContext =>
-                setQueryWithContext({ ...queryWithContext, queryContext })
-              }
+              queryContext={content.queryContext || {}}
+              changeQueryContext={queryContext => setContent({ ...content, queryContext })}
               minimal
             />
           }
@@ -121,7 +145,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
             initInputFormat={inputFormat}
             doneButton={false}
             onSet={({ inputFormat, signature, isArrays, timeExpression }) => {
-              setQueryWithContext({
+              setContent({
                 queryString: ingestQueryPatternToQuery(
                   externalConfigToIngestQueryPattern(
                     { inputSource, inputFormat, signature },
@@ -163,12 +187,12 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
           />
         </TitleFrame>
       )}
-      {runningQueryWithContext && (
+      {content?.id && (
         <IngestionProgressDialog
-          queryWithContext={runningQueryWithContext}
+          taskId={content.id}
           goToQuery={goToQuery}
           goToIngestion={goToIngestion}
-          onClose={() => setRunningQueryWithContext(undefined)}
+          onClose={() => setContent(deepDelete(content, 'id'))}
         />
       )}
     </div>

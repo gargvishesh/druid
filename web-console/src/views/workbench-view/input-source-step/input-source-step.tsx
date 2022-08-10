@@ -55,6 +55,7 @@ import { UrlBaser } from '../../../singletons';
 import { filterMap, IntermediateQueryState } from '../../../utils';
 import { postToSampler, SampleSpec } from '../../../utils/sampler';
 
+import { EXAMPLE_INPUT_SOURCES } from './example-inputs';
 import { InputSourceInfo } from './input-source-info';
 
 import './input-source-step.scss';
@@ -66,31 +67,6 @@ function resultToInputFormat(result: QueryResult): InputFormat {
 
 const BOGUS_LIST_DELIMITER = '56616469-6de2-9da4-efb8-8f416e6e6965'; // Just a UUID to disable the list delimiter, let's hope we do not see this UUID in the data
 const ROWS_TO_SAMPLE = 50;
-
-interface ExampleInputSource {
-  name: string;
-  description: string;
-  inputSource: InputSource;
-}
-
-const EXAMPLE_INPUT_SOURCES: ExampleInputSource[] = [
-  {
-    name: 'Wikipedia',
-    description: 'One day of wikipedia edits (JSON)',
-    inputSource: {
-      type: 'http',
-      uris: ['https://druid.apache.org/data/wikipedia.json.gz'],
-    },
-  },
-  {
-    name: 'KoalasToTheMax one day',
-    description: 'One day of events from KoalasToTheMax.com (JSON)',
-    inputSource: {
-      type: 'http',
-      uris: ['https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz'],
-    },
-  },
-];
 
 export interface InputSourceStepProps {
   initInputSource: Partial<InputSource> | undefined;

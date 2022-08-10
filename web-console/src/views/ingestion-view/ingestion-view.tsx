@@ -74,6 +74,7 @@ const supervisorTableColumns: string[] = [
   'Status',
   ACTION_COLUMN_LABEL,
 ];
+
 const taskTableColumns: string[] = [
   'Task ID',
   'Group ID',
@@ -85,6 +86,8 @@ const taskTableColumns: string[] = [
   'Duration',
   ACTION_COLUMN_LABEL,
 ];
+
+const CANCELED_ERROR_MSG = 'Shutdown request from user';
 
 interface SupervisorQueryResultRow {
   supervisor_id: string;
@@ -105,7 +108,6 @@ interface TaskQueryResultRow {
   error_msg: string | null;
   location: string | null;
   status: string;
-  rank: number;
 }
 
 export interface IngestionViewProps {
@@ -166,6 +168,8 @@ function statusToColor(status: string): string {
       return '#57d500';
     case 'FAILED':
       return '#d5100a';
+    case 'CANCELED':
+      return '#858585';
     default:
       return '#0a1500';
   }
@@ -206,17 +210,23 @@ export class IngestionView extends React.PureComponent<IngestionViewProps, Inges
 FROM sys.supervisors
 ORDER BY "supervisor_id"`;
 
-  static TASK_SQL = `SELECT
+  static TASK_SQL = `WITH tasks AS (SELECT
   "task_id", "group_id", "type", "datasource", "created_time", "location", "duration", "error_msg",
-  CASE WHEN "status" = 'RUNNING' THEN "runner_status" ELSE "status" END AS "status",
+  CASE WHEN "error_msg" = '${CANCELED_ERROR_MSG}' THEN 'CANCELED' WHEN "status" = 'RUNNING' THEN "runner_status" ELSE "status" END AS "status"
+  FROM sys.tasks
+)
+SELECT "task_id", "group_id", "type", "datasource", "created_time", "location", "duration", "error_msg", "status"
+FROM tasks
+ORDER BY
   (
-    CASE WHEN "status" = 'RUNNING' THEN
-     (CASE "runner_status" WHEN 'RUNNING' THEN 4 WHEN 'PENDING' THEN 3 ELSE 2 END)
+    CASE "status"
+    WHEN 'RUNNING' THEN 4
+    WHEN 'PENDING' THEN 3
+    WHEN 'WAITING' THEN 2
     ELSE 1
     END
-  ) AS "rank"
-FROM sys.tasks
-ORDER BY "rank" DESC, "created_time" DESC`;
+  ) DESC,
+  "created_time" DESC`;
 
   constructor(props: IngestionViewProps, context: any) {
     super(props, context);
@@ -310,7 +320,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
   }
 
   static parseTasks = (data: any[]): TaskQueryResultRow[] => {
-    return data.map((d: any) => {
+    return data.map(d => {
       return {
         task_id: d.id,
         group_id: d.groupId,
@@ -321,9 +331,6 @@ ORDER BY "rank" DESC, "created_time" DESC`;
         error_msg: d.errorMsg,
         location: d.location.host ? `${d.location.host}:${d.location.port}` : null,
         status: d.statusCode === 'RUNNING' ? d.runnerStatusCode : d.statusCode,
-        rank: IngestionView.statusRanking[
-          d.statusCode === 'RUNNING' ? d.runnerStatusCode : d.statusCode
-        ],
       };
     });
   };
@@ -880,7 +887,7 @@ ORDER BY "rank" DESC, "created_time" DESC`;
                   <span>
                     <span style={{ color: statusToColor(status) }}>&#x25cf;&nbsp;</span>
                     {status}
-                    {errorMsg && (
+                    {errorMsg && errorMsg !== CANCELED_ERROR_MSG && (
                       <a
                         onClick={() => this.setState({ alertErrorMsg: errorMsg })}
                         title={errorMsg}

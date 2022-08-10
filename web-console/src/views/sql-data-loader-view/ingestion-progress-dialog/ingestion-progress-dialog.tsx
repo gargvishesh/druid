@@ -19,11 +19,11 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
-import { SqlQuery, SqlTableRef } from 'druid-query-toolkit';
+import { SqlTableRef } from 'druid-query-toolkit';
 import React, { useState } from 'react';
 
 import { Execution, QueryWithContext } from '../../../druid-models';
-import { executionBackgroundStatusCheck, submitTaskQuery } from '../../../helpers';
+import { executionBackgroundStatusCheck, reattachTaskExecution } from '../../../helpers';
 import { useQueryManager } from '../../../hooks';
 import { ExecutionProgressBarPane } from '../../workbench-view/execution-progress-bar-pane/execution-progress-bar-pane';
 import { ExecutionStagesPane } from '../../workbench-view/execution-stages-pane/execution-stages-pane';
@@ -31,7 +31,7 @@ import { ExecutionStagesPane } from '../../workbench-view/execution-stages-pane/
 import './ingestion-progress-dialog.scss';
 
 interface IngestionProgressDialogProps {
-  queryWithContext: QueryWithContext;
+  taskId: string;
   goToQuery(queryWithContext: QueryWithContext): void;
   goToIngestion(taskId: string): void;
   onClose(): void;
@@ -40,26 +40,16 @@ interface IngestionProgressDialogProps {
 export const IngestionProgressDialog = React.memo(function IngestionProgressDialog(
   props: IngestionProgressDialogProps,
 ) {
-  const { queryWithContext, goToQuery, goToIngestion, onClose } = props;
+  const { taskId, goToQuery, goToIngestion, onClose } = props;
   const [showLiveReports, setShowLiveReports] = useState(false);
 
-  const [insertResultState, ingestQueryManager] = useQueryManager<
-    QueryWithContext,
-    Execution,
-    Execution
-  >({
-    initQuery: queryWithContext,
-    processQuery: async (queryWithContext: QueryWithContext, cancelToken) => {
-      const ingestDatasource = SqlQuery.parse(queryWithContext.queryString)
-        .getIngestTable()
-        ?.getTable();
-
-      if (!ingestDatasource) throw new Error(`Must have an ingest datasource`);
-
-      return await submitTaskQuery({
-        query: queryWithContext.queryString,
-        context: queryWithContext.queryContext,
+  const [insertResultState, ingestQueryManager] = useQueryManager<string, Execution, Execution>({
+    initQuery: taskId,
+    processQuery: async (id, cancelToken) => {
+      return await reattachTaskExecution({
+        id,
         cancelToken,
+        preserveOnTermination: true,
       });
     },
     backgroundStatusCheck: executionBackgroundStatusCheck,
@@ -68,7 +58,7 @@ export const IngestionProgressDialog = React.memo(function IngestionProgressDial
   return (
     <Dialog
       className={classNames('ingestion-progress-dialog', insertResultState.state)}
-      onClose={onClose}
+      onClose={insertResultState.isLoading() ? undefined : onClose}
       isOpen
       title="Ingestion progress"
       canOutsideClickClose={false}
@@ -78,7 +68,7 @@ export const IngestionProgressDialog = React.memo(function IngestionProgressDial
           <>
             <p>
               The data is now being loaded. You can say here or do something else. The task can be
-              tracked from the Query view and the Ingestion views.
+              tracked from both the Query view and the Ingestion views.
             </p>
             <ExecutionProgressBarPane
               execution={insertResultState.intermediate}
@@ -114,7 +104,7 @@ export const IngestionProgressDialog = React.memo(function IngestionProgressDial
               }}
             />
           )}
-          {insertResultState.isError() && <Button text="Back to data loader" onClick={onClose} />}
+          {insertResultState.isError() && <Button text="Close" onClick={onClose} />}
           {insertResultState.data && (
             <Button
               icon={IconNames.APPLICATION}
