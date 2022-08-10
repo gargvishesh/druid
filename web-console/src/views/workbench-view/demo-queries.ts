@@ -122,7 +122,7 @@ CLUSTERED BY browser, session
 --
 -- In the next demo you will see how you are not limited to reading external data in these queries.
 
-REPLACE INTO "kttm_etl" OVERWRITE ALL
+REPLACE INTO "kttm_transformed" OVERWRITE ALL
 WITH
 kttm_data AS (
 SELECT * FROM TABLE(
