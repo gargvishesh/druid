@@ -23,13 +23,27 @@ import { MenuTristate } from './menu-tristate';
 
 describe('MenuTristate', () => {
   it('matches snapshot undefined', () => {
-    const menuCheckbox = <MenuTristate text="hello" value={undefined} onValueChange={() => {}} />;
+    const menuCheckbox = (
+      <MenuTristate
+        text="hello"
+        value={undefined}
+        undefinedEffectiveValue
+        onValueChange={() => {}}
+      />
+    );
     const { container } = render(menuCheckbox);
     expect(container.firstChild).toMatchSnapshot();
   });
 
   it('matches snapshot false', () => {
-    const menuCheckbox = <MenuTristate text="hello" value={false} onValueChange={() => {}} />;
+    const menuCheckbox = (
+      <MenuTristate
+        text="hello"
+        value={false}
+        undefinedEffectiveValue={false}
+        onValueChange={() => {}}
+      />
+    );
     const { container } = render(menuCheckbox);
     expect(container.firstChild).toMatchSnapshot();
   });

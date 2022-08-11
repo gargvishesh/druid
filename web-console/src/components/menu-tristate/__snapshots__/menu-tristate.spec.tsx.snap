@@ -64,7 +64,7 @@ exports[`MenuTristate matches snapshot undefined 1`] = `
     >
       <a
         class="bp4-menu-item menu-tristate"
-        label="auto"
+        label="auto (true)"
         tabindex="0"
       >
         <div
@@ -75,7 +75,7 @@ exports[`MenuTristate matches snapshot undefined 1`] = `
         <span
           class="bp4-menu-item-label"
         >
-          auto
+          auto (true)
         </span>
         <span
           class="bp4-icon bp4-icon-caret-right bp4-submenu-icon"

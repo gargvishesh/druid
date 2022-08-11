@@ -34,13 +34,14 @@ interface IngestionProgressDialogProps {
   taskId: string;
   goToQuery(queryWithContext: QueryWithContext): void;
   goToIngestion(taskId: string): void;
+  onReset(): void;
   onClose(): void;
 }
 
 export const IngestionProgressDialog = React.memo(function IngestionProgressDialog(
   props: IngestionProgressDialogProps,
 ) {
-  const { taskId, goToQuery, goToIngestion, onClose } = props;
+  const { taskId, goToQuery, goToIngestion, onReset, onClose } = props;
   const [showLiveReports, setShowLiveReports] = useState(false);
 
   const [insertResultState, ingestQueryManager] = useQueryManager<string, Execution, Execution>({
@@ -106,20 +107,23 @@ export const IngestionProgressDialog = React.memo(function IngestionProgressDial
           )}
           {insertResultState.isError() && <Button text="Close" onClick={onClose} />}
           {insertResultState.data && (
-            <Button
-              icon={IconNames.APPLICATION}
-              text={`Query: ${insertResultState.data.getIngestDatasource()}`}
-              rightIcon={IconNames.ARROW_TOP_RIGHT}
-              intent={Intent.PRIMARY}
-              onClick={() => {
-                if (!insertResultState.data) return;
-                goToQuery({
-                  queryString: `SELECT * FROM ${SqlTableRef.create(
-                    insertResultState.data.getIngestDatasource()!,
-                  )}`,
-                });
-              }}
-            />
+            <>
+              <Button icon={IconNames.RESET} text="Reset data loader" onClick={onReset} />
+              <Button
+                icon={IconNames.APPLICATION}
+                text={`Query: ${insertResultState.data.getIngestDatasource()}`}
+                rightIcon={IconNames.ARROW_TOP_RIGHT}
+                intent={Intent.PRIMARY}
+                onClick={() => {
+                  if (!insertResultState.data) return;
+                  goToQuery({
+                    queryString: `SELECT * FROM ${SqlTableRef.create(
+                      insertResultState.data.getIngestDatasource()!,
+                    )}`,
+                  });
+                }}
+              />
+            </>
           )}
         </div>
       </div>
