@@ -107,10 +107,8 @@ In the **Query** view, do the following:
 
    ```sql
    -- This SQL query was auto generated from an ingestion spec
-   --:context finalizeAggregations: false
-   --:context groupByEnableMultiValueUnnesting: false
-   INSERT INTO wikipedia
-   WITH ioConfigExtern AS (SELECT * FROM TABLE(
+   REPLACE INTO wikipedia OVERWRITE ALL
+   WITH source AS (SELECT * FROM TABLE(
      EXTERN(
        '{"type":"http","uris":["https://static.imply.io/data/wikipedia.json.gz"]}',
        '{"type":"json"}',
@@ -142,8 +140,8 @@ In the **Query** view, do the following:
      "metroCode",
      "countryIsoCode",
      "regionName"
-   FROM ioConfigExtern
-   PARTITIONED BY DAY   
+   FROM source
+   PARTITIONED BY DAY 
    ```
    
    </details>

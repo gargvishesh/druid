@@ -303,9 +303,6 @@ This example inserts data into a table named `w000` without performing any data 
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 INSERT INTO w000
 SELECT
   TIME_PARSE("timestamp") AS __time,
@@ -352,9 +349,6 @@ This example inserts data into a table named `kttm_data` and performs data rollu
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 INSERT INTO "kttm_rollup"
 
 WITH kttm_data AS (
@@ -398,9 +392,6 @@ This example rolls up data from a table named `w000` and inserts the result into
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 INSERT INTO w002
 SELECT
   FLOOR(__time TO MINUTE) AS __time,
@@ -429,9 +420,6 @@ This example inserts data into a table named `w003` and joins data from two sour
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 INSERT INTO w003
 WITH
 wikidata AS (SELECT * FROM TABLE(
@@ -488,9 +476,6 @@ This example replaces the entire datasource used in the table `w007` with the ne
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 REPLACE INTO w007
 OVERWRITE ALL
 SELECT
@@ -538,9 +523,6 @@ This example replaces certain segments in a datasource with the new query data w
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 REPLACE INTO w007
 OVERWRITE WHERE __time >= TIMESTAMP '2019-08-25 02:00:00' AND __time < TIMESTAMP '2019-08-25 03:00:00'
 SELECT
@@ -564,9 +546,6 @@ CLUSTERED BY page
 <details><summary>Show the query</summary>
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 REPLACE INTO w000
 OVERWRITE ALL
 SELECT
@@ -595,9 +574,6 @@ CLUSTERED BY page
 
 
 ```sql
---:context finalizeAggregations: false
---:context groupByEnableMultiValueUnnesting: false
-
 WITH flights AS (
   SELECT * FROM TABLE(
   EXTERN(

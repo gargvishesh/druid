@@ -9,28 +9,19 @@ title: Reference
 
 In addition to the Druid SQL [context parameters](../querying/sql-query-context.md), the Multi-Stage Query (MSQ) Framework accepts specific context parameters. 
 
-You provide context parameters alongside your queries to customize the behavior of the query. The way you provide the parameters depends on how you submit your query:
+Use context parameters alongside your queries to customize the behavior of the query. If you're using the API, include the context parameters in the query context when you submit a query:
 
-- **Druid console**: Add the parameters before your query like so:
+```json
+{
+  "query": "SELECT 1 + 1",
+  "context": {
+    "<key>": "<value>",
+    "maxNumTasks": 3
+  }
+}
+```
 
-   ```sql
-   --:context <key>: <value> 
-   --:context finalizeAggregations: false
-   INSERT INTO myTable
-   ...
-   ```
-
-- **API**: Add the parameters in the `context` section of your JSON object like so:
-
-   ```sql
-   {
-    "query": "SELECT 1 + 1",
-    "context": {
-        "<key>": <value>,
-        "maxNumTasks": 3
-    }
-   }
-   ```
+If you're using the Druid console, you can specify the context parameters through various UI options.
 
 The following table lists the context parameters specific to MSQ:
 
