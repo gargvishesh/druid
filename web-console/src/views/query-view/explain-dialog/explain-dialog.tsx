@@ -32,9 +32,11 @@ import React from 'react';
 import AceEditor from 'react-ace';
 
 import { Loader } from '../../../components';
-import { isEmptyContext, QueryContext, QueryWithContext } from '../../../druid-models';
+import { DruidEngine, isEmptyContext, QueryContext, QueryWithContext } from '../../../druid-models';
 import { useQueryManager } from '../../../hooks';
+import { Api } from '../../../singletons';
 import {
+  deepGet,
   formatSignature,
   getDruidErrorMessage,
   nonEmptyArray,
@@ -53,8 +55,12 @@ function wrapInExplainIfNeeded(query: string): string {
   return `EXPLAIN PLAN FOR ${query}`;
 }
 
+export interface QueryContextEngine extends QueryWithContext {
+  engine: DruidEngine;
+}
+
 export interface ExplainDialogProps {
-  queryWithContext: QueryWithContext;
+  queryWithContext: QueryContextEngine;
   mandatoryQueryContext?: Record<string, any>;
   onClose: () => void;
   openQueryLabel: string | undefined;
@@ -64,9 +70,9 @@ export interface ExplainDialogProps {
 export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDialogProps) {
   const { queryWithContext, onClose, openQueryLabel, onOpenQuery, mandatoryQueryContext } = props;
 
-  const [explainState] = useQueryManager<QueryWithContext, QueryExplanation[] | string>({
-    processQuery: async (queryWithContext: QueryWithContext) => {
-      const { queryString, queryContext, wrapQueryLimit } = queryWithContext;
+  const [explainState] = useQueryManager<QueryContextEngine, QueryExplanation[] | string>({
+    processQuery: async queryWithContext => {
+      const { engine, queryString, queryContext, wrapQueryLimit } = queryWithContext;
 
       let context: QueryContext | undefined;
       if (!isEmptyContext(queryContext) || wrapQueryLimit || mandatoryQueryContext) {
@@ -80,19 +86,27 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
         }
       }
 
-      let result: any[] | undefined;
+      const payload: any = {
+        query: wrapInExplainIfNeeded(queryString),
+        context,
+      };
+
+      let plan: string | undefined;
+
       try {
-        result = await queryDruidSql({
-          query: wrapInExplainIfNeeded(queryString),
-          context,
-        });
+        if (engine === 'sql-task') {
+          const resp = await Api.instance.post(`/druid/v2/sql/task`, payload);
+          plan = deepGet(resp, 'data.taskId');
+        } else {
+          const result = await queryDruidSql(payload);
+          plan = deepGet(result, '0.PLAN');
+        }
       } catch (e) {
         throw new Error(getDruidErrorMessage(e));
       }
 
-      const plan = result[0]['PLAN'];
       if (typeof plan !== 'string') {
-        throw new Error(`unexpected result from server`);
+        throw new Error(`unexpected result from ${engine} API`);
       }
 
       try {
@@ -114,7 +128,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
       <div className="query-explanation">
         <FormGroup className="query-group" label="Query">
           <AceEditor
-            mode={'hjson'}
+            mode="hjson"
             theme="solarized_dark"
             className="query-string"
             name="ace-editor"

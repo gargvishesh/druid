@@ -281,17 +281,13 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
     const { engine, query: apiQuery } = query.getApiQuery();
     if (typeof apiQuery.query !== 'string') return;
-    const queryContext = apiQuery.context || {};
-    if (engine === 'sql-task') {
-      // Special handling: instead of using the sql/task API we want this query to go via the normal (sync) SQL API with the `multiStageQuery` engine selector
-      queryContext.multiStageQuery = true;
-    }
 
     return (
       <ExplainDialog
         queryWithContext={{
+          engine,
           queryString: apiQuery.query,
-          queryContext,
+          queryContext: apiQuery.context,
         }}
         mandatoryQueryContext={{}}
         onClose={() => {
