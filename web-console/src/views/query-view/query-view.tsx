@@ -50,7 +50,7 @@ import {
 import { QueryRecord, QueryRecordUtil } from '../../utils/query-history';
 
 import { ColumnTree } from './column-tree/column-tree';
-import { ExplainDialog } from './explain-dialog/explain-dialog';
+import { ExplainDialog, QueryContextEngine } from './explain-dialog/explain-dialog';
 import {
   LIVE_QUERY_MODES,
   LiveQueryMode,
@@ -92,7 +92,7 @@ export interface QueryViewState {
 
   queryResultState: QueryState<QueryResult, DruidError>;
 
-  explainDialogQuery?: QueryWithContext;
+  explainDialogQuery?: QueryContextEngine;
 
   defaultSchema?: string;
   defaultTable?: string;
@@ -563,6 +563,7 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
 
     this.setState({
       explainDialogQuery: {
+        engine: 'sql',
         queryString,
         queryContext,
         wrapQueryLimit,

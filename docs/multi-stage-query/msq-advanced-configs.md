@@ -13,23 +13,16 @@ To use durable storage for mesh shuffles:
 
 - [Enable durable storage for mesh shuffle](./msq-setup.md)
 - Use the appropriate [security settings for S3](./msq-security.md#s3)
-- Include the `context` variable when you submit a query
+- Configure your query to use durable storage. 
+  - For the API, include `"durableShuffleStorage": true` in the query context when you submit a query like so:
 
-You can specify the `context` as follows:
+     ```json
+     "context": {
+         "durableShuffleStorage": true
+     }
+     ```
 
-**UI**
-
-   ```sql
-   --:context durableShuffleStorage: true
-   ```
-
-**API**
-
-   ```json
-   "context": {
-       "durableShuffleStorage": true
-   }
-   ```
+  - For the Druid console, toggle this setting in the **Engine** menu.
 
 The following table describes the properties used to configure durable storage for MSQ:
 

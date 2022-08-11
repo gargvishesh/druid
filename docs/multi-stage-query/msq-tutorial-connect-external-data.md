@@ -32,8 +32,6 @@ To generate a query from external data, do the following:
    <details><summary>Show the query</summary>
 
    ```sql
-   --:context finalizeAggregations: false
-   --:context groupByEnableMultiValueUnnesting: false
    INSERT INTO "wikipedia-2016-06-27-sampled"
    SELECT
      isRobot,
