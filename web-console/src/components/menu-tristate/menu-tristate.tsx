@@ -51,7 +51,9 @@ export function MenuTristate(props: MenuTristateProps) {
       shouldDismissPopover={shouldDismiss}
       label={
         formatValue(value) +
-        (typeof undefinedEffectiveValue === 'boolean' ? ` (${undefinedEffectiveValue})` : '')
+        (typeof value === 'undefined' && typeof undefinedEffectiveValue === 'boolean'
+          ? ` (${undefinedEffectiveValue})`
+          : '')
       }
       {...rest}
     >

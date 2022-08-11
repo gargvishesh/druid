@@ -192,6 +192,7 @@ export const SqlDataLoaderView = React.memo(function SqlDataLoaderView(
           taskId={content.id}
           goToQuery={goToQuery}
           goToIngestion={goToIngestion}
+          onReset={() => setContent(undefined)}
           onClose={() => setContent(deepDelete(content, 'id'))}
         />
       )}
