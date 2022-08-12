@@ -20,7 +20,6 @@
 package org.apache.druid.guice;
 
 import io.imply.druid.license.ImplyLicenseModule;
-import io.imply.druid.storage.StorageConnectorModule;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.math.expr.ExpressionProcessingModule;
 
@@ -39,6 +38,8 @@ import java.util.Properties;
  * <p>
  * Tests and clients must provide
  * properties via another mechanism.
+ * <p>
+ * If every test and client needs a module, it should be present here.
  */
 public class StartupInjectorBuilder extends BaseInjectorBuilder<StartupInjectorBuilder>
 {
@@ -52,19 +53,14 @@ public class StartupInjectorBuilder extends BaseInjectorBuilder<StartupInjectorB
         new ExpressionProcessingModule(),
         // BEGIN: Imply modules
         new ImplyLicenseModule(),
-        new StorageConnectorModule(),
         // END: Imply modules
-        binder -> {
-          binder.bind(DruidSecondaryModule.class);
-        }
+        binder -> binder.bind(DruidSecondaryModule.class)
     );
   }
 
   public StartupInjectorBuilder withProperties(Properties properties)
   {
-    add(binder -> {
-      binder.bind(Properties.class).toInstance(properties);
-    });
+    add(binder -> binder.bind(Properties.class).toInstance(properties));
     return this;
   }
 
