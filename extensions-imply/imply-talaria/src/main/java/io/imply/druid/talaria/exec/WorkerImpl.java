@@ -651,7 +651,7 @@ public class WorkerImpl implements Worker
             partition
         );
         try {
-          TalariaTasks.makeStorageConnector(context.injector()).delete(fileName);
+          TalariaTasks.makeStorageConnector(context.injector()).deleteFile(fileName);
         }
         catch (Exception e) {
           // If an error is thrown while cleaning up a file, log it and try to continue with the cleanup

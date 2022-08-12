@@ -30,6 +30,7 @@ import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
+import org.apache.druid.storage.s3.output.S3OutputConfig;
 
 import java.util.List;
 
