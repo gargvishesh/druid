@@ -55,13 +55,24 @@ function statusToIconAndColor(status: TaskStatus): [IconName, string] {
   }
 }
 
-interface HistoryEntry {
+interface RecentQueryEntry {
   taskStatus: TaskStatus;
   taskId: string;
   datasource: string;
   createdTime: string;
   duration: number;
   errorMessage?: string;
+}
+
+function formatDetail(entry: RecentQueryEntry): string | undefined {
+  const lines: string[] = [];
+  if (entry.datasource !== WorkbenchQuery.INLINE_DATASOURCE_MARKER) {
+    lines.push(`Datasource: ${entry.datasource}`);
+  }
+  if (entry.errorMessage) {
+    lines.push(entry.errorMessage);
+  }
+  return lines.length ? lines.join('\n\n') : undefined;
 }
 
 export interface RecentQueryTaskPanelProps {
@@ -80,10 +91,10 @@ export const RecentQueryTaskPanel = React.memo(function RecentQueryTaskPanel(
 
   const workStateVersion = useWorkStateStore(state => state.version);
 
-  const [queryTaskHistoryState, queryManager] = useQueryManager<number, HistoryEntry[]>({
+  const [queryTaskHistoryState, queryManager] = useQueryManager<number, RecentQueryEntry[]>({
     query: workStateVersion,
     processQuery: async _ => {
-      return await queryDruidSql<HistoryEntry>({
+      return await queryDruidSql<RecentQueryEntry>({
         query: `SELECT
   CASE WHEN "error_msg" = 'Shutdown request from user' THEN 'CANCELED' ELSE "status" END AS "taskStatus",
   "task_id" AS "taskId",
@@ -199,7 +210,7 @@ LIMIT 100`,
             const [icon, color] = statusToIconAndColor(w.taskStatus);
             return (
               <Popover2 className="work-entry" key={w.taskId} position="left" content={menu}>
-                <div title={w.errorMessage} onDoubleClick={() => onExecutionDetails(w.taskId)}>
+                <div title={formatDetail(w)} onDoubleClick={() => onExecutionDetails(w.taskId)}>
                   <div className="line1">
                     <Icon
                       className={'status-icon ' + w.taskStatus.toLowerCase()}

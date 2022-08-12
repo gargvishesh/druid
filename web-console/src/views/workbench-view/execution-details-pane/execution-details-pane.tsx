@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 import { IconNames } from '@blueprintjs/icons';
+import { RefName } from 'druid-query-toolkit';
 import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
 
@@ -45,10 +46,13 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
 
   function renderContent() {
     switch (activeTab) {
-      case 'general':
+      case 'general': {
+        const ingestDatasource = execution.getIngestDatasource();
         return (
           <div>
-            <p>General info for {execution.id}</p>
+            <p>{`General info for ${execution.id}${
+              ingestDatasource ? ` ingesting into ${RefName.create(ingestDatasource, true)}` : ''
+            }`}</p>
             {execution.error && <ExecutionErrorPane execution={execution} />}
             {execution.stages ? (
               <ExecutionStagesPane
@@ -62,6 +66,7 @@ export const ExecutionDetailsPane = React.memo(function ExecutionDetailsPane(
             )}
           </div>
         );
+      }
 
       case 'sql':
       case 'native':
