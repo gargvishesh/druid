@@ -47,7 +47,7 @@ export async function executionBackgroundStatusCheck(
   cancelToken: CancelToken,
 ): Promise<Execution | IntermediateQueryState<Execution>> {
   switch (execution.engine) {
-    case 'sql-task':
+    case 'sql-msq-task':
       execution = await updateExecutionWithTaskIfNeeded(execution, cancelToken);
       execution = await updateExecutionWithDatasourceExistsIfNeeded(execution, cancelToken);
       break;

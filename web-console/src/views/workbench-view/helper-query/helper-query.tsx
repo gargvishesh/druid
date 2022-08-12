@@ -104,7 +104,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   });
 
   function shouldAutoRun(): boolean {
-    if (query.getEffectiveEngine() !== 'sql') return false;
+    if (query.getEffectiveEngine() !== 'sql-native') return false;
     const queryDuration = executionState.data?.result?.queryDuration;
     return Boolean(queryDuration && queryDuration < 10000);
   }
@@ -129,7 +129,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
         const { engine, query, sqlPrefixLines, cancelQueryId } = q.getApiQuery();
 
         switch (engine) {
-          case 'sql-task':
+          case 'sql-msq-task':
             return await submitTaskQuery({
               query,
               prefixLines: sqlPrefixLines,
@@ -141,13 +141,15 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
             });
 
           case 'native':
-          case 'sql': {
+          case 'sql-native': {
             if (cancelQueryId) {
               void cancelToken.promise
                 .then(cancel => {
                   if (cancel.message === QueryManager.TERMINATION_MESSAGE) return;
                   return Api.instance.delete(
-                    `/druid/v2${engine === 'sql' ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
+                    `/druid/v2${engine === 'sql-native' ? '/sql' : ''}/${Api.encodePath(
+                      cancelQueryId,
+                    )}`,
                   );
                 })
                 .catch(() => {});
@@ -181,10 +183,10 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
         }
 
         WorkbenchRunningPromises.deletePromise(id);
-        return Execution.fromResult('sql', result);
+        return Execution.fromResult('sql-native', result);
       } else {
         switch (q.engine) {
-          case 'sql-task':
+          case 'sql-msq-task':
             return await reattachTaskExecution({
               id: q.id,
               cancelToken,

@@ -235,7 +235,7 @@ describe('Execution', () => {
             "type": "dataSource",
           },
           "duration": 9053,
-          "engine": "sql-task",
+          "engine": "sql-msq-task",
           "error": undefined,
           "id": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
           "nativeQuery": Object {

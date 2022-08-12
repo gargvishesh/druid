@@ -23,7 +23,7 @@ import { WorkbenchQueryPart } from './workbench-query-part';
 
 describe('WorkbenchQuery', () => {
   beforeAll(() => {
-    WorkbenchQuery.setQueryEngines(['native', 'sql', 'sql-task']);
+    WorkbenchQuery.setQueryEngines(['native', 'sql-native', 'sql-msq-task']);
   });
 
   describe('.commentOutInsertInto', () => {
@@ -216,7 +216,7 @@ describe('WorkbenchQuery', () => {
       const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
       expect(apiQuery).toEqual({
         cancelQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
-        engine: 'sql',
+        engine: 'sql-native',
         query: {
           context: {
             sqlOuterLimit: 1001,
@@ -243,7 +243,7 @@ describe('WorkbenchQuery', () => {
       const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
       expect(apiQuery).toEqual({
         cancelQueryId: 'lol',
-        engine: 'sql',
+        engine: 'sql-native',
         query: {
           context: {
             sqlOuterLimit: 1001,
@@ -281,7 +281,7 @@ describe('WorkbenchQuery', () => {
       const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
       expect(apiQuery).toEqual({
         cancelQueryId: 'deadbeef-9fb0-499c-8475-ea461e96a4fd',
-        engine: 'sql',
+        engine: 'sql-native',
         query: {
           context: {
             sqlOuterLimit: 1001,
@@ -321,7 +321,7 @@ describe('WorkbenchQuery', () => {
       const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
       expect(apiQuery).toEqual({
         cancelQueryId: 'lol',
-        engine: 'sql',
+        engine: 'sql-native',
         query: {
           context: {
             sqlOuterLimit: 1001,
@@ -347,7 +347,7 @@ describe('WorkbenchQuery', () => {
 
       const apiQuery = workbenchQuery.getApiQuery(makeQueryId);
       expect(apiQuery).toEqual({
-        engine: 'sql-task',
+        engine: 'sql-msq-task',
         query: {
           context: {
             finalizeAggregations: false,
@@ -385,7 +385,7 @@ describe('WorkbenchQuery', () => {
 
       const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
       expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
-      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+      expect(workbenchQuery.changeEngine('sql-native').getIngestDatasource()).toBeUndefined();
     });
 
     it('works with INSERT (unparsable)', () => {
@@ -400,7 +400,7 @@ describe('WorkbenchQuery', () => {
 
       const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
       expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
-      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+      expect(workbenchQuery.changeEngine('sql-native').getIngestDatasource()).toBeUndefined();
     });
 
     it('works with REPLACE', () => {
@@ -421,7 +421,7 @@ describe('WorkbenchQuery', () => {
 
       const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
       expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
-      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+      expect(workbenchQuery.changeEngine('sql-native').getIngestDatasource()).toBeUndefined();
     });
 
     it('works with REPLACE (unparsable)', () => {
@@ -432,7 +432,7 @@ describe('WorkbenchQuery', () => {
 
       const workbenchQuery = WorkbenchQuery.blank().changeQueryString(sql);
       expect(workbenchQuery.getIngestDatasource()).toEqual('trips2');
-      expect(workbenchQuery.changeEngine('sql').getIngestDatasource()).toBeUndefined();
+      expect(workbenchQuery.changeEngine('sql-native').getIngestDatasource()).toBeUndefined();
     });
   });
 
