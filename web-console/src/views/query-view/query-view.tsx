@@ -563,7 +563,7 @@ export class QueryView extends React.PureComponent<QueryViewProps, QueryViewStat
 
     this.setState({
       explainDialogQuery: {
-        engine: 'sql',
+        engine: 'sql-native',
         queryString,
         queryContext,
         wrapQueryLimit,

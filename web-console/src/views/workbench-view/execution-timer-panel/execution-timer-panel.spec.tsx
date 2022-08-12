@@ -40,7 +40,7 @@ describe('AnchoredQueryTimer', () => {
   it('matches snapshot', () => {
     const { container } = render(
       <ExecutionTimerPanel
-        execution={new Execution({ engine: 'sql-task', id: 'xxx', startTime: new Date(start) })}
+        execution={new Execution({ engine: 'sql-msq-task', id: 'xxx', startTime: new Date(start) })}
         onCancel={() => {}}
       />,
     );

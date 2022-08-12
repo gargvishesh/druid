@@ -18,9 +18,9 @@
 
 import { Column, QueryResult, SqlExpression, SqlQuery, SqlWithQuery } from 'druid-query-toolkit';
 
-import { QueryContext } from '../../druid-models';
 import { deepGet, deleteKeys, nonEmptyArray, oneOf } from '../../utils';
-import { DRUID_ENGINES, DruidEngine } from '../druid-engine/druid-engine';
+import { DruidEngine, validDruidEngine } from '../druid-engine/druid-engine';
+import { QueryContext } from '../query-context/query-context';
 import { Stages } from '../stages/stages';
 
 const IGNORE_CONTEXT_KEYS = [
@@ -72,7 +72,7 @@ export interface LastExecution {
 export function validateLastExecution(possibleLastExecution: any): LastExecution | undefined {
   if (
     !possibleLastExecution ||
-    !DRUID_ENGINES.includes(possibleLastExecution.engine) ||
+    !validDruidEngine(possibleLastExecution.engine) ||
     typeof possibleLastExecution.id !== 'string'
   ) {
     return;
@@ -151,7 +151,7 @@ export class Execution {
   ): Execution {
     const status = Execution.normalizeTaskStatus(taskSubmitResult.state);
     return new Execution({
-      engine: 'sql-task',
+      engine: 'sql-msq-task',
       id: taskSubmitResult.taskId,
       status: taskSubmitResult.error ? 'FAILED' : status,
       sqlQuery,
@@ -183,7 +183,7 @@ export class Execution {
   ): Execution {
     const status = Execution.normalizeTaskStatus(taskStatus.status.status);
     return new Execution({
-      engine: 'sql-task',
+      engine: 'sql-msq-task',
       id: taskStatus.task,
       status: taskStatus.status.error ? 'FAILED' : status,
       sqlQuery,
@@ -255,7 +255,7 @@ export class Execution {
     }
 
     let res = new Execution({
-      engine: 'sql-task',
+      engine: 'sql-msq-task',
       id,
       status: Execution.normalizeTaskStatus(status),
       startTime: isNaN(startTime.getTime()) ? undefined : startTime,

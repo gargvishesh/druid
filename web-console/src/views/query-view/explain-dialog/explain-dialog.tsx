@@ -94,7 +94,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
       let plan: string | undefined;
 
       try {
-        if (engine === 'sql-task') {
+        if (engine === 'sql-msq-task') {
           const resp = await Api.instance.post(`/druid/v2/sql/task`, payload);
           plan = deepGet(resp, 'data.taskId');
         } else {

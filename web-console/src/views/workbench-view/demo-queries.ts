@@ -305,7 +305,7 @@ ORDER BY
   number ASC
 `.trim(),
         )
-        .changeEngine('sql-task'),
+        .changeEngine('sql-msq-task'),
     },
   ];
 }

@@ -150,7 +150,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
         key={String(e)}
         icon={tickIcon(e === queryEngine)}
         text={typeof e === 'undefined' ? 'auto' : e}
-        label={e === 'sql-task' ? 'multi-stage-query' : undefined}
+        label={e === 'sql-msq-task' ? 'multi-stage-query' : undefined}
         onClick={() => onQueryChange(query.changeEngine(e))}
         shouldDismissPopover={false}
       />
@@ -264,7 +264,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
                     />
                   </MenuItem>
                 )}
-                {effectiveEngine === 'sql-task' ? (
+                {effectiveEngine === 'sql-msq-task' ? (
                   <>
                     <MenuItem
                       icon={IconNames.ERROR}
@@ -381,7 +381,7 @@ export const RunPanel = React.memo(function RunPanel(props: RunPanelProps) {
               intent={query.unlimited ? Intent.WARNING : undefined}
             />
           </Popover2>
-          {effectiveEngine === 'sql-task' && (
+          {effectiveEngine === 'sql-msq-task' && (
             <MaxTasksButton
               queryContext={queryContext}
               changeQueryContext={queryContext =>

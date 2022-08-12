@@ -122,7 +122,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
     WorkbenchQuery.setQueryEngines(queryEngines);
 
-    const hasSqlTask = queryEngines.includes('sql-task');
+    const hasSqlTask = queryEngines.includes('sql-msq-task');
     const showRecentQueryTaskPanel = Boolean(
       hasSqlTask && localStorageGetJson(LocalStorageKeys.WORKBENCH_TASK_PANEL),
     );
@@ -194,7 +194,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
     if (
       prevProps.tabId !== tabId &&
       externalDataTabId(tabId) &&
-      WorkbenchQuery.getQueryEngines().includes('sql-task')
+      WorkbenchQuery.getQueryEngines().includes('sql-msq-task')
     ) {
       this.setState({ connectExternalDataDialogOpen: true });
     }
@@ -294,7 +294,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           this.setState({ explainDialogOpen: false });
         }}
         openQueryLabel={
-          engine === 'sql' && queryEngines.includes('native') ? 'Open in new tab' : undefined
+          engine === 'sql-native' && queryEngines.includes('native') ? 'Open in new tab' : undefined
         }
         onOpenQuery={queryString => {
           this.handleNewTab(
@@ -444,7 +444,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
             WorkbenchQuery.fromEffectiveQueryAndContext(
               execution.sqlQuery,
               execution.queryContext,
-            ).changeLastExecution({ engine: 'sql-task', id: taskId }),
+            ).changeLastExecution({ engine: 'sql-msq-task', id: taskId }),
             taskId,
           );
         }}
@@ -592,7 +592,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
 
   private renderToolbar() {
     const { queryEngines } = this.props;
-    if (!queryEngines.includes('sql-task')) return;
+    if (!queryEngines.includes('sql-msq-task')) return;
 
     const { showRecentQueryTaskPanel } = this.state;
     return (
@@ -664,7 +664,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                   onClick={() => this.handleQueryChange(currentTabEntry.query.prettify())}
                 />
               )}
-              {queryEngines.includes('sql-task') && (
+              {queryEngines.includes('sql-msq-task') && (
                 <>
                   <MenuItem
                     icon={IconNames.TEXT_HIGHLIGHT}
@@ -690,7 +690,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
                 href={getLink('DOCS_SQL')}
                 target="_blank"
               />
-              {queryEngines.includes('sql-task') && (
+              {queryEngines.includes('sql-msq-task') && (
                 <MenuItem
                   icon={IconNames.ROCKET_SLANT}
                   text="Load demo queries"
@@ -782,7 +782,7 @@ export class WorkbenchView extends React.PureComponent<WorkbenchViewProps, Workb
           />
         )}
         {this.renderCenterPanel()}
-        {showRecentQueryTaskPanel && queryEngines.includes('sql-task') && (
+        {showRecentQueryTaskPanel && queryEngines.includes('sql-msq-task') && (
           <RecentQueryTaskPanel
             onClose={this.handleRecentQueryTaskPanelClose}
             onExecutionDetails={this.handleDetails}

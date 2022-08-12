@@ -273,10 +273,10 @@ export class ConsoleApplication extends React.PureComponent<
 
     const queryEngines: DruidEngine[] = ['native'];
     if (capabilities.hasSql()) {
-      queryEngines.push('sql');
+      queryEngines.push('sql-native');
     }
     if (capabilities.hasMultiStageQuery()) {
-      queryEngines.push('sql-task');
+      queryEngines.push('sql-msq-task');
     }
 
     return this.wrapInViewContainer(

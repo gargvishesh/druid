@@ -162,7 +162,7 @@ LIMIT 100`,
                       WorkbenchQuery.fromEffectiveQueryAndContext(
                         execution.sqlQuery,
                         execution.queryContext,
-                      ).changeLastExecution({ engine: 'sql-task', id: w.taskId }),
+                      ).changeLastExecution({ engine: 'sql-msq-task', id: w.taskId }),
                       'Attached',
                     );
                   }}

@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
-export type DruidEngine = 'native' | 'sql' | 'sql-task';
+export type DruidEngine = 'native' | 'sql-native' | 'sql-msq-task';
 
-export const DRUID_ENGINES: DruidEngine[] = ['native', 'sql', 'sql-task'];
+export const DRUID_ENGINES: DruidEngine[] = ['native', 'sql-native', 'sql-msq-task'];
+
+export function validDruidEngine(
+  possibleDruidEngine: string | undefined,
+): possibleDruidEngine is DruidEngine {
+  return Boolean(possibleDruidEngine && DRUID_ENGINES.includes(possibleDruidEngine as DruidEngine));
+}

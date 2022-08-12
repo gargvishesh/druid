@@ -21,15 +21,15 @@ import Hjson from 'hjson';
 import * as JSONBig from 'json-bigint-native';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ColumnMetadata, deleteKeys, generate8HexId } from '../../utils';
+import { DruidEngine, validDruidEngine } from '../druid-engine/druid-engine';
+import { LastExecution } from '../execution/execution';
+import { ExternalConfig } from '../external-config/external-config';
 import {
   externalConfigToIngestQueryPattern,
   ingestQueryPatternToQuery,
-  QueryContext,
-} from '../../druid-models';
-import { ColumnMetadata, deleteKeys, generate8HexId } from '../../utils';
-import { DRUID_ENGINES, DruidEngine } from '../druid-engine/druid-engine';
-import { LastExecution } from '../execution/execution';
-import { ExternalConfig } from '../external-config/external-config';
+} from '../ingest-query-pattern/ingest-query-pattern';
+import { QueryContext } from '../query-context/query-context';
 
 import { WorkbenchQueryPart } from './workbench-query-part';
 
@@ -51,7 +51,7 @@ export interface WorkbenchQueryValue {
 export class WorkbenchQuery {
   static INLINE_DATASOURCE_MARKER = '__query_select';
 
-  private static enabledQueryEngines: DruidEngine[] = ['native', 'sql'];
+  private static enabledQueryEngines: DruidEngine[] = ['native', 'sql-native'];
 
   static blank(): WorkbenchQuery {
     return new WorkbenchQuery({
@@ -190,7 +190,18 @@ export class WorkbenchQuery {
     }
     this.queryParts = queryParts;
     this.queryContext = value.queryContext;
-    this.engine = value.engine && DRUID_ENGINES.includes(value.engine) ? value.engine : undefined;
+
+    // Start back compat code for the engine names that might be coming from local storage
+    let possibleEngine: string | undefined = value.engine;
+    if (possibleEngine === 'sql') {
+      possibleEngine = 'sql-native';
+    } else if (possibleEngine === 'sql-task') {
+      possibleEngine = 'sql-msq-task';
+    }
+    // End bac compat code
+
+    this.engine = validDruidEngine(possibleEngine) ? possibleEngine : undefined;
+
     if (value.unlimited) this.unlimited = true;
   }
 
@@ -243,14 +254,14 @@ export class WorkbenchQuery {
     const enabledEngines = WorkbenchQuery.getQueryEngines();
     if (this.getLastPart().isJsonLike()) {
       if (this.getLastPart().isSqlInJson()) {
-        if (enabledEngines.includes('sql')) return 'sql';
+        if (enabledEngines.includes('sql-native')) return 'sql-native';
       } else {
         if (enabledEngines.includes('native')) return 'native';
       }
     }
-    if (enabledEngines.includes('sql-task') && this.isTaskEngineNeeded()) return 'sql-task';
-    if (enabledEngines.includes('sql')) return 'sql';
-    return enabledEngines[0] || 'sql';
+    if (enabledEngines.includes('sql-msq-task') && this.isTaskEngineNeeded()) return 'sql-msq-task';
+    if (enabledEngines.includes('sql-native')) return 'sql-native';
+    return enabledEngines[0] || 'sql-native';
   }
 
   private getLastPart(): WorkbenchQueryPart {
@@ -316,7 +327,7 @@ export class WorkbenchQuery {
   }
 
   public getIngestDatasource(): string | undefined {
-    if (this.getEffectiveEngine() !== 'sql-task') return;
+    if (this.getEffectiveEngine() !== 'sql-msq-task') return;
     return this.getLastPart().getIngestDatasource();
   }
 
@@ -533,7 +544,7 @@ export class WorkbenchQuery {
     };
 
     let cancelQueryId: string | undefined;
-    if (engine === 'sql') {
+    if (engine === 'sql-native') {
       cancelQueryId = apiQuery.context.sqlQueryId;
       if (!cancelQueryId) {
         // If the sqlQueryId is not explicitly set on the context generate one, so it is possible to cancel the query.
@@ -541,7 +552,7 @@ export class WorkbenchQuery {
       }
     }
 
-    if (engine === 'sql-task') {
+    if (engine === 'sql-msq-task') {
       apiQuery.context.finalizeAggregations ??= !ingestQuery;
       apiQuery.context.groupByEnableMultiValueUnnesting ??= !ingestQuery;
     }
