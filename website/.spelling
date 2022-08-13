@@ -1653,6 +1653,7 @@ enableParallelMerge
 enableJoinLeftTableScanDirect
 enableJoinFilterPushDown
 enableJoinFilterRewrite
+enableRewriteJoinToFilter
 enableJoinFilterRewriteValueColumnFilters
 floatSum
 joinFilterRewriteMaxSize
