@@ -10,7 +10,6 @@
 package io.imply.druid.talaria.shuffle;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.ArenaMemoryAllocator;
 import io.imply.druid.talaria.frame.channel.ReadableNilFrameChannel;
 import io.imply.druid.talaria.frame.channel.WritableStreamFrameChannel;
@@ -19,6 +18,7 @@ import io.imply.druid.talaria.frame.processor.OutputChannel;
 import io.imply.druid.talaria.frame.processor.OutputChannelFactory;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.storage.StorageConnector;
 
 import java.io.IOException;
 import java.nio.channels.Channels;

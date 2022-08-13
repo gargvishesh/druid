@@ -17,41 +17,29 @@
  * under the License.
  */
 
-package io.imply.druid.storage.s3;
+package org.apache.druid.storage;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Provides;
-import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.initialization.DruidModule;
-import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
+import org.apache.druid.storage.local.LocalFileStorageConnectorProvider;
 
 import java.util.List;
 
-public class S3StorageImplyModule implements DruidModule
+public class StorageConnectorModule implements DruidModule
 {
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return ImmutableList.of();
+    return ImmutableList.of(new SimpleModule(StorageConnector.class.getSimpleName()).registerSubtypes(
+        LocalFileStorageConnectorProvider.class));
   }
 
   @Override
   public void configure(Binder binder)
   {
 
-  }
-
-  @Provides
-  @LazySingleton
-  public ImplyServerSideEncryptingAmazonS3 getAmazonS3Client(
-      ServerSideEncryptingAmazonS3.Builder builder
-  )
-  {
-    return new ImplyServerSideEncryptingAmazonS3(
-        builder.getAmazonS3ClientBuilder().build(),
-        builder.getS3StorageConfig().getServerSideEncryption()
-    );
   }
 }

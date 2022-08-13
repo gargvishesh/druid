@@ -61,15 +61,15 @@ druid.query.async.storage.local.directory=/path/to/your/directory
 
 The `druid-s3-extensions` must be loaded to use s3 result storage.
 
-|config|description|required|default|
-| --- | --- | --- | --- |
-|`druid.query.async.storage.type`| Must be set to `s3`. | yes | `local` |
-|`druid.query.async.storage.s3.bucket`| S3 bucket to store query results. | yes | |
-|`druid.query.async.storage.s3.prefix`| S3 prefix to store query results. Do not share the same path with other objects. The auto cleanup coordinatory duty will delete all objects under the same path if it thinks they are expired. | yes | |
-|`druid.query.async.storage.s3.tempDir`| Directory path in local disk to store query results temporarily. | yes | |
-|`druid.query.async.storage.s3.maxResultsSize`| Max size of each result file. It should be between 5MiB and 5TiB. Supports human-readable format. | no | 100MiB |
-|`druid.query.async.storage.s3.chunkSize`| This property is intended only to support rare cases. This property defines the size of each chunk to temporarily store in `druid.query.async.storage.s3.tempDir`.  Druid computes the chunk size automatically when this property is not set. The chunk size must be between 5MiB and 5GiB. | no | null |
-|`druid.query.async.storage.s3.maxTriesOnTransientErrors`| This property is intended only to support rare cases. This property defines the max number times to attempt s3 API calls to avoid failures due to transient errors. | no | 10 |
+| config                                        |description|required|default|
+|-----------------------------------------------| --- | --- | --- |
+| `druid.query.async.storage.type`              | Must be set to `s3`. | yes | `local` |
+| `druid.query.async.storage.s3.bucket`         | S3 bucket to store query results. | yes | |
+| `druid.query.async.storage.s3.prefix`         | S3 prefix to store query results. Do not share the same path with other objects. The auto cleanup coordinatory duty will delete all objects under the same path if it thinks they are expired. | yes | |
+| `druid.query.async.storage.s3.tempDir`        | Directory path in local disk to store query results temporarily. | yes | |
+| `druid.query.async.storage.s3.maxResultsSize` | Max size of each result file. It should be between 5MiB and 5TiB. Supports human-readable format. | no | 100MiB |
+| `druid.query.async.storage.s3.chunkSize`      | This property is intended only to support rare cases. This property defines the size of each chunk to temporarily store in `druid.query.async.storage.s3.tempDir`.  Druid computes the chunk size automatically when this property is not set. The chunk size must be between 5MiB and 5GiB. | no | null |
+| `druid.query.async.storage.s3.maxRetry`       | This property is intended only to support rare cases. This property defines the max number times to attempt s3 API calls to avoid failures due to transient errors. | no | 10 |
 
 The following example shows the configuration for S3 storage:
 
@@ -262,3 +262,4 @@ API will still return details for the query.
 - Even when the broker shuts down gracefully, it currently doesn't wait for running queries in it to complete before
   it completely shuts down. Instead, it simply marks them `FAILED`. This can fail your queries during rolling updates.
 - There is no limit on deep storage usage of query result files. It is recommended to set a quota in deep storage if required.
+- `maxTriesOnTransientErrors` is renamed to `maxRetry`. If the config file has the old property name, default retry count ie 10 will be used.

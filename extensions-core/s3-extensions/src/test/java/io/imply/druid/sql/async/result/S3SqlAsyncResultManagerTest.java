@@ -25,16 +25,19 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.storage.s3.NoopServerSideEncryption;
 import org.apache.druid.storage.s3.S3Utils;
+import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
+import org.apache.druid.storage.s3.output.S3OutputConfig;
 import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
 import org.joda.time.DateTime;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.net.URI;
@@ -43,8 +46,10 @@ import java.util.List;
 
 public class S3SqlAsyncResultManagerTest
 {
+  @Rule
+  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
   private static final AmazonS3 S3_CLIENT = EasyMock.createMock(AmazonS3Client.class);
-  private static final ImplyServerSideEncryptingAmazonS3 AMAZON_S3 = new ImplyServerSideEncryptingAmazonS3(
+  private static final ServerSideEncryptingAmazonS3 AMAZON_S3 = new ServerSideEncryptingAmazonS3(
       S3_CLIENT,
       new NoopServerSideEncryption()
   );
@@ -64,7 +69,7 @@ public class S3SqlAsyncResultManagerTest
   {
     final S3SqlAsyncResultManager resultManager = new S3SqlAsyncResultManager(
         AMAZON_S3,
-        new S3OutputConfig()
+        new S3OutputConfig("async-test", "no-sync", temporaryFolder.newFolder(), null, null, null)
         {
           @Override
           public String getBucket()

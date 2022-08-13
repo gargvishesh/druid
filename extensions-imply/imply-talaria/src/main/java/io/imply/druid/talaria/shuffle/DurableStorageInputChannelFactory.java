@@ -10,7 +10,6 @@
 package io.imply.druid.talaria.shuffle;
 
 import com.google.common.base.Preconditions;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.channel.ReadableFrameChannel;
 import io.imply.druid.talaria.frame.channel.ReadableInputStreamFrameChannel;
 import io.imply.druid.talaria.indexing.InputChannelFactory;
@@ -20,6 +19,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.io.Closer;
+import org.apache.druid.storage.StorageConnector;
 
 import java.io.IOException;
 import java.io.InputStream;
