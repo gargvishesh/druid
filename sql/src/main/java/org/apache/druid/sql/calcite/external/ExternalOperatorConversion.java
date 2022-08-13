@@ -56,9 +56,7 @@ public class ExternalOperatorConversion implements SqlOperatorConversion
 {
   public static final String FUNCTION_NAME = "EXTERN";
 
-  // EXTERNAL is not an "official" resource type (it doesn't appear as a constant in the ResourceType class).
-  // It is here so we can write tests that check that authorization works as expected, like CalciteInsertDmlTest.
-  // This should be rethought before the functionality is exposed to end users.
+  // Resource that allows reading external data via SQL.
   public static final ResourceAction EXTERNAL_RESOURCE_ACTION =
       new ResourceAction(new Resource("EXTERNAL", ResourceType.EXTERNAL), Action.READ);
 
