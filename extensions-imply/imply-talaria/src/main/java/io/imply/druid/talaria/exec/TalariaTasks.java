@@ -12,7 +12,6 @@ package io.imply.druid.talaria.exec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import io.imply.druid.storage.StorageConnector;
 import io.imply.druid.talaria.frame.cluster.ClusterBy;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorFactory;
 import io.imply.druid.talaria.frame.cluster.statistics.KeyCollectorSnapshotDeserializerModule;
@@ -29,6 +28,7 @@ import io.imply.druid.talaria.indexing.error.WorkerRpcFailedFault;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.server.DruidNode;
+import org.apache.druid.storage.StorageConnector;
 
 import javax.annotation.Nullable;
 import java.util.UUID;

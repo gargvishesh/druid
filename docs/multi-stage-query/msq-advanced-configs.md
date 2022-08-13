@@ -35,4 +35,4 @@ The following table describes the properties used to configure durable storage f
 | `druid.msq.intermediate.storage.tempDir`| Directory path on the local disk to temporarily store intermediate stage results. | Yes | |
 | `druid.msq.intermediate.storage.maxResultsSize` | Max size of each partition file per stage. It should be between 5 MiB and 5 TiB. Supports a human-readable format. For example, if a stage has 50 partitions and each partition file is below or equal to 5 TiB, you can effectively use S3 up to 250 TiB of stage output. | No | 100 MiB |
 | `druid.msq.intermediate.storage.chunkSize` | Defines the size of each chunk to temporarily store in `druid.msq.intermediate.storage.tempDir`. The chunk size must be between 5 MiB and 5 GiB. Druid computes the chunk size automatically if no value is provided.| No | |
-| `druid.msq.intermediate.storage.maxTriesOnTransientErrors` | Defines the max number times to attempt S3 API calls to avoid failures due to transient errors. | No | 10 |
+| `druid.msq.intermediate.storage.maxRetry` | Defines the max number times to attempt S3 API calls to avoid failures due to transient errors. | No | 10 |

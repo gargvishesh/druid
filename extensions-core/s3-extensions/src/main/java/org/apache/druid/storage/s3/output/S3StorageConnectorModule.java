@@ -17,44 +17,28 @@
  * under the License.
  */
 
-package io.imply.druid.sql.async.result;
+package org.apache.druid.storage.s3.output;
 
 import com.fasterxml.jackson.databind.Module;
-import com.google.common.collect.ImmutableList;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
-import com.google.inject.Key;
-import com.google.inject.name.Names;
-import org.apache.druid.guice.JsonConfigProvider;
-import org.apache.druid.guice.LazySingleton;
-import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
-import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.storage.s3.S3StorageDruidModule;
-import org.apache.druid.storage.s3.output.S3OutputConfig;
 
+import java.util.Collections;
 import java.util.List;
 
-public class S3SqlAsyncResultStorageModule implements DruidModule
+public class S3StorageConnectorModule implements DruidModule
 {
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return ImmutableList.of();
+    return Collections.singletonList(
+        new SimpleModule(this.getClass().getSimpleName()).registerSubtypes(S3StorageConnectorProvider.class)
+    );
   }
 
   @Override
   public void configure(Binder binder)
   {
-    JsonConfigProvider.bind(
-        binder,
-        StringUtils.format("%s.s3", "druid.query.async.storage"),
-        S3OutputConfig.class,
-        Names.named("async")
-    );
-
-    PolyBind.optionBinder(binder, Key.get(SqlAsyncResultManager.class))
-            .addBinding(S3StorageDruidModule.SCHEME)
-            .to(S3SqlAsyncResultManager.class)
-            .in(LazySingleton.class);
   }
 }

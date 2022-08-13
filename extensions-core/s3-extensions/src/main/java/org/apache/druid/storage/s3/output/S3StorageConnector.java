@@ -1,13 +1,23 @@
 /*
- * Copyright (c) Imply Data, Inc. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * This software is the confidential and proprietary information
- * of Imply Data, Inc. You shall not disclose such Confidential
- * Information and shall use it only in accordance with the terms
- * of the license agreement you entered into with Imply.
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-package io.imply.druid.storage.s3;
+package org.apache.druid.storage.s3.output;
 
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
@@ -15,12 +25,11 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Joiner;
-import io.imply.druid.sql.async.result.RetriableS3OutputStream;
-import io.imply.druid.sql.async.result.S3OutputConfig;
-import io.imply.druid.storage.StorageConnector;
 import org.apache.druid.data.input.impl.RetryingInputStream;
 import org.apache.druid.data.input.impl.prefetch.ObjectOpenFunction;
+import org.apache.druid.storage.StorageConnector;
 import org.apache.druid.storage.s3.S3Utils;
+import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -32,12 +41,12 @@ import java.util.stream.Collectors;
 public class S3StorageConnector implements StorageConnector
 {
   private final S3OutputConfig config;
-  private final ImplyServerSideEncryptingAmazonS3 s3Client;
+  private final ServerSideEncryptingAmazonS3 s3Client;
 
   private static final String DELIM = "/";
   private static final Joiner JOINER = Joiner.on(DELIM).skipNulls();
 
-  public S3StorageConnector(S3OutputConfig config, ImplyServerSideEncryptingAmazonS3 serverSideEncryptingAmazonS3)
+  public S3StorageConnector(S3OutputConfig config, ServerSideEncryptingAmazonS3 serverSideEncryptingAmazonS3)
   {
     this.config = config;
     this.s3Client = serverSideEncryptingAmazonS3;
@@ -52,7 +61,7 @@ public class S3StorageConnector implements StorageConnector
   @Override
   public InputStream read(String path) throws IOException
   {
-    return new RetryingInputStream<GetObjectRequest>(
+    return new RetryingInputStream<>(
         new GetObjectRequest(config.getBucket(), objectPath(path)),
         new ObjectOpenFunction<GetObjectRequest>()
         {
@@ -74,18 +83,18 @@ public class S3StorageConnector implements StorageConnector
           }
         },
         S3Utils.S3RETRY,
-        config.getMaxTriesOnTransientError()
+        config.getMaxRetry()
     );
   }
 
   @Override
   public OutputStream write(String path) throws IOException
   {
-    return new RetriableS3OutputStream(config, s3Client, objectPath(path));
+    return new RetryableS3OutputStream(config, s3Client, objectPath(path));
   }
 
   @Override
-  public void delete(String path)
+  public void deleteFile(String path)
   {
     s3Client.deleteObject(config.getBucket(), objectPath(path));
   }
@@ -104,7 +113,8 @@ public class S3StorageConnector implements StorageConnector
                                                                                     .map(S3ObjectSummary::getKey)
                                                                                     .map(DeleteObjectsRequest.KeyVersion::new)
                                                                                     .collect(Collectors.toList());
-      DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(config.getBucket()).withKeys(deleteObjectsRequestKeys);
+      DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(config.getBucket()).withKeys(
+          deleteObjectsRequestKeys);
       s3Client.deleteObjects(deleteObjectsRequest);
 
       // If the listing is truncated, all S3 objects have been deleted, otherwise, fetch more using the continuation token

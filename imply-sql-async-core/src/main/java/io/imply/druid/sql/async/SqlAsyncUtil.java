@@ -9,6 +9,7 @@
 
 package io.imply.druid.sql.async;
 
+import com.google.common.base.Joiner;
 import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.druid.common.utils.IdUtils;
@@ -22,6 +23,7 @@ public class SqlAsyncUtil
   private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9._\\-]{1,128}$");
   public static final char BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_CHAR = '_';
   public static final String BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_STRING = String.valueOf(BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_CHAR);
+  private static final Joiner JOINER = Joiner.on("/").skipNulls();
 
   private SqlAsyncUtil()
   {
@@ -48,5 +50,12 @@ public class SqlAsyncUtil
   {
     assert asyncResultId.contains(BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_STRING);
     return StringUtils.substringBefore(asyncResultId, BROKER_ID_AND_SQL_QUERY_ID_SEPARATOR_STRING);
+  }
+  public static String getS3KeyForQuery(String prefix, String asyncResultId)
+  {
+    return JOINER.join(
+        prefix,
+        SqlAsyncUtil.safeId(asyncResultId)
+    );
   }
 }

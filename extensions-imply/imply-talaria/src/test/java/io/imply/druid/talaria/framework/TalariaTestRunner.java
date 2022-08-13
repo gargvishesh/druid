@@ -25,9 +25,6 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.util.Providers;
-import io.imply.druid.storage.LocalFileStorageConnectorProvider;
-import io.imply.druid.storage.StorageConnector;
-import io.imply.druid.storage.StorageConnectorProvider;
 import io.imply.druid.talaria.exec.WorkerMemoryParameters;
 import io.imply.druid.talaria.frame.testutil.FrameTestUtil;
 import io.imply.druid.talaria.guice.Talaria;
@@ -121,6 +118,9 @@ import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.view.InProcessViewManager;
 import org.apache.druid.sql.http.SqlQuery;
+import org.apache.druid.storage.StorageConnector;
+import org.apache.druid.storage.StorageConnectorProvider;
+import org.apache.druid.storage.local.LocalFileStorageConnectorProvider;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.PruneLoadSpec;
 import org.apache.druid.timeline.SegmentId;
@@ -312,7 +312,7 @@ public class TalariaTestRunner extends BaseCalciteQueryTest
               );
               localFileStorageDir = tmpFolder.newFolder("fault");
               binder.bind(Key.get(StorageConnector.class, Talaria.class))
-                    .toProvider(new LocalFileStorageConnectorProvider(localFileStorageDir.toURI().getPath()));
+                    .toProvider(new LocalFileStorageConnectorProvider(localFileStorageDir));
             }
             catch (IOException e) {
               throw new ISE(e, "Unable to create setup storage connector");

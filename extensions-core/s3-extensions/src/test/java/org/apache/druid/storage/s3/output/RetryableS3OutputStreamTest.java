@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.imply.druid.sql.async.result;
+package org.apache.druid.storage.s3.output;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.SdkClientException;
@@ -30,12 +30,11 @@ import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
-import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
-import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
+import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.java.util.common.IOE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.storage.s3.NoopServerSideEncryption;
+import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 import org.easymock.EasyMock;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -53,7 +52,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class RetriableS3OutputStreamTest
+public class RetryableS3OutputStreamTest
 {
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -62,11 +61,8 @@ public class RetriableS3OutputStreamTest
   public ExpectedException expectedException = ExpectedException.none();
 
   private final TestAmazonS3 s3 = new TestAmazonS3(0);
-  private final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
-      "resultId",
-      "identity",
-      ResultFormat.OBJECT
-  );
+  private final String path = "resultId";
+
 
   private S3OutputConfig config;
   private long maxResultsSize;
@@ -77,7 +73,15 @@ public class RetriableS3OutputStreamTest
   {
     final File tempDir = temporaryFolder.newFolder();
     chunkSize = 10L;
-    config = new S3OutputConfig()
+    config = new S3OutputConfig(
+        "TEST",
+        "TEST",
+        tempDir,
+        HumanReadableBytes.valueOf(chunkSize),
+        HumanReadableBytes.valueOf(maxResultsSize),
+        2,
+        false
+    )
     {
       @Override
       public File getTempDir()
@@ -98,50 +102,11 @@ public class RetriableS3OutputStreamTest
       }
 
       @Override
-      public int getMaxTriesOnTransientError()
+      public int getMaxRetry()
       {
         return 2;
       }
     };
-  }
-
-  @Test
-  public void testTooSmallChunkSize() throws IOException
-  {
-    maxResultsSize = 100000000000L;
-    chunkSize = 9000000L;
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "chunkSize[9000000] is too small for maxResultsSize[100000000000]. chunkSize should be at least [10000000]"
-    );
-    RetriableS3OutputStream.create(config, s3, queryDetails);
-  }
-
-  @Test
-  public void testTooSmallChunkSizeMaxResultsSizeIsNotRetionalToMaxPartNum() throws IOException
-  {
-    maxResultsSize = 274877906944L;
-    chunkSize = 27487790;
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "chunkSize[27487790] is too small for maxResultsSize[274877906944]. chunkSize should be at least [27487791]"
-    );
-    RetriableS3OutputStream.create(config, s3, queryDetails);
-  }
-
-  @Test
-  public void testTooLargeChunkSize() throws IOException
-  {
-    maxResultsSize = 1024L * 1024 * 1024 * 1024;
-    chunkSize = RetriableS3OutputStream.S3_MULTIPART_UPLOAD_MAX_PART_SIZE + 1;
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "chunkSize[5368709121] should be smaller than [5368709120]"
-    );
-    RetriableS3OutputStream.create(config, s3, queryDetails);
   }
 
   @Test
@@ -150,10 +115,11 @@ public class RetriableS3OutputStreamTest
     maxResultsSize = 1000;
     chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       for (int i = 0; i < 25; i++) {
         bb.clear();
@@ -172,10 +138,11 @@ public class RetriableS3OutputStreamTest
     maxResultsSize = 1000;
     chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES * 3);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       bb.clear();
       bb.putInt(1);
@@ -193,10 +160,11 @@ public class RetriableS3OutputStreamTest
   {
     maxResultsSize = 1000;
     chunkSize = 128;
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       for (int i = 0; i < 600; i++) {
         out.write(i);
@@ -212,10 +180,11 @@ public class RetriableS3OutputStreamTest
   {
     maxResultsSize = 50;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       for (int i = 0; i < 14; i++) {
         bb.clear();
@@ -234,7 +203,7 @@ public class RetriableS3OutputStreamTest
       );
     }
 
-    s3.assertAborted();
+    s3.assertCancelled();
   }
 
   @Test
@@ -245,10 +214,11 @@ public class RetriableS3OutputStreamTest
     maxResultsSize = 1000;
     chunkSize = 10;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       for (int i = 0; i < 25; i++) {
         bb.clear();
@@ -268,10 +238,11 @@ public class RetriableS3OutputStreamTest
 
     maxResultsSize = 1000;
     ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-    try (RetriableS3OutputStream out = RetriableS3OutputStream.createWithoutChunkSizeValidation(
+    try (RetryableS3OutputStream out = new RetryableS3OutputStream(
         config,
         s3,
-        queryDetails
+        path,
+        false
     )) {
       for (int i = 0; i < 2; i++) {
         bb.clear();
@@ -287,15 +258,15 @@ public class RetriableS3OutputStreamTest
       out.write(bb.array());
     }
 
-    s3.assertAborted();
+    s3.assertCancelled();
   }
 
-  private static class TestAmazonS3 extends ImplyServerSideEncryptingAmazonS3
+  private static class TestAmazonS3 extends ServerSideEncryptingAmazonS3
   {
     private final List<UploadPartRequest> partRequests = new ArrayList<>();
 
     private int uploadFailuresLeft;
-    private boolean aborted = false;
+    private boolean cancelled = false;
     @Nullable
     private CompleteMultipartUploadRequest completeRequest;
 
@@ -330,9 +301,9 @@ public class RetriableS3OutputStreamTest
     }
 
     @Override
-    public void abortMultipartUpload(AbortMultipartUploadRequest request) throws SdkClientException
+    public void cancelMultiPartUpload(AbortMultipartUploadRequest request) throws SdkClientException
     {
-      aborted = true;
+      cancelled = true;
     }
 
     @Override
@@ -346,7 +317,7 @@ public class RetriableS3OutputStreamTest
     private void assertCompleted(long chunkSize, long expectedFileSize)
     {
       Assert.assertNotNull(completeRequest);
-      Assert.assertFalse(aborted);
+      Assert.assertFalse(cancelled);
 
       for (int i = 0; i < partRequests.size(); i++) {
         Assert.assertEquals(i + 1, partRequests.get(i).getPartNumber());
@@ -372,9 +343,9 @@ public class RetriableS3OutputStreamTest
       );
     }
 
-    private void assertAborted()
+    private void assertCancelled()
     {
-      Assert.assertTrue(aborted);
+      Assert.assertTrue(cancelled);
       Assert.assertNull(completeRequest);
     }
   }
