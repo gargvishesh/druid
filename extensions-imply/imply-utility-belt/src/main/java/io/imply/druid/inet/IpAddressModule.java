@@ -39,8 +39,6 @@ import java.util.List;
 
 public class IpAddressModule implements DruidModule
 {
-  @VisibleForTesting
-  public static final String FEATURE_NAME = "enhanced-ip-support";
   public static final String ADDRESS_TYPE_NAME = "ipAddress";
   public static final ColumnType ADDRESS_TYPE = ColumnType.ofComplex(IpAddressModule.ADDRESS_TYPE_NAME);
   public static final String PREFIX_TYPE_NAME = "ipPrefix";
