@@ -142,7 +142,7 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSelectGeohash() throws Exception
+  public void testSelectGeohash()
   {
     testQuery(
         "SELECT ST_GEOHASH(lon, lat, 8) FROM druid.geohashtest",

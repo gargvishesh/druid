@@ -165,7 +165,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testPostAggs() throws Exception
+  public void testPostAggs()
   {
     cannotVectorize();
     testQuery(
@@ -285,7 +285,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testMurmurFunctions() throws Exception
+  public void testMurmurFunctions()
   {
     testQuery(
         "SELECT\n"
@@ -346,7 +346,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionFilteringVirtualColumn() throws Exception
+  public void testSessionFilteringVirtualColumn()
   {
     ImplySessionFilteringVirtualColumn virtualColumn = new ImplySessionFilteringVirtualColumn("v0", "dim1");
     virtualColumn.getFilterValues().set(new HashSet<>(ImmutableList.of(7326100087833347728L, 9017698800759320817L, 703442578091529045L)));
@@ -376,7 +376,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionFilteringVirtualColumnInJoin() throws Exception
+  public void testSessionFilteringVirtualColumnInJoin()
   {
     cannotVectorize();
 

@@ -91,7 +91,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testCreateAndDeleteView() throws Exception
+  public void testCreateAndDeleteView()
   {
     // create a view, the view query should work
     viewManager.createView(

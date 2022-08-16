@@ -206,7 +206,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testFullSamplingGroupByQuery() throws Exception
+  public void testFullSamplingGroupByQuery()
   {
     testQuery(
         "SELECT * from (SELECT dim1, sum(m1), SAMPLING_RATE() as s from foo GROUP BY dim1) TABLESAMPLE SYSTEM(10 rows)",
@@ -249,7 +249,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testPartialSamplingGroupByQuery() throws Exception
+  public void testPartialSamplingGroupByQuery()
   {
     testQuery(
         "SELECT * from (SELECT dim1, sum(m1), SAMPLING_RATE() as s from foo GROUP BY dim1) TABLESAMPLE SYSTEM(2 rows)",
@@ -288,7 +288,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testExtrapolationSamplingGroupByQuery() throws Exception
+  public void testExtrapolationSamplingGroupByQuery()
   {
     // don't check this test for correctnes of results as comapred to exact query
     // this is to test the functionality of sampling
@@ -344,7 +344,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeJoinUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeJoinUsingSamplingGroupByQuery()
   {
     testQuery(
         "SELECT foo.m1, sample.dim1 from foo join ( " +
@@ -405,7 +405,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeAndExtrapolatingJoinUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeAndExtrapolatingJoinUsingSamplingGroupByQuery()
   {
     // don't check this test for correctnes of results as comapred to exact query
     // this is to test the functionality of sampling
@@ -478,7 +478,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeJoinToFilterUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeJoinToFilterUsingSamplingGroupByQuery()
   {
     ImmutableMap.Builder<String, Object> queryContextBuilder = ImmutableMap.builder();
     queryContextBuilder.putAll(QUERY_CONTEXT_DEFAULT);
