@@ -89,8 +89,7 @@ import org.apache.druid.sql.calcite.planner.Calcites;
 import org.apache.druid.sql.calcite.planner.OffsetLimit;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rule.GroupByRules;
-import org.apache.druid.sql.calcite.run.QueryFeature;
-import org.apache.druid.sql.calcite.run.QueryFeatureInspector;
+import org.apache.druid.sql.calcite.run.EngineFeature;
 import org.apache.druid.sql.calcite.table.RowSignatures;
 
 import javax.annotation.Nonnull;
@@ -118,6 +117,11 @@ public class DruidQuery
   public static final String CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE = "msqSignature";
   // END: Imply-added code for Talaria execution
 
+  /**
+   * Native query context key that is set when {@link EngineFeature#SCAN_NEEDS_SIGNATURE}.
+   */
+  public static final String CTX_SCAN_SIGNATURE = "scanSignature";
+
   private final DataSource dataSource;
   private final PlannerContext plannerContext;
 
@@ -137,10 +141,7 @@ public class DruidQuery
   private final RowSignature outputRowSignature;
   private final RelDataType outputRowType;
   private final VirtualColumnRegistry virtualColumnRegistry;
-
-  // BEGIN: Imply-added code for Talaria execution
   private final RowSignature sourceRowSignature;
-  // END: Imply-added code for Talaria execution
 
   private DruidQuery(
       final DataSource dataSource,
@@ -160,15 +161,12 @@ public class DruidQuery
     this.selectProjection = selectProjection;
     this.grouping = grouping;
     this.sorting = sorting;
-
-    // BEGIN: Imply-added code for Talaria execution
     this.sourceRowSignature = sourceRowSignature;
-    // END: Imply-added code for Talaria execution
 
     this.outputRowSignature = computeOutputRowSignature(sourceRowSignature, selectProjection, grouping, sorting);
     this.outputRowType = Preconditions.checkNotNull(outputRowType, "outputRowType");
     this.virtualColumnRegistry = Preconditions.checkNotNull(virtualColumnRegistry, "virtualColumnRegistry");
-    this.query = computeQuery(plannerContext.getQueryMaker());
+    this.query = computeQuery();
   }
 
   public static DruidQuery fromPartialQuery(
@@ -812,40 +810,40 @@ public class DruidQuery
    *
    * @return Druid query
    */
-  private Query computeQuery(final QueryFeatureInspector queryFeatureInspector)
+  private Query computeQuery()
   {
     if (dataSource instanceof QueryDataSource) {
       // If there is a subquery, then we prefer the outer query to be a groupBy if possible, since this potentially
       // enables more efficient execution. (The groupBy query toolchest can handle some subqueries by itself, without
       // requiring the Broker to inline results.)
-      final GroupByQuery outerQuery = toGroupByQuery(queryFeatureInspector);
+      final GroupByQuery outerQuery = toGroupByQuery();
 
       if (outerQuery != null) {
         return outerQuery;
       }
     }
 
-    final TimeBoundaryQuery timeBoundaryQuery = toTimeBoundaryQuery(queryFeatureInspector);
+    final TimeBoundaryQuery timeBoundaryQuery = toTimeBoundaryQuery();
     if (timeBoundaryQuery != null) {
       return timeBoundaryQuery;
     }
 
-    final TimeseriesQuery tsQuery = toTimeseriesQuery(queryFeatureInspector);
+    final TimeseriesQuery tsQuery = toTimeseriesQuery();
     if (tsQuery != null) {
       return tsQuery;
     }
 
-    final TopNQuery topNQuery = toTopNQuery(queryFeatureInspector);
+    final TopNQuery topNQuery = toTopNQuery();
     if (topNQuery != null) {
       return topNQuery;
     }
 
-    final GroupByQuery groupByQuery = toGroupByQuery(queryFeatureInspector);
+    final GroupByQuery groupByQuery = toGroupByQuery();
     if (groupByQuery != null) {
       return groupByQuery;
     }
 
-    final ScanQuery scanQuery = toScanQuery(queryFeatureInspector);
+    final ScanQuery scanQuery = toScanQuery();
     if (scanQuery != null) {
       return scanQuery;
     }
@@ -859,9 +857,9 @@ public class DruidQuery
    * @return a TimeBoundaryQuery if possible. null if it is not possible to construct one.
    */
   @Nullable
-  private TimeBoundaryQuery toTimeBoundaryQuery(QueryFeatureInspector queryFeatureInspector)
+  private TimeBoundaryQuery toTimeBoundaryQuery()
   {
-    if (!queryFeatureInspector.feature(QueryFeature.CAN_RUN_TIME_BOUNDARY)
+    if (!plannerContext.engineHasFeature(EngineFeature.TIME_BOUNDARY_QUERY)
         || grouping == null
         || grouping.getSubtotals().hasEffect(grouping.getDimensionSpecs())
         || grouping.getHavingFilter() != null
@@ -923,9 +921,9 @@ public class DruidQuery
    * @return query
    */
   @Nullable
-  private TimeseriesQuery toTimeseriesQuery(final QueryFeatureInspector queryFeatureInspector)
+  private TimeseriesQuery toTimeseriesQuery()
   {
-    if (!queryFeatureInspector.feature(QueryFeature.CAN_RUN_TIMESERIES)
+    if (!plannerContext.engineHasFeature(EngineFeature.TIMESERIES_QUERY)
         || grouping == null
         || grouping.getSubtotals().hasEffect(grouping.getDimensionSpecs())
         || grouping.getHavingFilter() != null) {
@@ -1035,10 +1033,10 @@ public class DruidQuery
    * @return query or null
    */
   @Nullable
-  private TopNQuery toTopNQuery(final QueryFeatureInspector queryFeatureInspector)
+  private TopNQuery toTopNQuery()
   {
     // Must be allowed by the QueryMaker.
-    if (!queryFeatureInspector.feature(QueryFeature.CAN_RUN_TOPN)) {
+    if (!plannerContext.engineHasFeature(EngineFeature.TOPN_QUERY)) {
       return null;
     }
 
@@ -1130,7 +1128,7 @@ public class DruidQuery
    * @return query or null
    */
   @Nullable
-  private GroupByQuery toGroupByQuery(final QueryFeatureInspector queryFeatureInspector)
+  private GroupByQuery toGroupByQuery()
   {
     if (grouping == null) {
       return null;
@@ -1243,7 +1241,7 @@ public class DruidQuery
    * @return query or null
    */
   @Nullable
-  private ScanQuery toScanQuery(final QueryFeatureInspector queryFeatureInspector)
+  private ScanQuery toScanQuery()
   {
     if (grouping != null) {
       // Scan cannot GROUP BY.
@@ -1294,7 +1292,7 @@ public class DruidQuery
       orderByColumns = Collections.emptyList();
     }
 
-    if (!queryFeatureInspector.feature(QueryFeature.SCAN_CAN_ORDER_BY_NON_TIME) && !orderByColumns.isEmpty()) {
+    if (!plannerContext.engineHasFeature(EngineFeature.SCAN_ORDER_BY_NON_TIME) && !orderByColumns.isEmpty()) {
       if (orderByColumns.size() > 1 || !ColumnHolder.TIME_COLUMN_NAME.equals(orderByColumns.get(0).getColumnName())) {
         // Cannot handle this ordering.
         // Scan cannot ORDER BY non-time columns.
@@ -1339,26 +1337,23 @@ public class DruidQuery
         withScanSignatureIfNeeded(
             virtualColumns,
             scanColumnsList,
-            queryFeatureInspector,
             plannerContext.getQueryContext()
         ).getMergedParams()
     );
     // END: Imply-modified code for Talaria execution
   }
 
-  // BEGIN: Imply-added code for Talaria execution
   /**
-   * Returns a copy of "queryContext" with {@link #CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE} added if this query is running
-   * under a Talaria executor.
+   * Returns a copy of "queryContext" with {@link #CTX_SCAN_SIGNATURE} added if the execution context has the
+   * {@link EngineFeature#SCAN_NEEDS_SIGNATURE} feature.
    */
   private QueryContext withScanSignatureIfNeeded(
       final VirtualColumns virtualColumns,
       final List<String> scanColumns,
-      final QueryFeatureInspector queryFeatureInspector,
       final QueryContext queryContext
   )
   {
-    if (queryFeatureInspector.getClass().getName().equals("io.imply.druid.talaria.sql.TalariaQueryMaker")) {
+    if (plannerContext.engineHasFeature(EngineFeature.SCAN_NEEDS_SIGNATURE)) {
       // Compute the signature of the columns that we are selecting.
       final RowSignature.Builder scanSignatureBuilder = RowSignature.builder();
 
@@ -1378,7 +1373,7 @@ public class DruidQuery
 
       try {
         queryContext.addSystemParam(
-            CTX_MULTI_STAGE_QUERY_SCAN_SIGNATURE,
+            CTX_SCAN_SIGNATURE,
             plannerContext.getJsonMapper().writeValueAsString(signature)
         );
         return queryContext;
@@ -1390,5 +1385,4 @@ public class DruidQuery
       return queryContext;
     }
   }
-  // END: Imply-added code for Talaria execution
 }
