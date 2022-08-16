@@ -164,7 +164,7 @@ public abstract class AbstractStatement implements Closeable
    * Plan the query, which also produces the sequence that runs
    * the query.
    */
-  protected PlannerResult plan(DruidPlanner planner)
+  protected PlannerResult createPlan(DruidPlanner planner)
   {
     try {
       return planner.plan();
@@ -188,7 +188,7 @@ public abstract class AbstractStatement implements Closeable
     return fullResourceActions;
   }
 
-  public SqlQueryPlus sqlRequest()
+  public SqlQueryPlus query()
   {
     return queryPlus;
   }
@@ -221,10 +221,16 @@ public abstract class AbstractStatement implements Closeable
   {
   }
 
-  // IMPLY CODE BEGINS
-  public String getIdentity()
+  /**
+   * Convenience method to close the statement and report an error
+   * associated with the statement. Same as calling:{@code
+   * stmt.reporter().failed(e);
+   * stmt.close();
+   * }
+   */
+  public void closeWithError(Throwable e)
   {
-    return queryPlus.authResult().getIdentity();
+    reporter.failed(e);
+    close();
   }
-  // IMPLY CODE ENDS
 }

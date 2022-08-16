@@ -11,8 +11,9 @@ package io.imply.druid.sql.async;
 
 import com.google.inject.Inject;
 import org.apache.druid.guice.LazySingleton;
-import org.apache.druid.sql.HttpStatement;
+import org.apache.druid.sql.DirectStatement;
 import org.apache.druid.sql.SqlLifecycleManager;
+import org.apache.druid.sql.SqlLifecycleManager.Cancelable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -21,7 +22,6 @@ import java.util.concurrent.Future;
 public class SqlAsyncLifecycleManager
 {
   private final SqlLifecycleManager sqlLifecycleManager;
-
 
   //TODO: add a pojo so that we can easily add child objects;
   private final ConcurrentHashMap<String, Future<?>> asyncSubmitFutures = new ConcurrentHashMap<>();
@@ -32,10 +32,9 @@ public class SqlAsyncLifecycleManager
     this.sqlLifecycleManager = sqlLifecycleManager;
   }
 
-
-  public void add(String asyncResultId, HttpStatement httpStatement, Future<?> submitFuture)
+  public void add(String asyncResultId, DirectStatement.ResultSet resultSet, Future<?> submitFuture)
   {
-    sqlLifecycleManager.add(asyncResultId, httpStatement);
+    sqlLifecycleManager.add(asyncResultId, resultSet);
     asyncSubmitFutures.put(asyncResultId, submitFuture);
   }
 
@@ -55,7 +54,7 @@ public class SqlAsyncLifecycleManager
    */
   public void cancel(String asyncResultId)
   {
-    sqlLifecycleManager.getAll(asyncResultId).forEach(SqlLifecycleManager.Cancelable::cancel);
+    sqlLifecycleManager.getAll(asyncResultId).forEach(Cancelable::cancel);
     Future<?> submitFuture = asyncSubmitFutures.get(asyncResultId);
     if (submitFuture != null) {
       asyncSubmitFutures.remove(asyncResultId);

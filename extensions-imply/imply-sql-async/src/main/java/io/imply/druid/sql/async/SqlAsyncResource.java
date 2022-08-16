@@ -10,7 +10,6 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
@@ -19,8 +18,6 @@ import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlStatementFactory;
-import org.apache.druid.sql.SqlStatementFactoryFactory;
-import org.apache.druid.sql.calcite.run.NativeSqlEngine;
 import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,8 +36,8 @@ import java.time.Clock;
 
 /**
  * This implementation uses a "driver" to do the actual work. The first version
- * only worked with a broker. A later version worked with Talaria. The present
- * version is back to working only with the Broker, with Talaria using the
+ * only worked with a broker. A later version worked with MSQ. The present
+ * version is back to working only with the Broker, with MSQ using the
  * /sql/task endpoint. The driver structure is left in place in case we
  * end up with another variation later. See an earlier version for the
  * {@code DeletagingDriver} class that shows how to pick a driver
@@ -54,37 +51,6 @@ public class SqlAsyncResource
 
   @Inject
   public SqlAsyncResource(
-      @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
-      final SqlAsyncQueryPool queryPool,
-      final SqlAsyncMetadataManager metadataManager,
-      final SqlAsyncResultManager resultManager,
-      final NativeSqlEngine engine,
-      final SqlStatementFactoryFactory sqlStatementFactoryFactory,
-      final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
-      final AuthorizerMapper authorizerMapper,
-      @Json final ObjectMapper jsonMapper,
-      final AsyncQueryConfig asyncQueryReadRefreshConfig,
-      final Clock clock
-  )
-  {
-    // TODO(paul): Better to inject the context. Since the context has
-    // all the dependencies, the constructor here becomes quite simple.
-    this.context = new AsyncQueryContext(
-        brokerId,
-        queryPool,
-        metadataManager,
-        resultManager,
-        sqlStatementFactoryFactory.factorize(engine),
-        sqlAsyncLifecycleManager,
-        authorizerMapper,
-        jsonMapper,
-        asyncQueryReadRefreshConfig,
-        clock);
-    this.driver = new BrokerAsyncQueryDriver(context);
-  }
-
-  @VisibleForTesting
-  SqlAsyncResource(
       @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,

@@ -19,7 +19,6 @@ import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.guice.ManageLifecycleAnnouncements;
 import org.apache.druid.java.util.common.ISE;
-import org.apache.druid.java.util.common.Numbers;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Yielder;
 import org.apache.druid.java.util.common.guava.Yielders;
@@ -27,18 +26,20 @@ import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.QueryCapacityExceededException;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.server.initialization.jetty.BadRequestException;
-import org.apache.druid.sql.HttpStatement;
+import org.apache.druid.sql.DirectStatement;
 import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -120,7 +121,8 @@ public class SqlAsyncQueryPool
    *
    * @param asyncResultId async query result ID (must be globally unique; can be different from the SQL query ID)
    * @param sqlQuery      the original query request
-   * @param stmt          the query stmt object
+   * @param lifecycle     a query lifecycle where {@link SqlLifecycle#isAuthorizedAndReadyToRun()} is true
+   * @param remoteAddr    remote address, for logging and metrics
    *
    * @return information about the running query
    *
@@ -129,24 +131,27 @@ public class SqlAsyncQueryPool
   public SqlAsyncQueryDetails execute(
       final String asyncResultId,
       final SqlQuery sqlQuery,
-      final HttpStatement stmt
+      final DirectStatement.ResultSet resultSet,
+      @Nullable final String remoteAddr
   ) throws AsyncQueryAlreadyExistsException
   {
-    final long timeout = getTimeout(sqlQuery.getContext());
+    Preconditions.checkState(resultSet.runnable());
+
+    final long timeout = getTimeout(resultSet.query().context());
     if (!hasTimeout(timeout)) {
       throw new BadRequestException("Query must have timeout");
     }
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
         asyncResultId,
-        stmt.getIdentity(),
+        resultSet.query().authResult().getIdentity(),
         sqlQuery.getResultFormat()
     );
 
     metadataManager.addNewQuery(queryDetails);
 
     try {
-      exec.submit(
+      sqlAsyncLifecycleManager.add(asyncResultId, resultSet, exec.submit(
           () -> {
             final String currThreadName = Thread.currentThread().getName();
 
@@ -163,8 +168,8 @@ public class SqlAsyncQueryPool
 
               // Most of this code is copy-pasted from SqlResource. It would be nice to consolidate it to lower
               // the maintenance burden of keeping them in sync.
-              Yielder<Object[]> yielder = Yielders.each(stmt.execute());
-              SqlRowTransformer rowTransformer = stmt.createRowTransformer();
+              SqlRowTransformer rowTransformer = resultSet.createRowTransformer();
+              Yielder<Object[]> yielder = Yielders.each(resultSet.run());
 
               CountingOutputStream outputStream;
 
@@ -209,13 +214,13 @@ public class SqlAsyncQueryPool
                     asyncResultId
                 );
               }
-              stmt.reporter().succeeded(outputStream.getCount());
-              stmt.close();
+              resultSet.reporter().succeeded(outputStream.getCount());
+              resultSet.close();
             }
             catch (Exception e) {
               LOG.warn(e, "Failed to execute async query [%s]", asyncResultId);
-              stmt.reporter().failed(e);
-              stmt.close();
+              resultSet.reporter().failed(e);
+              resultSet.close();
 
               try {
                 final SqlAsyncQueryDetails error = queryDetails.toError(e);
@@ -236,7 +241,7 @@ public class SqlAsyncQueryPool
               sqlAsyncLifecycleManager.remove(asyncResultId);
             }
           }
-      );
+      ));
     }
     catch (QueryCapacityExceededException e) {
       // The QueryCapacityExceededException is thrown by the Executor's RejectedExecutionHandler
@@ -292,10 +297,9 @@ public class SqlAsyncQueryPool
 
   // These methods are copied from QueryContexts.
 
-  private static long getDefaultTimeout(Map<String, Object> context)
+  private static long getDefaultTimeout(QueryContext context)
   {
-    final long defaultTimeout = parseLong(
-        context,
+    final long defaultTimeout = context.getAsLong(
         QueryContexts.DEFAULT_TIMEOUT_KEY,
         QueryContexts.DEFAULT_TIMEOUT_MILLIS
     );
@@ -303,19 +307,13 @@ public class SqlAsyncQueryPool
     return defaultTimeout;
   }
 
-  private static long getTimeout(Map<String, Object> context)
+  private static long getTimeout(QueryContext context)
   {
-    return parseLong(context, QueryContexts.TIMEOUT_KEY, getDefaultTimeout(context));
+    return context.getAsLong(QueryContexts.TIMEOUT_KEY, getDefaultTimeout(context));
   }
 
   private static boolean hasTimeout(long timeout)
   {
     return timeout != QueryContexts.NO_TIMEOUT;
-  }
-
-  private static long parseLong(Map<String, Object> context, String key, long defaultValue)
-  {
-    final Object val = context.get(key);
-    return val == null ? defaultValue : Numbers.parseLong(val);
   }
 }

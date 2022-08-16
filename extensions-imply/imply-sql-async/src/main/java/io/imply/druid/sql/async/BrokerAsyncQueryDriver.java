@@ -34,6 +34,7 @@ import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
@@ -57,28 +58,32 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
   }
 
   @Override
-  public Response submit(final SqlQuery sqlQuery, final HttpServletRequest req)
+  public Response submit(
+      final SqlQuery sqlQuery,
+      final HttpServletRequest req)
   {
+    final HttpStatement stmt = context.sqlStatementFactory.httpStatement(sqlQuery, req);
+    final String sqlQueryId = stmt.sqlQueryId();
+    final String remoteAddr = req.getRemoteAddr();
     // Update query to add FEATURE_NAME and FEATURE_VALUE in context
     final SqlQuery updatedSqlQuery = sqlQuery.withQueryContext(
         BaseQuery.computeOverriddenContext(
             ImmutableMap.of(FEATURE_NAME, FEATURE_VALUE),
             sqlQuery.getContext()));
 
-    final HttpStatement stmt = context.sqlStatementFactory.httpStatement(updatedSqlQuery, req);
-    final String sqlQueryId = stmt.sqlQueryId();
     final String asyncResultId = SqlAsyncUtil.createAsyncResultId(context.brokerId, sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {
-      final SqlAsyncQueryDetails queryDetails = context.queryPool.execute(asyncResultId, updatedSqlQuery, stmt);
+      HttpStatement.ResultSet resultSet = stmt.plan();
+      final SqlAsyncQueryDetails queryDetails = context.queryPool.execute(asyncResultId, updatedSqlQuery, resultSet, remoteAddr);
       return Response
           .status(Response.Status.ACCEPTED)
           .entity(queryDetails.toApiResponse(ENGINE_NAME))
           .build();
     }
     catch (QueryCapacityExceededException cap) {
-      stmt.reporter().failed(cap);
+      stmt.closeWithError(cap);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -87,7 +92,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       );
     }
     catch (QueryUnsupportedException unsupported) {
-      stmt.close();
+      stmt.closeWithError(unsupported);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -96,7 +101,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       );
     }
     catch (SqlPlanningException | ResourceLimitExceededException e) {
-      stmt.reporter().failed(e);
+      stmt.closeWithError(e);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -110,7 +115,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     }
     catch (Exception e) {
       log.warn(e, "Failed to handle query: %s", updatedSqlQuery);
-      stmt.reporter().failed(e);
+      stmt.closeWithError(e);
 
       final Exception exceptionToReport;
 
@@ -126,9 +131,6 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
           Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
           exceptionToReport
       );
-    }
-    finally {
-      stmt.close();
     }
   }
 
