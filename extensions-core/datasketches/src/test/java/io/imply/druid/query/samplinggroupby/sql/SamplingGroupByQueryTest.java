@@ -58,9 +58,8 @@ import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.TestQueryMakerFactory;
 import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
@@ -111,7 +110,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlLifecycleFactory getSqlLifecycleFactory(
+  public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig,
       DruidOperatorTable operatorTable,
@@ -132,10 +131,6 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
 
     PlannerFactory plannerFactory = new PlannerFactory(
         rootSchema,
-        new TestQueryMakerFactory(
-            CalciteTests.createMockQueryLifecycleFactory(walker, conglomerate),
-            objectMapper
-        ),
         operatorTable,
         macroTable,
         plannerConfig,
@@ -146,7 +141,11 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
             ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider())
         )
     );
-    return CalciteTests.createSqlLifecycleFactory(plannerFactory, authConfig);
+    return CalciteTests.createSqlStatementFactory(
+        CalciteTests.createMockSqlEngine(walker, conglomerate),
+        plannerFactory,
+        authConfig
+    );
   }
 
   @Override

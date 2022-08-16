@@ -17,7 +17,7 @@ import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlStatementFactory;
 
 import java.time.Clock;
 
@@ -27,7 +27,7 @@ public class AsyncQueryContext
   final SqlAsyncQueryPool queryPool;
   final SqlAsyncMetadataManager metadataManager;
   final SqlAsyncResultManager resultManager;
-  final SqlLifecycleFactory sqlLifecycleFactory;
+  final SqlStatementFactory sqlStatementFactory;
   final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
   final AuthorizerMapper authorizerMapper;
   final ObjectMapper jsonMapper;
@@ -40,7 +40,7 @@ public class AsyncQueryContext
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
-      final SqlLifecycleFactory sqlLifecycleFactory,
+      final SqlStatementFactory sqlStatementFactory,
       final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
       final AuthorizerMapper authorizerMapper,
       @Json final ObjectMapper jsonMapper,
@@ -52,7 +52,7 @@ public class AsyncQueryContext
     this.queryPool = queryPool;
     this.metadataManager = metadataManager;
     this.resultManager = resultManager;
-    this.sqlLifecycleFactory = sqlLifecycleFactory;
+    this.sqlStatementFactory = sqlStatementFactory;
     this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
     this.authorizerMapper = authorizerMapper;
     this.jsonMapper = jsonMapper;

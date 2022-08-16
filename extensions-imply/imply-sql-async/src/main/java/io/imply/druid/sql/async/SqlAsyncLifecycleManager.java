@@ -11,7 +11,7 @@ package io.imply.druid.sql.async;
 
 import com.google.inject.Inject;
 import org.apache.druid.guice.LazySingleton;
-import org.apache.druid.sql.SqlLifecycle;
+import org.apache.druid.sql.HttpStatement;
 import org.apache.druid.sql.SqlLifecycleManager;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,9 +33,9 @@ public class SqlAsyncLifecycleManager
   }
 
 
-  public void add(String asyncResultId, SqlLifecycle lifecycle, Future<?> submitFuture)
+  public void add(String asyncResultId, HttpStatement httpStatement, Future<?> submitFuture)
   {
-    sqlLifecycleManager.add(asyncResultId, lifecycle);
+    sqlLifecycleManager.add(asyncResultId, httpStatement);
     asyncSubmitFutures.put(asyncResultId, submitFuture);
   }
 
@@ -55,7 +55,7 @@ public class SqlAsyncLifecycleManager
    */
   public void cancel(String asyncResultId)
   {
-    sqlLifecycleManager.getAll(asyncResultId).forEach(SqlLifecycle::cancel);
+    sqlLifecycleManager.getAll(asyncResultId).forEach(SqlLifecycleManager.Cancelable::cancel);
     Future<?> submitFuture = asyncSubmitFutures.get(asyncResultId);
     if (submitFuture != null) {
       asyncSubmitFutures.remove(asyncResultId);

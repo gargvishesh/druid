@@ -39,8 +39,8 @@ import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.ForbiddenException;
-import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.SqlLifecycleManager;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
@@ -154,7 +154,7 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         lifecycle
     );
     queryPool = poolProvider.get();
-    final SqlLifecycleFactory sqlLifecycleFactory = getSqlLifecycleFactory(
+    final SqlStatementFactory sqlLifecycleFactory = getSqlStatementFactory(
         new PlannerConfig(),
         new AuthConfig(),
         createOperatorTable(),

@@ -30,12 +30,11 @@ import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.server.initialization.jetty.BadRequestException;
-import org.apache.druid.sql.SqlLifecycle;
+import org.apache.druid.sql.HttpStatement;
 import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
@@ -121,8 +120,7 @@ public class SqlAsyncQueryPool
    *
    * @param asyncResultId async query result ID (must be globally unique; can be different from the SQL query ID)
    * @param sqlQuery      the original query request
-   * @param lifecycle     a query lifecycle where {@link SqlLifecycle#isAuthorizedAndReadyToRun()} is true
-   * @param remoteAddr    remote address, for logging and metrics
+   * @param stmt          the query stmt object
    *
    * @return information about the running query
    *
@@ -131,12 +129,9 @@ public class SqlAsyncQueryPool
   public SqlAsyncQueryDetails execute(
       final String asyncResultId,
       final SqlQuery sqlQuery,
-      final SqlLifecycle lifecycle,
-      @Nullable final String remoteAddr
+      final HttpStatement stmt
   ) throws AsyncQueryAlreadyExistsException
   {
-    Preconditions.checkState(lifecycle.isAuthorizedAndReadyToRun());
-
     final long timeout = getTimeout(sqlQuery.getContext());
     if (!hasTimeout(timeout)) {
       throw new BadRequestException("Query must have timeout");
@@ -144,14 +139,14 @@ public class SqlAsyncQueryPool
 
     final SqlAsyncQueryDetails queryDetails = SqlAsyncQueryDetails.createNew(
         asyncResultId,
-        lifecycle.getAuthenticationResult().getIdentity(),
+        stmt.getIdentity(),
         sqlQuery.getResultFormat()
     );
 
     metadataManager.addNewQuery(queryDetails);
 
     try {
-      sqlAsyncLifecycleManager.add(asyncResultId, lifecycle, exec.submit(
+      exec.submit(
           () -> {
             final String currThreadName = Thread.currentThread().getName();
 
@@ -168,9 +163,8 @@ public class SqlAsyncQueryPool
 
               // Most of this code is copy-pasted from SqlResource. It would be nice to consolidate it to lower
               // the maintenance burden of keeping them in sync.
-              lifecycle.plan();
-              SqlRowTransformer rowTransformer = lifecycle.createRowTransformer();
-              Yielder<Object[]> yielder = Yielders.each(lifecycle.execute());
+              Yielder<Object[]> yielder = Yielders.each(stmt.execute());
+              SqlRowTransformer rowTransformer = stmt.createRowTransformer();
 
               CountingOutputStream outputStream;
 
@@ -215,11 +209,13 @@ public class SqlAsyncQueryPool
                     asyncResultId
                 );
               }
-              lifecycle.finalizeStateAndEmitLogsAndMetrics(null, remoteAddr, outputStream.getCount());
+              stmt.reporter().succeeded(outputStream.getCount());
+              stmt.close();
             }
             catch (Exception e) {
               LOG.warn(e, "Failed to execute async query [%s]", asyncResultId);
-              lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
+              stmt.reporter().failed(e);
+              stmt.close();
 
               try {
                 final SqlAsyncQueryDetails error = queryDetails.toError(e);
@@ -240,7 +236,7 @@ public class SqlAsyncQueryPool
               sqlAsyncLifecycleManager.remove(asyncResultId);
             }
           }
-      ));
+      );
     }
     catch (QueryCapacityExceededException e) {
       // The QueryCapacityExceededException is thrown by the Executor's RejectedExecutionHandler

@@ -220,4 +220,11 @@ public abstract class AbstractStatement implements Closeable
   public void closeQuietly()
   {
   }
+
+  // IMPLY CODE BEGINS
+  public String getIdentity()
+  {
+    return queryPlus.authResult().getIdentity();
+  }
+  // IMPLY CODE ENDS
 }
