@@ -27,6 +27,7 @@ import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ForbiddenException;
+import org.apache.druid.sql.DirectStatement.ResultSet;
 import org.apache.druid.sql.HttpStatement;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.http.ResultFormat;
@@ -75,7 +76,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {
-      HttpStatement.ResultSet resultSet = stmt.plan();
+      ResultSet resultSet = stmt.plan();
       final SqlAsyncQueryDetails queryDetails = context.queryPool.execute(asyncResultId, updatedSqlQuery, resultSet, remoteAddr);
       return Response
           .status(Response.Status.ACCEPTED)

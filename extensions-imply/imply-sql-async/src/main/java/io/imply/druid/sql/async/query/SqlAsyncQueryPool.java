@@ -30,7 +30,7 @@ import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.server.initialization.jetty.BadRequestException;
-import org.apache.druid.sql.DirectStatement;
+import org.apache.druid.sql.DirectStatement.ResultSet;
 import org.apache.druid.sql.SqlRowTransformer;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
@@ -121,7 +121,7 @@ public class SqlAsyncQueryPool
    *
    * @param asyncResultId async query result ID (must be globally unique; can be different from the SQL query ID)
    * @param sqlQuery      the original query request
-   * @param lifecycle     a query lifecycle where {@link SqlLifecycle#isAuthorizedAndReadyToRun()} is true
+   * @param resultSet     a result set for a query
    * @param remoteAddr    remote address, for logging and metrics
    *
    * @return information about the running query
@@ -131,7 +131,7 @@ public class SqlAsyncQueryPool
   public SqlAsyncQueryDetails execute(
       final String asyncResultId,
       final SqlQuery sqlQuery,
-      final DirectStatement.ResultSet resultSet,
+      final ResultSet resultSet,
       @Nullable final String remoteAddr
   ) throws AsyncQueryAlreadyExistsException
   {
