@@ -34,7 +34,9 @@ public class ITAsyncQueryLimits extends AbstractIndexerTest
   @Inject
   private AsyncResourceTestClient asyncResourceTestClient;
 
-  @Test
+  // TODO(paul): uses a query which is no longer supported.
+  // To be redone after Imply catches up to Apache Druid.
+  @Test(enabled = false)
   public void testClusterAsyncQueryRunningLimits() throws Exception
   {
     // This test covers the following limits:
