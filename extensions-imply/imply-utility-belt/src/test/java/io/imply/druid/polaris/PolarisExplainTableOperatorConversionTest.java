@@ -34,7 +34,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
   }
 
   @Test
-  public void testSimpleExplainPlanFromPolaris() throws Exception
+  public void testSimpleExplainPlanFromPolaris()
   {
     skipVectorize();
     String nonVectorizationResult = "[{\"query\":{\"queryType\":\"scan\",\"dataSource\":{\"type\":\"inline\","
@@ -65,7 +65,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
   }
 
   @Test
-  public void testTransformExplainPlanFromPolaris() throws Exception
+  public void testTransformExplainPlanFromPolaris()
   {
     skipVectorize();
     String nonVectorizationResult = "[{\"query\":{\"queryType\":\"scan\",\"dataSource\":{\"type\":"

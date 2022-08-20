@@ -139,6 +139,10 @@ public interface Query<T>
    * @param defaultValue The default to return if the key value doesn't exist or the context is null.
    * @return {@link HumanReadableBytes}
    */
+  // IMPLY CODE : Suppression is added to quiet intellij inspect job which asks to remove this method from interface and
+  // inline it since the method is being used only by one caller for one specific query type. More usages of this method
+  // are present in apache's contrib extensions which aren't present in Imply's fork.
+  @SuppressWarnings("all")
   default HumanReadableBytes getContextHumanReadableBytes(String key, HumanReadableBytes defaultValue)
   {
     if (null != getQueryContext()) {

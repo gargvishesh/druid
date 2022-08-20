@@ -36,7 +36,9 @@ public class ITAsyncBrokerShutdown extends AbstractIndexerTest
   @Inject
   private AsyncResourceTestClient asyncResourceTestClient;
 
-  @Test
+  // TODO(paul): uses a query which is no longer supported.
+  // To be redone after Imply catches up to Apache Druid.
+  @Test(enabled = false)
   public void testQueryMarkFailedWhenBrokerShutdown() throws Exception
   {
     List<String> asyncResultIds = new ArrayList<>();

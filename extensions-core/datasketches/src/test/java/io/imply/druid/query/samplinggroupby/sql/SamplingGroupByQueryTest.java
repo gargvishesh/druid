@@ -58,9 +58,8 @@ import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.TestQueryMakerFactory;
 import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
@@ -111,7 +110,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlLifecycleFactory getSqlLifecycleFactory(
+  public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig,
       DruidOperatorTable operatorTable,
@@ -132,10 +131,6 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
 
     PlannerFactory plannerFactory = new PlannerFactory(
         rootSchema,
-        new TestQueryMakerFactory(
-            CalciteTests.createMockQueryLifecycleFactory(walker, conglomerate),
-            objectMapper
-        ),
         operatorTable,
         macroTable,
         plannerConfig,
@@ -146,7 +141,11 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
             ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider())
         )
     );
-    return CalciteTests.createSqlLifecycleFactory(plannerFactory, authConfig);
+    return CalciteTests.createSqlStatementFactory(
+        CalciteTests.createMockSqlEngine(walker, conglomerate),
+        plannerFactory,
+        authConfig
+    );
   }
 
   @Override
@@ -207,7 +206,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testFullSamplingGroupByQuery() throws Exception
+  public void testFullSamplingGroupByQuery()
   {
     testQuery(
         "SELECT * from (SELECT dim1, sum(m1), SAMPLING_RATE() as s from foo GROUP BY dim1) TABLESAMPLE SYSTEM(10 rows)",
@@ -250,7 +249,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testPartialSamplingGroupByQuery() throws Exception
+  public void testPartialSamplingGroupByQuery()
   {
     testQuery(
         "SELECT * from (SELECT dim1, sum(m1), SAMPLING_RATE() as s from foo GROUP BY dim1) TABLESAMPLE SYSTEM(2 rows)",
@@ -289,7 +288,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testExtrapolationSamplingGroupByQuery() throws Exception
+  public void testExtrapolationSamplingGroupByQuery()
   {
     // don't check this test for correctnes of results as comapred to exact query
     // this is to test the functionality of sampling
@@ -345,7 +344,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeJoinUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeJoinUsingSamplingGroupByQuery()
   {
     testQuery(
         "SELECT foo.m1, sample.dim1 from foo join ( " +
@@ -406,7 +405,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeAndExtrapolatingJoinUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeAndExtrapolatingJoinUsingSamplingGroupByQuery()
   {
     // don't check this test for correctnes of results as comapred to exact query
     // this is to test the functionality of sampling
@@ -479,7 +478,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testSessionizeJoinToFilterUsingSamplingGroupByQuery() throws Exception
+  public void testSessionizeJoinToFilterUsingSamplingGroupByQuery()
   {
     ImmutableMap.Builder<String, Object> queryContextBuilder = ImmutableMap.builder();
     queryContextBuilder.putAll(QUERY_CONTEXT_DEFAULT);

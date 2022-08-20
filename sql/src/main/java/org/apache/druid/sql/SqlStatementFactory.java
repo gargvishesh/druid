@@ -17,16 +17,17 @@
  * under the License.
  */
 
-package org.apache.druid.sql.calcite.run;
+package org.apache.druid.sql;
 
-/**
- * Gives the SQL-to-Druid query translator information about what features are supporetd by the {@link QueryMaker}
- * that will execute the query.
- */
-public interface QueryFeatureInspector
+import org.apache.druid.sql.http.SqlQuery;
+
+import javax.servlet.http.HttpServletRequest;
+
+public interface SqlStatementFactory
 {
-  /**
-   * Returns whether a feature is present or not.
-   */
-  boolean feature(QueryFeature feature);
+  HttpStatement httpStatement(SqlQuery sqlQuery, HttpServletRequest req);
+
+  DirectStatement directStatement(SqlQueryPlus sqlRequest);
+
+  PreparedStatement preparedStatement(SqlQueryPlus sqlRequest);
 }

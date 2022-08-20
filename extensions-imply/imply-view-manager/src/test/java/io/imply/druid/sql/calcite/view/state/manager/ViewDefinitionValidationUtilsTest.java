@@ -24,7 +24,7 @@ import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceType;
-import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
@@ -76,7 +76,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     this.plannerFactory = new PlannerFactory(
         rootSchema,
-        CalciteTests.createMockQueryMakerFactory(walker, conglomerate),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         PLANNER_CONFIG_DEFAULT,
@@ -88,7 +87,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlLifecycleFactory getSqlLifecycleFactory(
+  public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig,
       DruidOperatorTable operatorTable,
@@ -97,7 +96,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
       ObjectMapper objectMapper
   )
   {
-    return CalciteTests.createSqlLifecycleFactory(plannerFactory);
+    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
   }
 
   @Test

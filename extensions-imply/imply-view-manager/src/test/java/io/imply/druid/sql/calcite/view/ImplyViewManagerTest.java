@@ -22,8 +22,8 @@ import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
 import org.apache.druid.sql.SqlPlanningException;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
@@ -67,7 +67,6 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
 
     this.plannerFactory = new PlannerFactory(
         rootSchema,
-        CalciteTests.createMockQueryMakerFactory(walker, conglomerate),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         PLANNER_CONFIG_DEFAULT,
@@ -79,7 +78,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlLifecycleFactory getSqlLifecycleFactory(
+  public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig,
       DruidOperatorTable operatorTable,
@@ -88,11 +87,11 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
       ObjectMapper objectMapper
   )
   {
-    return CalciteTests.createSqlLifecycleFactory(plannerFactory);
+    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
   }
 
   @Test
-  public void testCreateAndDeleteView() throws Exception
+  public void testCreateAndDeleteView()
   {
     // create a view, the view query should work
     viewManager.createView(
