@@ -113,7 +113,9 @@ public class ITAsyncDeleteQueryTest extends AbstractIndexerTest
     return "1".equals(StringUtils.chomp(lsFileResult));
   }
 
-  @Test
+  // TODO(paul): uses a query which is no longer supported.
+  // To be redone after Imply catches up to Apache Druid.
+  @Test(enabled = false)
   public void cancelRunningQuery() throws Exception
   {
     final SqlQuery query = new SqlQuery(
