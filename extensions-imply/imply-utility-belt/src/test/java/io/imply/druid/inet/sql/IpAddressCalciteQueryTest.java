@@ -257,7 +257,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormat() throws Exception
+  public void testGroupByFormat()
   {
     cannotVectorize();
     testQuery(
@@ -416,7 +416,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterMatch() throws Exception
+  public void testGroupByFormatFilterMatch()
   {
     cannotVectorize();
     testQuery(
@@ -456,7 +456,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterSearchWithoutDot() throws Exception
+  public void testGroupByFormatFilterSearchWithoutDot()
   {
     cannotVectorize();
     testQuery(
@@ -500,7 +500,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterSearchWithDot() throws Exception
+  public void testGroupByFormatFilterSearchWithDot()
   {
     cannotVectorize();
     testQuery(
@@ -540,7 +540,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatSelectorFilter() throws Exception
+  public void testGroupByFormatSelectorFilter()
   {
     testQuery(
         "SELECT "
@@ -575,7 +575,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatSelectorFilterNull() throws Exception
+  public void testGroupByFormatSelectorFilterNull()
   {
     testQuery(
         "SELECT "
@@ -611,7 +611,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatBoundFilter() throws Exception
+  public void testGroupByFormatBoundFilter()
   {
     testQuery(
         "SELECT "
@@ -650,7 +650,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testTimeseriesStringifyVirtualColumn() throws Exception
+  public void testTimeseriesStringifyVirtualColumn()
   {
     testQuery(
         "SELECT COUNT(DISTINCT IP_STRINGIFY(ipv4)) FROM druid.iptest",

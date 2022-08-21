@@ -25,7 +25,7 @@ import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
+import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
@@ -88,7 +88,6 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
 
     this.plannerFactory = new PlannerFactory(
         rootSchema,
-        CalciteTests.createMockQueryMakerFactory(walker, conglomerate),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         PLANNER_CONFIG_DEFAULT,
@@ -100,7 +99,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlLifecycleFactory getSqlLifecycleFactory(
+  public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig,
       DruidOperatorTable operatorTable,
@@ -109,7 +108,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
       ObjectMapper objectMapper
   )
   {
-    return CalciteTests.createSqlLifecycleFactory(plannerFactory);
+    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
   }
 
   @Test

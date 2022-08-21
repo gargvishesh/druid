@@ -32,6 +32,7 @@ import io.imply.druid.inet.sql.IpAddressSqlOperatorConversions;
 import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.guice.LazySingleton;
+import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.junit.Assert;
@@ -178,6 +179,7 @@ public class IpAddressModuleTest
     return Guice.createInjector(
         target,
         new ExpressionModule(),
+        new JacksonModule(),
         binder -> {
           binder.bindScope(LazySingleton.class, Scopes.SINGLETON);
           Multibinder.newSetBinder(binder, ExprMacroTable.ExprMacro.class)

@@ -127,7 +127,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testTimeseriesAggs() throws Exception
+  public void testTimeseriesAggs()
   {
     cannotVectorize();
     testQuery(

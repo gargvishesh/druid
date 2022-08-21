@@ -86,7 +86,6 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
 
     this.plannerFactory = new PlannerFactory(
         rootSchema,
-        CalciteTests.createMockQueryMakerFactory(walker, conglomerate),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         PLANNER_CONFIG_DEFAULT,

@@ -250,7 +250,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormat() throws Exception
+  public void testGroupByFormat()
   {
     cannotVectorize();
     testQuery(
@@ -365,7 +365,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterMatch() throws Exception
+  public void testGroupByFormatFilterMatch()
   {
     cannotVectorize();
     testQuery(
@@ -409,7 +409,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterSearchWithoutDot() throws Exception
+  public void testGroupByFormatFilterSearchWithoutDot()
   {
     cannotVectorize();
     testQuery(
@@ -453,7 +453,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testGroupByFormatFilterSearchWithDot() throws Exception
+  public void testGroupByFormatFilterSearchWithDot()
   {
     cannotVectorize();
     testQuery(
