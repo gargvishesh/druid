@@ -1,12 +1,12 @@
 ---
 id: security
-title: Security for the Multi-Stage Query (MSQ) Framework
+title: Security for the multi-stage query architecture
 sidebar_label: Security
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-All authenticated users can use the Multi-Stage Query (MSQ) framework through the UI and API if the extension is loaded. However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data. The permission you need depends on what you are trying to do with MSQ.
+All authenticated users can use the SQL-task engine through the UI and API if the extension is loaded. However, without additional permissions, users are not able to issue queries that read or write Druid datasources or external data. The permission you need depends on what you are trying to do.
 
 ## General permissions
 
@@ -16,14 +16,14 @@ The permission required to submit a query depends on the type of query:
   datasource.
   - INSERT or REPLACE into a Druid datasource requires the WRITE DATASOURCE permission on that
   datasource.
-  - EXTERN references to external data require READ permission on the resource name "EXTERNAL" of the resource type "EXTERNAL".
+  - EXTERN references to external data require READ permission on the resource name "EXTERNAL" of the resource type "EXTERNAL". Users without the correct permission encounter a 403 error when trying to run queries that include EXTERN.
 
-MSQ tasks are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they didn't submit the query. The actions include retrieving the status or canceling a query. For more information about the Overlord API and MSQ, see [API](./msq-reference.md#context-parameters).
+Task queries that you submit to the SQL-task engine are Overlord tasks, so they follow the Overlord's (indexer) model. This means that users with access to the Overlord API can perform some actions even if they didn't submit the query. The actions include retrieving the status or canceling a query. For more information about the Overlord API and the SQL-task API, see [API](./msq-reference.md#context-parameters).
 
 To interact with a query through the Overlord API, you need the following permissions:
 
 - INSERT or REPLACE queries: You must have READ DATASOURCE permission on the output datasource.
-- SELECT queries: You must have read permissions on the `__query_select` datasource, which is a stub datasource that MSQ creates.
+- SELECT queries: You must have read permissions on the `__query_select` datasource, which is a stub datasource that gets created.
 
 
 ## S3

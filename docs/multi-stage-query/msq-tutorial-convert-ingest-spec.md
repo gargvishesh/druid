@@ -1,21 +1,24 @@
 ---
 id: convert-json-spec
-title: Tutorial - Convert ingestion spec
+title: Tutorial - Convert ingestion spec to SQL
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-Before you start, make sure you've [enabled the Multi-Stage Query (MSQ) framework](msq-setup.md).
+If you're already ingesting data with Druid's native SQL engine, you can use the Druid console to convert the ingestion spec to a task query that the multi-stage architecture's SQL-task engine can use to ingest data.
 
-If you're already ingesting data with Druid's core query engine, you can use the Druid console to help you convert the ingestion spec to a task query that MSQ can use to ingest data.
+This tutorial demonstrates how to convert the ingestion spec to a task query in the Druid console.
 
-In the **Query** view, do the following:
+## Convert ingestion spec to task query
 
-1. In the menu bar that includes **Run**, select **...** **>** **Convert ingestion spec to SQL**.
-2. Provide your ingestion spec. You can use this sample ingestion spec if you don't have one:
+To convert the ingestion spec to a task query, do the following:
+
+1. In the **Query** view of the Druid console, navigate to the menu bar that includes **Run**.
+2. Click the ellipsis icon and select **Convert ingestion spec to SQL**.
+  ![Convert ingestion spec to SQL](../assets/multi-stage-query/tutorial-msq-convert.png "Convert ingestion spec to SQL")
+3. In the **Ingestion spec to covert** window, insert your ingestion spec. You can use your own spec or the sample ingestion spec provided in the tutorial. The sample spec uses data hosted at `https://static.imply.io/data/wikipedia.json.gz` and loads it into a table named `wikipedia`:
 
    <details><summary>Show the spec</summary>
-   This spec uses data hosted at `https://static.imply.io/data/wikipedia.json.gz` and loads it into a table named `wikipedia`.
    
    ```json
    {
@@ -99,11 +102,9 @@ In the **Query** view, do the following:
    
    </details>
 
-3. Submit the spec. The Druid console uses the JSON-based ingestion spec to generate a SQL query that you can use instead.
+4. Click **Submit** to submit the spec. The Druid console uses the JSON-based ingestion spec to generate a SQL query that you can use instead. This is what the query looks like for the sample ingestion spec:
    
    <details><summary>Show the query</summary>
-
-   This is what the query looks like for the sample ingestion spec:
 
    ```sql
    -- This SQL query was auto generated from an ingestion spec
@@ -146,5 +147,5 @@ In the **Query** view, do the following:
    
    </details>
 
-4. Review the generated SQL to make sure it matches your requirements and does what you expect.
+4. Review the generated SQL query to make sure it matches your requirements and does what you expect.
 5. Click **Run** to start the ingestion.

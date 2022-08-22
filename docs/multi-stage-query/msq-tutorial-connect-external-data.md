@@ -3,11 +3,9 @@ id: connect-external-data
 title: Tutorial - Connect external data
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-Before you start, make sure you've [enabled the Multi-Stage Query (MSQ) Framework](./msq-setup.md).
-
-The following section takes you through the **Connect external data** wizard that helps you create a query that references externally hosted data. 
+This tutorial demonstrates how to create a query that references externally hosted data using the **Connect external data** wizard.
 
 ## Examine and load external data
 
@@ -17,17 +15,16 @@ Although you can manually create a query in the UI, you can use Druid to generat
 
 To generate a query from external data, do the following:
 
-1. Select **Connect external data**. Since you're doing a new ingestion, choose **Connect external data in a new tab**.
-2. On the **Select input type** screen, choose **HTTP(s)** and add the following value to the URI field: `https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json`. Leave the username and password blank.
+1. In the **Query** view of the Druid console, click **Connect external data**.
+2. On the **Select input type** screen, choose **HTTP(s)** and enter the following value in the **URIs** field: `https://static.imply.io/gianm/wikipedia-2016-06-27-sampled.json`. Leave the HTTP auth username and password blank.
 3. Click **Connect data**.
-4. On the **Parse** screen, you can perform a few actions before you load the data into Druid:
+4. On the **Parse** screen, you can perform additional actions before you load the data into Druid:
    - Expand a row to see what data it corresponds to from the source.
-   - Customize how the data is handled by selecting the **Input format** and its related options, such as adding **JSON parser features** for JSON files.
-5. When you're ready, click **Done**. You're returned to a **Query** tab in the console where you can see the query that the Druid console generated:
+   - Customize how Druid handles the data by selecting the **Input format** and its related options, such as adding **JSON parser features** for JSON files.
+5. When you're ready, click **Done**. You're returned to the **Query** view where you can see the newly generated query:
 
-   - The task query includes context parameters.  The syntax is unique to the Console: `--: context {key}: {value}`. When submitting queries to Druid directly, set the context parameters in the context section of the SQL query object. For more information about context parameters, see [Context parameters](./msq-reference.md#context-parameters).
-   - For information about what the different parts of this query are, see [Queries](./msq-queries.md).
-   - The query inserts the data from the external source into a table named `wikipedia-2016-06-27-sampled`:
+   - The query inserts the data from the external source into a table named `wikipedia-2016-06-27-sampled`.
+   - Context parameters appear before the query in the syntax unique to the Druid console: `--: context {key}: {value}`. When submitting queries to Druid directly, set the `context` parameters in the context section of the SQL query object. For more information about context parameters, see [Context parameters](./msq-reference.md#context-parameters).
 
    <details><summary>Show the query</summary>
 
@@ -63,23 +60,25 @@ To generate a query from external data, do the following:
    ```
    </details>
 
-6. Review and modify the query to meet your needs. For example, you can change the table name or the partitioning to `PARTITIONED BY DAY`to specify day-based segment granularity. Note that if you want to partition by something other than ALL, you need to include `TIME_PARSE("timestamp") AS __time` in your SELECT statement:
+6. Review and modify the query to meet your needs. For example, you can rename the table or change segment granularity. To partition by something other than ALL, include `TIME_PARSE("timestamp") AS __time` in your SELECT statement.
+For example, to specify day-based segment granularity, change the partitioning to `PARTITIONED BY DAY`:
    
-   ```sql
+  ```sql
    ...
    SELECT
      TIME_PARSE("timestamp") AS __time,
    ...
    ...
     PARTITIONED BY DAY
-    ```
+  ```
 
-7. Optionally, select **Preview** to review the data before you ingest it. A preview runs the query without the INSERT into clause and with an added LIMIT to the main query and to all helper queries. You can see the general shape of the data before you commit to inserting it. The  LIMITs make the query run faster but can cause incomplete results.
-8. Run your query. The query returns information including the number of rows inserted into the table named `wikipedia-2016-06-27-sampled` and how long the query took.
+7. Optionally, select **Preview** to review the data before you ingest it. A preview runs the query without the IINSERT INTO clause and with an added LIMIT to the main query and to all helper queries. You can see the general shape of the data before you commit to inserting it. The LIMITs make the query run faster but can cause incomplete results.
+8. Click **Run** to launch your query. The query returns information including its duration and the number of rows inserted into the table.
 
 ## Query the data
 
-The data that you loaded into `wikipedia-2016-06-27-sampled` can be queried after the ingestion completes. You can analyze the data in the table to do things like produce a list of top channels:
+You can query the `wikipedia-2016-06-27-sampled` table after the ingestion completes.
+For example, you can analyze the data in the table to produce a list of top channels:
 
 ```sql
 SELECT
@@ -111,3 +110,9 @@ ORDER BY COUNT(*) DESC
 
 </details>
 
+## Learn more
+
+See the following topics to learn more:
+
+* [Queries](./msq-queries.md) for information about the different query components.
+* [Reference](./msq-reference.md) for reference on context parameters, functions, and error codes.

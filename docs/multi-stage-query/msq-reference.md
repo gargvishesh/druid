@@ -3,11 +3,11 @@ id: reference
 title: Reference
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
 ## Context parameters
 
-In addition to the Druid SQL [context parameters](../querying/sql-query-context.md), the Multi-Stage Query (MSQ) Framework accepts specific context parameters. 
+In addition to the Druid SQL [context parameters](../querying/sql-query-context.md), the Multi-Stage Query  Architecture accepts certain context parameters that are specific to it. 
 
 Use context parameters alongside your queries to customize the behavior of the query. If you're using the API, include the context parameters in the query context when you submit a query:
 
@@ -23,12 +23,12 @@ Use context parameters alongside your queries to customize the behavior of the q
 
 If you're using the Druid console, you can specify the context parameters through various UI options.
 
-The following table lists the context parameters specific to MSQ:
+The following table lists the context parameters for the SQL-task engine:
 
 |Parameter|Description|Default value|
 |---------|-----------|-------------|
 | maxNumTasks | SELECT, INSERT, REPLACE<br /><br />The maximum total number of tasks to launch, including the controller task. The lowest possible value for this setting is 2: one controller and one worker. All tasks must be able to launch simultaneously. If they cannot, the query returns a `TaskStartTimeout` error code after approximately 10 minutes.<br /><br />May also be provided as `numTasks`. If both are present, `maxNumTasks` takes priority.| 2 |
-| taskAssignment | SELECT, INSERT, REPLACE<br /><br />Determines how many tasks to use. Possible values include: <ul><li>`max`: Use as many tasks as possible, up to the maximum `maxNumTasks`.</li><li>`auto`: Use as few tasks as possible without exceeding 10 Gib or 10,000 files per task. Review the [limitations](./msq-release.md#general-query-execution) of `auto` mode before using it.</li></ui>| `max` |
+| taskAssignment | SELECT, INSERT, REPLACE<br /><br />Determines how many tasks to use. Possible values include: <ul><li>`max`: Use as many tasks as possible, up to the maximum `maxNumTasks`.</li><li>`auto`: Use as few tasks as possible without exceeding 10 GiB or 10,000 files per task. Review the [limitations](./msq-release.md#general-query-execution) of `auto` mode before using it.</li></ui>| `max` |
 | finalizeAggregations | SELECT, INSERT, REPLACE<br /><br />Determines the type of aggregation to return. If true, Druid finalizes the results of complex aggregations that directly appear in query results. If false, Druid returns the aggregation's intermediate type rather than finalized type. This parameter is useful during ingestion, where it enables storing sketches directly in Druid tables. For more information about aggregations, see [SQL aggregation functions](../querying/sql-aggregations.md). | true |
 | rowsInMemory | INSERT or REPLACE<br /><br />Maximum number of rows to store in memory at once before flushing to disk during the segment generation process. Ignored for non-INSERT queries. In most cases, use the default value. You may need to override the default if you run into one of the [known issues around memory usage](./msq-release.md#memory-usage)</a>. | 100,000 |
 | segmentSortOrder | INSERT or REPLACE<br /><br />Normally, Druid sorts rows in individual segments using `__time` first, followed by the [CLUSTERED BY](./msq-queries.md#clustered-by) clause. When you set `segmentSortOrder`, Druid sorts rows in segments using this column list first, followed by the CLUSTERED BY order.<br /><br />You provide the column list as comma-separated values or as a JSON array in string form. If your query includes `__time`, then this list must begin with `__time`. For example, consider an INSERT query that uses `CLUSTERED BY country` and has `segmentSortOrder` set to `__time,city`. Within each time chunk, Druid assigns rows to segments based on `country`, and then within each of those segments, Druid sorts those rows by `__time` first, then `city`, then `country`. | empty list |
@@ -38,19 +38,34 @@ The following table lists the context parameters specific to MSQ:
 | sqlTimeZone | Sets the time zone for this connection, which affects how time functions and timestamp literals behave. Use a time zone name like "America/Los_Angeles" or offset like "-08:00".| `druid.sql.planner.sqlTimeZone` on the Broker (default: UTC)|
 | useApproximateCountDistinct | Whether to use an approximate cardinality algorithm for `COUNT(DISTINCT foo)`.| `druid.sql.planner.useApproximateCountDistinct` on the Broker (default: true)|
 
+## Durable storage properties
+
+The following table describes the properties used to configure durable storage:
+
+| Config | Description | Required | Default |
+|--------|-------------|----------|---------|
+| `druid.msq.intermediate.storage.enable` | Set to `true` to enable this feature. | Yes | |
+| `druid.msq.intermediate.storage.type` | Set the value to `s3`. | Yes | |
+| `druid.msq.intermediate.storage.bucket` | S3 bucket to store intermediate stage results. | Yes | |
+| `druid.msq.intermediate.storage.prefix` | S3 prefix to store intermediate stage results. Provide a unique value for the prefix. Don't share the same prefix between clusters. | Yes | |
+| `druid.msq.intermediate.storage.tempDir`| Directory path on the local disk to temporarily store intermediate stage results. | Yes | |
+| `druid.msq.intermediate.storage.maxResultsSize` | Max size of each partition file per stage. It should be between 5 MiB and 5 TiB. Supports a human-readable format. For example, if a stage has 50 partitions and each partition file is below or equal to 5 TiB, you can effectively use S3 up to 250 TiB of stage output. | No | 100 MiB |
+| `druid.msq.intermediate.storage.chunkSize` | Defines the size of each chunk to temporarily store in `druid.msq.intermediate.storage.tempDir`. The chunk size must be between 5 MiB and 5 GiB. Druid computes the chunk size automatically if no value is provided.| No | |
+| `druid.msq.intermediate.storage.maxTriesOnTransientErrors` | Defines the max number times to attempt S3 API calls to avoid failures due to transient errors. | No | 10 |
+
 ## Error codes
 
-MSQ error codes have corresponding human-readable messages that explain the error.
+Error codes have corresponding human-readable messages that explain the error. For more information about the error codes, see [Error codes](./msq-concepts.md#error-codes).
 
 ## SQL syntax
 
-MSQ has three primary SQL functions: 
+The SQL-task engine has three primary SQL functions: 
 
 - EXTERN
 - INSERT
 - REPLACE
 
-For information about using these functions and their corresponding examples, see [MSQ queries](./msq-queries.md). For information about adjusting the shape of your data, see [Adjust query behavior](./msq-queries.md#adjust-query-behavior).
+For information about using these functions and their corresponding examples, see [ Queries](./msq-queries.md). For information about adjusting the shape of your data, see [Adjust query behavior](./msq-queries.md#adjust-query-behavior).
 
 ### EXTERN
 

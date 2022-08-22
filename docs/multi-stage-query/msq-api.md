@@ -3,32 +3,30 @@ id: api
 title: API
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-> Earlier versions of the Multi-Stage Query (MSQ) Framework used the `/druid/v2/sql/async/` endpoint. The engine now uses different endpoints in version 2022.05 and later. Some actions use the `/druid/v2/sql/task` while others use the `/druid/indexer/v1/task/` endpoint . Additionally, you no longer need to set a context parameter for `talaria`. API calls to the `task` endpoint use the task engine for MSQ automatically.
+The **Query** view in the Druid console provides the most stable experience for the SQL-task engine and multi-stage query architecture. Use the UI if you do not need a programmatic interface.
 
-During the preview phase for MSQ, the enhanced **Query** view provides the most stable experience. Use the UI if you do not need a programmatic interface.
-
-The action you want to take determines the endpoint you use:
+When using the API for the SQL-task engine, the action you want to take determines the endpoint you use:
 
 - `/druid/v2/sql/task` endpoint: Submit a query for ingestion.
-- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or canceling it.
+- `/druid/indexer/v1/task` endpoint: Interact with a query, including getting its status, getting its details, or canceling it. This page describes a few of the Overlord Task APIs that you can use with the SQL-task engine. For information about Druid APIs, see the [API reference for Druid](../operations/api-reference.md#tasks).
 
 ## Submit a task query
 
+You submit task queries to the SQL-task engine using the `POST /druid/v2/sql/task/` endpoint.
+
 ### Request
 
-Submit task queries using the `POST /druid/v2/sql/task/` API.
-
-Currently, MSQ ignores the provided values of `resultFormat`, `header`,
+Currently, the SQL-task engine ignores the provided values of `resultFormat`, `header`,
 `typesHeader`, and `sqlTypesHeader`. SQL SELECT queries always behave as if `resultFormat` is an array, `header` is
 true, `typesHeader` is true, and `sqlTypesHeader` is true.
 
-For task queries similar to the examples in the [quickstart](./msq-queries.md#query-examples), you need to escape characters such as quotation marks (") if you use something like `curl`. 
+For task queries similar to the [example queries](./msq-example-queries.md), you need to escape characters such as quotation marks (") if you use something like `curl`. 
 You don't need to escape characters if you use a method that can parse JSON seamlessly, such as Python.
 The Python example in this topic escapes quotation marks although it's not required.
 
-The following example is the same query that you submit when you complete [Convert a JSON ingestion spec](./msq-tutorial-convert-ingest-spec.md) where you insert data into a table named `wikipedia`. Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
+The following example is the same query that you submit when you complete [Convert a JSON ingestion spec](./msq-tutorial-convert-ingest-spec.md) where you insert data into a table named `wikipedia`. 
 
 <!--DOCUSAURUS_CODE_TABS-->
 
@@ -49,8 +47,9 @@ POST /druid/v2/sql/task
 
 <!--curl-->
 
+Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
+
 ```bash
-# Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
 curl --location --request POST 'https://<username>:<password>@<your-instance>:<port>/druid/v2/sql/task/' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -61,9 +60,9 @@ curl --location --request POST 'https://<username>:<password>@<your-instance>:<p
 ```
 
 <!--Python-->
+Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
 
 ```python
-# Make sure you replace `username`, `password`, `your-instance`, and `port` with the values for your deployment.
 import json
 import requests
 
@@ -107,27 +106,1454 @@ print(response.text)
 
 ## Get the payload for a task query
 
-- `GET /druid/indexer/v1/task/{taskId}` to get the query payload
+You can retrieve basic information about a task query, such as the SQL query and context parameters that were submitted. 
+
+### Request
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--HTTP-->
+
+```
+GET /druid/indexer/v1/task/<taskId>
+```
+
+<!--curl-->
+
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```bash
+curl --location --request GET 'https://<username>:<password>@<your-instance>:<port>/druid/indexer/v1/task/<taskId>'
+```
+
+<!--Python-->
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```python
+import requests
+
+url = "<username>:<password>@<your-instance>:<port>/druid/indexer/v1/task/<taskId>"
+
+payload={}
+headers = {}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Response
+
+<details><summary>Show the response</summary>
+
+```
+{
+    "task": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+    "payload": {
+        "type": "query_controller",
+        "id": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+        "spec": {
+            "query": {
+                "queryType": "scan",
+                "dataSource": {
+                    "type": "external",
+                    "inputSource": {
+                        "type": "http",
+                        "uris": [
+                            "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"
+                        ],
+                        "httpAuthenticationUsername": null,
+                        "httpAuthenticationPassword": null
+                    },
+                    "inputFormat": {
+                        "type": "json",
+                        "flattenSpec": null,
+                        "featureSpec": {},
+                        "keepNullColumns": false
+                    },
+                    "signature": [
+                        {
+                            "name": "timestamp",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "agent_category",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "agent_type",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "browser",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "browser_version",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "city",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "continent",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "country",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "version",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "event_type",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "event_subtype",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "loaded_image",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "adblock_list",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "forwarded_for",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "language",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "number",
+                            "type": "LONG"
+                        },
+                        {
+                            "name": "os",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "path",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "platform",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "referrer",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "referrer_host",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "region",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "remote_address",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "screen",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "session",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "session_length",
+                            "type": "LONG"
+                        },
+                        {
+                            "name": "timezone",
+                            "type": "STRING"
+                        },
+                        {
+                            "name": "timezone_offset",
+                            "type": "LONG"
+                        },
+                        {
+                            "name": "window",
+                            "type": "STRING"
+                        }
+                    ]
+                },
+                "intervals": {
+                    "type": "intervals",
+                    "intervals": [
+                        "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+                    ]
+                },
+                "resultFormat": "compactedList",
+                "columns": [
+                    "adblock_list",
+                    "agent_category",
+                    "agent_type",
+                    "browser",
+                    "browser_version",
+                    "city",
+                    "continent",
+                    "country",
+                    "event_subtype",
+                    "event_type",
+                    "forwarded_for",
+                    "language",
+                    "loaded_image",
+                    "number",
+                    "os",
+                    "path",
+                    "platform",
+                    "referrer",
+                    "referrer_host",
+                    "region",
+                    "remote_address",
+                    "screen",
+                    "session",
+                    "session_length",
+                    "timestamp",
+                    "timezone",
+                    "timezone_offset",
+                    "version",
+                    "window"
+                ],
+                "legacy": false,
+                "context": {
+                    "finalize": true,
+                    "msqMaxNumTasks": 3,
+                    "msqSignature": "[{\"name\":\"adblock_list\",\"type\":\"STRING\"},{\"name\":\"agent_category\",\"type\":\"STRING\"},{\"name\":\"agent_type\",\"type\":\"STRING\"},{\"name\":\"browser\",\"type\":\"STRING\"},{\"name\":\"browser_version\",\"type\":\"STRING\"},{\"name\":\"city\",\"type\":\"STRING\"},{\"name\":\"continent\",\"type\":\"STRING\"},{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"event_subtype\",\"type\":\"STRING\"},{\"name\":\"event_type\",\"type\":\"STRING\"},{\"name\":\"forwarded_for\",\"type\":\"STRING\"},{\"name\":\"language\",\"type\":\"STRING\"},{\"name\":\"loaded_image\",\"type\":\"STRING\"},{\"name\":\"number\",\"type\":\"LONG\"},{\"name\":\"os\",\"type\":\"STRING\"},{\"name\":\"path\",\"type\":\"STRING\"},{\"name\":\"platform\",\"type\":\"STRING\"},{\"name\":\"referrer\",\"type\":\"STRING\"},{\"name\":\"referrer_host\",\"type\":\"STRING\"},{\"name\":\"region\",\"type\":\"STRING\"},{\"name\":\"remote_address\",\"type\":\"STRING\"},{\"name\":\"screen\",\"type\":\"STRING\"},{\"name\":\"session\",\"type\":\"STRING\"},{\"name\":\"session_length\",\"type\":\"LONG\"},{\"name\":\"timestamp\",\"type\":\"STRING\"},{\"name\":\"timezone\",\"type\":\"STRING\"},{\"name\":\"timezone_offset\",\"type\":\"LONG\"},{\"name\":\"version\",\"type\":\"STRING\"},{\"name\":\"window\",\"type\":\"STRING\"}]",
+                    "multiStageQuery": true,
+                    "sqlInsertSegmentGranularity": "{\"type\":\"all\"}",
+                    "sqlQueryId": "a6b65442-f77e-44e4-af28-ab3b711a27ac",
+                    "sqlReplaceTimeChunks": "all"
+                },
+                "granularity": {
+                    "type": "all"
+                }
+            },
+            "columnMappings": [
+                {
+                    "queryColumn": "timestamp",
+                    "outputColumn": "timestamp"
+                },
+                {
+                    "queryColumn": "agent_category",
+                    "outputColumn": "agent_category"
+                },
+                {
+                    "queryColumn": "agent_type",
+                    "outputColumn": "agent_type"
+                },
+                {
+                    "queryColumn": "browser",
+                    "outputColumn": "browser"
+                },
+                {
+                    "queryColumn": "browser_version",
+                    "outputColumn": "browser_version"
+                },
+                {
+                    "queryColumn": "city",
+                    "outputColumn": "city"
+                },
+                {
+                    "queryColumn": "continent",
+                    "outputColumn": "continent"
+                },
+                {
+                    "queryColumn": "country",
+                    "outputColumn": "country"
+                },
+                {
+                    "queryColumn": "version",
+                    "outputColumn": "version"
+                },
+                {
+                    "queryColumn": "event_type",
+                    "outputColumn": "event_type"
+                },
+                {
+                    "queryColumn": "event_subtype",
+                    "outputColumn": "event_subtype"
+                },
+                {
+                    "queryColumn": "loaded_image",
+                    "outputColumn": "loaded_image"
+                },
+                {
+                    "queryColumn": "adblock_list",
+                    "outputColumn": "adblock_list"
+                },
+                {
+                    "queryColumn": "forwarded_for",
+                    "outputColumn": "forwarded_for"
+                },
+                {
+                    "queryColumn": "language",
+                    "outputColumn": "language"
+                },
+                {
+                    "queryColumn": "number",
+                    "outputColumn": "number"
+                },
+                {
+                    "queryColumn": "os",
+                    "outputColumn": "os"
+                },
+                {
+                    "queryColumn": "path",
+                    "outputColumn": "path"
+                },
+                {
+                    "queryColumn": "platform",
+                    "outputColumn": "platform"
+                },
+                {
+                    "queryColumn": "referrer",
+                    "outputColumn": "referrer"
+                },
+                {
+                    "queryColumn": "referrer_host",
+                    "outputColumn": "referrer_host"
+                },
+                {
+                    "queryColumn": "region",
+                    "outputColumn": "region"
+                },
+                {
+                    "queryColumn": "remote_address",
+                    "outputColumn": "remote_address"
+                },
+                {
+                    "queryColumn": "screen",
+                    "outputColumn": "screen"
+                },
+                {
+                    "queryColumn": "session",
+                    "outputColumn": "session"
+                },
+                {
+                    "queryColumn": "session_length",
+                    "outputColumn": "session_length"
+                },
+                {
+                    "queryColumn": "timezone",
+                    "outputColumn": "timezone"
+                },
+                {
+                    "queryColumn": "timezone_offset",
+                    "outputColumn": "timezone_offset"
+                },
+                {
+                    "queryColumn": "window",
+                    "outputColumn": "window"
+                }
+            ],
+            "destination": {
+                "type": "dataSource",
+                "dataSource": "kttm_simple",
+                "segmentGranularity": {
+                    "type": "all"
+                },
+                "replaceTimeChunks": [
+                    "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+                ]
+            },
+            "assignmentStrategy": "max",
+            "tuningConfig": {
+                "type": "index_parallel",
+                "maxRowsPerSegment": 3000000,
+                "appendableIndexSpec": {
+                    "type": "onheap",
+                    "preserveExistingMetrics": false
+                },
+                "maxRowsInMemory": 100000,
+                "maxBytesInMemory": 0,
+                "skipBytesInMemoryOverheadCheck": false,
+                "maxTotalRows": null,
+                "numShards": null,
+                "splitHintSpec": null,
+                "partitionsSpec": {
+                    "type": "dynamic",
+                    "maxRowsPerSegment": 3000000,
+                    "maxTotalRows": null
+                },
+                "indexSpec": {
+                    "bitmap": {
+                        "type": "roaring",
+                        "compressRunOnSerialization": true
+                    },
+                    "dimensionCompression": "lz4",
+                    "metricCompression": "lz4",
+                    "longEncoding": "longs",
+                    "segmentLoader": null
+                },
+                "indexSpecForIntermediatePersists": {
+                    "bitmap": {
+                        "type": "roaring",
+                        "compressRunOnSerialization": true
+                    },
+                    "dimensionCompression": "lz4",
+                    "metricCompression": "lz4",
+                    "longEncoding": "longs",
+                    "segmentLoader": null
+                },
+                "maxPendingPersists": 0,
+                "forceGuaranteedRollup": false,
+                "reportParseExceptions": false,
+                "pushTimeout": 0,
+                "segmentWriteOutMediumFactory": null,
+                "maxNumConcurrentSubTasks": 2,
+                "maxRetry": 1,
+                "taskStatusCheckPeriodMs": 1000,
+                "chatHandlerTimeout": "PT10S",
+                "chatHandlerNumRetries": 5,
+                "maxNumSegmentsToMerge": 100,
+                "totalNumMergeTasks": 10,
+                "logParseExceptions": false,
+                "maxParseExceptions": 2147483647,
+                "maxSavedParseExceptions": 0,
+                "maxColumnsToMerge": -1,
+                "awaitSegmentAvailabilityTimeoutMillis": 0,
+                "maxAllowedLockCount": -1,
+                "partitionDimensions": []
+            }
+        },
+        "sqlQuery": "REPLACE INTO \"kttm_simple\" OVERWRITE ALL\nSELECT *\nFROM TABLE(\n  EXTERN(\n    '{\"type\":\"http\",\"uris\":[\"https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz\"]}',\n    '{\"type\":\"json\"}',\n    '[{\"name\":\"timestamp\",\"type\":\"string\"},{\"name\":\"agent_category\",\"type\":\"string\"},{\"name\":\"agent_type\",\"type\":\"string\"},{\"name\":\"browser\",\"type\":\"string\"},{\"name\":\"browser_version\",\"type\":\"string\"},{\"name\":\"city\",\"type\":\"string\"},{\"name\":\"continent\",\"type\":\"string\"},{\"name\":\"country\",\"type\":\"string\"},{\"name\":\"version\",\"type\":\"string\"},{\"name\":\"event_type\",\"type\":\"string\"},{\"name\":\"event_subtype\",\"type\":\"string\"},{\"name\":\"loaded_image\",\"type\":\"string\"},{\"name\":\"adblock_list\",\"type\":\"string\"},{\"name\":\"forwarded_for\",\"type\":\"string\"},{\"name\":\"language\",\"type\":\"string\"},{\"name\":\"number\",\"type\":\"long\"},{\"name\":\"os\",\"type\":\"string\"},{\"name\":\"path\",\"type\":\"string\"},{\"name\":\"platform\",\"type\":\"string\"},{\"name\":\"referrer\",\"type\":\"string\"},{\"name\":\"referrer_host\",\"type\":\"string\"},{\"name\":\"region\",\"type\":\"string\"},{\"name\":\"remote_address\",\"type\":\"string\"},{\"name\":\"screen\",\"type\":\"string\"},{\"name\":\"session\",\"type\":\"string\"},{\"name\":\"session_length\",\"type\":\"long\"},{\"name\":\"timezone\",\"type\":\"string\"},{\"name\":\"timezone_offset\",\"type\":\"long\"},{\"name\":\"window\",\"type\":\"string\"}]'\n  )\n)\nPARTITIONED BY ALL TIME",
+        "sqlQueryContext": {
+            "parseExceptions": 0,
+            "maxNumTasks": 3,
+            "signature": "[{\"name\":\"adblock_list\",\"type\":\"STRING\"},{\"name\":\"agent_category\",\"type\":\"STRING\"},{\"name\":\"agent_type\",\"type\":\"STRING\"},{\"name\":\"browser\",\"type\":\"STRING\"},{\"name\":\"browser_version\",\"type\":\"STRING\"},{\"name\":\"city\",\"type\":\"STRING\"},{\"name\":\"continent\",\"type\":\"STRING\"},{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"event_subtype\",\"type\":\"STRING\"},{\"name\":\"event_type\",\"type\":\"STRING\"},{\"name\":\"forwarded_for\",\"type\":\"STRING\"},{\"name\":\"language\",\"type\":\"STRING\"},{\"name\":\"loaded_image\",\"type\":\"STRING\"},{\"name\":\"number\",\"type\":\"LONG\"},{\"name\":\"os\",\"type\":\"STRING\"},{\"name\":\"path\",\"type\":\"STRING\"},{\"name\":\"platform\",\"type\":\"STRING\"},{\"name\":\"referrer\",\"type\":\"STRING\"},{\"name\":\"referrer_host\",\"type\":\"STRING\"},{\"name\":\"region\",\"type\":\"STRING\"},{\"name\":\"remote_address\",\"type\":\"STRING\"},{\"name\":\"screen\",\"type\":\"STRING\"},{\"name\":\"session\",\"type\":\"STRING\"},{\"name\":\"session_length\",\"type\":\"LONG\"},{\"name\":\"timestamp\",\"type\":\"STRING\"},{\"name\":\"timezone\",\"type\":\"STRING\"},{\"name\":\"timezone_offset\",\"type\":\"LONG\"},{\"name\":\"version\",\"type\":\"STRING\"},{\"name\":\"window\",\"type\":\"STRING\"}]",
+            "multiStageQuery": true,
+            "sqlInsertSegmentGranularity": "{\"type\":\"all\"}",
+            "sqlQueryId": "a6b65442-f77e-44e4-af28-ab3b711a27ac",
+            "sqlReplaceTimeChunks": "all"
+        },
+        "sqlTypeNames": [
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "BIGINT",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "BIGINT",
+            "VARCHAR",
+            "BIGINT",
+            "VARCHAR"
+        ],
+        "context": {
+            "forceTimeChunkLock": true,
+            "useLineageBasedSegmentAllocation": true
+        },
+        "groupId": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+        "dataSource": "kttm_simple",
+        "resource": {
+            "availabilityGroup": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+            "requiredCapacity": 1
+        }
+    }
+}
+```
+
+</details>
 
 ## Get the status for a task query
 
-- `GET /druid/indexer/v1/task/{taskId}/status` to get the query status
+You can retrieve status of a query to see if it is still running, completed successfully, failed, or got canceled. 
+
+### Request
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--HTTP-->
+
+```
+GET /druid/indexer/v1/task/<taskId>
+```
+
+<!--curl-->
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```bash
+curl --location --request GET 'https://<username>:<password>@<hostname>:<port>/druid/indexer/v1/task/<taskId>/status'
+```
+
+<!--Python-->
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```python
+import requests
+
+url = "https://<username>:<password>@<hostname>:<port>/druid/indexer/v1/task/<taskId>/status"
+
+payload={}
+headers = {}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Response
+
+```
+{
+    "task": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+    "status": {
+        "id": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+        "groupId": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+        "type": "query_controller",
+        "createdTime": "2022-07-27T20:09:23.551Z",
+        "queueInsertionTime": "1970-01-01T00:00:00.000Z",
+        "statusCode": "SUCCESS",
+        "status": "SUCCESS",
+        "runnerStatusCode": "WAITING",
+        "duration": 136636,
+        "location": {
+            "host": "ip-10-201-5-81.ec2.internal",
+            "port": -1,
+            "tlsPort": 8100
+        },
+        "dataSource": "kttm_simple",
+        "errorMsg": null
+    }
+}
+```
 
 ## Get the report for a task query
+
+A report provides detailed information about a task query, including things like the stages, warnings, and errors.
 
 Keep the following in mind when using the task API to view reports:
 
 - For SELECT queries, the report includes the results. At this time, if you want to view results for SELECT queries, you need to retrieve them as a generic map from the report and extract the results.
-- The task report stores query detials for controller tasks.
+- The task report stores query details for controller tasks.
 - If you encounter `500 Server Error` or `404 Not Found` errors, the task may be in the process of starting up or shutting down.
 
-For information about the report fields, see [Report response fields](#report-response-fields).
+For an explanation of the fields in a report, see [Report response fields](#report-response-fields).
 
-- `GET /druid/indexer/v1/task/{taskId}/reports` to get the query report
+### Request
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--HTTP-->
+
+```
+GET /druid/indexer/v1/task/<taskId>/report
+```
+
+<!--curl-->
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```bash
+curl --location --request GET 'https://<username>:<password>@<hostname>:<port>/druid/indexer/v1/task/<taskId>/report'
+```
+
+<!--Python-->
+
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```python
+import requests
+
+url = "https://<username>:<password>@<hostname>:<port>/druid/indexer/v1/task/<taskId>/reports"
+
+payload={}
+headers = {}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Response
+
+The response shows an example report for a query.
+
+<details><summary>Show the response</summary>
+
+```json
+{
+    "multiStageQuery": {
+        "taskId": "query-a6b65442-f77e-44e4-af28-ab3b711a27ac",
+        "payload": {
+            "status": {
+                "status": "SUCCESS",
+                "startTime": "2022-07-27T20:09:39.915Z",
+                "durationMs": 116516,
+                "warningReports": []
+            },
+            "stages": [
+                {
+                    "stageNumber": 0,
+                    "definition": {
+                        "id": "f224410f-1cad-4ee7-b10d-f10ddf8bb517_0",
+                        "input": [
+                            {
+                                "type": "external",
+                                "inputSource": {
+                                    "type": "http",
+                                    "uris": [
+                                        "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz"
+                                    ],
+                                    "httpAuthenticationUsername": null,
+                                    "httpAuthenticationPassword": null
+                                },
+                                "inputFormat": {
+                                    "type": "json",
+                                    "flattenSpec": null,
+                                    "featureSpec": {},
+                                    "keepNullColumns": false
+                                },
+                                "signature": [
+                                    {
+                                        "name": "timestamp",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "agent_category",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "agent_type",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "browser",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "browser_version",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "city",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "continent",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "country",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "version",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "event_type",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "event_subtype",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "loaded_image",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "adblock_list",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "forwarded_for",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "language",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "number",
+                                        "type": "LONG"
+                                    },
+                                    {
+                                        "name": "os",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "path",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "platform",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "referrer",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "referrer_host",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "region",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "remote_address",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "screen",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "session",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "session_length",
+                                        "type": "LONG"
+                                    },
+                                    {
+                                        "name": "timezone",
+                                        "type": "STRING"
+                                    },
+                                    {
+                                        "name": "timezone_offset",
+                                        "type": "LONG"
+                                    },
+                                    {
+                                        "name": "window",
+                                        "type": "STRING"
+                                    }
+                                ]
+                            }
+                        ],
+                        "processor": {
+                            "type": "scan",
+                            "query": {
+                                "queryType": "scan",
+                                "dataSource": {
+                                    "type": "inputNumber",
+                                    "inputNumber": 0
+                                },
+                                "intervals": {
+                                    "type": "intervals",
+                                    "intervals": [
+                                        "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+                                    ]
+                                },
+                                "resultFormat": "compactedList",
+                                "columns": [
+                                    "adblock_list",
+                                    "agent_category",
+                                    "agent_type",
+                                    "browser",
+                                    "browser_version",
+                                    "city",
+                                    "continent",
+                                    "country",
+                                    "event_subtype",
+                                    "event_type",
+                                    "forwarded_for",
+                                    "language",
+                                    "loaded_image",
+                                    "number",
+                                    "os",
+                                    "path",
+                                    "platform",
+                                    "referrer",
+                                    "referrer_host",
+                                    "region",
+                                    "remote_address",
+                                    "screen",
+                                    "session",
+                                    "session_length",
+                                    "timestamp",
+                                    "timezone",
+                                    "timezone_offset",
+                                    "version",
+                                    "window"
+                                ],
+                                "legacy": false,
+                                "context": {
+                                    "finalize": true,
+                                    "msqMaxNumTasks": 3,
+                                    "msqSignature": "[{\"name\":\"adblock_list\",\"type\":\"STRING\"},{\"name\":\"agent_category\",\"type\":\"STRING\"},{\"name\":\"agent_type\",\"type\":\"STRING\"},{\"name\":\"browser\",\"type\":\"STRING\"},{\"name\":\"browser_version\",\"type\":\"STRING\"},{\"name\":\"city\",\"type\":\"STRING\"},{\"name\":\"continent\",\"type\":\"STRING\"},{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"event_subtype\",\"type\":\"STRING\"},{\"name\":\"event_type\",\"type\":\"STRING\"},{\"name\":\"forwarded_for\",\"type\":\"STRING\"},{\"name\":\"language\",\"type\":\"STRING\"},{\"name\":\"loaded_image\",\"type\":\"STRING\"},{\"name\":\"number\",\"type\":\"LONG\"},{\"name\":\"os\",\"type\":\"STRING\"},{\"name\":\"path\",\"type\":\"STRING\"},{\"name\":\"platform\",\"type\":\"STRING\"},{\"name\":\"referrer\",\"type\":\"STRING\"},{\"name\":\"referrer_host\",\"type\":\"STRING\"},{\"name\":\"region\",\"type\":\"STRING\"},{\"name\":\"remote_address\",\"type\":\"STRING\"},{\"name\":\"screen\",\"type\":\"STRING\"},{\"name\":\"session\",\"type\":\"STRING\"},{\"name\":\"session_length\",\"type\":\"LONG\"},{\"name\":\"timestamp\",\"type\":\"STRING\"},{\"name\":\"timezone\",\"type\":\"STRING\"},{\"name\":\"timezone_offset\",\"type\":\"LONG\"},{\"name\":\"version\",\"type\":\"STRING\"},{\"name\":\"window\",\"type\":\"STRING\"}]",
+                                    "multiStageQuery": true,
+                                    "sqlInsertSegmentGranularity": "{\"type\":\"all\"}",
+                                    "sqlQueryId": "a6b65442-f77e-44e4-af28-ab3b711a27ac",
+                                    "sqlReplaceTimeChunks": "all"
+                                },
+                                "granularity": {
+                                    "type": "all"
+                                }
+                            }
+                        },
+                        "signature": [
+                            {
+                                "name": "__boost",
+                                "type": "LONG"
+                            },
+                            {
+                                "name": "adblock_list",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "agent_category",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "agent_type",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "browser",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "browser_version",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "city",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "continent",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "country",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "event_subtype",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "event_type",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "forwarded_for",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "language",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "loaded_image",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "number",
+                                "type": "LONG"
+                            },
+                            {
+                                "name": "os",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "path",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "platform",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "referrer",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "referrer_host",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "region",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "remote_address",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "screen",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "session",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "session_length",
+                                "type": "LONG"
+                            },
+                            {
+                                "name": "timestamp",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "timezone",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "timezone_offset",
+                                "type": "LONG"
+                            },
+                            {
+                                "name": "version",
+                                "type": "STRING"
+                            },
+                            {
+                                "name": "window",
+                                "type": "STRING"
+                            }
+                        ],
+                        "shuffleSpec": {
+                            "type": "targetSize",
+                            "clusterBy": {
+                                "columns": [
+                                    {
+                                        "columnName": "__boost"
+                                    }
+                                ]
+                            },
+                            "targetSize": 3000000,
+                            "aggregate": false
+                        },
+                        "maxWorkerCount": 2,
+                        "shuffleCheckHasMultipleValues": true
+                    },
+                    "phase": "FINISHED",
+                    "workerCount": 1,
+                    "partitionCount": 1,
+                    "startTime": "2022-07-27T20:09:43.168Z",
+                    "duration": 62837,
+                    "sort": true
+                },
+                {
+                    "stageNumber": 1,
+                    "definition": {
+                        "id": "f224410f-1cad-4ee7-b10d-f10ddf8bb517_1",
+                        "input": [
+                            {
+                                "type": "stage",
+                                "stage": 0
+                            }
+                        ],
+                        "processor": {
+                            "type": "segmentGenerator",
+                            "dataSchema": {
+                                "dataSource": "kttm_simple",
+                                "timestampSpec": {
+                                    "column": "__time",
+                                    "format": "millis",
+                                    "missingValue": null
+                                },
+                                "dimensionsSpec": {
+                                    "dimensions": [
+                                        {
+                                            "type": "string",
+                                            "name": "timestamp",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "agent_category",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "agent_type",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "browser",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "browser_version",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "city",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "continent",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "country",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "version",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "event_type",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "event_subtype",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "loaded_image",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "adblock_list",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "forwarded_for",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "language",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "long",
+                                            "name": "number",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": false
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "os",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "path",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "platform",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "referrer",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "referrer_host",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "region",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "remote_address",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "screen",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "session",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "long",
+                                            "name": "session_length",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": false
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "timezone",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        },
+                                        {
+                                            "type": "long",
+                                            "name": "timezone_offset",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": false
+                                        },
+                                        {
+                                            "type": "string",
+                                            "name": "window",
+                                            "multiValueHandling": "SORTED_ARRAY",
+                                            "createBitmapIndex": true
+                                        }
+                                    ],
+                                    "dimensionExclusions": [
+                                        "__time"
+                                    ],
+                                    "includeAllDimensions": false
+                                },
+                                "metricsSpec": [],
+                                "granularitySpec": {
+                                    "type": "arbitrary",
+                                    "queryGranularity": {
+                                        "type": "none"
+                                    },
+                                    "rollup": false,
+                                    "intervals": [
+                                        "-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z"
+                                    ]
+                                },
+                                "transformSpec": {
+                                    "filter": null,
+                                    "transforms": []
+                                }
+                            },
+                            "columnMappings": [
+                                {
+                                    "queryColumn": "timestamp",
+                                    "outputColumn": "timestamp"
+                                },
+                                {
+                                    "queryColumn": "agent_category",
+                                    "outputColumn": "agent_category"
+                                },
+                                {
+                                    "queryColumn": "agent_type",
+                                    "outputColumn": "agent_type"
+                                },
+                                {
+                                    "queryColumn": "browser",
+                                    "outputColumn": "browser"
+                                },
+                                {
+                                    "queryColumn": "browser_version",
+                                    "outputColumn": "browser_version"
+                                },
+                                {
+                                    "queryColumn": "city",
+                                    "outputColumn": "city"
+                                },
+                                {
+                                    "queryColumn": "continent",
+                                    "outputColumn": "continent"
+                                },
+                                {
+                                    "queryColumn": "country",
+                                    "outputColumn": "country"
+                                },
+                                {
+                                    "queryColumn": "version",
+                                    "outputColumn": "version"
+                                },
+                                {
+                                    "queryColumn": "event_type",
+                                    "outputColumn": "event_type"
+                                },
+                                {
+                                    "queryColumn": "event_subtype",
+                                    "outputColumn": "event_subtype"
+                                },
+                                {
+                                    "queryColumn": "loaded_image",
+                                    "outputColumn": "loaded_image"
+                                },
+                                {
+                                    "queryColumn": "adblock_list",
+                                    "outputColumn": "adblock_list"
+                                },
+                                {
+                                    "queryColumn": "forwarded_for",
+                                    "outputColumn": "forwarded_for"
+                                },
+                                {
+                                    "queryColumn": "language",
+                                    "outputColumn": "language"
+                                },
+                                {
+                                    "queryColumn": "number",
+                                    "outputColumn": "number"
+                                },
+                                {
+                                    "queryColumn": "os",
+                                    "outputColumn": "os"
+                                },
+                                {
+                                    "queryColumn": "path",
+                                    "outputColumn": "path"
+                                },
+                                {
+                                    "queryColumn": "platform",
+                                    "outputColumn": "platform"
+                                },
+                                {
+                                    "queryColumn": "referrer",
+                                    "outputColumn": "referrer"
+                                },
+                                {
+                                    "queryColumn": "referrer_host",
+                                    "outputColumn": "referrer_host"
+                                },
+                                {
+                                    "queryColumn": "region",
+                                    "outputColumn": "region"
+                                },
+                                {
+                                    "queryColumn": "remote_address",
+                                    "outputColumn": "remote_address"
+                                },
+                                {
+                                    "queryColumn": "screen",
+                                    "outputColumn": "screen"
+                                },
+                                {
+                                    "queryColumn": "session",
+                                    "outputColumn": "session"
+                                },
+                                {
+                                    "queryColumn": "session_length",
+                                    "outputColumn": "session_length"
+                                },
+                                {
+                                    "queryColumn": "timezone",
+                                    "outputColumn": "timezone"
+                                },
+                                {
+                                    "queryColumn": "timezone_offset",
+                                    "outputColumn": "timezone_offset"
+                                },
+                                {
+                                    "queryColumn": "window",
+                                    "outputColumn": "window"
+                                }
+                            ],
+                            "tuningConfig": {
+                                "type": "index_parallel",
+                                "maxRowsPerSegment": 3000000,
+                                "appendableIndexSpec": {
+                                    "type": "onheap",
+                                    "preserveExistingMetrics": false
+                                },
+                                "maxRowsInMemory": 100000,
+                                "maxBytesInMemory": 0,
+                                "skipBytesInMemoryOverheadCheck": false,
+                                "maxTotalRows": null,
+                                "numShards": null,
+                                "splitHintSpec": null,
+                                "partitionsSpec": {
+                                    "type": "dynamic",
+                                    "maxRowsPerSegment": 3000000,
+                                    "maxTotalRows": null
+                                },
+                                "indexSpec": {
+                                    "bitmap": {
+                                        "type": "roaring",
+                                        "compressRunOnSerialization": true
+                                    },
+                                    "dimensionCompression": "lz4",
+                                    "metricCompression": "lz4",
+                                    "longEncoding": "longs",
+                                    "segmentLoader": null
+                                },
+                                "indexSpecForIntermediatePersists": {
+                                    "bitmap": {
+                                        "type": "roaring",
+                                        "compressRunOnSerialization": true
+                                    },
+                                    "dimensionCompression": "lz4",
+                                    "metricCompression": "lz4",
+                                    "longEncoding": "longs",
+                                    "segmentLoader": null
+                                },
+                                "maxPendingPersists": 0,
+                                "forceGuaranteedRollup": false,
+                                "reportParseExceptions": false,
+                                "pushTimeout": 0,
+                                "segmentWriteOutMediumFactory": null,
+                                "maxNumConcurrentSubTasks": 2,
+                                "maxRetry": 1,
+                                "taskStatusCheckPeriodMs": 1000,
+                                "chatHandlerTimeout": "PT10S",
+                                "chatHandlerNumRetries": 5,
+                                "maxNumSegmentsToMerge": 100,
+                                "totalNumMergeTasks": 10,
+                                "logParseExceptions": false,
+                                "maxParseExceptions": 2147483647,
+                                "maxSavedParseExceptions": 0,
+                                "maxColumnsToMerge": -1,
+                                "awaitSegmentAvailabilityTimeoutMillis": 0,
+                                "maxAllowedLockCount": -1,
+                                "partitionDimensions": []
+                            }
+                        },
+                        "signature": [],
+                        "maxWorkerCount": 2
+                    },
+                    "phase": "FINISHED",
+                    "workerCount": 1,
+                    "partitionCount": 1,
+                    "startTime": "2022-07-27T20:10:45.840Z",
+                    "duration": 50590
+                }
+            ],
+            "counters": {
+                "0": {
+                    "0": {
+                        "input0": {
+                            "type": "channel",
+                            "rows": [
+                                465346
+                            ],
+                            "files": [
+                                1
+                            ],
+                            "totalFiles": [
+                                1
+                            ]
+                        },
+                        "output": {
+                            "type": "channel",
+                            "rows": [
+                                465346
+                            ],
+                            "bytes": [
+                                267146161
+                            ],
+                            "frames": [
+                                42
+                            ]
+                        },
+                        "sort": {
+                            "type": "channel",
+                            "rows": [
+                                465346
+                            ],
+                            "bytes": [
+                                265300383
+                            ],
+                            "frames": [
+                                501
+                            ]
+                        },
+                        "sortProgress": {
+                            "type": "sortProgress",
+                            "totalMergingLevels": 3,
+                            "levelToTotalBatches": {
+                                "0": 9,
+                                "1": 2,
+                                "2": 1
+                            },
+                            "levelToMergedBatches": {
+                                "0": 9,
+                                "1": 2,
+                                "2": 1
+                            },
+                            "totalMergersForUltimateLevel": 1,
+                            "progressDigest": 1.0
+                        }
+                    }
+                },
+                "1": {
+                    "0": {
+                        "input0": {
+                            "type": "channel",
+                            "rows": [
+                                465346
+                            ],
+                            "bytes": [
+                                265300383
+                            ],
+                            "frames": [
+                                501
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
 ### Report response fields
 
-The following table describes the response fields when you retrieve a report for a MSQ task using the `/druid/indexer/v1/task` endpoint:
+The following table describes the response fields when you retrieve a report for a SQL-task engine using the `/druid/indexer/v1/task/<taskId>/report` endpoint:
 
 |Field|Description|
 |-----|-----------|
@@ -161,5 +1587,47 @@ The following table describes the response fields when you retrieve a report for
 
 ## Cancel a task query
 
-- `POST /druid/indexer/v1/task/{taskId}/shutdown` to cancel a query
+### Request
 
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--HTTP-->
+
+```
+POST /druid/indexer/v1/task/<taskId>/shutdown
+```
+
+<!--curl-->
+
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```bash
+curl --location --request POST 'https://<username>:<password>@<your-instance>:<port>/druid/indexer/v1/task/<taskId>/shutdown'
+```
+
+<!--Python-->
+
+Make sure you replace `username`, `password`, `your-instance`, `port`, and `taskId` with the values for your deployment.
+
+```
+import requests
+
+url = "https://<username>:<password>@<your-instance>:<port>/druid/indexer/v1/task/<taskId>/shutdown"
+
+payload={}
+headers = {}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Response
+
+```
+{
+    "task": "query-655efe33-781a-4c50-ae84-c2911b42d63c"
+}
+```
