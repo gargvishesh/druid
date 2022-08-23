@@ -142,7 +142,7 @@ OTEL_SERVICE_NAME="org.apache.druid" OTEL_EXPORTER_OTLP_ENDPOINT="http://localho
 *_More about opentelemetry
 autoconfiguration [here](https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/autoconfigure)_
 
-Load sample data - [example](https://druid.apache.org/docs/latest/tutorials/index.html#step-4-load-data).
+Load sample data - [example](https://druid.apache.org/docs/latest/tutorials/index.html#load-data).
 
 ### Part 3: Send queries
 

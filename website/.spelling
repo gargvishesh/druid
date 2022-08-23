@@ -59,6 +59,7 @@ dimensionsSpec
 DimensionSpec
 DimensionSpecs
 Dockerfile
+DOCTYPE
 DogStatsD
 Double.NEGATIVE_INFINITY
 Double.NEGATIVE_INFINITY.
@@ -95,6 +96,7 @@ HDFSFirehose
 HLL
 HashSet
 Homebrew
+html
 HyperLogLog
 IAM
 IANA
@@ -491,6 +493,7 @@ vectorizeVirtualColumns
 versioning
 virtualColumns
 w.r.t.
+walkthrough
 whitelist
 whitelisted
 whitespace

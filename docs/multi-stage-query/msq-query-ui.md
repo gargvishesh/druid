@@ -3,22 +3,22 @@ id: query-ui
 title: UI walkthrough
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-The Multi-Stage Query (MSQ) Framework uses the enhanced **Query** view, which provides you with a UI to edit and use SQL queries. If MSQ is enabled, the enhanced **Query** view is available automatically. No additional configuration is required.
+The multi-stage query architecture and its SQL-task engine use the **Query** view, which provides you with a UI to edit and use SQL queries. You should see this UI automatically in Druid 24.0 and later since the multi-stage query extension is loaded by default.
 
 The following screenshot shows a populated enhanced **Query** view along with a description of its parts:
 
-![Annotated multi-stage query view](../assets/multi-stage-query/ui-annotated.png)
+![Annotated multi-stage Query view](../assets/multi-stage-query/ui-annotated.png)
 
 1. The multi-stage, tab-enabled, **Query** view is where all the new functionality is contained.
 All other views are unchanged from the non-enhanced version. You can still access the original **Query** view by navigating to `#query` in the URL.
-You can tell that you're looking at the MSQ capable **Query** view by the presence of the tabs (3).
-2. The **Resources** view shows the available schemas, datasources, and columns.
-3. Query tabs allow you to manage and run several queries at once.
+You can tell that you're looking at the updated **Query** view by the presence of the tabs (3).
+1. The **Resources** view shows the available schemas, datasources, and columns.
+2. Query tabs allow you to manage and run several queries at once.
 Click the plus icon to open a new tab.
 To manipulate existing tabs, click the tab name.
-4. The tab bar contains some helpful tools including the **Connect external data** button that samples external data and creates an initial query with the appropriate `EXTERN` definition that you can then edit as needed.
+3. The tab bar contains some helpful tools including the **Connect external data** button that samples external data and creates an initial query with the appropriate `EXTERN` definition that you can then edit as needed.
 5. The **Work history** panel lets you see currently running and previous queries from all users in the cluster.
 It is equivalent to the **Task** view in the **Ingestion** view with the filter of `type='query_controller'`.
 6. You can click on each query entry to attach to that query in a new tab.

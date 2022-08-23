@@ -3,13 +3,13 @@ id: concepts
 title: Concepts
 ---
 
-> The Multi-Stage Query (MSQ) Framework is a preview feature available starting in Imply 2022.06. Preview features enable early adopters to benefit from new functionality while providing ongoing feedback to help shape and evolve the feature. All functionality documented on this page is subject to change or removal in future releases. Preview features are provided "as is" and are not subject to Imply SLAs.
+> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
 
-This topic covers the main concepts and terminology of the Multi-Stage Query (MSQ) Framework.
+This topic covers the main concepts and terminology of the multi-stage query architecture.
 
 ## Vocabulary
 
-You might see the following terms in the documentation or while you're using MSQ, such as when you view a report about a query:
+You might see the following terms in the documentation or while you're using the multi-stage query architecture, such as when you view the report for a query:
 
 - **Controller**: An indexing service task of type `query_controller` that manages
   the execution of a query. There is one controller task per query.
@@ -28,11 +28,11 @@ You might see the following terms in the documentation or while you're using MSQ
 - **Shuffle**: Workers exchange data between themselves on a per-partition basis in a process called
   shuffling. During a shuffle, each output partition is sorted by a clustering key.
 
-## How MSQ works
+## How the SQL-task engine works
 
-Queries execute using indexing service tasks, specifically INSERT, REPLACE, and SELECT queries. Every query occupies at least two task slots while running. 
+Task queries, specifically queries for INSERT, REPLACE, and SELECT, execute using indexing service tasks. Every query occupies at least two task slots while running. 
 
-When you submit a task query to MSQ, the following happens:
+When you submit a task query to the SQL-task engine, the following happens:
 
 1.  The Broker plans your SQL query into a native query, as usual.
 
@@ -54,7 +54,7 @@ When you submit a task query to MSQ, the following happens:
 
 ## Parallelism
 
-Paralleism affects how MSQ performs.
+Parallelism affects performance.
 
 The [`maxNumTasks`](./msq-reference.md#context-parameters) query parameter determines the maximum number of tasks (workers and one controller) your query will use. Generally, queries perform better with more workers. The lowest possible value of `maxNumTasks` is two (one worker and one controller), and the highest possible value is equal to the number of free task slots in your cluster.
 
@@ -72,13 +72,13 @@ to stick with the default `druid.worker.capacity`.
 
 ## Memory usage
 
-Increasing the amount of memory that MSQ can use improves performance in two ways:
+Increasing the amount of available memory can improve performance as follows:
 
-- Segment generation becomes more efficient when MSQ does not have to spill to disk as often.
+- Segment generation becomes more efficient when data doesn't spill to disk as often.
 - Sorting stage output data becomes more efficient since available memory affects the
   number of required sorting passes.
 
-Worker tasks launched by MSQ use both JVM heap memory and off-heap ("direct") memory.
+Worker tasks use both JVM heap memory and off-heap ("direct") memory.
 
 On Peons launched by Middle Managers, the bulk of the JVM heap (75%) is split up into two bundles of equal size: one processor bundle and one worker bundle. Each one comprises 37.5% of the available JVM heap.
 
@@ -99,7 +99,7 @@ It may be necessary to override one or more memory-related parameters if you run
 
 ## Limits
 
-Knowing the limits of MSQ can help you troubleshoot any [errors](#error-codes) that you encounter. Many of the errors occur as a result of reaching an MSQ limit.
+Knowing the limits for the SQL-task engine can help you troubleshoot any [errors](#error-codes) that you encounter. Many of the errors occur as a result of reaching a limit.
 
 The following table lists query limits:
 
@@ -115,14 +115,14 @@ The following table lists query limits:
 
 ## Error codes
 
-The following table describes error codes you may encounter in the `multiStageQuery.payload.status.errorReport.error.errorCode` field when using MSQ:
+The following table describes error codes you may encounter in the `multiStageQuery.payload.status.errorReport.error.errorCode` field:
 
 |Code|Meaning|Additional fields|
 |----|-----------|----|
 |  BroadcastTablesTooLarge  | The size of the broadcast tables, used in right hand side of the joins, exceeded the memory reserved for them in a worker task.  | `maxBroadcastTablesSize`: Memory reserved for the broadcast tables, measured in bytes. |
 |  Canceled  |  The query was canceled. Common reasons for cancellation:<br /><br /><ul><li>User-initiated shutdown of the controller task via the `/druid/indexer/v1/task/{taskId}/shutdown` API.</li><li>Restart or failure of the server process that was running the controller task.</li></ul>|    |
 |  CannotParseExternalData |  A worker task could not parse data from an external datasource.  |    |
-|  ColumnNameRestricted|  The query uses a restricted column name that are required for MSQ to function.  |    |
+|  ColumnNameRestricted|  The query uses a restricted column name.  |    |
 |  ColumnTypeNotSupported|  Support for writing or reading from a particular column type is not supported. |    |
 |  DurableStorageConfiguration  | Durable storage mode activation failed due to a misconfiguration. For configuration instructions, see [Durable storage for shuffle mesh](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle) for instructions on configuration.  |  |
 |  ColumnTypeNotSupported | The query attempted to use a column type that is not supported by the frame format. This occurs with ARRAY types, which are not yet implemented for frames.  | `columnName`<br /> <br />`columnType`   |
@@ -134,14 +134,14 @@ The following table describes error codes you may encounter in the `multiStageQu
 |  InsertTimeNull  | An INSERT or REPLACE query encountered a null timestamp in the `__time` field.<br /><br />This can happen due to using an expression like `TIME_PARSE(timestamp) AS __time` with an unparseable timestamp. (TIME_PARSE returns null when it cannot parse a timestamp.) In this case, try parsing your timestamps using a different function or pattern.<br /><br />If your timestamps may genuinely be null, consider using COALESCE to provide a default value. One option is CURRENT_TIMESTAMP, which represents the start time of the job. |
 | InsertTimeOutOfBounds  |  A REPLACE query generated a timestamp outside the bounds of the TIMESTAMP parameter for your OVERWHERE WHERE clause.<br /> <br />To avoid this error, verify that the timeframe you specified is valid.  |  `interval: time chunk interval corresponding to the out-of-bounds timestamp  |
 |  InvalidNullByte  | A string column included a null byte. Null bytes in strings are not permitted. |  `column`: The column that included the null byte |
-| QueryNotSupported   | QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that MSQ does not support, like GROUPING SETS. |    |
+| QueryNotSupported   | QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that aren't supported, like GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame. See the [Limits](#limits) table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   `maxFrameSize`: The limit on the frame size. |
 |  TaskStartTimeout  | Unable to launch all the worker tasks in time. <br /> <br />There might be insufficient available slots to start all the worker tasks simultaneously.<br /> <br /> Try splitting up the query into smaller chunks with lesser `maxNumTasks` number. Another option is to increase capacity.  | |
 |  TooManyBuckets  |  Exceeded the number of partition buckets for a stage. Partition buckets are only used for `segmentGranularity` during INSERT queries. The most common reason for this error is that your `segmentGranularity` is too narrow relative to the data. See the [Limits](./msq-concepts.md#limits) table for the specific limit.  |  `maxBuckets`: The limit on buckets.  |
 | TooManyInputFiles | Exceeded the number of input files/segments per worker. See the [Limits](./msq-concepts.md#limits) table for the specific limit. | `umInputFiles`: The total number of input files/segments for the stage.<br /><br />`maxInputFiles`: The maximum number of input files/segments per worker per stage.<br /><br />`minNumWorker`: The minimum number of workers required for a successful run. |
 |  TooManyPartitions   |  Exceeded the number of partitions for a stage. The most common reason for this is that the final stage of an INSERT or REPLACE query generated too many segments. See the [Limits](./msq-concepts.md#limits) table for the specific limit.  | `maxPartitions`: The limit on partitions which was exceeded    |
 |  TooManyColumns |  Exceeded the number of columns for a stage. See the [Limits](#limits) table for the specific limit.  | `maxColumns`: The limit on columns which was exceeded.  |
-|  TooManyWarnings |  Exceeded the allowed number of warnings of a particular type. | `errorCode`: The errorCode corresponding to the exception that exceeded the required limit. <br /><br />`maxWarnings`: Maximum number of warnings that are allowed for the corresponding errorCode.   |
+|  TooManyWarnings |  Exceeded the allowed number of warnings of a particular type. | `rootErrorCode`: The error code corresponding to the exception that exceeded the required limit. <br /><br />`maxWarnings`: Maximum number of warnings that are allowed for the corresponding `rootErrorCode`.   |
 |  TooManyWorkers |  Exceeded the supported number of workers running simultaneously. See the [Limits](#limits) table for the specific limit.  | `workers`: The number of simultaneously running workers that exceeded a hard or soft limit. This may be larger than the number of workers in any one stage if multiple stages are running simultaneously. <br /><br />`maxWorkers`: The hard or soft limit on workers that was exceeded.  |
 |  NotEnoughMemory  |  Insufficient memory to launch a stage.  |  `serverMemory`: The amount of memory available to a single process.<br /><br />`serverWorkers`: The number of workers running in a single process.<br /><br />`serverThreads`: The number of threads in a single process.  |
 |  WorkerFailed  |  A worker task failed unexpectedly.  |  `workerTaskId`: The ID of the worker task.  |
