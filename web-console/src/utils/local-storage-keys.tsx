@@ -49,6 +49,11 @@ export const LocalStorageKeys = {
   WORKBENCH_TASK_PANEL: 'workbench-task-panel' as const,
 
   SQL_DATA_LOADER_CONTENT: 'sql-data-loader-content' as const,
+
+  // BEGIN: Imply-added code for the user management
+  USERS_REFRESH_RATE: 'users-refresh-rate' as const,
+  ROLES_REFRESH_RATE: 'roles-refresh-rate' as const,
+  // END: Imply-modified code for user management
 };
 export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
 
