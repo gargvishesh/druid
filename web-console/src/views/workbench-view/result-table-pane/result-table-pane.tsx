@@ -720,9 +720,9 @@ export const ResultTablePane = React.memo(function ResultTablePane(props: Result
                   <Popover2 content={<Deferred content={() => getHeaderMenu(column, i)} />}>
                     <div className="clickable-cell">
                       <div className="output-name">
-                        {icon && <Icon className="type-icon" icon={icon} iconSize={12} />}
+                        {icon && <Icon className="type-icon" icon={icon} size={12} />}
                         {h}
-                        {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} iconSize={14} />}
+                        {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} size={14} />}
                       </div>
                       {parsedQuery && (
                         <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>

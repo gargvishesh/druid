@@ -57,11 +57,10 @@ exports.SQL_KEYWORDS = [
   'PARTITIONED BY',
   'CLUSTERED BY',
   'TIME',
+  'INSERT INTO',
+  'REPLACE INTO',
+  'OVERWRITE',
 ];
-
-// BEGIN: Imply-added code for MSQE execution
-exports.SQL_KEYWORDS.push('INSERT INTO', 'REPLACE INTO', 'OVERWRITE');
-// END: Imply-modified code for MSQE execution
 
 exports.SQL_EXPRESSION_PARTS = [
   'FILTER',

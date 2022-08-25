@@ -43,10 +43,10 @@ describe('Execution', () => {
                 "useLineageBasedSegmentAllocation": true,
               },
               "dataSource": "kttm_simple",
-              "groupId": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
-              "id": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
+              "groupId": "query-32ced762-7679-4a25-9220-3915c5976961",
+              "id": "query-32ced762-7679-4a25-9220-3915c5976961",
               "resource": Object {
-                "availabilityGroup": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
+                "availabilityGroup": "query-32ced762-7679-4a25-9220-3915c5976961",
                 "requiredCapacity": 1,
               },
               "spec": Object {
@@ -77,15 +77,12 @@ describe('Execution', () => {
                     "v0",
                   ],
                   "context": Object {
-                    "__timeColumn": "v0",
                     "finalize": false,
                     "finalizeAggregations": false,
                     "groupByEnableMultiValueUnnesting": false,
-                    "maxNumTasks": 3,
-                    "msqSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
-                    "multiStageQuery": true,
+                    "scanSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
                     "sqlInsertSegmentGranularity": "{\\"type\\":\\"all\\"}",
-                    "sqlQueryId": "c1b808f3-ebad-4773-906c-63ff376ed50f",
+                    "sqlQueryId": "32ced762-7679-4a25-9220-3915c5976961",
                     "sqlReplaceTimeChunks": "all",
                   },
                   "dataSource": Object {
@@ -100,7 +97,7 @@ describe('Execution', () => {
                       "httpAuthenticationUsername": null,
                       "type": "http",
                       "uris": Array [
-                        "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz",
+                        "https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz",
                       ],
                     },
                     "signature": Array [
@@ -137,69 +134,16 @@ describe('Execution', () => {
                   ],
                 },
                 "tuningConfig": Object {
-                  "appendableIndexSpec": Object {
-                    "preserveExistingMetrics": false,
-                    "type": "onheap",
-                  },
-                  "awaitSegmentAvailabilityTimeoutMillis": 0,
-                  "chatHandlerNumRetries": 5,
-                  "chatHandlerTimeout": "PT10S",
-                  "forceGuaranteedRollup": false,
-                  "indexSpec": Object {
-                    "bitmap": Object {
-                      "compressRunOnSerialization": true,
-                      "type": "roaring",
-                    },
-                    "dimensionCompression": "lz4",
-                    "longEncoding": "longs",
-                    "metricCompression": "lz4",
-                    "segmentLoader": null,
-                  },
-                  "indexSpecForIntermediatePersists": Object {
-                    "bitmap": Object {
-                      "compressRunOnSerialization": true,
-                      "type": "roaring",
-                    },
-                    "dimensionCompression": "lz4",
-                    "longEncoding": "longs",
-                    "metricCompression": "lz4",
-                    "segmentLoader": null,
-                  },
-                  "logParseExceptions": false,
-                  "maxAllowedLockCount": -1,
-                  "maxBytesInMemory": 0,
-                  "maxColumnsToMerge": -1,
-                  "maxNumConcurrentSubTasks": 2,
-                  "maxNumSegmentsToMerge": 100,
-                  "maxParseExceptions": 2147483647,
-                  "maxPendingPersists": 0,
-                  "maxRetry": 1,
+                  "maxNumWorkers": 1,
                   "maxRowsInMemory": 100000,
-                  "maxRowsPerSegment": 3000000,
-                  "maxSavedParseExceptions": 0,
-                  "maxTotalRows": null,
-                  "numShards": null,
-                  "partitionDimensions": Array [],
-                  "partitionsSpec": Object {
-                    "maxRowsPerSegment": 3000000,
-                    "maxTotalRows": null,
-                    "type": "dynamic",
-                  },
-                  "pushTimeout": 0,
-                  "reportParseExceptions": false,
-                  "segmentWriteOutMediumFactory": null,
-                  "skipBytesInMemoryOverheadCheck": false,
-                  "splitHintSpec": null,
-                  "taskStatusCheckPeriodMs": 1000,
-                  "totalNumMergeTasks": 10,
-                  "type": "index_parallel",
+                  "rowsPerSegment": 3000000,
                 },
               },
               "sqlQuery": "REPLACE INTO \\"kttm_simple\\" OVERWRITE ALL
         SELECT TIME_PARSE(\\"timestamp\\") AS \\"__time\\", agent_type
         FROM TABLE(
           EXTERN(
-            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz\\"]}',
+            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz\\"]}',
             '{\\"type\\":\\"json\\"}',
             '[{\\"name\\":\\"timestamp\\",\\"type\\":\\"string\\"},{\\"name\\":\\"agent_type\\",\\"type\\":\\"string\\"}]'
           )
@@ -208,12 +152,9 @@ describe('Execution', () => {
               "sqlQueryContext": Object {
                 "finalizeAggregations": false,
                 "groupByEnableMultiValueUnnesting": false,
-                "maxNumTasks": 3,
                 "maxParseExceptions": 0,
-                "msqSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
-                "multiStageQuery": true,
                 "sqlInsertSegmentGranularity": "{\\"type\\":\\"all\\"}",
-                "sqlQueryId": "c1b808f3-ebad-4773-906c-63ff376ed50f",
+                "sqlQueryId": "32ced762-7679-4a25-9220-3915c5976961",
                 "sqlReplaceTimeChunks": "all",
               },
               "sqlTypeNames": Array [
@@ -222,7 +163,7 @@ describe('Execution', () => {
               ],
               "type": "query_controller",
             },
-            "task": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
+            "task": "query-32ced762-7679-4a25-9220-3915c5976961",
           },
           "destination": Object {
             "dataSource": "kttm_simple",
@@ -234,25 +175,22 @@ describe('Execution', () => {
             },
             "type": "dataSource",
           },
-          "duration": 9053,
+          "duration": 25097,
           "engine": "sql-msq-task",
           "error": undefined,
-          "id": "query-c1b808f3-ebad-4773-906c-63ff376ed50f",
+          "id": "query-32ced762-7679-4a25-9220-3915c5976961",
           "nativeQuery": Object {
             "columns": Array [
               "agent_type",
               "v0",
             ],
             "context": Object {
-              "__timeColumn": "v0",
               "finalize": false,
               "finalizeAggregations": false,
               "groupByEnableMultiValueUnnesting": false,
-              "maxNumTasks": 3,
-              "msqSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
-              "multiStageQuery": true,
+              "scanSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
               "sqlInsertSegmentGranularity": "{\\"type\\":\\"all\\"}",
-              "sqlQueryId": "c1b808f3-ebad-4773-906c-63ff376ed50f",
+              "sqlQueryId": "32ced762-7679-4a25-9220-3915c5976961",
               "sqlReplaceTimeChunks": "all",
             },
             "dataSource": Object {
@@ -267,7 +205,7 @@ describe('Execution', () => {
                 "httpAuthenticationUsername": null,
                 "type": "http",
                 "uris": Array [
-                  "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz",
+                  "https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz",
                 ],
               },
               "signature": Array [
@@ -306,16 +244,14 @@ describe('Execution', () => {
           "queryContext": Object {
             "finalizeAggregations": false,
             "groupByEnableMultiValueUnnesting": false,
-            "maxNumTasks": 3,
             "maxParseExceptions": 0,
-            "multiStageQuery": true,
           },
           "result": undefined,
           "sqlQuery": "REPLACE INTO \\"kttm_simple\\" OVERWRITE ALL
         SELECT TIME_PARSE(\\"timestamp\\") AS \\"__time\\", agent_type
         FROM TABLE(
           EXTERN(
-            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz\\"]}',
+            '{\\"type\\":\\"http\\",\\"uris\\":[\\"https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz\\"]}',
             '{\\"type\\":\\"json\\"}',
             '[{\\"name\\":\\"timestamp\\",\\"type\\":\\"string\\"},{\\"name\\":\\"agent_type\\",\\"type\\":\\"string\\"}]'
           )
@@ -349,7 +285,7 @@ describe('Execution', () => {
                     ],
                     "type": "channel",
                   },
-                  "sort": Object {
+                  "shuffle": Object {
                     "bytes": Array [
                       23570446,
                     ],
@@ -363,12 +299,12 @@ describe('Execution', () => {
                   },
                   "sortProgress": Object {
                     "levelToMergedBatches": Object {
-                      "0": 2,
+                      "0": 1,
                       "1": 1,
                       "2": 1,
                     },
                     "levelToTotalBatches": Object {
-                      "0": 2,
+                      "0": 1,
                       "1": 1,
                       "2": 1,
                     },
@@ -399,7 +335,7 @@ describe('Execution', () => {
             "stages": Array [
               Object {
                 "definition": Object {
-                  "id": "c0365a7c-9dce-4f4d-bec9-2da6a8991e5e_0",
+                  "id": "0b353011-6ea1-480a-8ca8-386771621672_0",
                   "input": Array [
                     Object {
                       "inputFormat": Object {
@@ -413,7 +349,7 @@ describe('Execution', () => {
                         "httpAuthenticationUsername": null,
                         "type": "http",
                         "uris": Array [
-                          "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz",
+                          "https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz",
                         ],
                       },
                       "signature": Array [
@@ -429,7 +365,7 @@ describe('Execution', () => {
                       "type": "external",
                     },
                   ],
-                  "maxWorkerCount": 2,
+                  "maxWorkerCount": 1,
                   "processor": Object {
                     "query": Object {
                       "columns": Array [
@@ -441,11 +377,9 @@ describe('Execution', () => {
                         "finalize": false,
                         "finalizeAggregations": false,
                         "groupByEnableMultiValueUnnesting": false,
-                        "maxNumTasks": 3,
-                        "msqSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
-                        "multiStageQuery": true,
+                        "scanSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
                         "sqlInsertSegmentGranularity": "{\\"type\\":\\"all\\"}",
-                        "sqlQueryId": "c1b808f3-ebad-4773-906c-63ff376ed50f",
+                        "sqlQueryId": "32ced762-7679-4a25-9220-3915c5976961",
                         "sqlReplaceTimeChunks": "all",
                       },
                       "dataSource": Object {
@@ -477,7 +411,6 @@ describe('Execution', () => {
                   },
                   "shuffleCheckHasMultipleValues": true,
                   "shuffleSpec": Object {
-                    "aggregate": false,
                     "clusterBy": Object {
                       "columns": Array [
                         Object {
@@ -503,24 +436,24 @@ describe('Execution', () => {
                     },
                   ],
                 },
-                "duration": 5132,
+                "duration": 20229,
                 "partitionCount": 1,
                 "phase": "FINISHED",
                 "sort": true,
                 "stageNumber": 0,
-                "startTime": "2022-07-26T19:36:07.262Z",
+                "startTime": "2022-08-22T20:12:53.790Z",
                 "workerCount": 1,
               },
               Object {
                 "definition": Object {
-                  "id": "c0365a7c-9dce-4f4d-bec9-2da6a8991e5e_1",
+                  "id": "0b353011-6ea1-480a-8ca8-386771621672_1",
                   "input": Array [
                     Object {
                       "stage": 0,
                       "type": "stage",
                     },
                   ],
-                  "maxWorkerCount": 2,
+                  "maxWorkerCount": 1,
                   "processor": Object {
                     "columnMappings": Array [
                       Object {
@@ -570,77 +503,24 @@ describe('Execution', () => {
                       },
                     },
                     "tuningConfig": Object {
-                      "appendableIndexSpec": Object {
-                        "preserveExistingMetrics": false,
-                        "type": "onheap",
-                      },
-                      "awaitSegmentAvailabilityTimeoutMillis": 0,
-                      "chatHandlerNumRetries": 5,
-                      "chatHandlerTimeout": "PT10S",
-                      "forceGuaranteedRollup": false,
-                      "indexSpec": Object {
-                        "bitmap": Object {
-                          "compressRunOnSerialization": true,
-                          "type": "roaring",
-                        },
-                        "dimensionCompression": "lz4",
-                        "longEncoding": "longs",
-                        "metricCompression": "lz4",
-                        "segmentLoader": null,
-                      },
-                      "indexSpecForIntermediatePersists": Object {
-                        "bitmap": Object {
-                          "compressRunOnSerialization": true,
-                          "type": "roaring",
-                        },
-                        "dimensionCompression": "lz4",
-                        "longEncoding": "longs",
-                        "metricCompression": "lz4",
-                        "segmentLoader": null,
-                      },
-                      "logParseExceptions": false,
-                      "maxAllowedLockCount": -1,
-                      "maxBytesInMemory": 0,
-                      "maxColumnsToMerge": -1,
-                      "maxNumConcurrentSubTasks": 2,
-                      "maxNumSegmentsToMerge": 100,
-                      "maxParseExceptions": 2147483647,
-                      "maxPendingPersists": 0,
-                      "maxRetry": 1,
+                      "maxNumWorkers": 1,
                       "maxRowsInMemory": 100000,
-                      "maxRowsPerSegment": 3000000,
-                      "maxSavedParseExceptions": 0,
-                      "maxTotalRows": null,
-                      "numShards": null,
-                      "partitionDimensions": Array [],
-                      "partitionsSpec": Object {
-                        "maxRowsPerSegment": 3000000,
-                        "maxTotalRows": null,
-                        "type": "dynamic",
-                      },
-                      "pushTimeout": 0,
-                      "reportParseExceptions": false,
-                      "segmentWriteOutMediumFactory": null,
-                      "skipBytesInMemoryOverheadCheck": false,
-                      "splitHintSpec": null,
-                      "taskStatusCheckPeriodMs": 1000,
-                      "totalNumMergeTasks": 10,
-                      "type": "index_parallel",
+                      "rowsPerSegment": 3000000,
                     },
                     "type": "segmentGenerator",
                   },
                   "signature": Array [],
                 },
-                "duration": 1706,
+                "duration": 2497,
                 "partitionCount": 1,
                 "phase": "FINISHED",
                 "stageNumber": 1,
-                "startTime": "2022-07-26T19:36:12.391Z",
+                "startTime": "2022-08-22T20:13:13.991Z",
                 "workerCount": 1,
               },
             ],
           },
-          "startTime": 2022-07-26T19:36:05.044Z,
+          "startTime": 2022-08-22T20:12:51.391Z,
           "status": "SUCCESS",
           "warnings": undefined,
         }

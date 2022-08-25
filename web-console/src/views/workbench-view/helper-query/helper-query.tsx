@@ -212,7 +212,7 @@ export const HelperQuery = React.memo(function HelperQuery(props: HelperQueryPro
   useEffect(() => {
     incrementWorkVersion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionState.loading]);
+  }, [executionState.loading, Boolean(executionState.intermediate)]);
 
   const execution = executionState.data;
 

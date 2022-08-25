@@ -81,7 +81,7 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
                 }
                 position="left-bottom"
               >
-                <Icon icon={IconNames.INFO_SIGN} iconSize={14} />
+                <Icon icon={IconNames.INFO_SIGN} size={14} />
               </Popover2>
             </>
           ) : (
@@ -127,7 +127,7 @@ export const ColumnList = function ColumnList(props: ColumnListProps) {
               }
               position="left-bottom"
             >
-              <Icon icon={IconNames.INFO_SIGN} iconSize={14} />
+              <Icon icon={IconNames.INFO_SIGN} size={14} />
             </Popover2>
           </div>
           <div className="list-container">

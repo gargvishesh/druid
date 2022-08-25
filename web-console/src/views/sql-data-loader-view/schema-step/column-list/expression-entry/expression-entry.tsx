@@ -55,7 +55,7 @@ export const ExpressionEntry = function ExpressionEntry(props: ExpressionEntryPr
       }
       onClick={() => onEditColumn(headerIndex)}
     >
-      {icon && <Icon className="type-icon" icon={icon} iconSize={14} />}
+      {icon && <Icon className="type-icon" icon={icon} size={14} />}
       <div className="output-name">
         {expression.getOutputName() || 'EXPR?'}
         <span className="type-name">{` :: ${column.nativeType}`}</span>

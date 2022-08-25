@@ -30,7 +30,7 @@ const IGNORE_CONTEXT_KEYS = [
   'sqlQueryId',
   'sqlInsertSegmentGranularity',
   'signature',
-  'msqSignature',
+  'scanSignature',
   'sqlReplaceTimeChunks',
 ];
 

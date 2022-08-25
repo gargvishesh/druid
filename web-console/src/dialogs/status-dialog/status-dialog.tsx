@@ -18,7 +18,7 @@
 
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import React, { useState } from 'react';
-import ReactTable from 'react-table';
+import ReactTable, { Filter } from 'react-table';
 
 import { Loader, TableFilterableCell } from '../../components';
 import { useQueryManager } from '../../hooks';
@@ -44,7 +44,7 @@ interface StatusDialogProps {
 
 export const StatusDialog = React.memo(function StatusDialog(props: StatusDialogProps) {
   const { onClose } = props;
-  const [moduleFilter, setModuleFilter] = useState<any>([]);
+  const [moduleFilter, setModuleFilter] = useState<Filter[]>([]);
 
   const [responseState] = useQueryManager<null, StatusResponse>({
     initQuery: null,

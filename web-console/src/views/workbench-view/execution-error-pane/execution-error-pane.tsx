@@ -16,36 +16,16 @@
  * limitations under the License.
  */
 
-import { Callout, Intent } from '@blueprintjs/core';
+import { Callout } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
-import copy from 'copy-to-clipboard';
 import React, { useState } from 'react';
 
+import { ClickToCopy } from '../../../components';
 import { ShowValueDialog } from '../../../dialogs/show-value-dialog/show-value-dialog';
 import { Execution } from '../../../druid-models';
-import { AppToaster } from '../../../singletons';
 import { downloadQueryDetailArchive } from '../../../utils';
 
 import './execution-error-pane.scss';
-
-const ClickToCopy = React.memo(function ClickToCopy(props: { text: string }) {
-  const { text } = props;
-  return (
-    <a
-      className="click-to-copy"
-      title={`Click to copy:\n${text}`}
-      onClick={() => {
-        copy(text, { format: 'text/plain' });
-        AppToaster.show({
-          message: `${text} copied to clipboard`,
-          intent: Intent.SUCCESS,
-        });
-      }}
-    >
-      {text}
-    </a>
-  );
-});
 
 export interface ExecutionErrorPaneProps {
   execution: Execution;

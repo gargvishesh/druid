@@ -23,6 +23,8 @@ export * from './auto-form/auto-form';
 export * from './braced-text/braced-text';
 export * from './center-message/center-message';
 export * from './clearable-input/clearable-input';
+export * from './click-to-copy/click-to-copy';
+export * from './deferred/deferred';
 export * from './deferred/deferred';
 export * from './deferred/deferred';
 export * from './external-link/external-link';

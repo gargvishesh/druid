@@ -96,13 +96,6 @@ export class ConsoleApplication extends React.PureComponent<
         return capabilities || Capabilities.FULL;
       },
       onStateChange: ({ data, loading }) => {
-        if (data && data.hasWarnings()) {
-          AppToaster.show({
-            message: data.warnings.join('\n'),
-            intent: Intent.DANGER,
-            timeout: 40000,
-          });
-        }
         this.setState({
           capabilities: data || Capabilities.FULL,
           capabilitiesLoading: loading,
@@ -304,9 +297,11 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
+  // BEGIN: Imply-added code for user management
   private readonly wrappedUserManagementView = () => {
     return this.wrapInViewContainer('user-management', <UserManagementView />);
   };
+  // END: Imply-added code for user management
 
   private readonly wrappedDatasourcesView = () => {
     const { capabilities } = this.state;

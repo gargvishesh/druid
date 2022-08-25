@@ -21,6 +21,7 @@ import { IconName, IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import {
+  Column,
   QueryResult,
   SqlAlias,
   SqlExpression,
@@ -105,7 +106,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
     );
   }
 
-  function getCellMenu(headerIndex: number, value: unknown) {
+  function getCellMenu(column: Column, headerIndex: number, value: unknown) {
     const val = SqlLiteral.maybe(value);
     const showFullValueMenuItem = (
       <MenuItem
@@ -125,18 +126,19 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
       }
     }
 
+    const jsonColumn = column.nativeType === 'COMPLEX<json>';
     return (
       <Menu>
-        {ex && val && (
+        {ex && val && !jsonColumn && (
           <>
+            {filterOnMenuItem(IconNames.FILTER, ex.equal(val))}
+            {filterOnMenuItem(IconNames.FILTER, ex.unequal(val))}
             {isComparable(value) && (
               <>
                 {filterOnMenuItem(IconNames.FILTER, ex.greaterThanOrEqual(val))}
                 {filterOnMenuItem(IconNames.FILTER, ex.lessThanOrEqual(val))}
               </>
             )}
-            {filterOnMenuItem(IconNames.FILTER, ex.equal(val))}
-            {filterOnMenuItem(IconNames.FILTER, ex.unequal(val))}
           </>
         )}
         {showFullValueMenuItem}
@@ -178,10 +180,10 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
               return (
                 <div className="header-wrapper" onClick={() => onEditColumn(i)}>
                   <div className="output-name">
-                    {icon && <Icon className="type-icon" icon={icon} iconSize={12} />}
+                    {icon && <Icon className="type-icon" icon={icon} size={12} />}
                     {h}
                     {hasFilterOnHeader(h, i) && (
-                      <Icon className="filter-icon" icon={IconNames.FILTER} iconSize={14} />
+                      <Icon className="filter-icon" icon={IconNames.FILTER} size={14} />
                     )}
                   </div>
                   <div className="formula">{getExpressionIfAlias(parsedQuery, i)}</div>
@@ -196,7 +198,7 @@ export const PreviewTable = React.memo(function PreviewTable(props: PreviewTable
               const value = row.value;
               return (
                 <div>
-                  <Popover2 content={<Deferred content={() => getCellMenu(i, value)} />}>
+                  <Popover2 content={<Deferred content={() => getCellMenu(column, i, value)} />}>
                     {numericColumnBraces[i] ? (
                       <BracedText
                         className="table-padding"
