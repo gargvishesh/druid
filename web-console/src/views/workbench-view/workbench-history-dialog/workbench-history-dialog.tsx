@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Button, Classes, Dialog, Intent, Switch, Tab, Tabs } from '@blueprintjs/core';
+import { Button, Classes, Dialog, Intent, Tab, Tabs } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import * as JSONBig from 'json-bigint-native';
 import React, { useState } from 'react';
@@ -29,7 +29,6 @@ import {
   WorkbenchQueryHistoryEntry,
 } from '../../../singletons/workbench-history';
 import { pluralIfNeeded } from '../../../utils';
-import { ExecutionStagesPaneLoader } from '../execution-stages-pane-loader/execution-stages-pane-loader';
 
 import './workbench-history-dialog.scss';
 
@@ -43,7 +42,6 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
 ) {
   const { onSelectQuery, onClose } = props;
   const [activeTab, setActiveTab] = useState(0);
-  const [showStats, setShowStats] = useState(false);
   const [queryRecords] = useState(() => WorkbenchHistory.getHistory());
 
   function handleSelect() {
@@ -75,12 +73,6 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
               small
             />
           </Popover2>
-          <Switch
-            label="Show details"
-            checked={Boolean(showStats && record.taskId)}
-            onChange={() => setShowStats(!showStats)}
-            disabled={!record.taskId}
-          />
         </div>
         <AceEditor
           mode={jsonMode ? 'hjson' : 'dsql'}
@@ -94,9 +86,6 @@ export const WorkbenchHistoryDialog = React.memo(function WorkbenchHistoryDialog
           value={queryString}
           readOnly
         />
-        {showStats && record.taskId && (
-          <ExecutionStagesPaneLoader id={record.taskId} goToIngestion={() => {}} />
-        )}
       </div>
     );
   }

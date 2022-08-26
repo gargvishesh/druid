@@ -241,7 +241,7 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   useEffect(() => {
     incrementWorkVersion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionState.loading]);
+  }, [executionState.loading, Boolean(executionState.intermediate)]);
 
   const execution = executionState.data;
 

@@ -113,7 +113,6 @@ exports[`ExplainDialog matches snapshot on some data (many queries) 1`] = `
           >
             <Blueprint4.FormGroup
               className="query-group"
-              label="Query"
             >
               <ReactAce
                 className="query-string"
@@ -213,7 +212,6 @@ exports[`ExplainDialog matches snapshot on some data (many queries) 1`] = `
           >
             <Blueprint4.FormGroup
               className="query-group"
-              label="Query"
             >
               <ReactAce
                 className="query-string"
@@ -342,7 +340,6 @@ exports[`ExplainDialog matches snapshot on some data (one query) 1`] = `
     >
       <Blueprint4.FormGroup
         className="query-group"
-        label="Query"
       >
         <ReactAce
           className="query-string"

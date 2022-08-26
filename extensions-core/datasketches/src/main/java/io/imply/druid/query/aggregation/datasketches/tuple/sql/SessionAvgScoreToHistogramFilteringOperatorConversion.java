@@ -100,23 +100,23 @@ public class SessionAvgScoreToHistogramFilteringOperatorConversion implements Sq
     }
 
     ExprEval<?> exprEval = splitPointsExpr.eval(InputBindings.nilBindings());
-    Double[] splitPointsDouble = exprEval.asDoubleArray();
+    Object[] splitPointsDouble = exprEval.asArray();
     if (splitPointsDouble == null) {
       return null;
     }
     double[] splitPoints = new double[splitPointsDouble.length];
     for (int i = 0; i < splitPointsDouble.length; i++) {
-      splitPoints[i] = splitPointsDouble[i];
+      splitPoints[i] = (Double) splitPointsDouble[i];
     }
 
     exprEval = filterBucketExpr.eval(InputBindings.nilBindings());
-    Long[] filterBucketsLong = exprEval.asLongArray();
+    Object[] filterBucketsLong = exprEval.asArray();
     if (filterBucketsLong == null) {
       return null;
     }
     int[] filterBuckets = new int[filterBucketsLong.length];
     for (int i = 0; i < filterBuckets.length; i++) {
-      filterBuckets[i] = Math.toIntExact(filterBucketsLong[i]);
+      filterBuckets[i] = Math.toIntExact((Long) filterBucketsLong[i]);
     }
 
     return new SessionAvgScoreToHistogramFilteringPostAggregator(

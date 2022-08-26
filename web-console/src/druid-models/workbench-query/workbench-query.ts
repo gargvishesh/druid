@@ -16,7 +16,18 @@
  * limitations under the License.
  */
 
-import { SqlExpression, SqlQuery, SqlTableRef } from 'druid-query-toolkit';
+import {
+  SqlClusteredByClause,
+  SqlExpression,
+  SqlFunction,
+  SqlLiteral,
+  SqlOrderByClause,
+  SqlPartitionedByClause,
+  SqlQuery,
+  SqlRef,
+  SqlTableRef,
+} from 'druid-query-toolkit';
+import { SqlOrderByExpression } from 'druid-query-toolkit/build/sql/sql-clause/sql-order-by-expression/sql-order-by-expression';
 import Hjson from 'hjson';
 import * as JSONBig from 'json-bigint-native';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +48,13 @@ export interface TabEntry {
   id: string;
   tabName: string;
   query: WorkbenchQuery;
+}
+
+interface IngestionLines {
+  insertReplaceLine?: string;
+  overwriteLine?: string;
+  partitionedByLine?: string;
+  clusteredByLine?: string;
 }
 
 // -----------------------------
@@ -138,10 +156,7 @@ export class WorkbenchQuery {
 
   static fromEffectiveQueryAndContext(queryString: string, context: QueryContext): WorkbenchQuery {
     const noSqlOuterLimit = typeof context['sqlOuterLimit'] === 'undefined';
-    const cleanContext = { ...context };
-    delete cleanContext['sqlQueryId'];
-    delete cleanContext['sqlOuterLimit'];
-    delete cleanContext['multiStageQuery'];
+    const cleanContext = deleteKeys(context, ['sqlOuterLimit']);
 
     let retQuery = WorkbenchQuery.blank()
       .changeQueryString(queryString)
@@ -154,25 +169,53 @@ export class WorkbenchQuery {
     return retQuery;
   }
 
-  static getInsertOrReplaceLine(sqlString: string): string | undefined {
-    return /(?:^|\n)\s*(INSERT\s+INTO[^\n]+|REPLACE\s+INTO[^\n]+)(?:\n|SELECT)/im.exec(
-      sqlString,
-    )?.[1];
-  }
-
-  static getPartitionedByLine(sqlString: string): string | undefined {
-    return /\n\s*(PARTITIONED\s+BY[^\n]+)(?:\n|$)/im.exec(sqlString)?.[1];
-  }
-
-  static getClusteredByLine(sqlString: string): string | undefined {
-    return /\n\s*(CLUSTERED\s+BY[^\n]+)(?:\n|$)/im.exec(sqlString)?.[1];
+  static getIngestionLines(sqlString: string): IngestionLines {
+    const lines = sqlString.split('\n');
+    return {
+      insertReplaceLine: lines.find(line => /^\s*(?:INSERT|REPLACE)\s+INTO/i.test(line)),
+      overwriteLine: lines.find(line => /^\s*OVERWRITE/i.test(line)),
+      partitionedByLine: lines.find(line => /^\s*PARTITIONED\s+BY/i.test(line)),
+      clusteredByLine: lines.find(line => /^\s*CLUSTERED\s+BY/i.test(line)),
+    };
   }
 
   static commentOutIngestParts(sqlString: string): string {
-    return sqlString.replace(
-      /((?:^|\n)\s*)(INSERT\s+INTO|REPLACE\s+INTO|OVERWRITE|PARTITIONED\s+BY|CLUSTERED\s+BY)/gi,
-      (_, spaces, thing) => `${spaces}--${thing.substr(2)}`,
-    );
+    return sqlString
+      .split('\n')
+      .map(line =>
+        line.replace(
+          /^(\s*)(INSERT\s+INTO|REPLACE\s+INTO|OVERWRITE|PARTITIONED\s+BY|CLUSTERED\s+BY)/i,
+          (_, spaces, thing) => `${spaces}--${thing.substr(2)}`,
+        ),
+      )
+      .join('\n');
+  }
+
+  static makeOrderByClause(
+    partitionedByClause: SqlPartitionedByClause | undefined,
+    clusteredByClause: SqlClusteredByClause | undefined,
+  ): SqlOrderByClause | undefined {
+    if (!partitionedByClause) return;
+
+    const orderByExpressions: SqlOrderByExpression[] = [];
+    let partitionedByExpression = partitionedByClause.expression;
+    if (partitionedByExpression) {
+      if (partitionedByExpression instanceof SqlLiteral) {
+        partitionedByExpression = SqlFunction.floor(
+          SqlRef.column('__time'),
+          partitionedByExpression,
+        );
+      }
+      orderByExpressions.push(SqlOrderByExpression.create(partitionedByExpression));
+    }
+
+    if (clusteredByClause) {
+      orderByExpressions.push(
+        ...clusteredByClause.expressions.values.map(ex => SqlOrderByExpression.create(ex)),
+      );
+    }
+
+    return orderByExpressions.length ? SqlOrderByClause.create(orderByExpressions) : undefined;
   }
 
   public readonly queryParts: WorkbenchQueryPart[];
@@ -433,6 +476,12 @@ export class WorkbenchQuery {
           .changeReplaceClause(undefined)
           .changePartitionedByClause(undefined)
           .changeClusteredByClause(undefined)
+          .changeOrderByClause(
+            WorkbenchQuery.makeOrderByClause(
+              parsedQuery.partitionedByClause,
+              parsedQuery.clusteredByClause,
+            ),
+          )
           .toString()
       : WorkbenchQuery.commentOutIngestParts(this.getQueryString());
 
@@ -499,12 +548,14 @@ export class WorkbenchQuery {
     let queryAppend = '';
 
     if (prefixParts.length) {
-      const insertIntoLine = WorkbenchQuery.getInsertOrReplaceLine(apiQuery.query);
-      if (insertIntoLine) {
-        const partitionedByLine = WorkbenchQuery.getPartitionedByLine(apiQuery.query);
-        const clusteredByLine = WorkbenchQuery.getClusteredByLine(apiQuery.query);
+      const { insertReplaceLine, overwriteLine, partitionedByLine, clusteredByLine } =
+        WorkbenchQuery.getIngestionLines(apiQuery.query);
+      if (insertReplaceLine) {
+        queryPrepend += insertReplaceLine + '\n';
+        if (overwriteLine) {
+          queryPrepend += overwriteLine + '\n';
+        }
 
-        queryPrepend += insertIntoLine + '\n';
         apiQuery.query = WorkbenchQuery.commentOutIngestParts(apiQuery.query);
 
         if (clusteredByLine) {
@@ -528,7 +579,7 @@ export class WorkbenchQuery {
     const m = /(--:context\s.+)(?:\n|$)/.exec(apiQuery.query);
     if (m) {
       throw new Error(
-        `This query contains a context comment '${m[1]}'. Context comments have been deprecated. Please rewrite the context comment as a context parameter.`,
+        `This query contains a context comment '${m[1]}'. Context comments have been deprecated. Please rewrite the context comment as a context parameter. The context parameter editor is located in the "Engine" dropdown.`,
       );
     }
 

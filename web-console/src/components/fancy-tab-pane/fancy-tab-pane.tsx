@@ -67,7 +67,7 @@ export const FancyTabPane = React.memo(function FancyTabPane(props: FancyTabPane
           return (
             <Button
               className="tab-button"
-              icon={<Icon icon={d.icon} iconSize={20} />}
+              icon={<Icon icon={d.icon} size={20} />}
               key={d.id}
               text={d.label}
               intent={activeTab === d.id ? Intent.PRIMARY : Intent.NONE}

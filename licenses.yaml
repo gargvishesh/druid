@@ -5676,7 +5676,7 @@ license_category: binary
 module: web-console
 license_name: Apache License version 2.0
 copyright: Imply Data
-version: 0.14.23
+version: 0.14.24
 
 ---
 
@@ -6554,6 +6554,6 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Paul Henschel
-version: 3.6.5
+version: 3.7.2
 license_file_path: licenses/bin/zustand.MIT
 # Web console modules end

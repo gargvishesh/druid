@@ -38,6 +38,7 @@ import org.apache.druid.java.util.http.client.response.StatusResponseHandler;
 import org.apache.druid.java.util.http.client.response.StatusResponseHolder;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.http.security.ConfigResourceFilter;
+import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.http.SqlQuery;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -640,7 +641,15 @@ public class ViewStateManagerResource
         HttpMethod.POST,
         listenerURL
     );
-    SqlQuery query = new SqlQuery("EXPLAIN PLAN FOR " + viewSql, null, false, false, false, null, null);
+    SqlQuery query = new SqlQuery(
+        "EXPLAIN PLAN FOR " + viewSql,
+        null,
+        false,
+        false,
+        false,
+        ImmutableMap.of(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "false"),
+        null
+    );
     byte[] serializedEntity;
     try {
       serializedEntity = jsonMapper.writeValueAsBytes(query);

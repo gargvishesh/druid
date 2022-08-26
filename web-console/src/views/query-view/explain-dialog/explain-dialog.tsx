@@ -91,20 +91,17 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
         context,
       };
 
-      let plan: string | undefined;
-
+      let result: any[];
       try {
-        if (engine === 'sql-msq-task') {
-          const resp = await Api.instance.post(`/druid/v2/sql/task`, payload);
-          plan = deepGet(resp, 'data.taskId');
-        } else {
-          const result = await queryDruidSql(payload);
-          plan = deepGet(result, '0.PLAN');
-        }
+        result =
+          engine === 'sql-msq-task'
+            ? (await Api.instance.post(`/druid/v2/sql/task`, payload)).data
+            : await queryDruidSql(payload);
       } catch (e) {
         throw new Error(getDruidErrorMessage(e));
       }
 
+      const plan = deepGet(result, '0.PLAN');
       if (typeof plan !== 'string') {
         throw new Error(`unexpected result from ${engine} API`);
       }
@@ -126,7 +123,7 @@ export const ExplainDialog = React.memo(function ExplainDialog(props: ExplainDia
     const queryString = JSONBig.stringify(queryExplanation.query, undefined, 2);
     return (
       <div className="query-explanation">
-        <FormGroup className="query-group" label="Query">
+        <FormGroup className="query-group">
           <AceEditor
             mode="hjson"
             theme="solarized_dark"

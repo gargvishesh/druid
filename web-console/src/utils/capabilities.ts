@@ -19,7 +19,6 @@
 import { Api } from '../singletons';
 
 import { localStorageGetJson, LocalStorageKeys } from './local-storage-keys';
-import { deepGet } from './object-change';
 
 export type CapabilitiesMode = 'full' | 'no-sql' | 'no-proxy';
 
@@ -56,8 +55,6 @@ export class Capabilities {
   private readonly multiStageQuery: boolean;
   private readonly coordinator: boolean;
   private readonly overlord: boolean;
-
-  public readonly warnings: string[];
 
   static async detectQueryType(): Promise<QueryType | undefined> {
     // Check SQL endpoint
@@ -130,24 +127,12 @@ export class Capabilities {
     return true;
   }
 
-  static async detectMultiStageQuery(): Promise<{ enabled: boolean; warning?: string }> {
+  static async detectMultiStageQuery(): Promise<boolean> {
     try {
       const resp = await Api.instance.get(`/druid/v2/sql/task/enabled?capabilities`);
-      if (resp.data.enabled === true) {
-        return { enabled: true };
-      } else {
-        return { enabled: false, warning: 'Unexpected response from /druid/v2/sql/task/enabled' };
-      }
-    } catch (e) {
-      if (deepGet(e, 'response.status') === 404 && deepGet(e, 'response.data.enabled') === false) {
-        return {
-          enabled: false,
-          warning:
-            'The multi stage query engine extension is detected but is not properly configured. Please double check that you have set all the required server properties.',
-        };
-      } else {
-        return { enabled: false };
-      }
+      return Boolean(resp.data.enabled);
+    } catch {
+      return false;
     }
   }
 
@@ -169,14 +154,13 @@ export class Capabilities {
       coordinator = overlord = await Capabilities.detectManagementProxy();
     }
 
-    const multiStageQueryStatus = await Capabilities.detectMultiStageQuery();
+    const multiStageQuery = await Capabilities.detectMultiStageQuery();
 
     return new Capabilities({
       queryType,
-      multiStageQuery: multiStageQueryStatus.enabled,
+      multiStageQuery,
       coordinator,
       overlord,
-      warnings: multiStageQueryStatus.warning ? [multiStageQueryStatus.warning] : [],
     });
   }
 
@@ -185,11 +169,6 @@ export class Capabilities {
     this.multiStageQuery = options.multiStageQuery;
     this.coordinator = options.coordinator;
     this.overlord = options.overlord;
-    this.warnings = Array.isArray(options.warnings) ? options.warnings : [];
-  }
-
-  public hasWarnings(): boolean {
-    return Boolean(this.warnings.length);
   }
 
   public getMode(): CapabilitiesMode {
