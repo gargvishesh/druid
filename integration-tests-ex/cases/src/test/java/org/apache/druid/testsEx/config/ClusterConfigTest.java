@@ -22,6 +22,7 @@ package org.apache.druid.testsEx.config;
 import org.apache.druid.testing.IntegrationTestingConfig;
 import org.apache.druid.testsEx.config.ClusterConfig.ClusterType;
 import org.apache.druid.testsEx.config.ResolvedService.ResolvedZk;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -42,6 +43,7 @@ import static org.junit.Assert.assertNotNull;
  */
 public class ClusterConfigTest
 {
+  @Ignore
   @Test
   public void testYaml() throws FileNotFoundException
   {
