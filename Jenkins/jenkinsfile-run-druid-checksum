@@ -69,7 +69,7 @@ pipeline {
             post {
                 failure {
                     script {
-                        slackMessage = "Checksum verification for run-druid script in master branch failed - (<${env.BUILD_URL}|Open>) " + "```${env.OUTPUT}```"
+                        slackMessage = "Checksum verification for failed - (<${env.BUILD_URL}|Open>) " + "```${env.OUTPUT}```"
                         slackSend channel: 'espresso-machine', message: slackMessage, color: "#FF0000"
                     }
                 }
