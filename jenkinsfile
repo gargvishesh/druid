@@ -1016,7 +1016,6 @@ pipeline {
                                             fi
                                         }
 
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
                                         verify_checksum "$STAGING_DIR/dist/druid/bin/run-java" "$EXPECTED_SHA1_RUN_JAVA"
                                         verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
                                         verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"

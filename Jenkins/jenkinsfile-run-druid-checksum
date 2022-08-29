@@ -1,0 +1,72 @@
+def resetWs() {
+    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+}
+
+def sha1sum(filePath) {
+    return sh(returnStdout: true, script: "sha1sum ${filePath} | awk '{print \$1}'").trim()
+}
+
+def verifyChecksum(filePath, expected_sha1) {
+    return sha1sum(filePath) == expected_sha1
+}
+
+
+pipeline {
+    options {
+        timeout(time: 4, unit: 'HOURS')
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
+    }
+
+    agent none
+
+    triggers {
+        cron('0 23 * * *') // Run at 11 PM every day.
+    }
+
+    environment {
+        RUN_DRUID_FILE_PATH_IN_REPO = "examples/bin/run-druid"
+        EXPECTED_SHA1_RUN_DRUID = "6dc3180469ed3d9ac58e6e400cbf89ceda14cab4"
+        GIT=credentials('github-implydata-userpass')
+    }
+
+    parameters {
+        string(name: 'OUTPUT', defaultValue: '')
+    }
+
+    stages {
+        stage('Run Druid script checksum verification') {
+
+            agent {
+                label "jenkinsOnDemandMultiExec || jenkinsOnDemand"
+            }
+
+            steps {
+                script {
+                    if (!verifyChecksum("${WORKSPACE}/${RUN_DRUID_FILE_PATH_IN_REPO}", EXPECTED_SHA1_RUN_DRUID)) {
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            def checksum = sha1sum("${WORKSPACE}/${RUN_DRUID_FILE_PATH_IN_REPO}")
+                            env.OUTPUT = "Checksum verification failed in master branch\n" +
+                                         "Expected Checksum - ${EXPECTED_SHA1_RUN_DRUID}\n" +
+                                         "Actual checksum - ${checksum}"
+                            echo env.OUTPUT
+                            sh "exit 1"
+                        }
+                    } else {
+                        echo "Checksum verification was successful in master branch"
+                    }
+                }
+            }
+            post {
+                failure {
+                    script {
+                        slackMessage = "Checksum verification for run-druid script in master branch failed - (<${env.BUILD_URL}|Open>) " + "```${env.OUTPUT}```"
+                        slackSend channel: 'espresso-machine', message: slackMessage, color: "#FF0000"
+                    }
+                }
+                cleanup {
+                    resetWs()
+                }
+            }
+        }
+    }
+}
