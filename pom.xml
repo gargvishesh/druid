@@ -194,10 +194,6 @@
         <module>extensions-imply/indexed-table-loader</module>
         <module>extensions-imply/imply-druid-security</module>
         <module>extensions-imply/imply-view-manager</module>
-        <!-- This is commented for time being since talaria upstream changes will consolidate and fix the compilation
-        problems that exist now. If needed, we can revert this changeset and resolve conflicts using
-        talaria-for-upstream branch.-->
-        <!--<module>extensions-imply/imply-talaria</module> -->
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>

@@ -249,8 +249,6 @@
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-view-manager</argument>
-                                        <!--<argument>-c</argument> -->
-                                        <!--<argument>io.imply:imply-talaria</argument> -->
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
@@ -447,8 +445,6 @@
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-view-manager</argument>
-                                        <!--<argument>-c</argument> -->
-                                        <!--<argument>io.imply:imply-talaria</argument> -->
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
@@ -711,8 +707,6 @@
                                         <argument>org.apache.druid.extensions:imply-druid-security</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-view-manager</argument>
-                                        <!--<argument>-c</argument> -->
-                                        <!--<argument>io.imply:imply-talaria</argument> -->
                                         <argument>-c</argument>
                                         <argument>io.imply:clarity-emitter</argument>
                                         <argument>-c</argument>
