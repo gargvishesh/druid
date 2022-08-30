@@ -23,6 +23,10 @@ $vertical-gap: 6px;
 .query-tab {
   position: relative;
 
+  .#{$bp-ns}-dark & {
+    background: $dark-gray2;
+  }
+
   .splitter-layout {
     position: absolute;
     width: 100%;

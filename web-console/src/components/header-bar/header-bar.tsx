@@ -68,7 +68,9 @@ export type HeaderActiveTab =
   | 'query'
   | 'workbench'
   | 'sql-data-loader'
+  // BEGIN: Imply-modified code for user management
   | 'user-management'
+  // END: Imply-modified code for user management
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -274,7 +276,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  const moreViewsMenuActive = oneOf(active, 'lookups', 'user-management');
+  const moreViewsMenuActive = oneOf(
+    active,
+    'lookups',
+    // BEGIN: Imply-modified code for user management
+    'user-management',
+    // END: Imply-modified code for user management
+  );
   const moreViewsMenu = (
     <Menu>
       <MenuItem
@@ -396,7 +404,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           <DruidLogo />
         </a>
         <NavbarDivider />
-
         <AnchorButton
           className="header-entry"
           minimal
@@ -438,7 +445,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           />
         )}
         <NavbarDivider />
-
         <AnchorButton
           className="header-entry"
           minimal

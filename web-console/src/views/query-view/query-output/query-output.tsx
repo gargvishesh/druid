@@ -382,9 +382,7 @@ export const QueryOutput = React.memo(function QueryOutput(props: QueryOutputPro
                       <Popover2 content={<Deferred content={() => getHeaderMenu(h, i)} />}>
                         <div className="clickable-cell">
                           {h}
-                          {hasFilterOnHeader(h, i) && (
-                            <Icon icon={IconNames.FILTER} iconSize={14} />
-                          )}
+                          {hasFilterOnHeader(h, i) && <Icon icon={IconNames.FILTER} size={14} />}
                         </div>
                       </Popover2>
                     );

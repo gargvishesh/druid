@@ -167,23 +167,8 @@ export function issueWithInputSource(inputSource: InputSource | undefined): stri
 }
 
 export const INPUT_SOURCE_FIELDS: Field<InputSource>[] = [
-  // {
-  //   name: 'type',
-  //   label: 'Source type',
-  //   type: 'string',
-  //   suggestions: ['local', 'http', 'inline', 's3', 'azure', 'google', 'hdfs'],
-  //   info: (
-  //     <p>
-  //       Druid connects to raw data through{' '}
-  //       <ExternalLink href={`${getLink('DOCS')}/ingestion/native-batch.html#input-sources`}>
-  //         inputSources
-  //       </ExternalLink>
-  //       . You can change your selected inputSource here.
-  //     </p>
-  //   ),
-  // },
-
   // inline
+
   {
     name: 'data',
     label: 'Inline data',

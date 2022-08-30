@@ -19,12 +19,11 @@
 import * as JSONBig from 'json-bigint-native';
 
 import { WorkbenchQuery } from '../druid-models';
-import { deepSet, localStorageGetJson, LocalStorageKeys, localStorageSetJson } from '../utils';
+import { localStorageGetJson, LocalStorageKeys, localStorageSetJson } from '../utils';
 
 export interface WorkbenchQueryHistoryEntry {
   readonly version: string;
   readonly query: WorkbenchQuery;
-  readonly taskId?: string;
 }
 
 export class WorkbenchHistory {
@@ -50,11 +49,6 @@ export class WorkbenchHistory {
     localStorageSetJson(LocalStorageKeys.WORKBENCH_HISTORY, history);
   }
 
-  static getLastQuery(): WorkbenchQuery | undefined {
-    const queryHistory = WorkbenchHistory.getHistory();
-    return queryHistory.length ? queryHistory[0].query : undefined;
-  }
-
   static addQueryToHistory(query: WorkbenchQuery): void {
     const queryHistory = WorkbenchHistory.getHistory();
 
@@ -75,20 +69,5 @@ export class WorkbenchHistory {
         ...queryHistory,
       ].slice(0, WorkbenchHistory.MAX_ENTRIES),
     );
-  }
-
-  static attachTaskId(query: WorkbenchQuery, taskId: string): void {
-    const queryHistory = WorkbenchHistory.getHistory();
-
-    // Do not add to history if already the same as the last element in query and context
-    if (
-      !queryHistory.length ||
-      JSONBig.stringify(queryHistory[0].query) !== JSONBig.stringify(query) ||
-      queryHistory[0].taskId
-    ) {
-      return;
-    }
-
-    WorkbenchHistory.setHistory(deepSet(queryHistory, '0.taskId', taskId));
   }
 }

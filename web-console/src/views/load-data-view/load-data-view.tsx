@@ -642,7 +642,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
   renderActionCard(icon: IconName, title: string, caption: string, onClick: () => void) {
     return (
       <Card className="spec-card" interactive onClick={onClick} elevation={1}>
-        <Icon className="spec-card-icon" icon={icon} iconSize={30} />
+        <Icon className="spec-card-icon" icon={icon} size={30} />
         <div className="spec-card-header">
           {title}
           <div className="spec-card-caption">{caption}</div>
@@ -1614,7 +1614,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           />
           <AnchorButton
             icon={IconNames.INFO_SIGN}
-            href={`${getLink('DOCS')}/ingestion/flatten-json.html`}
+            href={`${getLink('DOCS')}/ingestion/data-formats.html#flattenspec`}
             target="_blank"
             minimal
           />

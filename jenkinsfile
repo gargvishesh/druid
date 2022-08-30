@@ -680,10 +680,6 @@ pipeline {
         RT_DOCKER_REPOSITORY_PREFIX = "repo.cnc.imply.io"
         DOCKER_REGISTRY_MIRROR = "https://registry-mirror.cnc.imply.io:443"
         DOCKER_AGENT_LABEL = "ubuntu-sysbox-1621268334"
-        EXPECTED_SHA1_RUN_DRUID = "6dc3180469ed3d9ac58e6e400cbf89ceda14cab4"
-        EXPECTED_SHA1_RUN_JAVA = "233d4384dfadc74d821d1a361d08ad9fa2875180"
-        EXPECTED_SHA1_VERIFY_JAVA = "2adffa7d6baeae93c48038816311e691e3b01932"
-        EXPECTED_SHA1_RUN_ZK = "6a995c9279ebe3015598891c3896820f33a97d8f"
 
     }
 
@@ -1002,24 +998,6 @@ pipeline {
                                           }
                                         }
                                         EOT
-
-                                        function verify_checksum() {
-                                            local file="$1"
-                                            local checksum="$2"
-                                            if [ "$(sha1sum "$file" | awk '{print $1}')" != "$checksum" ]; then
-                                                1>&2 cat << EOF
-                                                    $file has changed in the druid repo! Look at the changes and incorporate them in the
-                                                    script if needed. Then update the expected sha1 in this script. Also update the imply
-                                                    startup scripts located at https://github.com/implydata/imply-release/blob/master/imply-resources/bin/$file
-                                                EOF
-                                                exit 1
-                                            fi
-                                        }
-
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-druid" "$EXPECTED_SHA1_RUN_DRUID"
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-java" "$EXPECTED_SHA1_RUN_JAVA"
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/verify-java" "$EXPECTED_SHA1_VERIFY_JAVA"
-                                        verify_checksum "$STAGING_DIR/dist/druid/bin/run-zk" "$EXPECTED_SHA1_RUN_ZK"
 
                                         tar -C $STAGING_DIR/dist -czf $WORKSPACE/${ARTIFACT_NAME}-${DRUID_VERSION}-${UPSTREAM_COMMIT_SHA:0:8}.tar.gz druid
 
@@ -1629,7 +1607,7 @@ pipeline {
                     }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:it-tools,!:it-image"
+                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:druid-it-tools,!:druid-it-image"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="true"
                     }
                     steps { runUnitTest() }
@@ -1643,7 +1621,7 @@ pipeline {
                     }
                     agent {docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" }}
                     environment {
-                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:it-tools,!:it-image"
+                        MAVEN_PROJECTS="!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:druid-it-tools,!:druid-it-image"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL="false"
                     }
                     steps { runUnitTest() }
@@ -1724,7 +1702,7 @@ pipeline {
                 stage('(openjdk11) other modules test') {
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
-                        MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:it-tools,!:it-image"
+                        MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:druid-it-tools,!:druid-it-image"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
                     }
                     steps { runUnitTest() }
@@ -1734,7 +1712,7 @@ pipeline {
                 stage('(openjdk11) other modules test (SQL Compatibility)') {
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
-                        MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:it-tools,!:it-image"
+                        MAVEN_PROJECTS = "!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:druid-it-tools,!:druid-it-image"
                         DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
                     }
                     steps { runUnitTest() }

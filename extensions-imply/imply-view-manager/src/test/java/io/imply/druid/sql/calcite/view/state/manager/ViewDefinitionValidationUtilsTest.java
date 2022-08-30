@@ -19,6 +19,7 @@ import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -29,6 +30,7 @@ import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
+import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
@@ -469,7 +471,12 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     List<Object[]> results = getResults(
         PLANNER_CONFIG_DEFAULT,
-        QUERY_CONTEXT_DEFAULT,
+        ImmutableMap.<String, Object>builder()
+                    .put(PlannerContext.CTX_SQL_QUERY_ID, DUMMY_SQL_ID)
+                    .put(PlannerContext.CTX_SQL_CURRENT_TIMESTAMP, "2000-01-01T00:00:00Z")
+                    .put(QueryContexts.DEFAULT_TIMEOUT_KEY, QueryContexts.DEFAULT_TIMEOUT_MILLIS)
+                    .put(QueryContexts.MAX_SCATTER_GATHER_BYTES_KEY, Long.MAX_VALUE)
+                    .put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "false").build(),
         DEFAULT_PARAMETERS,
         "EXPLAIN PLAN FOR " + sql,
         CalciteTests.REGULAR_USER_AUTH_RESULT

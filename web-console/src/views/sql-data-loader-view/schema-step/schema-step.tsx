@@ -46,7 +46,6 @@ import { ClearableInput, LearnMore, Loader } from '../../../components';
 import { AsyncActionDialog } from '../../../dialogs';
 import {
   changeQueryPatternExpression,
-  DestinationMode,
   Execution,
   externalConfigToTableExpression,
   fitIngestQueryPattern,
@@ -97,12 +96,6 @@ import { RollupAnalysisPane } from './rollup-analysis-pane/rollup-analysis-pane'
 import './schema-step.scss';
 
 const queryRunner = new QueryRunner();
-
-const DESTINATION_MODE_TITLE: Record<DestinationMode, string> = {
-  new: 'new',
-  replace: 'replace',
-  insert: 'append',
-};
 
 function digestQueryString(queryString: string): {
   ingestQueryPattern?: IngestQueryPattern;
@@ -642,11 +635,7 @@ export const SchemaStep = function SchemaStep(props: SchemaStepProps) {
             >
               {`Datasource: ${ingestQueryPattern.destinationTableName} `}
               <Tag minimal round>
-                {
-                  DESTINATION_MODE_TITLE[
-                    getDestinationMode(ingestQueryPattern, existingTableState.data)
-                  ]
-                }
+                {getDestinationMode(ingestQueryPattern, existingTableState.data)}
               </Tag>
             </Button>
           )}

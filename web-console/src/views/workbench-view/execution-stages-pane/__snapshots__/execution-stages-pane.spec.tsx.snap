@@ -158,7 +158,7 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
     Array [
       Object {
         "definition": Object {
-          "id": "c0365a7c-9dce-4f4d-bec9-2da6a8991e5e_0",
+          "id": "0b353011-6ea1-480a-8ca8-386771621672_0",
           "input": Array [
             Object {
               "inputFormat": Object {
@@ -172,7 +172,7 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
                 "httpAuthenticationUsername": null,
                 "type": "http",
                 "uris": Array [
-                  "https://static.imply.io/data/kttm/kttm-v2-2019-08-25.json.gz",
+                  "https://static.imply.io/example-data/kttm-v2/kttm-v2-2019-08-25.json.gz",
                 ],
               },
               "signature": Array [
@@ -188,7 +188,7 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
               "type": "external",
             },
           ],
-          "maxWorkerCount": 2,
+          "maxWorkerCount": 1,
           "processor": Object {
             "query": Object {
               "columns": Array [
@@ -200,11 +200,9 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
                 "finalize": false,
                 "finalizeAggregations": false,
                 "groupByEnableMultiValueUnnesting": false,
-                "maxNumTasks": 3,
-                "msqSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
-                "multiStageQuery": true,
+                "scanSignature": "[{\\"name\\":\\"agent_type\\",\\"type\\":\\"STRING\\"},{\\"name\\":\\"v0\\",\\"type\\":\\"LONG\\"}]",
                 "sqlInsertSegmentGranularity": "{\\"type\\":\\"all\\"}",
-                "sqlQueryId": "c1b808f3-ebad-4773-906c-63ff376ed50f",
+                "sqlQueryId": "32ced762-7679-4a25-9220-3915c5976961",
                 "sqlReplaceTimeChunks": "all",
               },
               "dataSource": Object {
@@ -236,7 +234,6 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
           },
           "shuffleCheckHasMultipleValues": true,
           "shuffleSpec": Object {
-            "aggregate": false,
             "clusterBy": Object {
               "columns": Array [
                 Object {
@@ -262,24 +259,24 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
             },
           ],
         },
-        "duration": 5132,
+        "duration": 20229,
         "partitionCount": 1,
         "phase": "FINISHED",
         "sort": true,
         "stageNumber": 0,
-        "startTime": "2022-07-26T19:36:07.262Z",
+        "startTime": "2022-08-22T20:12:53.790Z",
         "workerCount": 1,
       },
       Object {
         "definition": Object {
-          "id": "c0365a7c-9dce-4f4d-bec9-2da6a8991e5e_1",
+          "id": "0b353011-6ea1-480a-8ca8-386771621672_1",
           "input": Array [
             Object {
               "stage": 0,
               "type": "stage",
             },
           ],
-          "maxWorkerCount": 2,
+          "maxWorkerCount": 1,
           "processor": Object {
             "columnMappings": Array [
               Object {
@@ -329,72 +326,19 @@ exports[`ExecutionStagesPane matches snapshot 1`] = `
               },
             },
             "tuningConfig": Object {
-              "appendableIndexSpec": Object {
-                "preserveExistingMetrics": false,
-                "type": "onheap",
-              },
-              "awaitSegmentAvailabilityTimeoutMillis": 0,
-              "chatHandlerNumRetries": 5,
-              "chatHandlerTimeout": "PT10S",
-              "forceGuaranteedRollup": false,
-              "indexSpec": Object {
-                "bitmap": Object {
-                  "compressRunOnSerialization": true,
-                  "type": "roaring",
-                },
-                "dimensionCompression": "lz4",
-                "longEncoding": "longs",
-                "metricCompression": "lz4",
-                "segmentLoader": null,
-              },
-              "indexSpecForIntermediatePersists": Object {
-                "bitmap": Object {
-                  "compressRunOnSerialization": true,
-                  "type": "roaring",
-                },
-                "dimensionCompression": "lz4",
-                "longEncoding": "longs",
-                "metricCompression": "lz4",
-                "segmentLoader": null,
-              },
-              "logParseExceptions": false,
-              "maxAllowedLockCount": -1,
-              "maxBytesInMemory": 0,
-              "maxColumnsToMerge": -1,
-              "maxNumConcurrentSubTasks": 2,
-              "maxNumSegmentsToMerge": 100,
-              "maxParseExceptions": 2147483647,
-              "maxPendingPersists": 0,
-              "maxRetry": 1,
+              "maxNumWorkers": 1,
               "maxRowsInMemory": 100000,
-              "maxRowsPerSegment": 3000000,
-              "maxSavedParseExceptions": 0,
-              "maxTotalRows": null,
-              "numShards": null,
-              "partitionDimensions": Array [],
-              "partitionsSpec": Object {
-                "maxRowsPerSegment": 3000000,
-                "maxTotalRows": null,
-                "type": "dynamic",
-              },
-              "pushTimeout": 0,
-              "reportParseExceptions": false,
-              "segmentWriteOutMediumFactory": null,
-              "skipBytesInMemoryOverheadCheck": false,
-              "splitHintSpec": null,
-              "taskStatusCheckPeriodMs": 1000,
-              "totalNumMergeTasks": 10,
-              "type": "index_parallel",
+              "rowsPerSegment": 3000000,
             },
             "type": "segmentGenerator",
           },
           "signature": Array [],
         },
-        "duration": 1706,
+        "duration": 2497,
         "partitionCount": 1,
         "phase": "FINISHED",
         "stageNumber": 1,
-        "startTime": "2022-07-26T19:36:12.391Z",
+        "startTime": "2022-08-22T20:13:13.991Z",
         "workerCount": 1,
       },
     ]

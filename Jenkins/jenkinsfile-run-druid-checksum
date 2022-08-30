@@ -1,0 +1,82 @@
+def resetWs() {
+    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+}
+
+def sha1sum(filePath) {
+    return sh(returnStdout: true, script: "sha1sum ${filePath} | awk '{print \$1}'").trim()
+}
+
+def verifyChecksum(file_path, expected_sha1) {
+    def actual_checksum = sha1sum(file_path)
+    def script_name = file_path.tokenize("/")[-1]
+    if (actual_checksum == expected_sha1) {
+        return [true, "\n${script_name} checksum verification was successful"]
+    }
+    return [false, "\nChecksum verification failed for ${script_name}\n" +
+                   "Expected Checksum - ${EXPECTED_SHA1_RUN_DRUID}\n" + "Actual checksum - ${actual_checksum}"]
+}
+
+pipeline {
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '15', artifactNumToKeepStr: '10', daysToKeepStr: '30', numToKeepStr: '20'))
+    }
+
+    agent {
+        label "jenkinsOnDemandMultiExec || jenkinsOnDemand"
+    }
+
+    triggers {
+        cron('0 23 * * *') // Run at 11 PM every day.
+    }
+
+    environment {
+        SCRIPTS_DIR_PATH = "examples/bin"
+        RUN_DRUID_PATH = "${SCRIPTS_DIR_PATH}/run-druid"
+        RUN_JAVA_PATH = "${SCRIPTS_DIR_PATH}/run-java"
+        VERIFY_DRUID_PATH = "${SCRIPTS_DIR_PATH}/verify-java"
+        RUN_ZK_PATH = "${SCRIPTS_DIR_PATH}/run-zk"
+        EXPECTED_SHA1_RUN_DRUID = "6dc3180469ed3d9ac58e6e400cbf89ceda14cab4"
+        EXPECTED_SHA1_RUN_JAVA = "233d4384dfadc74d821d1a361d08ad9fa2875180"
+        EXPECTED_SHA1_VERIFY_JAVA = "2adffa7d6baeae93c48038816311e691e3b01932"
+        EXPECTED_SHA1_RUN_ZK = "6a995c9279ebe3015598891c3896820f33a97d8f"
+    }
+
+    parameters {
+        string(name: 'OUTPUT', defaultValue: '', description: 'Used internally, value provided here will have no impact')
+    }
+
+    stages {
+        stage('Checksum verification') {
+            steps {
+                script {
+
+                    def (run_druid_status, run_druid_output) = verifyChecksum("${WORKSPACE}/${RUN_DRUID_PATH}", env.EXPECTED_SHA1_RUN_DRUID)
+                    def (run_java_status, run_java_output) = verifyChecksum("${WORKSPACE}/${RUN_JAVA_PATH}", env.EXPECTED_SHA1_RUN_JAVA)
+                    def (verify_java_status, verify_java_output) = verifyChecksum("${WORKSPACE}/${VERIFY_DRUID_PATH}", env.EXPECTED_SHA1_VERIFY_JAVA)
+                    def (run_zk_status, run_zk_output) = verifyChecksum("${WORKSPACE}/${RUN_ZK_PATH}", env.EXPECTED_SHA1_RUN_ZK)
+                    env.OUTPUT = run_druid_output + run_java_output + verify_java_output + run_zk_output
+                    echo env.OUTPUT
+                    if (!run_druid_status || !run_java_status || !verify_java_status || !run_zk_status) {
+                        // Fail the pipeline if any of the checksum verification fails.
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh "exit 1"
+                        }
+                    }
+
+                }
+            }
+            post {
+                failure {
+                    script {
+                        slackMessage = "Checksum verification for failed - (<${env.BUILD_URL}|Open>) " + "```${env.OUTPUT}```"
+                        slackSend channel: 'espresso-machine', message: slackMessage, color: "#FF0000"
+                    }
+                }
+                cleanup {
+                    resetWs()
+                }
+            }
+        }
+    }
+}

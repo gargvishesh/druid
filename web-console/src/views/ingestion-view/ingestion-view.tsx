@@ -42,7 +42,6 @@ import {
 } from '../../dialogs';
 import { QueryWithContext } from '../../druid-models';
 import {
-  booleanCustomTableFilter,
   SMALL_TABLE_PAGE_SIZE,
   SMALL_TABLE_PAGE_SIZE_OPTIONS,
   syncFilterClauseById,
@@ -80,10 +79,10 @@ const taskTableColumns: string[] = [
   'Group ID',
   'Type',
   'Datasource',
-  'Location',
-  'Created time',
   'Status',
+  'Created time',
   'Duration',
+  'Location',
   ACTION_COLUMN_LABEL,
 ];
 
@@ -849,22 +848,6 @@ ORDER BY
             show: hiddenTaskColumns.shown('Datasource'),
           },
           {
-            Header: 'Location',
-            accessor: 'location',
-            width: 200,
-            Cell: this.renderTaskFilterableCell('location'),
-            Aggregated: () => '',
-            show: hiddenTaskColumns.shown('Location'),
-          },
-          {
-            Header: 'Created time',
-            accessor: 'created_time',
-            width: 190,
-            Cell: this.renderTaskFilterableCell('created_time'),
-            Aggregated: () => '',
-            show: hiddenTaskColumns.shown('Created time'),
-          },
-          {
             Header: 'Status',
             id: 'status',
             width: 110,
@@ -918,10 +901,15 @@ ORDER BY
                   return 0;
               }
             },
-            filterMethod: (filter: Filter, row: any) => {
-              return booleanCustomTableFilter(filter, row.status.status);
-            },
             show: hiddenTaskColumns.shown('Status'),
+          },
+          {
+            Header: 'Created time',
+            accessor: 'created_time',
+            width: 190,
+            Cell: this.renderTaskFilterableCell('created_time'),
+            Aggregated: () => '',
+            show: hiddenTaskColumns.shown('Created time'),
           },
           {
             Header: 'Duration',
@@ -929,9 +917,26 @@ ORDER BY
             width: 80,
             filterable: false,
             className: 'padded',
-            Cell: row => (row.value > 0 ? formatDuration(row.value) : ''),
+            Cell({ value, original }) {
+              if (value > 0) {
+                return formatDuration(value);
+              }
+              if (original.created_time) {
+                // Compute running duration from the created time if it exists
+                return formatDuration(Date.now() - Date.parse(original.created_time));
+              }
+              return '';
+            },
             Aggregated: () => '',
             show: hiddenTaskColumns.shown('Duration'),
+          },
+          {
+            Header: 'Location',
+            accessor: 'location',
+            width: 200,
+            Cell: this.renderTaskFilterableCell('location'),
+            Aggregated: () => '',
+            show: hiddenTaskColumns.shown('Location'),
           },
           {
             Header: ACTION_COLUMN_LABEL,
