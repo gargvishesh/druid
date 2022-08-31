@@ -739,6 +739,13 @@ pipeline {
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
+                stage("(Compile=openjdk8, Run=openjdk8) transactional kafka index integration test slow with Indexer") {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    environment { TESTNG_GROUPS = '-Dgroups=kafka-transactional-index-slow';
+                        JVM_RUNTIME = '-Djvm.runtime=8'; USE_INDEXER = 'indexer'; }
+                    steps { coreIntegrationTests() }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
             } // end of parallel
         } // end of stage('Checks')
     } // end of stages
