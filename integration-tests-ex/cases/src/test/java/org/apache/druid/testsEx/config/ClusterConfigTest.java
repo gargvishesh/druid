@@ -25,12 +25,6 @@ import org.apache.druid.testsEx.config.ResolvedService.ResolvedZk;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
 
@@ -45,7 +39,7 @@ public class ClusterConfigTest
 {
   @Ignore
   @Test
-  public void testYaml() throws FileNotFoundException
+  public void testYaml()
   {
     ClusterConfig config = ClusterConfig.loadFromResource("/config-test/test.yaml");
     // Uncomment this line to see the full config with includes resolved.
@@ -86,15 +80,6 @@ public class ClusterConfigTest
     assertEquals("router", service.service());
     assertEquals("http://localhost:8888", service.clientUrl());
     assertEquals("http://localhost:8888", resolved.routerUrl());
-
-    File userEnv = new File(
-        new File(
-            System.getProperty("user.home"),
-            "druid-it"),
-        "Test.env");
-    try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(userEnv), StandardCharsets.UTF_8))) {
-      out.println("druid_user_var=user");
-    }
 
     System.setProperty("druid_sys_prop", "sys");
     Map<String, Object> props = resolved.toProperties();
