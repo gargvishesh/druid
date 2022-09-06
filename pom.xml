@@ -185,6 +185,7 @@
         <module>extensions-core/druid-basic-security</module>
         <module>extensions-core/google-extensions</module>
         <module>extensions-core/testing-tools</module>
+        <!-- Community extensions -->
         <module>extensions-contrib/statsd-emitter</module>
         <!-- Imply extensions -->
         <module>extensions-imply/clarity-emitter/core</module>
