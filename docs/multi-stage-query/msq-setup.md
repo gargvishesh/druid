@@ -75,38 +75,6 @@ For Imply Enterprise, you need to load the extension to enable MSQ. In Imply Man
 
 6. Apply the changes. The cluster restarts and MSQ will be available after the restart.
 
-## Enable durable storage
-
-Optionally, you can enable durable storage for mesh shuffles. Using this feature can improve the reliability of queries that use more than 20 workers. Note that only S3 is supported for the storage type. For more information about this feature, see [Durable storage for mesh shuffle](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle).
-
-To enable the feature with Imply Manager:
-
-1. Go to **Clusters > Manage** for the cluster you want to enable the feature on. You need to enable this on each individual cluster.
-2. Go to **Setup** and expand the **Advanced config** options.
-3. If you use Imply Hybrid, skip this step. If you use Imply Enterprise, load the `druid-s3-extensions` extension:
-   - **Name**: `druid-s3-extensions` 
-   - **S3 path or url**: Leave this blank. This extension is bundled with the Imply distribution.
-4. Add the following **Common** service properties: 
-     
-   ```bash
-   # Required for using durable storage for mesh shuffle
-   druid.msq.intermediate.storage.enable=true
-   druid.msq.intermediate.storage.type=s3
-   druid.msq.intermediate.storage.bucket=<your_bucket>
-   druid.msq.intermediate.storage.prefix=<your_prefix<>
-   druid.msq.intermediate.storage.tempDir=</path/to/your/temp/dir>
-   # Optional for using durable storage for mesh shuffle
-   druid.msq.intermediate.storage.maxResultsSize=5GiB
-   ```
-5. In S3, verify that you have the correct permissions set:
-   
-- `s3:GetObject`
-- `s3:PutObject`
-- `s3:AbortMultipartUpload`
-- `s3:DeleteObject`
-
-6. Apply the changes to your cluster.
-
 ## Next steps
 
 Now that you've set up MSQ, you can do the following tutorials:
