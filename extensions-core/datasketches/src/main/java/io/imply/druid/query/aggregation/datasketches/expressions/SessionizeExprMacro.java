@@ -9,13 +9,11 @@
 
 package io.imply.druid.query.aggregation.datasketches.expressions;
 
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExpressionType;
-import org.apache.druid.query.expression.ExprUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,9 +32,7 @@ public class SessionizeExprMacro implements ExprMacroTable.ExprMacro
   @Override
   public Expr apply(List<Expr> args)
   {
-    if (args.size() != 1) {
-      throw new IAE(ExprUtils.createErrMsg(name(), "must have 1 argument"));
-    }
+    validationHelperCheckArgumentCount(args, 1);
 
     Expr arg = args.get(0);
 
