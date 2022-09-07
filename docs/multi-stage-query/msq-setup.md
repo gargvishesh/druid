@@ -105,8 +105,6 @@ To enable the feature with Imply Manager:
 - `s3:AbortMultipartUpload`
 - `s3:DeleteObject`
 
-   For information about what the permissions are used for, see [S3](./msq-security.md#s3).
-
 6. Apply the changes to your cluster.
 
 ## Next steps
