@@ -23,14 +23,14 @@ title: "Quickstart"
   -->
 
 
-This quickstart gets you started with Apache Druid using the `micro-quickstart` startup configuration and introduces you to some Druid features, including the SQL-task engine that's part of the [multi-stage query architecture](../multi-stage-query/index.md). 
+This quickstart gets you started with Apache Druid using the `micro-quickstart` startup configuration and introduces you to some Druid features, including the MSQ task engine that's part of the [multi-stage query architecture](../multi-stage-query/index.md). 
 
-With the SQL-task engine, you can write task queries that can reference [external data](../multi-stage-query/msq-queries.md#read-external-data) as well as perform ingestion with SQL [INSERT](../multi-stage-query/msq-queries.md#insert-data) and [REPLACE](../multi-stage-query/msq-queries.md#replace-data), eliminating the need to generate JSON-based ingestion specs.
+With the MSQ task engine, you can write query tasks that can reference [external data](../multi-stage-query/index.md#read-external-data) as well as perform ingestion with SQL [INSERT](../multi-stage-query/index.md#insert-data) and [REPLACE](../multi-stage-query/index.md#replace-data), eliminating the need to generate JSON-based ingestion specs.
 
 In this quickstart, you'll do the following:
 - install Druid
 - start up Druid services
-- use the SQL-task engine to ingest data
+- use the MSQ task engine to ingest data
 
 Druid supports different ingestion engines. While we recommend SQL based ingestion, you can find tutorials for other modes of ingestion, such as [Load data with native batch ingestion](tutorial-batch-native.md).
 
@@ -39,6 +39,7 @@ Druid supports different ingestion engines. While we recommend SQL based ingesti
 You can follow these steps on a relatively small machine, such as a laptop with around 4 CPU and 16 GiB of RAM. 
 
 Druid comes equipped with several startup configuration profiles for a range of machine sizes.
+
 The `micro-quickstart` configuration profile is suitable for evaluating Druid. If you want to 
 try out Druid's performance or scaling capabilities, you'll need a larger machine and configuration profile.
 
@@ -78,7 +79,7 @@ The distribution directory contains `LICENSE` and `NOTICE` files and subdirector
 ## Start up Druid services
 
 Start up Druid services using the `micro-quickstart` single-machine configuration.
-This configuration includes default settings that are appropriate for this tutorial, such as loading the `druid-multi-stage-query` extension by default so that you can use the SQL-task engine.
+This configuration includes default settings that are appropriate for this tutorial, such as loading the `druid-multi-stage-query` extension by default so that you can use the MSQ task engine.
 
 You can view that setting and others in the configuration files in the `conf/druid/single-server/micro-quickstart/`. 
 
@@ -115,8 +116,8 @@ After the Druid services finish startup, open the [Druid console](../operations/
 
 It may take a few seconds for all Druid services to finish starting, including the [Druid router](../design/router.md), which serves the console. If you attempt to open the Druid console before startup is complete, you may see errors in the browser. Wait a few moments and try again.
 
-In this quickstart, you use the the Druid console to perform ingestion. The SQL-task engine specifically uses the **Query** view to edit and run SQL queries.
-For a complete walkthrough of the **Query** view as it relates to the multi-stage query architecture and the SQL-task engine, see [UI walkthrough](../multi-stage-query/msq-query-ui.md).
+In this quickstart, you use the the Druid console to perform ingestion. The MSQ task engine specifically uses the **Query** view to edit and run SQL queries.
+For a complete walkthrough of the **Query** view as it relates to the multi-stage query architecture and the MSQ task engine, see [UI walkthrough](../operations/druid-console.md).
 
 ## Load data
 
@@ -210,19 +211,19 @@ ORDER BY COUNT(*) DESC
 
 ![Query view](../assets/tutorial-quickstart-05.png "Query view")
 
-Congratulations! You've gone from downloading Druid to querying data with the SQL-task engine in just one quickstart.
+Congratulations! You've gone from downloading Druid to querying data with the MSQ task engine in just one quickstart.
 
 ## Next steps
 
 See the following topics for more information:
 
 * [Extensions](../development/extensions.md) for details on Druid extensions.
-* [Queries](../multi-stage-query/msq-queries.md) to further explore queries for SQL-based ingestion.
+* [MSQ task engine query syntax](../multi-stage-query/index.md#msq-task-engine-query-syntax) to further explore queries for SQL-based ingestion.
 * [Druid SQL overview](../querying/sql.md) to learn about how to query data you ingest.
 * [Load data with native batch ingestion](tutorial-batch-native.md) to load and query data with Druid's native batch ingestion feature.
 * [Load stream data from Apache Kafka](./tutorial-kafka.md) to load streaming data from a Kafka topic.
-* [API](../multi-stage-query/msq-api.md) to submit task queries to the SQL-task engine programmatically.
-* [Connect external data](../multi-stage-query/msq-tutorial-connect-external-data.md) to learn how to generate a query that references externally hosted data that the SQL-task engine can use to ingest data.
-* [Convert ingestion spec](../multi-stage-query/msq-tutorial-convert-ingest-spec.md) to learn how to convert an existing JSON ingestion spec to a task query that the SQL-task engine can use to ingest data.
+* [API](../multi-stage-query/msq-api.md) to submit query tasks to the MSQ task engine programmatically.
+* [Connect external data](../multi-stage-query/msq-tutorial-connect-external-data.md) to learn how to generate a query that references externally hosted data that the MSQ task engine can use to ingest data.
+* [Convert ingestion spec](../multi-stage-query/msq-tutorial-convert-ingest-spec.md) to learn how to convert an existing JSON ingestion spec to a SQL query that the MSQ task engine can use to ingest data.
 
 Remember that after stopping Druid services, you can start clean next time by deleting the `var` directory from the Druid root directory and running the `bin/start-micro-quickstart` script again. You may want to do this before taking other data ingestion tutorials, since they use the same Wikipedia datasource.
