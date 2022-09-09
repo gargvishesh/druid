@@ -1,15 +1,35 @@
 ---
 id: concepts
-title: Concepts
+title: SQL-based ingestion concepts
+sidebar_label: Key concepts
 ---
 
-> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
+
+> SQL-based ingestion using the multi-stage query task engine is our recommended solution starting in Druid 24.0. Alternative ingestion solutions, such as native batch and Hadoop-based ingestion systems, will still be supported. We recommend you read all [known issues](./msq-known-issues.md) and test the feature in a development environment before rolling it out in production. Using the multi-stage query task engine with `SELECT` statements that do not write to a datasource is experimental.
 
 This topic covers the main concepts and terminology of the multi-stage query architecture.
 
 ## Vocabulary
 
-You might see the following terms in the documentation or while you're using the multi-stage query architecture, such as when you view the report for a query:
+You might see the following terms in the documentation or while you're using the multi-stage query architecture and task engine, such as when you view the report for a query:
 
 - **Controller**: An indexing service task of type `query_controller` that manages
   the execution of a query. There is one controller task per query.
@@ -28,11 +48,11 @@ You might see the following terms in the documentation or while you're using the
 - **Shuffle**: Workers exchange data between themselves on a per-partition basis in a process called
   shuffling. During a shuffle, each output partition is sorted by a clustering key.
 
-## How the SQL-task engine works
+## How the MSQ task engine works
 
-Task queries, specifically queries for INSERT, REPLACE, and SELECT, execute using indexing service tasks. Every query occupies at least two task slots while running. 
+Query tasks, specifically queries for INSERT, REPLACE, and SELECT, execute using indexing service tasks. Every query occupies at least two task slots while running. 
 
-When you submit a task query to the SQL-task engine, the following happens:
+When you submit a query task to the MSQ task engine, the following happens:
 
 1.  The Broker plans your SQL query into a native query, as usual.
 
@@ -61,7 +81,7 @@ The [`maxNumTasks`](./msq-reference.md#context-parameters) query parameter deter
 The `druid.worker.capacity` server property on each Middle Manager determines the maximum number
 of worker tasks that can run on each server at once. Worker tasks run single-threaded, which
 also determines the maximum number of processors on the server that can contribute towards
-multi-stage queries. In Imply Enterprise, where data servers are shared between Historicals and
+multi-stage queries. Since data servers are shared between Historicals and
 Middle Managers, the default setting for `druid.worker.capacity` is lower than the number of
 processors on the server. Advanced users may consider enhancing parallelism by increasing this
 value to one less than the number of processors on the server. In most cases, this increase must
@@ -95,11 +115,11 @@ memory available (`-XX:MaxDirectMemorySize`) to at least
 `(druid.processing.numThreads + 1) * druid.processing.buffer.sizeBytes`. Increasing the
 amount of direct memory available beyond the minimum does not speed up processing.
 
-It may be necessary to override one or more memory-related parameters if you run into one of the [known issues around memory usage](./msq-release.md#memory-usage).
+It may be necessary to override one or more memory-related parameters if you run into one of the [known issues around memory usage](./msq-known-issues.md#memory-usage).
 
 ## Limits
 
-Knowing the limits for the SQL-task engine can help you troubleshoot any [errors](#error-codes) that you encounter. Many of the errors occur as a result of reaching a limit.
+Knowing the limits for the MSQ task engine can help you troubleshoot any [errors](#error-codes) that you encounter. Many of the errors occur as a result of reaching a limit.
 
 The following table lists query limits:
 
@@ -124,15 +144,14 @@ The following table describes error codes you may encounter in the `multiStageQu
 |  CannotParseExternalData |  A worker task could not parse data from an external datasource.  |    |
 |  ColumnNameRestricted|  The query uses a restricted column name.  |    |
 |  ColumnTypeNotSupported|  Support for writing or reading from a particular column type is not supported. |    |
-|  DurableStorageConfiguration  | Durable storage mode activation failed due to a misconfiguration. For configuration instructions, see [Durable storage for shuffle mesh](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle) for instructions on configuration.  |  |
 |  ColumnTypeNotSupported | The query attempted to use a column type that is not supported by the frame format. This occurs with ARRAY types, which are not yet implemented for frames.  | `columnName`<br /> <br />`columnType`   |
-|  InsertCannotAllocateSegment |  The controller task could not allocate a new segment ID due to conflict with pre-existing segments or pending segments. Common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>| `dataSource`<br /> <br />`interval`: The interval for the attempted new segment allocation.  |
+|  InsertCannotAllocateSegment |  The controller task could not allocate a new segment ID due to conflict with existing segments or pending segments. Common reasons for such conflicts:<br /> <br /><ul><li>Attempting to mix different granularities in the same intervals of the same datasource.</li><li>Prior ingestions that used non-extendable shard specs.</li></ul>| `dataSource`<br /> <br />`interval`: The interval for the attempted new segment allocation.  |
 |  InsertCannotBeEmpty |  An INSERT or REPLACE query did not generate any output rows in a situation where output rows are required for success. This can happen for INSERT or REPLACE queries with `PARTITIONED BY` set to something other than `ALL` or `ALL TIME`.  |  `dataSource`  |
 |  InsertCannotOrderByDescending  |  An INSERT query contained a `CLUSTERED BY` expression in descending order. Druid's segment generation code only supports ascending order.  |   `columnName` |
 |  InsertCannotReplaceExistingSegment |  A REPLACE query cannot proceed because an existing segment partially overlaps those bounds, and the portion within the bounds is not fully overshadowed by query results. <br /> <br />There are two ways to address this without modifying your query:<ul><li>Shrink the OVERLAP filter to match the query results.</li><li>Expand the OVERLAP filter to fully contain the existing segment.</li></ul>| `segmentId`: The existing segment <br /> 
-|  InsertLockPreempted  | An INSERT or REPLACE query was canceled by a higher-priority ingestion job, such as a realtime ingestion task.  | |
-|  InsertTimeNull  | An INSERT or REPLACE query encountered a null timestamp in the `__time` field.<br /><br />This can happen due to using an expression like `TIME_PARSE(timestamp) AS __time` with an unparseable timestamp. (TIME_PARSE returns null when it cannot parse a timestamp.) In this case, try parsing your timestamps using a different function or pattern.<br /><br />If your timestamps may genuinely be null, consider using COALESCE to provide a default value. One option is CURRENT_TIMESTAMP, which represents the start time of the job. |
-| InsertTimeOutOfBounds  |  A REPLACE query generated a timestamp outside the bounds of the TIMESTAMP parameter for your OVERWHERE WHERE clause.<br /> <br />To avoid this error, verify that the timeframe you specified is valid.  |  `interval: time chunk interval corresponding to the out-of-bounds timestamp  |
+|  InsertLockPreempted  | An INSERT or REPLACE query was canceled by a higher-priority ingestion job, such as a real-time ingestion task.  | |
+|  InsertTimeNull  | An INSERT or REPLACE query encountered a null timestamp in the `__time` field.<br /><br />This can happen due to using an expression like `TIME_PARSE(timestamp) AS __time` with a timestamp that cannot be parsed. (TIME_PARSE returns null when it cannot parse a timestamp.) In this case, try parsing your timestamps using a different function or pattern.<br /><br />If your timestamps may genuinely be null, consider using COALESCE to provide a default value. One option is CURRENT_TIMESTAMP, which represents the start time of the job. |
+| InsertTimeOutOfBounds  |  A REPLACE query generated a timestamp outside the bounds of the TIMESTAMP parameter for your OVERWRITE WHERE clause.<br /> <br />To avoid this error, verify that the   you specified is valid.  |  `interval`: time chunk interval corresponding to the out-of-bounds timestamp  |
 |  InvalidNullByte  | A string column included a null byte. Null bytes in strings are not permitted. |  `column`: The column that included the null byte |
 | QueryNotSupported   | QueryKit could not translate the provided native query to a multi-stage query.<br /> <br />This can happen if the query uses features that aren't supported, like GROUPING SETS. |    |
 |  RowTooLarge  |  The query tried to process a row that was too large to write to a single frame. See the [Limits](#limits) table for the specific limit on frame size. Note that the effective maximum row size is smaller than the maximum frame size due to alignment considerations during frame writing.  |   `maxFrameSize`: The limit on the frame size. |
