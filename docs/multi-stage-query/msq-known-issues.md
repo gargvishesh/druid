@@ -1,32 +1,39 @@
 ---
-id: release
-title: Release notes
+id: known-issues
+title: SQL-based ingestion known issues
+sidebar_label: Known issues
 ---
 
-> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
 
-## Release notes
+> SQL-based ingestion using the multi-stage query task engine is our recommended solution starting in Druid 24.0. Alternative ingestion solutions, such as native batch and Hadoop-based ingestion systems, will still be supported. We recommend you read all [known issues](./msq-known-issues.md) and test the feature in a development environment before rolling it out in production. Using the multi-stage query task engine with `SELECT` statements that do not write to a datasource is experimental.
 
-### 24.0
-
-- Initial release
-
-## Known issues
-
-### General query execution
+## General query execution
 
 - There's no fault tolerance. If any task fails, the entire query fails. 
 
-- In case of a worker crash, stage outputs on S3 are not deleted automatically. You may need to delete
-  the file using an external process or create an S3 lifecycle policy to remove the objects
-  under `druid.msq.intermediate.storage.prefix`. A good start would be to delete the objects after 3 days if they are
-  not automatically deleted.
+- Only one local file system per server is used for stage output data during multi-stage query
+  execution. If your servers have multiple local file systems, this causes queries to exhaust
+  available disk space earlier than expected. 
 
-- Only one local filesystem per server is used for stage output data during multi-stage query
-  execution. If your servers have multiple local filesystems, this causes queries to exhaust
-  available disk space earlier than expected. As a workaround, you can use [durable storage for shuffle meshes](./msq-advanced-configs.md#durable-storage-for-mesh-shuffle).
-
-- When `msqMaxNumTasks` (formerly `msqNumTasks`, formerly `talariaNumTasks`) is higher than the total
+- When `msqMaxNumTasks` is higher than the total
   capacity of the cluster, more tasks may be launched than can run at once. This leads to a
   [TaskStartTimeout](./msq-reference.md#context-parameters) error code, as there is never enough capacity to run the query.
   To avoid this, set `msqMaxNumTasks` to a number of tasks that can run simultaneously on your cluster.
@@ -35,7 +42,7 @@ title: Release notes
   input sources where file sizes are not known ahead of time. This includes the `http` input source, where the system
   generates one task per URI.
 
-### Memory usage
+## Memory usage
 
 - INSERT queries can consume excessive memory when using complex types due to inaccurate footprint
   estimation. This can appear as an OutOfMemoryError during the SegmentGenerator stage when using
@@ -50,24 +57,11 @@ title: Release notes
 
 - Ingesting a very long row may consume excessive memory and result in an OutOfMemoryError. If a row is read 
   which requires more memory than is available, the service might throw OutOfMemoryError. If you run into this
-  issue, allocate enough memory to be able to store the largest row to the indexer. (16919)
+  issue, allocate enough memory to be able to store the largest row to the indexer. 
 
-### SELECT queries
+## SELECT queries
 
 - SELECT query results do not include real-time data until it has been published.
-
-<!-- 
-- SELECT query results are funneled through the controller task
-  so they can be written to the query report.
-  This is a bottleneck for queries with large resultsets. In the future,
-  we will provide a mechanism for writing query results to multiple
-  files in parallel. (14728)
--->
-<!--
-- SELECT query results are materialized in memory on the Broker when
-  using the query results API. Large result sets
-  can cause the Broker to run out of memory. (15963)
--->
 
 - TIMESTAMP types are formatted as numbers rather than ISO8601 timestamp
   strings, which differs from Druid's standard result format. 
@@ -87,21 +81,17 @@ title: Release notes
   will fail.
 - The numeric flavors of the EARLIEST and LATEST aggregators do not work properly. Attempting to use the numeric flavors of these aggregators will lead to an error like `java.lang.ClassCastException: class java.lang.Double cannot be cast to class org.apache.druid.collections.SerializablePair`. The string flavors, however, do work properly.
 
-###  INSERT queries
+##  INSERT queries
 
-- The [schemaless dimensions](https://docs.imply.io/latest/druid/ingestion/ingestion-spec.html#inclusions-and-exclusions)
+- The [schemaless dimensions](../ingestion/ingestion-spec.md#inclusions-and-exclusions)
 feature is not available. All columns and their types must be specified explicitly.
 
-- [Segment metadata queries](https://docs.imply.io/latest/druid/querying/segmentmetadataquery.html)
+- [Segment metadata queries](../querying/segmentmetadataquery.md)
   on datasources ingested with the Multi-Stage Query Engine will return values for`timestampSpec` that are not usable
   for introspection.
-- Figuring out `rollup`, `query-granularity`, and `aggregatorFactories` is on a best effort basis. In
-  particular, Pivot will not be able to automatically create data cubes that properly reflect the
-  rollup configurations if the insert query does not meet the conditions defined in [Rollup](./msq-queries.md#group-by). Proper data cubes
-  can still be created manually.
 
-- When INSERT with GROUP BY does the match the criteria mentioned in [GROUP BY](./msq-queries.md#group-by),  the multi-stage engine generates segments that Druid's compaction
-  functionality is not able to further roll up. This applies to autocompaction as well as manually
+- When INSERT with GROUP BY does the match the criteria mentioned in [GROUP BY](./index.md#group-by),  the multi-stage engine generates segments that Druid's compaction
+  functionality is not able to further roll up. This applies to automatic compaction as well as manually
   issued `compact` tasks. Individual queries executed with the multi-stage engine always guarantee
   perfect rollup for their output, so this only matters if you are performing a sequence of INSERT
   queries that each append data to the same time chunk. If necessary, you can compact such data
@@ -117,10 +107,12 @@ feature is not available. All columns and their types must be specified explicit
 - INSERT with column lists, like
   `INSERT INTO tbl (a, b, c) SELECT ...`, is not implemented.
 
-### EXTERN queries
+## EXTERN queries
 
 - EXTERN does not accept `druid` input sources.
 
-### Missing guardrails
+## Missing guardrails
 
-- Maximum amount of local disk space to use for temporary data when durable storage is turned off. No guardrail today means worker tasks may exhaust all available disk space. In this case, you will receive an [UnknownError](./msq-reference.md#error-codes)) with a message including "No space left on device".
+- Maximum number of input files. Since there's no limit, the controller can potentially run out of memory tracking all input files
+
+- Maximum amount of local disk space to use for temporary data. No guardrail today means worker tasks may exhaust all available disk space. In this case, you will receive an [UnknownError](./msq-reference.md#error-codes)) with a message including "No space left on device".

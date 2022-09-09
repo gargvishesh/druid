@@ -100,8 +100,7 @@ in the Druid root directory represents Wikipedia page edits for a given day.
    ![Data loader schema](../assets/tutorial-batch-data-loader-05.png "Data loader schema")
 
 
-9. Click **Next: Partition** to configure how the data will be split into segments. In this case, choose `DAY` as 
-    the **Segment granularity**. 
+9. Click **Next: Partition** to configure how the data will be split into segments. In this case, choose `DAY` as the **Segment granularity**. 
 
     ![Data loader partition](../assets/tutorial-batch-data-loader-06.png "Data loader partition")
 
@@ -110,11 +109,9 @@ in the Druid root directory represents Wikipedia page edits for a given day.
 
 10. Click **Next: Tune** and **Next: Publish**.
 
-11. The Publish settings are where you specify the datasource name in Druid. Let's change the default name from 
-`wikiticker-2015-09-12-sampled` to `wikipedia`. 
+11. The Publish settings are where you specify the datasource name in Druid. Let's change the default name from  `wikiticker-2015-09-12-sampled` to `wikipedia`. 
 
     ![Data loader publish](../assets/tutorial-batch-data-loader-07.png "Data loader publish")
-
 
 12. Click **Next: Edit spec** to review the ingestion spec we've constructed with the data loader. 
 
@@ -125,6 +122,7 @@ in the Druid root directory represents Wikipedia page edits for a given day.
 
     For other ways to load ingestion specs in Druid, see [Tutorial: Loading a file](./tutorial-batch.md). 
 13. Once you are satisfied with the spec, click **Submit**.
+
 
     The new task for our wikipedia datasource now appears in the Ingestion view. 
 

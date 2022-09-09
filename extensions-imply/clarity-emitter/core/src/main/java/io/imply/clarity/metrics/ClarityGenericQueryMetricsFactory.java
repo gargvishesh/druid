@@ -32,4 +32,10 @@ public class ClarityGenericQueryMetricsFactory implements GenericQueryMetricsFac
     queryMetrics.query(query);
     return queryMetrics;
   }
+
+  @Override
+  public QueryMetrics<Query<?>> makeMetrics()
+  {
+    return new ClarityGenericQueryMetrics<>(config);
+  }
 }

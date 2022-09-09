@@ -1,17 +1,35 @@
 ---
 id: convert-json-spec
-title: Tutorial - Convert ingestion spec to SQL
+title: Tutorial - Convert an ingestion spec for SQL-based ingestion
+description: How to convert an ingestion spec to a query for SQL-based ingestion in the Druid console.
 ---
 
-> The multi-stage query architecture and its SQL-task engine are experimental features available starting in Druid 24.0. You can use it in place of the existing native batch and Hadoop based ingestion systems. As an experimental feature, functionality documented on this page is subject to change or removal in future releases. Review the release notes and this page to stay up to date on changes.
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
 
-If you're already ingesting data with Druid's native SQL engine, you can use the Druid console to convert the ingestion spec to a task query that the multi-stage architecture's SQL-task engine can use to ingest data.
+> SQL-based ingestion using the multi-stage query task engine is our recommended solution starting in Druid 24.0. Alternative ingestion solutions, such as native batch and Hadoop-based ingestion systems, will still be supported. We recommend you read all [known issues](./msq-known-issues.md) and test the feature in a development environment before rolling it out in production. Using the multi-stage query task engine with `SELECT` statements that do not write to a datasource is experimental.
 
-This tutorial demonstrates how to convert the ingestion spec to a task query in the Druid console.
+If you're already ingesting data with Druid's native SQL engine, you can use the Druid console to convert the ingestion spec to a SQL query that the multi-stage query task engine can use to ingest data.
 
-## Convert ingestion spec to task query
+This tutorial demonstrates how to convert the ingestion spec to a query task in the Druid console.
 
-To convert the ingestion spec to a task query, do the following:
+To convert the ingestion spec to a query task, do the following:
 
 1. In the **Query** view of the Druid console, navigate to the menu bar that includes **Run**.
 2. Click the ellipsis icon and select **Convert ingestion spec to SQL**.
