@@ -26,7 +26,7 @@ IMPLYTESTDIR=$(cd $(dirname $0) && pwd)
 export DIR=$IMPLYTESTDIR/../integration-tests
 
 export HADOOP_DOCKER_DIR=$DIR/../examples/quickstart/tutorial/hadoop/docker
-if [ -n "${HADOOP_VERSION}" ] && [ ${HADOOP_VERSION:0:1)} == "3" ]; then
+if [ -n "${HADOOP_VERSION}" ] && [ ${HADOOP_VERSION:0:1} == "3" ]; then
    export HADOOP_DOCKER_DIR=$DIR/../examples/quickstart/tutorial/hadoop3/docker
 fi
 
