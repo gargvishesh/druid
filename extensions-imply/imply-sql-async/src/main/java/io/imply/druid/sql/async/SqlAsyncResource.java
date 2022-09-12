@@ -10,17 +10,15 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.guice.annotations.NativeQuery;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlStatementFactory;
-import org.apache.druid.sql.SqlStatementFactoryFactory;
-import org.apache.druid.sql.calcite.run.NativeSqlEngine;
 import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
@@ -58,36 +56,7 @@ public class SqlAsyncResource
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
-      NativeSqlEngine engine,
-      SqlStatementFactoryFactory sqlStatementFactoryFactory,
-      final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
-      final AuthorizerMapper authorizerMapper,
-      @Json final ObjectMapper jsonMapper,
-      final AsyncQueryConfig asyncQueryReadRefreshConfig,
-      final Clock clock
-  )
-  {
-    this(
-        brokerId,
-        queryPool,
-        metadataManager,
-        resultManager,
-        sqlStatementFactoryFactory.factorize(engine),
-        sqlAsyncLifecycleManager,
-        authorizerMapper,
-        jsonMapper,
-        asyncQueryReadRefreshConfig,
-        clock
-    );
-  }
-
-  @VisibleForTesting
-  public SqlAsyncResource(
-      @Named(SqlAsyncModule.ASYNC_BROKER_ID) final String brokerId,
-      final SqlAsyncQueryPool queryPool,
-      final SqlAsyncMetadataManager metadataManager,
-      final SqlAsyncResultManager resultManager,
-      final SqlStatementFactory sqlStatementFactory,
+      @NativeQuery final SqlStatementFactory sqlStatementFactory,
       final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
       final AuthorizerMapper authorizerMapper,
       @Json final ObjectMapper jsonMapper,
