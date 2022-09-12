@@ -169,7 +169,7 @@ public class SqlAsyncQueryPool
               // Most of this code is copy-pasted from SqlResource. It would be nice to consolidate it to lower
               // the maintenance burden of keeping them in sync.
               SqlRowTransformer rowTransformer = resultSet.createRowTransformer();
-              Yielder<Object[]> yielder = Yielders.each(resultSet.run());
+              Yielder<Object[]> yielder = Yielders.each(resultSet.run().getResults());
 
               CountingOutputStream outputStream;
 
