@@ -126,6 +126,14 @@ public class ITViewManagerAndQueryTest
         new ResourceAction(
             new Resource(".*", ResourceType.STATE),
             Action.WRITE
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.QUERY_CONTEXT),
+            Action.READ
+        ),
+        new ResourceAction(
+            new Resource(".*", ResourceType.QUERY_CONTEXT),
+            Action.WRITE
         )
     );
 
