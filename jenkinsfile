@@ -1720,28 +1720,28 @@ pipeline {
                 }
 
                 // example of integration tests stage:
-//                 stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
-//                     agent {
-//                         docker {
-//                             image "${IMAGE_JDK8}-${DOCKER_TAG}"
-//                             args "${DOCKER_AGENT_ARGS}"
-//                             registryUrl "${RT_REGISTRY_URL}"
-//                             registryCredentialsId "${RT_REGISTRY_CREDS}"
-//                             label "${DOCKER_AGENT_LABEL}"
-//                         }
-//                     }
-//                     steps {
-//                         // integration tests here:
-//                         // jvm runtime is specified here:
-//                         implyQueryIntegrationTests('-Djvm.runtime=8')
-//                     }
-//                     post {
-//                         // collect artifacts (docker logs and task logs):
-//                         always { buildArtifacts(env.STAGE_NAME) }
-//                         // clean untracked files from cloned repo:
-//                         cleanup { resetWs() }
-//                     }
-//                 }
+                stage('(Compile=openjdk8, Run=openjdk8) imply query integration tests') {
+                    agent {
+                        docker {
+                            image "${IMAGE_JDK8}-${DOCKER_TAG}"
+                            args "${DOCKER_AGENT_ARGS}"
+                            registryUrl "${RT_REGISTRY_URL}"
+                            registryCredentialsId "${RT_REGISTRY_CREDS}"
+                            label "${DOCKER_AGENT_LABEL}"
+                        }
+                    }
+                    steps {
+                        // integration tests here:
+                        // jvm runtime is specified here:
+                        implyQueryIntegrationTests('-Djvm.runtime=8')
+                    }
+                    post {
+                        // collect artifacts (docker logs and task logs):
+                        always { buildArtifacts(env.STAGE_NAME) }
+                        // clean untracked files from cloned repo:
+                        cleanup { resetWs() }
+                    }
+                }
 
                 // here is short format of integration tests stage:
                 stage('(Compile=openjdk8, Run=openjdk8) imply keycloak security integration tests') {
@@ -1814,11 +1814,11 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-//                 stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
-//                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-//                     steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
-//                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-//                 }
+                stage('(Compile=openjdk8, Run=openjdk11) imply query integration tests') {
+                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
+                    steps { implyQueryIntegrationTests('-Djvm.runtime=11') }
+                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
+                }
 
                 stage("(Compile=openjdk8, Run=openjdk11) query error integration test for missing segments") {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
